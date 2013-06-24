@@ -1,0 +1,5 @@
+*.fasl
+*.so
+*~
+*.o
+src/sample-type.lisp

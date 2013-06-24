@@ -1,0 +1,30 @@
+;;; -*- Mode: Lisp -*-
+
+(setq *sample-rate* 48000)
+(setq *sample-type* 'double-float)
+;; Always T when *SAMPLE-TYPE* is DOUBLE-FLOAT
+(setq *use-foreign-sample-p* t)
+(setq *frames-per-buffer* 1024)
+(setq *client-name* "Incudine")
+(setq *max-number-of-channels* 1024)
+(setq *number-of-input-bus-channels* 2)
+(setq *number-of-output-bus-channels* 2)
+(setq *number-of-bus-channels* 4096)
+(setq *max-number-of-nodes* 1024)
+(setq *default-table-size* 65536)
+(setq *fade-curve* :lin)
+(setq *sound-velocity* 345)
+;; Realtime heap size of the EDF (power of two)
+(setq *rt-edf-heap-size* 1024)
+;; Non-realtime heap size of the EDF (max number of the events)
+(setq *nrt-edf-heap-size* 65536)
+(setq *rt-priority* 68)
+(setq *nrt-priority* 60)
+(setq *receiver-default-priority* 63)
+(setq *sndfile-buffer-size* 1024)
+;; Safe upper limit when the duration of the sound to render is undefined
+(setq *bounce-to-disk-guard-size* 300) ; 5 minutes
+(setq *default-header-type* #-darwin "wav" #+darwin "aiff")
+(setq *default-data-format* "float")
+(setq *foreign-sample-pool-size* (* 64 1024 1024))
+(setq *foreign-rt-memory-pool-size* (* 64 1024 1024))
