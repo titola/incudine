@@ -1,0 +1,9 @@
+Incudine - Music/DSP programming environment for Common Lisp
+
+The original motivation for Incudine was to use only the Common Lisp
+language to synthesize high quality sounds controllable at the sample
+level, defining and redefining the dsp code on-the-fly without the
+necessity to use unit generators pre-built in another language.
+
+For installation and configuration information please consult the web
+page at http://incudine.sourceforge.net

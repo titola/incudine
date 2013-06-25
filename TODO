@@ -1,0 +1,49 @@
+(no particular order)
+
+* VUGs
+
+  - more filters (moog, fir, ...)
+  - frequently used generators
+  - diskin (play a soundfile from disk)
+  - convolution (direct, fft, hybrid?)
+  - facility for microsounds (pulsar, etc)
+  - reverberation (FDN ?)
+  - compressor/expander/limiter/gate
+  - ambisonics
+  - vbap ?
+  - chaos ugens, gendy, ...
+  - utility for fft generator
+  - more analysis: lpc, wavelet, ...
+  - perhaps flanger, phaser and chorus
+  - friction
+  - scanned synthesis
+
+* GEN routines
+
+  - envelope generator + (SETF (BUFFER-DATA BUF) ENV)
+  - bessel functions
+  - Chebyshev polynomials
+  - more window functions
+  - values from a text file
+  - GEN30, GEN40, GEN51 from Csound
+
+* Voicer
+
+  - global and local polyphony
+
+* Misc
+
+  - ENVELOPE lookup
+  - Open Sound Control
+  - graph of nodes for multi-core CPUs
+  - documentation
+  - external repository for a collection of VUGs
+  - script for non-realtime sintesi and the possibility to use pipes
+    in the *nix environment (interaction with the other *nix tools)
+
+* External
+
+  - lv2 ?
+  - ats
+  - loris ?
+  - fluidsynth ?
