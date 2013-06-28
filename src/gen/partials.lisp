@@ -46,7 +46,7 @@
           (t (decf i)))))
 
 ;;; Inspired by GEN09, GEN10 and GEN19 of Csound
-(defun partials (lst)
+(defun partials (lst &optional (periodic-p t))
   (declare #.*standard-optimize-settings*
            (type list lst)
            #.*reduce-warnings*)
@@ -55,21 +55,26 @@
     (lambda (c-array size)
       (declare (type foreign-pointer c-array)
                (type non-negative-fixnum size))
-      (with-foreign-object (tmp 'sample)
-        (with-samples (value abs-value (max 0.0))
-          (dotimes (i size)
-            (setf (mem-aref c-array 'sample i)
-                  (reduce #'+
-                          (mapcar (lambda (x)
-                                    (destructuring-bind (num amp phs dc) x
-                                      (partial-ref num amp phs dc
-                                                   i size tmp)))
-                                  pl)))
-            (setf abs-value (abs (mem-aref c-array 'sample i)))
-            (when (> abs-value max)
-              (setf max abs-value)))
-          ;; Factor to scale the amplitude
-          (/ (coerce 1.0 'sample) max))))))
+      (let ((size (if periodic-p size (1- size))))
+        (declare (type non-negative-fixnum size))
+        (with-foreign-object (tmp 'sample)
+          (with-samples (value abs-value (max 0.0))
+            (dotimes (i size)
+              (setf (mem-aref c-array 'sample i)
+                    (reduce #'+
+                            (mapcar (lambda (x)
+                                      (destructuring-bind (num amp phs dc) x
+                                        (partial-ref num amp phs dc
+                                                     i size tmp)))
+                                    pl)))
+              (setf abs-value (abs (mem-aref c-array 'sample i)))
+              (when (> abs-value max)
+                (setf max abs-value)))
+            (unless periodic-p
+              (setf (mem-aref c-array 'sample size)
+                    (mem-aref c-array 'sample 0)))
+            ;; Factor to scale the amplitude
+            (/ (coerce 1.0 'sample) max)))))))
 
 ;;; BUZZ and GBUZZ are inspired by GEN11 of Csound
 (defun buzz (num-harm)
