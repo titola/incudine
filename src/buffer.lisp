@@ -336,7 +336,11 @@
                                             (min end (buffer-frames buffer))
                                             (buffer-frames buffer))
                                         channel-map))
-              ((vectorp values) (loop-sequence across values))))
+              ((vectorp values) (loop-sequence across values))
+              ((envelope-p values)
+               (set-buffer-data buffer (gen:envelope values)
+                                :start start :end end
+                                :normalize-p normalize-p))))
       buffer)))
 
 (defgeneric data (obj))

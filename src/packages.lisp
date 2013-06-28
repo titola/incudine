@@ -63,7 +63,8 @@
    #:linear-interp #:cos-interp #:cubic-interp
    #:set-sample-rate #:set-sample-duration #:set-sound-velocity
    #:sample-rate-hook #:sample-duration-hook #:sound-velocity-hook
-   #:non-negative-fixnum64 #:most-positive-fixnum64 #:limited-sample
+   #:non-negative-fixnum64 #:most-positive-fixnum64
+   #:limited-sample #:maybe-limited-sample
    #:*reduce-warnings*
    #:msg #:nrt-msg #:logger-level #:logger-time #:logger-time-function
    #:*logger-stream* #:*logger-force-output* #:info
@@ -204,10 +205,12 @@
                 #:non-negative-fixnum #:with-gensyms #:make-keyword)
   (:import-from #:cffi #:mem-ref #:mem-aref #:foreign-funcall)
   (:import-from :incudine.util #:*standard-optimize-settings* #:*reduce-warnings*
-                #:+twopi+ #:+foreign-sample-size+ #:with-foreign-object
-                #:foreign-pointer #:with-samples #:with-samples* #:sample
-                #:+sample-zero+ #:limited-sample #:sample->fixnum #:sample->int)
-  (:export #:partials #:gbuzz #:polynomial
+                #:*sample-rate* #:+twopi+ #:+foreign-sample-size+ #:with-foreign-object
+                #:foreign-pointer #:with-samples #:with-samples* #:sample #:data-ref
+                #:+sample-zero+ #:limited-sample #:sample->fixnum #:sample->int
+                #:nrt-msg)
+  (:export #:envelope
+           #:partials #:gbuzz #:polynomial
            #:hanning #:sine-window
            #:rand #:all-random-distributions #:rand-args))
 
@@ -267,7 +270,7 @@
    #:+seg-welch-func+ #:+seg-square-func+ #:+seg-cubic-func+
    #:envelope #:envelope-p #:make-envelope #:set-envelope #:envelope-points
    #:envelope-max-points #:envelope-level #:envelope-time #:envelope-curve
-   #:envelope-data #:envelope-loop-node #:envelope-release-node
+   #:envelope-data #:envelope-duration #:envelope-loop-node #:envelope-release-node
    #:duration #:max-points #:linen #:perc #:cutoff #:asr #:adsr #:dadsr
    #:make-linen #:make-perc #:make-cutoff #:make-asr #:make-adsr #:make-dadsr
    ;; nrt

@@ -171,6 +171,87 @@
         ((= x +seg-cubic-func+)  :cubic)
         (t x)))
 
+(defmacro curve-case (keyform &body cases)
+  (with-gensyms (curve)
+    `(let ((,curve ,keyform))
+       (declare (ignorable ,curve))
+       (cond ,@(mapcar (lambda (x)
+                         `(,(if (eq (car x) 'otherwise)
+                                t
+                                `(= ,curve ,(car x)))
+                            ,@(cdr x)))
+                       cases)))))
+
+(defmacro %segment-init (beg end dur curve grow a2 b1 y1 y2)
+  (with-gensyms (w)
+    `(curve-case ,curve
+       (+seg-step-func+ (values))
+       (+seg-lin-func+
+        (setf ,grow (/ (- ,end ,beg) ,dur)))
+       (+seg-exp-func+
+        (setf ,grow (expt (the non-negative-sample (/ ,end ,beg))
+                          (/ 1.0d0 ,dur))))
+       (+seg-sine-func+
+        (let ((,w (/ pi ,dur)))
+          (setf ,a2 (* (+ ,end ,beg) 0.5d0)
+                ,b1 (* 2.0d0 (cos (the maybe-limited-sample ,w)))
+                ,y1 (* (- ,end ,beg) 0.5d0)
+                ,y2 (* ,y1 (sin (the maybe-limited-sample
+                                  (- (* pi 0.5d0) ,w)))))))
+       (+seg-welch-func+
+        (let ((,w (/ (* pi 0.5d0) ,dur)))
+          (setf ,b1 (* 2.0d0 (cos (the maybe-limited-sample ,w))))
+          (if (>= ,end ,beg)
+              (setf ,a2 ,beg
+                    ,y1 0.0d0
+                    ,y2 (* (- (sin (the maybe-limited-sample ,w)))
+                           (- ,end ,beg)))
+              (setf ,a2 ,end
+                    ,y1 (- ,beg ,end)
+                    ,y2 (* (cos (the maybe-limited-sample ,w))
+                           (- ,beg ,end))))))
+       (+seg-square-func+
+        (setf ,y1 (the non-negative-sample (sqrt ,beg))
+              ,y2 (the non-negative-sample (sqrt ,end))
+              ,grow (/ (- ,y2 ,y1) ,dur)))
+       (+seg-cubic-func+
+        (setf ,y1 (expt (the non-negative-sample ,beg) 0.3333333333333333d0)
+              ,y2 (expt (the non-negative-sample ,end) 0.3333333333333333d0)
+              ,grow (/ (- ,y2 ,y1) ,dur)))
+       ;; custom curve
+       (otherwise (if (< (abs ,curve) 0.001d0)
+                      (setf ,grow (/ (- ,end ,beg) ,dur)
+                            ,curve +seg-lin-func+)
+                      (setf ,b1 (/ (- ,end ,beg) (- 1.0d0 (exp ,curve)))
+                            ,a2 (+ ,beg ,b1)
+                            ,grow (exp (/ ,curve ,dur))))))))
+
+(defmacro %segment-update-level (level curve grow a2 b1 y1 y2)
+  (with-gensyms (y0)
+    `(curve-case ,curve
+       (+seg-step-func+ ,level)
+       (+seg-lin-func+
+        (setf ,level (+ ,level ,grow)))
+       (+seg-exp-func+
+        (setf ,level (* ,level ,grow)))
+       (+seg-sine-func+
+        (let ((,y0 (- (* ,b1 ,y1) ,y2)))
+          (setf ,level (- ,a2 ,y0)
+                ,y2 ,y1 ,y1 ,y0)))
+       (+seg-welch-func+
+        (let ((,y0 (- (* ,b1 ,y1) ,y2)))
+          (setf ,level (+ ,a2 ,y0)
+                ,y2 ,y1 ,y1 ,y0)))
+       (+seg-square-func+
+        (setf ,y1    (+ ,y1 ,grow)
+              ,level (* ,y1 ,y1)))
+       (+seg-cubic-func+
+        (setf ,y1    (+ ,y1 ,grow)
+              ,level (* ,y1 ,y1 ,y1)))
+       ;; custom curve
+       (otherwise (setf ,b1 (* ,b1 ,grow)
+                        ,level (- ,a2 ,b1))))))
+
 (defun make-envelope (levels times &key curve (loop-node -1)
                       (release-node -1) real-time-p)
   (declare (type list levels times)

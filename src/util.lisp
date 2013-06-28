@@ -55,6 +55,9 @@
 (deftype limited-sample () (let ((high (coerce 4.0e18 'sample)))
                              `(,*sample-type* ,(- high) ,high)))
 
+(deftype maybe-limited-sample () #+(and sbcl x86) 'limited-sample
+                                 #-(and sbcl x86) 'sample)
+
 ;;; MISC
 
 (defvar *dummy-function-without-args* (lambda ()))

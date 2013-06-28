@@ -2,20 +2,16 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (import
-   '(incudine:+seg-step-func+
-     incudine:+seg-lin-func+
-     incudine:+seg-exp-func+
-     incudine:+seg-sine-func+
-     incudine:+seg-welch-func+
-     incudine:+seg-square-func+
-     incudine:+seg-cubic-func+
+   '(incudine:+seg-lin-func+
      incudine:envelope
      incudine:envelope-data
+     incudine::envelope-data-size
      incudine:envelope-points
      incudine:envelope-max-points
      incudine:envelope-loop-node
      incudine:envelope-release-node
-     incudine:envelope-p))
+     incudine::%segment-init
+     incudine::%segment-update-level))
   (object-to-free incudine:make-envelope update-local-envelope))
 
 (defmacro make-local-envelope (levels times &key curve (loop-node -1)
@@ -128,87 +124,9 @@
               (t (decf remain)
                  (setf value (* value power)))))))
 
-;;; Envelope Generator
+;;; Envelope Generator inspired by EnvGen of SuperCollider
 
 (eval-when (:compile-toplevel :load-toplevel)
-  (defmacro curve-case (keyform &body cases)
-    (with-gensyms (curve)
-      `(let ((,curve ,keyform))
-         (declare (ignorable ,curve))
-         (cond ,@(mapcar (lambda (x)
-                           `(,(if (eq (car x) 'otherwise)
-                                  t
-                                  `(= ,curve ,(car x)))
-                              ,@(cdr x)))
-                         cases)))))
-
-  (defmacro %segment-init (beg end dur curve grow a2 b1 y1 y2)
-    (with-gensyms (w)
-      `(curve-case ,curve
-         (+seg-step-func+ (values))
-         (+seg-lin-func+
-          (setf ,grow (/ (- ,end ,beg) ,dur)))
-         (+seg-exp-func+
-          (setf ,grow (expt (the non-negative-sample (/ ,end ,beg))
-                            (/ 1.0d0 ,dur))))
-         (+seg-sine-func+
-          (let ((,w (/ pi ,dur)))
-            (setf ,a2 (* (+ ,end ,beg) 0.5d0)
-                  ,b1 (* 2.0d0 (cos ,w))
-                  ,y1 (* (- ,end ,beg) 0.5d0)
-                  ,y2 (* ,y1 (sin (- (* pi 0.5d0) ,w))))))
-         (+seg-welch-func+
-          (let ((,w (/ (* pi 0.5d0) ,dur)))
-            (setf ,b1 (* 2.0d0 (cos ,w)))
-            (if (>= ,end ,beg)
-                (setf ,a2 ,beg
-                      ,y1 0.0d0
-                      ,y2 (* (- (sin ,w)) (- ,end ,beg)))
-                (setf ,a2 ,end
-                      ,y1 (- ,beg ,end)
-                      ,y2 (* (cos ,w) (- ,beg ,end))))))
-         (+seg-square-func+
-          (setf ,y1 (the non-negative-sample (sqrt ,beg))
-                ,y2 (the non-negative-sample (sqrt ,end))
-                ,grow (/ (- ,y2 ,y1) ,dur)))
-         (+seg-cubic-func+
-          (setf ,y1 (expt (the non-negative-sample ,beg) 0.3333333333333333d0)
-                ,y2 (expt (the non-negative-sample ,end) 0.3333333333333333d0)
-                ,grow (/ (- ,y2 ,y1) ,dur)))
-         ;; custom curve
-         (otherwise (if (< (abs ,curve) 0.001d0)
-                        (setf ,grow (/ (- ,end ,beg) ,dur)
-                              ,curve +seg-lin-func+)
-                        (setf ,b1 (/ (- ,end ,beg) (- 1.0d0 (exp ,curve)))
-                              ,a2 (+ ,beg ,b1)
-                              ,grow (exp (/ ,curve ,dur))))))))
-
-  (defmacro %segment-update-level (level curve grow a2 b1 y1 y2)
-    (with-gensyms (y0)
-      `(curve-case ,curve
-         (+seg-step-func+ ,level)
-         (+seg-lin-func+
-          (setf ,level (+ ,level ,grow)))
-         (+seg-exp-func+
-          (setf ,level (* ,level ,grow)))
-         (+seg-sine-func+
-          (let ((,y0 (- (* ,b1 ,y1) ,y2)))
-            (setf ,level (- ,a2 ,y0)
-                  ,y2 ,y1 ,y1 ,y0)))
-         (+seg-welch-func+
-          (let ((,y0 (- (* ,b1 ,y1) ,y2)))
-            (setf ,level (+ ,a2 ,y0)
-                  ,y2 ,y1 ,y1 ,y0)))
-         (+seg-square-func+
-          (setf ,y1    (+ ,y1 ,grow)
-                ,level (* ,y1 ,y1)))
-         (+seg-cubic-func+
-          (setf ,y1    (+ ,y1 ,grow)
-                ,level (* ,y1 ,y1 ,y1)))
-         ;; custom curve
-         (otherwise (setf ,b1 (* ,b1 ,grow)
-                          ,level (- ,a2 ,b1))))))
-
   (defmacro envgen-next-dur (env-data index time-scale)
     `(sample->fixnum
       (* (data-ref ,env-data ,index)
@@ -240,12 +158,11 @@
                 (>= ,curr-node 0)
                 (= ,curr-node ,release-node)))))
 
-;;; Inspired by EnvGen of SuperCollider
 (define-vug envgen ((env envelope) gate time-scale (done-action function))
   (with ((index 0)
          (curr-node -1)
          (env-data (envelope-data env))
-         (data-size (incudine::envelope-data-size env))
+         (data-size (envelope-data-size env))
          (last-point (1- (the non-negative-fixnum (envelope-points env))))
          (curr-index (envgen-next-index data-size index curr-node))
          (prev-index 0)
@@ -355,89 +272,3 @@
                  (progn (decf remain)
                         (%segment-update-level level curve grow a2 b1 y1 y2)
                         (setf tmp level)))))))
-
-;;; Envelope segment of a node.
-
-(defmacro with-node-segment-symbols (node symbols &body body)
-  (let ((count 0)
-        (instance (gensym "INSTANCE")))
-    `(symbol-macrolet ((,instance (incudine::node-gain-data ,node))
-                       ,@(mapcar
-                          (lambda (sym)
-                            (prog1 `(,sym (mem-aref ,instance 'sample ,count))
-                              (incf count)))
-                          symbols))
-       ,@body)))
-
-(defmacro %node-segment-init (beg end dur curve grow a2 b1 y1 y2)
-  (let ((result `(%segment-init ,beg ,end ,dur ,curve ,grow
-                                ,a2 ,b1 ,y1 ,y2)))
-    (if (eq *sample-type* 'double-float)
-        result
-        (apply-sample-coerce (macroexpand-1 result)))))
-
-(defgeneric node-segment (obj end dur &optional start curve done-action))
-
-(defmethod node-segment ((obj incudine:node) end dur
-                         &optional start curve (done-action #'identity))
-  (declare #.*standard-optimize-settings*
-           #.*reduce-warnings*)
-  (cond ((or (incudine::null-item-p obj)
-             (incudine:node-release-phase-p obj))
-         obj)
-        ((or incudine::*node-enable-gain-p*
-             (incudine::node-enable-gain-p obj))
-         (with-node-segment-symbols obj
-             (level start0 end0 curve0 grow a2 b1 y1 y2)
-           (when curve
-             (setf curve0 (incudine::seg-function-spec->sample curve)))
-           (let* ((samples (max 1 (sample->fixnum (* dur *sample-rate*))))
-                  (remain samples)
-                  (curve (or curve (incudine::sample->seg-function-spec curve0))))
-             (declare (type non-negative-fixnum samples remain))
-             (setf level (incudine::envelope-fix-zero level curve))
-             (setf start0 (if start
-                              (incudine::envelope-fix-zero start curve)
-                              level))
-             (setf end0 (incudine::envelope-fix-zero end curve))
-             (when (eq done-action #'incudine:free)
-               (setf (incudine:node-release-phase-p obj) t))
-             (%node-segment-init start0 end0 samples curve0 grow a2 b1 y1 y2)
-             (setf (incudine::node-current-function obj)
-                   (lambda (chan)
-                     (declare (type non-negative-fixnum chan))
-                     (cond ((plusp remain)
-                            (when (zerop chan)
-                              (%segment-update-level level curve0 grow a2 b1 y1 y2)
-                              (decf remain))
-                            (funcall (incudine::node-function obj) chan))
-                           (t (funcall (setf (incudine::node-current-function obj)
-                                             (incudine::node-function obj))
-                                       chan)
-                              (funcall done-action obj)))
-                     (values)))
-             obj)))
-        (t (funcall done-action obj))))
-
-(defmethod node-segment ((obj integer) end dur
-                         &optional start curve (done-action #'identity))
-  (node-segment (incudine:node obj) end dur start curve done-action))
-
-(defgeneric fade-in (obj &optional duration curve))
-
-(defmethod fade-in ((obj incudine:node) &optional duration curve)
-  (setf (incudine:gain obj) +sample-zero+)
-  (node-segment obj (coerce 1.0 'sample) (or duration (incudine:fade-time obj))
-                +sample-zero+ curve #'identity))
-
-(defmethod fade-in ((obj integer) &optional duration curve)
-  (fade-in (incudine:node obj) duration curve))
-
-(defgeneric fade-out (obj &optional duration curve))
-
-(defmethod fade-out ((obj incudine:node) &optional duration curve)
-  (node-segment obj +sample-zero+ (or duration (incudine:fade-time obj))
-                nil curve #'incudine:free))
-
-(defmethod fade-out ((obj integer) &optional duration curve)
-  (fade-out (incudine:node obj) duration curve))

@@ -43,6 +43,7 @@
      incudine:foreign-array
      incudine:make-foreign-array
      incudine:foreign-array-data
+     incudine::apply-sample-coerce
      incudine.external:foreign-alloc-sample
      incudine.external:foreign-zero-sample
      incudine.external:foreign-copy
@@ -84,12 +85,3 @@
 (defmacro frame-ref (frame channel)
   `(mem-ref ,frame 'sample (the non-negative-fixnum
                              (* ,channel +foreign-sample-size+))))
-
-(defun apply-sample-coerce (form)
-  (if (atom form)
-      (cond ((and (numberp form) (floatp form))
-             (coerce form 'sample))
-            ((eq form 'pi) '(coerce pi 'sample))
-            (t form))
-      (cons (apply-sample-coerce (car form))
-            (apply-sample-coerce (cdr form)))))

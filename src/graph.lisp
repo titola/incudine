@@ -1251,3 +1251,98 @@
 
 (defmethod pause-p ((obj integer))
   (node-pause-p (node obj)))
+
+;;; Envelope segment of a node.
+
+(defmacro with-node-segment-symbols (node symbols &body body)
+  (let ((count 0)
+        (instance (gensym "INSTANCE")))
+    `(symbol-macrolet ((,instance (node-gain-data ,node))
+                       ,@(mapcar
+                          (lambda (sym)
+                            (prog1 `(,sym (mem-aref ,instance 'sample ,count))
+                              (incf count)))
+                          symbols))
+       ,@body)))
+
+(defun apply-sample-coerce (form)
+  (if (atom form)
+      (cond ((and (numberp form) (floatp form))
+             (coerce form 'sample))
+            ((eq form 'pi) '(coerce pi 'sample))
+            (t form))
+      (cons (apply-sample-coerce (car form))
+            (apply-sample-coerce (cdr form)))))
+
+(defmacro %node-segment-init (beg end dur curve grow a2 b1 y1 y2)
+  (let ((result `(%segment-init ,beg ,end ,dur ,curve ,grow
+                                              ,a2 ,b1 ,y1 ,y2)))
+    (if (eq *sample-type* 'double-float)
+        result
+        (apply-sample-coerce (macroexpand-1 result)))))
+
+(defgeneric node-segment (obj end dur &optional start curve done-action))
+
+(defmethod node-segment ((obj node) end dur
+                         &optional start curve (done-action #'identity))
+  (declare #.*standard-optimize-settings*
+           #.*reduce-warnings*)
+  (cond ((or (null-item-p obj)
+             (node-release-phase-p obj))
+         obj)
+        ((or *node-enable-gain-p*
+             (node-enable-gain-p obj))
+         (with-node-segment-symbols obj
+             (level start0 end0 curve0 grow a2 b1 y1 y2)
+           (when curve
+             (setf curve0 (seg-function-spec->sample curve)))
+           (let* ((samples (max 1 (sample->fixnum (* dur *sample-rate*))))
+                  (remain samples)
+                  (curve (or curve (sample->seg-function-spec curve0))))
+             (declare (type non-negative-fixnum samples remain))
+             (setf level (envelope-fix-zero level curve))
+             (setf start0 (if start
+                              (envelope-fix-zero start curve)
+                              level))
+             (setf end0 (envelope-fix-zero end curve))
+             (when (eq done-action #'free)
+               (setf (node-release-phase-p obj) t))
+             (%node-segment-init start0 end0 samples curve0 grow a2 b1 y1 y2)
+             (setf (node-current-function obj)
+                   (lambda (chan)
+                     (declare (type non-negative-fixnum chan))
+                     (cond ((plusp remain)
+                            (when (zerop chan)
+                              (%segment-update-level level curve0 grow a2 b1 y1 y2)
+                              (decf remain))
+                            (funcall (node-function obj) chan))
+                           (t (funcall (setf (node-current-function obj)
+                                             (node-function obj))
+                                       chan)
+                              (funcall done-action obj)))
+                     (values)))
+             obj)))
+        (t (funcall done-action obj))))
+
+(defmethod node-segment ((obj integer) end dur
+                         &optional start curve (done-action #'identity))
+  (node-segment (node obj) end dur start curve done-action))
+
+(defgeneric fade-in (obj &optional duration curve))
+
+(defmethod fade-in ((obj node) &optional duration curve)
+  (setf (gain obj) +sample-zero+)
+  (node-segment obj (coerce 1.0 'sample) (or duration (fade-time obj))
+                +sample-zero+ curve #'identity))
+
+(defmethod fade-in ((obj integer) &optional duration curve)
+  (fade-in (node obj) duration curve))
+
+(defgeneric fade-out (obj &optional duration curve))
+
+(defmethod fade-out ((obj node) &optional duration curve)
+  (node-segment obj +sample-zero+ (or duration (fade-time obj))
+                nil curve #'free))
+
+(defmethod fade-out ((obj integer) &optional duration curve)
+  (fade-out (node obj) duration curve))
