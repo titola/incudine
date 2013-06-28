@@ -20,7 +20,6 @@
 
 * GEN routines
 
-  - envelope generator + (SETF (BUFFER-DATA BUF) ENV)
   - bessel functions
   - Chebyshev polynomials
   - more window functions
