@@ -140,9 +140,9 @@
    #:ff-comb #:fb-comb #:allpass #:vallpass
    #:delay-feedback
    ;; filter
-   #:one-pole #:one-zero #:lag #:maf #:median #:decay #:decay-2 #:biquad
-   #:lpf #:hpf #:bpf #:notch #:apf #:peak-eq #:low-shelf #:hi-shelf
-   #:butter-lp #:butter-hp #:butter-bp #:butter-br
+   #:one-pole #:one-zero #:two-pole #:two-zero #:lag #:maf #:median
+   #:decay #:decay-2 #:biquad #:lpf #:hpf #:bpf #:notch #:apf #:peak-eq
+   #:low-shelf #:hi-shelf #:butter-lp #:butter-hp #:butter-bp #:butter-br
    ;; multi-channel
    #:pan2
    ;; midi

@@ -26,6 +26,23 @@
                       (setf x1 in))))
     (+ in (* coef x))))
 
+(define-vug two-pole (in freq radius)
+  (with-samples ((a1 (* 2 radius (cos (* +twopi+ freq *sample-duration*))))
+                 (a2 (- (* radius radius)))
+                 (y0 0.0d0)
+                 (y1 0.0d0)
+                 (y2 0.0d0))
+    (prog1 (setf y0 (+ in (* a1 y1) (* a2 y2)))
+      (setf y2 y1 y1 y0))))
+
+(define-vug two-zero (in freq radius)
+  (with-samples ((b1 (* -2 radius (cos (* +twopi+ freq *sample-duration*))))
+                 (b2 (* radius radius))
+                 (x1 0.0d0)
+                 (x2 0.0d0))
+    (prog1 (+ in (* b1 x1) (* b2 x2))
+      (setf x2 x1 x1 in))))
+
 ;;; One pole filter with the coefficient calculated from a 60 dB lag time
 (define-vug lag (in time)
   (with-samples ((coef (if (zerop time)
