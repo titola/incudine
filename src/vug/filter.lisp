@@ -43,6 +43,11 @@
     (prog1 (+ in (* b1 x1) (* b2 x2))
       (setf x2 x1 x1 in))))
 
+(define-vug dcblock (in coef)
+  (with-samples (x1 y1)
+    (prog1 (setf y1 (+ (- in x1) (* coef y1)))
+      (setf x1 in))))
+
 ;;; One pole filter with the coefficient calculated from a 60 dB lag time
 (define-vug lag (in time)
   (with-samples ((coef (if (zerop time)
