@@ -24,7 +24,7 @@
      incudine::%segment-init
      incudine::%segment-update-level)))
 
-(defun envelope (env &optional periodic-p)
+(defun envelope (env &optional (periodic-p t))
   (lambda (c-array size)
     (declare (type foreign-pointer c-array)
              (type non-negative-fixnum size)
