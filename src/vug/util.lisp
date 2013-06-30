@@ -67,20 +67,17 @@
   (declare (ignore rest))
   (values))
 
-;;; Count Trailing Zeroes.
-;;; Not an inlined function because it is used inside a VUG, where the
-;;; argument X is possibly a foreign integer to reduce the consing
-;;; (see PINK-NOISE in `vug/noise.lisp')
-(defmacro ctz (x)
-  (with-gensyms (num-zeros n)
-    `(let ((,num-zeros 0))
-       (declare (type (integer 0 64) ,num-zeros))
-       (unless (zerop ,x)
-         (do ((,n ,x (ash ,n -1)))
-             ((not (zerop (logand ,n 1))) ,num-zeros)
-           (declare (type non-negative-fixnum ,n))
-           (incf ,num-zeros)))
-       ,num-zeros)))
+(declaim (inline ctz))
+(defun ctz (x)
+  "Count Trailing Zeroes."
+  (let ((num-zeros 0))
+    (declare (type (integer 0 64) num-zeros))
+    (unless (zerop x)
+      (do ((n x (ash n -1)))
+          ((not (zerop (logand n 1))) num-zeros)
+        (declare (type non-negative-fixnum n))
+        (incf num-zeros)))
+    num-zeros))
 
 (defmacro frame-ref (frame channel)
   `(mem-ref ,frame 'sample (the non-negative-fixnum
