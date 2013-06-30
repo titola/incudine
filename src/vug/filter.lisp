@@ -79,6 +79,34 @@
           x2 x1 x1 in y2 y1 y1 y)
     y))
 
+;;; Two pole resonant filter with zeroes located at z = 1 and z = -1.
+;;;
+;;; References:
+;;;
+;;;   [1] Julius O. Smith and James B. Angell in "A Constant Gain
+;;;   Digital Resonator Tuned by a Single Coefficient," Computer Music
+;;;   Journal, Vol. 6, No. 4, Winter 1982, p.36-39.
+;;;
+;;;   [2] Ken Steiglitz, "A Note on Constant-Gain Digital Resonators,"
+;;;   Computer Music Journal, vol. 18, no. 4, pp. 8-10, Winter 1982.
+;;;
+(define-vug resonz (in freq q)
+  (with-samples ((wt (* +twopi+ freq *sample-duration*))
+                 (bw (/ wt q))
+                 (r (- 1 (* bw 0.5d0)))
+                 (2r (+ r r))
+                 (rr (* r r))
+                 (k (/ (* 2r (cos wt)) (+ 1 rr)))
+                 (b0 (* (- 1 rr) 0.5))
+                 (a1 (* 2r k))
+                 (a2 (- rr))
+                 (y0 0.0d0)
+                 (y1 0.0d0)
+                 (y2 0.0d0))
+    (setf y0 (+ in (* a1 y1) (* a2 y2)))
+    (prog1 (* b0 (- y0 y2))
+      (setf y2 y1 y1 y0))))
+
 ;;; EQ biquad filter coefficients by Robert Bristow-Johnson
 ;;; http://www.musicdsp.org/files/Audio-EQ-Cookbook.txt
 

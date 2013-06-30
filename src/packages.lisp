@@ -141,7 +141,7 @@
    #:delay-feedback
    ;; filter
    #:one-pole #:one-zero #:two-pole #:two-zero #:dcblock #:lag #:maf #:median
-   #:decay #:decay-2 #:biquad #:lpf #:hpf #:bpf #:notch #:apf #:peak-eq
+   #:decay #:decay-2 #:biquad #:resonz #:lpf #:hpf #:bpf #:notch #:apf #:peak-eq
    #:low-shelf #:hi-shelf #:butter-lp #:butter-hp #:butter-bp #:butter-br
    ;; multi-channel
    #:pan2
