@@ -321,13 +321,13 @@
                (let ((chunk-size (- (if end (min end size) size)
                                     start)))
                  (when (plusp chunk-size)
-                   (multiple-value-bind (c-array mult normalize-p)
+                   (multiple-value-bind (c-array mult norm-p)
                        (funcall values (inc-pointer
                                         (buffer-data buffer)
                                         (* start +foreign-sample-size+))
                                 chunk-size)
                      (declare (ignore c-array))
-                     (when (and normalize-p
+                     (when (and (or normalize-p norm-p)
                                 (numberp mult)
                                 (/= mult 1))
                        (scale buffer mult))))))
