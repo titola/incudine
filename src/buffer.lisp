@@ -297,7 +297,8 @@
                                                                   (buffer-channels buffer))))))))))))
 
 (defun set-buffer-data (buffer values &key (start 0) end
-                        (sndfile-start 0) channel-map normalize-p)
+                        (sndfile-start 0) channel-map
+                        (normalize-p nil normalize-pp))
   (declare (type buffer buffer) (type boolean normalize-p)
            (type non-negative-fixnum start sndfile-start))
   (macrolet ((loop-sequence (clause seq)
@@ -327,10 +328,11 @@
                                         (* start +foreign-sample-size+))
                                 chunk-size)
                      (declare (ignore c-array))
-                     (when (and (or normalize-p norm-p)
-                                (numberp mult)
-                                (/= mult 1))
-                       (scale buffer mult))))))
+                     (let ((norm-p (if normalize-pp normalize-p norm-p)))
+                       (when (and norm-p
+                                  (numberp mult)
+                                  (/= mult 1))
+                         (scale buffer mult)))))))
               ((consp values) (loop-sequence in values))
               ((or (stringp values) (pathnamep values))
                (set-buffer-from-sndfile buffer values sndfile-start start
@@ -376,8 +378,10 @@
         (let ((buf (%%make-buffer frames channels sample-rate real-time-p))
               (value (or initial-contents fill-function)))
           (when value
-            (set-buffer-data buf value :start start :end end
-                             :normalize-p normalize-p))
+            (if normalize-p
+                (set-buffer-data buf value :start start :end end
+                                 :normalize-p normalize-p)
+                (set-buffer-data buf value :start start :end end)))
           buf))))
 
 ;;; Frequently used waveforms
