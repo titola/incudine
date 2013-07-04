@@ -24,7 +24,9 @@
      incudine::%segment-init
      incudine::%segment-update-level)))
 
-(defun envelope (env &optional (periodic-p t))
+(defun envelope (env &optional (periodic-p t) normalize-p)
+  (declare (type incudine:envelope env)
+           (type boolean periodic-p normalize-p))
   (lambda (c-array size)
     (declare (type foreign-pointer c-array)
              (type non-negative-fixnum size)
@@ -77,5 +79,7 @@
                            level))))
         (unless periodic-p
           (setf (mem-aref c-array 'sample size) end))
-          ;; Factor to scale the amplitude
-        (/ (coerce 1.0 'sample) max)))))
+        (values c-array
+                ;; Factor to scale the amplitude
+                (/ (coerce 1.0 'sample) max)
+                normalize-p)))))

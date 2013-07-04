@@ -46,9 +46,9 @@
           (t (decf i)))))
 
 ;;; Inspired by GEN09, GEN10 and GEN19 of Csound
-(defun partials (lst &optional (periodic-p t))
+(defun partials (lst &optional (periodic-p t) (normalize-p t))
   (declare #.*standard-optimize-settings*
-           (type list lst)
+           (type list lst) (type boolean periodic-p normalize-p)
            #.*reduce-warnings*)
   (let ((pl (complete-partial-list lst)))
     (declare (type list pl))
@@ -73,8 +73,10 @@
             (unless periodic-p
               (setf (mem-aref c-array 'sample size)
                     (mem-aref c-array 'sample 0)))
-            ;; Factor to scale the amplitude
-            (/ (coerce 1.0 'sample) max)))))))
+            (values c-array
+                    ;; Factor to scale the amplitude
+                    (/ (coerce 1.0 'sample) max)
+                    normalize-p)))))))
 
 ;;; BUZZ and GBUZZ are inspired by GEN11 of Csound
 (defun buzz (num-harm)
