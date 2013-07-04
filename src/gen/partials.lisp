@@ -141,3 +141,49 @@
                                         (* c3-mult (cos (the limited-sample (* c3 angle))))))
                            (* scale (/ num denom)))
                           (t 1.0d0)))))))))
+
+;;; Chebyshev polynomials of the first kind
+(defun chebyshev-1 (strength-list &key (xmin -1) (xmax 1) (offset-p t)
+                    (normalize-p t))
+  (declare (type list strength-list) (type real xmin xmax)
+           (type boolean offset-p normalize-p)
+           #.*standard-optimize-settings*
+           #.*reduce-warnings*)
+  (with-samples ((phase-init (coerce xmin 'sample))
+                 (phase 0.0)
+                 (phase-inc 0.0)
+                 (offset 0.0)
+                 (abs-value 0.0)
+                 (max-value 0.0))
+    (lambda (c-array size)
+      (declare (type foreign-pointer c-array)
+               (type non-negative-fixnum size))
+      ;; Clear the buffer
+      (incudine.external:foreign-zero-sample c-array size)
+      (setf phase-inc (coerce (/ (- xmax xmin) size) 'sample))
+      (do ((scale-list strength-list (cdr scale-list))
+           (partial 1 (1+ partial)))
+          ((null scale-list))
+        (declare (type list scale-list) (type positive-fixnum partial))
+        (let ((scale (car scale-list)))
+          (declare (type real scale))
+          (setf phase phase-init)
+          (unless (zerop scale)
+            (when offset-p
+              (setf offset (* scale (cos (the limited-sample
+                                           (* partial +half-pi+))))))
+            (dotimes (i size)
+              (incf (mem-aref c-array 'sample i)
+                    (+ (* scale (cos (the limited-sample
+                                       (* partial (the limited-sample
+                                                    (acos phase))))))
+                       offset))
+              (incf phase phase-inc)))))
+      (setf max-value +sample-zero+)
+      (dotimes (i size)
+        (setf abs-value (abs (mem-aref c-array 'sample i)))
+        (when (> abs-value max-value)
+          (setf max-value abs-value)))
+      (values c-array
+              (/ 1.0d0 max-value)
+              normalize-p))))

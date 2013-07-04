@@ -205,12 +205,13 @@
                 #:non-negative-fixnum #:with-gensyms #:make-keyword)
   (:import-from #:cffi #:mem-ref #:mem-aref #:foreign-funcall)
   (:import-from :incudine.util #:*standard-optimize-settings* #:*reduce-warnings*
-                #:*sample-rate* #:+twopi+ #:+foreign-sample-size+ #:with-foreign-object
+                #:*sample-rate* #:+twopi+ #:+half-pi+
+                #:+foreign-sample-size+ #:with-foreign-object
                 #:foreign-pointer #:with-samples #:with-samples* #:sample #:data-ref
                 #:+sample-zero+ #:limited-sample #:sample->fixnum #:sample->int
                 #:nrt-msg)
   (:export #:envelope
-           #:partials #:gbuzz #:polynomial
+           #:partials #:gbuzz #:chebyshev-1 #:polynomial
            #:hanning #:sine-window
            #:rand #:all-random-distributions #:rand-args))
 
