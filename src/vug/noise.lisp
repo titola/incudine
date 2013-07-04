@@ -100,8 +100,8 @@
                                           value)))
                   (,rng (incudine.external::gsl-random-generator)))
              ,@(let ((samples (loop for arg in args
-                                 when (eq (cadar arg) :double)
-                                 collect (caar arg))))
+                                    when (eq (cadar arg) :double)
+                                    collect (caar arg))))
                  (when samples
                    `((declare (type ,(if (eq incudine::*sample-type* 'double-float)
                                          'sample
@@ -162,8 +162,8 @@
                                                         1 (+ ,a1 ,a2) (* ,a1 ,a2)))))
        (* ,amp ,(let ((last-sec (format-symbol :incudine.vug "~A~D"
                                                sec (floor (/ filter-order 2)))))
-                     (if (oddp filter-order)
-                         `(biquad ,last-sec
-                                  1 ,(format-symbol :incudine.vug "~A~D" b filter-order)
-                                  0 1 ,(format-symbol :incudine.vug "~A~D" a filter-order) 0)
-                         last-sec))))))
+                  (if (oddp filter-order)
+                      `(biquad ,last-sec
+                               1 ,(format-symbol :incudine.vug "~A~D" b filter-order)
+                               0 1 ,(format-symbol :incudine.vug "~A~D" a filter-order) 0)
+                      last-sec))))))
