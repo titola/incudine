@@ -84,6 +84,7 @@
      (:file "vug/oscillator" :depends-on ("vug/buffer"))
      (:file "vug/delay" :depends-on ("vug/buffer"))
      (:file "vug/filter" :depends-on ("vug/codegen"))
+     (:file "vug/moog-vcf" :depends-on ("vug/codegen"))
      (:file "vug/noise" :depends-on ("gen/random" "vug/codegen"))
      (:file "vug/pan" :depends-on ("vug/util2"))
      (:file "vug/midi" :depends-on ("vug/codegen"))
