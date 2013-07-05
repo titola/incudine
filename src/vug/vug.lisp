@@ -365,7 +365,8 @@
         (definitions (cadr form)))
     (dolist (l definitions)
       (push l acc))
-    `(progn ,@(parse-vug-def (cddr form) nil flist acc))))
+    `(make-vug-function :name 'progn
+       :inputs (list ,@(parse-vug-def (cddr form) nil flist acc)))))
 
 (declaim (inline parse-locally-form))
 (defun parse-locally-form (form flist mlist)
