@@ -62,38 +62,6 @@
                       '(0.0d0 .12d0 .33d0 .5d0 .75d0 1d0))))
   (11.0 11.71 12.67 13.34 14.5 16.32))
 
-;;;; Sample Rate and Sound Velocity
-
-(deftest sample-rate
-    (let* ((*sample-rate* (coerce 0 'sample))
-           (*sample-duration* (coerce 1 'sample))
-           (srate (coerce 12345.0d0 'sample))
-           (sdur (/ srate)))
-      (set-sample-rate srate)
-      (values (= srate *sample-rate*)
-              (= sdur *sample-duration*)))
-  T T)
-
-(deftest sample-duration
-    (let* ((*sample-rate* (coerce 0 'sample))
-           (*sample-duration* (coerce 1 'sample))
-           (sdur (coerce 1e-4 'sample))
-           (srate (/ sdur)))
-      (set-sample-duration sdur)
-      (values (= srate *sample-rate*)
-              (= sdur *sample-duration*)))
-  T T)
-
-(deftest sound-velocity
-    (let* ((*sound-velocity* (coerce 0 'sample))
-           (*r-sound-velocity* (coerce 1 'sample))
-           (svel (coerce 344 'sample))
-           (r-svel (/ svel)))
-      (set-sound-velocity svel)
-      (values (= svel *sound-velocity*)
-              (= r-svel *r-sound-velocity*)))
-  T T)
-
 ;;;; Random
 
 (deftest seed-random-state.1
