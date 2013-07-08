@@ -202,7 +202,8 @@
 ;;; types of the interpolation are :LINEAR (or :LIN), :COS, :CUBIC or NIL.
 ;;; INTERPOLATE is particularly useful with the random or chaotic VUGs.
 (define-vug-macro interpolate (generator freq
-                               &optional (interpolation :linear))
+                               &optional (interpolation :linear)
+                               initial-value-p)
   (with-gensyms (input phase inc x0 x1 x2 x3 delta)
     (destructuring-bind (bindings init update result)
         (case interpolation
@@ -217,8 +218,10 @@
                   (cos-interp (- 1.0d0 ,phase) ,x0 ,x1)))
           (:cubic `(((,x1 0.0d0) (,x2 0.0d0) (,x3 0.0d0))
                     (setf ,x1 ,input
-                          ,x2 (update ,input)
-                          ,x3 (update ,input))
+                          ;; Three adjacent points initialized with the same
+                          ;; value when it is required an initial value.
+                          ,x2 ,(if initial-value-p input `(update ,input))
+                          ,x3 ,(if initial-value-p input `(update ,input)))
                     (setf ,x0 ,x1 ,x1 ,x2 ,x2 ,x3 ,x3 (update ,input))
                     (cubic-interp (- 1.0d0 ,phase) ,x0 ,x1 ,x2 ,x3)))
           (otherwise `(nil nil (setf ,x0 (update ,input)) ,x0)))

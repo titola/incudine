@@ -2,7 +2,7 @@
 
 * VUGs
 
-  - more filters (moog, fir, ...)
+  - more filters (fir, ...)
   - frequently used generators
   - diskin (play a soundfile from disk)
   - convolution (direct, fft, hybrid?)
@@ -11,7 +11,7 @@
   - compressor/expander/limiter/gate
   - ambisonics
   - vbap ?
-  - chaos ugens, gendy, ...
+  - gendy
   - utility for fft generator
   - more analysis: lpc, wavelet, ...
   - perhaps flanger, phaser and chorus
@@ -21,7 +21,7 @@
 * GEN routines
 
   - bessel functions
-  - Chebyshev polynomials
+  - Chebyshev polynomials of the second kind
   - more window functions
   - values from a text file
   - GEN30, GEN40, GEN51 from Csound
