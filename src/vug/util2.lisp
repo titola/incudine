@@ -215,7 +215,7 @@
           (:cos `(((,x1 0.0d0))
                   (setf ,x1 ,input)
                   (setf ,x0 ,x1 ,x1 (update ,input))
-                  (cos-interp (- 1.0d0 ,phase) ,x0 ,x1)))
+                  (cos-interp ,phase ,x1 ,x0)))
           (:cubic `(((,x1 0.0d0) (,x2 0.0d0) (,x3 0.0d0))
                     (setf ,x1 ,input
                           ;; Three adjacent points initialized with the same
@@ -223,7 +223,7 @@
                           ,x2 ,(if initial-value-p input `(update ,input))
                           ,x3 ,(if initial-value-p input `(update ,input)))
                     (setf ,x0 ,x1 ,x1 ,x2 ,x2 ,x3 ,x3 (update ,input))
-                    (cubic-interp (- 1.0d0 ,phase) ,x0 ,x1 ,x2 ,x3)))
+                    (cubic-interp ,phase ,x3 ,x2 ,x1 ,x0)))
           (otherwise `(nil nil (setf ,x0 (update ,input)) ,x0)))
       `(with-samples ((,input ,generator)
                       (,phase 0.0d0)
