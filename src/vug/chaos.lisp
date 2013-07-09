@@ -113,6 +113,35 @@
            (setf ,x (wrap (+ (* ,x ,mult) ,increment) 0.0d0 ,m)
                  ,xscaled (- (* ,x ,scale) 1.0d0)))))))
 
+;;; Lorenz chaotic generator.
+;;;
+;;; x' = s*(y - x)
+;;; y' = x*(r - z) - y
+;;; z' = x*y - b*z
+;;;
+;;; Return a frame with the three coordinates.
+(define-vug-macro lorenz (s r b integration-time xinit yinit zinit)
+  (with-gensyms (x y z x0 y0 z0 frm)
+    (with-coerce-arguments (xinit yinit zinit)
+      `(with ((,x ,xinit)
+              (,y ,yinit)
+              (,z ,zinit)
+              (,x0 0.0d0)
+              (,y0 0.0d0)
+              (,z0 0.0d0)
+              (,frm (make-frame 3)))
+         (declare (type sample ,x ,y ,z ,x0 ,y0 ,z0) (type frame ,frm))
+         (setf ,x0 (* ,s (- ,y ,x))
+               ,y0 (- (* ,r ,x) (* ,x ,z) ,y)
+               ,z0 (- (* ,x ,y) (* ,b ,z)))
+         (incf ,x (* ,integration-time ,x0))
+         (incf ,y (* ,integration-time ,y0))
+         (incf ,z (* ,integration-time ,z0))
+         (setf (frame-ref ,frm 0) ,x
+               (frame-ref ,frm 1) ,y
+               (frame-ref ,frm 2) ,z)
+         ,frm))))
+
 ;;; General quadratic map chaotic generator.
 ;;;
 ;;; x = a*x^2 + b*x + c
