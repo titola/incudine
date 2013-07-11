@@ -87,6 +87,7 @@
      (:file "vug/moog-vcf" :depends-on ("vug/codegen"))
      (:file "vug/noise" :depends-on ("gen/random" "vug/codegen"))
      (:file "vug/chaos" :depends-on ("vug/util2"))
+     (:file "vug/gendy" :depends-on ("vug/util2"))
      (:file "vug/pan" :depends-on ("vug/util2"))
      (:file "vug/midi" :depends-on ("vug/codegen"))
      (:file "vug/mouse" :depends-on ("vug/util2" "vug/filter"))

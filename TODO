@@ -11,7 +11,6 @@
   - compressor/expander/limiter/gate
   - ambisonics
   - vbap ?
-  - gendy
   - utility for fft generator
   - more analysis: lpc, wavelet, ...
   - perhaps flanger, phaser and chorus

@@ -137,7 +137,7 @@
    #:make-random-number-generator #:rand
    ;; chaos
    #:cusp #:fb-sine #:gbman #:henon #:latoocarfian #:lin-cong #:quad-map
-   #:standard-map #:lorenz
+   #:standard-map #:lorenz #:gendy
    ;; delay
    #:buf-delay-s #:buf-delay #:delay-s #:delay #:buf-vdelay #:vtap #:vdelay
    #:ff-comb #:fb-comb #:allpass #:vallpass
