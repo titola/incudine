@@ -16,6 +16,7 @@
 
 (in-package :incudine)
 
+(defvar *foreign-client-name* (cffi:null-pointer))
 (defvar *nrt-thread* nil)
 (defvar *fast-nrt-thread* nil)
 
@@ -69,7 +70,7 @@
                                *sample-rate* *number-of-input-bus-channels*
                                *number-of-output-bus-channels*
                                (rt-params-frames-per-buffer *rt-params*)
-                               *client-name*))
+                               *foreign-client-name*))
                        (zerop (rt-audio-start)))
                   (rt-loop (rt-params-frames-per-buffer *rt-params*)))
                  (t (setf *rt-thread* nil)
@@ -80,10 +81,23 @@
   (when (and *rt-thread* (bt:thread-alive-p *rt-thread*))
     (bt:destroy-thread *rt-thread*)))
 
+(defun get-foreign-client-name ()
+  (cffi:foreign-string-to-lisp *foreign-client-name*))
+
+(defun set-foreign-client-name (name &optional (max-size 64))
+  (unless (and (not (null-pointer-p *foreign-client-name*))
+               (string-equal (get-foreign-client-name) *client-name*))
+    (unless (null-pointer-p *foreign-client-name*)
+      (cffi:foreign-free *foreign-client-name*))
+    (setf *foreign-client-name*
+          (cffi:foreign-string-alloc name :end (min (length name) max-size))))
+  name)
+
 (defun rt-start ()
   (unless *rt-thread*
     (init)
     (nrt-start)
+    (set-foreign-client-name *client-name*)
     (make-rt-thread)
     (sleep .1)
     (setf (rt-params-status *rt-params*)

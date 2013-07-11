@@ -202,7 +202,7 @@
   (input-channels    :unsigned-int)
   (output-channels   :unsigned-int)
   (frames-per-buffer :unsigned-int)
-  (client-name       :string))
+  (client-name       :pointer))
 
 (cffi:defcfun ("pa_start" rt-audio-start) :int)
 
