@@ -385,7 +385,7 @@
      :inputs (list ,@(mapcar (lambda (x)
                                (if (atom x)
                                    (list 'quote x)
-                                   (parse-vug-def x flist mlist)))
+                                   (parse-vug-def x nil flist mlist)))
                              (cdr form)))))
 
 (declaim (inline parse-go-form))
