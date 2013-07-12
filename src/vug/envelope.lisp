@@ -17,9 +17,12 @@
 (defmacro make-local-envelope (levels times &key curve (loop-node -1)
                                (release-node -1))
   (with-gensyms (%levels %times %curve env)
-    `(with ((,%levels ,levels)
-            (,%times ,times)
-            (,%curve ,curve)
+    `(with ((,%levels (locally (declare #.*reduce-warnings*)
+                        ,levels))
+            (,%times (locally (declare #.*reduce-warnings*)
+                       ,times))
+            (,%curve (locally (declare #.*reduce-warnings*)
+                       ,curve))
             (,env (incudine:make-envelope ,%levels ,%times :curve ,%curve
                                           :loop-node ,loop-node
                                           :release-node ,release-node
@@ -61,17 +64,13 @@
 
 (defmacro make-local-adsr (attack-time decay-time sustain-level release-time
                            &key (peak-level 1) (curve -4))
-  `(make-local-envelope (locally
-                            (declare #.*reduce-warnings*)
-                            (list 0 ,peak-level (* ,peak-level ,sustain-level) 0))
+  `(make-local-envelope (list 0 ,peak-level (* ,peak-level ,sustain-level) 0)
                         (list ,attack-time ,decay-time ,release-time)
                         :curve ,curve :release-node 2))
 
 (defmacro make-local-dadsr (delay-time attack-time decay-time sustain-level
                             release-time &key (peak-level 1) (curve -4))
-  `(make-envelope (locally
-                      (declare #.*reduce-warnings*)
-                      (list 0 0 ,peak-level (* ,peak-level ,sustain-level) 0))
+  `(make-envelope (list 0 0 ,peak-level (* ,peak-level ,sustain-level) 0)
                   (list ,delay-time ,attack-time ,decay-time ,release-time)
                   :curve ,curve :release-node 3))
 
