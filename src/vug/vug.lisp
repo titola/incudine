@@ -566,6 +566,12 @@
                  bindings)
      ,@body))
 
+(defmacro with-argument-bindings (args types &body body)
+  `(with ,(mapcar (lambda (x) `(,x ,x)) args)
+     ,@(mapcar (lambda (arg type) `(declare (type ,type ,arg)))
+               args types)
+     ,@body))
+
 (declaim (inline arg-names-and-types))
 (defun arg-names-and-types (lambda-list)
   (let ((names) (types))
@@ -589,12 +595,9 @@
                (defun ,name ,args
                  (flet ((,fn ,args
                           (with-coerce-arguments ,lambda-list
-                            (vug-block (with ,(mapcar (lambda (x) `(,x ,x)) args)
-                                         ,@(mapcar
-                                            (lambda (arg type)
-                                              `(declare (type ,type ,arg)))
-                                            args types)
-                                         ,@vug-body)))))
+                            (vug-block
+                              (with-argument-bindings ,args ,types
+                                ,@vug-body)))))
                    (let ((,init (getf ,config :pre-hook)))
                      (when ,init (funcall ,init))
                      (,fn ,@args))))

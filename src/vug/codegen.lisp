@@ -146,12 +146,10 @@
          (vug-object-name obj))
         (t obj)))
 
-(defmacro with-vug-arguments (arguments &body body)
-  `(let ,(mapcar (lambda (x)
-                   (destructuring-bind (name type)
-                       (if (consp x) x `(,x sample))
-                     `(,name (make-vug-parameter ',name ,name ',type))))
-                 arguments)
+(defmacro with-vug-arguments (args types &body body)
+  `(let ,(mapcar (lambda (name type)
+                   `(,name (make-vug-parameter ',name ,name ',type)))
+                 args types)
      ,@body))
 
 (declaim (inline vug-progn-function-p))
@@ -368,6 +366,13 @@
 (defun reorder-initialization-code ()
   (setf *initialization-code* (nreverse *initialization-code*)))
 
+(defun synth-vug-block (arguments &rest rest)
+  (multiple-value-bind (args types)
+      (arg-names-and-types arguments)
+    `(with-vug-arguments ,args ,types
+       (vug-block
+         (with-argument-bindings ,args ,types ,@rest)))))
+
 (defmacro generate-code (name arguments arg-names obj)
   (with-gensyms (result vug-body control-table c-array-sample-wrap
                  c-array-int32-wrap c-array-int64-wrap c-array-sample
@@ -379,7 +384,7 @@
             (,number-of-sample 0)
             (,number-of-int32 0)
             (,number-of-int64 0)
-            (,result (with-vug-arguments ,arguments (vug-block ,obj)))
+            (,result ,(synth-vug-block arguments obj))
             (,vug-body (format-vug-code ,result)))
        (reorder-parameter-list)
        (add-foreign-vars-and-params ,number-of-sample ,number-of-int32 ,number-of-int64)
