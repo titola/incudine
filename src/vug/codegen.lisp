@@ -676,9 +676,12 @@
 ;;; of NAME. When the argument is a symbol, the default type is SAMPLE.
 (defmacro defsynth (name args &body body)
   (with-gensyms (get-function node synth-cons synth-prop)
-    (let ((arg-names (%argument-names args)))
+    (let ((doc (when (stringp (car body))
+                 (car body)))
+          (arg-names (%argument-names args)))
       `(macrolet ((,get-function ,arg-names
-                    (generate-code ',name ,args ,arg-names (progn ,@body))))
+                    (generate-code ',name ,args ,arg-names
+                                   (progn ,@(if doc (cdr body) body)))))
          (cond ((vug ',name)
                 (msg error "~A was defined to be a VUG" ',name))
                (t
@@ -692,6 +695,7 @@
                                    head tail before after replace)
                              (type (or function null) action)
                              (type list stop-hook free-hook))
+                    ,doc
                     (multiple-value-bind (add-action target)
                         (get-add-action-and-target head tail before after replace)
                       (let ((target (if (numberp target) (incudine:node target) target)))
@@ -742,11 +746,14 @@
                   #',name)))))))
 
 (defmacro defsynth-debug (name args &body body)
-  (let ((arg-names (%argument-names args)))
+  (let ((doc (when (stringp (car body))
+               (car body)))
+        (arg-names (%argument-names args)))
     `(lambda ,arg-names
        (let ,(mapcar (lambda (x)
                        (destructuring-bind (arg type)
                            (if (consp x) x `(,x sample))
                          `(,arg (coerce ,arg ',type))))
                      args)
-         (generate-code ',name ,args ,arg-names (progn ,@body))))))
+         (generate-code ',name ,args ,arg-names
+                        (progn ,@(if doc (cdr body) body)))))))

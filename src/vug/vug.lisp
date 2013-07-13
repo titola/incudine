@@ -587,12 +587,13 @@
   (with-gensyms (fn init)
     (multiple-value-bind (args types)
         (arg-names-and-types lambda-list)
-      (multiple-value-bind (config vug-body)
+      (multiple-value-bind (doc config vug-body)
           (extract-vug-config body)
         (if (synth name)
             (msg error "~A was defined to be a SYNTH." name)
             `(progn
                (defun ,name ,args
+                 ,doc
                  (flet ((,fn ,args
                           (with-coerce-arguments ,lambda-list
                             (vug-block
@@ -618,12 +619,14 @@
 (declaim (inline extract-vug-config))
 (defun extract-vug-config (code)
   (declare (type list code))
-  (do ((l code (cddr l))
-       (acc nil))
-      ((or (null l) (not (keywordp (car l))))
-       (values (when acc `(list ,@acc)) l))
-    (push (second l) acc)
-    (push (first l) acc)))
+  (let ((doc (when (stringp (car code))
+               (car code))))
+    (do ((l (if doc (cdr code) code) (cddr l))
+         (acc nil))
+        ((or (null l) (not (keywordp (car l))))
+         (values doc (when acc `(list ,@acc)) l))
+      (push (second l) acc)
+      (push (first l) acc))))
 
 (declaim (inline destroy-vug))
 (defun destroy-vug (name)
