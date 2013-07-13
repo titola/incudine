@@ -18,6 +18,9 @@
 ;;; along with this program; if not, write to the Free Software
 ;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+(defpackage :incudine-tests-system (:use :cl :asdf))
+(in-package :incudine-tests-system)
+
 (defsystem incudine-tests
   :depends-on (:incudine #+sbcl :sb-rt #-sbcl :rt)
   :components ((:module "tests"

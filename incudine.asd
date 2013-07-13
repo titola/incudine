@@ -18,6 +18,9 @@
 ;;; along with this program; if not, write to the Free Software
 ;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+(defpackage :incudine-system (:use :cl :asdf))
+(in-package :incudine-system)
+
 (defsystem "incudine"
   :version "0.1"
   :description "Incudine is a Music/DSP programming environment."
