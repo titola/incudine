@@ -121,8 +121,9 @@
         ((and (vug-variable-p obj) vug-body-p (vug-variable-to-set-p obj)
               (not (and init-time-p (vug-variable-skip-init-set-p obj)))
               (or (not (init-time-p obj))
-                  (some #'performance-time-p
-                        (vug-variable-variables-to-recheck obj))))
+                  (and (not (vug-variable-performance-time-p obj))
+                       (some #'performance-time-p
+                             (vug-variable-variables-to-recheck obj)))))
          (if init-time-p
              (setf (vug-variable-skip-init-set-p obj) t)
              (setf (vug-variable-to-set-p obj) nil))
