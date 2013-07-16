@@ -74,7 +74,7 @@
 (define-vug generic-rate ((gate fixnum) (start-offset fixnum) in)
   (with ((count (init-only gate))
          (value 0.0d0))
-    (declare (positive-fixnum count) (sample value))
+    (declare (type fixnum count) (type sample value))
     (initialize (setf count (1+ start-offset)))
     (cond ((plusp gate)
            (if (= count 1)
