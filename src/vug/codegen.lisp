@@ -374,6 +374,16 @@
        (vug-block
          (with-argument-bindings ,args ,types ,@rest)))))
 
+(defmacro performance-loop (&body body)
+  (with-gensyms (i)
+    `(do ((,i 0 (1+ ,i)))
+         ((>= ,i *number-of-output-bus-channels*))
+       (declare (type (integer 0 #.*max-number-of-channels*) ,i))
+       (let ((current-channel ,i))
+         (declare (type (integer 0 #.*max-number-of-channels*)
+                        current-channel))
+         ,@body))))
+
 (defmacro generate-code (name arguments arg-names obj)
   (with-gensyms (result vug-body control-table c-array-sample-wrap
                  c-array-int32-wrap c-array-int64-wrap c-array-sample
@@ -461,12 +471,8 @@
                            :free-function ,(to-free-form ',c-array-sample-wrap ,number-of-sample
                                                          ',c-array-int32-wrap ,number-of-int32
                                                          ',c-array-int64-wrap ,number-of-int64)
-                           :perf-function (lambda (current-channel)
-                                            (declare (type (integer 0 #.(1- *max-number-of-channels*))
-                                                           current-channel)
-                                                     (ignorable current-channel))
-                                            ,@,vug-body
-                                            (values)))))))))))))
+                           :perf-function (lambda ()
+                                            (performance-loop ,@,vug-body)))))))))))))
 
 (declaim (inline update-free-hook))
 (defun update-free-hook (node hook)

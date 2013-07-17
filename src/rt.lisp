@@ -121,8 +121,7 @@
     (loop for flist on funcons by #'cdr
           for fn function = (car flist) do
           (handler-case
-              (dotimes (chan #.*number-of-output-bus-channels*)
-                (funcall (the function fn) chan))
+              (funcall (the function fn))
             (condition (c)
               ;; Set a dummy function and free the node at the next tick
               (let ((dummy-fn (lambda (ch) (declare (ignore ch)))))
