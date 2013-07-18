@@ -63,6 +63,10 @@
 (defvar *dummy-function-without-args* (lambda ()))
 (declaim (type function *dummy-function-without-args*))
 
+(declaim (inline sample))
+(defun sample (number)
+  (coerce number 'sample))
+
 (declaim (inline lin->db))
 (defun lin->db (x)
   (let ((in (if (zerop x) least-positive-sample x)))
