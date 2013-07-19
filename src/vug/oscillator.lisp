@@ -25,6 +25,20 @@
         (cond ((>= phase 1.0d0) (decf phase 1.0d0))
               ((minusp phase)   (incf phase 1.0d0))))))
 
+  (define-vug phasor-loop (rate start-pos loopstart loopend)
+    (with-samples ((pos start-pos)
+                   (old-pos pos)
+                   (loopsize (- loopend loopstart))
+                   (start-plus-end (+ loopend loopstart)))
+      (prog1 pos
+        (incf pos rate)
+        (cond ((> pos loopend) (decf pos loopsize))
+              ((< pos 0) (setf pos +sample-zero+))
+              ((and (< pos loopstart)
+                    (>= old-pos loopstart))
+               (setf pos (- start-plus-end pos))))
+        (setf old-pos pos))))
+
   (defmacro %with-osc-interp ((buffer phs frac) &body body)
     (with-gensyms (lodiv lomask)
       `(with ((,frac 0.0d0)

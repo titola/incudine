@@ -127,7 +127,7 @@
    ;; buffer
    #:make-local-buffer #:buffer-read #:buffer-write #:buffer-frame #:buffer-play
    ;; oscillator
-   #:phasor #:osc #:sine #:pulse #:impulse #:buzz #:gbuzz
+   #:phasor #:phasor-loop #:osc #:sine #:pulse #:impulse #:buzz #:gbuzz
    ;; envelope
    #:make-local-envelope #:make-local-linen #:make-local-perc #:make-local-cutoff
    #:make-local-asr #:make-local-adsr #:make-local-dadsr
