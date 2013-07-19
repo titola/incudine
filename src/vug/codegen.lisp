@@ -37,6 +37,21 @@
         ((vug-function-p value)
          (mapc #'resolve-conditional-expansion (vug-function-inputs value)))))
 
+(defun expand-setter-form (obj init-time-p)
+  (do ((l (vug-function-inputs obj) (cddr l)))
+      ((null l))
+    (declare (type list l))
+    (let ((input (car l)))
+      (when (vug-variable-p input)
+        (if init-time-p
+            (resolve-conditional-expansion input))
+        (cond ((performance-time-p input)
+               (setf (vug-variable-to-set-p input) nil))
+              (t (if init-time-p
+                     (setf (vug-variable-skip-init-set-p input) t)
+                     (setf (vug-variable-to-set-p input) nil))
+                 (setf (vug-variable-performance-time-p input) t)))))))
+
 ;;; Transform a VUG block in lisp code
 (defun blockexpand (obj &optional param-plist vug-body-p init-time-p
                     (conditional-expansion-p t))
@@ -48,17 +63,7 @@
                             conditional-expansion-p)))
         ((vug-function-p obj)
          (when (and vug-body-p (setter-form-p (vug-object-name obj)))
-           (do ((l (vug-function-inputs obj) (cddr l)))
-               ((null l))
-             (declare (type list l))
-             (when (and init-time-p (vug-variable-p (car l)))
-               (resolve-conditional-expansion (cadr l)))
-             (when (and (vug-variable-p (car l))
-                        (not (performance-time-p (car l))))
-               (if init-time-p
-                   (setf (vug-variable-skip-init-set-p (car l)) t)
-                   (setf (vug-variable-to-set-p (car l)) nil))
-               (setf (vug-variable-performance-time-p (car l)) t))))
+           (expand-setter-form obj init-time-p))
          (cond ((consp (vug-object-name obj)) (vug-object-name obj))
                ((vug-name-p obj 'initialize)
                 (if (null *initialization-code*)
