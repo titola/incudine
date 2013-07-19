@@ -681,7 +681,14 @@
 
 (defmacro %with-samples (bindings &body body)
   `(with ,(mapcar (lambda (x)
-                    (if (consp x) x `(,x 0.0d0)))
+                    (if (consp x)
+                        (let ((value (cadr x)))
+                          `(,(car x)
+                            ,(if (and (numberp value)
+                                      (not (typep value 'sample)))
+                                 (sample value)
+                                 value)))
+                        `(,x ,+sample-zero+)))
                   bindings)
      ,@(when bindings
              `((declare (type sample
