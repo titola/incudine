@@ -35,6 +35,8 @@
   (defvar *mouse-spinlock* (make-spinlock "Mouse"))
   (declaim (type spinlock *mouse-spinlock*))
 
+  (defvar *mouse-thread* nil)
+
   (declaim (inline mouse-status))
   (defun mouse-status ()
     (case (get-mouse-status)
@@ -44,13 +46,22 @@
 
   #+linux
   (defun mouse-start ()
-    (with-spinlock-held (*mouse-spinlock*)
-      (unless (eq (mouse-status) :started)
-        (if (minusp (mouse-init))
-            (nrt-msg warn "MOUSE-START failed")
-            (bt:make-thread (lambda ()
-                              (mouse-loop-start *mouse-event*))
-                            :name "mouse-loop")))))
+    (nrt-funcall
+     (lambda ()
+       (with-spinlock-held (*mouse-spinlock*)
+         (flet ((start ()
+                  (unless (and *mouse-thread*
+                               (bt:thread-alive-p *mouse-thread*))
+                    (setf *mouse-thread*
+                          (bt:make-thread (lambda ()
+                                            (mouse-loop-start *mouse-event*))
+                                          :name "mouse-loop")))))
+           (case (mouse-status)
+             (:started nil)
+             (:no-init (if (minusp (mouse-init))
+                           (nrt-msg warn "MOUSE-START failed")
+                           (start)))
+             (otherwise (start))))))))
 
   #-linux
   (defun mouse-start ()
