@@ -729,21 +729,20 @@
                               (when (incudine::null-item-p ,node)
                                 (let ((,synth-cons (get-next-synth-instance ',name)))
                                   (declare (type list ,synth-cons))
+                                  (when stop-hook
+                                    (setf (incudine::node-stop-hook ,node) stop-hook))
+                                  (when free-hook
+                                    (setf (incudine::node-free-hook ,node) free-hook))
                                   (incudine::enqueue-node-function
-                                   (progn
-                                     (when stop-hook
-                                       (setf (incudine::node-stop-hook ,node) stop-hook))
-                                     (when free-hook
-                                       (setf (incudine::node-free-hook ,node) free-hook))
-                                     (if ,synth-cons
-                                         (let ((s (car ,synth-cons)))
-                                           (funcall (synth-init-function s) ,node ,@arg-names)
-                                           (lambda (,node)
-                                             (declare (ignore ,node))
-                                             (synth-perf-function s)))
-                                         (prog1 (,get-function ,@arg-names)
-                                           (nrt-msg info "new alloc for synth ~A"
-                                                    ',name))))
+                                   (if ,synth-cons
+                                       (let ((s (car ,synth-cons)))
+                                         (funcall (synth-init-function s) ,node ,@arg-names)
+                                         (lambda (,node)
+                                           (declare (ignore ,node))
+                                           (synth-perf-function s)))
+                                       (prog1 (,get-function ,@arg-names)
+                                         (nrt-msg info "new alloc for synth ~A"
+                                                  ',name)))
                                    ,node id ',name add-action target action
                                    fade-time fade-curve))))))))
                     (values))
