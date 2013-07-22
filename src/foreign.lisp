@@ -195,31 +195,76 @@
   (now    :pointer)
   (period sample))
 
+;;; JACK AUDIO DRIVER
+
+#+jack-audio
+(progn
+  (cffi:defcfun ("ja_initialize" rt-audio-init) :int
+    (sample-rate       sample)
+    (input-channels    :unsigned-int)
+    (output-channels   :unsigned-int)
+    (frames-per-buffer :unsigned-int)
+    (client-name       :pointer))
+
+  (cffi:defcfun ("ja_start" rt-audio-start) :int)
+
+  (cffi:defcfun ("ja_stop" rt-audio-stop) :int)
+
+  (declaim (inline rt-get-input))
+  (cffi:defcfun ("ja_get_input" rt-get-input) :void
+    (inputs :pointer))
+
+  (declaim (inline rt-set-output))
+  (cffi:defcfun ("ja_set_output" rt-set-output) :void
+    (outputs :pointer))
+
+  (declaim (inline rt-cycle-signal))
+  (cffi:defcfun ("ja_cycle_signal" rt-cycle-signal) :void
+    (status :int))
+
+  (declaim (inline rt-condition-wait))
+  (cffi:defcfun ("ja_condition_wait" rt-condition-wait) :int)
+
+  (declaim (inline rt-get-buffer-size))
+  (cffi:defcfun ("ja_get_buffer_size" rt-get-buffer-size) :int)
+
+  (declaim (inline rt-set-busy-state))
+  (cffi:defcfun ("ja_set_lisp_busy_state" rt-set-busy-state) :void
+    (status :boolean))
+
+  (cffi:defcfun ("ja_get_error_msg" rt-get-error-msg) :string))
+
 ;;; PORTAUDIO DRIVER
 
-(cffi:defcfun ("pa_initialize" rt-audio-init) :int
-  (sample-rate       sample)
-  (input-channels    :unsigned-int)
-  (output-channels   :unsigned-int)
-  (frames-per-buffer :unsigned-int)
-  (client-name       :pointer))
+#+portaudio
+(progn
+  (cffi:defcfun ("pa_initialize" rt-audio-init) :int
+    (sample-rate       sample)
+    (input-channels    :unsigned-int)
+    (output-channels   :unsigned-int)
+    (frames-per-buffer :unsigned-int)
+    (client-name       :pointer))
 
-(cffi:defcfun ("pa_start" rt-audio-start) :int)
+  (cffi:defcfun ("pa_start" rt-audio-start) :int)
 
-(cffi:defcfun ("pa_stop" rt-audio-stop) :int)
+  (cffi:defcfun ("pa_stop" rt-audio-stop) :int)
 
-(declaim (inline rt-get-input))
-(cffi:defcfun ("pa_get_input" rt-get-input) :void
-  (inputs :pointer))
+  (declaim (inline rt-get-input))
+  (cffi:defcfun ("pa_get_input" rt-get-input) :void
+    (inputs :pointer))
 
-(declaim (inline rt-set-output))
-(cffi:defcfun ("pa_set_output" rt-set-output) :void
-  (outputs :pointer))
+  (declaim (inline rt-set-output))
+  (cffi:defcfun ("pa_set_output" rt-set-output) :void
+    (outputs :pointer))
 
-(declaim (inline rt-condition-wait))
-(cffi:defcfun ("pa_condition_wait" rt-condition-wait) :int)
+  (declaim (inline rt-condition-wait))
+  (cffi:defcfun ("pa_condition_wait" rt-condition-wait) :int)
 
-(cffi:defcfun ("pa_get_error_msg" rt-get-error-msg) :string)
+  (cffi:defcfun ("pa_get_error_msg" rt-get-error-msg) :string)
+
+  (declaim (inline rt-get-buffer-size))
+  (defun rt-get-buffer-size ()
+    incudine.util:*frames-per-buffer*))
 
 ;;; MOUSE
 

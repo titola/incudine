@@ -53,6 +53,16 @@
        (seed-from-random-state *random-state*)))
   (values))
 
+(defmacro without-gcing (&body body)
+  `(sb-sys:without-gcing ,@body))
+
+(defmacro without-interrupts (&body body)
+  `(sb-sys:without-interrupts ,@body))
+
+(defmacro with-stop-for-gc-pending (&body body)
+  `(when sb-kernel:*stop-for-gc-pending*
+     ,@body))
+
 ;;; Used only in DOUBLE-FLOAT-EXPONENT (that it's unused)
 (defmacro double-float-high-bits (x)
   `(sb-kernel:double-float-high-bits ,x))

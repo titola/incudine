@@ -20,7 +20,6 @@
   (defvar *config-loaded-p* nil)
 
   (declaim (special *sample-rate*
-                    *sample-type*
                     *use-foreign-sample-p*
                     *frames-per-buffer*
                     *client-name*
@@ -47,7 +46,11 @@
 
   (unless *config-loaded-p*
     (setf *config-loaded-p*
-          (load (merge-pathnames ".incudinerc" (user-homedir-pathname)))))
+          (let ((init-file (merge-pathnames ".incudinerc"
+                                            (user-homedir-pathname))))
+            (if (probe-file init-file)
+                (load init-file)
+                t))))
 
   (setf *use-foreign-sample-p* (or *use-foreign-sample-p*
                                    (eq *sample-type* 'double-float)))
@@ -66,7 +69,10 @@
          (define-constant least-negative-sample least-negative-single-float)
          (define-constant least-positive-sample least-positive-single-float)))
 
-  (defvar *audio-driver* :portaudio)
+  (pushnew (if (eq *audio-driver* :jack)
+               :jack-audio
+               :portaudio)
+           *features*)
 
   (deftype sample (&optional min max)
     `(,*sample-type* ,min ,max))

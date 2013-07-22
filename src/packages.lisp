@@ -28,7 +28,8 @@
    #:apply-window #:apply-scaled-window #:apply-zero-padding #:foreign-copy
    #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
    #:rt-audio-init #:rt-audio-start #:rt-audio-stop #:rt-get-input #:rt-set-output
-   #:rt-condition-wait #:rt-get-error-msg
+   #:rt-condition-wait #:rt-get-error-msg #:rt-cycle-signal #:rt-set-busy-state
+   #:rt-get-buffer-size
    #:mouse-event #:mouse-init #:mouse-loop-start #:mouse-stop #:get-mouse-status))
 
 (defpackage :incudine.util
@@ -72,7 +73,8 @@
    #:get-bytes-consed-in
    #:thread-set-priority
    #:seed-random-state
-   #:sample->fixnum #:sample->int 
+   #:sample->fixnum #:sample->int
+   #:without-interrupts #:with-gc-pending
    #:calc-lobits
    #:rt-thread-p #:rt-eval #:rt-eval-if
    #:foreign-pointer
@@ -235,7 +237,8 @@
                 #:apply-scaled-window #:apply-zero-padding #:foreign-copy
                 #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
                 #:rt-audio-init #:rt-audio-start #:rt-audio-stop
-                #:rt-get-input #:rt-set-output #:rt-condition-wait #:rt-get-error-msg)
+                #:rt-get-input #:rt-set-output #:rt-cycle-signal #:rt-condition-wait
+                #:rt-set-busy-state #:rt-get-buffer-size #:rt-get-error-msg)
   (:import-from #:incudine.edf #:at #:flush-pending)
   (:import-from #:incudine.gen #:all-random-distributions #:rand-args)
   (:export

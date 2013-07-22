@@ -5,7 +5,7 @@
 ;; Always T when *SAMPLE-TYPE* is DOUBLE-FLOAT
 (setq *use-foreign-sample-p* t)
 (setq *frames-per-buffer* 1024)
-(setq *client-name* "Incudine")
+(setq *client-name* "incudine")
 (setq *max-number-of-channels* 1024)
 (setq *number-of-input-bus-channels* 2)
 (setq *number-of-output-bus-channels* 2)

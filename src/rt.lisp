@@ -72,7 +72,9 @@
                                (rt-params-frames-per-buffer *rt-params*)
                                *foreign-client-name*))
                        (zerop (rt-audio-start)))
-                  (rt-loop (rt-params-frames-per-buffer *rt-params*)))
+                  (let ((buffer-size (rt-get-buffer-size)))
+                    (setf (rt-params-frames-per-buffer *rt-params*) buffer-size)
+                    (rt-loop buffer-size)))
                  (t (setf *rt-thread* nil)
                     (msg error (rt-get-error-msg)))))
          :name "audio-rt-thread")))
@@ -106,13 +108,17 @@
 (defun rt-status ()
   (rt-params-status *rt-params*))
 
+(defvar rt-state 1)
+(declaim (type bit rt-state))
+
 (defun rt-stop ()
   (unless (eq (rt-status) :stopped)
-    (destroy-rt-thread)
+    (setf rt-state 1)
+    (sleep .05)
     (loop while (bt:thread-alive-p *rt-thread*))
     (setf *rt-thread* nil)
     (unless (zerop (rt-audio-stop))
-      (error (rt-get-error-msg)))
+      (msg error (rt-get-error-msg)))
     (setf (rt-params-status *rt-params*) :stopped)))
 
 (declaim (inline tick-func))
@@ -138,16 +144,33 @@
 (defun rt-loop (frames-per-buffer)
   (declare #.*standard-optimize-settings*
            (type non-negative-fixnum frames-per-buffer))
+  (setf rt-state 0)
   (reset-sample-counter)
-  (loop do
-       (rt-condition-wait)
-       (fifo-perform-functions *to-engine-fifo*)
-       (do ((i 0 (1+ i)))
-           ((= i frames-per-buffer))
-         (declare (type non-negative-fixnum i))
-         (rt-get-input *input-pointer*)
-         (fifo-perform-functions *fast-to-engine-fifo*)
-         (incudine.edf::sched-loop)
-         (tick-func)
-         (rt-set-output *output-pointer*)
-         (incf-sample-counter))))
+  (tagbody
+     ;; [SBCL] Restart from here after the stop caused by the gc
+     reset
+     #+jack-audio
+     (progn
+       (rt-set-busy-state nil)
+       (unless (zerop rt-state)
+         ;; Stop the jack thread
+         (rt-cycle-signal rt-state)))
+     (loop while (zerop rt-state) do
+          (incudine.util::without-gcing
+            (rt-condition-wait)
+            (fifo-perform-functions *to-engine-fifo*)
+            (do ((i 0 (1+ i)))
+                ((>= i frames-per-buffer))
+              (declare (type non-negative-fixnum i))
+              (rt-get-input *input-pointer*)
+              (fifo-perform-functions *fast-to-engine-fifo*)
+              (incudine.edf::sched-loop)
+              (tick-func)
+              (rt-set-output *output-pointer*)
+              (incf-sample-counter))
+            #+jack-audio (rt-cycle-signal 0)
+            (incudine.util::with-stop-for-gc-pending
+              ;; No xruns, jack knows that lisp is busy.
+              ;; The output buffer is filled with zeroes.
+              #+jack-audio (rt-set-busy-state t)
+              (go reset))))))
