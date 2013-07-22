@@ -267,17 +267,28 @@
 (declaim (inline acquire-spinlock))
 (defun acquire-spinlock (spinlock)
   (declare (type spinlock spinlock))
-  (loop while (= 1 (compare-and-swap (spinlock-state spinlock) 0 1))))
+  (loop while (= 1 (compare-and-swap (spinlock-state spinlock) 0 1)))
+  t)
 
 (declaim (inline release-spinlock))
 (defun release-spinlock (spinlock)
   (declare (type spinlock spinlock))
   (barrier (:memory))
-  (setf (spinlock-state spinlock) 0))
+  (setf (spinlock-state spinlock) 0)
+  nil)
 
+;;; Acquire spinlock for the dynamic scope of BODY.
+;;; Inspired by SB-THREAD:WITH-MUTEX
 (defmacro with-spinlock-held ((place) &body body)
-  `(unwind-protect
-        (progn
-          (acquire-spinlock ,place)
-          ,@body)
-     (release-spinlock ,place)))
+  (with-gensyms (got-it)
+    `(let ((,got-it nil))
+       (declare (sb-int:truly-dynamic-extent ,got-it))
+       (without-interrupts
+         (unwind-protect
+              (when (setq ,got-it
+                          (sb-sys:allow-with-interrupts
+                            (acquire-spinlock ,place)))
+                (sb-sys:with-local-interrupts
+                  ,@body))
+           (when ,got-it
+             (release-spinlock ,place)))))))

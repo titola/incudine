@@ -358,7 +358,6 @@
 
 (declaim (inline trigger))
 (defun trigger (voicer tag)
-  (declare #.*standard-optimize-settings*)
   (with-safe-change (voicer) (unsafe-trigger voicer tag)))
 
 (declaim (inline unsafe-release))
@@ -375,7 +374,6 @@
 (declaim (inline release))
 (defun release (voicer tag &optional (object-free-p t)
                 free-function)
-  (declare #.*standard-optimize-settings*)
   (with-safe-change (voicer)
     (unsafe-release voicer tag object-free-p free-function)))
 
@@ -477,13 +475,11 @@
 
 (declaim (inline control-value))
 (defun control-value (voicer control-name)
-  (declare #.*standard-optimize-settings*)
   (with-safe-change (voicer)
     (unsafe-control-value voicer control-name)))
 
 (declaim (inline set-control))
 (defun set-control (voicer control-name value)
-  (declare #.*standard-optimize-settings*)
   (with-safe-change (voicer)
     (unsafe-set-control voicer control-name value)))
 
@@ -565,7 +561,6 @@
       (when first (rec first)))))
 
 (defun mapvoicer (function voicer)
-  (declare #.*standard-optimize-settings*)
   (with-safe-change (voicer) (unsafe-mapvoicer function voicer)))
 
 (defun unsafe-panic (voicer)
