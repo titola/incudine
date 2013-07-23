@@ -67,11 +67,11 @@ when the duration is undefined.")
 (declaim (type foreign-pointer *nrt-bus-pointer*))
 
 (defvar *nrt-output-peak-values* (foreign-alloc 'sample
-                                   :count *number-of-output-bus-channels*
+                                   :count *max-number-of-channels*
                                    :initial-element +sample-zero+))
 (declaim (type foreign-pointer *nrt-output-peak-values*))
 
-(defvar *nrt-out-of-range-counter* (make-array *number-of-output-bus-channels*
+(defvar *nrt-out-of-range-counter* (make-array *max-number-of-channels*
                                                :initial-element 0))
 (declaim (type simple-vector *nrt-out-of-range-counter*))
 
