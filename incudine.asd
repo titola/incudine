@@ -60,7 +60,7 @@
      (:file "edf-sched" :depends-on ("fifo"))
      (:file "time" :depends-on ("util"))
      (:file "int-hash" :depends-on ("util"))
-     (:file "bus" :depends-on ("edf-sched"))
+     (:file "bus" :depends-on ("logger"))
      (:file "buffer" :depends-on ("gen/partials" "gen/envelope" "logger"))
      (:file "foreign-array" :depends-on ("util"))
      (:file "envelope" :depends-on ("util"))

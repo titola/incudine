@@ -60,12 +60,14 @@
    #:*standard-optimize-settings* #:rt-thread*
    #:least-positive-sample #:least-negative-sample
    #:next-power-of-two #:power-of-two-p
+   #:foreach-channel
    #:lin->db #:db->lin
    #:linear-interp #:cos-interp #:cubic-interp
    #:set-sample-rate #:set-sample-duration #:set-sound-velocity
    #:sample-rate-hook #:sample-duration-hook #:sound-velocity-hook
    #:non-negative-fixnum64 #:most-positive-fixnum64
    #:limited-sample #:maybe-limited-sample
+   #:channel-number #:bus-number
    #:*reduce-warnings*
    #:msg #:nrt-msg #:logger-level #:logger-time #:logger-time-function
    #:*logger-stream* #:*logger-force-output* #:info
@@ -255,6 +257,7 @@
    #:sample-rate #:filename #:free #:free-p #:stop
    #:bus #:audio-in #:audio-out
    #:peak-info #:print-peak-info #:reset-peak-meters
+   #:set-number-of-channels
    #:rt-start #:rt-stop #:rt-status #:at #:flush-pending #:flush-all-fifos
    #:tempo #:*tempo* #:make-tempo #:bpm #:bps #:now #:tempo-sync
    #:rt-funcall #:fast-rt-funcall #:nrt-funcall #:fast-nrt-funcall

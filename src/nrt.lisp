@@ -47,7 +47,7 @@ when the duration is undefined.")
 (defvar *nrt-bus-channels-size* (+ *max-number-of-channels*   ; outputs
                                    *max-number-of-channels*   ; inputs
                                    *number-of-bus-channels*))
-(declaim (type non-negative-fixnum *nrt-bus-channels-size*))
+(declaim (type bus-number *nrt-bus-channels-size*))
 
 (defvar *nrt-bus-channels* (foreign-alloc 'sample
                              :count *nrt-bus-channels-size*
@@ -55,7 +55,7 @@ when the duration is undefined.")
 (declaim (type foreign-pointer *nrt-bus-channels*))
 
 (defvar %nrt-bus-pointer-offset (* *max-number-of-channels*
-                                   (foreign-type-size 'sample)))
+                                   +foreign-sample-size+))
 (declaim (type non-negative-fixnum %nrt-bus-pointer-offset))
 
 (defvar *nrt-input-pointer* (inc-pointer *nrt-bus-channels*
@@ -111,9 +111,7 @@ when the duration is undefined.")
 
 (defmacro read-snd-buffer (buf remain index channels)
   (with-gensyms (ch)
-    `(do ((,ch 0 (1+ ,ch)))
-         ((= ,ch ,channels))
-       (declare (type (integer 0 1024) ,ch))
+    `(foreach-channel (,ch ,channels)
        (setf (data-ref *input-pointer* ,ch)
              (data-ref ,buf ,index))
        (decf ,remain)
@@ -121,9 +119,7 @@ when the duration is undefined.")
 
 (defmacro write-snd-buffer (buf index channels)
   (with-gensyms (ch)
-    `(do ((,ch 0 (1+ ,ch)))
-         ((= ,ch ,channels))
-       (declare (type (integer 0 #.(1- *max-number-of-channels*)) ,ch))
+    `(foreach-channel (,ch ,channels)
        (setf (data-ref ,buf ,index)
              (data-ref *output-pointer* ,ch))
        (incf ,index))))
@@ -245,8 +241,7 @@ when the duration is undefined.")
 (defun %bounce-to-disk (output-filename duration channels header-type
                         data-format function)
   (declare (type (or string pathname) output-filename) (type function function)
-           (type (integer 0 #.(1- *max-number-of-channels*)) channels)
-           (type real duration))
+           (type channel-number channels) (type real duration))
   (with-nrt (channels)
     (let* (;; If DURATION is negative or zero, the rendering terminates
            ;; -DURATION seconds after the last event.
@@ -303,7 +298,7 @@ when the duration is undefined.")
                                     channels header-type data-format function)
   (declare (type (or string pathname) input-filename output-filename)
            (type real duration) (type function function)
-           (type (integer 0 #.(1- *max-number-of-channels*)) channels))
+           (type channel-number channels))
   (with-nrt (channels)
     (let* (;; If DURATION is negative or zero, the rendering terminates
            ;; -DURATION seconds after the last event.

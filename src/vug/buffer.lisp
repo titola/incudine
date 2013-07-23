@@ -223,7 +223,7 @@
     `(with ((,channels (buffer-channels ,buffer))
             (,frame (make-frame ,channels)))
        (declare (type frame ,frame))
-       (dotimes (current-channel ,channels)
+       (foreach-channel (current-channel ,channels)
          (setf (frame-ref ,frame current-channel)
                (buffer-read ,buffer ,phase
                             :wrap-p ,wrap-p

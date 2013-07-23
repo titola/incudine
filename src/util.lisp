@@ -58,6 +58,10 @@
 (deftype maybe-limited-sample () #+(and sbcl x86) 'limited-sample
                                  #-(and sbcl x86) 'sample)
 
+(deftype channel-number () '(integer 0 #.*max-number-of-channels*))
+
+(deftype bus-number () '(integer 0 20000))
+
 ;;; MISC
 
 (defvar *dummy-function-without-args* (lambda ()))
@@ -66,6 +70,13 @@
 (declaim (inline sample))
 (defun sample (number)
   (coerce number 'sample))
+
+(defmacro foreach-channel ((var channels &optional (result nil))
+                           &body body)
+  `(do ((,var 0 (1+ ,var)))
+       ((>= ,var ,channels) ,result)
+     (declare (type channel-number ,var))
+     ,@body))
 
 (declaim (inline lin->db))
 (defun lin->db (x)

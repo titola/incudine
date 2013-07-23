@@ -138,7 +138,7 @@
                       (node-free n))))
                 (nrt-msg error "~A" c)))))
     (when funcons
-      (dotimes (chan #.*number-of-output-bus-channels*)
+      (foreach-channel (chan *number-of-output-bus-channels*)
         (update-peak-values chan)))))
 
 (defun rt-loop (frames-per-buffer)
