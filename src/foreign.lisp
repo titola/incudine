@@ -298,6 +298,11 @@
   (window-size :unsigned-long)
   (size        :unsigned-long))
 
+(cffi:defcfun "apply_scaled_rectwin" :void
+  (buffer      :pointer)
+  (window-size :unsigned-long)
+  (size        :unsigned-long))
+
 (cffi:defcfun "apply_zero_padding" :void
   (buffer :pointer)
   (offset :unsigned-long)

@@ -25,8 +25,8 @@
    #:foreign-alloc-fft #:foreign-free-fft #:make-fft-plan #:make-ifft-plan
    #:fft-destroy-plan #:sample-complex #:sample-polar #:magnitude #:complex-to-polar
    #:polar-to-complex #:fftw-execute
-   #:apply-window #:apply-scaled-window #:apply-zero-padding #:foreign-copy
-   #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
+   #:apply-window #:apply-scaled-window #:apply-scaled-rectwin #:apply-zero-padding
+   #:foreign-copy #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
    #:rt-audio-init #:rt-audio-start #:rt-audio-stop #:rt-get-input #:rt-set-output
    #:rt-condition-wait #:rt-get-error-msg #:rt-cycle-signal #:rt-set-busy-state
    #:rt-get-buffer-size
@@ -193,14 +193,15 @@
                 #:foreign-realloc-sample #:foreign-alloc-fft #:foreign-free-fft
                 #:make-fft-plan #:make-ifft-plan #:fft-destroy-plan #:sample-complex
                 #:sample-polar #:magnitude #:complex-to-polar #:polar-to-complex
-                #:fftw-execute #:apply-window #:apply-scaled-window #:apply-zero-padding
+                #:fftw-execute #:apply-window #:apply-scaled-window #:apply-scaled-rectwin
+                #:apply-zero-padding
                 #:foreign-copy #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer)
   (:export #:analysis #:analysis-p #:analysis-time #:abuffer
-           #:window-size #:window-function
+           #:window-size #:window-function #:rectangular-window
            #:make-abuffer #:abuffer-time #:abuffer-realpart #:abuffer-imagpart
            #:abuffer-size #:abuffer-link #:abuffer-nbins
            #:to-polar #:to-complex
-           #:fft #:fft-p #:make-fft #:nbins
+           #:fft #:fft-p #:make-fft #:nbins #:*fft-default-window-function*
            #:ifft #:ifft-p #:make-ifft #:+fftw-measure+ #:+fftw-estimate+
            #:fft-input #:ifft-output
            #:transform #:compute #:resize

@@ -69,6 +69,20 @@
 (define-constant +fftw-measure+ 0)
 (define-constant +fftw-estimate+ (ash 1 6))
 
+(declaim (inline rectangular-window))
+(defun rectangular-window (c-array size)
+  (declare (type foreign-pointer c-array)
+           (type non-negative-fixnum size))
+  (dotimes (i size c-array)
+    (setf (data-ref c-array i) #.(sample 1))))
+
+(declaim (inline fill-window-buffer))
+(defun fill-window-buffer (buffer function size)
+  (if (eq function #'rectangular-window)
+      ;; Skip to fill the buffer
+      buffer
+      (funcall function buffer size)))
+
 (defun make-fft (size &key (window-size 0)
                  (window-function *fft-default-window-function*)
                  (flags +fftw-estimate+) real-time-p)
@@ -87,9 +101,8 @@
            (complex-array-size (* 2 nbins))
            (input-buffer (foreign-alloc size t))
            (output-buffer (foreign-alloc complex-array-size t))
-           (window-buffer (funcall window-function
-                                   (foreign-alloc window-size nil)
-                                   window-size))
+           (window-buffer (fill-window-buffer (foreign-alloc window-size nil)
+                                              window-function window-size))
            (time-ptr (foreign-alloc 1 nil))
            (obj (%make-fft
                  :size size
@@ -128,9 +141,10 @@
     (copy-from-ring-buffer (fft-input-buffer obj)
                            (fft-ring-buffer obj)
                            (fft-size obj))
-    (apply-window (fft-input-buffer obj)
-                  (fft-window-buffer obj)
-                  (fft-window-size obj))
+    (unless (eq (fft-window-function obj) #'rectangular-window)
+      (apply-window (fft-input-buffer obj)
+                    (fft-window-buffer obj)
+                    (fft-window-size obj)))
     (apply-zero-padding (fft-input-buffer obj)
                         (fft-window-size obj)
                         (fft-size obj))
@@ -179,9 +193,8 @@
            (complex-array-size (* 2 nbins))
            (input-buffer (foreign-alloc complex-array-size t))
            (output-buffer (foreign-alloc size t))
-           (window-buffer (funcall window-function
-                                   (foreign-alloc window-size nil)
-                                   window-size))
+           (window-buffer (fill-window-buffer (foreign-alloc window-size nil)
+                                              window-function window-size))
            (time-ptr (foreign-alloc 1 nil))
            (obj (%make-ifft
                  :size size
@@ -221,8 +234,11 @@
                     (* (the non-negative-fixnum (ifft-input-size obj))
                        +foreign-sample-size+)))
     (fftw-execute (ifft-plan obj))
-    (apply-scaled-window (ifft-output-buffer obj) (ifft-window-buffer obj)
-                         (ifft-window-size obj) (ifft-size obj))
+    (if (eq (ifft-window-function obj) #'rectangular-window)
+        (apply-scaled-rectwin (ifft-output-buffer obj) (ifft-window-size obj)
+                              (ifft-size obj))
+        (apply-scaled-window (ifft-output-buffer obj) (ifft-window-buffer obj)
+                             (ifft-window-size obj) (ifft-size obj)))
     (apply-zero-padding (ifft-output-buffer obj) (ifft-window-size obj)
                         (ifft-size obj))
     (copy-to-ring-output-buffer (ifft-ring-buffer obj)
