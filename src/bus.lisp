@@ -137,6 +137,7 @@
 
 (defun set-number-of-channels (inputs outputs)
   "Safe way to change the number of the input/output channels."
+  (declare (type channel-number inputs outputs))
   (unless (and (= inputs *number-of-input-bus-channels*)
                (= outputs *number-of-output-bus-channels*))
     (let* ((rt-started-p (eq (rt-status) :started))
