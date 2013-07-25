@@ -163,25 +163,24 @@ void copy_from_ring_buffer(SAMPLE *dest, SAMPLE *ring_buffer,
                            unsigned long buffer_size, unsigned long write_offset,
                            unsigned long items)
 {
-    if (items == buffer_size) {
+    if (buffer_size <= items) {
         if (write_offset == 0) {
-            memcpy(dest, ring_buffer, items*sizeof(SAMPLE));
+            memcpy(dest, ring_buffer, buffer_size*sizeof(SAMPLE));
         } else {
-            unsigned long offset = items - write_offset;
-            memcpy(dest, ring_buffer + write_offset, offset*sizeof(SAMPLE));
-            memcpy(dest + offset, ring_buffer, write_offset*sizeof(SAMPLE));
+            unsigned long last = buffer_size - write_offset;
+
+            memcpy(dest, ring_buffer + write_offset, last*sizeof(SAMPLE));
+            memcpy(dest + last, ring_buffer, write_offset*sizeof(SAMPLE));
         }
-    } else if (items == write_offset) {
-        memcpy(dest, ring_buffer, items*sizeof(SAMPLE));
-    } else if (items < write_offset) {
+    } else if (items <= write_offset) {
         memcpy(dest, ring_buffer + (write_offset - items), items*sizeof(SAMPLE));
-    } else if (items < buffer_size) {
+    } else {
         if (write_offset == 0) {
             memcpy(dest, ring_buffer + (buffer_size - items), items*sizeof(SAMPLE));
         } else {
-            unsigned long offset1, offset2;
-            offset2 = items - write_offset;
-            offset1 = buffer_size - offset2;
+            unsigned long offset2 = items - write_offset;
+            unsigned long offset1 = buffer_size - offset2;
+
             memcpy(dest, ring_buffer + offset1, offset2*sizeof(SAMPLE));
             memcpy(dest + offset2, ring_buffer, write_offset);
         }
@@ -193,44 +192,30 @@ void copy_to_ring_output_buffer(SAMPLE *ring_buffer, SAMPLE *src,
                                 unsigned long items)
 {
     int i;
+    unsigned long last = buffer_size - read_offset;
+    SAMPLE *ring_buffer_right = ring_buffer + read_offset;
 
-    if (items == buffer_size) {
-        if (read_offset == 0) {
-            for (i=0; i<items; i++)
-                ring_buffer[i] += src[i];
-        } else {
-            unsigned long offset = items - read_offset;
-            SAMPLE *ring_buffer_right, *src_right;
-            ring_buffer_right = ring_buffer + read_offset;
-            src_right = src + offset;
-            for (i=0; i<offset; i++)
-                ring_buffer_right[i] += src[i];
-            for (i=0; i<read_offset; i++)
-                ring_buffer[i] += src_right[i];
-        }
+    if (buffer_size <= items) {
+        for (i=0; i<last; i++)
+            *ring_buffer_right++ += *src++;
+
+        for (i=0; i<read_offset; i++)
+            *ring_buffer++ += *src++;
+    } else if (items <= last) {
+        for (i=0; i<items; i++)
+            *ring_buffer_right++ += *src++;
+    } else if (read_offset == 0) {
+        for (i=0; i<items; i++)
+            *ring_buffer++ += *src++;
     } else {
         unsigned long offset2 = buffer_size - read_offset;
-        if (items <= offset2) {
-            SAMPLE *ring_buffer_right = ring_buffer + read_offset;
-            for (i=0; i<items; i++)
-                ring_buffer_right[i] += src[i];
-        } else if (items < buffer_size) {
-            if (read_offset == 0) {
-                for (i=0; i<items; i++)
-                    ring_buffer[i] += src[i];
-            } else {
-                unsigned long offset1, offset2;
-                SAMPLE *ring_buffer_right, *src_right;
-                offset2 = buffer_size - read_offset;
-                offset1 = items - offset2;
-                ring_buffer_right = ring_buffer + read_offset;
-                src_right = src + offset2;
-                for (i=0; i<offset2; i++)
-                    ring_buffer_right[i] += src[i];
-                for (i=0; i<offset1; i++)
-                    ring_buffer[i] += src_right[i];
-            }
-        }
+        unsigned long offset1 = items - offset2;
+
+        for (i=0; i<offset2; i++)
+            *ring_buffer_right++ += *src++;
+
+        for (i=0; i<offset1; i++)
+            *ring_buffer++ += *src++;
     }
 }
 
