@@ -109,7 +109,7 @@
                  :input-buffer input-buffer
                  :output-buffer output-buffer
                  :output-size complex-array-size
-                 :ring-buffer (make-ring-input-buffer window-size real-time-p)
+                 :ring-buffer (make-ring-input-buffer size real-time-p)
                  :window-buffer window-buffer
                  :window-size window-size
                  :window-function window-function
@@ -170,7 +170,7 @@
                  (:constructor %make-ifft)
                  (:copier nil))
   (input-size 0 :type non-negative-fixnum))
-           
+
 (defmethod print-object ((obj ifft) stream)
   (format stream "#<IFFT :SIZE ~D :WINDOW-SIZE ~D :NBINS ~D>"
           (ifft-size obj) (ifft-window-size obj) (ifft-nbins obj)))
@@ -201,7 +201,7 @@
                  :input-buffer input-buffer
                  :input-size complex-array-size
                  :output-buffer output-buffer
-                 :ring-buffer (make-ring-output-buffer window-size real-time-p)
+                 :ring-buffer (make-ring-output-buffer size real-time-p)
                  :window-buffer window-buffer
                  :window-size window-size
                  :window-function window-function
