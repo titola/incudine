@@ -28,15 +28,15 @@
 #include <pa_jack.h>
 #endif
 
-SAMPLE pa_sample_rate;
-unsigned int pa_in_channels, pa_out_channels;
-float *pa_inputs, *pa_outputs;
-PaStream *stream;
-pthread_mutex_t pa_lisp_lock = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t  pa_lisp_cond = PTHREAD_COND_INITIALIZER;
-char pa_error_msg[256];
+static SAMPLE pa_sample_rate;
+static unsigned int pa_in_channels, pa_out_channels, frames_per_buffer;
+static float *pa_inputs, *pa_outputs;
+static PaStream *stream;
+static pthread_mutex_t pa_lisp_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t  pa_lisp_cond = PTHREAD_COND_INITIALIZER;
+static char pa_error_msg[256];
 
-void pa_set_error_msg(const char *msg)
+static void pa_set_error_msg(const char *msg)
 {
     strncpy(pa_error_msg, msg, 256);
 }
@@ -46,12 +46,12 @@ char *pa_get_error_msg()
     return pa_error_msg;
 }
 
-int pa_cb(const void *input_buffer, void *output_buffer,
-          unsigned long frames_per_buffer,
-          const PaStreamCallbackTimeInfo* time_info,
-          PaStreamCallbackFlags status_flags, void *userdata)
+static int pa_cb(const void *input_buffer, void *output_buffer,
+                 unsigned long nframes,
+                 const PaStreamCallbackTimeInfo* time_info,
+                 PaStreamCallbackFlags status_flags, void *userdata)
 {
-    (void) frames_per_buffer;
+    (void) nframes;
     (void) time_info;
     (void) status_flags;
     (void) userdata;
@@ -66,6 +66,11 @@ int pa_cb(const void *input_buffer, void *output_buffer,
     pthread_cond_signal(&pa_lisp_cond);
     pthread_mutex_unlock(&pa_lisp_lock);
     return paContinue;
+}
+
+int pa_get_buffer_size()
+{
+    return frames_per_buffer;
 }
 
 int pa_initialize(SAMPLE srate, unsigned int input_channels,
@@ -115,6 +120,7 @@ int pa_initialize(SAMPLE srate, unsigned int input_channels,
         Pa_Terminate();
         return 1;
     }
+    frames_per_buffer = nframes;
     /* Unblock signals */
     sigemptyset(&sset);
     if (sigprocmask(SIG_SETMASK, &sset, NULL) < 0) {
@@ -166,11 +172,6 @@ void pa_set_output(SAMPLE *outputs)
         *pa_outputs++ = (float)outputs[i];
         outputs[i] = 0.0f;
     }
-}
-
-SAMPLE pa_get_realtime()
-{
-    return (SAMPLE)(Pa_GetStreamTime(stream) * pa_sample_rate);
 }
 
 int pa_condition_wait()

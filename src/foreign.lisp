@@ -225,8 +225,8 @@
   (declaim (inline rt-condition-wait))
   (cffi:defcfun ("ja_condition_wait" rt-condition-wait) :int)
 
-  (declaim (inline rt-get-buffer-size))
-  (cffi:defcfun ("ja_get_buffer_size" rt-get-buffer-size) :int)
+  (declaim (inline rt-buffer-size))
+  (cffi:defcfun ("ja_get_buffer_size" rt-buffer-size) :int)
 
   (declaim (inline rt-set-busy-state))
   (cffi:defcfun ("ja_set_lisp_busy_state" rt-set-busy-state) :void
@@ -262,9 +262,8 @@
 
   (cffi:defcfun ("pa_get_error_msg" rt-get-error-msg) :string)
 
-  (declaim (inline rt-get-buffer-size))
-  (defun rt-get-buffer-size ()
-    incudine.util:*frames-per-buffer*))
+  (declaim (inline rt-buffer-size))
+  (cffi:defcfun ("pa_get_buffer_size" rt-buffer-size) :int))
 
 ;;; MOUSE
 

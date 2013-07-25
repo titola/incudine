@@ -186,6 +186,7 @@ int ja_initialize(SAMPLE srate, unsigned int input_channels,
 {
     sigset_t sset;
     (void) srate;
+    (void) nframes;
 
     ja_error_msg[0] = '\0';
     client = jack_client_open(client_name, JackNullOption, NULL);
@@ -194,10 +195,6 @@ int ja_initialize(SAMPLE srate, unsigned int input_channels,
         return 1;
     }
     frames_per_buffer = jack_get_buffer_size(client);
-    if ((frames_per_buffer <= 0) || (frames_per_buffer != nframes)) {
-        ja_error("invalid buffer size");
-        return 1;
-    }
     ja_sample_rate = (SAMPLE) jack_get_sample_rate(client);
     ja_in_channels = input_channels;
     ja_out_channels = output_channels;

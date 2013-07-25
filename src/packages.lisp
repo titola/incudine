@@ -29,7 +29,7 @@
    #:foreign-copy #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
    #:rt-audio-init #:rt-audio-start #:rt-audio-stop #:rt-get-input #:rt-set-output
    #:rt-condition-wait #:rt-get-error-msg #:rt-cycle-signal #:rt-set-busy-state
-   #:rt-get-buffer-size
+   #:rt-buffer-size
    #:mouse-event #:mouse-init #:mouse-loop-start #:mouse-stop #:get-mouse-status))
 
 (defpackage :incudine.util
@@ -50,7 +50,7 @@
    #:+double-float-bias+ #:+double-float-digits+
    #:+pointer-size+ #:+foreign-sample-size+ #:+foreign-complex-size+
    #:*sample-rate* #:*sample-duration* #:*sound-velocity* #:*r-sound-velocity*
-   #:*frames-per-buffer* #:*max-number-of-channels* #:*audio-driver* #:*client-name*
+   #:*max-number-of-channels* #:*audio-driver* #:*client-name*
    #:*number-of-input-bus-channels* #:*number-of-output-bus-channels*
    #:*number-of-bus-channels* #:*rt-edf-heap-size* #:*nrt-edf-heap-size*
    #:*rt-thread* #:*nrt-thread* #:*fast-nrt-thread* #:*rt-priority* #:*nrt-priority*
@@ -241,7 +241,7 @@
                 #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
                 #:rt-audio-init #:rt-audio-start #:rt-audio-stop
                 #:rt-get-input #:rt-set-output #:rt-cycle-signal #:rt-condition-wait
-                #:rt-set-busy-state #:rt-get-buffer-size #:rt-get-error-msg)
+                #:rt-set-busy-state #:rt-buffer-size #:rt-get-error-msg)
   (:import-from #:incudine.edf #:at #:flush-pending)
   (:import-from #:incudine.gen #:all-random-distributions #:rand-args)
   (:export
@@ -259,7 +259,8 @@
    #:bus #:audio-in #:audio-out
    #:peak-info #:print-peak-info #:reset-peak-meters
    #:set-number-of-channels
-   #:rt-start #:rt-stop #:rt-status #:at #:flush-pending #:flush-all-fifos
+   #:rt-start #:rt-stop #:rt-status #:rt-buffer-size
+   #:at #:flush-pending #:flush-all-fifos
    #:tempo #:*tempo* #:make-tempo #:bpm #:bps #:now #:tempo-sync
    #:rt-funcall #:fast-rt-funcall #:nrt-funcall #:fast-nrt-funcall
    #:*sine-table* #:*cosine-table*

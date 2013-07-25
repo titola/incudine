@@ -210,7 +210,7 @@
 (defstruct (rt-params (:copier nil))
   (driver            *audio-driver*)
   (priority          *rt-priority*)
-  (frames-per-buffer *frames-per-buffer*)
+  (frames-per-buffer incudine.util::*frames-per-buffer*)
   (status            :stopped))
 
 (defvar *rt-params* (make-rt-params))
