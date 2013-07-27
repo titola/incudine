@@ -26,9 +26,13 @@
 #include <jack/jack.h>
 #include "common.h"
 
+#define __JA_RUNNING     (0)
+#define __JA_STOPPED     (1)
+#define __JA_TERMINATED  (2)
+
 static jack_client_t *client = NULL;
 static SAMPLE ja_sample_rate;
-static unsigned int ja_in_channels, ja_out_channels, frames_per_buffer;
+static unsigned int ja_in_channels, ja_out_channels, ja_frames;
 static size_t ja_buffer_bytes;
 static int ja_status, ja_lisp_busy;
 static jack_default_audio_sample_t **ja_inputs, **ja_outputs;
@@ -36,6 +40,8 @@ static jack_port_t **input_ports, **output_ports;
 static char **input_port_names, **output_port_names;
 static pthread_mutex_t ja_lisp_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  ja_lisp_cond = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t ja_c_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t  ja_c_cond = PTHREAD_COND_INITIALIZER;
 static char ja_error_msg[256];
 
 int ja_stop();
@@ -69,9 +75,23 @@ static void ja_error(const char *msg) {
         return 1;                   \
     }
 
+jack_nframes_t ja_cycle_begin ()
+{
+    int i;
+    jack_nframes_t frames = jack_cycle_wait(client);
+
+    for (i=0; i<ja_in_channels; i++)
+        ja_inputs[i] = jack_port_get_buffer(input_ports[i], frames);
+
+    for (i=0; i<ja_out_channels; i++)
+        ja_outputs[i] = jack_port_get_buffer(output_ports[i], frames);
+
+    return frames;
+}
+
 void ja_cycle_signal(int status)
 {
-    if (status != 0)
+    if (status != __JA_RUNNING)
         ja_status = status;
     jack_cycle_signal(client, status);
 }
@@ -82,36 +102,62 @@ void ja_set_lisp_busy_state(int status)
     ja_lisp_busy = status;
 }
 
+#define __ja_condition_wait(COND,LOCK)  \
+    pthread_mutex_lock(LOCK);           \
+    pthread_cond_wait(COND, LOCK);      \
+    pthread_mutex_unlock(LOCK);
+
+#define __ja_condition_signal(COND,LOCK)  \
+    pthread_mutex_lock(LOCK);             \
+    pthread_cond_signal(COND);            \
+    pthread_mutex_unlock(LOCK);
+
+/* Wait on the lisp realtime thread */
+void ja_condition_wait()
+{
+    __ja_condition_wait(&ja_lisp_cond, &ja_lisp_lock);
+}
+
+/* Transfer the control of the client to C realtime thread */
+void ja_transfer_to_c_thread()
+{
+    ja_lisp_busy = 1;
+    __ja_condition_signal(&ja_c_cond, &ja_c_lock);
+}
+
 static void* ja_thread(void *arg)
 {
     (void) arg;
 
     while(1) {
-        int i;
-        jack_nframes_t frames = jack_cycle_wait(client);
-
-        for (i=0; i<ja_out_channels; i++)
-            ja_outputs[i] = jack_port_get_buffer(output_ports[i], frames);
+        /* You say goodbye, I say hello */
+        if (ja_status != __JA_RUNNING)
+            return 0;
 
         if (ja_lisp_busy != 0) {
+            int i;
+            jack_nframes_t frames = jack_cycle_wait(client);
+
+            if (ja_frames != frames) {
+                /* Buffer size is changed */
+                ja_frames = frames;
+                ja_buffer_bytes = frames*sizeof(jack_default_audio_sample_t);
+            }
+
+            for (i=0; i<ja_out_channels; i++)
+                ja_outputs[i] = jack_port_get_buffer(output_ports[i], ja_frames);
             /* Silence please, lisp is busy */
             for (i=0; i<ja_out_channels; i++)
                 memset(ja_outputs[i], 0, ja_buffer_bytes);
-            jack_cycle_signal(client, 0);
-        } else {
-            /* You say goodbye, I say hello */
-            if (ja_status != 0)
-                return 0;
 
-            for (i=0; i<ja_in_channels; i++)
-                ja_inputs[i] = jack_port_get_buffer(input_ports[i], frames);
+            jack_cycle_signal(client, ja_status);
+        } else {
             /*
-             * Sync with the lisp realtime thread.
-             * glibc uses futex on Linux; is it safe on the other OS ?
+             * Transfer the control of the client to lisp realtime
+             * thread and block the current thread.
              */
-            pthread_mutex_lock(&ja_lisp_lock);
-            pthread_cond_signal(&ja_lisp_cond);
-            pthread_mutex_unlock(&ja_lisp_lock);
+            __ja_condition_signal(&ja_lisp_cond, &ja_lisp_lock);
+            __ja_condition_wait(&ja_c_cond, &ja_c_lock);
         }
     }
     return 0;
@@ -119,7 +165,7 @@ static void* ja_thread(void *arg)
 
 int ja_get_buffer_size()
 {
-    return frames_per_buffer;
+    return ja_frames;
 }
 
 static int ja_register_ports()
@@ -167,7 +213,7 @@ static int ja_connect_client()
         return 1;
     for (i=0; i<ja_in_channels && ports[i] != NULL; i++)
         jack_connect(client, ports[i], jack_port_name(input_ports[i]));
-    free(ports);
+    jack_free(ports);
 
     ports = (char**) jack_get_ports(client, NULL, NULL,
                                     JackPortIsPhysical|JackPortIsInput);
@@ -175,7 +221,7 @@ static int ja_connect_client()
         return 1;
     for (i=0; i<ja_out_channels && ports[i] != NULL; i++)
         jack_connect(client, jack_port_name(output_ports[i]), ports[i]);
-    free(ports);
+    jack_free(ports);
 
     return 0;
 }
@@ -194,11 +240,11 @@ int ja_initialize(SAMPLE srate, unsigned int input_channels,
         ja_set_error_msg("jack_client_open failure");
         return 1;
     }
-    frames_per_buffer = jack_get_buffer_size(client);
+    ja_frames = jack_get_buffer_size(client);
     ja_sample_rate = (SAMPLE) jack_get_sample_rate(client);
     ja_in_channels = input_channels;
     ja_out_channels = output_channels;
-    ja_buffer_bytes = frames_per_buffer*sizeof(jack_default_audio_sample_t);
+    ja_buffer_bytes = ja_frames*sizeof(jack_default_audio_sample_t);
 
     ja_inputs = (jack_default_audio_sample_t**)
                    malloc(sizeof(jack_default_audio_sample_t*)*input_channels);
@@ -229,13 +275,16 @@ static void ja_terminate(void *arg)
 {
     (void) arg;
 
-    if (ja_status != 2 && client != NULL) {
+    if (ja_status != __JA_TERMINATED) {
         int i;
 
-        ja_status = 2;
-        jack_deactivate(client);
-        jack_client_close(client);
-        client = NULL;
+        ja_status = __JA_TERMINATED;
+
+        if (client != NULL) {
+            jack_deactivate(client);
+            jack_client_close(client);
+            client = NULL;
+        }
 
         ja_free(ja_inputs);
         ja_free(ja_outputs);
@@ -258,12 +307,13 @@ int ja_start()
         ja_error("JACK client not initialized");
         return 1;
     }
+    ja_status = __JA_RUNNING;
     if (jack_activate(client) != 0) {
         ja_error("error activating JACK client");
         return 1;
     }
     ja_connect_client();
-    ja_status = 0;
+
     return 0;
 }
 
@@ -288,16 +338,7 @@ void ja_set_output(SAMPLE *outputs)
     int i;
 
     for (i=0; i<ja_out_channels; i++) {
-        *ja_outputs[i]++ = (float)outputs[i];
-        outputs[i] = 0.0f;
+        *ja_outputs[i]++ = (jack_default_audio_sample_t) outputs[i];
+        outputs[i] = (jack_default_audio_sample_t) 0.0;
     }
-}
-
-/* Wait on the lisp realtime thread */
-int ja_condition_wait()
-{
-    pthread_mutex_lock(&ja_lisp_lock);
-    pthread_cond_wait(&ja_lisp_cond, &ja_lisp_lock);
-    pthread_mutex_unlock(&ja_lisp_lock);
-    return 0;
 }

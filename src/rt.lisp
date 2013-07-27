@@ -151,17 +151,20 @@
      ;; [SBCL] Restart from here after the stop caused by the gc
      reset
      #+jack-audio
-     (progn
+     (when (zerop rt-state)
+       ;; Transfer the control of the client from c to lisp
        (rt-set-busy-state nil)
-       (unless (zerop rt-state)
-         ;; Stop the jack thread
-         (rt-cycle-signal rt-state)))
-     (loop while (zerop rt-state) do
+       (rt-condition-wait))
+     (loop while (zerop rt-state)
+           with frames = frames-per-buffer do
           (incudine.util::without-gcing
+            #-jack-audio
             (rt-condition-wait)
+            #+jack-audio
+            (setf frames (rt-cycle-begin))
             (fifo-perform-functions *to-engine-fifo*)
             (do ((i 0 (1+ i)))
-                ((>= i frames-per-buffer))
+                ((>= i frames))
               (declare (type non-negative-fixnum i))
               (rt-get-input *input-pointer*)
               (fifo-perform-functions *fast-to-engine-fifo*)
@@ -173,5 +176,7 @@
             (incudine.util::with-stop-for-gc-pending
               ;; No xruns, jack knows that lisp is busy.
               ;; The output buffer is filled with zeroes.
-              #+jack-audio (rt-set-busy-state t)
-              (go reset))))))
+              #+jack-audio (rt-transfer-to-c-thread)
+              (go reset))))
+     #+jack-audio
+     (rt-transfer-to-c-thread)))

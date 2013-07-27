@@ -174,10 +174,9 @@ void pa_set_output(SAMPLE *outputs)
     }
 }
 
-int pa_condition_wait()
+void pa_condition_wait()
 {
     pthread_mutex_lock(&pa_lisp_lock);
     pthread_cond_wait(&pa_lisp_cond, &pa_lisp_lock);
     pthread_mutex_unlock(&pa_lisp_lock);
-    return 0;
 }
