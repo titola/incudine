@@ -43,14 +43,12 @@
     (declare (type list l))
     (let ((input (car l)))
       (when (vug-variable-p input)
-        (if init-time-p
-            (resolve-conditional-expansion input))
-        (cond ((performance-time-p input)
-               (setf (vug-variable-to-set-p input) nil))
-              (t (if init-time-p
-                     (setf (vug-variable-skip-init-set-p input) t)
-                     (setf (vug-variable-to-set-p input) nil))
-                 (setf (vug-variable-performance-time-p input) t)))))))
+        (cond (init-time-p
+               (resolve-conditional-expansion (cadr l))
+               (setf (vug-variable-skip-init-set-p input) t))
+              (t (setf (vug-variable-to-set-p input) nil)))
+        (unless (vug-variable-performance-time-p input)
+          (setf (vug-variable-performance-time-p input) t))))))
 
 ;;; Transform a VUG block in lisp code
 (defun blockexpand (obj &optional param-plist vug-body-p init-time-p
@@ -126,9 +124,8 @@
         ((and (vug-variable-p obj) vug-body-p (vug-variable-to-set-p obj)
               (not (and init-time-p (vug-variable-skip-init-set-p obj)))
               (or (not (init-time-p obj))
-                  (and (not (vug-variable-performance-time-p obj))
-                       (some #'performance-time-p
-                             (vug-variable-variables-to-recheck obj)))))
+                  (some #'performance-time-p
+                        (vug-variable-variables-to-recheck obj))))
          (if init-time-p
              (setf (vug-variable-skip-init-set-p obj) t)
              (setf (vug-variable-to-set-p obj) nil))
@@ -383,7 +380,8 @@
   (with-gensyms (i)
     `(foreach-channel (,i *number-of-output-bus-channels*)
        (let ((current-channel ,i))
-         (declare (type channel-number current-channel))
+         (declare (type channel-number current-channel)
+                  (ignorable current-channel))
          ,@body))))
 
 (defmacro generate-code (name arguments arg-names obj)

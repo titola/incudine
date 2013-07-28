@@ -540,25 +540,32 @@
                 (remove-lisp-declaration (cdr obj))))
       obj))
 
+(declaim (inline set-variable-performance-time))
+(defun set-variable-performance-time (var)
+  (unless (vug-variable-performance-time-p var)
+    (setf (vug-variable-performance-time-p var) t))
+  var)
+
 (declaim (inline update-setter-form))
 (defun update-setter-form (obj)
   (loop for i on (vug-function-inputs obj) by #'cddr
         for var = (car i) do
        (when (vug-variable-p var)
-         (unless (vug-variable-performance-time-p var)
-           (setf (vug-variable-performance-time-p var) t)))
+          (set-variable-performance-time var))
        (update-vug-variables (cadr i))))
 
 (defun update-vug-variables (obj)
-  (cond ((vug-object-p obj)
-         (cond ((vug-object-block-p obj) nil)
-               ((and (vug-function-p obj)
-                     (not (eq (vug-object-name obj) 'initialize)))
+  (cond ((and (vug-function-p obj)
+              (not (eq (vug-object-name obj) 'initialize)))
+         (cond ((eq (vug-object-name obj) 'update)
+                ;; An updated variable is performance-time
+                (set-variable-performance-time
+                 (car (vug-function-inputs obj))))
+               ((setter-form-p (vug-object-name obj))
                 ;; A variable in a setter form in the body of the VUG
                 ;; becomes performance-time
-                (if (setter-form-p (vug-object-name obj))
-                    (update-setter-form obj)
-                    (update-vug-variables (vug-function-inputs obj))))))
+                (update-setter-form obj))
+               (t (update-vug-variables (vug-function-inputs obj)))))
         ((consp obj)
          (update-vug-variables (car obj))
          (update-vug-variables (cdr obj))))
