@@ -45,8 +45,7 @@
    (:module "src"
     :depends-on ("contrib/cl-sndfile" "contrib/cl-portmidi")
     :components
-    ((:static-file "COPYING")
-     (:file "packages")
+    ((:file "packages")
      (:file "sample-type" :depends-on ("packages"))
      (:file "audio-driver" :depends-on ("packages"))
      (:file "config" :depends-on ("sample-type" "audio-driver"))
@@ -95,4 +94,8 @@
      (:file "vug/pan" :depends-on ("vug/util2"))
      (:file "vug/midi" :depends-on ("vug/codegen"))
      (:file "vug/mouse" :depends-on ("vug/util2" "vug/filter"))
-     (:file "vug/fft" :depends-on ("gen/window" "analysis/fft" "vug/codegen"))))))
+     (:file "vug/fft" :depends-on ("gen/window" "analysis/fft" "vug/codegen"))))
+   (:static-file "COPYING")
+   (:static-file "README")
+   (:static-file "TODO")
+   (:static-file "incudinerc-example")))
