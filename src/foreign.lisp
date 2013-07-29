@@ -255,6 +255,12 @@
 
   (cffi:defcfun ("pa_stop" rt-audio-stop) :int)
 
+  (declaim (inline rt-cycle-begin))
+  (cffi:defcfun ("pa_cycle_begin" rt-cycle-begin) :void)
+
+  (declaim (inline rt-cycle-end))
+  (cffi:defcfun ("pa_cycle_end" rt-cycle-end) :void)
+
   (declaim (inline rt-get-input))
   (cffi:defcfun ("pa_get_input" rt-get-input) :void
     (inputs :pointer))
@@ -262,9 +268,6 @@
   (declaim (inline rt-set-output))
   (cffi:defcfun ("pa_set_output" rt-set-output) :void
     (outputs :pointer))
-
-  (declaim (inline rt-condition-wait))
-  (cffi:defcfun ("pa_condition_wait" rt-condition-wait) :void)
 
   (cffi:defcfun ("pa_get_error_msg" rt-get-error-msg) :string)
 

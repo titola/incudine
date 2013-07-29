@@ -28,8 +28,8 @@
    #:apply-window #:apply-scaled-window #:apply-scaled-rectwin #:apply-zero-padding
    #:foreign-copy #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
    #:rt-audio-init #:rt-audio-start #:rt-audio-stop #:rt-get-input #:rt-set-output
-   #:rt-condition-wait #:rt-transfer-to-c-thread #:rt-cycle-begin #:rt-cycle-signal
-   #:rt-set-busy-state #:rt-buffer-size #:rt-get-error-msg
+   #:rt-condition-wait #:rt-transfer-to-c-thread #:rt-cycle-begin #:rt-cycle-end
+   #:rt-cycle-signal #:rt-set-busy-state #:rt-buffer-size #:rt-get-error-msg
    #:mouse-event #:mouse-init #:mouse-loop-start #:mouse-stop #:get-mouse-status))
 
 (defpackage :incudine.util
@@ -240,9 +240,9 @@
                 #:apply-scaled-window #:apply-zero-padding #:foreign-copy
                 #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
                 #:rt-audio-init #:rt-audio-start #:rt-audio-stop
-                #:rt-get-input #:rt-set-output #:rt-cycle-signal #:rt-cycle-begin
-                #:rt-condition-wait #:rt-transfer-to-c-thread #:rt-set-busy-state
-                #:rt-buffer-size #:rt-get-error-msg)
+                #:rt-get-input #:rt-set-output #:rt-cycle-begin #:rt-cycle-end
+                #:rt-cycle-signal #:rt-condition-wait #:rt-transfer-to-c-thread
+                #:rt-set-busy-state #:rt-buffer-size #:rt-get-error-msg)
   (:import-from #:incudine.edf #:at #:flush-pending)
   (:import-from #:incudine.gen #:all-random-distributions #:rand-args)
   (:export

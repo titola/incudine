@@ -142,41 +142,50 @@
       (foreach-channel (chan *number-of-output-bus-channels*)
         (update-peak-values chan)))))
 
+(defmacro with-restart-point ((label) &body body)
+  `(tagbody
+    ;; [SBCL] Restart from here after the stop caused by the gc
+    ,label
+      #+jack-audio
+      (when (zerop rt-state)
+        ;; Transfer the control of the client from c to lisp
+        (rt-set-busy-state nil)
+        (rt-condition-wait))
+      ,@body))
+
+(defmacro with-rt-cycle ((reset-label frames-var) &body body)
+  (declare (ignorable frames-var))
+  `(incudine.util::without-gcing
+     #+jack-audio (setf ,frames-var (rt-cycle-begin))
+     #+portaudio (rt-cycle-begin)
+     ,@body
+     #+jack-audio (rt-cycle-signal 0)
+     #+portaudio (rt-cycle-end)
+     (incudine.util::with-stop-for-gc-pending
+       ;; No xruns, jack knows that lisp is busy.
+       ;; The output buffer is filled with zeroes.
+       #+jack-audio (rt-transfer-to-c-thread)
+       (go ,reset-label))))
+
 (defun rt-loop (frames-per-buffer)
   (declare #.*standard-optimize-settings*
            (type non-negative-fixnum frames-per-buffer))
   (setf rt-state 0)
   (reset-sample-counter)
-  (tagbody
-     ;; [SBCL] Restart from here after the stop caused by the gc
-     reset
-     #+jack-audio
-     (when (zerop rt-state)
-       ;; Transfer the control of the client from c to lisp
-       (rt-set-busy-state nil)
-       (rt-condition-wait))
-     (loop while (zerop rt-state)
-           with frames = frames-per-buffer do
-          (incudine.util::without-gcing
-            #-jack-audio
-            (rt-condition-wait)
-            #+jack-audio
-            (setf frames (rt-cycle-begin))
-            (fifo-perform-functions *to-engine-fifo*)
-            (do ((i 0 (1+ i)))
-                ((>= i frames))
-              (declare (type non-negative-fixnum i))
-              (rt-get-input *input-pointer*)
-              (fifo-perform-functions *fast-to-engine-fifo*)
-              (incudine.edf::sched-loop)
-              (tick-func)
-              (rt-set-output *output-pointer*)
-              (incf-sample-counter))
-            #+jack-audio (rt-cycle-signal 0)
-            (incudine.util::with-stop-for-gc-pending
-              ;; No xruns, jack knows that lisp is busy.
-              ;; The output buffer is filled with zeroes.
-              #+jack-audio (rt-transfer-to-c-thread)
-              (go reset))))
-     #+jack-audio
-     (rt-transfer-to-c-thread)))
+  (let ((frames frames-per-buffer))
+    (declare (type non-negative-fixnum frames))
+    (with-restart-point (reset)
+      (loop while (zerop rt-state) do
+           (with-rt-cycle (reset frames)
+             (fifo-perform-functions *to-engine-fifo*)
+             (do ((i 0 (1+ i)))
+                 ((>= i frames))
+               (declare (type non-negative-fixnum i))
+               (rt-get-input *input-pointer*)
+               (fifo-perform-functions *fast-to-engine-fifo*)
+               (incudine.edf::sched-loop)
+               (tick-func)
+               (rt-set-output *output-pointer*)
+               (incf-sample-counter))))
+      #+jack-audio
+      (rt-transfer-to-c-thread))))

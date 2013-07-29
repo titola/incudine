@@ -18,6 +18,7 @@
  */
 
 #include <unistd.h>
+#include <stdlib.h>
 #include <signal.h>
 #include <string.h>
 #include <pthread.h>
@@ -31,9 +32,8 @@
 static SAMPLE pa_sample_rate;
 static unsigned int pa_in_channels, pa_out_channels, frames_per_buffer;
 static float *pa_inputs, *pa_outputs;
+static float *pa_inputs_anchor, *pa_outputs_anchor;
 static PaStream *stream;
-static pthread_mutex_t pa_lisp_lock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t  pa_lisp_cond = PTHREAD_COND_INITIALIZER;
 static char pa_error_msg[256];
 
 static void pa_set_error_msg(const char *msg)
@@ -46,31 +46,21 @@ char *pa_get_error_msg()
     return pa_error_msg;
 }
 
-static int pa_cb(const void *input_buffer, void *output_buffer,
-                 unsigned long nframes,
-                 const PaStreamCallbackTimeInfo* time_info,
-                 PaStreamCallbackFlags status_flags, void *userdata)
-{
-    (void) nframes;
-    (void) time_info;
-    (void) status_flags;
-    (void) userdata;
-
-    pa_inputs = (float*) input_buffer;
-    pa_outputs = (float*) output_buffer;
-    /*
-     * Sync with the lisp thread.
-     * glibc uses futex on Linux; is it safe on the other OS ?
-     */
-    pthread_mutex_lock(&pa_lisp_lock);
-    pthread_cond_signal(&pa_lisp_cond);
-    pthread_mutex_unlock(&pa_lisp_lock);
-    return paContinue;
-}
-
 int pa_get_buffer_size()
 {
     return frames_per_buffer;
+}
+
+void pa_cycle_begin()
+{
+    pa_inputs = pa_inputs_anchor;
+    Pa_ReadStream(stream, pa_inputs, frames_per_buffer);
+}
+
+void pa_cycle_end()
+{
+    pa_outputs = pa_outputs_anchor;
+    Pa_WriteStream(stream, pa_outputs, frames_per_buffer);
 }
 
 int pa_initialize(SAMPLE srate, unsigned int input_channels,
@@ -95,6 +85,7 @@ int pa_initialize(SAMPLE srate, unsigned int input_channels,
     pa_in_channels = input_channels;
     pa_out_channels = output_channels;
     pa_sample_rate = srate;
+
     input_param.device = Pa_GetDefaultInputDevice();
     if (input_param.device != paNoDevice) {
         input_param.channelCount = input_channels;
@@ -114,7 +105,7 @@ int pa_initialize(SAMPLE srate, unsigned int input_channels,
         oparam = &output_param;
     }
     err = Pa_OpenStream(&stream, iparam, oparam, (unsigned int) srate,
-                        nframes, paClipOff, pa_cb, NULL);
+                        nframes, paClipOff, NULL, NULL);
     if (err != paNoError) {
         pa_set_error_msg("PA_OpenStream failed");
         Pa_Terminate();
@@ -128,6 +119,22 @@ int pa_initialize(SAMPLE srate, unsigned int input_channels,
         Pa_Terminate();
         return 1;
     }
+    pa_inputs = (float*) malloc(nframes*input_channels*sizeof(float));
+    if (pa_inputs == NULL) {
+        pa_set_error_msg("malloc of input buffer failed");
+        Pa_Terminate();
+        return 1;
+    }
+    pa_outputs = (float*) malloc(nframes*output_channels*sizeof(float));
+    if (pa_outputs == NULL) {
+        pa_set_error_msg("malloc of output buffer failed");
+        Pa_Terminate();
+        free(pa_inputs);
+        return 1;
+    }
+    pa_inputs_anchor = pa_inputs;
+    pa_outputs_anchor = pa_outputs;
+
     return err;
 }
 
@@ -142,6 +149,9 @@ int pa_stop(void *arg)
         pa_set_error_msg("PA_CloseStream failed");
 
     Pa_Terminate();
+    free(pa_inputs_anchor);
+    free(pa_outputs_anchor);
+
     return err;
 }
 
@@ -169,14 +179,7 @@ void pa_set_output(SAMPLE *outputs)
     int i;
 
     for (i=0; i<pa_out_channels; i++) {
-        *pa_outputs++ = (float)outputs[i];
+        *pa_outputs++ = (float) outputs[i];
         outputs[i] = 0.0f;
     }
-}
-
-void pa_condition_wait()
-{
-    pthread_mutex_lock(&pa_lisp_lock);
-    pthread_cond_wait(&pa_lisp_cond, &pa_lisp_lock);
-    pthread_mutex_unlock(&pa_lisp_lock);
 }
