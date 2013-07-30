@@ -238,6 +238,28 @@
                  (c5 (* (- 1.0d0 c) c1)))
     (%butter-filter in c1 c2 c1 c2 c5)))
 
+;;; Digital emulation of a 3 pole lowpass filter. Based on Josep
+;;; Comajuncosas' 18dB/oct resonant 3-pole LPF with tanh dist (Csound)
+(define-vug lpf18 (in freq resonance distortion)
+  (with-samples ((f (* 2.0 freq *sample-duration*))
+                 (p (- (* (+ (* (+ (* -2.7528 f) 3.0429) f) 1.718) f) 0.9984))
+                 (p1 (+ p 1.0))
+                 (p1h (* p1 0.5))
+                 (res-scale (+ (* (- (* (+ (* -2.7079 p1) 10.963) p1) 14.934) p1)
+                               8.4974))
+                 ;; Alternative multiplier for the resonance
+                 ;; (res-scale (- 2.2173 (* 1.6519 (the sample (log p1)))))
+                 (res (* resonance res-scale))
+                 (value (+ 1.0 (* distortion (+ 1.5 (* 2.0 res (- 1.0 f))))))
+                 ;; Initialized with zero
+                 x0 x1 y1 y11 y2 y31 out)
+      (setf x0  (- in (tanh (* res out)))
+            y1  (- (* p1h (+ x0 x1))  (* p y1))
+            y2  (- (* p1h (+ y1 y11)) (* p y2))
+            out (- (* p1h (+ y2 y31)) (* p out)))
+      (setf x1 x0 y11 y1 y31 y2)
+      (tanh (* out value))))
+
 ;;; Moving Average Filter
 (define-vug maf (in (max-size positive-fixnum) (size positive-fixnum))
   (with ((array-wrap (make-foreign-array max-size 'sample :zero-p t))
