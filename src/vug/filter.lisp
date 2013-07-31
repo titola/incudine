@@ -50,16 +50,12 @@
 
 ;;; One pole filter with the coefficient calculated from a 60 dB lag time
 (define-vug lag (in time)
-  (with-samples ((coef (if (zerop time)
-                           0.0d0
-                           (exp (/ +log001+ (* time *sample-rate*))))))
+  (with-samples ((coef (decay-time->radius time)))
     (one-pole in coef)))
 
 (define-vug decay (in decay-time)
   (with-samples ((y1 0.0d0)
-                 (b1 (if (plusp decay-time)
-                         (exp (/ +log001+ (* decay-time *sample-rate*)))
-                         0.0d0)))
+                 (b1 (decay-time->radius decay-time)))
     ;; Update the input, if it is required, to avoid the expansion
     ;; inside the next condition
     in

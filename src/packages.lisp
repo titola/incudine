@@ -63,6 +63,7 @@
    #:foreach-channel
    #:lin->db #:db->lin
    #:linear-interp #:cos-interp #:cubic-interp
+   #:decay-time->radius
    #:set-sample-rate #:set-sample-duration #:set-sound-velocity
    #:sample-rate-hook #:sample-duration-hook #:sound-velocity-hook
    #:non-negative-fixnum64 #:most-positive-fixnum64

@@ -109,6 +109,12 @@
         (a2 (+ (* -0.5 y0) (* 0.5 y2))))
     (+ (* in (+ (* in (+ (* a0 in) a1)) a2)) y1)))
 
+(declaim (inline decay-time->radius))
+(defun decay-time->radius (decay-time)
+  (if (zerop decay-time)
+      +sample-zero+
+      (exp (/ (* +log001+ *sample-duration*) decay-time))))
+
 (declaim (inline set-sample-rate))
 (defun set-sample-rate (value)
   (setf *sample-rate* (coerce value 'sample)
