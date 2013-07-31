@@ -86,22 +86,34 @@
 ;;;   [2] Ken Steiglitz, "A Note on Constant-Gain Digital Resonators,"
 ;;;   Computer Music Journal, vol. 18, no. 4, pp. 8-10, Winter 1982.
 ;;;
-(define-vug resonz (in freq q)
-  (with-samples ((wt (* +twopi+ freq *sample-duration*))
-                 (bw (/ wt q))
-                 (r (- 1 (* bw 0.5d0)))
-                 (2r (+ r r))
-                 (rr (* r r))
-                 (k (/ (* 2r (cos wt)) (+ 1 rr)))
-                 (b0 (* (- 1 rr) 0.5))
+(define-vug %resonz (in freq wt cos-wt r rr gain)
+  (with-samples ((2r (+ r r))
+                 (k (/ (* 2r cos-wt) (+ 1 rr)))
                  (a1 (* 2r k))
                  (a2 (- rr))
                  (y0 0.0d0)
                  (y1 0.0d0)
                  (y2 0.0d0))
     (setf y0 (+ in (* a1 y1) (* a2 y2)))
-    (prog1 (* b0 (- y0 y2))
+    (prog1 (* gain (- y0 y2))
       (setf y2 y1 y1 y0))))
+
+(define-vug resonz (in freq q)
+  (with-samples ((wt (* +twopi+ freq *sample-duration*))
+                 (bw (/ wt q))
+                 (r (- 1 (* bw 0.5d0)))
+                 (rr (* r r)))
+    (%resonz in freq wt (cos wt) r rr (* (- 1 rr) 0.5))))
+
+;;; It is the same as RESONZ with the bandwidth specified in a 60dB
+;;; ring decay time. Inspired by Ringz in SuperCollider but it is a
+;;; constant gain digital resonator. We can get the original behavior
+;;; removing the multiplier `(- 1 rr)' in %RESONZ
+(define-vug ringz (in freq decay-time)
+  (with-samples ((wt (* +twopi+ freq *sample-duration*))
+                 (r (decay-time->radius decay-time))
+                 (rr (* r r)))
+    (%resonz in freq wt (cos wt) r rr (* (- 1 rr) 0.5))))
 
 ;;; EQ biquad filter coefficients by Robert Bristow-Johnson
 ;;; http://www.musicdsp.org/files/Audio-EQ-Cookbook.txt
