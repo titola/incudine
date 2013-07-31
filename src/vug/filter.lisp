@@ -260,6 +260,50 @@
       (setf x1 x0 y11 y1 y31 y2)
       (tanh (* out value))))
 
+;;; State Variable Filter.
+;;; Reference: http://www.musicdsp.org/archive.php?classid=3#92
+;;;
+;;; This filter has five simultaneous outputs stored in a FRAME:
+;;; low-pass, high-pass, band-pass, notch and peaking.
+;;;
+;;; It is stable with RESONANCE from 0 to 1 and DRIVE from 0 to 0.1
+(define-vug svf (in fcut resonance drive)
+  (with ((freq (* 2.0 (sin (* pi (min 0.25 (* fcut
+                                              ;; Double sampled
+                                              0.5 *sample-duration*))))))
+         ;; Inferior limit for the resonance, however it is safer a
+         ;; value not greater than one.
+         (res (if (minusp resonance) +sample-zero+ resonance))
+         (damp (min (* 2.0 (- 1.0 (expt (the non-negative-sample res)
+                                        0.25)))
+                    (min 2.0 (- (/ 2.0 freq) (* freq 0.5)))))
+         (frame (make-frame 5 :zero-p t)))
+    (declare (type sample freq res damp))
+    (with-samples (low high band notch)
+      (frame-value-bind (lp hp bp rb peak) frame
+        ;; First pass
+        (setf notch (- in (* damp band))
+              low   (+ low (* freq band))
+              high  (- notch low)
+              band  (- (+ (* freq high) band)
+                       (* drive band band band)))
+        (setf lp (* 0.5 low)
+              hp (* 0.5 high)
+              bp (* 0.5 band)
+              rb (* 0.5 notch))
+        ;; Second pass
+        (setf notch (- in (* damp band))
+              low   (+ low (* freq band))
+              high  (- notch low)
+              band  (- (+ (* freq high) band)
+                       (* drive band band band)))
+        (setf lp (+ lp (* 0.5 low))
+              hp (+ hp (* 0.5 high))
+              bp (+ bp (* 0.5 band))
+              rb (+ rb (* 0.5 notch))
+              peak (- lp hp)))
+      frame)))
+
 ;;; Moving Average Filter
 (define-vug maf (in (max-size positive-fixnum) (size positive-fixnum))
   (with ((array-wrap (make-foreign-array max-size 'sample :zero-p t))
