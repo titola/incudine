@@ -57,12 +57,6 @@
              (t (incudine:free ,vug-varname)
                 (setf ,vug-varname (incudine.analysis:make-abuffer ,obj t)))))))
 
-(defmacro make-frame (size)
-  (with-gensyms (frame-wrap)
-    `(with ((,frame-wrap (make-foreign-array ,size 'sample)))
-       (declare (type foreign-array ,frame-wrap))
-       (foreign-array-data ,frame-wrap))))
-
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (object-to-free incudine:make-buffer update-local-buffer)
   (object-to-free incudine.analysis:make-abuffer update-local-abuffer)

@@ -16,6 +16,31 @@
 
 (in-package :incudine.vug)
 
+;;; A FRAME is a foreign array of SAMPLE type, useful to efficiently
+;;; store and return multiple values from a VUG
+(defmacro make-frame (size &key zero-p initial-element initial-contents)
+  (with-gensyms (frame-wrap)
+    `(with ((,frame-wrap (make-foreign-array ,size 'sample
+                           ,@(if zero-p `(:zero-p ,zero-p))
+                           ,@(if initial-element
+                                 `(:initial-element ,initial-element))
+                           ,@(if initial-contents
+                                 `(:initial-contents ,initial-contents)))))
+       (declare (type foreign-array ,frame-wrap))
+       (foreign-array-data ,frame-wrap))))
+
+;;; Return a value of a frame
+(defmacro frame-ref (frame channel)
+  `(mem-ref ,frame 'sample (the non-negative-fixnum
+                             (* ,channel +foreign-sample-size+))))
+
+;;; Like MULTIPLE-VALUE-BIND but dedicated to a FRAME
+(defmacro frame-value-bind (vars frame &body body)
+  `(symbol-macrolet
+       ,(loop for var in vars for count from 0
+              collect `(,var (frame-ref ,frame ,count)))
+     ,@body))
+
 ;;; Calc only one time during a tick
 (defmacro foreach-tick (&body body)
   (with-gensyms (old-time)

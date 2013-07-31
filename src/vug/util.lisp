@@ -78,7 +78,3 @@
         (declare (type non-negative-fixnum n))
         (incf num-zeros)))
     num-zeros))
-
-(defmacro frame-ref (frame channel)
-  `(mem-ref ,frame 'sample (the non-negative-fixnum
-                             (* ,channel +foreign-sample-size+))))

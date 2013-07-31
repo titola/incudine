@@ -119,7 +119,7 @@
    #:defsynth #:defsynth-debug #:*update-synth-instances* #:synth #:all-synth-names
    #:free-synth-instances #:destroy-synth
    #:current-channel
-   #:make-frame #:frame-ref
+   #:make-frame #:frame-ref #:frame-value-bind
    #:foreach-tick #:counter #:multi-rate #:generic-rate #:samphold #:interpolate
    #:tick #:external-variable #:init-only #:initialize #:without-follow
    #:update #:object-to-free
