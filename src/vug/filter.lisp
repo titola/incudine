@@ -115,6 +115,17 @@
                  (rr (* r r)))
     (%resonz in freq wt (cos wt) r rr (* (- 1 rr) 0.5))))
 
+;;; FOF-like filter based on James McCartney's Formlet.
+;;; The name is FOFILTER (used also in Csound) to avoid confusion with
+;;; FORMLET and LET.
+(define-vug fofilter (in freq attack-time decay-time)
+  (with-samples ((wt (* +twopi+ freq *sample-duration*))
+                 (cos-wt (cos wt))
+                 (r0 (decay-time->radius attack-time))
+                 (r1 (decay-time->radius decay-time)))
+    (- (%resonz in freq wt cos-wt r1 (* r1 r1) 0.5)
+       (%resonz in freq wt cos-wt r0 (* r0 r0) 0.5))))
+
 ;;; EQ biquad filter coefficients by Robert Bristow-Johnson
 ;;; http://www.musicdsp.org/files/Audio-EQ-Cookbook.txt
 

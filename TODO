@@ -2,8 +2,6 @@
 
 * VUGs
 
-  - more filters (fir, ...)
-  - frequently used generators
   - diskin (play a soundfile from disk)
   - convolution (direct, fft, hybrid?)
   - facility for microsounds (pulsar, etc)
