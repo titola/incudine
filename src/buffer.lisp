@@ -31,8 +31,19 @@
     (channels 1 :type non-negative-fixnum)
     (sample-rate *sample-rate* :type sample)
     (file nil :type (or pathname null))
+    (textfile-p nil :type boolean)
     (real-time-p nil :type boolean)
     (foreign-free #'foreign-free :type function)))
+
+(declaim (inline calc-buffer-mask))
+(defun calc-buffer-mask (size)
+  (declare (type non-negative-fixnum size))
+  (if (power-of-two-p size)
+      (1- size)
+      (let ((half (ash size -1)))
+        (if (power-of-two-p half)
+            (- size 2)
+            (- (next-power-of-two half) 1)))))
 
 (declaim (inline %%make-buffer))
 (defun %%make-buffer (frames channels sample-rate real-time-p)
@@ -49,9 +60,7 @@
          (obj (%make-buffer
                :data data
                :size size
-               :mask (if (power-of-two-p size)
-                         (1- size)
-                         (1- (next-power-of-two (ash size -1))))
+               :mask (calc-buffer-mask size)
                :lobits lobits
                :lomask (1- value)
                :lodiv (if (zerop lobits)
@@ -80,17 +89,115 @@
 (defmethod free-p ((obj buffer))
   (null-pointer-p (buffer-data obj)))
 
-(defmacro with-sndfile-open ((var path &rest rest) &body body)
+(declaim (inline buffer-value))
+(defun buffer-value (buffer index)
+  (declare (type buffer buffer) (type non-negative-fixnum index))
+  (data-ref (buffer-data buffer) index))
+
+(declaim (inline set-buffer-value))
+(defun set-buffer-value (buffer index value)
+  (declare (type buffer buffer) (type non-negative-fixnum index)
+           (type real value))
+  (setf (data-ref (buffer-data buffer) index)
+        (coerce value 'sample)))
+
+(defsetf buffer-value set-buffer-value)
+
+(defun check-numeric-textfile (file)
+  "Check if FILE is a text file that contains numbers.
+Returns T and the number of the counted values, or NIL if the file is
+not valid.
+
+There is not the parsing of the numbers, a text file is valid if it
+contains numbers or spaces or tabs or newlines.
+
+It is possible to use line comments that begin with the `;' char."
+  (flet ((valid-char-p (code)
+           (or ;; [0-9]
+               (< 47 code 58)
+               ;;            \t \n \f \r sp  +  -  .  D  E  d   e
+               (member code '(9 10 12 13 32 43 45 46 68 69 100 101))))
+         (separator-p (code)
+           (member code '(9 10 12 13 32)))
+         (newline-p (code)
+           (member code '(10 12 13))))
+    (with-open-file (f file :element-type '(unsigned-byte 8))
+      (loop for code = (read-byte f nil nil)
+            with sep = t and count = 0
+            while code do
+           (when (= code 59)
+             ;; Skip line comment
+             (unless sep
+               (setf sep t))
+             (loop do (setf code (read-byte f nil nil))
+                   until (newline-p code)))
+           (if (valid-char-p code)
+               (if sep
+                   (unless (separator-p code)
+                     (setf sep nil)
+                     (incf count))
+                   (if (separator-p code)
+                       (setf sep t)))
+               (return (values nil count)))
+            finally (return (values t count))))))
+
+(defun buffer-import-textfile (buffer path offset buffer-start channels size)
+  (with-open-file (f path)
+    (when (plusp offset)
+      ;; Skip the first OFFSET frames
+      (loop for frame from 0
+            while (< frame offset) do
+           (dotimes (ch channels)
+             (read f nil nil))))
+    (loop with count = buffer-start
+          while (< count size) do
+         (dotimes (ch channels)
+           (let ((value (read f nil nil)))
+             (setf (buffer-value buffer count)
+                   (typecase value
+                     (number value)
+                     (null +sample-zero+)
+                     (t (nrt-msg warn "bad value (~A) in ~A" value path)
+                        +sample-zero+))))
+           (incf count)))))
+
+(defun buffer-load-textfile (path &key (offset 0) frames (channels 1)
+                             (sample-rate *sample-rate*))
+  (multiple-value-bind (valid-p size)
+      (check-numeric-textfile path)
+    (when valid-p
+      (let* ((offset (if (floatp offset) (sample->fixnum offset) offset))
+             (channels (if (plusp channels) channels 1))
+             (frames (or frames (- (ceiling (/ size channels)) offset))))
+        (when (plusp frames)
+          (let ((buf (make-buffer frames :channels channels
+                                  :sample-rate (sample sample-rate))))
+            (buffer-import-textfile buf path offset 0 channels
+                                    (* frames channels))
+            (setf (buffer-file buf)
+                  (if (pathnamep path) path (pathname path)))
+            (setf (buffer-textfile-p buf) t)
+            buf))))))
+
+(defmacro with-open-sndfile ((var path offset frames channels sample-rate
+                             &rest rest) &body body)
   `(if (probe-file ,path)
        (sf:with-open (,var ,path ,@rest)
          (if (sf:sndfile-null-p ,var)
-             (nrt-msg error (sf:strerror ,var))
+             ;; Try to load a text file
+             (or (buffer-load-textfile ,path :offset ,offset
+                                       :frames ,frames
+                                       :channels (or ,channels 1)
+                                       :sample-rate (or ,sample-rate
+                                                        *sample-rate*))
+                 (nrt-msg error (sf:strerror ,var)))
              ,@body))
        (nrt-msg error "file ~S not found" (namestring ,path))))
 
-(defun buffer-load (path &key (offset 0) frames (channel -1))
+(defun buffer-load (path &key (offset 0) frames (channel -1) channels
+                    sample-rate)
   (declare (type (or string pathname) path) (type fixnum channel))
-  (with-sndfile-open (sf path)
+  (with-open-sndfile (sf path offset frames channels sample-rate)
     (let* ((offset (if (floatp offset) (sample->fixnum offset) offset))
            (info (sf:info sf))
            (channels (sf:channels info))
@@ -131,20 +238,6 @@
     (tg:cancel-finalization obj)
     (setf (buffer-data obj) (null-pointer))
     (values)))
-
-(declaim (inline buffer-value))
-(defun buffer-value (buffer index)
-  (declare (type buffer buffer) (type non-negative-fixnum index))
-  (data-ref (buffer-data buffer) index))
-
-(declaim (inline set-buffer-value))
-(defun set-buffer-value (buffer index value)
-  (declare (type buffer buffer) (type non-negative-fixnum index)
-           (type real value))
-  (setf (data-ref (buffer-data buffer) index)
-        (coerce value 'sample)))
-
-(defsetf buffer-value set-buffer-value)
 
 ;;; FUNCTION has two arguments: the index and the value of the buffer
 (defun map-buffer (function buffer)
@@ -218,6 +311,22 @@
   (declare (type buffer buf))
   (loop for i below (buffer-size buf) collect (buffer-value buf i)))
 
+(defun set-buffer-from-textfile (buffer path start buffer-start buffer-end)
+  (declare (type (or string pathname)) (type buffer buffer)
+           (type non-negative-fixnum start buffer-start buffer-end))
+  (multiple-value-bind (valid-p size)
+      (check-numeric-textfile path)
+    (when valid-p
+      (let* ((channels (buffer-channels buffer))
+             (frames (min (- buffer-end buffer-start)
+                          (- (ceiling (/ size channels)) start))))
+        (declare (type channel-number channels)
+                 (type non-negative-fixnum frames))
+        (when (plusp frames)
+          (buffer-import-textfile buffer path start buffer-start
+                                  channels (+ buffer-start
+                                              (* frames channels))))))))
+
 (declaim (inline check-channel-map))
 (defun check-channel-map (cmap cmap-size sf-channels buf-channels)
   (declare (type list cmap)
@@ -253,8 +362,8 @@
             ((null l))
           (declare (type non-negative-fixnum i) (type list l))
           (let ((map (car l)))
-            (setf (cffi:mem-aref src :int i) (first map)
-                  (cffi:mem-aref dest :int i) (second map))))
+            (setf (mem-aref src :int i) (first map)
+                  (mem-aref dest :int i) (second map))))
         (incudine.external::%map-sndfile-ch-to-buffer data sndfile frames channels
                                                       buf-channels data-offset chunk-size
                                                       dest src channel-map-size)))))
@@ -264,37 +373,41 @@
   (declare (type buffer buffer) (type (or string pathname) path)
            (type non-negative-fixnum start buffer-start buffer-end)
            (type list channel-map))
-  (with-sndfile-open (sf path)
-    (unless (sf:sndfile-null-p sf)
-      (let* ((info (sf:info sf))
-             (channels (sf:channels info))
-             (selected-frames (min (- buffer-end buffer-start)
-                                   (- (sf:frames info) start))))
-        (declare (type non-negative-fixnum channels)
-                 (type fixnum selected-frames))
-        (when (plusp selected-frames)
-          (locally (declare #.*standard-optimize-settings*)
-            (sf:seek sf start 0)
-            (cond (channel-map
-                   (let ((channel-map-size (length channel-map)))
-                     (when (check-channel-map channel-map channel-map-size channels
-                                              (buffer-channels buffer))
-                       (map-sndfile-ch-to-buffer (buffer-data buffer) sf selected-frames
-                                                 channels (buffer-channels buffer)
-                                                 buffer-start *sndfile-buffer-size*
-                                                 channel-map channel-map-size))))
-                  ((= (buffer-channels buffer) channels)
-                   (sndfile-to-buffer (buffer-data buffer) sf selected-frames
-                                      channels buffer-start *sndfile-buffer-size*))
-                  (t (let ((channel-map (loop for src below channels
-                                           for dest below (buffer-channels buffer)
-                                           collect `(,src ,dest))))
-                       (nrt-msg debug "use channel-map ~A" channel-map)
-                       (map-sndfile-ch-to-buffer (buffer-data buffer) sf selected-frames
-                                                 channels (buffer-channels buffer)
-                                                 buffer-start *sndfile-buffer-size*
-                                                 channel-map (min channels
-                                                                  (buffer-channels buffer))))))))))))
+  (if (probe-file path)
+      (sf:with-open (sf path)
+        (if (sf:sndfile-null-p sf)
+            ;; Perhaps it is a numeric text file
+            (set-buffer-from-textfile buffer path start buffer-start buffer-end)
+            (let* ((info (sf:info sf))
+                   (channels (sf:channels info))
+                   (selected-frames (min (- buffer-end buffer-start)
+                                         (- (sf:frames info) start))))
+              (declare (type non-negative-fixnum channels)
+                       (type fixnum selected-frames))
+              (when (plusp selected-frames)
+                (locally (declare #.*standard-optimize-settings*)
+                  (sf:seek sf start 0)
+                  (cond (channel-map
+                         (let ((channel-map-size (length channel-map)))
+                           (when (check-channel-map channel-map channel-map-size channels
+                                   (buffer-channels buffer))
+                             (map-sndfile-ch-to-buffer (buffer-data buffer) sf selected-frames
+                               channels (buffer-channels buffer)
+                               buffer-start *sndfile-buffer-size*
+                               channel-map channel-map-size))))
+                        ((= (buffer-channels buffer) channels)
+                         (sndfile-to-buffer (buffer-data buffer) sf selected-frames
+                                            channels buffer-start *sndfile-buffer-size*))
+                        (t (let ((channel-map (loop for src below channels
+                                                    for dest below (buffer-channels buffer)
+                                                    collect `(,src ,dest))))
+                             (nrt-msg debug "use channel-map ~A" channel-map)
+                             (map-sndfile-ch-to-buffer (buffer-data buffer) sf selected-frames
+                               channels (buffer-channels buffer)
+                               buffer-start *sndfile-buffer-size*
+                               channel-map (min channels
+                                                (buffer-channels buffer)))))))))))
+      (nrt-msg error "file ~S not found" (namestring path))))
 
 (defun set-buffer-data (buffer values &key (start 0) end
                         (sndfile-start 0) channel-map
