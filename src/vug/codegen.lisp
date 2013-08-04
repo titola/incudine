@@ -85,6 +85,8 @@
                 `(progn ,@(blockexpand (cdr (vug-function-inputs obj))
                                        param-plist vug-body-p
                                        init-time-p conditional-expansion-p)))
+               ((vug-name-p obj 'get-pointer)
+                `(get-pointer ,(vug-object-name (car (vug-function-inputs obj)))))
                ((null (vug-function-inputs obj))
                 (list (vug-object-name obj)))
                ((vug-name-p obj 'lambda)
@@ -347,10 +349,22 @@
   (let ((count 0))
     `(symbol-macrolet
          ,(mapcar (lambda (var-name)
+                    ;; Memo: GET-POINTER depends on the follow line
                     (prog1 `(,var-name (mem-aref ,c-vector ,type ,count))
                       (incf count)))
                   variables)
        ,@body)))
+
+;;; Retrieve the pointer to a slot of a foreign array.
+(defmacro get-pointer (foreign-variable &environment env)
+  (destructuring-bind (ptr type count)
+      ;; FOREIGN-VARIABLE is defined by WITH-FOREIGN-SYMBOLS, so we
+      ;; can use the list (mem-aref ptr type count) to get the needed
+      ;; informations about the pointer.
+      (cdr (macroexpand-1 foreign-variable env))
+    `(inc-pointer ,ptr (* ,count
+                          (the non-negative-fixnum
+                            (cffi:foreign-type-size ,type))))))
 
 (defmacro with-sample-variables (variables unused &body body)
   (declare (ignore unused))

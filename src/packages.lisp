@@ -117,6 +117,7 @@
    #:vug #:define-vug #:define-vug-macro #:destroy-vug #:all-vug-names
    #:with
    #:with-coerce-arguments
+   #:get-pointer
    #:defsynth #:defsynth-debug #:*update-synth-instances* #:synth #:all-synth-names
    #:free-synth-instances #:destroy-synth
    #:current-channel

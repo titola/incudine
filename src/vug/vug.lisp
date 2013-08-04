@@ -460,6 +460,10 @@
                                ((vug-block-p name)
                                 (cons name (parse-vug-def (cdr def) t flist mlist)))
                                ((eq name 'tick) (parse-tick-form def flist mlist))
+                               ((eq name 'get-pointer)
+                                ;; Inhibit the expansion of GET-POINTER macro
+                                `(make-vug-function :name 'get-pointer
+                                   :inputs (list ,@(parse-vug-def (cdr def) t flist mlist))))
                                ((eq name 'external-variable)
                                 `(make-vug-symbol :name ',(cadr def)))
                                ((eq name 'without-follow)
