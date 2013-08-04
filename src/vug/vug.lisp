@@ -76,6 +76,9 @@
   (to-free         nil :type list)
   ;; List of the variables with type SAMPLE
   (foreign-sample  nil :type list)
+  ;; List of the variables with type single and double float
+  (foreign-float   nil :type list)
+  (foreign-double  nil :type list)
   ;; List of the variables with unboxed type 32-bit integer
   ;; (used only on a 32-bit system)
   (foreign-int32   nil :type list)

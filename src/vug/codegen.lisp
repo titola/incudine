@@ -166,6 +166,16 @@
   (member type '(sample positive-sample negative-sample
                  non-negative-sample non-positive-sample)))
 
+(declaim (inline foreign-float-p))
+(defun foreign-float-p (type)
+  (eq (if (consp type) (car type) type)
+      'foreign-float))
+
+(declaim (inline foreign-double-p))
+(defun foreign-double-p (type)
+  (eq (if (consp type) (car type) type)
+      'foreign-double))
+
 (declaim (inline foreign-int32-p))
 (defun foreign-int32-p (type)
   (declare (ignorable type))
@@ -187,6 +197,8 @@
 (declaim (inline foreign-type-p))
 (defun foreign-type-p (type)
   (or (foreign-sample-p type)
+      (foreign-float-p type)
+      (foreign-double-p type)
       (foreign-int32-p type)
       (foreign-int64-p type)))
 
@@ -301,21 +313,30 @@
                                  *vug-variables*))
                        (incf ,counter)))))))
   (define-add-*-variables sample)
+  (define-add-*-variables float)
+  (define-add-*-variables double)
   (define-add-*-variables int32)
   (define-add-*-variables int64)
   (define-add-*-parameters sample)
+  (define-add-*-parameters float)
+  (define-add-*-parameters double)
   (define-add-*-parameters int32)
   (define-add-*-parameters int64))
 
-(defmacro add-foreign-vars-and-params (number-of-sample number-of-int32
+(defmacro add-foreign-vars-and-params (number-of-sample number-of-float
+                                       number-of-double number-of-int32
                                        number-of-int64)
   (declare (ignorable number-of-int32))
   `(progn
-     (add-sample-variables  ,number-of-sample)
+     (add-sample-variables ,number-of-sample)
+     (add-float-variables ,number-of-float)
+     (add-double-variables ,number-of-double)
      #-x86-64
      (add-int32-variables ,number-of-int32)
      (add-int64-variables ,number-of-int64)
      (add-sample-parameters ,number-of-sample)
+     (add-float-parameters ,number-of-float)
+     (add-double-parameters ,number-of-double)
      #-x86-64
      (add-int32-parameters ,number-of-int32)
      (add-int64-parameters ,number-of-int64)))
@@ -398,21 +419,48 @@
                   (ignorable current-channel))
          ,@body))))
 
+(defmacro with-foreign-variables ((float-vars float-array
+                                   double-vars double-array
+                                   int32-vars int32-array
+                                   int64-vars int64-array) &body body)
+  `(with-foreign-symbols ,float-vars ,float-array :float
+     (with-foreign-symbols ,double-vars ,double-array :double
+       (with-foreign-symbols ,int32-vars ,int32-array :int32
+         (with-foreign-symbols ,int64-vars ,int64-array :int64
+           ,@body)))))
+
+(defmacro vug-foreign-variables-names (type)
+  `(mapcar #'vug-object-name
+           (,(format-symbol :incudine.vug "VUG-VARIABLES-FOREIGN-~A" type)
+            *vug-variables*)))
+
+(defun foreign-array-bindings (array-bindings)
+  (flet ((foreign-array-binding (array-var array-wrap-var type size)
+           (when (plusp size)
+             `((,array-wrap-var (make-foreign-array ,size ,type))
+               (,array-var (foreign-array-data ,array-wrap-var))))))
+    (loop for args in array-bindings
+          append (apply #'foreign-array-binding args))))
+
 (defmacro generate-code (name arguments arg-names obj)
   (with-gensyms (result vug-body control-table c-array-sample-wrap
-                 c-array-int32-wrap c-array-int64-wrap c-array-sample
-                 c-array-int32 c-array-int64 number-of-sample
-                 number-of-int32 number-of-int64 synth-cons synth node
-                 free-hook function-object)
+                 c-array-float-wrap c-array-double-wrap c-array-int32-wrap
+                 c-array-int64-wrap c-array-sample c-array-float c-array-double
+                 c-array-int32 c-array-int64 number-of-sample number-of-float
+                 number-of-double number-of-int32 number-of-int64 synth-cons
+                 synth node free-hook function-object)
     `(let* ((*vug-variables* (make-vug-variables))
             (*initialization-code* (list '(values)))
             (,number-of-sample 0)
+            (,number-of-float 0)
+            (,number-of-double 0)
             (,number-of-int32 0)
             (,number-of-int64 0)
             (,result ,(synth-vug-block arguments obj))
             (,vug-body (format-vug-code ,result)))
        (reorder-parameter-list)
-       (add-foreign-vars-and-params ,number-of-sample ,number-of-int32 ,number-of-int64)
+       (add-foreign-vars-and-params ,number-of-sample ,number-of-float ,number-of-double
+                                    ,number-of-int32 ,number-of-int64)
        `(lambda (%synth-node%)
           (declare #.*standard-optimize-settings*
                    (type incudine:node %synth-node%))
@@ -437,54 +485,54 @@
                                   (plusp ,number-of-sample)))
                      `((,',c-array-sample-wrap (make-foreign-sample-array ,,number-of-sample))
                        (,',c-array-sample (foreign-sample-array-data ,',c-array-sample-wrap))))
-                 ;; Foreign array with type INT32
-                 ,@(when (plusp ,number-of-int32)
-                     `((,',c-array-int32-wrap (make-foreign-array ,,number-of-int32 :int32))
-                       (,',c-array-int32 (foreign-array-data ,',c-array-int32-wrap))))
-                 ;; Foreign array with type INT64
-                 ,@(when (plusp ,number-of-int64)
-                     `((,',c-array-int64-wrap (make-foreign-array ,,number-of-int64 :int64))
-                       (,',c-array-int64 (foreign-array-data ,',c-array-int64-wrap)))))
+                 ;; Foreign arrays for the other types
+                 ,@(foreign-array-bindings
+                    `((,',c-array-float ,',c-array-float-wrap :float ,,number-of-float)
+                      (,',c-array-double ,',c-array-double-wrap :double ,,number-of-double)
+                      (,',c-array-int32 ,',c-array-int32-wrap :int32 ,,number-of-int32)
+                      (,',c-array-int64 ,',c-array-int64-wrap :int64 ,,number-of-int64))))
             (declare (type cons ,',synth-cons ,',free-hook) (type synth ,',synth)
                      (type hash-table ,',control-table))
             (#.(if *use-foreign-sample-p* 'with-foreign-symbols 'with-sample-variables)
                ,(mapcar #'vug-object-name (vug-variables-foreign-sample *vug-variables*))
                ,',c-array-sample 'sample
-               (with-foreign-symbols ,(mapcar #'vug-object-name
-                                              (vug-variables-foreign-int32 *vug-variables*))
-                   ,',c-array-int32 :int32
-                 (with-foreign-symbols ,(mapcar #'vug-object-name
-                                                (vug-variables-foreign-int64 *vug-variables*))
-                     ,',c-array-int64 :int64
-                   ,@(%expand-variables
-                      (set-controls-form ',control-table ',arg-names)
-                      `(progn
-                         (setf (synth-name ,',synth) ,',name)
-                         (setf (incudine::node-controls %synth-node%) ,',control-table)
-                         (update-free-hook %synth-node% ,',free-hook)
-                         (reorder-initialization-code)
-                         (let ((current-channel 0))
-                           (declare (type channel-number current-channel)
-                                    (ignorable current-channel))
-                           ,@*initialization-code*)
-                         (set-synth-object ,',synth
-                           :init-function
-                           (lambda (,',node ,@',arg-names)
-                             (declare #.*reduce-warnings*)
-                             (setf (incudine::node-controls ,',node) (synth-controls ,',synth))
-                             (setf %synth-node% ,',node)
-                             ,(reinit-bindings-form)
-                             (update-free-hook ,',node ,',free-hook)
-                             (let ((current-channel 0))
-                               (declare (type channel-number current-channel)
-                                        (ignorable current-channel))
-                               ,@*initialization-code*)
-                             ,',node)
-                           :free-function ,(to-free-form ',c-array-sample-wrap ,number-of-sample
-                                                         ',c-array-int32-wrap ,number-of-int32
-                                                         ',c-array-int64-wrap ,number-of-int64)
-                           :perf-function (lambda ()
-                                            (performance-loop ,@,vug-body)))))))))))))
+               (with-foreign-variables
+                   (,(vug-foreign-variables-names float)  ,',c-array-float
+                    ,(vug-foreign-variables-names double) ,',c-array-double
+                    ,(vug-foreign-variables-names int32)  ,',c-array-int32
+                    ,(vug-foreign-variables-names int64)  ,',c-array-int64)
+                 ,@(%expand-variables
+                    (set-controls-form ',control-table ',arg-names)
+                    `(progn
+                       (setf (synth-name ,',synth) ,',name)
+                       (setf (incudine::node-controls %synth-node%) ,',control-table)
+                       (update-free-hook %synth-node% ,',free-hook)
+                       (reorder-initialization-code)
+                       (let ((current-channel 0))
+                         (declare (type channel-number current-channel)
+                                  (ignorable current-channel))
+                         ,@*initialization-code*)
+                       (set-synth-object ,',synth
+                         :init-function
+                         (lambda (,',node ,@',arg-names)
+                           (declare #.*reduce-warnings*)
+                           (setf (incudine::node-controls ,',node) (synth-controls ,',synth))
+                           (setf %synth-node% ,',node)
+                           ,(reinit-bindings-form)
+                           (update-free-hook ,',node ,',free-hook)
+                           (let ((current-channel 0))
+                             (declare (type channel-number current-channel)
+                                      (ignorable current-channel))
+                             ,@*initialization-code*)
+                           ,',node)
+                         :free-function ,(to-free-form
+                                          ',c-array-sample-wrap ,number-of-sample
+                                          ',c-array-float-wrap ,number-of-float
+                                          ',c-array-double-wrap ,number-of-double
+                                          ',c-array-int32-wrap ,number-of-int32
+                                          ',c-array-int64-wrap ,number-of-int64)
+                         :perf-function (lambda ()
+                                          (performance-loop ,@,vug-body))))))))))))
 
 (declaim (inline update-free-hook))
 (defun update-free-hook (node hook)
@@ -637,6 +685,8 @@
                                        (blockexpand value))))))))
 
 (defun to-free-form (c-array-sample-wrap sample-size
+                     c-array-float-wrap float-size
+                     c-array-double-wrap double-size
                      c-array-int32-wrap int32-size
                      c-array-int64-wrap int64-size)
   (declare (type symbol c-array-sample-wrap c-array-int32-wrap c-array-int64-wrap)
@@ -646,6 +696,10 @@
      ,@(locally (declare #.*reduce-warnings*)
            (when (and #.*use-foreign-sample-p* (plusp sample-size))
              `((free-foreign-sample-array ,c-array-sample-wrap))))
+     ,@(when (plusp float-size)
+         `((incudine:free ,c-array-float-wrap)))
+     ,@(when (plusp double-size)
+         `((incudine:free ,c-array-double-wrap)))
      ,@(when (plusp int32-size)
          `((incudine:free ,c-array-int32-wrap)))
      ,@(when (plusp int64-size)
