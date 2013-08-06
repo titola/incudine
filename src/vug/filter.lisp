@@ -53,6 +53,16 @@
   (with-samples ((coef (t60->pole time)))
     (one-pole in coef)))
 
+(define-vug lag-ud (in attack-time decay-time)
+  (with-samples ((y1 0.0d0)
+                 (coef-up (t60->pole attack-time))
+                 (coef-down (t60->pole decay-time)))
+    (setf y1 (+ in (* (if (> in y1) coef-up coef-down)
+                      (- y1 in))))))
+
+(define-vug env-follower (in attack-time decay-time)
+  (lag-ud (abs in) attack-time decay-time))
+
 (define-vug decay (in decay-time)
   (with-samples ((y1 0.0d0)
                  (b1 (t60->pole decay-time)))

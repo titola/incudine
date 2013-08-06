@@ -150,9 +150,9 @@
    #:ff-comb #:fb-comb #:allpass #:vallpass
    #:delay-feedback
    ;; filter
-   #:one-pole #:one-zero #:two-pole #:two-zero #:dcblock #:lag #:maf #:median
-   #:decay #:decay-2 #:biquad #:resonz #:ringz #:fofilter #:lpf #:hpf #:bpf
-   #:notch #:apf #:peak-eq #:low-shelf #:hi-shelf
+   #:one-pole #:one-zero #:two-pole #:two-zero #:dcblock #:lag #:lag-ud
+   #:env-follower #:maf #:median #:decay #:decay-2 #:biquad #:resonz #:ringz
+   #:fofilter #:lpf #:hpf #:bpf #:notch #:apf #:peak-eq #:low-shelf #:hi-shelf
    #:butter-lp #:butter-hp #:butter-bp #:butter-br
    #:moogladder #:moogff #:lpf18 #:svf
    ;; multi-channel
