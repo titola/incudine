@@ -50,12 +50,12 @@
 
 ;;; One pole filter with the coefficient calculated from a 60 dB lag time
 (define-vug lag (in time)
-  (with-samples ((coef (decay-time->radius time)))
+  (with-samples ((coef (t60->pole time)))
     (one-pole in coef)))
 
 (define-vug decay (in decay-time)
   (with-samples ((y1 0.0d0)
-                 (b1 (decay-time->radius decay-time)))
+                 (b1 (t60->pole decay-time)))
     ;; Update the input, if it is required, to avoid the expansion
     ;; inside the next condition
     in
@@ -111,7 +111,7 @@
 ;;; removing the multiplier `(- 1 rr)' in %RESONZ
 (define-vug ringz (in freq decay-time)
   (with-samples ((wt (* +twopi+ freq *sample-duration*))
-                 (r (decay-time->radius decay-time))
+                 (r (t60->pole decay-time))
                  (rr (* r r)))
     (%resonz in freq wt (cos wt) r rr (* (- 1 rr) 0.5))))
 
@@ -121,8 +121,8 @@
 (define-vug fofilter (in freq attack-time decay-time)
   (with-samples ((wt (* +twopi+ freq *sample-duration*))
                  (cos-wt (cos wt))
-                 (r0 (decay-time->radius attack-time))
-                 (r1 (decay-time->radius decay-time)))
+                 (r0 (t60->pole attack-time))
+                 (r1 (t60->pole decay-time)))
     (- (%resonz in freq wt cos-wt r1 (* r1 r1) 0.5)
        (%resonz in freq wt cos-wt r0 (* r0 r0) 0.5))))
 
