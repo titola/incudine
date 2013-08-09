@@ -133,10 +133,8 @@
                              (fft-destroy-plan plan))))
         obj))))
 
-(defgeneric transform (obj &optional buffer))
-
-(defmethod transform ((obj fft) &optional buffer)
-  (declare (ignore buffer))
+(defmethod compute ((obj fft) &optional arg)
+  (declare (ignore arg))
   (when (< (analysis-time obj) (now))
     (copy-from-ring-buffer (fft-input-buffer obj)
                            (fft-ring-buffer obj)
@@ -224,12 +222,13 @@
                              (fft-destroy-plan plan))))
         obj))))
 
-(defmethod transform ((obj ifft) &optional buffer)
+(defmethod compute ((obj ifft) &optional arg)
   (when (< (analysis-time obj) (now))
-    (unless (abuffer-coord-complex-p buffer)
-      (polar-to-complex (abuffer-data buffer)
-                        (abuffer-nbins buffer)))
-    (foreign-copy (ifft-input-buffer obj) (abuffer-data buffer)
+    (compute arg)
+    (unless (abuffer-coord-complex-p arg)
+      (polar-to-complex (abuffer-data arg)
+                        (abuffer-nbins arg)))
+    (foreign-copy (ifft-input-buffer obj) (abuffer-data arg)
                   (the non-negative-fixnum
                     (* (the non-negative-fixnum (ifft-input-size obj))
                        +foreign-sample-size+)))

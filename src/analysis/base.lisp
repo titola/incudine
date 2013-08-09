@@ -183,6 +183,9 @@
 
 (defsetf analysis-time set-analysis-time)
 
+(defmethod incudine:touch ((obj analysis))
+  (setf (analysis-time obj) (now)))
+
 (defstruct (abuffer (:constructor %make-abuffer)
                     (:copier nil))
   (data (error "missing data for the abuffer") :type foreign-pointer)
@@ -266,10 +269,12 @@
                    (* ,nbin +foreign-complex-size+))
                  +foreign-sample-size+))))
 
-(defgeneric compute (obj))
+(defgeneric compute (obj &optional arg))
 
-(defmethod compute ((obj abuffer))
+(defmethod compute ((obj abuffer) &optional arg)
+  (declare (ignore arg))
   (when (< (abuffer-time obj) (now))
+    (compute (abuffer-link obj))
     (setf (abuffer-coord-complex-p obj)
           (analysis-output-complex-p (abuffer-link obj)))
     (setf (abuffer-time obj) (now))
@@ -279,11 +284,17 @@
                     (* (abuffer-size obj) +foreign-sample-size+))))
   obj)
 
+(defmethod incudine:touch ((obj abuffer))
+  (if (< (abuffer-time obj) (now))
+      (setf (abuffer-time obj) (now)))
+  obj)
+
 ;;; Iterate over the values of one or more ABUFFERs.
 ;;; There are two lists of ABUFFER objects: ABUFFER-SRC-LIST and
 ;;; ABUFFER-DEST-LIST. The only difference is that the values of
-;;; the ABUFFERs in ABUFFER-DEST-LIST are converted from polar/complex
-;;; to complex/polar if COORD-CHECK-P is T
+;;; the ABUFFERs in ABUFFER-SRC-LIST are converted from polar/complex
+;;; to complex/polar if COORD-CHECK-P is T, and the times of the
+;;; destinations are updated after the process.
 (defmacro dofft ((index-var nbins-var abuffer-src-list abuffer-dest-list
                   x-var-prefix y-var-prefix &key coord-complex-p
                   (index-start 0) index-end (coord-check-p t) result)
@@ -339,7 +350,9 @@
                                                                  y-var-prefix count)
                                                   (abuffer-imagpart ,abuf ,index-var)))
                  ,@body)))
-             ,result)))))
+           ;; Update the time of the destinations
+           ,@(mapcar (lambda (abuf) `(incudine:touch ,abuf)) abuffer-dest-vars)
+           ,result)))))
 
 ;;; Iterate over the values of one or more ABUFFERs using the polar coordinates
 (defmacro dofft-polar ((index-var nbins-var abuffer-src-list abuffer-dest-list

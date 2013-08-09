@@ -39,6 +39,8 @@
 
 (defgeneric free (obj))
 
+(defgeneric touch (obj))
+
 (in-package :incudine.util)
 
 ;;; TYPES
