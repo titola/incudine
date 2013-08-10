@@ -98,7 +98,10 @@
                                      ,(if (eq (cadar arg) :double)
                                           `(coerce ,value 'double-float)
                                           value)))
-                  (,rng (incudine.external::gsl-random-generator)))
+                  (,rng (progn
+                          ,@(when seed
+                              `((incudine.external::gsl-seed-random-state ,seed)))
+                          (incudine.external::gsl-random-generator))))
              ,@(let ((samples (loop for arg in args
                                     when (eq (cadar arg) :double)
                                     collect (caar arg))))
