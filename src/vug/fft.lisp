@@ -18,13 +18,15 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (import
-   '(incudine.analysis:dofft
-     incudine.analysis:dofft-polar
-     incudine.analysis:dofft-complex
+   '(incudine.analysis:abuffer
      incudine.analysis:abuffer-realpart
      incudine.analysis:abuffer-imagpart
      incudine.analysis:abuffer-size
      incudine.analysis:abuffer-nbins
+     incudine.analysis:compute
+     incudine.analysis:dofft
+     incudine.analysis:dofft-polar
+     incudine.analysis:dofft-complex
      incudine.analysis:to-polar
      incudine.analysis:to-complex))
 
