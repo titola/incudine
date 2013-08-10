@@ -19,6 +19,10 @@
 (defvar *reduce-warnings*
   '(sb-ext:muffle-conditions sb-ext:compiler-note))
 
+(defmacro reduce-warnings (&body body)
+  `(locally (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
+     ,@body))
+
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (let ((limit 1000))
     ;; Workaround for the current version of SBCL; see the FIXME

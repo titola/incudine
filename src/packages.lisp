@@ -69,7 +69,7 @@
    #:non-negative-fixnum64 #:most-positive-fixnum64
    #:limited-sample #:maybe-limited-sample
    #:channel-number #:bus-number
-   #:*reduce-warnings*
+   #:*reduce-warnings* #:reduce-warnings
    #:msg #:nrt-msg #:logger-level #:logger-time #:logger-time-function
    #:*logger-stream* #:*logger-force-output* #:info
    #:compare-and-swap #:barrier
