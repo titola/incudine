@@ -84,8 +84,6 @@
             (buffer-channels obj)
             (buffer-sample-rate obj))))
 
-(defgeneric free-p (obj))
-
 (defmethod free-p ((obj buffer))
   (null-pointer-p (buffer-data obj)))
 
@@ -262,15 +260,11 @@ It is possible to use line comments that begin with the `;' char."
                     (mapcar (lambda (x) (buffer-value x i))
                             buffers))))))
 
-(defgeneric scale (obj mult))
-
 (defmethod scale ((obj buffer) (mult real))
   (map-buffer (lambda (index value)
                 (declare (ignore index))
                 (* value mult))
               obj))
-
-(defgeneric normalize (obj norm-value))
 
 (defmethod normalize ((obj buffer) (norm-value real))
   (let* ((data (buffer-data obj))
@@ -284,8 +278,6 @@ It is possible to use line comments that begin with the `;' char."
       (when (> value max) (setf max value)))
     (let ((mult (/ norm-value max)))
       (scale obj mult))))
-
-(defgeneric rescale (obj min max))
 
 (defmethod rescale ((obj buffer) (min real) (max real))
   (let* ((data (buffer-data obj))
@@ -460,12 +452,8 @@ It is possible to use line comments that begin with the `;' char."
                                 :normalize-p normalize-p))))
       buffer)))
 
-(defgeneric data (obj))
-
 (defmethod data ((obj buffer))
   (buffer-data obj))
-
-(defgeneric (setf data) (values obj))
 
 (defmethod (setf data) (values (obj buffer))
   (set-buffer-data obj values))

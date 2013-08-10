@@ -319,6 +319,8 @@
 (defmethod gain ((obj integer))
   (gain (node obj)))
 
+(defgeneric (setf gain) (value obj))
+
 (defmethod (setf gain) ((value number) (obj node))
   (rt-eval (:return-value-p t)
     (setf (mem-aref (node-gain-data obj) 'sample 0)
@@ -335,6 +337,8 @@
 
 (defmethod fade-time ((obj integer))
   (fade-time (node obj)))
+
+(defgeneric (setf fade-time) (value obj))
 
 (defmethod (setf fade-time) ((value number) (obj node))
   (rt-eval (:return-value-p t)
@@ -354,6 +358,8 @@
 (defmethod fade-curve ((obj integer))
   (fade-curve (node obj)))
 
+(defgeneric (setf fade-curve) (value obj))
+
 (defmethod (setf fade-curve) (value (obj node))
   (rt-eval (:return-value-p t)
     (setf (mem-aref (node-gain-data obj) 'sample 3)
@@ -370,6 +376,8 @@
 
 (defmethod node-current-function ((obj integer))
   (node-current-function (node obj)))
+
+(defgeneric (setf node-current-function) (function obj))
 
 (defmethod (setf node-current-function) ((function function)
                                          (obj node))
@@ -840,6 +848,8 @@
 (defmethod free-hook ((obj integer))
   (free-hook (node obj)))
 
+(defgeneric (setf free-hook) (flist obj))
+
 (defmethod (setf free-hook) ((flist list) (obj node))
   (rt-eval ()
     (unless (null-item-p obj)
@@ -885,6 +895,8 @@
 
 (defmethod stop-hook ((obj integer))
   (stop-hook (node obj)))
+
+(defgeneric (setf stop-hook) (flist obj))
 
 (defmethod (setf stop-hook) ((flist list) (obj node))
   (rt-eval ()
