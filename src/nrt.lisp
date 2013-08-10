@@ -16,10 +16,6 @@
 
 (in-package :incudine)
 
-(defvar *sndfile-buffer-size* 512
-  "Buffer size in frames to write on disk.")
-(declaim (type (integer 0 16777215) *sndfile-buffer-size*))
-
 (defvar *bounce-to-disk-guard-size* 300
   "Max size in seconds of the sndfile bounced to disk
 when the duration is undefined.")

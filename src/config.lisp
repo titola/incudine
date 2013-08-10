@@ -188,7 +188,7 @@
 (defvar *frames-per-buffer* 256)
 
 (defvar *sndfile-buffer-size* 1024)
-(declaim (type (integer 1 1000000) *sndfile-buffer-size*))
+(declaim (type (unsigned-byte 24) *sndfile-buffer-size*))
 
 (defvar *default-header-type* #-darwin "wav" #+darwin "aiff")
 
