@@ -184,7 +184,9 @@
 (defsetf analysis-time set-analysis-time)
 
 (defmethod incudine:touch ((obj analysis))
-  (setf (analysis-time obj) (now)))
+  (if (< (analysis-time obj) (now))
+      (setf (analysis-time obj) (now)))
+  obj)
 
 (defstruct (abuffer (:constructor %make-abuffer)
                     (:copier nil))
