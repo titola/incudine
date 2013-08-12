@@ -225,7 +225,7 @@
                 #:nrt-msg)
   (:export #:envelope
            #:partials #:gbuzz #:chebyshev-1 #:polynomial
-           #:hanning #:sine-window
+           #:defwindow #:hanning #:hamming #:blackman #:sine-window #:bartlett
            #:rand #:all-random-distributions #:rand-args))
 
 (defpackage :incudine

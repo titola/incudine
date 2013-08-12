@@ -16,27 +16,56 @@
 
 (in-package :incudine.gen)
 
-(defun hanning ()
-  (lambda (c-array size)
-    (declare #.*standard-optimize-settings*
-             (type foreign-pointer c-array)
-             (type non-negative-fixnum size))
-    (with-samples ((delta (/ +twopi+ size))
-                   (phase +sample-zero+))
-      (dotimes (i size c-array)
-        (setf (mem-aref c-array 'sample i)
-              (* 0.5 (- 1.0 (cos (the limited-sample
-                                   phase)))))
-        (incf phase delta)))))
+(defmacro defwindow (name (c-array-var size-var) &body body)
+  `(defun ,name ()
+     (lambda (,c-array-var ,size-var)
+       (declare #.*standard-optimize-settings*
+                (type foreign-pointer ,c-array-var)
+                (type non-negative-fixnum ,size-var))
+       ,@body)))
 
-(defun sine-window ()
-  (lambda (c-array size)
-    (declare #.*standard-optimize-settings*
-             (type foreign-pointer c-array)
-             (type non-negative-fixnum size))
-    (with-samples ((winc (/ (coerce pi 'sample) size)))
+(defwindow hanning (c-array size)
+  (with-samples ((delta (/ +twopi+ size))
+                 (phase +sample-zero+))
+    (dotimes (i size c-array)
+      (setf (data-ref c-array i)
+            (* 0.5 (- 1.0 (cos (the limited-sample
+                                 phase)))))
+      (incf phase delta))))
+
+(defwindow hamming (c-array size)
+  (with-samples ((delta (/ +twopi+ size))
+                 (phase +sample-zero+))
+    (dotimes (i size c-array)
+      (setf (data-ref c-array i)
+            (- 0.54 (* 0.46 (cos (the limited-sample
+                                   phase)))))
+      (incf phase delta))))
+
+(defwindow blackman (c-array size)
+  (with-samples ((delta (/ +twopi+ size))
+                 (phase +sample-zero+))
+    (dotimes (i size c-array)
+      (setf (data-ref c-array i)
+            (+ (- 0.42 (* 0.5 (cos (the limited-sample
+                                     phase))))
+               (* 0.08 (cos (the limited-sample
+                              (* 2 phase))))))
+      (incf phase delta))))
+
+(defwindow sine-window (c-array size)
+  (with-samples ((winc (/ (coerce pi 'sample) size)))
+    (dotimes (i size c-array)
+      (setf (data-ref c-array i)
+            (sin (the limited-sample
+                   (* i winc)))))))
+
+(defwindow bartlett (c-array size)
+  (let ((half-size (/ size 2)))
+    (declare (type non-negative-fixnum half-size))
+    (with-samples ((half-recip (/ (sample half-size))))
       (dotimes (i size c-array)
-        (setf (mem-ref c-array 'sample (the non-negative-fixnum
-                                         (* i +foreign-sample-size+)))
-              (sin (the limited-sample
-                     (* i winc))))))))
+        (setf (data-ref c-array i)
+              (if (< i half-size)
+                  (* i half-recip)
+                  (* (- size i) half-recip)))))))
