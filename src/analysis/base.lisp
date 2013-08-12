@@ -297,9 +297,10 @@
 ;;; the ABUFFERs in ABUFFER-SRC-LIST are converted from polar/complex
 ;;; to complex/polar if COORD-CHECK-P is T, and the times of the
 ;;; destinations are updated after the process.
+;;; We can use the keyword :INIT to insert code before the loop.
 (defmacro dofft ((index-var nbins-var abuffer-src-list abuffer-dest-list
                   x-var-prefix y-var-prefix &key coord-complex-p
-                  (index-start 0) index-end (coord-check-p t) result)
+                  (index-start 0) index-end (coord-check-p t) init result)
                  &body body)
   (with-gensyms (start end)
     (let* ((abuffer-src-vars (loop for i below (length abuffer-src-list)
@@ -340,6 +341,7 @@
            (let ((,start ,index-start)
                  (,end ,(or index-end nbins-var)))
              (declare (type non-negative-fixnum ,start ,end))
+             ,init
              (do ((,index-var ,start (1+ ,index-var)))
                  ((>= ,index-var ,end))
                (declare (type non-negative-fixnum ,index-var))
@@ -358,18 +360,18 @@
 
 ;;; Iterate over the values of one or more ABUFFERs using the polar coordinates
 (defmacro dofft-polar ((index-var nbins-var abuffer-src-list abuffer-dest-list
-                        &key (index-start 0) index-end (coord-check-p t) result)
-                        &body body)
+                        &key (index-start 0) index-end (coord-check-p t)
+                        init result) &body body)
   `(dofft (,index-var ,nbins-var ,abuffer-src-list ,abuffer-dest-list "MAG" "PHASE"
            :coord-complex-p nil :index-start ,index-start :index-end ,index-end
-           :coord-check-p ,coord-check-p :result ,result)
+           :coord-check-p ,coord-check-p :init ,init :result ,result)
      ,@body))
 
 ;;; Iterate over the values of one or more ABUFFERs using the complex coordinates
 (defmacro dofft-complex ((index-var nbins-var abuffer-src-list abuffer-dest-list
-                          &key (index-start 0) index-end (coord-check-p t) result)
-                          &body body)
+                          &key (index-start 0) index-end (coord-check-p t)
+                          init result) &body body)
   `(dofft (,index-var ,nbins-var ,abuffer-src-list ,abuffer-dest-list "RE" "IM"
            :coord-complex-p t :index-start ,index-start :index-end ,index-end
-           :coord-check-p ,coord-check-p :result ,result)
+           :coord-check-p ,coord-check-p :init ,init :result ,result)
      ,@body))
