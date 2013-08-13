@@ -1,0 +1,25 @@
+(in-package :scratch)
+
+(defsynth flux-rectified-test ((buf buffer) threshold)
+  (with ((fft (make-local-fft 2048 2048 (gen:hamming)))
+         (abuf (make-local-abuffer fft))
+         (hop-size (sample->fixnum (* *sample-rate* 0.1)))
+         (result +sample-zero+))
+    (declare (type sample result))
+    (foreach-tick
+      (setf (fft-input fft) (buffer-play buf 1 0 t #'identity))
+      (generic-rate hop-size 0
+        ;; Spectral flux with half-wave rectifier function
+        ;; and L1-norm (Dixon DAFx-06)
+        (setf result (if (> (flux abuf t t) threshold)
+                         (sample 100)
+                         +sample-zero+))))
+    (out (fft-input fft)
+         (prog1 (ringz result 3000 .1)
+           (unless (zerop result)
+             (setf result +sample-zero+))))))
+
+#|
+(defvar loop-1 (buffer-load "/tmp/loop-1.wav"))
+(flux-rectified-test loop-1 220)
+|#

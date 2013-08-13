@@ -27,3 +27,46 @@
                               (/ (* num nbins-recip) denom)))
       (incf num (* i mag0))
       (incf denom mag0))))
+
+;;; Spectral flux.
+;;; We can also use the half-wave rectifier function with L1-norm.
+;;;
+;;; References:
+;;;
+;;;   [1] Simon Dixon. Onset detection revisited. Proc. of the 9th
+;;;   Int. Conference on Digital Audio Effects (DAFx-06), Montreal,
+;;;   Canada, September 18-20, 2006.
+;;;
+;;;   [2] P. Masri. Computer modelling of sound for transformation and
+;;;   synthesis of musical signal. Ph.D. dissertation, University of
+;;;   Bristol, UK, 1996.
+;;;
+;;;   [3] C. Duxbury, M. Sandler, and M. Davies. A hybrid approach to
+;;;   musical note onset detection. In Proc. Int. Conf. on Digital
+;;;   Audio Effects (DAFx-02), Hamburg, Germany, 2002, pp. 33-38.
+;;;
+(define-vug-macro flux (abuf &optional half-wave-rectifier-p l1-norm-p)
+  (with-gensyms (abuf-prev i nbins diff result)
+    `(with-samples (,diff ,result)
+       (with ((,abuf-prev (make-local-abuffer (abuffer-link ,abuf))))
+         (setf ,result +sample-zero+)
+         (dofft-polar (,i ,nbins (,abuf-prev (compute ,abuf)) ()
+                       :result ,(if l1-norm-p
+                                    result
+                                    `(sqrt (the non-negative-sample ,result))))
+           ;; We don't want the symbols MAG0 and MAG1 in INCUDINE.VUG package
+           ;; because they are interned during the expansion of DOFFT-POLAR.
+           ;; The follow bindings are needed only inside a VUG-MACRO that
+           ;; uses DOFFT.
+           ,(symbol-macrolet ((prev (intern "MAG0"))
+                              (curr (intern "MAG1")))
+              `(progn
+                 (setf ,diff (- ,curr ,prev))
+                 ,@(if (and half-wave-rectifier-p (not l1-norm-p))
+                       `((setf ,diff (* (+ ,diff (abs ,diff)) (sample 0.5)))))
+                 (setf ,prev ,curr)
+                 (incf ,result
+                       ,(cond ((and half-wave-rectifier-p l1-norm-p)
+                               `(* (+ ,diff (abs ,diff)) (sample 0.5)))
+                              (l1-norm-p diff)
+                              (t `(* ,diff ,diff)))))))))))

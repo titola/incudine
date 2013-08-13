@@ -173,7 +173,7 @@
    ;; analysis
    #:make-local-abuffer
    ;; fft
-   #:make-local-fft #:make-local-ifft #:centroid))
+   #:make-local-fft #:make-local-ifft #:centroid #:flux))
 
 (defpackage :incudine.edf
   (:use :cl)

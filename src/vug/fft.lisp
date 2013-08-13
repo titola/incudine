@@ -22,6 +22,7 @@
      incudine.analysis:abuffer-realpart
      incudine.analysis:abuffer-imagpart
      incudine.analysis:abuffer-size
+     incudine.analysis:abuffer-link
      incudine.analysis:abuffer-nbins
      incudine.analysis:compute
      incudine.analysis:dofft
