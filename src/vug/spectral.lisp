@@ -18,13 +18,12 @@
 
 (define-vug centroid ((abuf abuffer))
   "Compute the spectral centroid using moments."
-  (with-samples ((nbins-recip (/ (sample (abuffer-nbins abuf))))
-                 num denom)
+  (with-samples (num denom)
     (setf num +sample-zero+ denom +sample-zero+)
     (dofft-polar (i nbins ((compute abuf)) ()
                   :result (if (zerop denom)
                               (sample 0.5)
-                              (/ (* num nbins-recip) denom)))
+                              (/ num (* (abuffer-nbins abuf) denom))))
       (incf num (* i mag0))
       (incf denom mag0))))
 
@@ -46,11 +45,12 @@
 ;;;   Audio Effects (DAFx-02), Hamburg, Germany, 2002, pp. 33-38.
 ;;;
 (define-vug-macro flux (abuf &optional half-wave-rectifier-p l1-norm-p)
-  (with-gensyms (abuf-prev i nbins diff result)
+  (with-gensyms (abuf1 abuf-prev i nbins diff result)
     `(with-samples (,diff ,result)
-       (with ((,abuf-prev (make-local-abuffer (abuffer-link ,abuf))))
+       (with ((,abuf1 ,abuf)
+              (,abuf-prev (make-local-abuffer (abuffer-link ,abuf1))))
          (setf ,result +sample-zero+)
-         (dofft-polar (,i ,nbins (,abuf-prev (compute ,abuf)) ()
+         (dofft-polar (,i ,nbins (,abuf-prev (compute ,abuf1)) ()
                        :result ,(if l1-norm-p
                                     result
                                     `(sqrt (the non-negative-sample ,result))))

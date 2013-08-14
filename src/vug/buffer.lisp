@@ -44,7 +44,6 @@
 (defmacro make-local-abuffer (analysis-object)
   (with-gensyms (abuf)
     `(with ((,abuf (incudine.analysis:make-abuffer ,analysis-object t)))
-       (declare (type incudine.analysis:abuffer ,abuf))
        ,abuf)))
 
 (defmacro update-local-abuffer (vug-varname args)
