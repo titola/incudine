@@ -79,3 +79,18 @@
                   :result (sqrt (the non-negative-sample
                                   (/ rms (abuffer-nbins abuf)))))
       (incf rms (* mag0 mag0)))))
+
+(define-vug rolloff ((abuf abuffer) percent)
+  "Compute the spectral rolloff."
+  (with-samples (threshold result)
+    (setf result +sample-zero+)
+    (dofft-polar (i nbins ((compute abuf)) ())
+      (incf result mag0))
+    (setf threshold (* result percent))
+    (setf result +sample-zero+)
+    (dofft-polar (i nbins ((compute abuf)) ()
+                  :result (/ result (abuffer-nbins abuf)))
+      (incf result mag0)
+      (when (>= result threshold)
+        (setf result (sample i))
+        (return)))))

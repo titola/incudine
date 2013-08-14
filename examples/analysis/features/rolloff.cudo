@@ -1,0 +1,23 @@
+(in-package :scratch)
+
+(defsynth rolloff-test (percent)
+  (with ((fft (make-local-fft 1024 1024 (gen:hanning)))
+         (abuf (make-local-abuffer fft))
+         (srdiv2 (* *sample-rate* 0.5))
+         (perc (sample->fixnum (* percent 100)))
+         (result +sample-zero+))
+    (declare (type sample srdiv2 result))
+    (foreach-tick
+      (setf (fft-input fft) (audio-in 0))
+      (generic-rate 1024 0
+        (prog1
+          (setf result (* (rolloff abuf percent) srdiv2))
+          (nrt-msg info "~D% rolloff: ~D" perc
+                   (sample->fixnum result)))))))
+
+#|
+(setf (logger-level) :info)
+(rolloff-test .5)
+(set-control 1 :percent .75)
+(free 0)
+|#
