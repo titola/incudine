@@ -70,3 +70,12 @@
                                `(* (+ ,diff (abs ,diff)) (sample 0.5)))
                               (l1-norm-p diff)
                               (t `(* ,diff ,diff)))))))))))
+
+(define-vug spectral-rms ((abuf abuffer))
+  "Compute the spectral RMS."
+  (with-samples (rms)
+    (setf rms +sample-zero+)
+    (dofft-polar (i nbins ((compute abuf)) ()
+                  :result (sqrt (the non-negative-sample
+                                  (/ rms (abuffer-nbins abuf)))))
+      (incf rms (* mag0 mag0)))))

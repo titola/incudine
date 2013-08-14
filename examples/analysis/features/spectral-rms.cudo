@@ -1,0 +1,20 @@
+(in-package :scratch)
+
+(defsynth spectral-rms-test ()
+  (with ((fft (make-local-fft 1024 1024 (gen:hanning)))
+         (abuf (make-local-abuffer fft))
+         (mult (/ (sample 1.0) (fft-size fft)))
+         (rms +sample-zero+))
+    (declare (type sample mult rms))
+    (foreach-tick
+      (setf (fft-input fft) (audio-in 0))
+      (generic-rate 1024 0
+        (prog1
+          (setf rms (* (spectral-rms abuf) mult))
+          (reduce-warnings (nrt-msg info "~F" rms)))))))
+
+#|
+(setf (logger-level) :info)
+(spectral-rms-test)
+(free 0)
+|#
