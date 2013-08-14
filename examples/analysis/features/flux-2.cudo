@@ -1,11 +1,13 @@
 (in-package :scratch)
 
-(defsynth flux-rectified-test ((buf buffer) threshold)
+(defsynth flux-rectified-test ((buf buffer) flux-threshold)
   (with ((fft (make-local-fft 2048 2048 (gen:hamming)))
          (abuf (make-local-abuffer fft))
          (hop-size (sample->fixnum (* *sample-rate* 0.1)))
+         ;; The result of FLUX is unnormalized
+         (threshold (* flux-threshold (fft-size fft)))
          (result +sample-zero+))
-    (declare (type sample result))
+    (declare (type sample threshold result))
     (foreach-tick
       (setf (fft-input fft) (buffer-play buf 1 0 t #'identity))
       (generic-rate hop-size 0
@@ -21,5 +23,5 @@
 
 #|
 (defvar loop-1 (buffer-load "/tmp/loop-1.wav"))
-(flux-rectified-test loop-1 220)
+(flux-rectified-test loop-1 0.1)
 |#
