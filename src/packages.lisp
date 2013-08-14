@@ -207,7 +207,7 @@
            #:to-polar #:to-complex
            #:fft #:fft-p #:make-fft #:nbins #:*fft-default-window-function*
            #:ifft #:ifft-p #:make-ifft #:+fftw-measure+ #:+fftw-estimate+
-           #:fft-input #:ifft-output
+           #:fft-input #:ifft-output #:fft-size
            #:transform #:compute #:resize
            #:dofft #:dofft-polar #:dofft-complex))
 
