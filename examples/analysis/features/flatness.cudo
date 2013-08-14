@@ -1,0 +1,25 @@
+(in-package :scratch)
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (define-vug crossfade (in1 in2 pos)
+    (with-samples ((alpha (* +half-pi+ pos)))
+      (+ (* (cos alpha) in1) (* (sin alpha) in2)))))
+
+(defsynth flatness-test ()
+  (with ((fft (make-local-fft 1024 1024 (gen:hanning)))
+         (abuf (make-local-abuffer fft))
+         (result +sample-zero+))
+    (declare (type sample result))
+    (foreach-tick
+      (setf (fft-input fft)
+            (crossfade (sine 1000 .5 0) (white-noise .1)
+                       (line 0 1 8 #'free)))
+      (generic-rate 1024 0
+        (prog1 (setf result (flatness abuf))
+          (nrt-msg info "~D" (sample->fixnum (* 100 result))))))
+    (out (fft-input fft))))
+
+#|
+(setf (logger-level) :info)
+(flatness-test)
+|#

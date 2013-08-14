@@ -174,7 +174,7 @@
    #:make-local-abuffer
    ;; fft
    #:make-local-fft #:make-local-ifft #:centroid #:flux #:spectral-rms
-   #:rolloff))
+   #:rolloff #:flatness))
 
 (defpackage :incudine.edf
   (:use :cl)

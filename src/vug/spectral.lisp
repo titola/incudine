@@ -94,3 +94,20 @@
       (when (>= result threshold)
         (setf result (sample i))
         (return)))))
+
+(define-vug flatness ((abuf abuffer))
+  "Compute the spectral flatness."
+  (with-samples (geometric-mean arithmetic-mean)
+    (setf geometric-mean +sample-zero+
+          arithmetic-mean +sample-zero+)
+    (dofft-polar (i nbins ((compute abuf)) ())
+      ;; Sum of logarithms to avoid precision errors with the
+      ;; floating point value of the magnitude.
+      (incf geometric-mean (the sample (log mag0)))
+      (incf arithmetic-mean mag0))
+    (with-samples ((r-nbins (/ (sample (abuffer-nbins abuf)))))
+      ;; From log to linear scale
+      (setf geometric-mean (exp (* geometric-mean r-nbins)))
+      (if (zerop arithmetic-mean)
+          +sample-zero+
+          (/ geometric-mean (* arithmetic-mean r-nbins))))))
