@@ -196,6 +196,7 @@
   (time-ptr (error "missing time-ptr pointer for the abuffer") :type foreign-pointer)
   (link nil :type (or analysis null))
   (coord-complex-p nil :type boolean)
+  (normalized-p nil :type boolean)
   (real-time-p nil :type boolean)
   (foreign-free #'foreign-free :type function))
 

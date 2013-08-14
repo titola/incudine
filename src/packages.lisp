@@ -203,7 +203,7 @@
   (:export #:analysis #:analysis-p #:analysis-time #:abuffer
            #:window-size #:window-function #:rectangular-window
            #:make-abuffer #:abuffer-time #:abuffer-realpart #:abuffer-imagpart
-           #:abuffer-size #:abuffer-link #:abuffer-nbins
+           #:abuffer-size #:abuffer-link #:abuffer-nbins #:abuffer-normalized-p
            #:to-polar #:to-complex
            #:fft #:fft-p #:make-fft #:nbins #:*fft-default-window-function*
            #:ifft #:ifft-p #:make-ifft #:+fftw-measure+ #:+fftw-estimate+
