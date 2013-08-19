@@ -155,6 +155,7 @@
    #:fofilter #:lpf #:hpf #:bpf #:notch #:apf #:peak-eq #:low-shelf #:hi-shelf
    #:butter-lp #:butter-hp #:butter-bp #:butter-br
    #:moogladder #:moogff #:lpf18 #:svf
+   #:direct-convolve
    ;; multi-channel
    #:pan2
    ;; midi

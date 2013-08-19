@@ -3,7 +3,7 @@
 * VUGs
 
   - diskin (play a soundfile from disk)
-  - convolution (direct, fft, hybrid?)
+  - convolution (fft, hybrid?)
   - facility for microsounds (pulsar, etc)
   - reverberation (FDN ?)
   - compressor/expander/limiter/gate
