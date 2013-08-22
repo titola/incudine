@@ -85,6 +85,15 @@
 (defun sample (number)
   (coerce number 'sample))
 
+(defun apply-sample-coerce (form)
+  (if (atom form)
+      (cond ((and (numberp form) (floatp form))
+             (sample form))
+            ((eq form 'pi) '(sample pi))
+            (t form))
+      (cons (apply-sample-coerce (car form))
+            (apply-sample-coerce (cdr form)))))
+
 (defmacro foreach-channel ((var channels &optional (result nil))
                            &body body)
   `(do ((,var 0 (1+ ,var)))
@@ -95,12 +104,11 @@
 (declaim (inline lin->db))
 (defun lin->db (x)
   (let ((in (if (zerop x) least-positive-sample x)))
-    (* (coerce 20.0 'sample)
-       (log in (coerce 10.0 'sample)))))
+    (* (sample 20) (log in (sample 10)))))
 
 (declaim (inline db->lin))
 (defun db->lin (x)
-  (expt (coerce 10.0 'sample) (* x (coerce 0.05 'sample))))
+  (expt (sample 10) (* x (sample 0.05))))
 
 (declaim (inline linear-interp))
 (defun linear-interp (in y0 y1)
@@ -111,7 +119,7 @@
 (defun cos-interp (in y0 y1)
   (declare (type sample in y0 y1))
   (linear-interp (* (- 1 (cos (the limited-sample
-                                (* in (coerce pi 'sample)))))
+                                (* in (sample pi)))))
                     0.5) y0 y1))
 
 ;;; Catmull-Rom spline
@@ -133,7 +141,7 @@
 
 (declaim (inline set-sample-rate))
 (defun set-sample-rate (value)
-  (setf *sample-rate* (coerce value 'sample)
+  (setf *sample-rate* (sample value)
         *sample-duration* (/ 1.0 *sample-rate*))
   (mapc #'funcall sample-rate-hook)
   (mapc #'funcall sample-duration-hook)
@@ -141,7 +149,7 @@
 
 (declaim (inline set-sample-duration))
 (defun set-sample-duration (value)
-  (setf *sample-duration* (coerce value 'sample)
+  (setf *sample-duration* (sample value)
         *sample-rate* (/ 1.0 *sample-duration*))
   (mapc #'funcall sample-rate-hook)
   (mapc #'funcall sample-duration-hook)
@@ -149,7 +157,7 @@
 
 (declaim (inline set-sound-velocity))
 (defun set-sound-velocity (value)
-  (setf *sound-velocity*   (coerce value 'sample)
+  (setf *sound-velocity*   (sample value)
         *r-sound-velocity* (/ 1.0 *sound-velocity*))
   (mapc #'funcall sound-velocity-hook)
   *sound-velocity*)
@@ -215,11 +223,11 @@
                    bindings)
                (psetf ,@(loop for i in bindings
                               when (consp i)
-                              append `(,(car i) (coerce ,(cadr i) 'sample))))
+                              append `(,(car i) (sample ,(cadr i)))))
                ,@body))
           `(let (,@(mapcar (lambda (x)
                              (if (consp x)
-                                 `(,(car x) (coerce ,(cadr x) 'sample))
+                                 `(,(car x) (sample ,(cadr x)))
                                  `(,x ,+sample-zero+)))
                            bindings))
              (declare (type sample ,@(mapcar (lambda (x)
@@ -242,11 +250,11 @@
                    bindings)
                (setf ,@(loop for i in bindings
                              when (consp i)
-                             append `(,(car i) (coerce ,(cadr i) 'sample))))
+                             append `(,(car i) (sample ,(cadr i)))))
                ,@body))
           `(let* (,@(mapcar (lambda (x)
                               (if (consp x)
-                                  `(,(car x) (coerce ,(cadr x) 'sample))
+                                  `(,(car x) (sample ,(cadr x)))
                                   `(,x ,+sample-zero+)))
                             bindings))
              (declare (type sample ,@(mapcar (lambda (x)

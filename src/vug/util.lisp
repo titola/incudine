@@ -78,3 +78,6 @@
         (declare (type non-negative-fixnum n))
         (incf num-zeros)))
     num-zeros))
+
+(defmacro samples-zero (&rest sample-vars)
+  `(progn ,@(mapcar (lambda (var) `(setf ,var +sample-zero+)) sample-vars)))

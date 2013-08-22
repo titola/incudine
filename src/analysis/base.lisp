@@ -214,7 +214,7 @@
                             analysis-object)))
       (let ((time-ptr (foreign-alloc 1 nil))
             (data (foreign-alloc size t)))
-        (setf (mem-ref time-ptr 'sample) (coerce -1.0 'sample))
+        (setf (mem-ref time-ptr 'sample) (sample -1))
         (let ((obj (%make-abuffer :data data
                       :size size
                       :nbins nbins

@@ -32,10 +32,9 @@
   (bpm-ptr (error "Missing BPM") :type foreign-pointer))
 
 (defun make-tempo (bpm)
-  (let* ((bpm (coerce bpm 'sample))
+  (let* ((bpm (sample bpm))
          (ptr (foreign-alloc 'sample :count 2
-                             :initial-contents `(,bpm ,(/ (coerce 60.0d0 'sample)
-                                                          bpm))))
+                             :initial-contents `(,bpm ,(/ (sample 60) bpm))))
          (obj (%make-tempo :bpm-ptr ptr)))
     (tg:finalize obj (lambda () (foreign-free ptr)))
     obj))
@@ -55,9 +54,9 @@
   (declare (type tempo tempo))
   (rt-eval (:return-value-p t)
     (setf #1=(mem-ref (tempo-bpm-ptr tempo) 'sample)
-          (coerce bpm 'sample))
+          (sample bpm))
     (setf (mem-ref (tempo-bpm-ptr tempo) 'sample +foreign-sample-size+)
-          (/ (coerce 60.0 'sample) #1#))
+          (/ (sample 60) #1#))
     bpm))
 
 (defsetf bpm set-bpm)
@@ -73,9 +72,9 @@
   (declare (type tempo tempo))
   (rt-eval (:return-value-p t)
     (setf #1=(mem-ref (tempo-bpm-ptr tempo) 'sample +foreign-sample-size+)
-          (coerce bps 'sample))
+          (sample bps))
     (setf (mem-ref (tempo-bpm-ptr tempo) 'sample)
-          (/ (coerce 60.0 'sample) #1#))
+          (/ (sample 60) #1#))
     bps))
 
 (defsetf bps set-bps)
@@ -94,8 +93,7 @@
 (declaim (inline tempo-sync))
 (defun tempo-sync (period)
   "Get the time synchronized to PERIOD."
-  (incudine.external::%tempo-sync *sample-counter*
-                               (coerce period 'sample)))
+  (incudine.external::%tempo-sync *sample-counter* (sample period)))
 
 (defmacro case-char (char &body cases)
   (with-gensyms (c)
@@ -171,8 +169,7 @@
         +sample-zero+
         (let ((mult (locally
                         (declare #.*reduce-warnings*)
-                        (coerce (read-from-string (first str-list))
-                                'sample)))
+                        (sample (read-from-string (first str-list)))))
               (time-unit-str (second str-list)))
           (if (null time-unit-str)
               mult

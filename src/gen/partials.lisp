@@ -38,7 +38,7 @@
            (push `(,i ,par ,+sample-zero+ ,+sample-zero+) acc))
           ((and (consp par) (every #'numberp par))
            (push `(,(car par)
-                    ,(or (second par) (coerce 1.0 'sample))
+                    ,(or (second par) (sample 1))
                     ,(or (third par) +sample-zero+)
                     ,(or (fourth par) +sample-zero+))
                  acc)
@@ -75,7 +75,7 @@
                     (mem-aref c-array 'sample 0)))
             (values c-array
                     ;; Factor to scale the amplitude
-                    (/ (coerce 1.0 'sample) max)
+                    (/ max)
                     normalize-p)))))))
 
 ;;; BUZZ and GBUZZ are inspired by GEN11 of Csound
@@ -93,10 +93,10 @@
           (setf angle (* i pi-step))
           (setf denom (sin (the limited-sample angle)))
           (setf (mem-aref c-array 'sample i)
-                (cond ((zerop denom) (coerce 1.0 'sample))
+                (cond ((zerop denom) (sample 1))
                       (t (setf num (sin (the limited-sample
                                           (* two-nh-plus-one angle))))
-                         (* mult (- (/ num denom) 1.0d0))))))))))
+                         (* mult (- (/ num denom) 1.0))))))))))
 
 (defun gbuzz (num-harm &optional (lowest-harm 1) (mul 1))
   (declare (type (integer 1 100000) num-harm) (type fixnum lowest-harm))
@@ -105,7 +105,7 @@
       (let* ((c1 (1- lowest-harm))
              (c2 (+ lowest-harm num-harm))
              (c3 (1- c2))
-             (mul (coerce mul 'sample)))
+             (mul (sample mul)))
         (declare (type non-negative-fixnum c1 c2 c3)
                  (type sample mul))
         (lambda (c-array size)
@@ -114,16 +114,16 @@
                    #.*standard-optimize-settings*)
           (with-samples* ((abs-mul (abs mul))
                           (two-mul (+ mul mul))
-                          (squared-mul-plus-one (+ (* mul mul) (coerce 1.0 'sample)))
+                          (squared-mul-plus-one (+ (* mul mul) (sample 1)))
                           (c2-mult (expt (the (sample #.+sample-zero+) abs-mul) num-harm))
                           c3-mult scale twopi-step angle num denom)
             (when (and (minusp mul)
                        (plusp (logand num-harm 1)))
               (setf c2-mult (- c2-mult)))
             (setf c3-mult (* c2-mult mul)
-                  scale (let ((one (coerce 1.0 'sample)))
-                          (if (and (> abs-mul (coerce 0.999 'sample))
-                                   (< abs-mul (coerce 1.001 'sample)))
+                  scale (let ((one (sample 1)))
+                          (if (and (> abs-mul (sample 0.999))
+                                   (< abs-mul (sample 1.001)))
                               (/ one num-harm)
                               (/ (- one abs-mul)
                                  (- one (abs c2-mult)))))
@@ -133,14 +133,14 @@
                     denom (- squared-mul-plus-one (* two-mul
                                                      (cos (the limited-sample angle)))))
               (setf (mem-aref c-array 'sample i)
-                    (cond ((or (> denom (coerce 1.e-5 'sample))
-                               (< denom (coerce -1.e-5 'sample)))
+                    (cond ((or (> denom (sample 1.e-5))
+                               (< denom (sample -1.e-5)))
                            (setf num (+ (- (cos (the limited-sample (* lowest-harm angle)))
                                            (* mul (cos (the limited-sample (* c1 angle))))
                                            (* c2-mult (cos (the limited-sample (* c2 angle)))))
                                         (* c3-mult (cos (the limited-sample (* c3 angle))))))
                            (* scale (/ num denom)))
-                          (t 1.0d0)))))))))
+                          (t (sample 1))))))))))
 
 ;;; Chebyshev polynomials of the first kind
 (defun chebyshev-1 (strength-list &key (xmin -1) (xmax 1) (offset-p t)
@@ -149,7 +149,7 @@
            (type boolean offset-p normalize-p)
            #.*standard-optimize-settings*
            #.*reduce-warnings*)
-  (with-samples ((phase-init (coerce xmin 'sample))
+  (with-samples ((phase-init (sample xmin))
                  (phase 0.0)
                  (phase-inc 0.0)
                  (offset 0.0)
@@ -160,7 +160,7 @@
                (type non-negative-fixnum size))
       ;; Clear the buffer
       (incudine.external:foreign-zero-sample c-array size)
-      (setf phase-inc (coerce (/ (- xmax xmin) size) 'sample))
+      (setf phase-inc (sample (/ (- xmax xmin) size)))
       (do ((scale-list strength-list (cdr scale-list))
            (partial 1 (1+ partial)))
           ((null scale-list))
@@ -185,5 +185,5 @@
         (when (> abs-value max-value)
           (setf max-value abs-value)))
       (values c-array
-              (/ 1.0d0 max-value)
+              (/ max-value)
               normalize-p))))

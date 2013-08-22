@@ -54,7 +54,7 @@
       (incf phase delta))))
 
 (defwindow sine-window (c-array size)
-  (with-samples ((winc (/ (coerce pi 'sample) size)))
+  (with-samples ((winc (/ (sample pi) size)))
     (dotimes (i size c-array)
       (setf (data-ref c-array i)
             (sin (the limited-sample

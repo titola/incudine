@@ -111,7 +111,7 @@
                                (setf done-p nil))
                              (expt (the non-negative-sample
                                      (/ end value))
-                                   (/ 1.0d0 samples))))))
+                                   (/ (sample samples)))))))
     (declare (type sample %start value power) (type boolean done-p)
              (type non-negative-fixnum samples remain))
     (if done-p

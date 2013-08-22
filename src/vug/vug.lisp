@@ -521,7 +521,7 @@
                  (t (cons (parse-vug-def name nil flist mlist)
                           (parse-vug-def (cdr def) t flist mlist))))))
         (quote-expr-p `',def)
-        ((eq def 'pi) '(coerce pi 'sample))
+        ((eq def 'pi) '(sample pi))
         ((and (symbolp def)
               (or (boundp def)
                   (eq def '%synth-node%)))
@@ -529,7 +529,7 @@
         ((and (symbolp def) (eq def 'current-channel))
          `(make-vug-symbol :name 'current-channel :block-p t))
         ((and (numberp def) (floatp def))
-         (coerce def 'sample))
+         (sample def))
         (t def)))
 
 (defun remove-wrapped-parens (obj)

@@ -22,10 +22,10 @@
                      for chan from 0
                      collect `((= current-channel ,chan)
                                ,(if (numberp value)
-                                    (coerce value 'sample)
+                                    (sample value)
                                     value)))
-             (t 0.0d0))
-      `(coerce ,(car values) 'sample)))
+             (t +sample-zero+))
+      `(sample ,(car values))))
 
 (define-vug-macro out (&rest values)
   (let ((node-value `(%out ,@values)))

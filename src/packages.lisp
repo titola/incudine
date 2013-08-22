@@ -60,6 +60,7 @@
    #:*standard-optimize-settings* #:rt-thread*
    #:least-positive-sample #:least-negative-sample
    #:next-power-of-two #:power-of-two-p
+   #:apply-sample-coerce
    #:foreach-channel
    #:lin->db #:db->lin
    #:linear-interp #:cos-interp #:cubic-interp

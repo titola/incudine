@@ -118,14 +118,14 @@
     value))
 
 (define-vug lin->lin (in old-min old-max new-min new-max)
-  (with-samples ((old-rdelta (/ 1.0d0 (- old-max old-min)))
+  (with-samples ((old-rdelta (/ (sample 1) (- old-max old-min)))
                  (new-delta (- new-max new-min)))
     (+ new-min (* new-delta old-rdelta (- in old-min)))))
 
 (define-vug lin->exp (in old-min old-max new-min new-max)
-  (with-samples ((old-rdelta (/ 1.0d0 (- old-max old-min)))
+  (with-samples ((old-rdelta (/ (sample 1) (- old-max old-min)))
                  (new-ratio (/ new-max new-min)))
-    (* (expt (the (sample 0.0d0) new-ratio)
+    (* (expt (the non-negative-sample new-ratio)
              (* old-rdelta (- in old-min)))
        new-min)))
 
@@ -157,7 +157,7 @@
        ;; form, so the automatic setter is disabled.
        ,in
        (cond ((zerop ,range)
-              (setf ,in ,(if (eql high range) 0.0d0 low)))
+              (setf ,in ,(if (eql high range) +sample-zero+ low)))
              ,@(mapcar (lambda (x)
                          `(,(car x) ,@(cdr x)
                             (when ,(car x)
@@ -196,7 +196,7 @@
           `(progn
              ,in
              (cond ((zerop ,%range)
-                    (setf ,in ,(if (eql hi %range) 0.0d0 lo)))
+                    (setf ,in ,(if (eql hi %range) +sample-zero+ lo)))
                    ((>= ,in ,hi)
                     (%mirror-consequent ,in ,hi ,lo ,%range ,two-range
                                         ,%offset ,offset ,lo))
@@ -258,6 +258,6 @@
          ,@(when init `((initialize ,init)))
          (decf ,phase ,inc)
          (when (minusp ,phase)
-           (setf ,phase (wrap ,phase 0.0d0 1.0d0))
+           (setf ,phase (wrap ,phase 0 1))
            ,update)
          ,result))))

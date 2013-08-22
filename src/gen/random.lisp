@@ -179,8 +179,8 @@
 
     (declaim (inline ran-triangular))
     (defun ran-triangular (rng-type a b)
-      (* 0.5d0 (+ (ran-flat rng-type a b)
-                  (ran-flat rng-type a b))))))
+      (* 0.5 (+ (ran-flat rng-type a b)
+                (ran-flat rng-type a b))))))
 
 (defmacro rand (&whole whole distribution
                 &key a b c n n1 n2 p alpha beta mu nu nu1 nu2 sigma tt zeta seed)

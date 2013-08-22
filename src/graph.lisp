@@ -43,7 +43,7 @@
   ;; Index in the array of the nodes
   (index #.(* 2 *max-number-of-nodes*) :type non-negative-fixnum)
   (name nil :type symbol)
-  (start-time-ptr (foreign-alloc :double :initial-element 0.0d0)
+  (start-time-ptr (foreign-alloc 'sample :initial-element +sample-zero+)
                   :type foreign-pointer)
   ;; List of functions, where the CAR is the function related to the
   ;; node and the CDR is the list of the next functions. If the node
@@ -78,13 +78,13 @@
       (setf (node-hash obj) (int-hash id)))
     ;; default level
     (setf (mem-aref (node-gain-data obj) 'sample 0)
-          (coerce 1.0 'sample))
+          (sample 1))
     ;; default curve
     (setf (mem-aref (node-gain-data obj) 'sample 3)
           +seg-lin-func+)
     ;; default fade-time
     (setf (mem-aref (node-gain-data obj) 'sample 9)
-          (coerce 0.02 'sample))
+          (sample 0.02))
     (let ((start-time-ptr (node-start-time-ptr obj))
           (gain-data-ptr (node-gain-data obj)))
       (tg:finalize obj (lambda ()
@@ -179,7 +179,7 @@
           (flet ((common-set (group id)
                    (setf (node-id group) id
                          (node-hash group) (int-hash id)
-                         (mem-ref (node-start-time-ptr group) :double) (now)
+                         (mem-ref (node-start-time-ptr group) 'sample) (now)
                          (node-last group) :dummy-node
                          (node-pause-p group) nil)
                    (incf (int-hash-table-count *node-hash*))))
@@ -294,7 +294,7 @@
 (defgeneric start-time (obj))
 
 (defmethod start-time ((obj node))
-  (mem-ref (node-start-time-ptr obj) :double))
+  (mem-ref (node-start-time-ptr obj) 'sample))
 
 (defmethod start-time ((obj integer))
   (start-time (node obj)))
@@ -303,7 +303,7 @@
 
 (defmethod uptime ((obj node))
   (if (null-item-p obj)
-      0.0d0
+      +sample-zero+
       (- (now) (start-time obj))))
 
 (defmethod uptime ((obj integer))
@@ -324,7 +324,7 @@
 (defmethod (setf gain) ((value number) (obj node))
   (rt-eval (:return-value-p t)
     (setf (mem-aref (node-gain-data obj) 'sample 0)
-          (coerce value 'sample))))
+          (sample value))))
 
 (defmethod (setf gain) ((value number) (obj integer))
   (setf (gain (node obj)) value))
@@ -343,7 +343,7 @@
 (defmethod (setf fade-time) ((value number) (obj node))
   (rt-eval (:return-value-p t)
     (setf (mem-aref (node-gain-data obj) 'sample 9)
-          (coerce value 'sample))))
+          (sample value))))
 
 (defmethod (setf fade-time) ((value number) (obj integer))
   (setf (fade-time (node obj)) value))
@@ -487,12 +487,12 @@
            (setf (node-id item)        id
                  (node-hash item)      hash
                  (node-name item)      name
-                 (mem-ref (node-start-time-ptr item) :double) (now)
+                 (mem-ref (node-start-time-ptr item) 'sample) (now)
                  (node-pause-p item)   nil
                  (node-function item)  fn
                  (node-last item)      nil
                  (node-release-phase-p item) nil
-                 (gain item)           (coerce 1.0 'sample)
+                 (gain item)           (sample 1)
                  (fade-curve item)     (or fade-curve :lin))
            (if (null (node-funcons item))
                (setf (node-funcons item) (list fn))
@@ -1277,22 +1277,6 @@
                           symbols))
        ,@body)))
 
-(defun apply-sample-coerce (form)
-  (if (atom form)
-      (cond ((and (numberp form) (floatp form))
-             (coerce form 'sample))
-            ((eq form 'pi) '(coerce pi 'sample))
-            (t form))
-      (cons (apply-sample-coerce (car form))
-            (apply-sample-coerce (cdr form)))))
-
-(defmacro %node-segment-init (beg end dur curve grow a2 b1 y1 y2)
-  (let ((result `(%segment-init ,beg ,end ,dur ,curve ,grow
-                                              ,a2 ,b1 ,y1 ,y2)))
-    (if (eq *sample-type* 'double-float)
-        result
-        (apply-sample-coerce (macroexpand-1 result)))))
-
 (defgeneric node-segment (obj end dur &optional start curve done-action))
 
 (defmethod node-segment ((obj node) end dur
@@ -1319,7 +1303,7 @@
              (setf end0 (envelope-fix-zero end curve))
              (when (eq done-action #'free)
                (setf (node-release-phase-p obj) t))
-             (%node-segment-init start0 end0 samples curve0 grow a2 b1 y1 y2)
+             (%segment-init start0 end0 samples curve0 grow a2 b1 y1 y2)
              (setf (node-current-function obj)
                    (lambda (chan)
                      (declare (type non-negative-fixnum chan))
@@ -1344,7 +1328,7 @@
 
 (defmethod fade-in ((obj node) &optional duration curve)
   (setf (gain obj) +sample-zero+)
-  (node-segment obj (coerce 1.0 'sample) (or duration (fade-time obj))
+  (node-segment obj (sample 1) (or duration (fade-time obj))
                 +sample-zero+ curve #'identity))
 
 (defmethod fade-in ((obj integer) &optional duration curve)

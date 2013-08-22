@@ -22,4 +22,4 @@
            (* (cos alpha) in))
           ((< current-channel 2)
            (* (sin alpha) in))
-          (t 0.0d0))))
+          (t +sample-zero+))))

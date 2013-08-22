@@ -121,7 +121,7 @@
                                    #'foreign-rt-free
                                    #'foreign-free)
                  :plan (make-fft-plan size input-buffer output-buffer flags))))
-      (setf (analysis-time obj) (coerce -1.0 'sample))
+      (setf (analysis-time obj) (sample -1))
       (foreign-zero-sample input-buffer size)
       (let ((plan (fft-plan obj))
             (foreign-free (fft-foreign-free obj)))
@@ -210,7 +210,7 @@
                                    #'foreign-rt-free
                                    #'foreign-free)
                  :plan (make-ifft-plan size input-buffer output-buffer flags))))
-      (setf (analysis-time obj) (coerce -1.0 'sample))
+      (setf (analysis-time obj) (sample -1))
       (foreign-zero-sample input-buffer complex-array-size)
       (let ((plan (ifft-plan obj))
             (foreign-free (ifft-foreign-free obj)))

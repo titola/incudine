@@ -24,9 +24,9 @@
 (defun polynomial (coefficients &key (xmin -1) (xmax 1) (normalize-p t))
   (declare (type list coefficients) (type real xmin xmax)
            (type boolean normalize-p))
-  (let* ((xmin (coerce xmin 'sample))
+  (let* ((xmin (sample xmin))
          (range (abs (- xmax xmin)))
-         (coeffs (or (mapcar (lambda (x) (coerce x 'sample))
+         (coeffs (or (mapcar (lambda (x) (sample x))
                              coefficients)
                      `(,+sample-zero+))))
     (declare (type sample xmin range) (type cons coeffs))
@@ -50,5 +50,5 @@
                   (when (< max-value abs-value)
                     (setf max-value abs-value)))))
         (values c-array
-                (/ (coerce 1.0 'sample) max-value)
+                (/ max-value)
                 normalize-p)))))

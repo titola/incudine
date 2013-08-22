@@ -57,7 +57,7 @@
        (declare (type non-negative-fixnum ,size ,window-size))
        (cond ((and (= ,size (slot-value ,vug-varname 'incudine.analysis::size))
                    (= ,window-size (slot-value ,vug-varname 'incudine.analysis::window-size)))
-              (setf (incudine.analysis:analysis-time ,vug-varname) (coerce -1.0 'sample))
+              (setf (incudine.analysis:analysis-time ,vug-varname) (sample -1))
               (foreign-zero-sample
                (slot-value ,vug-varname 'incudine.analysis::input-buffer) ,size)
               (foreign-zero-sample (incudine.analysis::ring-buffer-data
@@ -89,7 +89,7 @@
        (declare (type non-negative-fixnum ,size ,window-size))
        (cond ((and (= ,size (slot-value ,vug-varname 'incudine.analysis::size))
                    (= ,window-size (slot-value ,vug-varname 'incudine.analysis::window-size)))
-              (setf (incudine.analysis:analysis-time ,vug-varname) (coerce -1.0 'sample))
+              (setf (incudine.analysis:analysis-time ,vug-varname) (sample -1))
               (foreign-zero-sample
                (slot-value ,vug-varname 'incudine.analysis::output-buffer) ,size)
               (foreign-zero-sample (incudine.analysis::ring-buffer-data

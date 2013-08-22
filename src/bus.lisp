@@ -74,8 +74,7 @@
 (declaim (inline set-bus))
 (defun set-bus (num value)
   (declare (type bus-number num))
-  (setf (data-ref *bus-pointer* num)
-        (coerce value 'sample)))
+  (setf (data-ref *bus-pointer* num) (sample value)))
 
 (defsetf bus set-bus)
 
@@ -92,8 +91,7 @@
 (declaim (inline set-audio-out))
 (defun set-audio-out (channel value)
   (declare (type channel-number channel))
-  (setf (data-ref *output-pointer* channel)
-        (coerce value 'sample)))
+  (setf (data-ref *output-pointer* channel) (sample value)))
 
 (defsetf audio-out set-audio-out)
 
@@ -104,7 +102,7 @@
     (declare (type sample value))
     (when (> value (mem-aref *output-peak-values* 'sample chan))
       (setf (mem-aref *output-peak-values* 'sample chan) value))
-    (when (> value (coerce 1.0 'sample))
+    (when (> value (sample 1))
       (setf #1=(svref *out-of-range-counter* chan)
             (the positive-fixnum
               (1+ (the positive-fixnum #1#)))))
@@ -129,7 +127,7 @@
 (declaim (inline %reset-peak-values))
 (defun %reset-peak-meters ()
   (foreach-channel (chan *number-of-output-bus-channels*)
-    (setf (data-ref *output-peak-values* chan) 0.0d0)
+    (setf (data-ref *output-peak-values* chan) +sample-zero+)
     (setf (svref *out-of-range-counter* chan) 0)))
 
 (defun reset-peak-meters ()

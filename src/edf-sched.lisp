@@ -85,7 +85,7 @@
            (type list args))
   (unless (>= *next-node* *heap-size*)
     (let ((curr *next-node*)
-          (t0 (coerce time 'sample)))
+          (t0 (sample time)))
       (declare #.incudine::*standard-optimize-settings*
                (type positive-fixnum curr) (type sample t0))
       (loop while (> curr +node-root+) do
@@ -113,7 +113,7 @@
 (define-compiler-macro at (&whole form &environment env time &rest rest)
   (if (and (constantp time env)
            (not (typep time 'sample)))
-      `(at ,(coerce time 'sample) ,@rest)
+      `(at ,(sample time) ,@rest)
       form))
 
 (defun get-heap ()

@@ -26,7 +26,7 @@
     ;; that require power-of-two tables
     (lobits 0 :type (integer 0 #.+max-lobits+))
     (lomask 0 :type non-negative-fixnum)
-    (lodiv #.(coerce 1.0 'sample) :type sample)
+    (lodiv (sample 1) :type sample)
     (frames 0 :type non-negative-fixnum)
     (channels 1 :type non-negative-fixnum)
     (sample-rate *sample-rate* :type sample)
@@ -65,7 +65,7 @@
                :lomask (1- value)
                :lodiv (if (zerop lobits)
                           +sample-zero+
-                          (/ (coerce 1.0 'sample) value))
+                          (/ (sample 1) value))
                :frames frames
                :channels channels
                :sample-rate sample-rate
@@ -97,7 +97,7 @@
   (declare (type buffer buffer) (type non-negative-fixnum index)
            (type real value))
   (setf (data-ref (buffer-data buffer) index)
-        (coerce value 'sample)))
+        (sample value)))
 
 (defsetf buffer-value set-buffer-value)
 
@@ -226,7 +226,7 @@ It is possible to use line comments that begin with the `;' char."
           (locally
               (declare #.*reduce-warnings*)
               (setf (buffer-sample-rate buffer)
-                    (coerce (sf:sample-rate info) 'sample)))
+                    (sample (sf:sample-rate info))))
           buffer)))))
 
 (defmethod free ((obj buffer))
@@ -291,7 +291,7 @@ It is possible to use line comments that begin with the `;' char."
       (declare (type positive-fixnum i))
       (when (> value old-max) (setf old-max value))
       (when (< value old-min) (setf old-min value)))
-    (let ((old-delta (/ 1.0d0 (- old-max old-min)))
+    (let ((old-delta (/ (sample 1) (- old-max old-min)))
           (new-delta (- max min)))
       (map-buffer (lambda (index value)
                     (declare (ignore index))

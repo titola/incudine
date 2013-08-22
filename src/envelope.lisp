@@ -23,13 +23,13 @@
 
 ;;; Values of the constants useful to get an index from 0 to 6 when
 ;;; passed to DOUBLE-FLOAT-EXPONENT (unused)
-(define-constant +seg-step-func+   (coerce  5e15 'sample))
-(define-constant +seg-lin-func+    (coerce  1e16 'sample))
-(define-constant +seg-exp-func+    (coerce  2e16 'sample))
-(define-constant +seg-sine-func+   (coerce  4e16 'sample))
-(define-constant +seg-welch-func+  (coerce  8e16 'sample))
-(define-constant +seg-square-func+ (coerce 16e16 'sample))
-(define-constant +seg-cubic-func+  (coerce 32e16 'sample))
+(define-constant +seg-step-func+   (sample  5e15))
+(define-constant +seg-lin-func+    (sample  1e16))
+(define-constant +seg-exp-func+    (sample  2e16))
+(define-constant +seg-sine-func+   (sample  4e16))
+(define-constant +seg-welch-func+  (sample  8e16))
+(define-constant +seg-square-func+ (sample 16e16))
+(define-constant +seg-cubic-func+  (sample 32e16))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defstruct (envelope (:constructor %make-envelope)
@@ -107,11 +107,10 @@
 
 (declaim (inline envelope-fix-zero))
 (defun envelope-fix-zero (level curve)
-  (coerce (if (and (exponential-curve-p curve)
+  (sample (if (and (exponential-curve-p curve)
                    (zerop level))
               1.0e-5
-              level)
-          'sample))
+              level)))
 
 (defun set-envelope (env levels times &key curve
                      (loop-node -1) (release-node -1))
@@ -121,7 +120,7 @@
         (curve (cond ((null curve) (list :lin))
                      ((atom curve) (list curve))
                      (t curve)))
-        (first-level (coerce (car levels) 'sample)))
+        (first-level (sample (car levels))))
     (setf (data-ref data 0)
           (envelope-fix-zero first-level (car curve)))
     (setf (envelope-duration env) +sample-zero+
@@ -135,8 +134,7 @@
       (declare (type positive-fixnum i)
                (type list lev tim cur))
       (incf (envelope-duration env)
-            (setf (data-ref data i)
-                  (coerce (car tim) 'sample)))
+            (setf (data-ref data i) (sample (car tim))))
       (setf (data-ref data (incf i))
             (envelope-fix-zero (car lev) (car cur)))
       (setf (data-ref data (incf i))
@@ -145,7 +143,7 @@
 
 (declaim (inline seg-function-spec->sample))
 (defun seg-function-spec->sample (x)
-  (cond ((numberp x) (coerce x 'sample))
+  (cond ((numberp x) (sample x))
         ((keywordp x)
          (case x
            (:step +seg-step-func+)
@@ -182,7 +180,7 @@
                             ,@(cdr x)))
                        cases)))))
 
-(defmacro %segment-init (beg end dur curve grow a2 b1 y1 y2)
+(defmacro %%segment-init (beg end dur curve grow a2 b1 y1 y2)
   (with-gensyms (w)
     `(curve-case ,curve
        (+seg-step-func+ (values))
@@ -197,13 +195,13 @@
                 ,b1 (* 2.0d0 (cos (the maybe-limited-sample ,w)))
                 ,y1 (* (- ,end ,beg) 0.5d0)
                 ,y2 (* ,y1 (sin (the maybe-limited-sample
-                                  (- (* pi 0.5d0) ,w)))))))
+                                  (- +half-pi+ ,w)))))))
        (+seg-welch-func+
-        (let ((,w (/ (* pi 0.5d0) ,dur)))
+        (let ((,w (/ +half-pi+ ,dur)))
           (setf ,b1 (* 2.0d0 (cos (the maybe-limited-sample ,w))))
           (if (>= ,end ,beg)
               (setf ,a2 ,beg
-                    ,y1 0.0d0
+                    ,y1 +sample-zero+
                     ,y2 (* (- (sin (the maybe-limited-sample ,w)))
                            (- ,end ,beg)))
               (setf ,a2 ,end
@@ -225,6 +223,13 @@
                       (setf ,b1 (/ (- ,end ,beg) (- 1.0d0 (exp ,curve)))
                             ,a2 (+ ,beg ,b1)
                             ,grow (exp (/ ,curve ,dur))))))))
+
+(defmacro %segment-init (beg end dur curve grow a2 b1 y1 y2)
+  (let ((result `(%%segment-init ,beg ,end ,dur ,curve ,grow
+                                 ,a2 ,b1 ,y1 ,y2)))
+    (if (eq *sample-type* 'double-float)
+        result
+        (apply-sample-coerce (macroexpand-1 result)))))
 
 (defmacro %segment-update-level (level curve grow a2 b1 y1 y2)
   (with-gensyms (y0)
@@ -313,19 +318,18 @@
           (when (and (plusp node-number)
                      (exponential-curve-index-p
                       (mem-ref data 'sample)))
-            (return (setf level (coerce 1.0e-5 'sample))))
+            (return (setf level (sample 1.0e-5))))
           (when (/= node-number (1- (the non-negative-fixnum
                                       (envelope-points env))))
             (incf-pointer data (* 3 +foreign-sample-size+))
             (when (exponential-curve-index-p
                    (mem-ref data 'sample))
               (incf-pointer data (* -3 +foreign-sample-size+))
-              (return (setf level (coerce 1.0e-5 'sample))))
+              (return (setf level (sample 1.0e-5))))
             (incf-pointer data (* -3 +foreign-sample-size+)))))
       (if (> node-number 0)
           (incf-pointer data (- +foreign-sample-size+)))
-      (setf (mem-ref data 'sample)
-            (coerce level 'sample)))))
+      (setf (mem-ref data 'sample) (sample level)))))
 
 (defsetf envelope-level set-envelope-level)
 
@@ -354,7 +358,7 @@
          (setf (data-ref (envelope-data env)
                          (the positive-fixnum
                            (- (* node-number 3) 2)))
-               (coerce time 'sample)))
+               (sample time)))
         (t +sample-zero+)))
 
 (defsetf envelope-time set-envelope-time)
@@ -397,9 +401,9 @@
                           (envelope-data env)
                           (inc-pointer end-ptr (* -3 +foreign-sample-size+)))))
         (if (exponential-curve-p curve)
-            (segment-fix-zeros beg-ptr end-ptr (coerce 1.0e-5 'sample) 0)
+            (segment-fix-zeros beg-ptr end-ptr (sample 1.0e-5) 0)
             (segment-fix-zeros beg-ptr end-ptr +sample-zero+
-                               (coerce 1.0e-5 'sample)))
+                               (sample 1.0e-5)))
         (setf (data-ref curve-ptr 0)
               (seg-function-spec->sample curve))
         curve))))
@@ -439,7 +443,7 @@
           (setf old-max lev))
         (when (< lev old-min)
           (setf old-min lev))))
-    (let ((old-delta (/ 1.0d0 (- old-max old-min)))
+    (let ((old-delta (/ (sample 1) (- old-max old-min)))
           (new-delta (- max min)))
       (flet ((set-level (index offset)
                (setf (envelope-level obj index)

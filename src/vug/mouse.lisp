@@ -96,13 +96,13 @@
   (get-mouse-button))
 
 (define-vug lin-mouse-x (min max)
-  (lin->lin (mouse-x) 0.0d0 1.0d0 min max))
+  (lin->lin (mouse-x) 0 1 min max))
 
 (define-vug lin-mouse-y (min max)
-  (lin->lin (mouse-y) 0.0d0 1.0d0 min max))
+  (lin->lin (mouse-y) 0 1 min max))
 
 (define-vug exp-mouse-x (min max)
-  (lin->exp (mouse-x) 0.0d0 1.0d0 min max))
+  (lin->exp (mouse-x) 0 1 min max))
 
 (define-vug exp-mouse-y (min max)
-  (lin->exp (mouse-y) 0.0d0 1.0d0 min max))
+  (lin->exp (mouse-y) 0 1 min max))

@@ -116,31 +116,31 @@
     (midi-table-pitch-bend table)))
 
 (define-vug lin-midi-poly-aftertouch ((channel fixnum) (keynum fixnum) min max)
-  (lin->lin (coerce (midi-poly-aftertouch channel keynum) 'sample)
-            0.0d0 127.0d0 min max))
+  (lin->lin (sample (midi-poly-aftertouch channel keynum))
+            0 127 min max))
 
 (define-vug exp-midi-poly-aftertouch ((channel fixnum) (keynum fixnum) min max)
-  (lin->exp (coerce (midi-poly-aftertouch channel keynum) 'sample)
-            0.0d0 127.0d0 min max))
+  (lin->exp (sample (midi-poly-aftertouch channel keynum))
+            0 127 min max))
 
 (define-vug lin-midi-cc ((channel fixnum) (number fixnum) min max)
-  (lin->lin (coerce (midi-cc channel number) 'sample) 0.0d0 127.0d0 min max))
+  (lin->lin (sample (midi-cc channel number)) 0 127 min max))
 
 (define-vug exp-midi-cc ((channel fixnum) (number fixnum) min max)
-  (lin->exp (coerce (midi-cc channel number) 'sample) 0.0d0 127.0d0 min max))
+  (lin->exp (sample (midi-cc channel number)) 0 127 min max))
 
 (define-vug lin-midi-global-aftertouch ((channel fixnum) min max)
-  (lin->lin (coerce (midi-global-aftertouch channel) 'sample)
-            0.0d0 127.0d0 min max))
+  (lin->lin (sample (midi-global-aftertouch channel))
+            0 127 min max))
 
 (define-vug exp-midi-global-aftertouch ((channel fixnum) min max)
-  (lin->exp (coerce (midi-global-aftertouch channel) 'sample)
-            0.0d0 127.0d0 min max))
+  (lin->exp (sample (midi-global-aftertouch channel))
+            0 127 min max))
 
 (define-vug lin-midi-pitch-bend ((channel fixnum) min max)
-  (lin->lin (coerce (midi-pitch-bend channel) 'sample)
-            -8192.0d0 8191.0d0 min max))
+  (lin->lin (sample (midi-pitch-bend channel))
+            -8192 8191 min max))
 
 (define-vug exp-midi-pitch-bend ((channel fixnum) min max)
-  (lin->exp (coerce (midi-pitch-bend channel) 'sample)
-            -8192.0d0 8191.0d0 min max))
+  (lin->exp (sample (midi-pitch-bend channel))
+            -8192 8191 min max))

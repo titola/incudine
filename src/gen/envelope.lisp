@@ -81,5 +81,5 @@
           (setf (mem-aref c-array 'sample size) end))
         (values c-array
                 ;; Factor to scale the amplitude
-                (/ (coerce 1.0 'sample) max)
+                (/ max)
                 normalize-p)))))

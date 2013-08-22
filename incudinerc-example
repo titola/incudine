@@ -1,7 +1,6 @@
 ;;; -*- Mode: Lisp -*-
 
 (setq *sample-rate* 48000)
-(setq *sample-type* 'double-float)
 ;; Always T when *SAMPLE-TYPE* is DOUBLE-FLOAT
 (setq *use-foreign-sample-p* t)
 (setq *frames-per-buffer* 1024)

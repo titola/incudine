@@ -50,7 +50,7 @@
   (with-gensyms (obj)
     `(let ((,obj ,(car args)))
        (cond ((eq ,obj (incudine.analysis::abuffer-link ,vug-varname))
-              (setf (incudine.analysis:abuffer-time ,vug-varname) (coerce -1.0 'sample))
+              (setf (incudine.analysis:abuffer-time ,vug-varname) (sample -1))
               (foreign-zero-sample (incudine.analysis::abuffer-data ,vug-varname)
                                    (incudine.analysis::abuffer-size ,vug-varname)))
              (t (incudine:free ,vug-varname)
@@ -77,7 +77,7 @@
          (if (< current-channel ,channels)
              (data-ref ,data (the non-negative-fixnum
                                (+ ,index current-channel)))
-             0.0d0))))
+             +sample-zero+))))
 
   (defmacro %two-points-interp (data phs frames channels size wrap-p
                                 wrap-phase-fn interp-fn-name)
@@ -105,7 +105,7 @@
                                                 (+ ,y0 current-channel)))
                               (data-ref ,data (the non-negative-fixnum
                                                 (+ ,y1 current-channel))))
-             0.0d0))))
+             +sample-zero+))))
 
   (defmacro %four-points-interp (data phs frames channels size
                                  wrap-p wrap-phase-fn interp-fn-name)
@@ -151,14 +151,14 @@
                                                 (+ ,y2 current-channel)))
                               (data-ref ,data (the non-negative-fixnum
                                                 (+ ,y3 current-channel))))
-             0.0d0))))
+             +sample-zero+))))
 
   (defmacro wrap-phase-func (phs frames wrap-p)
     (with-gensyms (max)
-      `(with-samples ((,max (coerce (- ,frames (if ,wrap-p 0 1)) 'sample)))
+      `(with-samples ((,max (sample (- ,frames (if ,wrap-p 0 1)))))
          (if ,wrap-p
              (lambda ()
-               (wrap-cond (,phs 0.0d0 ,max ,max)
+               (wrap-cond (,phs +sample-zero+ ,max ,max)
                  ((>= ,phs ,max) (decf ,phs ,max))
                  ((minusp ,phs)  (incf ,phs ,max)))
                (values))
@@ -166,7 +166,7 @@
                (cond ((>= ,phs ,max)
                       (setf (done-self) t ,phs ,max))
                      ((minusp ,phs)
-                      (setf (done-self) t ,phs 0.0d0)))
+                      (setf (done-self) t ,phs +sample-zero+)))
                (values))))))
 
   (defmacro select-buffer-interp (interp data phs frames channels size
@@ -183,7 +183,7 @@
 (define-vug-macro buffer-read (buffer phase &key wrap-p interpolation)
   (with-gensyms (%buffer %phs %wrap-p frames channels data wrap-phase-fn)
     `(with ((,%buffer ,buffer)
-            (,%phs (coerce ,phase 'sample))
+            (,%phs (sample ,phase))
             (,%wrap-p ,wrap-p)
             (,frames (buffer-frames ,%buffer))
             (,channels (buffer-channels ,%buffer))

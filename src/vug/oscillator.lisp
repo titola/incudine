@@ -22,8 +22,8 @@
                    (inc (* freq *sample-duration*)))
       (prog1 phase
         (incf phase inc)
-        (cond ((>= phase 1.0d0) (decf phase 1.0d0))
-              ((minusp phase)   (incf phase 1.0d0))))))
+        (cond ((>= phase 1.0) (decf phase))
+              ((minusp phase) (incf phase))))))
 
   (define-vug phasor-loop (rate start-pos loopstart loopend)
     (with-samples ((pos start-pos)
@@ -83,7 +83,7 @@
     (cond (phase-modulation-p
            (with-gensyms (phase-old %phase)
              `(with-samples ((,%phase ,phase)
-                      (,phase-old 0.0d0))
+                             (,phase-old 0.0d0))
                 (unless (= ,%phase ,phase-old)
                   (setf ,phs (logand (the fixnum
                                        (+ ,phs (sample->fixnum
@@ -115,10 +115,10 @@
 
   (defmacro %impulse (freq amp phase phase-modulation-p)
     (with-gensyms (phase-old phs freq-inc)
-      `(with-samples ((,phs (if (zerop ,phase) 1.0d0 ,phase))
+      `(with-samples ((,phs (if (zerop ,phase) (sample 1) ,phase))
                       (,freq-inc (* ,freq *sample-duration*)))
-         (prog1 (cond ((>= ,phs 1.0d0) (decf ,phs 1.0d0) ,amp)
-                      (t 0.0d0))
+         (prog1 (cond ((>= ,phs 1.0) (decf ,phs 1.0) ,amp)
+                      (t +sample-zero+))
            ,@(when phase-modulation-p
                `((with-samples (,phase-old)
                    (unless (= ,phase ,phase-old)
@@ -154,7 +154,7 @@
                    two-nh-plus-one amp0 mult0 mult1 index count cross inc-interp)
       `(with ((,freq-inc (sample->fixnum
                           ;; The angle is theta/2
-                          (* 0.5d0 ,freq *cps2inc*)))
+                          (* 0.5 ,freq *cps2inc*)))
               (,phs 0)
               (,minus-lobits (- (buffer-lobits ,buffer)))
               (,mask (buffer-mask ,buffer))
@@ -163,8 +163,8 @@
               (,count 0)
               (,cross 1.0d0)
               (,nh-lag (sample->fixnum (* ,harm-change-lag *sample-rate*)))
-              (,inc-interp (/ 1.0d0 ,nh-lag))
-              (,amp0 (* ,amp 0.5d0))
+              (,inc-interp (/ (sample 1) ,nh-lag))
+              (,amp0 (* ,amp 0.5))
               (,old-num-harm 0)
               (,nh0 1)
               (,nh1 1)
@@ -191,7 +191,7 @@
                        (plusp ,count))
              (setf ,old-num-harm ,num-harm
                    ,count ,nh-lag
-                   ,cross 0.0d0
+                   ,cross +sample-zero+
                    ,nh0 ,nh1
                    ,nh1 (max 1 (abs ,num-harm))
                    ,old-two-nh-plus-one ,two-nh-plus-one
@@ -205,13 +205,13 @@
                       (setf ,num1
                             (%buzz-numerator ,buffer ,data ,phs ,two-nh-plus-one
                                              ,minus-lobits ,mask ,interpolation))
-                      (setf ,res1 (* ,mult1 (- (/ ,num1 ,denom) 1.0d0)))
+                      (setf ,res1 (* ,mult1 (- (/ ,num1 ,denom) 1.0)))
                       (cond ((plusp ,count)
                              (decf ,count)
                              (setf ,num0
                                    (%buzz-numerator ,buffer ,data ,phs ,old-two-nh-plus-one
                                                     ,minus-lobits ,mask ,interpolation))
-                             (setf ,res0 (* ,mult0 (- (/ ,num0 ,denom) 1.0d0)))
+                             (setf ,res0 (* ,mult0 (- (/ ,num0 ,denom) 1.0)))
                              (prog1 (linear-interp ,cross ,res0 ,res1)
                                (incf ,cross ,inc-interp)))
                             (t ,res1)))
@@ -225,7 +225,7 @@
     (with ((count 0)
            (cross 1.0d0)
            (nh-lag (sample->fixnum (* harm-change-lag *sample-rate*)))
-           (inc-interp (/ 1.0d0 nh-lag))
+           (inc-interp (/ (sample 1) nh-lag))
            (old-num-harm 0)
            (nh0 1)
            (nh1 1)
@@ -236,10 +236,10 @@
            (num0 0.0d0)
            (num1 0.0d0)
            (denom 0.0d0)
-           (amp0 (* amp 0.5d0))
+           (amp0 (* amp 0.5))
            (mult0 (/ amp0 nh0))
            (mult1 (/ amp0 nh1))
-           (fdiv2 (* 0.5d0 freq))
+           (fdiv2 (* 0.5 freq))
            (angle 0.0d0))
       (declare (type sample cross res0 res1 num0 num1 denom amp0 mult0 mult1
                      fdiv2 angle inc-interp)
@@ -251,7 +251,7 @@
                   (plusp count))
           (setf old-num-harm num-harm
                 count nh-lag
-                cross 0.0d0
+                cross +sample-zero+
                 nh0 nh1
                 nh1 (max 1 (abs num-harm))
                 old-two-nh-plus-one two-nh-plus-one
@@ -262,11 +262,11 @@
       (setf denom (sin angle))
       (cond ((or (> denom 1.d-5) (< denom -1.d-5))
              (setf num1 (sin (* angle two-nh-plus-one)))
-             (setf res1 (* mult1 (- (/ num1 denom) 1.0d0)))
+             (setf res1 (* mult1 (- (/ num1 denom) 1.0)))
              (cond ((plusp count)
                     (decf count)
                     (setf num0 (sin (* angle old-two-nh-plus-one)))
-                    (setf res0 (* mult0 (- (/ num0 denom) 1.0d0)))
+                    (setf res0 (* mult0 (- (/ num0 denom) 1.0)))
                     (prog1 (linear-interp cross res0 res1)
                       (incf cross inc-interp)))
                    (t res1)))
@@ -336,16 +336,16 @@
                                       nh mul abs-mul)
     `(progn
        ;; No optimization with "(expt ,mul ,nh)"
-       (setf ,c2-mult-var (expt (the (sample 0.0d0) ,abs-mul) ,nh))
+       (setf ,c2-mult-var (expt (the non-negative-sample ,abs-mul) ,nh))
        (when (and (minusp ,mul)
                   (plusp (logand ,nh 1)))
          (setf ,c2-mult-var (- ,c2-mult-var)))
        (setf ,c3-mult-var (* ,c2-mult-var ,mul)     ; mul^(nh + 1)
-             ,rsum-var (if (and (> ,abs-mul 0.999d0)
-                                (< ,abs-mul 1.001d0))
-                           (/ 1.0d0 ,nh)
-                           (/ (- 1.0d0 ,abs-mul)
-                              (- 1.0d0 (abs ,c2-mult-var)))))))
+             ,rsum-var (if (and (> ,abs-mul 0.999)
+                                (< ,abs-mul 1.001))
+                           (/ (sample 1) ,nh)
+                           (/ (- 1.0 ,abs-mul)
+                              (- 1.0 (abs ,c2-mult-var)))))))
 
   (defmacro %gbuzz (buffer freq amp num-harm lowest-harm mul phase phase-modulation-p
                    harm-change-lag interpolation)
@@ -363,7 +363,7 @@
               (,data (buffer-data ,buffer))
               (,count 0)
               (,nh-lag (sample->fixnum (* ,harm-change-lag *sample-rate*)))
-              (,inc-interp (/ 1.0d0 ,nh-lag))
+              (,inc-interp (/ (sample 1) ,nh-lag))
               (,old-num-harm 999999)
               (,nh0 1)
               (,nh1 1)
@@ -393,7 +393,7 @@
                              ,c3 (1- ,c2)                 ; lh + nh - 1
                              ,abs-mul (abs ,mul)
                              ,two-mul (+ ,mul ,mul)
-                             ,squared-mul-plus-one (+ (* ,mul ,mul) 1.0d0)
+                             ,squared-mul-plus-one (+ (* ,mul ,mul) 1.0)
                              ,c1-mult ,mul)
                        (gbuzz-update-multipliers ,c2-mult ,c3-mult ,rsum1
                                                  ,nh1 ,mul ,abs-mul))
@@ -406,7 +406,7 @@
                (setf ,old-num-harm ,num-harm
                      ,old-lowest-harm ,lowest-harm
                      ,count ,nh-lag
-                     ,cross 0.0d0
+                     ,cross +sample-zero+
                      ,nh0 ,nh1
                      ,nh1 (max 1 (abs ,num-harm))
                      ,old-c0 ,c0
@@ -430,7 +430,7 @@
                (setf ,old-mul ,mul
                      ,abs-mul (abs ,mul)
                      ,two-mul (+ ,mul ,mul)
-                     ,squared-mul-plus-one (+ (* ,mul ,mul) 1.0d0)
+                     ,squared-mul-plus-one (+ (* ,mul ,mul) 1.0)
                      ,c1-mult ,mul)
                (gbuzz-update-multipliers ,c2-mult ,c3-mult ,rsum1
                                          ,nh1 ,mul ,abs-mul))
@@ -456,7 +456,7 @@
                                                      (* ,old-two-mul ,denom-osc)))
                                     (setf ,res0 (if (or (> ,denom0 1.d-5) (< ,denom0 -1.d-5))
                                                     (* ,rsum0 (/ ,num0 ,denom0))
-                                                    1.0d0))
+                                                    (sample 1)))
                                     (prog1 (linear-interp ,cross ,res0 ,res1)
                                       (incf ,cross ,inc-interp)))
                                    (t ,res1))))
@@ -471,7 +471,7 @@
                   (lowest-harm fixnum) mul phase harm-change-lag)
     (with ((count 0)
            (nh-lag (sample->fixnum (* harm-change-lag *sample-rate*)))
-           (inc-interp (/ 1.0d0 nh-lag))
+           (inc-interp (/ (sample 1) nh-lag))
            (old-num-harm 999999)
            (nh0 1)
            (nh1 1)
@@ -501,7 +501,7 @@
                           abs-mul (abs mul)
                           c1-mult mul
                           two-mul (+ mul mul)
-                          squared-mul-plus-one (+ (* mul mul) 1.0d0))
+                          squared-mul-plus-one (+ (* mul mul) 1.0))
                     (gbuzz-update-multipliers c2-mult c3-mult rsum1
                                               nh1 mul abs-mul))
         mul ; expand here if MUL is modulated
@@ -511,7 +511,7 @@
           (setf old-num-harm num-harm
                 old-lowest-harm lowest-harm
                 count nh-lag
-                cross 0.0d0
+                cross +sample-zero+
                 nh0 nh1
                 nh1 (max 1 (abs num-harm))
                 old-c0 c0
@@ -535,7 +535,7 @@
                 abs-mul (abs mul)
                 c1-mult mul
                 two-mul (+ mul mul)
-                squared-mul-plus-one (+ (* mul mul) 1.0d0))
+                squared-mul-plus-one (+ (* mul mul) 1.0))
           (gbuzz-update-multipliers c2-mult c3-mult rsum1 nh1 mul abs-mul))
         (setf angle (+ (* +twopi+ (phasor freq 0)) phase))
         (setf denom-osc (cos angle))
@@ -558,7 +558,7 @@
                                                (* old-two-mul denom-osc)))
                                (setf res0 (if (or (> denom0 1.d-5) (< denom0 -1.d-5))
                                               (* rsum0 (/ num0 denom0))
-                                              1.0d0))
+                                              (sample 1)))
                                (prog1 (linear-interp cross res0 res1)
                                  (incf cross inc-interp)))
                               (t res1))))
@@ -568,7 +568,7 @@
                        (if (minusp out) (- amp) amp))))))))
 
 ;;; Wavetable lookup oscillator
-(define-vug-macro osc (buffer &optional (freq 440.0d0) (amp 1.0d0)
+(define-vug-macro osc (buffer &optional (freq 440.0) (amp 1.0d0)
                        (phase 0.0d0) interpolation)
   (with-gensyms (%buffer %freq %amp)
     (with-coerce-arguments (freq amp phase)

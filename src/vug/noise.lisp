@@ -17,7 +17,7 @@
 (in-package :incudine.vug)
 
 (define-vug white-noise (amp)
-  (with-samples ((rmax (* amp 2.0d0)))
+  (with-samples ((rmax (* amp 2.0)))
     (- (random rmax) amp)))
 
 ;;; Pink Noise generator using the Gardner method with the James
@@ -33,8 +33,8 @@
          (random-limit24 16777216)
          (random-bits 24)
          (mask (1- (ash 1 number-of-rows)))
-         (scale (/ 1.0d0 (* (1+ number-of-rows)
-                            (ash 1 (1- random-bits))))))
+         (scale (/ (sample 1) (* (1+ number-of-rows)
+                                 (ash 1 (1- random-bits))))))
     (with-gensyms (#-x86-64 rows-wrap
                    rows counter rand32 new-random total index mult)
       `(with (#+x86-64
@@ -76,7 +76,7 @@
 ;;; Noise generator based on a chaotic function (used in SuperCollider).
 (define-vug crackle (param amp)
   (with-samples (y0 (y1 0.3d0) y2)
-    (setf y0 (abs (- (* y1 param) y2 0.05d0))
+    (setf y0 (abs (- (* y1 param) y2 0.05))
           y2 y1 y1 y0)
     (* amp y0)))
 
@@ -130,19 +130,19 @@
 ;;;
 (declaim (inline fractal-noise-coeff-calc))
 (defun fractal-noise-coeff-calc (freq)
-  (- (exp (- (* 2.0d0 pi freq *sample-duration*)))))
+  (- (exp (- (* 2.0 (sample pi) freq *sample-duration*)))))
 
 (define-vug-macro fractal-noise (amp beta &key (poles-density 6) (filter-order 15)
                                  (lowest-freq 50))
   (with-gensyms (in c1 c2 p z a b sec r-poles-density)
-    `(with-samples ((,in (white-noise 1.0d0))
-                    (,r-poles-density (locally (declare #.*reduce-warnings*)
-                                        (/ 1.0d0 ,poles-density)))
-                    (,c1 (expt 10.0d0 ,r-poles-density))
-                    (,c2 (expt 10.0d0 (* ,beta ,r-poles-density 0.5d0)))
+    `(with-samples ((,in (white-noise (sample 1)))
+                    (,r-poles-density (reduce-warnings
+                                        (/ (sample 1) ,poles-density)))
+                    (,c1 (expt (sample 10) ,r-poles-density))
+                    (,c2 (expt (sample 10) (* ,beta ,r-poles-density 0.5)))
                     ,@(loop for i from 1 to filter-order
                             for pole = (format-symbol :incudine.vug "~A~D" p i)
-                            for pole-value = (coerce lowest-freq 'sample)
+                            for pole-value = (sample lowest-freq)
                                              then `(* ,(format-symbol :incudine.vug
                                                                       "~A~D" p (1- i))
                                                       ,c1)

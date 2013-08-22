@@ -75,9 +75,9 @@
     (with-coerce-arguments (x0 x1)
       `(with-samples ((,xn ,x1) (,xnm1 ,x0) (,xnm2 ,x1))
          (chaos-interpolate (,xnm2 ,freq ,interpolation t)
-           (setf ,xn (+ (- 1.0d0 (* ,a ,xnm1 ,xnm1)) (* ,b ,xnm2)))
+           (setf ,xn (+ (- 1.0 (* ,a ,xnm1 ,xnm1)) (* ,b ,xnm2)))
            ;; Prevent instability
-           (nclip ,xn -1.5d0 1.5d0)
+           (nclip ,xn (sample -1.5) (sample 1.5))
            (setf ,xnm2 ,xnm1 ,xnm1 ,xn))))))
 
 ;;; Latoocarfian chaotic generator; see Clifford Pickover's book "Chaos
@@ -107,11 +107,11 @@
     (with-coerce-arguments (xinit)
       `(with-samples ((,x ,xinit)
                       (,m ,modulus)
-                      (,scale (/ 2.0d0 ,m))
-                      (,xscaled (- (* ,x ,scale) 1.0d0)))
+                      (,scale (/ 2.0 ,m))
+                      (,xscaled (- (* ,x ,scale) 1.0)))
          (chaos-interpolate (,xscaled ,freq ,interpolation t)
-           (setf ,x (wrap (+ (* ,x ,mult) ,increment) 0.0d0 ,m)
-                 ,xscaled (- (* ,x ,scale) 1.0d0)))))))
+           (setf ,x (wrap (+ (* ,x ,mult) ,increment) +sample-zero+ ,m)
+                 ,xscaled (- (* ,x ,scale) 1.0)))))))
 
 ;;; Lorenz chaotic generator.
 ;;;
@@ -164,6 +164,7 @@
     (with-coerce-arguments (xinit yinit)
       `(with-samples ((,xn ,xinit) (,yn ,yinit) (,x 0.0d0))
          (chaos-interpolate (,x ,freq ,interpolation t)
-           (setf ,yn (wrap (+ ,yn (* ,perturbation (sin ,xn))) 0.0d0 +twopi+)
-                 ,xn (wrap (+ ,xn ,yn) 0.0d0 +twopi+)
-                 ,x  (* (- ,xn pi) #.(/ 1.0d0 pi))))))))
+           (setf ,yn (wrap (+ ,yn (* ,perturbation (sin ,xn)))
+                           +sample-zero+ +twopi+)
+                 ,xn (wrap (+ ,xn ,yn) +sample-zero+ +twopi+)
+                 ,x  (* (- ,xn pi) #.(/ 1.0 pi))))))))

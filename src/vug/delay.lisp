@@ -123,7 +123,7 @@
 
 (declaim (inline delay-feedback))
 (defun delay-feedback (delay-time decay-time)
-  (cond ((zerop decay-time) 0.0d0)
+  (cond ((zerop decay-time) +sample-zero+)
         ((plusp decay-time)
          (exp (/ (* +log001+ delay-time) decay-time)))
         (t (- (exp (/ (* +log001+ delay-time) (- decay-time)))))))

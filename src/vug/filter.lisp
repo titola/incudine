@@ -111,7 +111,7 @@
 (define-vug resonz (in freq q)
   (with-samples ((wt (* +twopi+ freq *sample-duration*))
                  (bw (/ wt q))
-                 (r (- 1 (* bw 0.5d0)))
+                 (r (- 1 (* bw 0.5)))
                  (rr (* r r)))
     (%resonz in freq wt (cos wt) r rr (* (- 1 rr) 0.5))))
 
@@ -149,17 +149,17 @@
 
   (defmacro %with-biquad-common (bindings &body body)
     `(%%with-biquad-common
-         ((alpha (/ sin-w0 (* 2.0d0 (if (plusp q) q 0.001d0))))
+         ((alpha (/ sin-w0 (* 2.0 (if (plusp q) q 0.001))))
           ,@bindings)
        ,@body))
 
   (defmacro %with-biquad-shelf-common (&body body)
     `(%%with-biquad-common
-         ((gain (expt 10.0d0 (/ db 40.0d0)))
-          (alpha (* sin-w0 0.5 (sqrt (+ 2.0d0 (* (+ gain (/ gain))
-                                                 (- (/ s) 1.0d0))))))
-          (c1 (+ gain 1.0d0))
-          (c2 (- gain 1.0d0))
+         ((gain (expt (sample 10) (/ db (sample 40))))
+          (alpha (* sin-w0 0.5 (sqrt (+ 2.0 (* (+ gain (/ gain))
+                                               (- (/ s) 1.0))))))
+          (c1 (+ gain 1.0))
+          (c2 (- gain 1.0))
           (c3 (* c1 cos-w0))
           (c4 (* c2 cos-w0))
           (c5 (* 2 (sqrt gain) alpha)))
@@ -167,40 +167,40 @@
 
 (define-vug lpf (in freq q)
   (%with-biquad-common
-      ((b1 (- 1.0d0 cos-w0))
-       (b2 (* b1 0.5d0)))
-    (biquad in b2 b1 b2 (+ 1.0d0 alpha) (- (* 2.0d0 cos-w0)) (- 1.0d0 alpha))))
+      ((b1 (- 1.0 cos-w0))
+       (b2 (* b1 0.5)))
+    (biquad in b2 b1 b2 (+ 1.0 alpha) (- (* 2.0 cos-w0)) (- 1.0 alpha))))
 
 (define-vug hpf (in freq q)
   (%with-biquad-common
-      ((b1 (- (+ 1.0d0 cos-w0)))
+      ((b1 (- (+ 1.0 cos-w0)))
        (b2 (* (- b1) 0.5)))
-    (biquad in b2 b1 b2 (+ 1.0d0 alpha) (- (* 2.0d0 cos-w0)) (- 1.0d0 alpha))))
+    (biquad in b2 b1 b2 (+ 1.0 alpha) (- (* 2.0 cos-w0)) (- 1.0 alpha))))
 
 (define-vug bpf (in freq q)
   (%with-biquad-common ()
-    (biquad in alpha 0.0d0 (- alpha) (+ 1.0d0 alpha)
-            (- (* 2.0d0 cos-w0)) (- 1.0d0 alpha))))
+    (biquad in alpha 0.0 (- alpha) (+ 1.0 alpha)
+            (- (* 2.0 cos-w0)) (- 1.0 alpha))))
 
 (define-vug notch (in freq q)
   (%with-biquad-common
-      ((b1 (- (* 2.0d0 cos-w0))))
-    (biquad in 1.0d0 b1 1.0d0 (+ 1.0d0 alpha) b1 (- 1.0d0 alpha))))
+      ((b1 (- (* 2.0 cos-w0))))
+    (biquad in 1.0 b1 1.0 (+ 1.0 alpha) b1 (- 1.0 alpha))))
 
 (define-vug apf (in freq q)
   (%with-biquad-common
-      ((b0 (- 1.0d0 alpha))
-       (b1 (- (* 2.0d0 cos-w0)))
-       (b2 (+ 1.0d0 alpha)))
+      ((b0 (- 1.0 alpha))
+       (b1 (- (* 2.0 cos-w0)))
+       (b2 (+ 1.0 alpha)))
     (biquad in b0 b1 b2 b2 b1 b0)))
 
 (define-vug peak-eq (in freq q db)
   (%with-biquad-common
-      ((gain (expt 10.0d0 (/ db 40.0d0)))
+      ((gain (expt (sample 10) (/ db (sample 40))))
        (c1 (* alpha gain))
        (c2 (/ alpha gain))
-       (b1 (- (* 2.0d0 cos-w0))))
-    (biquad in (+ 1.0d0 c1) b1 (- 1.0d0 c1) (+ 1.0d0 c2) b1 (- 1.0d0 c2))))
+       (b1 (- (* 2.0 cos-w0))))
+    (biquad in (+ 1.0 c1) b1 (- 1.0 c1) (+ 1.0 c2) b1 (- 1.0 c2))))
 
 (define-vug low-shelf (in freq s db)
   (%with-biquad-shelf-common
@@ -208,7 +208,7 @@
             (* 2 gain (- c2 c3))
             (* gain (- c1 c4 c5))
             (+ c1 c4 c5)
-            (* -2.0d0 (+ c2 c3))
+            (* -2.0 (+ c2 c3))
             (- (+ c1 c4) c5))))
 
 (define-vug hi-shelf (in freq s db)
@@ -217,7 +217,7 @@
             (* -2 gain (+ c2 c3))
             (* gain (- (+ c1 c4) c5))
             (+ (- c1 c4) c5)
-            (* 2.0d0 (- c2 c3))
+            (* 2.0 (- c2 c3))
             (- c1 c4 c5))))
 
 ;;; Second order Butterworth filters.
@@ -231,40 +231,40 @@
            (setf ,old2 ,old1 ,old1 ,value))))))
 
 (define-vug butter-lp (in fcut)
-  (with-samples ((c (/ 1.0d0 (tan (* pi fcut *sample-duration*))))
+  (with-samples ((c (/ 1.0 (tan (* pi fcut *sample-duration*))))
                  (cc (* c c))
                  (sqrt2-mult-c (* +sqrt2+ c))
-                 (c1 (/ 1.0d0 (+ 1.0d0 sqrt2-mult-c cc)))
+                 (c1 (/ 1.0 (+ 1.0 sqrt2-mult-c cc)))
                  (c2 (+ c1 c1))
-                 (c4 (* 2.0d0 (- 1.0d0 cc) c1))
-                 (c5 (* (+ (- 1.0d0 sqrt2-mult-c) cc) c1)))
+                 (c4 (* 2.0 (- 1.0 cc) c1))
+                 (c5 (* (+ (- 1.0 sqrt2-mult-c) cc) c1)))
     (%butter-filter in c1 c2 c1 c4 c5)))
 
 (define-vug butter-hp (in fcut)
   (with-samples ((c (tan (* pi fcut *sample-duration*)))
                  (cc (* c c))
                  (sqrt2-mult-c (* +sqrt2+ c))
-                 (c1 (/ 1.0d0 (+ 1.0d0 sqrt2-mult-c cc)))
+                 (c1 (/ 1.0 (+ 1.0 sqrt2-mult-c cc)))
                  (c2 (- (+ c1 c1)))
-                 (c4 (* 2.0d0 (- cc 1.0d0) c1))
-                 (c5 (* (+ (- 1.0d0 sqrt2-mult-c) cc) c1)))
+                 (c4 (* 2.0 (- cc 1.0) c1))
+                 (c5 (* (+ (- 1.0 sqrt2-mult-c) cc) c1)))
     (%butter-filter in c1 c2 c1 c4 c5)))
 
 (define-vug butter-bp (in fcut bandwidth)
-  (with-samples ((c (/ 1.0d0 (tan (* pi bandwidth *sample-duration*))))
-                 (d (* 2.0d0 (cos (* +twopi+ fcut *sample-duration*))))
-                 (c1 (/ 1.0d0 (+ 1.0d0 c)))
+  (with-samples ((c (/ 1.0 (tan (* pi bandwidth *sample-duration*))))
+                 (d (* 2.0 (cos (* +twopi+ fcut *sample-duration*))))
+                 (c1 (/ 1.0 (+ 1.0 c)))
                  (c3 (- c1))
                  (c4 (* (- c) d c1))
-                 (c5 (* (- c 1.0d0) c1)))
-    (%butter-filter in c1 0.0d0 c3 c4 c5)))
+                 (c5 (* (- c 1.0) c1)))
+    (%butter-filter in c1 0.0 c3 c4 c5)))
 
 (define-vug butter-br (in fcut bandwidth)
   (with-samples ((c (tan (* pi bandwidth *sample-duration*)))
-                 (d (* 2.0d0 (cos (* +twopi+ fcut *sample-duration*))))
-                 (c1 (/ 1.0d0 (+ 1.0d0 c)))
+                 (d (* 2.0 (cos (* +twopi+ fcut *sample-duration*))))
+                 (c1 (/ 1.0 (+ 1.0 c)))
                  (c2 (- (* d c1)))
-                 (c5 (* (- 1.0d0 c) c1)))
+                 (c5 (* (- 1.0 c) c1)))
     (%butter-filter in c1 c2 c1 c2 c5)))
 
 ;;; Digital emulation of a 3 pole lowpass filter. Based on Josep
@@ -344,7 +344,7 @@
                    ;; Update the sum
                    (loop for i from size below old-size do
                         (decf sum (data-ref data i))
-                        (setf (data-ref data i) 0.0d0)))
+                        (setf (data-ref data i) +sample-zero+)))
                  (setf old-size size)))
          (index 0))
     (declare (type foreign-array array-wrap)
