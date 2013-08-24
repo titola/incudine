@@ -424,14 +424,19 @@
     obj))
 
 (defmethod normalize ((obj envelope) (norm-value real))
-  (let ((points (envelope-points obj))
-        (max (envelope-level obj 0)))
-    (loop for i from 1 below points
-          for lev = (envelope-level obj i)
-          when (> lev max)
-          do (setf max lev))
-    (let ((mult (/ norm-value max)))
-      (scale obj mult))))
+  (let ((points (envelope-points obj)))
+    (declare (type positive-fixnum points))
+    (labels ((norm (index maxval)
+               (declare (type non-negative-fixnum index)
+                        (type sample maxval))
+               (if (= index points)
+                   maxval
+                   (norm (1+ index)
+                         (max (envelope-level obj index) maxval)))))
+      (let ((lev (envelope-level obj 0)))
+        (if lev
+            (scale obj (/ norm-value (norm 1 lev)))
+            obj)))))
 
 (defmethod rescale ((obj envelope) (min real) (max real))
   (let* ((old-min (envelope-level obj 0))
