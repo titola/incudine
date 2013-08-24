@@ -267,17 +267,17 @@ It is possible to use line comments that begin with the `;' char."
               obj))
 
 (defmethod normalize ((obj buffer) (norm-value real))
-  (let* ((data (buffer-data obj))
-         (max (data-ref data 0))
-         (size (buffer-size obj)))
+  (let ((data (buffer-data obj))
+        (size (buffer-size obj)))
     (declare (type positive-fixnum size))
-    (do* ((i 1 (1+ i))
-          (value (data-ref data i) (data-ref data i)))
-         ((= i size))
-      (declare (type positive-fixnum i))
-      (when (> value max) (setf max value)))
-    (let ((mult (/ norm-value max)))
-      (scale obj mult))))
+    (labels ((norm (index max)
+               (declare (type non-negative-fixnum index)
+                        (type sample max))
+               (if (= index size)
+                   max
+                   (norm (1+ index)
+                         (max (data-ref data index) max)))))
+      (scale obj (/ norm-value (norm 1 (data-ref data 0)))))))
 
 (defmethod rescale ((obj buffer) (min real) (max real))
   (let* ((data (buffer-data obj))
@@ -398,7 +398,8 @@ It is possible to use line comments that begin with the `;' char."
                                channels (buffer-channels buffer)
                                buffer-start *sndfile-buffer-size*
                                channel-map (min channels
-                                                (buffer-channels buffer)))))))))))
+                                                (buffer-channels buffer))))))))))
+        buffer)
       (nrt-msg error "file ~S not found" (namestring path))))
 
 (defun set-buffer-data (buffer values &key (start 0) end
@@ -463,18 +464,16 @@ It is possible to use line comments that begin with the `;' char."
                     initial-contents fill-function (start 0) end
                     normalize-p)
   (flet ((new-from-file (frm ch f os sr)
-           (let ((buf (%%make-buffer frm ch sr real-time-p)))
-             (declare (type buffer buf))
-             (set-buffer-from-sndfile buf f os 0 frm)
-             buf)))
+           (set-buffer-from-sndfile (%%make-buffer frm ch sr real-time-p)
+                                    f os 0 frm)))
     (if file
         (if (zerop frames)
             (if (zerop offset)
                 (buffer-load file)
-                (let* ((info (sf:info file))
-                       (frames (max 1 (- (sf:frames info) offset)))
-                       (channels (sf:channels info)))
-                  (new-from-file frames channels file offset sample-rate)))
+                (let ((info (sf:info file)))
+                  (new-from-file (max 1 (- (sf:frames info) offset))
+                                 (sf:channels info)
+                                 file offset sample-rate)))
             (new-from-file frames channels file offset sample-rate))
         (let ((buf (%%make-buffer frames channels sample-rate real-time-p))
               (value (or initial-contents fill-function)))
