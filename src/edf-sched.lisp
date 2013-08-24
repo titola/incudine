@@ -116,6 +116,13 @@
       `(at ,(sample time) ,@rest)
       form))
 
+;;; Anaphoric macro for AT.
+;;; The variable IT is bound to the time, the first argument of AT.
+(defmacro aat (time function &rest args)
+  (let ((it (intern "IT")))
+    `(let ((,it ,time))
+       (at ,it ,function ,@args))))
+
 (defun get-heap ()
   (declare #.incudine::*standard-optimize-settings*
            #+(or cmu sbcl) (values node))

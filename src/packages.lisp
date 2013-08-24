@@ -183,7 +183,7 @@
   (:import-from #:alexandria #:positive-fixnum #:non-negative-fixnum #:define-constant)
   (:import-from #:incudine.util #:*rt-edf-heap-size* #:*rt-thread* #:sample #:+sample-zero+
                 #:with-spinlock-held #:rt-thread-p)
-  (:export #:at #:sched-loop #:flush-pending #:heap-empty-p #:heap-count))
+  (:export #:at #:aat #:sched-loop #:flush-pending #:heap-empty-p #:heap-count))
 
 (defpackage :incudine.analysis
   (:use :cl)
@@ -250,7 +250,7 @@
                 #:rt-get-input #:rt-set-output #:rt-cycle-begin #:rt-cycle-end
                 #:rt-cycle-signal #:rt-condition-wait #:rt-transfer-to-c-thread
                 #:rt-set-busy-state #:rt-buffer-size #:rt-get-error-msg)
-  (:import-from #:incudine.edf #:at #:flush-pending)
+  (:import-from #:incudine.edf #:at #:aat #:flush-pending)
   (:import-from #:incudine.gen #:all-random-distributions #:rand-args)
   (:export
    #:init
@@ -268,7 +268,7 @@
    #:peak-info #:print-peak-info #:reset-peak-meters
    #:set-number-of-channels
    #:rt-start #:rt-stop #:rt-status #:rt-buffer-size
-   #:at #:flush-pending #:flush-all-fifos
+   #:at #:aat #:flush-pending #:flush-all-fifos
    #:tempo #:*tempo* #:make-tempo #:bpm #:bps #:now #:tempo-sync
    #:rt-funcall #:fast-rt-funcall #:nrt-funcall #:fast-nrt-funcall
    #:*sine-table* #:*cosine-table*
