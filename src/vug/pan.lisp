@@ -17,9 +17,23 @@
 (in-package :incudine.vug)
 
 (define-vug pan2 (in pos)
+  "Stereo equal power panpot."
   (with-samples ((alpha (* +half-pi+ pos)))
     (cond ((zerop current-channel)
            (* (cos alpha) in))
           ((< current-channel 2)
            (* (sin alpha) in))
+          (t +sample-zero+))))
+
+(define-vug fpan2 (in pos)
+  "Fast stereo equal power panpot."
+  (with ((tabsize (ash (buffer-size *sine-table*) -2))
+         (sintab (buffer-data *sine-table*))
+         (costab (buffer-data *cosine-table*))
+         (index (clip (sample->fixnum (* tabsize pos)) 0 tabsize)))
+    (declare (type non-negative-fixnum tabsize index))
+    (cond ((zerop current-channel)
+           (* (data-ref costab index) in))
+          ((< current-channel 2)
+           (* (data-ref sintab index) in))
           (t +sample-zero+))))
