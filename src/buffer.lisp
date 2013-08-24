@@ -343,24 +343,22 @@ It is possible to use line comments that begin with the `;' char."
 
 (defun map-sndfile-ch-to-buffer (data sndfile frames channels buf-channels
                                  data-offset chunk-size channel-map channel-map-size)
-  (let ((double-size (* channel-map-size)))
-    (declare (type non-negative-fixnum double-size))
-    (cffi:with-foreign-object (dest :int double-size)
-      (let ((src (cffi:inc-pointer dest
-                                   (the non-negative-fixnum
-                                     (* double-size
-                                        (the non-negative-fixnum
-                                          (cffi:foreign-type-size :int)))))))
-        (do ((i 0 (1+ i))
-             (l channel-map (cdr l)))
-            ((null l))
-          (declare (type non-negative-fixnum i) (type list l))
-          (let ((map (car l)))
-            (setf (mem-aref src :int i) (first map)
-                  (mem-aref dest :int i) (second map))))
-        (incudine.external::%map-sndfile-ch-to-buffer data sndfile frames channels
-                                                      buf-channels data-offset chunk-size
-                                                      dest src channel-map-size)))))
+  (cffi:with-foreign-object (dest :int (* 2 channel-map-size))
+    (let ((src (cffi:inc-pointer dest
+                                 (the non-negative-fixnum
+                                   (* channel-map-size
+                                      (the non-negative-fixnum
+                                        (cffi:foreign-type-size :int)))))))
+      (labels ((rec (index chmap)
+                 (declare (type non-negative-fixnum index) (type list chmap))
+                 (cond ((null chmap)
+                        (incudine.external::%map-sndfile-ch-to-buffer
+                          data sndfile frames channels buf-channels
+                          data-offset chunk-size dest src channel-map-size))
+                       (t (setf (mem-aref src :int index) (caar chmap)
+                                (mem-aref dest :int index) (cadar chmap))
+                          (rec (1+ index) (cdr chmap))))))
+        (rec 0 channel-map)))))
 
 (defun set-buffer-from-sndfile (buffer path start buffer-start buffer-end
                                 &optional channel-map)
