@@ -68,7 +68,7 @@
                           (/ (sample 1) value))
                :frames frames
                :channels channels
-               :sample-rate sample-rate
+               :sample-rate (sample sample-rate)
                :real-time-p real-time-p
                :foreign-free free-function)))
     (tg:finalize obj (lambda ()
