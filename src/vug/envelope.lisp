@@ -126,10 +126,11 @@
 ;;; Envelope Generator inspired by EnvGen of SuperCollider
 
 (eval-when (:compile-toplevel :load-toplevel)
-  (defmacro envgen-next-dur (env-data index time-scale)
-    `(sample->fixnum
-      (* (data-ref ,env-data ,index)
-         ,time-scale *sample-rate*)))
+  (declaim (inline envgen-next-dur))
+  (defun envgen-next-dur (env-data index time-scale offset)
+    (max 1 (+ offset (sample->fixnum
+                      (* (data-ref env-data index)
+                         time-scale *sample-rate*)))))
 
   (defmacro envgen-next-index (data-size index curr-node)
     `(the non-negative-fixnum
@@ -151,133 +152,171 @@
                            3)))
          (setf ,node-src ,dest))))
 
-  (defmacro update-sustain (var gate curr-node release-node)
+  (declaim (inline jump-to-loop-node-p))
+  (defun jump-to-loop-node-p (gate curr-node loop-node release-node)
+    (and (>= loop-node 0)
+         (= (1+ curr-node) release-node)
+         (plusp gate)
+         (/= curr-node loop-node)))
+
+  (declaim (inline envgen-end-of-data-p))
+  (defun envgen-end-of-data-p (index data-size)
+    (>= index data-size))
+
+  (declaim (inline envgen-to-sustain-p))
+  (defun envgen-to-sustain-p (gate curr-node release-node)
+    (and (= curr-node release-node) (plusp gate)))
+
+  (declaim (inline release-before-sustain-p))
+  (defun release-before-sustain-p (gate sustain curr-node release-node)
+    (and (zerop gate)
+         (null sustain)
+         (plusp release-node)
+         (< release-node curr-node)))
+
+  (defmacro envgen-update-sustain (var gate curr-node release-node)
     `(setf ,var
-           (and (plusp ,gate)
-                (>= ,curr-node 0)
-                (= ,curr-node ,release-node)))))
+           (and (>= ,curr-node 0)
+                (envgen-to-sustain-p ,gate ,curr-node ,release-node))))
+
+  (defmacro envgen-sustain (sustain-var)
+    `(setf ,sustain-var t))
+
+  (defmacro envgen-no-sustain (sustain-var)
+    `(if ,sustain-var (setf ,sustain-var nil)))
+
+  (declaim (inline immediate-cutoff-p))
+  (defun immediate-cutoff-p (gate)
+    (= gate -1.0))
+
+  (declaim (inline release-with-custom-duration-p))
+  (defun release-with-custom-duration-p (gate)
+    (< gate -1.0))
+
+  (declaim (inline envgen-custom-duration))
+  (defun envgen-custom-duration (gate)
+    (sample->fixnum (* (- -1.0 gate) *sample-rate*)))
+
+  (declaim (inline envgen-begin-p))
+  (defun envgen-begin-p (index dur)
+    (and (zerop index) (zerop dur))))
 
 (define-vug envgen ((env envelope) gate time-scale (done-action function))
-  (with ((index 0)
-         (curr-node -1)
-         (env-data (envelope-data env))
-         (data-size (envelope-data-size env))
-         (last-point (1- (the non-negative-fixnum (envelope-points env))))
-         (curr-index (envgen-next-index data-size index curr-node))
-         (prev-index 0)
-         (loop-node (envelope-loop-node env))
-         (release-node (envelope-release-node env))
-         (sustain nil)
-         (done-p nil)
-         (dur 0)
-         (remain 0)
-         (tmp 0.0)
-         (end 0.0)
-         (grow 0.0)
-         (a2 0.0)
-         (b1 0.0)
-         (y1 0.0)
-         (y2 0.0)
-         (curve +seg-lin-func+)
-         (gate-trig (plusp gate))
-         (level (cond ((and (zerop gate)
-                            (null sustain)
-                            (plusp release-node)
-                            (< release-node curr-node))
-                       ;; Release before sustain
-                       (envgen-jump-node (1- release-node) curr-node index)
-                       (setf remain 0)
-                       tmp)
-                      ((= gate -1.0)
-                       ;; Immediate cutoff
-                       (setf sustain nil remain 0)
-                       (envgen-jump-node last-point curr-node index)
-                       0.0)
-                      ((< gate -1.0)
-                       ;; Force the release stage with custom duration
-                       (setf dur (sample->fixnum (* (- -1.0 gate) *sample-rate*))
-                             ;; Anticipate one sample to avoid the repetition of
-                             ;; a vertex because the last value of a segment is
-                             ;; the first value of the next segment.
-                             remain (1- dur)
-                             curr-node (1+ curr-node))
-                       (unless (= curr-node last-point)
-                         (envgen-jump-node (1- last-point) curr-node index)
-                         (setf index (+ index 2) ; skip dur
-                               end (data-ref env-data index)
-                               index (+ index 1)
-                               curve (data-ref env-data index)
-                               prev-index curr-index))
-                       (setf sustain nil)
-                       (%segment-init tmp end dur curve grow a2 b1 y1 y2)
-                       tmp)
-                      ((and (zerop index) (zerop dur))
-                       (update-sustain sustain gate curr-node release-node)
-                       (setf gate-trig nil)
-                       (data-ref env-data 0))
-                      (gate-trig
-                       ;; Restart
-                       (setf gate-trig nil
-                             remain 0
-                             index 0
-                             curr-node -1
-                             curr-index (envgen-next-index data-size index curr-node)
-                             prev-index curr-index
-                             done-p nil
-                             sustain nil
-                             ;; LEVEL is set to END during the performance
-                             end tmp))
-                      ((zerop dur)
-                       (if sustain (setf sustain nil))
-                       end)
-                      ((or done-p (= curr-index prev-index))
-                       (if sustain (setf sustain nil))
-                       tmp)
-                      (t (if sustain (setf sustain nil))
-                         (setf dur (max 1 (+ (- (envgen-next-dur env-data index time-scale)
-                                                dur)
-                                             remain))
-                               ;; One sample is subtracted in the previous
-                               ;; value of REMAIN
-                               remain dur
-                               index (1+ index)
-                               end (data-ref env-data index)
-                               index (1+ index)
-                               curve (data-ref env-data index))
+  (with-samples (tmp end grow a2 b1 y1 y2)
+    (with ((index 0)
+           (curr-node -1)
+           (env-data (envelope-data env))
+           (data-size (envelope-data-size env))
+           (last-point (1- (the non-negative-fixnum (envelope-points env))))
+           (curr-index (envgen-next-index data-size index curr-node))
+           (prev-index 0)
+           (loop-node (envelope-loop-node env))
+           (release-node (envelope-release-node env))
+           (sustain nil)
+           (done-p nil)
+           (dur 0)
+           (remain 0)
+           (curve +seg-lin-func+)
+           (gate-trig (plusp gate))
+           (level (cond ((release-before-sustain-p gate sustain curr-node release-node)
+                         (envgen-jump-node (1- release-node) curr-node index)
+                         (setf remain 0)
+                         tmp)
+                        ((immediate-cutoff-p gate)
+                         (setf sustain nil remain 0)
+                         (envgen-jump-node last-point curr-node index)
+                         +sample-zero+)
+                        ((release-with-custom-duration-p gate)
+                         ;; Force the release stage with custom duration
+                         (setf dur (envgen-custom-duration gate)
+                               ;; Anticipate one sample to avoid the repetition of
+                               ;; a vertex because the last value of a segment is
+                               ;; the first value of the next segment.
+                               remain (1- dur)
+                               curr-node (1+ curr-node))
+                         (unless (= curr-node last-point)
+                           (envgen-jump-node (1- last-point) curr-node index)
+                           (setf index (+ index 2) ; skip dur
+                                 end (data-ref env-data index)
+                                 index (+ index 1)
+                                 curve (data-ref env-data index)
+                                 prev-index curr-index))
+                         (setf sustain nil)
                          (%segment-init tmp end dur curve grow a2 b1 y1 y2)
-                         tmp))))
-    (declare (type sample level end curve tmp grow a2 b1 y1 y2)
-             (type non-negative-fixnum index data-size last-point dur remain
-                   curr-index prev-index)
-             (type fixnum curr-node loop-node release-node)
-             (type boolean sustain done-p gate-trig))
-    (initialize (setf end level))
-    (cond ((or done-p sustain) tmp)
-          (t (if (zerop remain)
-                 (cond ((>= (incf index) data-size)
-                        (done-action done-action)
-                        (setf done-p t)
-                        (setf tmp end))
-                       (t (incf curr-node)
-                          (cond ((and (>= loop-node 0)
-                                      (= (1+ curr-node) release-node)
-                                      (plusp gate)
-                                      (/= curr-node loop-node))
-                                 (envgen-jump-node loop-node curr-node index))
-                                ((and (= curr-node release-node) (plusp gate))
-                                 (setf sustain t)))
-                          (setf dur (max 1 (envgen-next-dur env-data index time-scale))
-                                remain (1- dur)
-                                index (1+ index)
-                                ;; The first value of the segment is the last value
-                                ;; of the previous segment
-                                level end
-                                end (data-ref env-data index)
-                                index (1+ index)
-                                curve (data-ref env-data index)
-                                prev-index curr-index)
-                          (%segment-init level end dur curve grow a2 b1 y1 y2)
-                          (setf tmp level)))
-                 (progn (decf remain)
+                         tmp)
+                        ((envgen-begin-p index dur)
+                         (cond (gate-trig
+                                (envgen-update-sustain sustain gate curr-node release-node)
+                                (setf gate-trig nil)
+                                (data-ref env-data 0))
+                               ;; ENVGEN started with GATE zero
+                               (t (setf index data-size)
+                                  (samples-zero tmp end))))
+                        (gate-trig
+                         ;; Restart
+                         (setf gate-trig nil
+                               remain 0
+                               index 0
+                               curr-node -1
+                               curr-index (envgen-next-index data-size index curr-node)
+                               prev-index curr-index
+                               done-p nil
+                               sustain nil
+                               ;; LEVEL is set to END during the performance
+                               end tmp))
+                        ((zerop dur)
+                         (envgen-no-sustain sustain)
+                         end)
+                        ((or done-p (= curr-index prev-index))
+                         (envgen-no-sustain sustain)
+                         tmp)
+                        (t (envgen-no-sustain sustain)
+                           (setf dur (envgen-next-dur env-data index time-scale
+                                                      (- remain dur))
+                                 ;; One sample is subtracted in the previous
+                                 ;; value of REMAIN
+                                 remain dur
+                                 index (1+ index)
+                                 end (data-ref env-data index)
+                                 index (1+ index)
+                                 curve (data-ref env-data index))
+                           (%segment-init tmp end dur curve grow a2 b1 y1 y2)
+                           tmp))))
+      (declare (type non-negative-fixnum index data-size last-point dur remain
+                     curr-index prev-index)
+               (type fixnum curr-node loop-node release-node)
+               (type sample level curve) (type boolean sustain done-p gate-trig))
+      (initialize (setf end level))
+      ;; Useful when GATE is modulated. In this case, the expansion
+      ;; of GATE occurs here. If GATE is not modulated, GATE-TRIG is
+      ;; always NIL at this point.
+      (and gate-trig level)
+      (cond ((or done-p sustain) tmp)
+            (t (cond ((zerop remain)
+                      ;; End of segment
+                      (cond ((envgen-end-of-data-p (incf index) data-size)
+                             (done-action done-action)
+                             (setf done-p t tmp end))
+                            (t (incf curr-node)
+                               (cond ((jump-to-loop-node-p gate curr-node loop-node
+                                                           release-node)
+                                      (envgen-jump-node loop-node curr-node index))
+                                     ((envgen-to-sustain-p gate curr-node release-node)
+                                      (envgen-sustain sustain)))
+                               ;; Compute the parameters for the next segment
+                               (setf dur (envgen-next-dur env-data index time-scale 0)
+                                     remain (1- dur)
+                                     index (1+ index)
+                                     ;; The first value of the segment is the last value
+                                     ;; of the previous segment
+                                     level end
+                                     end (data-ref env-data index)
+                                     index (1+ index)
+                                     curve (data-ref env-data index)
+                                     prev-index curr-index)
+                               (%segment-init level end dur curve grow a2 b1 y1 y2)
+                               (setf tmp level))))
+                     (t (decf remain)
+                        ;; Compute the next point
                         (%segment-update-level level curve grow a2 b1 y1 y2)
-                        (setf tmp level)))))))
+                        (setf tmp level))))))))
