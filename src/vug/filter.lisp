@@ -358,17 +358,24 @@
       (setf index (if (>= index size) 0 new)))
     (/ sum size)))
 
+;;; Median filter based on James McCartney's Median ugen (SuperCollider).
+;;; Added the code to modulate the window size of the filter.
 (eval-when (:compile-toplevel :load-toplevel :execute)
+  (declaim (inline %median-update-value))
+  (defun %median-update-value (values ages src-pos dest-pos)
+    (setf (data-ref values dest-pos) (data-ref values src-pos)
+          (svref ages dest-pos) (svref ages src-pos)))
+
   (declaim (inline %median-shrink))
   (defun %median-shrink (values ages old-size new-size)
     (declare (type foreign-pointer values) (type simple-vector ages)
              (type positive-fixnum old-size new-size))
     (let ((pos 0))
+      (declare (type non-negative-fixnum pos))
       (dotimes (i old-size)
         (when (< (svref ages i) new-size)
           (unless (= pos i)
-            (setf (data-ref values pos) (data-ref values i)
-                  (svref ages pos) (svref ages i)))
+            (%median-update-value values ages i pos))
           (incf pos)))))
 
   (declaim (inline %median-expand))
@@ -393,11 +400,35 @@
           ((> i pos))
         (setf (data-ref values i) (data-ref values old-first))
         (setf (svref ages i) age)
-        (incf age)))))
+        (incf age))))
 
-;;; Median Filter based on James McCartney's Median ugen (SuperCollider).
-;;; Added the code to modulate the window size of the filter.
+  (defmacro %median-update-ages (position-var ages size last)
+    (with-gensyms (index)
+      `(dotimes (,index ,size)
+         (if (= (the fixnum (svref ,ages ,index)) ,last)
+             (setf ,position-var ,index)  ; position of the oldest value
+             (incf (the fixnum (svref ,ages ,index)))))))
+
+  (defmacro %median-search-lower (input values ages pos)
+    (with-gensyms (prev-pos)
+      `(progn
+         ,input
+         (loop for ,prev-pos = (the fixnum (1- ,pos))
+               while (and (plusp ,pos)
+                          (< ,input (data-ref ,values ,prev-pos))) do
+              (%median-update-value ,values ,ages ,prev-pos ,pos)
+              (decf ,pos)))))
+
+  (defmacro %median-search-higher (input values ages pos last)
+    (with-gensyms (next-pos)
+      `(loop for ,next-pos = (the non-negative-fixnum (1+ ,pos))
+             while (and (/= ,pos ,last)
+                        (> ,input (data-ref ,values ,next-pos))) do
+            (%median-update-value ,values ,ages ,next-pos ,pos)
+            (incf ,pos)))))
+
 (define-vug median (in (max-size positive-fixnum) (size positive-fixnum))
+  "Median filter."
   (with ((values-wrap (without-follow (max-size)
                         (make-foreign-array max-size 'sample :zero-p t)))
          (values (foreign-array-data values-wrap))
@@ -427,21 +458,9 @@
      (dotimes (i size)
        ;(setf (data-ref values i) in)
        (setf (svref ages i) i)))
-    (dotimes (i size)
-      (if (= (svref ages i) last)
-          (setf pos i)  ; position of the oldest value
-          (incf (svref ages i))))
-    in
-    (loop for prev-pos = (1- pos)
-          while (and (plusp pos) (< in (data-ref values prev-pos))) do
-         (setf (data-ref values pos) (data-ref values prev-pos)
-               (svref ages pos) (svref ages prev-pos))
-         (decf pos))
-    (loop for next-pos = (1+ pos)
-          while (and (null (= pos last)) (> in (data-ref values next-pos))) do
-         (setf (data-ref values pos) (data-ref values next-pos)
-               (svref ages pos) (svref ages next-pos))
-         (incf pos))
+    (%median-update-ages pos ages size last)
+    (%median-search-lower in values ages pos)
+    (%median-search-higher in values ages pos last)
     (setf (data-ref values pos) in
           (svref ages pos) 0)
     (data-ref values median)))
