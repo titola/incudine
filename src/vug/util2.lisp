@@ -51,35 +51,29 @@
        (values))))
 
 ;;; Count from START to END (excluded)
-(define-vug-macro counter (start end &key (step 1) jump loop-p
-                           (done-action #'identity))
-  (with-gensyms (%start %end %step step-wrap %jump index done-p)
+(define-vug-macro counter (start end &key (step 1) loop-p done-action)
+  (with-gensyms (%start %end %step index done-p %loop-p)
     `(with ((,done-p nil)
             (,%start ,start)
-            (,%end (1- ,end))
+            (,%end ,end)
             (,%step ,step)
-            ,@(when loop-p `((,step-wrap (+ ,%start (1- ,%step)))))
-            ,@(if jump
-                  `((,%jump ,jump %start)
-                    (,index (progn
-                              (setf ,done-p nil)
-                              (wrap ,%jump ,%start ,%end))))
-                  `((,index ,%start))))
-       (declare (type fixnum ,%start ,%end ,%step ,index
-                      ,@(when loop-p `(,step-wrap))
-                      ,@(when jump `(,%jump)))
-                (type boolean ,done-p))
+            (,%loop-p ,loop-p)
+            (,index (progn (if ,done-p (setf ,done-p nil))
+                           ,%start)))
+       (declare (type fixnum ,%start ,%end ,%step ,index)
+                (type boolean ,done-p ,%loop-p))
        (prog1 ,index
          (unless ,done-p
            (setf ,index (the fixnum
-                          (if (>= ,index ,%end)
-                              ,(if loop-p
-                                   step-wrap
-                                   `(progn
-                                      (done-action ,done-action)
-                                      (setf ,done-p t)
-                                      ,index))
-                              (1+ ,index)))))))))
+                          (if (< ,index ,%end)
+                              (+ ,index ,%step)
+                              (if ,%loop-p
+                                  ,%start
+                                  (progn
+                                    (done-action
+                                     ,(or done-action '(function identity)))
+                                    (setf ,done-p t)
+                                    ,index))))))))))
 
 (define-vug multi-rate ((ksmps fixnum) (start-offset fixnum) in)
   (with ((count ksmps)
