@@ -124,7 +124,7 @@
    #:current-channel
    #:foreign-float #:foreign-double
    #:make-frame #:frame-ref #:frame-value-bind
-   #:foreach-tick #:counter #:multi-rate #:generic-rate #:samphold #:interpolate
+   #:foreach-tick #:counter #:downsamp #:generic-rate #:samphold #:interpolate
    #:tick #:external-variable #:init-only #:initialize #:without-follow
    #:update #:object-to-free
    #:out #:node-out

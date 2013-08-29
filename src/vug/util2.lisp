@@ -75,15 +75,14 @@
                                     (setf ,done-p t)
                                     ,index))))))))))
 
-(define-vug multi-rate ((ksmps fixnum) (start-offset fixnum) in)
-  (with ((count ksmps)
-         (value 0.0d0))
+(define-vug downsamp ((control-period fixnum) in)
+  (with ((count control-period)
+         (value +sample-zero+))
     (declare (type fixnum count) (type sample value))
-    (initialize (setf count (1+ start-offset)))
-    (cond ((<= count 1)
-           (setf count ksmps value in))
-          (t (decf count)
-             value))))
+    (initialize (setf count 0))
+    (if (<= count 1)
+        (setf count control-period value in)
+        (progn (decf count) value))))
 
 ;;; The input is valued every GATE samples, on demand or never.
 ;;; If GATE is positive, the output is the input calculated every GATE samples.
