@@ -55,9 +55,7 @@
   ;; The value at the first pointer is the current level. The other
   ;; pointers are used to calc the curve of an envelope segment. The
   ;; value of the last pointer is the fade-time
-  (gain-data (foreign-alloc 'sample :count 10
-                            :initial-element +sample-zero+)
-             :type foreign-pointer)
+  (gain-data (foreign-alloc-sample 10) :type foreign-pointer)
   (enable-gain-p nil :type boolean)
   (done-p nil :type boolean)
   (release-phase-p nil :type boolean)

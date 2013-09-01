@@ -36,9 +36,7 @@
                                *number-of-bus-channels*))
 (declaim (type non-negative-fixnum *bus-channels-size*))
 
-(defvar *bus-channels* (foreign-alloc 'sample
-                         :count *bus-channels-size*
-                         :initial-element +sample-zero+))
+(defvar *bus-channels* (foreign-alloc-sample *bus-channels-size*))
 (declaim (type foreign-pointer *bus-channels*))
 
 (defvar *input-pointer*
@@ -57,9 +55,8 @@
                   +foreign-sample-size+)))
 (declaim (type foreign-pointer *bus-pointer*))
 
-(defvar *output-peak-values* (foreign-alloc 'sample
-                               :count *number-of-output-bus-channels*
-                               :initial-element +sample-zero+))
+(defvar *output-peak-values*
+  (foreign-alloc-sample *number-of-output-bus-channels*))
 (declaim (type foreign-pointer *output-peak-values*))
 
 (defvar *out-of-range-counter* (make-array *number-of-output-bus-channels*
@@ -150,9 +147,7 @@
         (msg info "Realloc the foreign array for the bus channels")
         (setf *bus-channels-size* channels)
         (foreign-free *bus-channels*)
-        (setf *bus-channels* (foreign-alloc 'sample
-                                            :count *bus-channels-size*
-                                            :initial-element +sample-zero+))
+        (setf *bus-channels* (foreign-alloc-sample *bus-channels-size*))
         (setf *output-pointer* *bus-channels*))
       (setf *bus-pointer*
             (inc-pointer *bus-channels* (* (+ safe-inputs outputs)
@@ -162,8 +157,7 @@
               (inc-pointer *bus-channels* (* outputs +foreign-sample-size+)))
         (msg info "Realloc the foreign array for the output peak values")
         (foreign-free *output-peak-values*)
-        (setf *output-peak-values* (foreign-alloc 'sample :count outputs
-                                                  :initial-element +sample-zero+))
+        (setf *output-peak-values* (foreign-alloc-sample outputs))
         (setf *out-of-range-counter* (make-array outputs :initial-element 0)))
       (when rt-started-p
         (msg info "Restart realtime")

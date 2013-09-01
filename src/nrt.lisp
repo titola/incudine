@@ -45,9 +45,7 @@ when the duration is undefined.")
                                    *number-of-bus-channels*))
 (declaim (type bus-number *nrt-bus-channels-size*))
 
-(defvar *nrt-bus-channels* (foreign-alloc 'sample
-                             :count *nrt-bus-channels-size*
-                             :initial-element +sample-zero+))
+(defvar *nrt-bus-channels* (foreign-alloc-sample *nrt-bus-channels-size*))
 (declaim (type foreign-pointer *nrt-bus-channels*))
 
 (defvar %nrt-bus-pointer-offset (* *max-number-of-channels*
@@ -62,9 +60,8 @@ when the duration is undefined.")
                                        %nrt-bus-pointer-offset))
 (declaim (type foreign-pointer *nrt-bus-pointer*))
 
-(defvar *nrt-output-peak-values* (foreign-alloc 'sample
-                                   :count *max-number-of-channels*
-                                   :initial-element +sample-zero+))
+(defvar *nrt-output-peak-values*
+  (foreign-alloc-sample *max-number-of-channels*))
 (declaim (type foreign-pointer *nrt-output-peak-values*))
 
 (defvar *nrt-out-of-range-counter* (make-array *max-number-of-channels*
