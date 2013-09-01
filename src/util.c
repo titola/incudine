@@ -172,17 +172,17 @@ void copy_from_ring_buffer(SAMPLE *dest, SAMPLE *ring_buffer,
             memcpy(dest, ring_buffer + write_offset, last*sizeof(SAMPLE));
             memcpy(dest + last, ring_buffer, write_offset*sizeof(SAMPLE));
         }
-    } else if (items <= write_offset) {
-        memcpy(dest, ring_buffer + (write_offset - items), items*sizeof(SAMPLE));
+    } else if (items < write_offset) {
+        memcpy(dest, ring_buffer + (write_offset - items - 1), items*sizeof(SAMPLE));
     } else {
         if (write_offset == 0) {
             memcpy(dest, ring_buffer + (buffer_size - items), items*sizeof(SAMPLE));
         } else {
-            unsigned long offset2 = items - write_offset;
+            unsigned long offset2 = items - write_offset + 1;
             unsigned long offset1 = buffer_size - offset2;
 
             memcpy(dest, ring_buffer + offset1, offset2*sizeof(SAMPLE));
-            memcpy(dest + offset2, ring_buffer, write_offset);
+            memcpy(dest + offset2, ring_buffer, write_offset - 1);
         }
     }
 }
