@@ -340,8 +340,10 @@
 (def-fftw-fun ("malloc" %foreign-alloc-fft) :pointer
   (size :unsigned-long))
 
+(declaim (inline foreign-alloc-fft))
 (defun foreign-alloc-fft (size)
-  (%foreign-alloc-fft (* size +foreign-sample-size+)))
+  (declare (type fixnum size))
+  (%foreign-alloc-fft (the fixnum (* size +foreign-sample-size+))))
 
 (def-fftw-fun ("free" foreign-free-fft) :void
   (ptr :pointer))
@@ -358,11 +360,18 @@
   (out   :pointer)
   (flags :unsigned-int))
 
-(def-fftw-fun ("execute" fftw-execute) :void
-  (plan :pointer))
-
 (def-fftw-fun ("destroy_plan" fft-destroy-plan) :void
   (plan :pointer))
+
+(def-fftw-fun ("execute_dft_r2c" fft-execute) :void
+  (plan :pointer)
+  (in   :pointer)
+  (out  :pointer))
+
+(def-fftw-fun ("execute_dft_c2r" ifft-execute) :void
+  (plan :pointer)
+  (in   :pointer)
+  (out  :pointer))
 
 ;;; GSL
 

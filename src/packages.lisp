@@ -24,7 +24,7 @@
    #:foreign-rt-alloc-ex #:foreign-rt-free-ex #:foreign-rt-realloc-ex
    #:foreign-alloc-fft #:foreign-free-fft #:make-fft-plan #:make-ifft-plan
    #:fft-destroy-plan #:sample-complex #:sample-polar #:magnitude #:complex-to-polar
-   #:polar-to-complex #:fftw-execute
+   #:polar-to-complex #:fft-execute #:ifft-execute
    #:apply-window #:apply-scaled-window #:apply-scaled-rectwin #:apply-zero-padding
    #:foreign-copy #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
    #:rt-audio-init #:rt-audio-start #:rt-audio-stop #:rt-get-input #:rt-set-output
@@ -195,13 +195,14 @@
                 #:+log001+ #:+pointer-size+ #:+foreign-sample-size+ #:+foreign-complex-size+
                 #:foreign-rt-alloc #:foreign-rt-free #:foreign-pointer
                 #:non-negative-fixnum64 #:*standard-optimize-settings*
-                #:*reduce-warnings* #:sample->fixnum #:sample->int #:rt-eval-if)
+                #:*reduce-warnings* #:sample->fixnum #:sample->int #:rt-eval-if
+                #:rt-thread-p)
   (:import-from #:incudine.external #:foreign-alloc-sample #:foreign-zero-sample
                 #:foreign-realloc-sample #:foreign-alloc-fft #:foreign-free-fft
                 #:make-fft-plan #:make-ifft-plan #:fft-destroy-plan #:sample-complex
                 #:sample-polar #:magnitude #:complex-to-polar #:polar-to-complex
-                #:fftw-execute #:apply-window #:apply-scaled-window #:apply-scaled-rectwin
-                #:apply-zero-padding
+                #:fft-execute #:ifft-execute #:apply-window
+                #:apply-scaled-window #:apply-scaled-rectwin #:apply-zero-padding
                 #:foreign-copy #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer)
   (:export #:analysis #:analysis-p #:analysis-time #:abuffer
            #:window-size #:window-function #:rectangular-window
@@ -209,7 +210,8 @@
            #:abuffer-size #:abuffer-link #:abuffer-nbins #:abuffer-normalized-p
            #:to-polar #:to-complex
            #:fft #:fft-p #:make-fft #:nbins #:*fft-default-window-function*
-           #:ifft #:ifft-p #:make-ifft #:+fftw-measure+ #:+fftw-estimate+
+           #:ifft #:ifft-p #:make-ifft #:+fft-best-plan+ #:+fft-fast-plan+
+           #:fft-plan #:get-fft-plan #:new-fft-plan #:remove-fft-plan #:fft-plan-list
            #:fft-input #:ifft-output #:fft-size
            #:transform #:compute #:resize
            #:dofft #:dofft-polar #:dofft-complex))
@@ -241,10 +243,10 @@
                 #:mem-ref #:mem-aref #:inc-pointer #:incf-pointer)
   (:import-from #:incudine.external #:int-hash #:pthread-set-priority #:sndfile-to-buffer
                 #:foreign-alloc-sample #:foreign-zero-sample #:foreign-realloc-sample
-                #:foreign-alloc-fft #:foreign-free-fft #:make-fft-plan #:make-ifft-plan
-                #:fft-destroy-plan #:sample-complex #:sample-polar #:magnitude
-                #:complex-to-polar #:polar-to-complex #:fftw-execute #:apply-window
-                #:apply-scaled-window #:apply-zero-padding #:foreign-copy
+                #:foreign-alloc-fft #:foreign-free-fft
+                #:sample-complex #:sample-polar #:magnitude
+                #:complex-to-polar #:polar-to-complex #:fft-execute #:ifft-execute
+                #:apply-window #:apply-scaled-window #:apply-zero-padding #:foreign-copy
                 #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
                 #:rt-audio-init #:rt-audio-start #:rt-audio-stop
                 #:rt-get-input #:rt-set-output #:rt-cycle-begin #:rt-cycle-end

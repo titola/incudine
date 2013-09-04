@@ -19,6 +19,102 @@
 (defvar *fft-default-window-function* (incudine.gen:sine-window))
 (declaim (type function *fft-default-window-function*))
 
+(defvar *fft-plan* (make-hash-table :size 16))
+(declaim (type hash-table *fft-plan*))
+
+(define-constant +fftw-measure+ 0)
+(define-constant +fftw-estimate+ (ash 1 6))
+
+(define-constant +fft-best-plan+ +fftw-measure+
+  :documentation "Slow computation of an accurate FFT plan.")
+
+(define-constant +fft-fast-plan+ +fftw-estimate+
+  :documentation "Fast computation of a reasonable FFT plan.")
+
+(declaim (inline get-fft-plan))
+(defun get-fft-plan (size)
+  (values (gethash size *fft-plan*)))
+
+(declaim (inline add-fft-plan))
+(defun add-fft-plan (size pair)
+  (setf (gethash size *fft-plan*) pair))
+
+(declaim (inline remove-fft-plan))
+(defun remove-fft-plan (size)
+  (remhash size *fft-plan*))
+
+(defstruct (fft-plan (:constructor %new-fft-plan))
+  (pair (error "missing FFT plans") :type cons)
+  (size 8 :type positive-fixnum)
+  (flags +fft-best-plan+ :type fixnum))
+
+(defmethod print-object ((obj fft-plan) stream)
+  (format stream "#<FFT-PLAN :SIZE ~D :FLAGS ~D>"
+          (fft-plan-size obj) (fft-plan-flags obj)))
+
+(defun fft-plan-list (&optional only-size-p)
+  "Return the list of the stored FFT-PLANs. If ONLY-SIZE-P is T,
+the values of the list are the sizes of the plans."
+  (if only-size-p
+      (sort (loop for size being the hash-keys in *fft-plan*
+                  collect size)
+            #'<)
+      (sort (loop for plan being the hash-values in *fft-plan*
+                  collect plan)
+            #'< :key #'fft-plan-size)))
+
+(defun compute-fft-plan (size flags realtime-p)
+  "Return a CONS where the CAR is the plan for a FFT and the CDR
+is the plan for a IFFT."
+  (declare (type positive-fixnum size) (type fixnum flags)
+           (type boolean realtime-p))
+  (flet ((alloc-buffer (size)
+           (if realtime-p
+               (foreign-rt-alloc 'sample :count size)
+               (foreign-alloc-fft size)))
+         (free-buffer (ptr)
+           (if realtime-p
+               (foreign-rt-free ptr)
+               (foreign-free ptr))))
+    (let* ((maxsize (* (1+ (ash size -1)) 2))
+           (inbuf (alloc-buffer maxsize))
+           (outbuf (alloc-buffer maxsize)))
+      (declare (type positive-fixnum maxsize))
+      (unwind-protect
+           (cons (make-fft-plan size inbuf outbuf flags)
+                 (make-ifft-plan size inbuf outbuf flags))
+        (free-buffer inbuf)
+        (free-buffer outbuf)))))
+
+(declaim (inline %%new-fft-plan))
+(defun %%new-fft-plan (size flags realtime-p)
+  (let ((pair (compute-fft-plan size flags realtime-p)))
+    (tg:finalize (add-fft-plan size (%new-fft-plan :pair pair :size size
+                                                   :flags flags))
+                 (lambda ()
+                   (fft-destroy-plan (car pair))
+                   (fft-destroy-plan (cdr pair))))))
+
+(defun new-fft-plan (size &optional flags)
+  "Calculate and store a new FFT-PLAN with the specified size."
+  (declare (type positive-fixnum size)
+           (type (or fixnum null) flags)
+           #.*standard-optimize-settings*)
+  (let ((plan (get-fft-plan size))
+        (realtime-p (rt-thread-p)))
+    (if plan
+        (if realtime-p
+            plan
+            (let ((flags (or flags +fft-best-plan+)))
+              (if (= (fft-plan-flags plan) flags)
+                  plan
+                  ;; Re-compute the plan
+                  (%%new-fft-plan size flags nil))))
+        (%%new-fft-plan size (if realtime-p
+                                 +fft-fast-plan+
+                                 (or flags +fft-best-plan+))
+                        realtime-p))))
+
 (defstruct (fft-common (:include analysis)
                        (:copier nil))
   (size 0 :type non-negative-fixnum)
@@ -27,7 +123,8 @@
   (window-buffer (error "missing WINDOW-BUFFER") :type foreign-pointer)
   (window-size 0 :type non-negative-fixnum)
   (window-function (error "missing WINDOW-FUNCTION") :type function)
-  (plan (null-pointer) :type foreign-pointer))
+  (plan-wrap (error "missing FFT plan wrapper") :type fft-plan)
+  (plan (error "missing FFT plan") :type foreign-pointer))
 
 (defmethod free ((obj fft-common))
   (unless (= (fft-common-size obj) 0)
@@ -37,7 +134,6 @@
                 #3=(analysis-time-ptr obj)))
     (setf #1# (null-pointer) #2# (null-pointer) #3# (null-pointer))
     (free (fft-common-ring-buffer obj))
-    (fft-destroy-plan (fft-common-plan obj))
     (setf (fft-common-size obj) 0))
   (unless (= (fft-common-window-size obj) 0)
     (funcall (analysis-foreign-free obj)
@@ -66,9 +162,6 @@
       (fft-nbins #1#)
       0))
 
-(define-constant +fftw-measure+ 0)
-(define-constant +fftw-estimate+ (ash 1 6))
-
 (declaim (inline rectangular-window))
 (defun rectangular-window (c-array size)
   (declare (type foreign-pointer c-array)
@@ -85,8 +178,9 @@
 
 (defun make-fft (size &key (window-size 0)
                  (window-function *fft-default-window-function*)
-                 (flags +fftw-estimate+) real-time-p)
-  (declare (type non-negative-fixnum size window-size flags)
+                 flags real-time-p)
+  (declare (type non-negative-fixnum size window-size)
+           (type (or fixnum null) flags)
            (type function window-function))
   (flet ((foreign-alloc (size fftw-array-p)
            (cond (real-time-p
@@ -104,6 +198,7 @@
            (window-buffer (fill-window-buffer (foreign-alloc window-size nil)
                                               window-function window-size))
            (time-ptr (foreign-alloc 1 nil))
+           (plan-wrap (new-fft-plan size flags))
            (obj (%make-fft
                  :size size
                  :input-buffer input-buffer
@@ -120,18 +215,16 @@
                  :foreign-free (if real-time-p
                                    #'foreign-rt-free
                                    #'foreign-free)
-                 :plan (make-fft-plan size input-buffer output-buffer flags))))
+                 :plan-wrap plan-wrap
+                 :plan (car (fft-plan-pair plan-wrap)))))
       (setf (analysis-time obj) (sample -1))
       (foreign-zero-sample input-buffer size)
-      (let ((plan (fft-plan obj))
-            (foreign-free (fft-foreign-free obj)))
+      (let ((foreign-free (fft-foreign-free obj)))
         (tg:finalize obj (lambda ()
                            (rt-eval-if (real-time-p)
                              (mapc foreign-free
                                    (list input-buffer output-buffer
-                                         window-buffer time-ptr))
-                             (fft-destroy-plan plan))))
-        obj))))
+                                         window-buffer time-ptr)))))))))
 
 (defmethod compute ((obj fft) &optional arg)
   (declare (ignore arg))
@@ -146,7 +239,9 @@
     (apply-zero-padding (fft-input-buffer obj)
                         (fft-window-size obj)
                         (fft-size obj))
-    (fftw-execute (fft-plan obj))
+    (fft-execute (fft-plan obj)
+                 (fft-input-buffer obj)
+                 (fft-output-buffer obj))
     (setf (analysis-time obj) (now))
     t))
 
@@ -175,8 +270,9 @@
 
 (defun make-ifft (size &key (window-size 0)
                   (window-function *fft-default-window-function*)
-                  (flags +fftw-estimate+) real-time-p)
-  (declare (type non-negative-fixnum size window-size flags)
+                  flags real-time-p)
+  (declare (type non-negative-fixnum size window-size)
+           (type (or fixnum null) flags)
            (type function window-function))
   (flet ((foreign-alloc (size fftw-array-p)
            (cond (real-time-p
@@ -194,6 +290,7 @@
            (window-buffer (fill-window-buffer (foreign-alloc window-size nil)
                                               window-function window-size))
            (time-ptr (foreign-alloc 1 nil))
+           (plan-wrap (new-fft-plan size flags))
            (obj (%make-ifft
                  :size size
                  :input-buffer input-buffer
@@ -209,18 +306,16 @@
                  :foreign-free (if real-time-p
                                    #'foreign-rt-free
                                    #'foreign-free)
-                 :plan (make-ifft-plan size input-buffer output-buffer flags))))
+                 :plan-wrap plan-wrap
+                 :plan (cdr (fft-plan-pair plan-wrap)))))
       (setf (analysis-time obj) (sample -1))
       (foreign-zero-sample input-buffer complex-array-size)
-      (let ((plan (ifft-plan obj))
-            (foreign-free (ifft-foreign-free obj)))
+      (let ((foreign-free (ifft-foreign-free obj)))
         (tg:finalize obj (lambda ()
                            (rt-eval-if (real-time-p)
                              (mapc foreign-free
                                    (list input-buffer output-buffer
-                                         window-buffer time-ptr))
-                             (fft-destroy-plan plan))))
-        obj))))
+                                         window-buffer time-ptr)))))))))
 
 (declaim (inline ifft-apply-window))
 (defun ifft-apply-window (obj abuf)
@@ -245,7 +340,9 @@
                   (the non-negative-fixnum
                     (* (the non-negative-fixnum (ifft-input-size obj))
                        +foreign-sample-size+)))
-    (fftw-execute (ifft-plan obj))
+    (ifft-execute (ifft-plan obj)
+                  (ifft-input-buffer obj)
+                  (ifft-output-buffer obj))
     (ifft-apply-window obj arg)
     (apply-zero-padding (ifft-output-buffer obj) (ifft-window-size obj)
                         (ifft-size obj))
