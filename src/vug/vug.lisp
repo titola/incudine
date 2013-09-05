@@ -64,8 +64,10 @@
   (to-set-p t :type boolean)
   (skip-init-set-p nil :type boolean)
   (conditional-expansion nil :type symbol)
+  (input-p nil :type boolean)
   (init-time-p t :type boolean)
-  (performance-time-p nil :type boolean))
+  (performance-time-p nil :type boolean)
+  (variables-to-recheck nil :type list))
 
 (defstruct (vug-variables (:copier nil))
   (bindings        nil :type list)
@@ -133,17 +135,26 @@
     (push par (vug-variables-parameter-list *vug-variables*))
     par))
 
-(declaim (inline make-vug-variable))
+(declaim (inline vug-input-p))
+(defun vug-input-p (obj)
+  (and (vug-function-p obj)
+       (eq (vug-function-name obj) 'vug-input)))
+
 (defun make-vug-variable (name value &optional type)
-  (let ((obj (%make-vug-variable :name name :value value :type type)))
-    (when *vug-variables*
-      (if (performance-time-code-p value)
-          (setf (vug-variable-init-time-p obj) nil)
-          (resolve-variable-to-update value obj))
-      (when (object-to-free-p value)
-        (pushnew obj (vug-variables-to-free *vug-variables*)))
-      (push obj (vug-variables-bindings *vug-variables*)))
-    obj))
+  (multiple-value-bind (input-p value)
+      (if (vug-input-p value)
+          (values t (car (vug-function-inputs value)))
+          (values nil value))
+    (let ((obj (%make-vug-variable :name name :value value :type type
+                                   :input-p input-p)))
+      (when *vug-variables*
+        (if (performance-time-code-p obj value input-p)
+            (setf (vug-variable-init-time-p obj) nil)
+            (resolve-variable-to-update value obj))
+        (when (object-to-free-p value)
+          (pushnew obj (vug-variables-to-free *vug-variables*)))
+        (push obj (vug-variables-bindings *vug-variables*)))
+      obj)))
 
 (declaim (inline vug-name-p))
 (defun vug-name-p (vug name)
@@ -165,7 +176,7 @@
 (defun performance-time-vug-function-p (obj)
   (performance-time-function-p (vug-object-name obj)))
 
-(defun performance-time-code-p (obj)
+(defun performance-time-code-p (var obj vug-input-p)
   (labels ((ptime-p (obj)
              (cond ((vug-object-p obj)
                     (cond ((vug-object-block-p obj) t)
@@ -174,9 +185,13 @@
                              (or (performance-time-vug-function-p obj)
                                  (ptime-p (vug-function-inputs obj)))))
                           ((vug-variable-p obj)
-                           (if (vug-variable-init-time-p obj)
-                               (ptime-p (vug-variable-value obj))
-                               t))))
+                           (cond ((vug-variable-init-time-p obj)
+                                  (if (or vug-input-p
+                                          (vug-variable-input-p obj))
+                                      (pushnew var
+                                         (vug-variable-variables-to-recheck obj)))
+                                  (ptime-p (vug-variable-value obj)))
+                                 (t t)))))
                    ((consp obj)
                     (or (ptime-p (car obj))
                         (ptime-p (cdr obj)))))))
@@ -438,6 +453,8 @@
 (defmacro without-follow (parameters &body body)
   parameters body)
 
+(defun vug-input (arg) arg)
+
 (defun parse-vug-def (def &optional cdr-p flist mlist quote-expr-p)
   (declare (type boolean cdr-p quote-expr-p)
            (type list flist mlist))
@@ -552,10 +569,20 @@
                 (remove-lisp-declaration (cdr obj))))
       obj))
 
+(defun recheck-variables (var)
+  (declare (type vug-variable var))
+  (let ((vardep (pop (vug-variable-variables-to-recheck var))))
+    (when vardep
+      (if #1=(vug-variable-init-time-p vardep)
+          (setf #1# nil))
+      (recheck-variables var)
+      (recheck-variables vardep))))
+
 (declaim (inline set-variable-performance-time))
 (defun set-variable-performance-time (var)
   (unless (vug-variable-performance-time-p var)
     (setf (vug-variable-performance-time-p var) t))
+  (recheck-variables var)
   var)
 
 (declaim (inline update-setter-form))
@@ -563,7 +590,7 @@
   (loop for i on (vug-function-inputs obj) by #'cddr
         for var = (car i) do
        (when (vug-variable-p var)
-          (set-variable-performance-time var))
+         (set-variable-performance-time var))
        (update-vug-variables (cadr i))))
 
 (defun update-vug-variables (obj)
@@ -619,8 +646,10 @@
                  bindings)
      ,@body))
 
-(defmacro with-argument-bindings (args types &body body)
-  `(with ,(mapcar (lambda (x) `(,x ,x)) args)
+(defmacro with-argument-bindings ((args types &optional vug-input-p)
+                                  &body body)
+  `(with ,(mapcar (lambda (x) `(,x ,(if vug-input-p `(vug-input ,x) x)))
+                  args)
      ,@(mapcar (lambda (arg type) `(declare (type ,type ,arg)))
                args types)
      ,@body))
@@ -650,7 +679,7 @@
                  (flet ((,fn ,args
                           (with-coerce-arguments ,lambda-list
                             (vug-block
-                              (with-argument-bindings ,args ,types
+                              (with-argument-bindings (,args ,types t)
                                 ,@vug-body)))))
                    (let ((,init (getf ,config :pre-hook)))
                      (when ,init (funcall ,init))

@@ -46,7 +46,8 @@
         (cond (init-time-p
                (resolve-conditional-expansion (cadr l))
                (setf (vug-variable-skip-init-set-p input) t))
-              (t (setf (vug-variable-to-set-p input) nil)))
+              (t (setf (vug-variable-to-set-p input) nil)
+                 (recheck-variables input)))
         (unless (vug-variable-performance-time-p input)
           (setf (vug-variable-performance-time-p input) t))))))
 
@@ -407,7 +408,7 @@
       (arg-names-and-types arguments)
     `(with-vug-arguments ,args ,types
        (vug-block
-         (with-argument-bindings ,args ,types ,@rest)))))
+         (with-argument-bindings (,args ,types) ,@rest)))))
 
 (defmacro performance-loop (&body body)
   (with-gensyms (i)
