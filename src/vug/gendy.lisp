@@ -97,8 +97,8 @@
           ((= which 3) (gendy-hyperbcos a))
           ((= which 4) (gendy-arcsine a))
           ((= which 5) (gendy-expon a))
-          ((= which 6) (- (* a 2.0) 1.0))  ; external
-          (t (- (random 2.0) 1.0)))))      ; linear
+          ((= which 6) (- (* a (sample 2)) (sample 1))) ; external
+          (t (- (random (sample 2)) (sample 1))))))     ; linear
 
 (defmacro gendy-update-value (data index dist-var dist-value
                               dist-param scale min max)
