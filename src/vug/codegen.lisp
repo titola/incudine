@@ -68,7 +68,7 @@
                     ;; Inside a definition of a VUG
                     (blockexpand (vug-function-inputs obj) param-plist vug-body-p
                                  init-time-p conditional-expansion-p)
-                    ;; Inside a definition of a SYNTH
+                    ;; Inside a definition of a DSP
                     (push `(progn ,@(blockexpand (vug-function-inputs obj)
                                                  param-plist vug-body-p t nil))
                           *initialization-code*))
@@ -402,7 +402,7 @@
 (defun reorder-initialization-code ()
   (setf *initialization-code* (nreverse *initialization-code*)))
 
-(defun synth-vug-block (arguments &rest rest)
+(defun dsp-vug-block (arguments &rest rest)
   (multiple-value-bind (args types)
       (arg-names-and-types arguments)
     `(with-vug-arguments ,args ,types
@@ -445,8 +445,8 @@
                  c-array-float-wrap c-array-double-wrap c-array-int32-wrap
                  c-array-int64-wrap c-array-sample c-array-float c-array-double
                  c-array-int32 c-array-int64 number-of-sample number-of-float
-                 number-of-double number-of-int32 number-of-int64 synth-cons
-                 synth node free-hook function-object)
+                 number-of-double number-of-int32 number-of-int64 dsp-cons
+                 dsp node free-hook function-object)
     `(let* ((*vug-variables* (make-vug-variables))
             (*initialization-code* (list '(values)))
             (,number-of-sample 0)
@@ -454,19 +454,19 @@
             (,number-of-double 0)
             (,number-of-int32 0)
             (,number-of-int64 0)
-            (,result ,(synth-vug-block arguments obj))
+            (,result ,(dsp-vug-block arguments obj))
             (,vug-body (format-vug-code ,result)))
        (reorder-parameter-list)
        (add-foreign-vars-and-params ,number-of-sample ,number-of-float ,number-of-double
                                     ,number-of-int32 ,number-of-int64)
-       `(lambda (%synth-node%)
+       `(lambda (%dsp-node%)
           (declare #.*standard-optimize-settings*
-                   (type incudine:node %synth-node%))
-          (let* ((,',synth-cons (synth-inst-pool-pop-cons))
-                 (,',synth (car ,',synth-cons))
-                 ;; Hash table for the controls of the synth
-                 (,',control-table (synth-controls ,',synth))
-                 ;; Function related with the synth
+                   (type incudine:node %dsp-node%))
+          (let* ((,',dsp-cons (dsp-inst-pool-pop-cons))
+                 (,',dsp (car ,',dsp-cons))
+                 ;; Hash table for the controls of the dsp
+                 (,',control-table (dsp-controls ,',dsp))
+                 ;; Function related with the dsp
                  (,',function-object (symbol-function ,',name))
                  ;; FREE-HOOK for the node
                  (,',free-hook
@@ -475,8 +475,8 @@
                                    #.*reduce-warnings*)
                           (if (eq ,',function-object (symbol-function ,',name))
                               ;; The instance is reusable the next time
-                              (store-synth-instance ,',name ,',synth-cons)
-                              (free-synth-cons ,',synth-cons)))))
+                              (store-dsp-instance ,',name ,',dsp-cons)
+                              (free-dsp-cons ,',dsp-cons)))))
                  ;; Foreign array with type SAMPLE
                  ,@(when (locally (declare #.*reduce-warnings*)
                              (and #.*use-foreign-sample-p*
@@ -489,7 +489,7 @@
                       (,',c-array-double ,',c-array-double-wrap :double ,,number-of-double)
                       (,',c-array-int32 ,',c-array-int32-wrap :int32 ,,number-of-int32)
                       (,',c-array-int64 ,',c-array-int64-wrap :int64 ,,number-of-int64))))
-            (declare (type cons ,',synth-cons ,',free-hook) (type synth ,',synth)
+            (declare (type cons ,',dsp-cons ,',free-hook) (type dsp ,',dsp)
                      (type hash-table ,',control-table))
             (#.(if *use-foreign-sample-p* 'with-foreign-symbols 'with-sample-variables)
                ,(mapcar #'vug-object-name (vug-variables-foreign-sample *vug-variables*))
@@ -502,20 +502,20 @@
                  ,@(%expand-variables
                     (set-controls-form ',control-table ',arg-names)
                     `(progn
-                       (setf (synth-name ,',synth) ,',name)
-                       (setf (incudine::node-controls %synth-node%) ,',control-table)
-                       (update-free-hook %synth-node% ,',free-hook)
+                       (setf (dsp-name ,',dsp) ,',name)
+                       (setf (incudine::node-controls %dsp-node%) ,',control-table)
+                       (update-free-hook %dsp-node% ,',free-hook)
                        (reorder-initialization-code)
                        (let ((current-channel 0))
                          (declare (type channel-number current-channel)
                                   (ignorable current-channel))
                          ,@*initialization-code*)
-                       (set-synth-object ,',synth
+                       (set-dsp-object ,',dsp
                          :init-function
                          (lambda (,',node ,@',arg-names)
                            (declare #.*reduce-warnings*)
-                           (setf (incudine::node-controls ,',node) (synth-controls ,',synth))
-                           (setf %synth-node% ,',node)
+                           (setf (incudine::node-controls ,',node) (dsp-controls ,',dsp))
+                           (setf %dsp-node% ,',node)
                            ,(reinit-bindings-form)
                            (update-free-hook ,',node ,',free-hook)
                            (let ((current-channel 0))
@@ -554,7 +554,7 @@
                                  (car (vug-function-inputs variable-value)))
                :test #'eq)))
 
-;;; Fill the hash table for the controls of the synth
+;;; Fill the hash table for the controls of the DSP
 (defun set-controls-form (control-table arg-names)
   (declare (type symbol control-table))
   (with-gensyms (value)
@@ -707,16 +707,16 @@
                  `(incudine:free ,(vug-object-name v)))
                (vug-variables-to-free *vug-variables*))))
 
-(defmacro synth-node () '%synth-node%)
+(defmacro dsp-node () '%dsp-node%)
 
 (defmacro done-action (action)
-  `(funcall ,action (synth-node)))
+  `(funcall ,action (dsp-node)))
 
 (defmacro done-self ()
-  `(incudine::node-done-p (synth-node)))
+  `(incudine::node-done-p (dsp-node)))
 
 (defmacro free-self ()
-  `(incudine:free (synth-node)))
+  `(incudine:free (dsp-node)))
 
 (defmacro free-self-when-done ()
   `(when (done-self) (free-self)))
@@ -730,8 +730,8 @@
           (push i args)))
       (incudine:control-list node)))
 
-(defvar *update-synth-instances* t)
-(declaim (type boolean *update-synth-instances*))
+(defvar *update-dsp-instances* t)
+(declaim (type boolean *update-dsp-instances*))
 
 (declaim (inline %argument-names))
 (defun %argument-names (args)
@@ -745,8 +745,8 @@
 
 ;;; An argument is a symbol or a pair (NAME TYPE), where TYPE is the specifier
 ;;; of NAME. When the argument is a symbol, the default type is SAMPLE.
-(defmacro defsynth (name args &body body)
-  (with-gensyms (get-function node synth-cons synth-prop)
+(defmacro dsp! (name args &body body)
+  (with-gensyms (get-function node dsp-cons dsp-prop)
     (let ((doc (when (stringp (car body))
                  (car body)))
           (arg-names (%argument-names args)))
@@ -756,9 +756,9 @@
          (cond ((vug ',name)
                 (msg error "~A was defined to be a VUG" ',name))
                (t
-                (free-synth-instances ',name)
-                (let ((,synth-prop (get-synth-properties ',name)))
-                  (setf (synth-arguments ,synth-prop) ',arg-names)
+                (free-dsp-instances ',name)
+                (let ((,dsp-prop (get-dsp-properties ',name)))
+                  (setf (dsp-arguments ,dsp-prop) ',arg-names)
                   (defun ,name (,@arg-names &key id head tail before after replace
                                 action stop-hook free-hook fade-time fade-curve)
                     (declare (type (or fixnum null) id)
@@ -786,26 +786,25 @@
                             (let ((,node (incudine:node id)))
                               (declare (type incudine:node ,node))
                               (when (incudine::null-item-p ,node)
-                                (let ((,synth-cons (get-next-synth-instance ',name)))
-                                  (declare (type list ,synth-cons))
+                                (let ((,dsp-cons (get-next-dsp-instance ',name)))
+                                  (declare (type list ,dsp-cons))
                                   (when stop-hook
                                     (setf (incudine::node-stop-hook ,node) stop-hook))
                                   (when free-hook
                                     (setf (incudine::node-free-hook ,node) free-hook))
                                   (incudine::enqueue-node-function
-                                   (if ,synth-cons
-                                       (let ((s (car ,synth-cons)))
-                                         (funcall (synth-init-function s) ,node ,@arg-names)
+                                   (if ,dsp-cons
+                                       (let ((s (car ,dsp-cons)))
+                                         (funcall (dsp-init-function s) ,node ,@arg-names)
                                          (lambda (,node)
                                            (declare (ignore ,node))
-                                           (synth-perf-function s)))
+                                           (dsp-perf-function s)))
                                        (prog1 (,get-function ,@arg-names)
-                                         (nrt-msg info "new alloc for synth ~A"
-                                                  ',name)))
+                                         (nrt-msg info "new alloc for dsp ~A" ',name)))
                                    ,node id ',name add-action target action
                                    fade-time fade-curve))))))))
                     (values))
-                  (when *update-synth-instances*
+                  (when *update-dsp-instances*
                     (rt-eval ()
                       (incudine:dograph (,node)
                         (when (and (eq (incudine::node-name ,node) ',name)
@@ -815,7 +814,7 @@
                                  (build-control-list ,node :replace ,node))))))
                   #',name)))))))
 
-(defmacro %defsynth-debug (name args arg-names &body body)
+(defmacro %dsp-debug (name args arg-names &body body)
   (let ((doc (if (stringp (car body)) (car body))))
     `(lambda ,arg-names
        (let ,(mapcar (lambda (x)
@@ -826,13 +825,13 @@
          (generate-code ',name ,args ,arg-names
                         (progn ,@(if doc (cdr body) body)))))))
 
-;;; Return a function to show the code generated by DEFSYNTH.
-;;; The arguments of the function are the arguments of the synth
+;;; Return a function to show the code generated by DSP!.
+;;; The arguments of the function are the arguments of the dsp
 ;;; plus one optional stream.
-(defmacro defsynth-debug (name args &body body)
+(defmacro dsp-debug (name args &body body)
   (with-gensyms (fn stream)
     (let ((lambda-list (%argument-names args)))
-      `(let ((,fn (%defsynth-debug ,name ,args ,lambda-list ,@body)))
+      `(let ((,fn (%dsp-debug ,name ,args ,lambda-list ,@body)))
          (lambda (,@lambda-list &optional ,stream)
            (flet ((codegen () (funcall ,fn ,@lambda-list)))
              (if ,stream

@@ -1,6 +1,6 @@
 (in-package :scratch)
 
-(defsynth spectral-rms-test ()
+(dsp! spectral-rms-test ()
   (with ((fft (make-local-fft 1024 1024 (gen:hanning)))
          (abuf (make-local-abuffer fft))
          (mult (/ (sample 1.0) (fft-size fft)))

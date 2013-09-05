@@ -119,7 +119,8 @@
    #:with
    #:with-coerce-arguments
    #:get-pointer
-   #:defsynth #:defsynth-debug #:*update-synth-instances* #:synth #:all-synth-names
+   #:dsp! #:dsp-debug #:all-dsp-names #:free-dsp-instances #:destroy-dsp
+   #:defsynth #:defsynth-debug #:*update-dsp-instances* #:synth #:all-synth-names
    #:free-synth-instances #:destroy-synth
    #:current-channel
    #:foreign-float #:foreign-double
@@ -128,7 +129,7 @@
    #:tick #:external-variable #:init-only #:initialize #:without-follow
    #:update #:object-to-free
    #:out #:node-out
-   #:synth-node
+   #:dsp-node #:synth-node
    #:lin->lin #:lin->exp
    #:done-action #:done-self #:free-self #:free-self-when-done
    #:clip #:nclip #:wrap #:nwrap #:mirror #:nmirror
@@ -256,7 +257,7 @@
   (:import-from #:incudine.gen #:all-random-distributions #:rand-args)
   (:export
    #:init
-   #:synth-seq
+   #:dsp-seq #:synth-seq
    #:start-time #:uptime
    #:buffer #:make-buffer #:buffer-p #:size #:frames #:channels #:data #:mask
    #:buffer-mask #:buffer-data #:set-buffer-data #:data-ref #:buffer-value

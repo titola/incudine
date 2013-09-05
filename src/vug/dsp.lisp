@@ -1,0 +1,200 @@
+;;; Copyright (c) 2013 Tito Latini
+;;;
+;;; This program is free software; you can redistribute it and/or modify
+;;; it under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 2 of the License, or
+;;; (at your option) any later version.
+;;;
+;;; This program is distributed in the hope that it will be useful,
+;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with this program; if not, write to the Free Software
+;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+(in-package :incudine.vug)
+
+(defvar *dsp-hash* (make-hash-table :test #'eq))
+
+(defstruct (dsp (:copier nil))
+  (name nil)
+  (init-function #'dummy-function :type function)
+  (perf-function #'dummy-function :type function)
+  (free-function #'dummy-function :type function)
+  (controls (make-hash-table :size 16 :test #'equal)
+            :type hash-table))
+
+(defstruct (dsp-properties (:conc-name dsp-)
+                           (:copier nil))
+  (instances nil :type list)
+  (arguments nil :type list)
+  (redefine-hook nil :type list)
+  (remove-hook nil :type list)
+  (fade-time 0 :type (real 0))
+  (fade-curve :lin :type (or symbol real)))
+
+(declaim (inline dsp))
+(defun dsp (name)
+  (declare (type symbol name))
+  (values (gethash name *dsp-hash*)))
+
+(defmethod incudine::fade-time ((obj symbol))
+  (let ((prop (dsp obj)))
+    (if prop (dsp-fade-time prop) 0)))
+
+(defmethod (setf incudine::fade-time) ((value number) (obj symbol))
+  (let ((prop (dsp obj)))
+    (when prop
+      (setf (dsp-fade-time prop) value))))
+
+(defmethod incudine::fade-curve ((obj symbol))
+  (let ((prop (dsp obj)))
+    (if prop (dsp-fade-curve prop) :lin)))
+
+(defmethod (setf incudine::fade-curve) (value (obj symbol))
+  (let ((prop (dsp obj)))
+    (when prop
+      (setf (dsp-fade-curve prop) value))))
+
+(declaim (inline expand-dsp-pool))
+(defun expand-dsp-pool (pool &optional (delta 1))
+  (expand-cons-pool pool delta (make-dsp-properties)))
+
+(define-constant +dsp-pool-size+ 200)
+(define-constant +dsp-pool-grow+ 50)
+
+(defvar *dsp-pool*
+  (make-cons-pool :data (loop repeat +dsp-pool-size+
+                              collect (make-dsp-properties))
+                  :size +dsp-pool-size+
+                  :expand-func #'expand-dsp-pool
+                  :grow +dsp-pool-grow+))
+(declaim (type cons-pool *dsp-pool*))
+
+(declaim (inline dsp-pool-pop))
+(defun dsp-pool-pop ()
+  #+(or cmu sbcl) (declare (values dsp-properties))
+  (let* ((cons (cons-pool-pop-cons *dsp-pool*))
+         (value (car cons)))
+    (rt-global-pool-push-cons cons)
+    value))
+
+(declaim (inline dsp-pool-push))
+(defun dsp-pool-push (obj)
+  (declare (type dsp-properties obj))
+  (let ((cons (rt-global-pool-pop-cons)))
+    (setf (car cons) obj)
+    (cons-pool-push-cons *dsp-pool* cons)))
+
+(declaim (inline get-dsp-properties))
+(defun get-dsp-properties (name)
+  (or (dsp name)
+      (setf (gethash name *dsp-hash*)
+            (dsp-pool-pop))))
+
+(declaim (inline expand-dsp-inst-pool))
+(defun expand-dsp-inst-pool (pool &optional (delta 1))
+  (expand-cons-pool pool delta (make-dsp)))
+
+(define-constant +dsp-instance-pool-grow+ 128)
+
+(defvar *dsp-instance-pool*
+  (make-cons-pool :data (loop repeat *max-number-of-nodes*
+                              collect (make-dsp))
+                  :size *max-number-of-nodes*
+                  :expand-func #'expand-dsp-inst-pool
+                  :grow +dsp-instance-pool-grow+))
+(declaim (type cons-pool *dsp-instance-pool*))
+
+(declaim (inline dsp-inst-pool-pop-cons))
+(defun dsp-inst-pool-pop-cons ()
+  (cons-pool-pop-cons *dsp-instance-pool*))
+
+(declaim (inline dsp-inst-pool-push-cons))
+(defun dsp-inst-pool-push-cons (cons)
+  (cons-pool-push-cons *dsp-instance-pool* cons))
+
+(declaim (inline dsp-inst-pool-push-list))
+(defun dsp-inst-pool-push-list (lst)
+  (cons-pool-push-list *dsp-instance-pool* lst))
+
+(declaim (inline store-dsp-instance))
+(defun store-dsp-instance (name dsp-cons)
+  (declare (type symbol name) (type cons dsp-cons))
+  (let ((prop (dsp name)))
+    (setf (cdr dsp-cons) #1=(dsp-instances prop))
+    (setf #1# dsp-cons)))
+
+(declaim (inline get-next-dsp-instance))
+(defun get-next-dsp-instance (name)
+  (declare (type symbol name))
+  (let* ((prop (dsp name))
+         (dsp-cons #1=(dsp-instances prop)))
+    (declare (type list dsp-cons))
+    (when dsp-cons
+      (setf #1# (cdr dsp-cons)
+            (cdr dsp-cons) nil))
+    dsp-cons))
+
+(defmacro set-dsp-object (dsp &rest keys-values)
+  `(progn
+     ,@(loop for l on keys-values by #'cddr collect
+            `(setf (,(format-symbol :incudine.vug "DSP-~A" (car l)) ,dsp)
+                   ,(or (cadr l) '#'dummy-function)))))
+
+(defmacro set-dummy-functions (&rest functions)
+  `(progn ,@(mapcar (lambda (fn)
+                      `(setf ,fn #'dummy-function))
+                    functions)))
+
+(declaim (inline all-dsp-names))
+(defun all-dsp-names ()
+  (loop for dsp being the hash-keys in *dsp-hash* collect dsp))
+
+(declaim (inline free-dsp-cons))
+(defun free-dsp-cons (cons)
+  (declare (type cons cons))
+  (let ((s (car cons)))
+    (clrhash (dsp-controls s))
+    (rt-eval ()
+      ;; free rt memory
+      (funcall (dsp-free-function s))
+      (set-dummy-functions (dsp-init-function s)
+                           (dsp-perf-function s)
+                           (dsp-free-function s))
+      ;; push/pop in the rt thread
+      (dsp-inst-pool-push-cons cons))))
+
+(defun free-dsp-instance (dsp-prop)
+  (declare (type dsp-properties dsp-prop))
+  (let ((instances #1=(dsp-instances dsp-prop)))
+    (declare (type list instances))
+    (when instances
+      (do ((inst instances old)
+           (old (cdr instances) (cdr old)))
+          ((null inst) (setf #1# nil))
+        (declare (list inst old))
+        (free-dsp-cons inst)))))
+
+(declaim (inline free-dsp-instances))
+(defun free-dsp-instances (&optional name)
+  (if name
+      (let ((dsp-prop (dsp name)))
+        (when dsp-prop
+          (free-dsp-instance dsp-prop)))
+      (maphash-values #'free-dsp-instance *dsp-hash*))
+  (values))
+
+(defun destroy-dsp (name)
+  (when (dsp name)
+    (setf (symbol-function name)
+          (lambda (&rest args) (declare (ignorable args))))
+    (incudine:dograph (n)
+      (when (eq (incudine::node-name n) name)
+        (funcall (incudine::node-free-fn n))))
+    (free-dsp-instances name)
+    (remhash name *dsp-hash*)
+    (fmakunbound name)
+    (values)))

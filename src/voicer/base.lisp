@@ -423,10 +423,10 @@
 (defmacro %create-voicer (old-voicer obj &optional polyphony)
   (with-gensyms (voicer)
     (let* ((func-name (car obj))
-           (synth-properties (gethash func-name incudine.vug::*synth-hash*)))
-      (if synth-properties
+           (dsp-properties (gethash func-name incudine.vug::*dsp-hash*)))
+      (if dsp-properties
           `(let (,@(mapcar (lambda (arg value) `(,arg ,value))
-                           #1=(incudine.vug::synth-arguments synth-properties)
+                           #1=(incudine.vug::dsp-arguments dsp-properties)
                            (cdr obj))
                  (,voicer ,(or old-voicer
                                `(make-voicer ,polyphony))))
@@ -440,13 +440,13 @@
                          (when id (incudine:free id)))))
              (setf (voicer-argument-set-alist ,voicer)
                    (arguments-setter-alist
-                    ,(incudine.vug::synth-arguments synth-properties)))
+                    ,(incudine.vug::dsp-arguments dsp-properties)))
              (%set-default-trigger-function ,voicer ,func-name ,#1#)
              ,@(if old-voicer `((unless (null ',#1#)
                                   (setf #2=(voicer-argument-map-alist ,voicer)
                                         (remove-unused-map #2# ',#1#)))))
              ,voicer)
-          (error "Unknown synth")))))
+          (error "Unknown DSP")))))
 
 (defmacro create (polyphony obj)
   `(%create-voicer nil ,obj ,polyphony))

@@ -32,19 +32,19 @@
     `(progn
        ,(when incudine:*node-enable-gain-p*
           `(initialize
-            (setf (incudine::node-enable-gain-p (synth-node)) t)))
+            (setf (incudine::node-enable-gain-p (dsp-node)) t)))
        (incf (incudine:audio-out current-channel)
              ,(if incudine:*node-enable-gain-p*
                   `(* (mem-aref
-                       (incudine::node-gain-data (synth-node)) 'sample)
+                       (incudine::node-gain-data (dsp-node)) 'sample)
                       ,node-value)
                   node-value)))))
 
 (define-vug-macro node-out (&rest values)
   `(progn
      (initialize
-      (setf (incudine::node-enable-gain-p (synth-node)) t))
+      (setf (incudine::node-enable-gain-p (dsp-node)) t))
      (incf (audio-out current-channel)
            (* (mem-aref
-               (incudine::node-gain-data (synth-node)) 'sample)
+               (incudine::node-gain-data (dsp-node)) 'sample)
               (%out ,@values)))))

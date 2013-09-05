@@ -1,6 +1,6 @@
 (in-package :scratch)
 
-(defsynth flux-rectified-test ((buf buffer) flux-threshold)
+(dsp! flux-rectified-test ((buf buffer) flux-threshold)
   (with ((fft (make-local-fft 2048 2048 (gen:hamming)))
          (abuf (make-local-abuffer fft))
          (hop-size (sample->fixnum (* *sample-rate* 0.1)))

@@ -5,7 +5,7 @@
     (with-samples ((alpha (* +half-pi+ pos)))
       (+ (* (cos alpha) in1) (* (sin alpha) in2)))))
 
-(defsynth flatness-test ()
+(dsp! flatness-test ()
   (with ((fft (make-local-fft 1024 1024 (gen:hanning)))
          (abuf (make-local-abuffer fft))
          (result +sample-zero+))

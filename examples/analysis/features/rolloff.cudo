@@ -1,6 +1,6 @@
 (in-package :scratch)
 
-(defsynth rolloff-test (percent)
+(dsp! rolloff-test (percent)
   (with ((fft (make-local-fft 1024 1024 (gen:hanning)))
          (abuf (make-local-abuffer fft))
          (srdiv2 (* *sample-rate* 0.5))

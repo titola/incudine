@@ -80,7 +80,7 @@
 (define-vug mouse-x ()
   :pre-hook #'mouse-start
   ;; :PRE-HOOK makes sense only during the compilation. A check during
-  ;; the initialization is safe, especially if we use a synth compiled
+  ;; the initialization is safe, especially if we use a DSP compiled
   ;; in a fasl file.
   (initialize (mouse-start))
   (get-mouse-x))

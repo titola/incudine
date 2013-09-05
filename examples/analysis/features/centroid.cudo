@@ -1,6 +1,6 @@
 (in-package :scratch)
 
-(defsynth centroid-test ()
+(dsp! centroid-test ()
   (with ((fft (make-local-fft 1024 512 (gen:hanning)))
          (abuf (make-local-abuffer fft))
          (result +sample-zero+))

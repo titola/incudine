@@ -46,7 +46,7 @@
   (type t)
   (block-p nil :type boolean))
 
-;;; Parameter to control the synth
+;;; Parameter to control the DSP
 (defstruct (vug-parameter (:include vug-object)
                           (:constructor %make-vug-parameter)
                           (:copier nil))
@@ -529,7 +529,7 @@
         ((eq def 'pi) '(sample pi))
         ((and (symbolp def)
               (or (boundp def)
-                  (eq def '%synth-node%)))
+                  (eq def '%dsp-node%)))
          `(make-vug-symbol :name ',def))
         ((and (symbolp def) (eq def 'current-channel))
          `(make-vug-symbol :name 'current-channel :block-p t))
@@ -642,8 +642,8 @@
         (arg-names-and-types lambda-list)
       (multiple-value-bind (doc config vug-body)
           (extract-vug-config body)
-        (if (synth name)
-            (msg error "~A was defined to be a SYNTH." name)
+        (if (dsp name)
+            (msg error "~A was defined to be a DSP." name)
             `(progn
                (defun ,name ,args
                  ,doc
@@ -661,8 +661,8 @@
                                :arg-types ',types))))))))
 
 (defmacro define-vug-macro (name lambda-list &body body)
-  (if (synth name)
-      (msg error "~A was defined to be a SYNTH." name)
+  (if (dsp name)
+      (msg error "~A was defined to be a DSP." name)
       `(progn
          (defmacro ,name ,lambda-list ,@body)
          (setf (gethash ',name *vug-hash*)
