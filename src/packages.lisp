@@ -159,7 +159,7 @@
    #:moogladder #:moogff #:lpf18 #:svf
    #:direct-convolve
    ;; multi-channel
-   #:pan2 #:fpan2
+   #:mono #:stereo #:pan2 #:fpan2
    ;; midi
    #:midi-keynum #:midi-velocity #:midi-poly-aftertouch #:midi-cc
    #:midi-program #:midi-global-aftertouch #:midi-pitch-bend
