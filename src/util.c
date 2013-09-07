@@ -117,10 +117,8 @@ void sndfile_to_buffer(SAMPLE *buf, SNDFILE *sndfile, unsigned long frames,
             break;
         }
         remain -= n;
-        if (remain < chunk_frames) {
+        if (remain < chunk_frames)
             chunk_frames = remain;
-            incr = remain * channels;
-        }
     }
 }
 
@@ -149,10 +147,8 @@ void map_sndfile_ch_to_buffer(SAMPLE *buf, SNDFILE *sndfile, unsigned long frame
             for (k=0; k<channel_map_size; k++)
                 p[channel_map_dest[k]] = curr[channel_map_src[k]];
         }
-        if (remain < chunk_frames) {
+        if (remain < chunk_frames)
             chunk_frames = remain;
-            incr = remain * channels;
-        }
     }
     free(q);
 }
