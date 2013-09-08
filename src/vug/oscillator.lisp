@@ -17,13 +17,16 @@
 (in-package :incudine.vug)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (define-vug phasor (freq init)
-    (with-samples ((phase init)
-                   (inc (* freq *sample-duration*)))
+  (define-vug %phasor (rate init end)
+    (with-samples ((phase init))
       (prog1 phase
-        (incf phase inc)
-        (cond ((>= phase 1.0) (decf phase))
-              ((minusp phase) (incf phase))))))
+        (incf phase rate)
+        (cond ((>= phase end) (decf phase end))
+              ((minusp phase) (incf phase end))))))
+
+  (define-vug phasor (freq init)
+    (with-samples ((rate (* freq *sample-duration*)))
+      (%phasor rate init 1)))
 
   (define-vug phasor-loop (rate start-pos loopstart loopend)
     (with-samples ((pos start-pos)
@@ -639,16 +642,9 @@
                      ,(null (constantp phase)) ,%harm-change-lag ,interpolation))))
       `(gbuzz-hq ,freq ,amp ,num-harm ,lowest-harm ,mul ,phase ,harm-change-lag)))
 
-(define-vug phasor2 (rate init end)
-  (with-samples ((phase init))
-    (prog1 phase
-      (incf phase rate)
-      (cond ((>= phase end) (decf phase end))
-            ((minusp phase) (incf phase end))))))
-
 (define-vug buffer-play ((buffer buffer) rate start-pos (loop-p boolean)
                          (done-action function))
-  (prog1 (buffer-read buffer (phasor2 (* rate (buffer-sample-rate buffer)
+  (prog1 (buffer-read buffer (%phasor (* rate (buffer-sample-rate buffer)
                                          *sample-duration*)
                                       start-pos
                                       (sample (buffer-frames buffer)))
