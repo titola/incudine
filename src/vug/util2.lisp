@@ -165,7 +165,7 @@
            (wrap-cond (,in ,lo ,hi ,delta ,(or offset in))
              ((>= ,in ,hi) (decf ,in ,delta))
              (,(if range `(< ,in ,lo) `(minusp ,in))
-               (incf ,in ,delta)))
+              (incf ,in ,delta)))
            ,in))))
 
   (defmacro %mirror-consequent (in threshold1 threshold2 range
@@ -200,9 +200,12 @@
 
 (declaim (inline clip))
 (defun clip (in low high)
-  (cond ((> in high) high)
-        ((< in low) low)
-        (t in)))
+  (declare (type sample in) (type real low high))
+  (let ((low (sample low))
+        (high (sample high)))
+    (cond ((> in high) high)
+          ((< in low) low)
+          (t in))))
 
 (define-vug wrap (in low high)
   (with-samples ((range (- high low))
