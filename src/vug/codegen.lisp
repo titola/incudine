@@ -656,7 +656,9 @@
                     (:initial-element
                      (dotimes (,i ,size)
                        (setf (mem-aref incudine::data ,type ,i) (cadr ,pair)))))))
-               (t (setf incudine::data (foreign-rt-realloc incudine::data ,type ,@(cddr args))
+               (t (setf incudine::data (foreign-rt-realloc incudine::data ,type
+                                                           ,@(cddr args)
+                                                           :count ,size)
                         incudine::type ,type
                         incudine::size ,size)))
          ,vug-varname))))
