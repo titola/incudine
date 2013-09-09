@@ -26,6 +26,7 @@
    #:fft-destroy-plan #:sample-complex #:sample-polar #:magnitude #:complex-to-polar
    #:polar-to-complex #:fft-execute #:ifft-execute
    #:apply-window #:apply-scaled-window #:apply-scaled-rectwin #:apply-zero-padding
+   #:pconv-multiply-partitions
    #:foreign-copy #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
    #:rt-audio-init #:rt-audio-start #:rt-audio-stop #:rt-get-input #:rt-set-output
    #:rt-condition-wait #:rt-transfer-to-c-thread #:rt-cycle-begin #:rt-cycle-end
@@ -39,8 +40,8 @@
                 #:ensure-symbol)
   (:import-from #:cffi #:foreign-pointer #:foreign-type-size #:with-foreign-object
                 #:mem-ref #:mem-aref #:make-pointer #:pointer-address #:inc-pointer
-                #:foreign-slot-value #:foreign-alloc)
-  (:import-from #:incudine.external #:sample-complex)
+                #:foreign-slot-value #:foreign-alloc #:foreign-free)
+  (:import-from #:incudine.external #:sample-complex #:foreign-alloc-sample)
   (:export
    #:sample #:positive-sample #:negative-sample #:non-negative-sample #:+sample-zero+
    #:non-positive-sample #:*sample-type* #:*use-foreign-sample-p*
@@ -61,6 +62,7 @@
    #:least-positive-sample #:least-negative-sample
    #:next-power-of-two #:power-of-two-p
    #:apply-sample-coerce
+   #:alloc-multi-channel-data #:free-multi-channel-data
    #:foreach-channel
    #:lin->db #:db->lin
    #:linear-interp #:cos-interp #:cubic-interp
@@ -157,7 +159,7 @@
    #:fofilter #:lpf #:hpf #:bpf #:notch #:apf #:peak-eq #:low-shelf #:hi-shelf
    #:butter-lp #:butter-hp #:butter-bp #:butter-br
    #:moogladder #:moogff #:lpf18 #:svf
-   #:direct-convolve
+   #:direct-convolve #:part-convolve
    ;; multi-channel
    #:mono #:stereo #:pan2 #:fpan2
    ;; midi
@@ -195,9 +197,10 @@
   (:import-from #:incudine.util #:sample #:+sample-zero+ #:+twopi+ #:+half-pi+ #:+rtwopi+
                 #:+log001+ #:+pointer-size+ #:+foreign-sample-size+ #:+foreign-complex-size+
                 #:foreign-rt-alloc #:foreign-rt-free #:foreign-pointer
-                #:non-negative-fixnum64 #:*standard-optimize-settings*
-                #:*reduce-warnings* #:sample->fixnum #:sample->int #:rt-eval-if
-                #:rt-thread-p)
+                #:alloc-multi-channel-data #:free-multi-channel-data
+                #:channel-number #:non-negative-fixnum64 #:*standard-optimize-settings*
+                #:*reduce-warnings* #:reduce-warnings #:sample->fixnum #:sample->int
+                #:rt-eval-if #:rt-thread-p)
   (:import-from #:incudine.external #:foreign-alloc-sample #:foreign-zero-sample
                 #:foreign-realloc-sample #:foreign-alloc-fft #:foreign-free-fft
                 #:make-fft-plan #:make-ifft-plan #:fft-destroy-plan #:sample-complex
@@ -209,9 +212,13 @@
            #:window-size #:window-function #:rectangular-window
            #:make-abuffer #:abuffer-time #:abuffer-realpart #:abuffer-imagpart
            #:abuffer-size #:abuffer-link #:abuffer-nbins #:abuffer-normalized-p
+           #:pvbuffer #:buffer->pvbuffer #:pvbuffer-data #:pvbuffer-size #:pvbuffer-frames
+           #:pvbuffer-channels #:pvbuffer-fft-size #:pvbuffer-block-size
+           #:pvbuffer-scale-factor
            #:to-polar #:to-complex
            #:fft #:fft-p #:make-fft #:nbins #:*fft-default-window-function*
-           #:ifft #:ifft-p #:make-ifft #:+fft-best-plan+ #:+fft-fast-plan+
+           #:ifft #:ifft-p #:make-ifft
+           #:+fft-plan-optimal+ #:+fft-plan-best+ #:+fft-plan-fast+
            #:fft-plan #:get-fft-plan #:new-fft-plan #:remove-fft-plan #:fft-plan-list
            #:fft-input #:ifft-output #:fft-size
            #:transform #:compute #:resize

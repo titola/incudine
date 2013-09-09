@@ -289,3 +289,29 @@ void apply_zero_padding(SAMPLE *buffer, unsigned long offset,
     if (offset < size)
         memset(buffer+offset, 0, (size-offset)*sizeof(SAMPLE));
 }
+
+void pconv_multiply_partitions(SAMPLE *output, SAMPLE *fdl, SAMPLE *irdata,
+                               unsigned long fdl_size, unsigned long fdl_read_head,
+                               unsigned long block_size, unsigned long partitions)
+{
+    int i;
+    SAMPLE *fdl_curr, *fdl_end, *out_curr, *out_end;
+
+    fdl_curr = fdl+fdl_read_head;
+    fdl_end = fdl+fdl_size;
+    out_end = output+block_size;
+    memset(output, 0, sizeof(SAMPLE)*block_size);
+    for (i=0; i<partitions; i++) {
+        out_curr = output;
+        while (out_curr < out_end) {
+            /* out_real += fdl_real * ir_real - fdl_imag * ir_imag */
+            *out_curr++ += fdl_curr[0] * irdata[0] - fdl_curr[1] * irdata[1];
+            /* out_imag += fdl_real * ir_imag + fdl_imag * ir_real */
+            *out_curr++ += fdl_curr[0] * irdata[1] + fdl_curr[1] * irdata[0];
+            fdl_curr+=2;
+            irdata+=2;
+        }
+        if (fdl_curr >= fdl_end)
+            fdl_curr = fdl;
+    }
+}

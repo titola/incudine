@@ -24,12 +24,29 @@
      incudine.analysis:abuffer-size
      incudine.analysis:abuffer-link
      incudine.analysis:abuffer-nbins
+     incudine.analysis:rectangular-window
      incudine.analysis:compute
      incudine.analysis:dofft
      incudine.analysis:dofft-polar
      incudine.analysis:dofft-complex
      incudine.analysis:to-polar
-     incudine.analysis:to-complex))
+     incudine.analysis:to-complex
+     incudine.analysis:fft-input
+     incudine.analysis:ifft-output
+     incudine.analysis::copy-from-ring-buffer
+     incudine.analysis::fft-input-buffer
+     incudine.analysis::fft-output-buffer
+     incudine.analysis::fft-ring-buffer
+     incudine.analysis::fft-window-size
+     incudine.analysis::fft-size
+     incudine.analysis::fft-plan
+     incudine.analysis::ifft-input-buffer
+     incudine.analysis::ifft-output-buffer
+     incudine.analysis::ifft-plan
+     incudine.external:fft-execute
+     incudine.external:ifft-execute
+     incudine.external:apply-scaled-rectwin
+     incudine.external:apply-zero-padding))
 
   (object-to-free %make-local-fft update-local-fft)
   (object-to-free %make-local-ifft update-local-ifft))

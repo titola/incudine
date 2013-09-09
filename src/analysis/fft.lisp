@@ -23,12 +23,16 @@
 (declaim (type hash-table *fft-plan*))
 
 (define-constant +fftw-measure+ 0)
+(define-constant +fftw-patient+ (ash 1 5))
 (define-constant +fftw-estimate+ (ash 1 6))
 
-(define-constant +fft-best-plan+ +fftw-measure+
+(define-constant +fft-plan-optimal+ +fftw-patient+
+  :documentation "Slowest computation of an optimal FFT plan.")
+
+(define-constant +fft-plan-best+ +fftw-measure+
   :documentation "Slow computation of an accurate FFT plan.")
 
-(define-constant +fft-fast-plan+ +fftw-estimate+
+(define-constant +fft-plan-fast+ +fftw-estimate+
   :documentation "Fast computation of a reasonable FFT plan.")
 
 (declaim (inline get-fft-plan))
@@ -46,7 +50,7 @@
 (defstruct (fft-plan (:constructor %new-fft-plan))
   (pair (error "missing FFT plans") :type cons)
   (size 8 :type positive-fixnum)
-  (flags +fft-best-plan+ :type fixnum))
+  (flags +fft-plan-best+ :type fixnum))
 
 (defmethod print-object ((obj fft-plan) stream)
   (format stream "#<FFT-PLAN :SIZE ~D :FLAGS ~D>"
@@ -105,14 +109,15 @@ is the plan for a IFFT."
     (if plan
         (if realtime-p
             plan
-            (let ((flags (or flags +fft-best-plan+)))
-              (if (= (fft-plan-flags plan) flags)
+            (let ((flags (or flags +fft-plan-best+)))
+              (if (or (= (fft-plan-flags plan) flags)
+                      (= (fft-plan-flags plan) +fft-plan-optimal+))
                   plan
                   ;; Re-compute the plan
                   (%%new-fft-plan size flags nil))))
         (%%new-fft-plan size (if realtime-p
-                                 +fft-fast-plan+
-                                 (or flags +fft-best-plan+))
+                                 +fft-plan-fast+
+                                 (or flags +fft-plan-best+))
                         realtime-p))))
 
 (defstruct (fft-common (:include analysis)
@@ -229,21 +234,21 @@ is the plan for a IFFT."
 (defmethod compute ((obj fft) &optional arg)
   (declare (ignore arg))
   (when (< (analysis-time obj) (now))
+    (let ((fftsize (fft-size obj))
+          (winsize (fft-window-size obj)))
     (copy-from-ring-buffer (fft-input-buffer obj)
                            (fft-ring-buffer obj)
-                           (fft-size obj))
+                           fftsize)
     (unless (eq (fft-window-function obj) #'rectangular-window)
       (apply-window (fft-input-buffer obj)
                     (fft-window-buffer obj)
-                    (fft-window-size obj)))
-    (apply-zero-padding (fft-input-buffer obj)
-                        (fft-window-size obj)
-                        (fft-size obj))
+                    winsize))
+    (apply-zero-padding (fft-input-buffer obj) winsize fftsize)
     (fft-execute (fft-plan obj)
                  (fft-input-buffer obj)
                  (fft-output-buffer obj))
     (setf (analysis-time obj) (now))
-    t))
+    t)))
 
 (declaim (inline fft-input))
 (defun fft-input (fft)

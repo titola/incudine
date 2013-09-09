@@ -94,6 +94,23 @@
       (cons (apply-sample-coerce (car form))
             (apply-sample-coerce (cdr form)))))
 
+(defun alloc-multi-channel-data (channels size)
+  (declare (type channel-number channels)
+           (type positive-fixnum size))
+  (let ((ptr (cffi:foreign-alloc :pointer :count channels)))
+    (dotimes (ch channels ptr)
+      (declare (type channel-number ch))
+      (setf (cffi:mem-aref ptr :pointer ch)
+            (foreign-alloc-sample size)))))
+
+(defun free-multi-channel-data (data channels)
+  (dotimes (ch channels)
+    (let ((frame (cffi:mem-aref data :pointer ch)))
+      (unless (cffi:null-pointer-p frame)
+        (foreign-free frame))))
+  (foreign-free data)
+  (values))
+
 (defmacro foreach-channel ((var channels &optional (result nil))
                            &body body)
   `(do ((,var 0 (1+ ,var)))

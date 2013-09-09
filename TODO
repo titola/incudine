@@ -1,9 +1,12 @@
-(no particular order)
+* High priority
+
+  - Code to also use ECL (Embeddable Common Lisp)
+
+(no particular order for the rest)
 
 * VUGs
 
   - diskin (play a soundfile from disk)
-  - convolution (fft, hybrid?)
   - facility for microsounds (pulsar, etc)
   - reverberation (FDN ?)
   - compressor/expander/limiter/gate

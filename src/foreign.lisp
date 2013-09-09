@@ -316,6 +316,16 @@
   (offset :unsigned-long)
   (size   :unsigned-long))
 
+(declaim (inline pconv-multiply-partitions))
+(cffi:defcfun "pconv_multiply_partitions" :void
+  (output        :pointer)
+  (fdl           :pointer)
+  (irdata        :pointer)
+  (fdl-size      :unsigned-long)
+  (fdl-read-head :unsigned-long)
+  (block-size    :unsigned-long)
+  (partitions    :unsigned-long))
+
 ;;; COMPLEX TYPES
 
 (cffi:defcstruct sample-complex
