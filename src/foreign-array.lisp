@@ -31,7 +31,8 @@
                                  :initial-contents initial-contents))
          (obj (%make-foreign-array :data data :size dimension
                                    :type element-type)))
-    (tg:finalize obj (lambda () (foreign-rt-free data)))
+    (tg:finalize obj (lambda ()
+                       (rt-eval () (foreign-rt-free data))))
     obj))
 
 (declaim (inline free-foreign-array))
