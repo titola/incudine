@@ -264,20 +264,17 @@ void apply_window(SAMPLE *buffer, SAMPLE *window, unsigned long winsize)
 }
 
 void apply_scaled_window(SAMPLE *buffer, SAMPLE *window,
-                         unsigned long winsize, unsigned long size)
+                         unsigned long winsize, SAMPLE mult)
 {
     unsigned long i;
-    SAMPLE mult = (SAMPLE) 1.0 / size;
 
     for (i=0; i<winsize; i++)
         buffer[i] *= window[i] * mult;
 }
 
-void apply_scaled_rectwin(SAMPLE *buffer, unsigned long winsize,
-                          unsigned long size)
+void apply_scaled_rectwin(SAMPLE *buffer, unsigned long winsize, SAMPLE mult)
 {
     unsigned long i;
-    SAMPLE mult = (SAMPLE) 1.0 / size;
 
     for (i=0; i<winsize; i++)
         buffer[i] *= mult;

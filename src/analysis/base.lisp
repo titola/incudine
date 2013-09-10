@@ -176,6 +176,7 @@
   (input-buffer (error "missing INPUT-BUFFER") :type foreign-pointer)
   (output-buffer (error "missing OUTPUT-BUFFER") :type foreign-pointer)
   (output-complex-p nil :type boolean)
+  (scale-factor (sample 1) :type sample)
   (time-ptr (error "missing TIME-PTR") :type foreign-pointer)
   (real-time-p nil :type boolean)
   (foreign-free #'foreign-free :type function))
@@ -202,6 +203,7 @@
   (data (error "missing data for the abuffer") :type foreign-pointer)
   (size 0 :type non-negative-fixnum)
   (nbins 0 :type non-negative-fixnum)
+  (scale-factor (sample 1) :type sample)
   (time-ptr (error "missing time-ptr pointer for the abuffer") :type foreign-pointer)
   (link nil :type (or analysis null))
   (coord-complex-p nil :type boolean)
@@ -227,6 +229,7 @@
         (let ((obj (%make-abuffer :data data
                       :size size
                       :nbins nbins
+                      :scale-factor (analysis-scale-factor analysis-object)
                       :time-ptr time-ptr
                       :link analysis-object
                       :coord-complex-p coord-complex-p

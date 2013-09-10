@@ -112,7 +112,7 @@
          (obj (reduce-warnings
                 (make-pvbuffer :data data :size size :frames partitions
                                :channels channels :fft-size fft-size
-                               :scale-factor (/ (sample fft-size))
+                               :scale-factor (fft-scale-factor fft)
                                :block-size block-size))))
     (declare (type non-negative-fixnum channels partitions fft-size
                    block-size size))

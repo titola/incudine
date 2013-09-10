@@ -295,22 +295,26 @@
 
 ;;; ANALYSIS
 
+(declaim (inline apply-window))
 (cffi:defcfun "apply_window" :void
   (buffer      :pointer)
   (window      :pointer)
   (window-size :unsigned-long))
 
+(declaim (inline apply-scaled-window))
 (cffi:defcfun "apply_scaled_window" :void
   (buffer      :pointer)
   (window      :pointer)
   (window-size :unsigned-long)
-  (size        :unsigned-long))
+  (mult        sample))
 
+(declaim (inline apply-scaled-rectwin))
 (cffi:defcfun "apply_scaled_rectwin" :void
   (buffer      :pointer)
   (window-size :unsigned-long)
-  (size        :unsigned-long))
+  (mult        sample))
 
+(declaim (inline apply-zero-padding))
 (cffi:defcfun "apply_zero_padding" :void
   (buffer :pointer)
   (offset :unsigned-long)

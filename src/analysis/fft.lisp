@@ -215,6 +215,7 @@ is the plan for a IFFT."
                  :window-function window-function
                  :nbins nbins
                  :output-complex-p t
+                 :scale-factor (/ (sample 1) size)
                  :time-ptr time-ptr
                  :real-time-p real-time-p
                  :foreign-free (if real-time-p
@@ -331,9 +332,9 @@ is the plan for a IFFT."
                          (ifft-window-size obj))))
         ((eq (ifft-window-function obj) #'rectangular-window)
          (apply-scaled-rectwin (ifft-output-buffer obj) (ifft-window-size obj)
-                               (ifft-size obj)))
+                               (abuffer-scale-factor abuf)))
         (t (apply-scaled-window (ifft-output-buffer obj) (ifft-window-buffer obj)
-                                (ifft-window-size obj) (ifft-size obj)))))
+                                (ifft-window-size obj) (abuffer-scale-factor abuf)))))
 
 (defmethod compute ((obj ifft) &optional arg)
   (when (< (analysis-time obj) (now))
