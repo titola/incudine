@@ -724,7 +724,8 @@
   (setf (node-funcons group) nil)
   (if (node-root-p group)
       (setf (node-next group) nil
-            (node-last group) :dummy-node)
+            (node-last group) :dummy-node
+            (node-pause-p group) nil)
       (remove-node-from-hash group)))
 
 (defun unlink-prev (n1 n2)
