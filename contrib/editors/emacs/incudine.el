@@ -58,8 +58,11 @@ If this is nil, no message will be displayed."
             (insert incudine-scratch-message))))
     (switch-to-buffer buffer)))
 
-(defun incudine-eval (string)
-  (slime-interactive-eval string))
+(defun incudine-eval (string &rest args)
+  (slime-eval-with-transcript
+   `(swank:interactive-eval ,(if args
+                                 (apply #'format string args)
+                               string))))
 
 (defun incudine-eval-defun ()
   (interactive)
@@ -113,6 +116,21 @@ If this is nil, no message will be displayed."
   (interactive)
   (incudine-eval "(incudine:free incudine:*node-root*)"))
 
+(defun prefix-numeric-value0 (n)
+  (if n (prefix-numeric-value n) 0))
+
+(defun incudine-pause-node (&optional id)
+  "Pause node."
+  (interactive "P")
+  (let ((node (prefix-numeric-value0 id)))
+    (incudine-eval "(incudine:pause %d)" node)))
+
+(defun incudine-unpause-node (&optional id)
+  "Pause node."
+  (interactive "P")
+  (incudine-eval "(incudine:unpause %d)"
+                 (prefix-numeric-value0 id)))
+
 (defun incudine-mode-keybindings (map)
   "Incudine keybindings."
   (define-key map [C-return] 'incudine-eval-and-next-fn)
@@ -123,12 +141,18 @@ If this is nil, no message will be displayed."
   (define-key map [next] 'incudine-next-defun)
   (define-key map "\C-cv" 'incudine-show-repl)
   (define-key map "\C-cs" 'incudine-scratch)
-  (define-key map "\C-c\M-o" 'incudine-repl-clear-buffer))
+  (define-key map "\C-c\M-o" 'incudine-repl-clear-buffer)
+  (define-key map "\C-cp" 'incudine-pause-node)
+  (define-key map "\C-cu" 'incudine-unpause-node))
 
 (defun incudine-mode-menu (map)
   "Incudine menu."
   (define-key map [menu-bar incudine]
     (cons "Incudine" (make-sparse-keymap "incudine")))
+  (define-key map [menu-bar incudine unpause-node]
+    '("Unpause" . incudine-unpause-node))
+  (define-key map [menu-bar incudine pause-node]
+    '("Pause" . incudine-pause-node))
   (define-key map [menu-bar incudine stop-graph]
     '("Stop Playing" . incudine-stop-graph))
   (define-key map [menu-bar incudine clear-repl]
