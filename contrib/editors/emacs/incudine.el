@@ -122,14 +122,19 @@ If this is nil, no message will be displayed."
 (defun incudine-pause-node (&optional id)
   "Pause node."
   (interactive "P")
-  (let ((node (prefix-numeric-value0 id)))
-    (incudine-eval "(incudine:pause %d)" node)))
+  (incudine-eval "(incudine:pause %d)"
+                 (prefix-numeric-value0 id)))
 
 (defun incudine-unpause-node (&optional id)
   "Pause node."
   (interactive "P")
   (incudine-eval "(incudine:unpause %d)"
                  (prefix-numeric-value0 id)))
+
+(defun incudine-gc ()
+  "Initiate a garbage collection."
+  (interactive)
+  (incudine-eval "(tg:gc :full t)"))
 
 (defun incudine-mode-keybindings (map)
   "Incudine keybindings."
@@ -143,12 +148,15 @@ If this is nil, no message will be displayed."
   (define-key map "\C-cs" 'incudine-scratch)
   (define-key map "\C-c\M-o" 'incudine-repl-clear-buffer)
   (define-key map "\C-cp" 'incudine-pause-node)
-  (define-key map "\C-cu" 'incudine-unpause-node))
+  (define-key map "\C-cu" 'incudine-unpause-node)
+  (define-key map "\C-cG" 'incudine-gc))
 
 (defun incudine-mode-menu (map)
   "Incudine menu."
   (define-key map [menu-bar incudine]
     (cons "Incudine" (make-sparse-keymap "incudine")))
+  (define-key map [menu-bar incudine gc]
+    '("Garbage Collection" . incudine-gc))
   (define-key map [menu-bar incudine unpause-node]
     '("Unpause" . incudine-unpause-node))
   (define-key map [menu-bar incudine pause-node]
