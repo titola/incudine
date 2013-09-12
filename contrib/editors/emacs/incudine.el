@@ -85,17 +85,14 @@ If this is nil, no message will be displayed."
   (interactive "p")
   (end-of-defun)
   (beginning-of-defun)
-  (if n
-      (loop repeat n do (beginning-of-defun))
-    (beginning-of-defun))
+  (loop repeat n do (beginning-of-defun))
   (forward-sexp))
 
 (defun incudine-next-defun (&optional n)
   "Jump at the end of the next defun."
   (interactive "p")
   (end-of-defun)
-  (if n (loop repeat n do (end-of-defun))
-    (forward-sexp))
+  (loop repeat n do (end-of-defun))
   (beginning-of-defun)
   (forward-sexp))
 
@@ -110,6 +107,16 @@ If this is nil, no message will be displayed."
   (interactive)
   (slime-eval-defun)
   (incudine-prev-defun))
+
+(defun incudine-rt-start ()
+  "Realtime start."
+  (interactive)
+  (incudine-eval "(incudine:rt-start)"))
+
+(defun incudine-rt-stop ()
+  "Realtime start."
+  (interactive)
+  (incudine-eval "(incudine:rt-stop)"))
 
 (defun incudine-stop-graph ()
   "Stop Playing."
@@ -153,6 +160,8 @@ If this is nil, no message will be displayed."
   (define-key map "\C-cv" 'incudine-show-repl)
   (define-key map "\C-cs" 'incudine-scratch)
   (define-key map "\C-c\M-o" 'incudine-repl-clear-buffer)
+  (define-key map "\C-crs" 'incudine-rt-start)
+  (define-key map "\C-crq" 'incudine-rt-stop)
   (define-key map "\C-cp" 'incudine-pause-node)
   (define-key map "\C-cu" 'incudine-unpause-node)
   (define-key map "\C-cgc" 'incudine-gc)
@@ -170,6 +179,10 @@ If this is nil, no message will be displayed."
     '("Pause" . incudine-pause-node))
   (define-key map [menu-bar incudine stop-graph]
     '("Stop Playing" . incudine-stop-graph))
+  (define-key map [menu-bar incudine rt-stop]
+    '("Realtime Stop" . incudine-rt-stop))
+  (define-key map [menu-bar incudine rt-start]
+    '("Realtime Start" . incudine-rt-start))
   (define-key map [menu-bar incudine clear-repl]
     '("REPL Clear Buffer" . incudine-repl-clear-buffer))
   (define-key map [menu-bar incudine show-repl]
