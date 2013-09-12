@@ -85,14 +85,18 @@ If this is nil, no message will be displayed."
   (interactive "p")
   (end-of-defun)
   (beginning-of-defun)
-  (loop repeat n do (beginning-of-defun))
+  (if n
+      (loop repeat n do (beginning-of-defun))
+    (beginning-of-defun))
   (forward-sexp))
 
 (defun incudine-next-defun (&optional n)
   "Jump at the end of the next defun."
   (interactive "p")
   (end-of-defun)
-  (loop repeat n do (end-of-defun))
+  (if n
+      (loop repeat n do (end-of-defun))
+     (forward-sexp))
   (beginning-of-defun)
   (forward-sexp))
 
@@ -138,6 +142,12 @@ If this is nil, no message will be displayed."
   (incudine-eval "(incudine:unpause %d)"
                  (prefix-numeric-value0 id)))
 
+(defun incudine-dump-graph (&optional node)
+  "Print informations about the graph of nodes."
+  (interactive "P")
+  (incudine-eval "(incudine:dump (node %d))"
+                 (prefix-numeric-value0 node)))
+
 (defun incudine-gc ()
   "Initiate a garbage collection."
   (interactive)
@@ -165,12 +175,15 @@ If this is nil, no message will be displayed."
   (define-key map "\C-cp" 'incudine-pause-node)
   (define-key map "\C-cu" 'incudine-unpause-node)
   (define-key map "\C-cgc" 'incudine-gc)
-  (define-key map "\C-cgb" 'incudine-bytes-consed-in))
+  (define-key map "\C-cgb" 'incudine-bytes-consed-in)
+  (define-key map "\C-cig" 'incudine-dump-graph))
 
 (defun incudine-mode-menu (map)
   "Incudine menu."
   (define-key map [menu-bar incudine]
     (cons "Incudine" (make-sparse-keymap "incudine")))
+  (define-key map [menu-bar incudine dump-graph]
+    '("Print Graph" . incudine-dump-graph))
   (define-key map [menu-bar incudine gc]
     '("Garbage Collection" . incudine-gc))
   (define-key map [menu-bar incudine unpause-node]
