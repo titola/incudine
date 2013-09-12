@@ -136,6 +136,12 @@ If this is nil, no message will be displayed."
   (interactive)
   (incudine-eval "(tg:gc :full t)"))
 
+(defun incudine-bytes-consed-in (&optional time)
+  "Rough estimate of the bytes consed in TIME seconds."
+  (interactive "p")
+  (incudine-eval "(incudine.util:get-bytes-consed-in %d)"
+                 (prefix-numeric-value time)))
+
 (defun incudine-mode-keybindings (map)
   "Incudine keybindings."
   (define-key map [C-return] 'incudine-eval-and-next-fn)
@@ -149,7 +155,8 @@ If this is nil, no message will be displayed."
   (define-key map "\C-c\M-o" 'incudine-repl-clear-buffer)
   (define-key map "\C-cp" 'incudine-pause-node)
   (define-key map "\C-cu" 'incudine-unpause-node)
-  (define-key map "\C-cG" 'incudine-gc))
+  (define-key map "\C-cgc" 'incudine-gc)
+  (define-key map "\C-cgb" 'incudine-bytes-consed-in))
 
 (defun incudine-mode-menu (map)
   "Incudine menu."
