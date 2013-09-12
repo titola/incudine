@@ -301,17 +301,6 @@
                                           '(:struct sample-complex) 'imagpart)))
          ,@body))))
 
-(define-constant +double-float-bias+ 1022)
-(define-constant +double-float-digits+ 53)
-
-(declaim (inline double-float-exponent))
-(defun double-float-exponent (x)
-  (declare (type double-float x)
-           #+(or cmu sbcl) (values fixnum))
-  (- (ldb '(11 . 20) (double-float-high-bits x))
-     +double-float-bias+
-     +double-float-digits+))
-
 ;;; Spinlock
 
 (defstruct (spinlock (:constructor make-spinlock (&optional name))

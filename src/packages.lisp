@@ -49,7 +49,6 @@
    #:+twopi+ #:+half-pi+ #:+rtwopi+ #:+log001+ #:+sqrt2+
    #:+table-maxlen+ #:+max-lobits+ #:+phase-mask+ #:+rad2inc+ #:*cps2inc*
    #:*pi-div-sr* #:*minus-pi-div-sr* #:*twopi-div-sr*
-   #:+double-float-bias+ #:+double-float-digits+
    #:+pointer-size+ #:+foreign-sample-size+ #:+foreign-complex-size+
    #:*sample-rate* #:*sample-duration* #:*sound-velocity* #:*r-sound-velocity*
    #:*max-number-of-channels* #:*audio-driver* #:*client-name*
@@ -89,7 +88,6 @@
    #:with-foreign-object #:with-samples #:with-samples*
    #:with-complex
    #:do-complex
-   #:double-float-high-bits #:double-float-exponent
    #:spinlock #:make-spinlock #:acquire-spinlock #:release-spinlock
    #:with-spinlock-held
    #:cons-pool #:make-cons-pool #:expand-cons-pool #:cons-pool-size

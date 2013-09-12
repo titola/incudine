@@ -67,10 +67,6 @@
   `(when sb-kernel:*stop-for-gc-pending*
      ,@body))
 
-;;; Used only in DOUBLE-FLOAT-EXPONENT (that it's unused)
-(defmacro double-float-high-bits (x)
-  `(sb-kernel:double-float-high-bits ,x))
-
 ;;; DEBUG
 
 (defun get-bytes-consed-in (time)

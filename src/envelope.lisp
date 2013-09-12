@@ -21,8 +21,7 @@
 (defvar *envelope-default-max-points* 8)
 (declaim (type non-negative-fixnum *envelope-default-max-points*))
 
-;;; Values of the constants useful to get an index from 0 to 6 when
-;;; passed to DOUBLE-FLOAT-EXPONENT (unused)
+;;; Values of the constants used in the past to get an index from 0 to 6
 (define-constant +seg-step-func+   (sample  5e15))
 (define-constant +seg-lin-func+    (sample  1e16))
 (define-constant +seg-exp-func+    (sample  2e16))
