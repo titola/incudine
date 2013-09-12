@@ -27,7 +27,7 @@
     (+ in (* coef x))))
 
 (define-vug two-pole (in freq radius)
-  (with-samples ((a1 (* 2 radius (cos (* +twopi+ freq *sample-duration*))))
+  (with-samples ((a1 (* 2 radius (cos (* freq *twopi-div-sr*))))
                  (a2 (- (* radius radius)))
                  (y0 0.0d0)
                  (y1 0.0d0)
@@ -36,7 +36,7 @@
       (setf y2 y1 y1 y0))))
 
 (define-vug two-zero (in freq radius)
-  (with-samples ((b1 (* -2 radius (cos (* +twopi+ freq *sample-duration*))))
+  (with-samples ((b1 (* -2 radius (cos (* freq *twopi-div-sr*))))
                  (b2 (* radius radius))
                  (x1 0.0d0)
                  (x2 0.0d0))
@@ -85,7 +85,7 @@
           x2 x1 x1 in y2 y1 y1 y)
     y))
 
-;;; Two pole resonant filter with zeroes located at z = 1 and z = -1.
+;;; Two pole resonant filters.
 ;;;
 ;;; References:
 ;;;
@@ -96,40 +96,55 @@
 ;;;   [2] Ken Steiglitz, "A Note on Constant-Gain Digital Resonators,"
 ;;;   Computer Music Journal, vol. 18, no. 4, pp. 8-10, Winter 1982.
 ;;;
-(define-vug %resonz (in freq wt cos-wt r rr gain)
-  (with-samples ((2r (+ r r))
-                 (k (/ (* 2r cos-wt) (+ 1 rr)))
-                 (a1 (* 2r k))
-                 (a2 (- rr))
-                 (y0 0.0d0)
-                 (y1 0.0d0)
-                 (y2 0.0d0))
-    (setf y0 (+ in (* a1 y1) (* a2 y2)))
-    (prog1 (* gain (- y0 y2))
-      (setf y2 y1 y1 y0))))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defmacro with-reson-common ((wt-var radius-var freq q) &body body)
+    `(with-samples ((,wt-var (* ,freq *twopi-div-sr*))
+                    (,radius-var (exp (* (/ ,freq ,q)
+                                         *minus-pi-div-sr*))))
+       ,@body)))
+
+(define-vug reson (in freq q)
+  "Two pole resonant filter."
+  (with-reson-common (wt r freq q)
+    (with-samples ((rr (* r r)))
+      (biquad in (* (- 1 rr) (sin wt))
+              0 0 1 (- (* 2 r (cos wt))) rr))))
 
 (define-vug resonz (in freq q)
-  (with-samples ((wt (* +twopi+ freq *sample-duration*))
-                 (bw (/ wt q))
-                 (r (- 1 (* bw 0.5)))
-                 (rr (* r r)))
-    (%resonz in freq wt (cos wt) r rr (* (- 1 rr) 0.5))))
+  "Two pole resonant filter with zeroes located at z = 1 and z = -1."
+  (with-reson-common (wt r freq q)
+    (with-samples ((rr (* r r))
+                   (scale (* (- 1 rr) 0.5)))
+      (biquad in scale 0 (- scale) 1 (- (* 2 r (cos wt))) rr))))
+
+(define-vug resonr (in freq q)
+  "Two pole resonant filter with zeroes located at +/- sqrt(R)."
+  (with-reson-common (wt r freq q)
+    (with-samples ((scale (- 1 r)))
+      (biquad in scale 0 (* scale (- r)) 1 (- (* 2 r (cos wt))) (* r r)))))
 
 ;;; It is the same as RESONZ with the bandwidth specified in a 60dB
-;;; ring decay time. Inspired by Ringz in SuperCollider but it is a
-;;; constant gain digital resonator. We can get the original behavior
-;;; removing the multiplier `(- 1 rr)' in %RESONZ
+;;; ring decay time. Inspired by Ringz in SuperCollider.
 (define-vug ringz (in freq decay-time)
-  (with-samples ((wt (* +twopi+ freq *sample-duration*))
+  (with-samples ((wt (* freq *twopi-div-sr*))
                  (r (t60->pole decay-time))
-                 (rr (* r r)))
-    (%resonz in freq wt (cos wt) r rr (* (- 1 rr) 0.5))))
+                 (rr (* r r))
+                 (scale (* (- 1 rr) 0.5)))
+    (biquad in scale 0 (- scale) 1 (- (* 2 r (cos wt))) rr)))
+
+;;; It is the same as RESONR with the bandwidth specified in a 60dB
+;;; ring decay time.
+(define-vug ringr (in freq decay-time)
+  (with-samples ((wt (* freq *twopi-div-sr*))
+                 (r (t60->pole decay-time))
+                 (scale (- 1 r)))
+    (biquad in scale 0 (* scale (- r)) 1 (- (* 2 r (cos wt))) (* r r))))
 
 ;;; FOF-like filter based on James McCartney's Formlet.
 ;;; The name is FOFILTER (used also in Csound) to avoid confusion with
 ;;; FORMLET and LET.
 (define-vug fofilter (in freq attack-time decay-time)
-  (with-samples ((wt (* +twopi+ freq *sample-duration*))
+  (with-samples ((wt (* freq *twopi-div-sr*))
                  (cos-wt (cos wt))
                  (r0 (t60->pole attack-time))
                  (r1 (t60->pole decay-time)))
@@ -141,7 +156,7 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defmacro %%with-biquad-common (bindings &body body)
-    `(with-samples ((w0 (* +twopi+ freq *sample-duration*))
+    `(with-samples ((w0 (* freq *twopi-div-sr*))
                     (cos-w0 (cos w0))
                     (sin-w0 (sin w0))
                     ,@bindings)
@@ -155,14 +170,16 @@
 
   (defmacro %with-biquad-shelf-common (&body body)
     `(%%with-biquad-common
-         ((gain (expt (sample 10) (/ db (sample 40))))
-          (alpha (* sin-w0 0.5 (sqrt (+ 2.0 (* (+ gain (/ gain))
-                                               (- (/ s) 1.0))))))
+         ((gain (expt (sample 10) (* db (sample 0.025))))
+          (alpha (* sin-w0 0.5
+                    (sqrt (the non-negative-sample
+                            (+ 2.0 (* (+ gain (/ gain))
+                                      (- (/ s) 1.0)))))))
           (c1 (+ gain 1.0))
           (c2 (- gain 1.0))
           (c3 (* c1 cos-w0))
           (c4 (* c2 cos-w0))
-          (c5 (* 2 (sqrt gain) alpha)))
+          (c5 (* 2 (sqrt (the non-negative-sample gain)) alpha)))
        ,@body)))
 
 (define-vug lpf (in freq q)
@@ -196,7 +213,7 @@
 
 (define-vug peak-eq (in freq q db)
   (%with-biquad-common
-      ((gain (expt (sample 10) (/ db (sample 40))))
+      ((gain (expt (sample 10) (* db (sample 0.025))))
        (c1 (* alpha gain))
        (c2 (/ alpha gain))
        (b1 (- (* 2.0 cos-w0))))
@@ -231,7 +248,7 @@
            (setf ,old2 ,old1 ,old1 ,value))))))
 
 (define-vug butter-lp (in fcut)
-  (with-samples ((c (/ 1.0 (tan (* pi fcut *sample-duration*))))
+  (with-samples ((c (/ 1.0 (tan (* fcut *pi-div-sr*))))
                  (cc (* c c))
                  (sqrt2-mult-c (* +sqrt2+ c))
                  (c1 (/ 1.0 (+ 1.0 sqrt2-mult-c cc)))
@@ -241,7 +258,7 @@
     (%butter-filter in c1 c2 c1 c4 c5)))
 
 (define-vug butter-hp (in fcut)
-  (with-samples ((c (tan (* pi fcut *sample-duration*)))
+  (with-samples ((c (tan (* fcut *pi-div-sr*)))
                  (cc (* c c))
                  (sqrt2-mult-c (* +sqrt2+ c))
                  (c1 (/ 1.0 (+ 1.0 sqrt2-mult-c cc)))
@@ -251,8 +268,8 @@
     (%butter-filter in c1 c2 c1 c4 c5)))
 
 (define-vug butter-bp (in fcut bandwidth)
-  (with-samples ((c (/ 1.0 (tan (* pi bandwidth *sample-duration*))))
-                 (d (* 2.0 (cos (* +twopi+ fcut *sample-duration*))))
+  (with-samples ((c (/ 1.0 (tan (* bandwidth *pi-div-sr*))))
+                 (d (* 2.0 (cos (* fcut *twopi-div-sr*))))
                  (c1 (/ 1.0 (+ 1.0 c)))
                  (c3 (- c1))
                  (c4 (* (- c) d c1))
@@ -260,8 +277,8 @@
     (%butter-filter in c1 0.0 c3 c4 c5)))
 
 (define-vug butter-br (in fcut bandwidth)
-  (with-samples ((c (tan (* pi bandwidth *sample-duration*)))
-                 (d (* 2.0 (cos (* +twopi+ fcut *sample-duration*))))
+  (with-samples ((c (tan (* bandwidth *pi-div-sr*)))
+                 (d (* 2.0 (cos (* fcut *twopi-div-sr*))))
                  (c1 (/ 1.0 (+ 1.0 c)))
                  (c2 (- (* d c1)))
                  (c5 (* (- 1.0 c) c1)))

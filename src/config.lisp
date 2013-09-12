@@ -129,16 +129,28 @@
   (defvar *cps2inc* (* +table-maxlen+ *sample-duration*))
   (declaim (type sample *cps2inc*))
 
-  (defvar *cps2inc-to-hook-p* nil)
+  (defvar *pi-div-sr* (* pi *sample-duration*))
+  (declaim (type sample *pi-div-sr*))
 
-  (defun add-cps2inc-update-to-hook ()
-    (unless *cps2inc-to-hook-p*
+  (defvar *minus-pi-div-sr* (- *pi-div-sr*))
+  (declaim (type sample *minus-pi-div-sr*))
+
+  (defvar *twopi-div-sr* (* 2 *pi-div-sr*))
+  (declaim (type sample *twopi-div-sr*))
+
+  (defvar *sample-rate-deps-to-hook-p* nil)
+
+  (defun sample-rate-deps-update-to-hook ()
+    (unless *sample-rate-deps-to-hook-p*
       (pushnew (lambda ()
-                 (setf *cps2inc* (* +table-maxlen+ *sample-duration*)))
+                 (setf *cps2inc* (* +table-maxlen+ *sample-duration*)
+                       *pi-div-sr* (* pi *sample-duration*)
+                       *minus-pi-div-sr* (- *pi-div-sr*)
+                       *twopi-div-sr* (* 2 *pi-div-sr*)))
                sample-duration-hook)
-      (setf *cps2inc-to-hook-p* t)))
+      (setf *sample-rate-deps-to-hook-p* t)))
 
-  (add-cps2inc-update-to-hook)
+  (sample-rate-deps-update-to-hook)
 
   (declaim (inline next-power-of-two))
   (defun next-power-of-two (n)

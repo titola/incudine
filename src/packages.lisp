@@ -48,6 +48,7 @@
    #:frame
    #:+twopi+ #:+half-pi+ #:+rtwopi+ #:+log001+ #:+sqrt2+
    #:+table-maxlen+ #:+max-lobits+ #:+phase-mask+ #:+rad2inc+ #:*cps2inc*
+   #:*pi-div-sr* #:*minus-pi-div-sr* #:*twopi-div-sr*
    #:+double-float-bias+ #:+double-float-digits+
    #:+pointer-size+ #:+foreign-sample-size+ #:+foreign-complex-size+
    #:*sample-rate* #:*sample-duration* #:*sound-velocity* #:*r-sound-velocity*
@@ -155,7 +156,8 @@
    #:delay-feedback
    ;; filter
    #:one-pole #:one-zero #:two-pole #:two-zero #:dcblock #:lag #:lag-ud
-   #:env-follower #:maf #:median #:decay #:decay-2 #:biquad #:resonz #:ringz
+   #:env-follower #:maf #:median #:decay #:decay-2 #:biquad #:reson
+   #:resonz #:resonr #:ringz #:ringr
    #:fofilter #:lpf #:hpf #:bpf #:notch #:apf #:peak-eq #:low-shelf #:hi-shelf
    #:butter-lp #:butter-hp #:butter-bp #:butter-br
    #:moogladder #:moogff #:lpf18 #:svf

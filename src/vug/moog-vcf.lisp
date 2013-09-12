@@ -61,7 +61,7 @@
 ;;; ICMC07, Copenhagen.
 (define-vug moogff (in freq resonance (reset-p boolean))
   (with-samples (y s s1 s2 s3 s4 u past future)
-    (with ((wc (* 2.0 (tan (* pi freq *sample-duration*))
+    (with ((wc (* 2.0 (tan (* freq *pi-div-sr*))
                   *sample-rate*))
            (wct (if (plusp wc) (* *sample-duration* wc) +sample-zero+))
            (b0 (/ wct (+ wct 2.0)))
