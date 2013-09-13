@@ -270,7 +270,8 @@
    #:buffer-mask #:buffer-data #:set-buffer-data #:data-ref #:buffer-value
    #:buffer-size #:buffer-frames #:buffer-channels #:buffer-sample-rate
    #:buffer-value #:buffer-mask #:buffer-lobits #:buffer-lomask #:buffer-lodiv
-   #:buffer-file #:buffer-load #:map-buffer #:map-into-buffer #:buffer->list
+   #:buffer-file #:buffer-load #:buffer-save #:map-buffer #:map-into-buffer
+   #:buffer->list
    #:scale #:rescale #:normalize
    #:foreign-array #:make-foreign-array #:foreign-array-data #:foreign-array-type
    #:sample-rate #:filename #:free #:free-p #:stop #:touch

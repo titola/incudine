@@ -229,6 +229,47 @@ It is possible to use line comments that begin with the `;' char."
                     (sample (sf:sample-rate info))))
           buffer)))))
 
+(defmacro writef-sample (sndfile ptr items)
+  `(,(if (eq *sample-type* 'double-float)
+         'sf:writef-double
+         'sf:writef-float)
+    ,sndfile ,ptr ,items))
+
+(declaim (inline save-data-to-textfile))
+(defun save-data-to-textfile (data path size)
+  (with-open-file (f path :direction :output :if-exists :supersede)
+    (dotimes (i size) (format f "~F~%" (data-ref data i)))))
+
+(defun buffer-save (buf path &key (start 0) (end 0) sample-rate
+                    textfile-p (header-type *default-header-type*)
+                    (data-format *default-data-format*))
+  (declare (type buffer buf) (type (or string pathname) path)
+           (type alexandria:non-negative-real start end)
+           (type (or alexandria:positive-real null) sample-rate))
+  (let* ((offset (floor (if (< 0 start (buffer-frames buf)) start 0)))
+         (max-frames (- (buffer-frames buf) offset))
+         (frames (floor (if (and (plusp end) (> end offset))
+                            (min (- end offset) max-frames)
+                            max-frames)))
+         (sr (floor (or sample-rate (buffer-sample-rate buf))))
+         (data (if (plusp offset)
+                   (inc-pointer (buffer-data buf)
+                                (* offset (buffer-channels buf)
+                                   +foreign-sample-size+))
+                   (buffer-data buf))))
+    (declare (type non-negative-fixnum offset max-frames frames sr))
+    (if textfile-p
+        (save-data-to-textfile data path (* (buffer-channels buf) frames))
+        (sf:with-open (sf path
+                       :info (sf:make-info
+                              :frames frames :sample-rate sr
+                              :channels (buffer-channels buf)
+                              :format (sf:get-format
+                                       (list header-type data-format)))
+                       :mode sf:sfm-write)
+          (writef-sample sf data frames)))
+    buf))
+
 (defmethod free ((obj buffer))
   (unless (free-p obj)
     (funcall (buffer-foreign-free obj)
@@ -493,11 +534,3 @@ It is possible to use line comments that begin with the `;' char."
 (defvar *cosine-table* (make-buffer *default-table-size*
                                     :fill-function (gen:partials '((1 1 .25)))))
 (declaim (type buffer *cosine-table*))
-
-
-;; DEBUG
-;; (defun dump-buffer-values (buf)
-;;   (with-open-file (f "/tmp/buffer_dump.txt"
-;;                      :direction :output :if-exists :supersede)
-;;     (dotimes (i (buffer-size buf))
-;;       (format f "~F~%" (buffer-value buf i)))))
