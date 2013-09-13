@@ -746,6 +746,22 @@
                    keywords)
          (t (values :head incudine::*node-root*))))
 
+(declaim (inline compound-type-p))
+(defun compound-type-p (type)
+  (and (consp type)
+       (member (car type)
+               '(or and member eql not satisfies))))
+
+(declaim (inline dsp-coercing-arguments))
+(defun dsp-coercing-arguments (args)
+  (mapcar (lambda (x)
+            (destructuring-bind (arg type)
+                (if (consp x) x `(,x sample))
+              (if (compound-type-p type)
+                  `(,arg (the ,type ,arg))
+                  `(,arg (coerce ,arg ',type)))))
+          args))
+
 ;;; An argument is a symbol or a pair (NAME TYPE), where TYPE is the specifier
 ;;; of NAME. When the argument is a symbol, the default type is SAMPLE.
 (defmacro dsp! (name args &body body)
@@ -774,13 +790,7 @@
                         (get-add-action-and-target head tail before after replace)
                       (let ((target (if (numberp target) (incudine:node target) target)))
                         (rt-eval ()
-                          (let (,@(mapcar (lambda (x)
-                                            (destructuring-bind (arg type)
-                                                (if (consp x) x `(,x sample))
-                                              (if (and (consp type)
-                                                       (eq (car type) 'or))
-                                                  arg `(,arg (coerce ,arg ',type)))))
-                                          args)
+                          (let (,@(dsp-coercing-arguments args)
                                 (id (cond (id id)
                                           ((eq add-action :replace)
                                            (incudine::next-large-node-id))
