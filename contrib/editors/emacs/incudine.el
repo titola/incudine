@@ -159,6 +159,13 @@ If this is nil, no message will be displayed."
   (incudine-eval "(incudine.util:get-bytes-consed-in %d)"
                  (prefix-numeric-value time)))
 
+(defun incudine-rt-memory-free-size ()
+  "Display the free realtime memory"
+  (interactive)
+  (incudine-eval
+   "(values (incudine.util:get-foreign-sample-free-size)
+            (incudine.util:get-rt-memory-free-size))"))
+
 (defun incudine-mode-keybindings (map)
   "Incudine keybindings."
   (define-key map [C-return] 'incudine-eval-and-next-fn)
@@ -176,7 +183,8 @@ If this is nil, no message will be displayed."
   (define-key map "\C-cu" 'incudine-unpause-node)
   (define-key map "\C-cgc" 'incudine-gc)
   (define-key map "\C-cgb" 'incudine-bytes-consed-in)
-  (define-key map "\C-cig" 'incudine-dump-graph))
+  (define-key map "\C-cig" 'incudine-dump-graph)
+  (define-key map "\C-cim" 'incudine-rt-memory-free-size))
 
 (defun incudine-mode-menu (map)
   "Incudine menu."
@@ -184,6 +192,8 @@ If this is nil, no message will be displayed."
     (cons "Incudine" (make-sparse-keymap "incudine")))
   (define-key map [menu-bar incudine dump-graph]
     '("Print Graph" . incudine-dump-graph))
+  (define-key map [menu-bar incudine mem-free-size]
+    '("RT Memory Free Size" . incudine-rt-memory-free-size))
   (define-key map [menu-bar incudine gc]
     '("Garbage Collection" . incudine-gc))
   (define-key map [menu-bar incudine unpause-node]
