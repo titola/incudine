@@ -93,8 +93,7 @@
 
 (defun buffer->pvbuffer (buf partsize &key (start 0) (frames 0))
   (declare (type incudine:buffer buf) (type positive-fixnum partsize)
-           (type non-negative-fixnum start frames)
-           #.*standard-optimize-settings*)
+           (type non-negative-fixnum start frames))
   (let* ((bdata (incudine:buffer-data buf))
          (bsize (incudine:buffer-size buf))
          (channels (incudine:buffer-channels buf))
@@ -115,7 +114,8 @@
                                :scale-factor (fft-scale-factor fft)
                                :block-size block-size))))
     (declare (type non-negative-fixnum channels partitions fft-size
-                   block-size size))
+                   block-size size)
+             #.*standard-optimize-settings*)
     (tg:finalize obj (lambda ()
                        (free-multi-channel-data data channels)))
     (foreach-pvbuffer-channel (obj pvbuf-ptr pvbpos bpos start channels)
