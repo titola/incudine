@@ -468,10 +468,60 @@
                                 (set-levels (1+ index) (+ offset 3))))))
               (set-levels 1 2))))))))
 
+(declaim (inline breakpoint-sequence-p))
+(defun breakpoint-sequence-p (seq)
+  (if (or (arrayp seq) (consp seq))
+      (let ((len (length seq)))
+        (values (evenp len) len))
+      (values nil 0)))
+
+(defun expand-curve-list (curve points)
+  (labels ((complete-curve-list (lst curr result size)
+             (if (zerop size)
+                 (nreverse result)
+                 (complete-curve-list lst (or (cdr curr) lst)
+                                      (cons (car curr) result)
+                                      (1- size)))))
+    (if (and (consp curve)
+             (/= (length curve) points))
+        (complete-curve-list curve curve nil points)
+        curve)))
+
+(defun breakpoints->env (bpseq &key curve (loop-node -1)
+                         (release-node -1) real-time-p)
+  (declare (type (or list array) bpseq))
+  (multiple-value-bind (bpseq-p size)
+      (breakpoint-sequence-p bpseq)
+    (if bpseq-p
+        (labels ((rec (lst levels times old-time)
+                   (if lst
+                       (rec (cddr lst) (cons (cadr lst) levels)
+                            (cons (- (car lst) old-time) times)
+                            (car lst))
+                       (make-envelope (nreverse levels) (nreverse times)
+                                      :curve curve
+                                      :loop-node loop-node
+                                      :release-node release-node
+                                      :real-time-p real-time-p))))
+          (let ((bplist (coerce bpseq 'list)))
+            (declare #.*standard-optimize-settings* #.*reduce-warnings*)
+            (unless (zerop (car bplist))
+              ;; Add the first pair
+              (setf bplist (cons 0 (cons (cadr bplist) bplist)))
+              (if curve
+                  (let ((points (1- (the positive-fixnum (/ size 2)))))
+                    (declare (type positive-fixnum points))
+                    ;; Add the first curve
+                    (setf curve (if (consp curve)
+                                    (cons :lin (expand-curve-list curve points))
+                                    (cons :lin (loop repeat points collect curve)))))))
+            (rec (cddr bplist) (list (cadr bplist)) nil (car bplist))))
+        (msg error "wrong breakpoint sequence"))))
+
 ;;; Frequently used envelope shapes
 
 (defun make-linen (attack-time sustain-time release-time
-                      &key (level 1) (curve :lin) real-time-p)
+                   &key (level 1) (curve :lin) real-time-p)
   (make-envelope (list 0 level level 0)
                  (list attack-time sustain-time release-time)
                  :curve curve :real-time-p real-time-p))
@@ -480,7 +530,7 @@
                    &key level curve))
 
 (defmethod linen (obj attack-time sustain-time release-time
-                   &key (level 1) (curve :lin))
+                  &key (level 1) (curve :lin))
   (set-envelope obj `(0 ,level ,level 0)
                 `(,attack-time ,sustain-time ,release-time)
                 :curve curve))
@@ -517,7 +567,7 @@
                  &key curve))
 
 (defmethod asr ((obj envelope) attack-time sustain-level release-time
-                 &key (curve -4))
+                &key (curve -4))
   (set-envelope obj `(0 ,sustain-level 0) `(,attack-time ,release-time)
                 :curve curve :release-node 1))
 
