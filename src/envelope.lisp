@@ -487,6 +487,13 @@
         (complete-curve-list curve curve nil points)
         curve)))
 
+(declaim (inline expanded-atomic-curve-plus-linear))
+(defun expanded-atomic-curve-plus-linear (curve points)
+  (do ((i 0 (1+ i))
+       (acc nil))
+      ((>= i points) (nreverse (cons :lin acc)))
+    (push curve acc)))
+
 (defun breakpoints->env (bpseq &key curve (loop-node -1)
                          (release-node -1) real-time-p)
   (declare (type (or list array) bpseq))
@@ -516,6 +523,32 @@
                                     (cons :lin (expand-curve-list curve points))
                                     (cons :lin (loop repeat points collect curve)))))))
             (rec (cddr bplist) (list (cadr bplist)) nil (car bplist))))
+        (msg error "wrong breakpoint sequence"))))
+
+(defun freq-breakpoints->env (bpseq &key (freq-max (* *sample-rate* 0.5))
+                              curve real-time-p)
+  (declare (type (or list array) bpseq))
+  (multiple-value-bind (bpseq-p size)
+      (breakpoint-sequence-p bpseq)
+    (if bpseq-p
+        (multiple-value-bind (bplist last-freq last-value)
+            (if (listp bpseq)
+                (let ((bpseq-rev (reverse bpseq)))
+                  (values bpseq (cadr bpseq-rev) (car bpseq-rev)))
+                (values (coerce bpseq 'list)
+                        (aref bpseq (- size 2))
+                        (aref bpseq (- size 1))))
+          (let* ((points (1- (/ size 2)))
+                 (curve (expand-curve-list curve points)))
+            (unless (= last-freq freq-max)
+              ;; Add the last pair
+              (setf bplist (nconc bplist (list freq-max last-value)))
+              (if curve
+                  (setf curve (if (consp curve)
+                                  (nconc (expand-curve-list curve points)
+                                         (list :lin))
+                                  (expanded-atomic-curve-plus-linear curve points)))))
+            (breakpoints->env bplist :curve curve :real-time-p real-time-p)))
         (msg error "wrong breakpoint sequence"))))
 
 ;;; Frequently used envelope shapes
