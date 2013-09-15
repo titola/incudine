@@ -166,6 +166,14 @@ If this is nil, no message will be displayed."
    "(values (incudine.util:get-foreign-sample-free-size)
             (incudine.util:get-rt-memory-free-size))"))
 
+(defun incudine-peak-info (&optional ch)
+  "Display the peak info of a channel. Reset the meters if CH is negative"
+  (interactive "P")
+  (let ((value (prefix-numeric-value0 ch)))
+    (if (minusp value)
+        (incudine-eval "(incudine:reset-peak-meters)")
+      (incudine-eval "(incudine:peak-info %d)" value))))
+
 (defun incudine-mode-keybindings (map)
   "Incudine keybindings."
   (define-key map [C-return] 'incudine-eval-and-next-fn)
@@ -184,7 +192,8 @@ If this is nil, no message will be displayed."
   (define-key map "\C-cgc" 'incudine-gc)
   (define-key map "\C-cgb" 'incudine-bytes-consed-in)
   (define-key map "\C-cig" 'incudine-dump-graph)
-  (define-key map "\C-cim" 'incudine-rt-memory-free-size))
+  (define-key map "\C-cim" 'incudine-rt-memory-free-size)
+  (define-key map "\C-cip" 'incudine-peak-info))
 
 (defun incudine-mode-menu (map)
   "Incudine menu."
