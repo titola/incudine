@@ -326,6 +326,7 @@
 
 ;;; Acquire spinlock for the dynamic scope of BODY.
 ;;; Inspired by SB-THREAD:WITH-MUTEX
+#+sbcl
 (defmacro with-spinlock-held ((place) &body body)
   (with-gensyms (got-it)
     `(let ((,got-it nil))
@@ -339,3 +340,11 @@
                   ,@body))
            (when ,got-it
              (release-spinlock ,place)))))))
+
+#-sbcl
+(defmacro with-spinlock-held ((place) &body body)
+  `(unwind-protect
+        (progn
+          (acquire-spinlock ,place)
+          ,@body)
+     (release-spinlock ,place)))
