@@ -67,6 +67,26 @@
   `(when sb-kernel:*stop-for-gc-pending*
      ,@body))
 
+;;; Return a string compatible in the non-lisp-world, without loss of
+;;; precision if SAMPLE type is DOUBLE-FLOAT.
+;;;
+;;; Note: "~,,,,,,'eG" is wrong because it uses SB-IMPL::SCALE-EXPONENT,
+;;; for example:
+;;;
+;;;   (lisp-implementation-version)
+;;;   "1.1.11"
+;;;   (let* ((num 0.07696598207510717d0)
+;;;          (str (format nil "~,,,,,,'eG" num))
+;;;          (*read-default-float-format* 'double-float))
+;;;     (values num str (read-from-string str)))
+;;;   0.07696598207510717d0
+;;;   "7.69659820751071800e-2"
+;;;   0.07696598207510719d0
+;;;
+(declaim (inline sample->string))
+(defun sample->string (value)
+  (format nil "~F" value))
+
 ;;; DEBUG
 
 (defun get-bytes-consed-in (time)

@@ -239,7 +239,8 @@ It is possible to use line comments that begin with the `;' char."
 (declaim (inline save-data-to-textfile))
 (defun save-data-to-textfile (data path size)
   (with-open-file (f path :direction :output :if-exists :supersede)
-    (dotimes (i size) (format f "~F~%" (data-ref data i)))))
+    (dotimes (i size)
+      (write-line (incudine.util::sample->string (data-ref data i)) f))))
 
 (defun buffer-save (buf path &key (start 0) (end 0) sample-rate
                     textfile-p (header-type *default-header-type*)
