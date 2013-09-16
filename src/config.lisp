@@ -110,7 +110,7 @@
   (defvar *sample-duration* (/ 1.0 *sample-rate*))
   (declaim (type sample *sample-duration*))
 
-  ;;; Velocity of the sound at 22°C, 1 atmosfera
+  ;;; Velocity of the sound at 22Â°C, 1 atmosfera
   (setf *sound-velocity* (coerce (or *sound-velocity* 345) 'sample))
   (declaim (type sample *sound-velocity*))
 

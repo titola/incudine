@@ -16,7 +16,7 @@
 
 (in-package :incudine.vug)
 
-;;; Implementation of the Génération Dynamique Stochastique (GENDYN),
+;;; Implementation of the GÃ©nÃ©ration Dynamique Stochastique (GENDYN),
 ;;; a dynamic stochastic approach to waveform synthesis conceived by
 ;;; Iannis Xenakis. See Formalized Music (1992, Stuyvesant, NY:
 ;;; Pendragon Press), pp. 246 - 254, 289 - 322.

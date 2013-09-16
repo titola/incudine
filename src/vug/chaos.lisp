@@ -66,7 +66,7 @@
                    ,x0 (+ (- 1 ,y) (abs ,x0))
                    ,y ,x1))))))
 
-;;; Hénon map chaotic generator.
+;;; HÃ©non map chaotic generator.
 ;;;
 ;;; x = 1 - a*x0^2 + b*x1
 ;;;
