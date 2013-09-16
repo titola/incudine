@@ -147,17 +147,18 @@ It is possible to use line comments that begin with the `;' char."
             while (< frame offset) do
            (dotimes (ch channels)
              (read f nil nil))))
-    (loop with count = buffer-start
-          while (< count size) do
-         (dotimes (ch channels)
-           (let ((value (read f nil nil)))
-             (setf (buffer-value buffer count)
-                   (typecase value
-                     (number value)
-                     (null +sample-zero+)
-                     (t (nrt-msg warn "bad value (~A) in ~A" value path)
-                        +sample-zero+))))
-           (incf count)))))
+    (let ((*read-default-float-format* *sample-type*))
+      (loop with count = buffer-start
+            while (< count size) do
+           (dotimes (ch channels)
+             (let ((value (read f nil nil)))
+               (setf (buffer-value buffer count)
+                     (typecase value
+                       (number value)
+                       (null +sample-zero+)
+                       (t (nrt-msg warn "bad value (~A) in ~A" value path)
+                          +sample-zero+))))
+             (incf count))))))
 
 (defun buffer-load-textfile (path &key (offset 0) frames (channels 1)
                              (sample-rate *sample-rate*))
