@@ -16,15 +16,16 @@
 
 (in-package :incudine.vug)
 
-(defmacro direct-conv-loop (data kernel kernel-pos-var sum-var
-                            &key (start 0) end)
-  (with-gensyms (index)
-    `(do ((,index ,start (1+ ,index)))
-         ((>= ,index ,end))
-       (declare (type non-negative-fixnum ,index))
-       (incf ,sum-var (* (data-ref ,data ,index)
-                         (data-ref ,kernel ,kernel-pos-var)))
-       (incf ,kernel-pos-var))))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defmacro direct-conv-loop (data kernel kernel-pos-var sum-var
+                              &key (start 0) end)
+    (with-gensyms (index)
+      `(do ((,index ,start (1+ ,index)))
+           ((>= ,index ,end))
+         (declare (type non-negative-fixnum ,index))
+         (incf ,sum-var (* (data-ref ,data ,index)
+                           (data-ref ,kernel ,kernel-pos-var)))
+         (incf ,kernel-pos-var)))))
 
 (define-vug direct-convolve (in (buf buffer))
   "Direct convolution of an input with a finite impulse response
