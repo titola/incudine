@@ -153,8 +153,16 @@ static void* ja_thread(void *arg)
             jack_cycle_signal(client, ja_status);
         } else {
             /*
-             * Transfer the control of the client to lisp realtime
-             * thread and block the current thread.
+             * Transfer the control of the client to lisp realtime thread
+             * and block the current thread.
+             * Notice it is called ONLY ONE TIME after the first cycle
+             * and ONLY ONE TIME after the gc in SBCL. The rt lisp thread
+             * uses `jack_cycle_wait' and `jack_cycle_signal' with the
+             * actual jack client. Practically, this thread is an emergency
+             * exit when we use an implementation of Common Lisp with a gc
+             * which stops the rt lisp thread. If the implementation of CL
+             * has a realtime gc, there aren't other transfers of the control
+             * from C to Lisp and vice versa.
              */
             __ja_condition_signal(&ja_lisp_cond, &ja_lisp_lock);
             __ja_condition_wait(&ja_c_cond, &ja_c_lock);
