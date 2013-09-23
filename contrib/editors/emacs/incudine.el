@@ -122,13 +122,18 @@ If this is nil, no message will be displayed."
   (interactive)
   (incudine-eval "(incudine:rt-stop)"))
 
-(defun incudine-stop-graph ()
-  "Stop Playing."
-  (interactive)
-  (incudine-eval "(incudine:free incudine:*node-root*)"))
-
 (defun prefix-numeric-value0 (n)
   (if n (prefix-numeric-value n) 0))
+
+(defun incudine-free-node (&optional id)
+  "Stop to play a node of the graph.
+If ID is negative, it calls INCUDINE:STOP instead of INCUDINE:FREE"
+  (interactive "P")
+  (let ((n (prefix-numeric-value0 id)))
+    (incudine-eval (if (< n 0)
+                       "(incudine:stop %d)"
+                     "(incudine:free %d)")
+                   (abs n))))
 
 (defun incudine-pause-node (&optional id)
   "Pause node."
@@ -179,7 +184,7 @@ If this is nil, no message will be displayed."
   (define-key map [C-return] 'incudine-eval-and-next-fn)
   (define-key map [C-S-return] 'incudine-eval-and-prev-fn)
   (define-key map [M-return] 'incudine-eval-defun)
-  (define-key map [C-M-return] 'incudine-stop-graph)
+  (define-key map [C-M-return] 'incudine-free-node)
   (define-key map [prior] 'incudine-prev-defun)
   (define-key map [next] 'incudine-next-defun)
   (define-key map "\C-cv" 'incudine-show-repl)
@@ -209,8 +214,8 @@ If this is nil, no message will be displayed."
     '("Unpause" . incudine-unpause-node))
   (define-key map [menu-bar incudine pause-node]
     '("Pause" . incudine-pause-node))
-  (define-key map [menu-bar incudine stop-graph]
-    '("Stop Playing" . incudine-stop-graph))
+  (define-key map [menu-bar incudine free-node]
+    '("Stop Playing" . incudine-free-node))
   (define-key map [menu-bar incudine rt-stop]
     '("Realtime Stop" . incudine-rt-stop))
   (define-key map [menu-bar incudine rt-start]
