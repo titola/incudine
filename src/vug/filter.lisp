@@ -148,8 +148,8 @@
                  (cos-wt (cos wt))
                  (r0 (t60->pole attack-time))
                  (r1 (t60->pole decay-time)))
-    (- (%resonz in freq wt cos-wt r1 (* r1 r1) 0.5)
-       (%resonz in freq wt cos-wt r0 (* r0 r0) 0.5))))
+    (- (biquad in 0.25 0 -0.25 1 (- (* 2 r1 cos-wt)) (* r1 r1))
+       (biquad in 0.25 0 -0.25 1 (- (* 2 r0 cos-wt)) (* r0 r0)))))
 
 ;;; EQ biquad filter coefficients by Robert Bristow-Johnson
 ;;; http://www.musicdsp.org/files/Audio-EQ-Cookbook.txt
