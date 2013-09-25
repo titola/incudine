@@ -231,9 +231,8 @@ It is possible to use line comments that begin with the `;' char."
           buffer)))))
 
 (defmacro writef-sample (sndfile ptr items)
-  `(,(if (eq *sample-type* 'double-float)
-         'sf:writef-double
-         'sf:writef-float)
+  `(#+double-samples sf:writef-double
+    #-double-samples sf:writef-float
     ,sndfile ,ptr ,items))
 
 (declaim (inline save-data-to-textfile))

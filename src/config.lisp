@@ -61,11 +61,13 @@
   (cond ((eq *sample-type* 'double-float)
          (defvar *foreign-sample-type* :double)
          (cffi:defctype sample :double)
+         (pushnew :double-samples *features*)
          (define-constant least-negative-sample least-negative-double-float)
          (define-constant least-positive-sample least-positive-double-float))
         (t
          (defvar *foreign-sample-type* :float)
          (cffi:defctype sample :float)
+         (pushnew :float-samples *features*)
          (define-constant least-negative-sample least-negative-single-float)
          (define-constant least-positive-sample least-positive-single-float)))
 

@@ -26,18 +26,10 @@
     (t (:default "libincudine")))
 
   (cffi:define-foreign-library fftw
-    (:unix #.(if (eq incudine.util:*sample-type* 'double-float)
-                 "libfftw3.so"
-                 "libfftw3f.so"))
-    (:darwin #.(if (eq incudine.util:*sample-type* 'double-float)
-                   "libfftw3.dylib"
-                   "libfftw3f.dylib"))
-    (:cygwin #.(if (eq incudine.util:*sample-type* 'double-float)
-                   "cygfftw3-0.dll"
-                   "cygfftw3f-0.dll"))
-    (t (:default #.(if (eq incudine.util:*sample-type* 'double-float)
-                       "libfftw3"
-                       "libfftw3f"))))
+    (:unix #+double-samples "libfftw3.so" #-double-samples "libfftw3f.so")
+    (:darwin #+double-samples "libfftw3.dylib" #-double-samples "libfftw3f.dylib")
+    (:cygwin #+double-samples "cygfftw3-0.dll" #-double-samples "cygfftw3f-0.dll")
+    (t (:default #+double-samples "libfftw3" #-double-samples "libfftw3f")))
 
   (unless (find-package :gsll)
     (cffi:define-foreign-library libgslcblas
@@ -60,8 +52,7 @@
       (load-gsl-library)))
 
   (defmacro def-fftw-fun (name-and-options return-type &body body)
-    (let ((prefix (if (eq incudine.util:*sample-type* 'double-float)
-                      "fftw" "fftwf")))
+    (let ((prefix #+double-samples "fftw" #-double-samples "fftwf"))
       `(cffi:defcfun (,(format nil "~A_~A" prefix (car name-and-options))
                       ,(cadr name-and-options))
            ,return-type

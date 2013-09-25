@@ -128,15 +128,13 @@ when the duration is undefined.")
                        *number-of-output-bus-channels*))
 
 (defmacro read-sample (sndfile ptr items)
-  `(,(if (eq *sample-type* 'double-float)
-         'sf:read-double
-         'sf:read-float)
-     ,sndfile ,ptr ,items))
+  `(#+double-samples sf:read-double
+    #-double-samples sf:read-float
+    ,sndfile ,ptr ,items))
 
 (defmacro write-sample (sndfile ptr items)
-  `(,(if (eq *sample-type* 'double-float)
-         'sf:write-double
-         'sf:write-float)
+  `(#+double-samples sf:write-double
+    #-double-samples sf:write-float
     ,sndfile ,ptr ,items))
 
 (defmacro nrt-loop (snd data bufsize count channels)

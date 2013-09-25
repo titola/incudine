@@ -106,9 +106,8 @@
                                     when (eq (cadar arg) :double)
                                     collect (caar arg))))
                  (when samples
-                   `((declare (type ,(if (eq incudine::*sample-type* 'double-float)
-                                         'sample
-                                         'double-float)
+                   `((declare (type #+double-samples sample
+                                    #-double-samples double-float
                                     ,@samples)))))
              (declare (type foreign-pointer ,rng))
              (,lisp-name ,rng ,@(mapcar #'caar args))))))))

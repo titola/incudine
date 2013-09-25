@@ -226,9 +226,8 @@
 (defmacro %segment-init (beg end dur curve grow a2 b1 y1 y2)
   (let ((result `(%%segment-init ,beg ,end ,dur ,curve ,grow
                                  ,a2 ,b1 ,y1 ,y2)))
-    (if (eq *sample-type* 'double-float)
-        result
-        (apply-sample-coerce (macroexpand-1 result)))))
+    #+double-samples result
+    #-double-samples (apply-sample-coerce (macroexpand-1 result))))
 
 (defmacro %segment-update-level (level curve grow a2 b1 y1 y2)
   (with-gensyms (y0)
