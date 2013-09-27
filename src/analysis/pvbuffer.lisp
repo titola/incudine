@@ -74,21 +74,21 @@
     `(progn
        ;; Fill the first half of the buffer (the FFT size is 2*partsize)
        (dotimes (,index ,partsize)
-         (setf (data-ref ,fft-inbuf ,index)
+         (setf (smp-ref ,fft-inbuf ,index)
                (if (< ,bufpos ,bufsize)
-                   (data-ref ,bufdata ,bufpos)
+                   (smp-ref ,bufdata ,bufpos)
                    +sample-zero+))
          (incf ,bufpos ,channels))
        ;; Zero-padding the second half of the buffer
        (loop for ,index from ,partsize below ,fft-size do
-            (setf (data-ref ,fft-inbuf ,index) +sample-zero+)))))
+            (setf (smp-ref ,fft-inbuf ,index) +sample-zero+)))))
 
 (defmacro fft-output-to-pvbuffer-frame (fft-outbuf pvbuf-data pvbuf-pos
                                         block-size)
   (with-gensyms (index)
     `(dotimes (,index ,block-size)
-       (setf (data-ref ,pvbuf-data ,pvbuf-pos)
-             (data-ref ,fft-outbuf ,index))
+       (setf (smp-ref ,pvbuf-data ,pvbuf-pos)
+             (smp-ref ,fft-outbuf ,index))
        (incf ,pvbuf-pos))))
 
 (defun buffer->pvbuffer (buf partsize &key (start 0) (frames 0))

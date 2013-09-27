@@ -22,13 +22,12 @@
 
 (declaim (inline incf-time))
 (defun incf-sample-counter ()
-  (setf #1=(mem-ref *sample-counter* 'sample)
-        (+ #1# 1.0))
+  (incf (smp-ref *sample-counter* 0) 1.0)
   (values))
 
 (declaim (inline reset-timer))
 (defun reset-sample-counter ()
-  (setf (mem-ref *sample-counter* 'sample) +sample-zero+)
+  (setf (smp-ref *sample-counter* 0) +sample-zero+)
   (values))
 
 (defun nrt-start ()

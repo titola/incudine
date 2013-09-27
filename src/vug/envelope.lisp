@@ -1,3 +1,19 @@
+;;; Copyright (c) 2013 Tito Latini
+;;;
+;;; This program is free software; you can redistribute it and/or modify
+;;; it under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 2 of the License, or
+;;; (at your option) any later version.
+;;;
+;;; This program is distributed in the hope that it will be useful,
+;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with this program; if not, write to the Free Software
+;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
 (in-package :incudine.vug)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
@@ -129,7 +145,7 @@
   (declaim (inline envgen-next-dur))
   (defun envgen-next-dur (env-data index time-scale offset)
     (max 1 (+ offset (sample->fixnum
-                      (* (data-ref env-data index)
+                      (* (smp-ref env-data index)
                          time-scale *sample-rate*)))))
 
   (defmacro envgen-next-index (data-size index curr-node)
@@ -237,9 +253,9 @@
                          (unless (= curr-node last-point)
                            (envgen-jump-node (1- last-point) curr-node index)
                            (setf index (+ index 2) ; skip dur
-                                 end (data-ref env-data index)
+                                 end (smp-ref env-data index)
                                  index (+ index 1)
-                                 curve (data-ref env-data index)
+                                 curve (smp-ref env-data index)
                                  prev-index curr-index))
                          (setf sustain nil)
                          (%segment-init tmp end dur curve grow a2 b1 y1 y2)
@@ -248,7 +264,7 @@
                          (cond (gate-trig
                                 (envgen-update-sustain sustain gate curr-node release-node)
                                 (setf gate-trig nil)
-                                (data-ref env-data 0))
+                                (smp-ref env-data 0))
                                ;; ENVGEN started with GATE zero
                                (t (setf index data-size)
                                   (samples-zero tmp end))))
@@ -277,9 +293,9 @@
                                  ;; value of REMAIN
                                  remain dur
                                  index (1+ index)
-                                 end (data-ref env-data index)
+                                 end (smp-ref env-data index)
                                  index (1+ index)
-                                 curve (data-ref env-data index))
+                                 curve (smp-ref env-data index))
                            (%segment-init tmp end dur curve grow a2 b1 y1 y2)
                            tmp))))
       (declare (type non-negative-fixnum index data-size last-point dur remain
@@ -310,9 +326,9 @@
                                      ;; The first value of the segment is the last value
                                      ;; of the previous segment
                                      level end
-                                     end (data-ref env-data index)
+                                     end (smp-ref env-data index)
                                      index (1+ index)
-                                     curve (data-ref env-data index)
+                                     curve (smp-ref env-data index)
                                      prev-index curr-index)
                                (%segment-init level end dur curve grow a2 b1 y1 y2)
                                (setf tmp level))))

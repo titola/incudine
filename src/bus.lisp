@@ -66,39 +66,39 @@
 (declaim (inline bus))
 (defun bus (num)
   (declare (type bus-number num))
-  (data-ref *bus-pointer* num))
+  (smp-ref *bus-pointer* num))
 
 (declaim (inline set-bus))
 (defun set-bus (num value)
   (declare (type bus-number num))
-  (setf (data-ref *bus-pointer* num) (sample value)))
+  (setf (smp-ref *bus-pointer* num) (sample value)))
 
 (defsetf bus set-bus)
 
 (declaim (inline audio-in))
 (defun audio-in (channel)
   (declare (type channel-number channel))
-  (data-ref *input-pointer* channel))
+  (smp-ref *input-pointer* channel))
 
 (declaim (inline audio-out))
 (defun audio-out (channel)
   (declare (type channel-number channel))
-  (data-ref *output-pointer* channel))
+  (smp-ref *output-pointer* channel))
 
 (declaim (inline set-audio-out))
 (defun set-audio-out (channel value)
   (declare (type channel-number channel))
-  (setf (data-ref *output-pointer* channel) (sample value)))
+  (setf (smp-ref *output-pointer* channel) (sample value)))
 
 (defsetf audio-out set-audio-out)
 
 (defun update-peak-values (chan)
   (declare #.*standard-optimize-settings*
            (type channel-number chan))
-  (let ((value (mem-aref incudine::*output-pointer* 'sample chan)))
+  (let ((value (smp-ref incudine::*output-pointer* chan)))
     (declare (type sample value))
-    (when (> value (mem-aref *output-peak-values* 'sample chan))
-      (setf (mem-aref *output-peak-values* 'sample chan) value))
+    (when (> value (smp-ref *output-peak-values* chan))
+      (setf (smp-ref *output-peak-values* chan) value))
     (when (> value (sample 1))
       (setf #1=(svref *out-of-range-counter* chan)
             (the positive-fixnum
@@ -108,14 +108,14 @@
 (declaim (inline peak-info))
 (defun peak-info (chan)
   (declare (type channel-number chan))
-  (values (data-ref *output-peak-values* chan)
+  (values (smp-ref *output-peak-values* chan)
           (svref *out-of-range-counter* chan)))
 
 (defun print-peak-info (&optional (channels *number-of-output-bus-channels*)
                         (stream *standard-output*))
   (format stream "~11tpeak amps:  ")
   (foreach-channel (ch channels)
-    (format stream "~8,3,F  " (data-ref *output-peak-values* ch)))
+    (format stream "~8,3,F  " (smp-ref *output-peak-values* ch)))
   (format stream "~%samples out of range:  ")
   (foreach-channel (ch channels)
     (format stream "~8,,D  " (svref *out-of-range-counter* ch)))
@@ -124,7 +124,7 @@
 (declaim (inline %reset-peak-values))
 (defun %reset-peak-meters ()
   (foreach-channel (chan *number-of-output-bus-channels*)
-    (setf (data-ref *output-peak-values* chan) +sample-zero+)
+    (setf (smp-ref *output-peak-values* chan) +sample-zero+)
     (setf (svref *out-of-range-counter* chan) 0)))
 
 (defun reset-peak-meters ()

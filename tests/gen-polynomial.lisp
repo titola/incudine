@@ -3,7 +3,7 @@
 (deftest gen-polynomial.1
     (cffi:with-foreign-object (arr 'sample 64)
       (funcall (gen:polynomial '(10 -37 5) :xmin 1 :xmax 100) arr 64)
-      (loop for i below 64 collect (sample->fixnum (data-ref arr i))))
+      (loop for i below 64 collect (sample->fixnum (smp-ref arr i))))
   (5 -29 -14 48 158 317 523 776 1078 1428 1825 2270 2763 3304 3893 4530
    5214 5947 6727 7555 8431 9355 10327 11346 12414 13529 14692 15903 17162
    18468 19823 21225 22676 24174 25720 27313 28955 30645 32382 34167 36000
@@ -14,7 +14,7 @@
     (let ((buf (make-buffer 64 :fill-function (gen:polynomial '(5 14 -3)
                                                               :xmin 1 :xmax 100
                                                               :normalize-p nil))))
-      (loop for i below 64 collect (sample->fixnum (data-ref (data buf) i))))
+      (loop for i below 64 collect (sample->fixnum (smp-ref (data buf) i))))
   (-3 30 88 169 275 404 557 734 935 1160 1409 1682 1979 2300 2645 3013
    3406 3822 4263 4727 5215 5727 6264 6824 7408 8015 8647 9303 9983 10686
    11414 12165 12941 13740 14563 15411 16282 17177 18096 19039 20005 20996
@@ -25,7 +25,7 @@
     (let ((buf (make-buffer 64)))
       (setf (data buf) (gen:polynomial '(1 -5 19) :xmin 1 :xmax 100
                                        :normalize-p nil))
-      (loop for i below 64 collect (sample->fixnum (data-ref (data buf) i))))
+      (loop for i below 64 collect (sample->fixnum (smp-ref (data buf) i))))
   (19 13 13 17 26 40 58 82 110 143 180 223 270 322 379 441 507 579 655 735
    821 911 1006 1106 1211 1321 1435 1554 1678 1807 1940 2078 2221 2369 2522
    2679 2841 3008 3180 3356 3538 3724 3915 4110 4311 4516 4726 4941 5160 5385

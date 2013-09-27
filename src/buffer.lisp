@@ -90,13 +90,13 @@
 (declaim (inline buffer-value))
 (defun buffer-value (buffer index)
   (declare (type buffer buffer) (type non-negative-fixnum index))
-  (data-ref (buffer-data buffer) index))
+  (smp-ref (buffer-data buffer) index))
 
 (declaim (inline set-buffer-value))
 (defun set-buffer-value (buffer index value)
   (declare (type buffer buffer) (type non-negative-fixnum index)
            (type real value))
-  (setf (data-ref (buffer-data buffer) index)
+  (setf (smp-ref (buffer-data buffer) index)
         (sample value)))
 
 (defsetf buffer-value set-buffer-value)
@@ -239,7 +239,7 @@ It is possible to use line comments that begin with the `;' char."
 (defun save-data-to-textfile (data path size)
   (with-open-file (f path :direction :output :if-exists :supersede)
     (dotimes (i size)
-      (write-line (incudine.util::sample->string (data-ref data i)) f))))
+      (write-line (incudine.util::sample->string (smp-ref data i)) f))))
 
 (defun buffer-save (buf path &key (start 0) (end 0) sample-rate
                     textfile-p (header-type *default-header-type*)
@@ -318,8 +318,8 @@ It is possible to use line comments that begin with the `;' char."
                (if (= index size)
                    max
                    (norm (1+ index)
-                         (max (data-ref data index) max)))))
-      (scale obj (/ norm-value (norm 1 (data-ref data 0)))))))
+                         (max (smp-ref data index) max)))))
+      (scale obj (/ norm-value (norm 1 (smp-ref data 0)))))))
 
 (defmethod rescale ((obj buffer) (min real) (max real))
   (let ((data (buffer-data obj))
@@ -331,12 +331,12 @@ It is possible to use line comments that begin with the `;' char."
                (if (= index size)
                    (values (/ (sample 1) (- old-max old-min))
                            old-min)
-                   (let ((value (data-ref data index)))
+                   (let ((value (smp-ref data index)))
                      (resc (1+ index)
                            (min value old-min)
                            (max value old-max))))))
       (multiple-value-bind (old-delta old-min)
-          (resc 1 (data-ref data 0) (data-ref data 0))
+          (resc 1 (smp-ref data 0) (smp-ref data 0))
         (map-buffer (lambda (index value)
                       (declare (ignore index))
                       (+ min (* (- max min) old-delta (- value old-min))))

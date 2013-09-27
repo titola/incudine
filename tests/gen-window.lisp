@@ -3,7 +3,7 @@
 (defun gen-window-test-1 (fn &optional (size 64))
   (cffi:with-foreign-object (arr 'sample size)
     (funcall fn arr size)
-    (loop for i below size collect (sample->fixnum (* 1000 (data-ref arr i))))))
+    (loop for i below size collect (sample->fixnum (* 1000 (smp-ref arr i))))))
 
 (deftest gen-win-hanning
     (gen-window-test-1 (gen:hanning))

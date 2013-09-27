@@ -219,9 +219,18 @@
        (with-foreign-rt-object (,var ,type ,count) ,@body)
        (with-foreign-object (,var ,type ,count) ,@body)))
 
-(defmacro data-ref (data index)
-  `(mem-ref ,data 'sample (the non-negative-fixnum
-                            (* ,index +foreign-sample-size+))))
+(declaim (inline smp-ref))
+(defun smp-ref (samples index)
+  (mem-ref samples 'sample (the non-negative-fixnum
+                             (* index +foreign-sample-size+))))
+
+(declaim (inline set-smp-ref))
+(defun set-smp-ref (samples index value)
+  (setf (mem-ref samples 'sample (the non-negative-fixnum
+                                   (* index +foreign-sample-size+)))
+        (sample value)))
+
+(defsetf smp-ref set-smp-ref)
 
 ;;; The expansion inside a definition of a VUG is different
 ;;; (see %WITH-SAMPLES in `vug/vug.lisp')
@@ -235,7 +244,7 @@
                  ,(mapcar
                    (lambda (x)
                      (prog1 `(,(if (consp x) (car x) x)
-                               (mem-aref ,c-array 'sample ,count))
+                               (smp-ref ,c-array ,count))
                        (incf count)))
                    bindings)
                (psetf ,@(loop for i in bindings
@@ -262,7 +271,7 @@
                  ,(mapcar
                    (lambda (x)
                      (prog1 `(,(if (consp x) (car x) x)
-                               (mem-aref ,c-array 'sample ,count))
+                               (smp-ref ,c-array ,count))
                        (incf count)))
                    bindings)
                (setf ,@(loop for i in bindings
@@ -281,9 +290,9 @@
 
 (defmacro with-complex (real-and-imag-vars pointer &body body)
   `(symbol-macrolet ((,(car real-and-imag-vars)
-                      (mem-ref ,pointer 'sample))
+                      (smp-ref ,pointer 0))
                      (,(cadr real-and-imag-vars)
-                      (mem-ref ,pointer 'sample +foreign-sample-size+)))
+                      (smp-ref ,pointer 1)))
      ,@body))
 
 (defmacro do-complex ((realpart-var imagpart-var pointer size) &body body)

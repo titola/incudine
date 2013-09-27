@@ -172,7 +172,7 @@ is the plan for a IFFT."
   (declare (type foreign-pointer c-array)
            (type non-negative-fixnum size))
   (dotimes (i size c-array)
-    (setf (data-ref c-array i) #.(sample 1))))
+    (setf (smp-ref c-array i) #.(sample 1))))
 
 (declaim (inline fill-window-buffer))
 (defun fill-window-buffer (buffer function size)
@@ -254,10 +254,8 @@ is the plan for a IFFT."
 (declaim (inline fft-input))
 (defun fft-input (fft)
   (let ((buf (fft-ring-buffer fft)))
-    (mem-ref (ring-input-buffer-data buf) 'sample
-             (the non-negative-fixnum
-               (* (ring-input-buffer-head buf)
-                  +foreign-sample-size+)))))
+    (smp-ref (ring-input-buffer-data buf)
+             (ring-input-buffer-head buf))))
 
 (declaim (inline set-fft-input))
 (defun set-fft-input (fft input)

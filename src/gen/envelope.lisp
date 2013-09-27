@@ -43,7 +43,7 @@
            (remain 0))
       (declare (type non-negative-fixnum size size-remained data-size
                      guard-point index dur remain))
-      (with-samples* ((level (data-ref env-data 0))
+      (with-samples* ((level (smp-ref env-data 0))
                       (time-scale (/ size (envelope-duration env)))
                       (end level)
                       (max level)
@@ -54,7 +54,7 @@
                       (y2 0.0)
                       (curve incudine:+seg-lin-func+))
         (dotimes (i size)
-          (setf (mem-aref c-array 'sample i)
+          (setf (smp-ref c-array i)
                 (if (zerop remain)
                     (cond ((>= (incf index) data-size)
                            (nrt-msg error "the envelope ~A is corrupted" env)
@@ -62,15 +62,15 @@
                           (t (if (= index guard-point)
                                  (setf dur (max 1 size-remained))
                                  (setf dur (max 1 (sample->fixnum
-                                                   (* (data-ref env-data index)
+                                                   (* (smp-ref env-data index)
                                                       time-scale)))
                                        size-remained (- size-remained dur)))
                              (setf remain (1- dur)
                                    index (1+ index)
                                    level end
-                                   end (data-ref env-data index)
+                                   end (smp-ref env-data index)
                                    index (1+ index)
-                                   curve (data-ref env-data index))
+                                   curve (smp-ref env-data index))
                              (when (> end max) (setf max end))
                              (%segment-init level end dur curve grow a2 b1 y1 y2)
                              level))
@@ -78,7 +78,7 @@
                            (%segment-update-level level curve grow a2 b1 y1 y2)
                            level))))
         (unless periodic-p
-          (setf (mem-aref c-array 'sample size) end))
+          (setf (smp-ref c-array size) end))
         (values c-array
                 ;; Factor to scale the amplitude
                 (/ max)

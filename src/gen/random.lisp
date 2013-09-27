@@ -209,5 +209,5 @@
                         (type foreign-pointer ,c-array)
                         (type non-negative-fixnum ,size))
                (dotimes (,i ,size)
-                 (setf (mem-aref ,c-array 'sample ,i)
+                 (setf (smp-ref ,c-array ,i)
                        (,lisp-name ,rng ,@(mapcar #'caar args)))))))))))

@@ -27,7 +27,7 @@
          (index 0))
     (declare (type non-negative-fixnum size upper-limit index)
              (type foreign-pointer data))
-    (prog1 #1=(data-ref data index)
+    (prog1 #1=(smp-ref data index)
       (setf #1# in)
       (setf index (the non-negative-fixnum
                     (if (>= index upper-limit) 0 (1+ index)))))))
@@ -41,20 +41,20 @@
     (with-gensyms (frac)
       (case interp
         (:linear `(with-samples ((,frac (- ,dsamps ,isamps)))
-                    (linear-interp ,frac (data-ref ,data ,index)
-                                   (data-ref ,data
-                                             (logand (1- ,index) ,mask)))))
+                    (linear-interp ,frac (smp-ref ,data ,index)
+                                   (smp-ref ,data
+                                            (logand (1- ,index) ,mask)))))
         (:cubic (with-gensyms (index0 index2 index3)
                   `(with-samples ((,frac (- ,dsamps ,isamps)))
                      (let ((,index0 (logand (+ ,index 1) ,mask))
                            (,index2 (logand (- ,index 1) ,mask))
                            (,index3 (logand (- ,index 2) ,mask)))
-                       (cubic-interp ,frac (data-ref ,data ,index0)
-                                     (data-ref ,data ,index)
-                                     (data-ref ,data ,index2)
-                                     (data-ref ,data ,index3))))))
+                       (cubic-interp ,frac (smp-ref ,data ,index0)
+                                     (smp-ref ,data ,index)
+                                     (smp-ref ,data ,index2)
+                                     (smp-ref ,data ,index3))))))
         ;; No interpolation
-        (otherwise `(data-ref ,data ,index))))))
+        (otherwise `(smp-ref ,data ,index))))))
 
 ;;; Variable delay line with interpolation (time in seconds).
 ;;; If WR-INDEX-VAR is the name of an existent variable, the value of the
@@ -77,7 +77,7 @@
            ,@(when wr-index-var `((setq (external-variable ,wr-index-var) ,wr-index)))
            (prog1
              (select-delay-interp ,interpolation ,dsamps ,isamps ,data ,rd-index ,mask)
-             (setf (data-ref ,data ,wr-index) ,in)
+             (setf (smp-ref ,data ,wr-index) ,in)
              (setf ,wr-index (the non-negative-fixnum
                                (if (>= ,wr-index ,mask) 0 (1+ ,wr-index))))))))))
 

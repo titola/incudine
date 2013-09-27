@@ -37,7 +37,7 @@
      incudine:buffer-lomask
      incudine:buffer-lodiv
      incudine:size
-     incudine:data-ref
+     incudine:smp-ref
      incudine:*sine-table*
      incudine:*cosine-table*
      incudine:foreign-array

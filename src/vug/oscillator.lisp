@@ -57,9 +57,9 @@
       `(%with-osc-interp (,buffer ,phs ,frac)
          (with ((,mask (buffer-mask ,buffer)))
            (declare (type non-negative-fixnum ,mask))
-           (linear-interp ,frac (data-ref ,data ,index)
-                          (data-ref ,data (logand (the fixnum (1+ ,index))
-                                                  ,mask)))))))
+           (linear-interp ,frac (smp-ref ,data ,index)
+                          (smp-ref ,data (logand (the fixnum (1+ ,index))
+                                                 ,mask)))))))
 
   (defmacro %osc-cubic-interp (buffer data phs index)
     (with-gensyms (frac index0 index2 index3 mask)
@@ -69,10 +69,10 @@
            (let ((,index0 (logand (the fixnum (- ,index 1)) ,mask))
                  (,index2 (logand (the fixnum (+ ,index 1)) ,mask))
                  (,index3 (logand (the fixnum (+ ,index 2)) ,mask)))
-             (cubic-interp ,frac (data-ref ,data ,index0)
-                           (data-ref ,data ,index)
-                           (data-ref ,data ,index2)
-                           (data-ref ,data ,index3)))))))
+             (cubic-interp ,frac (smp-ref ,data ,index0)
+                           (smp-ref ,data ,index)
+                           (smp-ref ,data ,index2)
+                           (smp-ref ,data ,index3)))))))
 
   ;;; Select the interpolation for a table lookup.
   ;;; The size of the table is a power of two.
@@ -80,7 +80,7 @@
     (case interpolation
       (:linear `(%osc-linear-interp ,buffer ,data ,phs ,index))
       (:cubic `(%osc-cubic-interp ,buffer ,data ,phs ,index))
-      (otherwise `(data-ref ,data ,index))))
+      (otherwise `(smp-ref ,data ,index))))
 
   (defmacro %osc-phase-modulation (phs phase phase-modulation-p)
     (cond (phase-modulation-p
@@ -148,7 +148,7 @@
                                       (the fixnum
                                         ,two-nh-plus-one)))
                                  ,mask)))
-             (data-ref ,data ,index)))))
+             (smp-ref ,data ,index)))))
 
   (defmacro %buzz (buffer freq amp num-harm phase phase-modulation-p
                    harm-change-lag interpolation)
@@ -330,10 +330,10 @@
                                        (the fixnum ,c3)))
                                   ,mask)))
              (declare (type fixnum ,index0 ,index1 ,index2 ,index3))
-             (+ (- (data-ref ,data ,index0)
-                   (* ,mult1 (data-ref ,data ,index1))
-                   (* ,mult2 (data-ref ,data ,index2)))
-                (* ,mult3 (data-ref ,data ,index3)))))))
+             (+ (- (smp-ref ,data ,index0)
+                   (* ,mult1 (smp-ref ,data ,index1))
+                   (* ,mult2 (smp-ref ,data ,index2)))
+                (* ,mult3 (smp-ref ,data ,index3)))))))
 
   (defmacro gbuzz-update-multipliers (c2-mult-var c3-mult-var rsum-var
                                       nh mul abs-mul)

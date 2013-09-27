@@ -10,6 +10,13 @@
   (incudine::deprecated-msg 'synth-seq 'dsp-seq)
   `(dsp-seq ,@functions))
 
+(in-package :incudine.util)
+
+;;; 20130927
+(defmacro data-ref (data index)
+  (incudine::deprecated-msg 'data-ref 'smp-ref)
+  `(smp-ref ,data ,index))
+
 (in-package :incudine.vug)
 
 ;;; 20130904

@@ -20,7 +20,7 @@
 (defun partial-ref (partial-number amp phase dc index size tmp-var)
   (declare (type non-negative-fixnum partial-number index size)
            (type foreign-pointer tmp-var ))
-  (setf (mem-ref tmp-var 'sample)
+  (setf (smp-ref tmp-var 0)
         (+ dc (* amp (sin (the limited-sample
                             (+ (/ (* +twopi+ index partial-number) size)
                                (* +twopi+ phase))))))))
@@ -60,19 +60,19 @@
         (with-foreign-object (tmp 'sample)
           (with-samples (value abs-value (max 0.0))
             (dotimes (i size)
-              (setf (mem-aref c-array 'sample i)
+              (setf (smp-ref c-array i)
                     (reduce #'+
                             (mapcar (lambda (x)
                                       (destructuring-bind (num amp phs dc) x
                                         (partial-ref num amp phs dc
                                                      i size tmp)))
                                     pl)))
-              (setf abs-value (abs (mem-aref c-array 'sample i)))
+              (setf abs-value (abs (smp-ref c-array i)))
               (when (> abs-value max)
                 (setf max abs-value)))
             (unless periodic-p
-              (setf (mem-aref c-array 'sample size)
-                    (mem-aref c-array 'sample 0)))
+              (setf (smp-ref c-array size)
+                    (smp-ref c-array 0)))
             (values c-array
                     ;; Factor to scale the amplitude
                     (/ max)
@@ -92,7 +92,7 @@
         (dotimes (i size c-array)
           (setf angle (* i pi-step))
           (setf denom (sin (the limited-sample angle)))
-          (setf (mem-aref c-array 'sample i)
+          (setf (smp-ref c-array i)
                 (cond ((zerop denom) (sample 1))
                       (t (setf num (sin (the limited-sample
                                           (* two-nh-plus-one angle))))
@@ -132,7 +132,7 @@
               (setf angle (* i twopi-step)
                     denom (- squared-mul-plus-one (* two-mul
                                                      (cos (the limited-sample angle)))))
-              (setf (mem-aref c-array 'sample i)
+              (setf (smp-ref c-array i)
                     (cond ((or (> denom (sample 1.e-5))
                                (< denom (sample -1.e-5)))
                            (setf num (+ (- (cos (the limited-sample (* lowest-harm angle)))
@@ -173,7 +173,7 @@
               (setf offset (* scale (cos (the limited-sample
                                            (* partial +half-pi+))))))
             (dotimes (i size)
-              (incf (mem-aref c-array 'sample i)
+              (incf (smp-ref c-array i)
                     (+ (* scale (cos (the limited-sample
                                        (* partial (the limited-sample
                                                     (acos phase))))))
@@ -181,7 +181,7 @@
               (incf phase phase-inc)))))
       (setf max-value +sample-zero+)
       (dotimes (i size)
-        (setf abs-value (abs (mem-aref c-array 'sample i)))
+        (setf abs-value (abs (smp-ref c-array i)))
         (when (> abs-value max-value)
           (setf max-value abs-value)))
       (values c-array

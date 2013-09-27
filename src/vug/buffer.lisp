@@ -75,8 +75,8 @@
            (setf ,index (the non-negative-fixnum
                           (* (sample->fixnum ,phs) ,channels))))
          (if (< current-channel ,channels)
-             (data-ref ,data (the non-negative-fixnum
-                               (+ ,index current-channel)))
+             (smp-ref ,data (the non-negative-fixnum
+                              (+ ,index current-channel)))
              +sample-zero+))))
 
   (defmacro %two-points-interp (data phs frames channels size wrap-p
@@ -101,10 +101,10 @@
              (incf ,y1 ,decr)))
          (if (< current-channel ,channels)
              (,interp-fn-name ,frac
-                              (data-ref ,data (the non-negative-fixnum
-                                                (+ ,y0 current-channel)))
-                              (data-ref ,data (the non-negative-fixnum
-                                                (+ ,y1 current-channel))))
+                              (smp-ref ,data (the non-negative-fixnum
+                                               (+ ,y0 current-channel)))
+                              (smp-ref ,data (the non-negative-fixnum
+                                               (+ ,y1 current-channel))))
              +sample-zero+))))
 
   (defmacro %four-points-interp (data phs frames channels size
@@ -143,14 +143,14 @@
                   (incf ,y3 ,decr2))))
          (if (< current-channel ,channels)
              (,interp-fn-name ,frac
-                              (data-ref ,data (the non-negative-fixnum
-                                                (+ ,y0 current-channel)))
-                              (data-ref ,data (the non-negative-fixnum
-                                                (+ ,y1 current-channel)))
-                              (data-ref ,data (the non-negative-fixnum
-                                                (+ ,y2 current-channel)))
-                              (data-ref ,data (the non-negative-fixnum
-                                                (+ ,y3 current-channel))))
+                              (smp-ref ,data (the non-negative-fixnum
+                                               (+ ,y0 current-channel)))
+                              (smp-ref ,data (the non-negative-fixnum
+                                               (+ ,y1 current-channel)))
+                              (smp-ref ,data (the non-negative-fixnum
+                                               (+ ,y2 current-channel)))
+                              (smp-ref ,data (the non-negative-fixnum
+                                               (+ ,y3 current-channel))))
              +sample-zero+))))
 
   (defmacro wrap-phase-func (phs frames wrap-p)
@@ -209,7 +209,7 @@
          (let* ((,%index (clip ,index 0 ,upper-limit)))
            (declare (type fixnum ,%index))
            ,@(when index-var `((setq (external-variable ,index-var) ,%index)))
-           (setf (data-ref ,data ,%index) ,input))))))
+           (setf (smp-ref ,data ,%index) ,input))))))
 
 (define-vug-macro buffer-frame (buffer phase &key wrap-p interpolation)
   (with-gensyms (channels frame)

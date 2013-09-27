@@ -360,8 +360,8 @@
                  (when (< 0 size old-size)
                    ;; Update the sum
                    (loop for i from size below old-size do
-                        (decf sum (data-ref data i))
-                        (setf (data-ref data i) +sample-zero+)))
+                        (decf sum (smp-ref data i))
+                        (setf (smp-ref data i) +sample-zero+)))
                  (setf old-size size)))
          (index 0))
     (declare (type foreign-array array-wrap)
@@ -369,8 +369,8 @@
              (type non-negative-fixnum index old-size)
              (type positive-fixnum size))
     ;; Subtract the old, add the new and update the index
-    (setf sum (+ (- sum (data-ref data index)) in)
-          (data-ref data index) in)
+    (setf sum (+ (- sum (smp-ref data index)) in)
+          (smp-ref data index) in)
     (let ((new (1+ index)))
       (setf index (if (>= index size) 0 new)))
     (/ sum size)))
@@ -380,7 +380,7 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (declaim (inline %median-update-value))
   (defun %median-update-value (values ages src-pos dest-pos)
-    (setf (data-ref values dest-pos) (data-ref values src-pos)
+    (setf (smp-ref values dest-pos) (smp-ref values src-pos)
           (svref ages dest-pos) (svref ages src-pos)))
 
   (declaim (inline %median-shrink))
@@ -404,18 +404,18 @@
           (old-last (1- old-size))
           (age old-size))
       (dotimes (i right-shift)
-        (setf (data-ref values pos) (data-ref values old-last))
+        (setf (smp-ref values pos) (smp-ref values old-last))
         (setf (svref ages pos) age)
         (decf pos)
         (incf age))
       (dotimes (i old-size)
-        (setf (data-ref values pos) (data-ref values old-last))
+        (setf (smp-ref values pos) (smp-ref values old-last))
         (decf pos)
         (decf old-last))
       (do ((old-first (1+ pos))
            (i 0 (1+ i)))
           ((> i pos))
-        (setf (data-ref values i) (data-ref values old-first))
+        (setf (smp-ref values i) (smp-ref values old-first))
         (setf (svref ages i) age)
         (incf age))))
 
@@ -432,7 +432,7 @@
          ,input
          (loop for ,prev-pos = (the fixnum (1- ,pos))
                while (and (plusp ,pos)
-                          (< ,input (data-ref ,values ,prev-pos))) do
+                          (< ,input (smp-ref ,values ,prev-pos))) do
               (%median-update-value ,values ,ages ,prev-pos ,pos)
               (decf ,pos)))))
 
@@ -440,7 +440,7 @@
     (with-gensyms (next-pos)
       `(loop for ,next-pos = (the non-negative-fixnum (1+ ,pos))
              while (and (/= ,pos ,last)
-                        (> ,input (data-ref ,values ,next-pos))) do
+                        (> ,input (smp-ref ,values ,next-pos))) do
             (%median-update-value ,values ,ages ,next-pos ,pos)
             (incf ,pos)))))
 
@@ -473,11 +473,11 @@
      ;; inside the next loop
      in
      (dotimes (i size)
-       ;(setf (data-ref values i) in)
+       ;(setf (smp-ref values i) in)
        (setf (svref ages i) i)))
     (%median-update-ages pos ages size last)
     (%median-search-lower in values ages pos)
     (%median-search-higher in values ages pos last)
-    (setf (data-ref values pos) in
+    (setf (smp-ref values pos) in
           (svref ages pos) 0)
-    (data-ref values median)))
+    (smp-ref values median)))

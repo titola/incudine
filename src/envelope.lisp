@@ -120,7 +120,7 @@
                      ((atom curve) (list curve))
                      (t curve)))
         (first-level (sample (car levels))))
-    (setf (data-ref data 0)
+    (setf (smp-ref data 0)
           (envelope-fix-zero first-level (car curve)))
     (setf (envelope-duration env) +sample-zero+
           (envelope-loop-node env) loop-node
@@ -133,10 +133,10 @@
       (declare (type positive-fixnum i)
                (type list lev tim cur))
       (incf (envelope-duration env)
-            (setf (data-ref data i) (sample (car tim))))
-      (setf (data-ref data (incf i))
+            (setf (smp-ref data i) (sample (car tim))))
+      (setf (smp-ref data (incf i))
             (envelope-fix-zero (car lev) (car cur)))
-      (setf (data-ref data (incf i))
+      (setf (smp-ref data (incf i))
             (seg-function-spec->sample (car cur))))
     env))
 
@@ -287,11 +287,11 @@
            (type non-negative-fixnum node-number)
            #.*reduce-warnings*)
   (when (check-envelope-node env node-number)
-    (data-ref (envelope-data env)
-              (if (zerop node-number)
-                  0
-                  (the non-negative-fixnum
-                    (1- (* node-number 3)))))))
+    (smp-ref (envelope-data env)
+             (if (zerop node-number)
+                 0
+                 (the non-negative-fixnum
+                   (1- (* node-number 3)))))))
 
 (declaim (inline check-envelope-node))
 (defun check-envelope-node (env number)
@@ -315,19 +315,19 @@
         (block nil
           (when (and (plusp node-number)
                      (exponential-curve-index-p
-                      (mem-ref data 'sample)))
+                      (smp-ref data 0)))
             (return (setf level (sample 1.0e-5))))
           (when (/= node-number (1- (the non-negative-fixnum
                                       (envelope-points env))))
             (incf-pointer data (* 3 +foreign-sample-size+))
             (when (exponential-curve-index-p
-                   (mem-ref data 'sample))
+                   (smp-ref data 0))
               (incf-pointer data (* -3 +foreign-sample-size+))
               (return (setf level (sample 1.0e-5))))
             (incf-pointer data (* -3 +foreign-sample-size+)))))
       (if (> node-number 0)
           (incf-pointer data (- +foreign-sample-size+)))
-      (setf (mem-ref data 'sample) (sample level)))))
+      (setf (smp-ref data 0) (sample level)))))
 
 (defsetf envelope-level set-envelope-level)
 
@@ -340,9 +340,9 @@
   (when (check-envelope-node env node-number)
     (if (zerop node-number)
         +sample-zero+
-        (data-ref (envelope-data env)
-                  (the non-negative-fixnum
-                    (- (* node-number 3) 2))))))
+        (smp-ref (envelope-data env)
+                 (the non-negative-fixnum
+                   (- (* node-number 3) 2))))))
 
 (declaim (inline set-envelope-time))
 (defun set-envelope-time (env node-number time)
@@ -353,9 +353,9 @@
            #.*reduce-warnings*)
   (cond ((zerop node-number) +sample-zero+)
         ((< node-number (the non-negative-fixnum (envelope-points env)))
-         (setf (data-ref (envelope-data env)
-                         (the positive-fixnum
-                           (- (* node-number 3) 2)))
+         (setf (smp-ref (envelope-data env)
+                        (the positive-fixnum
+                          (- (* node-number 3) 2)))
                (sample time)))
         (t +sample-zero+)))
 
@@ -371,9 +371,9 @@
   (when (< 0 node-number (the non-negative-fixnum
                            (envelope-points env)))
     (sample->seg-function-spec
-     (data-ref (envelope-data env)
-               (the non-negative-fixnum
-                 (* 3 node-number))))))
+     (smp-ref (envelope-data env)
+              (the non-negative-fixnum
+                (* 3 node-number))))))
 
 (defun set-envelope-curve (env node-number curve)
   (declare #.*standard-optimize-settings*
@@ -383,8 +383,8 @@
            #.*reduce-warnings*
            #+(or cmu sbcl) (values (or symbol sample)))
   (macrolet ((segment-fix-zero (ptr new-zero old-zero)
-               `(when (= (data-ref ,ptr 0) ,old-zero)
-                  (setf (data-ref ,ptr 0) ,new-zero)))
+               `(when (= (smp-ref ,ptr 0) ,old-zero)
+                  (setf (smp-ref ,ptr 0) ,new-zero)))
              (segment-fix-zeros (beg-ptr end-ptr new-zero old-zero)
                `(progn
                   (segment-fix-zero ,beg-ptr ,new-zero ,old-zero)
@@ -402,7 +402,7 @@
             (segment-fix-zeros beg-ptr end-ptr (sample 1.0e-5) 0)
             (segment-fix-zeros beg-ptr end-ptr +sample-zero+
                                (sample 1.0e-5)))
-        (setf (data-ref curve-ptr 0)
+        (setf (smp-ref curve-ptr 0)
               (seg-function-spec->sample curve))
         curve))))
 
@@ -415,10 +415,10 @@
   (let ((points (envelope-points obj))
         (data (envelope-data obj)))
     (setf (envelope-level obj 0)
-          (* (data-ref data 0) mult))
+          (* (smp-ref data 0) mult))
     (loop for i from 1 below points do
          (setf (envelope-level obj i)
-               (* (data-ref data (1- (* i 3))) mult)))
+               (* (smp-ref data (1- (* i 3))) mult)))
     obj))
 
 (defmethod normalize ((obj envelope) (norm-value real))
@@ -445,7 +445,7 @@
                (if (>= index points)
                    (values (/ (sample 1) (- old-max old-min))
                            old-min)
-                   (let ((value (data-ref (envelope-data obj) index)))
+                   (let ((value (smp-ref (envelope-data obj) index)))
                      (resc (+ index 3)
                            (min value old-min)
                            (max value old-max))))))
@@ -456,8 +456,8 @@
           (flet ((set-level (index offset)
                    (setf (envelope-level obj index)
                          (+ min (* new-delta old-delta
-                                   (- (data-ref (envelope-data obj)
-                                                offset)
+                                   (- (smp-ref (envelope-data obj)
+                                               offset)
                                       old-min))))))
             (set-level 0 0)
             (labels ((set-levels (index offset)

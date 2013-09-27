@@ -43,7 +43,7 @@
           (setf x (* xloc scale))
           (incf xloc)
           (setf sum (car coeffs))
-          (setf (mem-aref c-array 'sample i)
+          (setf (smp-ref c-array i)
                 (dolist (c (cdr coeffs) sum)
                   (setf sum (+ (* sum x) (the sample c)))
                   (setf abs-value (abs sum))

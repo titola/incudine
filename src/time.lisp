@@ -47,15 +47,15 @@
 (defun bpm (tempo)
   (declare (type tempo tempo))
   (rt-eval (:return-value-p t)
-    (mem-ref (tempo-bpm-ptr tempo) 'sample)))
+    (smp-ref (tempo-bpm-ptr tempo) 0)))
 
 (declaim (inline set-bpm))
 (defun set-bpm (tempo bpm)
   (declare (type tempo tempo))
   (rt-eval (:return-value-p t)
-    (setf #1=(mem-ref (tempo-bpm-ptr tempo) 'sample)
+    (setf #1=(smp-ref (tempo-bpm-ptr tempo) 0)
           (sample bpm))
-    (setf (mem-ref (tempo-bpm-ptr tempo) 'sample +foreign-sample-size+)
+    (setf (smp-ref (tempo-bpm-ptr tempo) 1)
           (/ (sample 60) #1#))
     bpm))
 
@@ -64,16 +64,15 @@
 (declaim (inline bps))
 (defun bps (tempo)
   (declare (type tempo tempo))
-  (rt-eval (:return-value-p t)
-    (mem-ref (tempo-bpm-ptr tempo) 'sample +foreign-sample-size+)))
+  (rt-eval (:return-value-p t) (smp-ref (tempo-bpm-ptr tempo) 1)))
 
 (declaim (inline set-bps))
 (defun set-bps (tempo bps)
   (declare (type tempo tempo))
   (rt-eval (:return-value-p t)
-    (setf #1=(mem-ref (tempo-bpm-ptr tempo) 'sample +foreign-sample-size+)
+    (setf #1=(smp-ref (tempo-bpm-ptr tempo) 1)
           (sample bps))
-    (setf (mem-ref (tempo-bpm-ptr tempo) 'sample)
+    (setf (smp-ref (tempo-bpm-ptr tempo) 0)
           (/ (sample 60) #1#))
     bps))
 
@@ -88,7 +87,7 @@
 
 (declaim (inline now))
 (defun now ()
-  (mem-ref *sample-counter* 'sample))
+  (smp-ref *sample-counter* 0))
 
 (declaim (inline tempo-sync))
 (defun tempo-sync (period)

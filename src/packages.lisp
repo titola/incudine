@@ -84,7 +84,7 @@
    #:calc-lobits
    #:rt-thread-p #:rt-eval #:rt-eval-if
    #:foreign-pointer
-   #:data-ref
+   #:smp-ref #:data-ref
    #:with-foreign-object #:with-samples #:with-samples*
    #:with-complex
    #:do-complex
@@ -233,7 +233,7 @@
   (:import-from :incudine.util #:*standard-optimize-settings* #:*reduce-warnings*
                 #:*sample-rate* #:+twopi+ #:+half-pi+
                 #:+foreign-sample-size+ #:with-foreign-object
-                #:foreign-pointer #:with-samples #:with-samples* #:sample #:data-ref
+                #:foreign-pointer #:with-samples #:with-samples* #:sample #:smp-ref
                 #:+sample-zero+ #:limited-sample #:sample->fixnum #:sample->int
                 #:nrt-msg)
   (:export #:envelope
@@ -267,7 +267,7 @@
    #:dsp-seq #:synth-seq
    #:start-time #:uptime
    #:buffer #:make-buffer #:buffer-p #:size #:frames #:channels #:data #:mask
-   #:buffer-mask #:buffer-data #:set-buffer-data #:data-ref #:buffer-value
+   #:buffer-mask #:buffer-data #:set-buffer-data #:smp-ref #:buffer-value
    #:buffer-size #:buffer-frames #:buffer-channels #:buffer-sample-rate
    #:buffer-value #:buffer-mask #:buffer-lobits #:buffer-lomask #:buffer-lodiv
    #:buffer-file #:buffer-load #:buffer-save #:map-buffer #:map-into-buffer

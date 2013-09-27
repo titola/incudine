@@ -4,7 +4,7 @@
   (cffi:with-foreign-object (arr 'sample size)
     (seed-random-state seed)
     (funcall fn arr size)
-    (loop for i below size collect (sample->fixnum (* scale (data-ref arr i))))))
+    (loop for i below size collect (sample->fixnum (* scale (smp-ref arr i))))))
 
 (deftest gen-rand-linear
     (gen-random-test-1 (gen:rand :linear :a 0.0d0 :b 1000.0d0))

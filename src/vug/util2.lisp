@@ -31,8 +31,7 @@
 
 ;;; Return a value of a frame
 (defmacro frame-ref (frame channel)
-  `(mem-ref ,frame 'sample (the non-negative-fixnum
-                             (* ,channel +foreign-sample-size+))))
+  `(smp-ref ,frame ,channel))
 
 ;;; Like MULTIPLE-VALUE-BIND but dedicated to a FRAME
 (defmacro frame-value-bind (vars frame &body body)

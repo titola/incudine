@@ -20,7 +20,7 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (import
-   '(incudine:data-ref
+   '(incudine:smp-ref
      incudine:free
      incudine:now)))
 
@@ -127,10 +127,8 @@
 (declaim (inline ring-input-buffer-put))
 (defun ring-input-buffer-put (value buf)
   (declare (type sample value) (type ring-input-buffer buf))
-  (setf (mem-ref (ring-input-buffer-data buf) 'sample
-                 (the non-negative-fixnum
-                   (* (ring-input-buffer-head buf)
-                      +foreign-sample-size+)))
+  (setf (smp-ref (ring-input-buffer-data buf)
+                 (ring-input-buffer-head buf))
         value)
   (incf (ring-buffer-head buf))
   (when (>= (ring-buffer-head buf)
@@ -158,19 +156,16 @@
 (declaim (inline ring-output-buffer-next))
 (defun ring-output-buffer-next (buf)
   (declare (type ring-output-buffer buf))
-  (let ((index (the non-negative-fixnum
-                 (* (ring-output-buffer-head buf)
-                    +foreign-sample-size+))))
-    ;; Temporary variable on the foreign heap
-    (setf (mem-ref (ring-output-buffer-tmp buf) 'sample)
-          #1=(mem-ref (ring-output-buffer-data buf)
-                      'sample index))
-    (setf #1# +sample-zero+)
-    (incf (ring-output-buffer-head buf))
-    (when (>= (ring-output-buffer-head buf)
-              (ring-output-buffer-size buf))
-      (setf (ring-output-buffer-head buf) 0))
-    (mem-ref (ring-output-buffer-tmp buf) 'sample)))
+  ;; Temporary variable on the foreign heap
+  (setf (smp-ref (ring-output-buffer-tmp buf) 0)
+        #1=(smp-ref (ring-output-buffer-data buf)
+                    (ring-output-buffer-head buf)))
+  (setf #1# +sample-zero+)
+  (incf (ring-output-buffer-head buf))
+  (when (>= (ring-output-buffer-head buf)
+            (ring-output-buffer-size buf))
+    (setf (ring-output-buffer-head buf) 0))
+  (smp-ref (ring-output-buffer-tmp buf) 0))
 
 (defstruct (analysis (:copier nil))
   (input-buffer (error "missing INPUT-BUFFER") :type foreign-pointer)
@@ -184,12 +179,12 @@
 (declaim (inline analysis-time))
 (defun analysis-time (obj)
   (declare (type analysis obj))
-  (mem-ref (analysis-time-ptr obj) 'sample))
+  (smp-ref (analysis-time-ptr obj) 0))
 
 (declaim (inline set-analysis-time))
 (defun set-analysis-time (obj time)
   (declare (type analysis obj) (type sample time))
-  (setf (mem-ref (analysis-time-ptr obj) 'sample) time))
+  (setf (smp-ref (analysis-time-ptr obj) 0) time))
 
 (defsetf analysis-time set-analysis-time)
 
@@ -225,7 +220,7 @@
                             analysis-object)))
       (let ((time-ptr (foreign-alloc 1 nil))
             (data (foreign-alloc size t)))
-        (setf (mem-ref time-ptr 'sample) (sample -1))
+        (setf (smp-ref time-ptr 0) (sample -1))
         (let ((obj (%make-abuffer :data data
                       :size size
                       :nbins nbins
@@ -270,19 +265,13 @@
     (setf (abuffer-coord-complex-p obj) t)))
 
 (defmacro abuffer-time (obj)
-  `(mem-ref (abuffer-time-ptr ,obj) 'sample))
+  `(smp-ref (abuffer-time-ptr ,obj) 0))
 
 (defmacro abuffer-realpart (obj nbin)
-  `(mem-ref (abuffer-data ,obj) 'sample
-            (the non-negative-fixnum
-              (* ,nbin +foreign-complex-size+))))
+  `(smp-ref (abuffer-data ,obj) ,nbin))
 
 (defmacro abuffer-imagpart (obj nbin)
-  `(mem-ref (abuffer-data ,obj) 'sample
-            (the non-negative-fixnum
-              (+ (the non-negative-fixnum
-                   (* ,nbin +foreign-complex-size+))
-                 +foreign-sample-size+))))
+  `(smp-ref (abuffer-data ,obj) (1+ ,nbin)))
 
 (defgeneric compute (obj &optional arg))
 

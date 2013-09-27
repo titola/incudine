@@ -75,14 +75,11 @@
     (when id
       (setf (node-hash obj) (int-hash id)))
     ;; default level
-    (setf (mem-aref (node-gain-data obj) 'sample 0)
-          (sample 1))
+    (setf (smp-ref (node-gain-data obj) 0) (sample 1))
     ;; default curve
-    (setf (mem-aref (node-gain-data obj) 'sample 3)
-          +seg-lin-func+)
+    (setf (smp-ref (node-gain-data obj) 3) +seg-lin-func+)
     ;; default fade-time
-    (setf (mem-aref (node-gain-data obj) 'sample 9)
-          (sample 0.02))
+    (setf (smp-ref (node-gain-data obj) 9) (sample 0.02))
     (let ((start-time-ptr (node-start-time-ptr obj))
           (gain-data-ptr (node-gain-data obj)))
       (tg:finalize obj (lambda ()
@@ -177,7 +174,7 @@
           (flet ((common-set (group id)
                    (setf (node-id group) id
                          (node-hash group) (int-hash id)
-                         (mem-ref (node-start-time-ptr group) 'sample) (now)
+                         (smp-ref (node-start-time-ptr group) 0) (now)
                          (node-last group) :dummy-node
                          (node-pause-p group) nil)
                    (incf (int-hash-table-count *node-hash*))))
@@ -292,7 +289,7 @@
 (defgeneric start-time (obj))
 
 (defmethod start-time ((obj node))
-  (mem-ref (node-start-time-ptr obj) 'sample))
+  (smp-ref (node-start-time-ptr obj) 0))
 
 (defmethod start-time ((obj integer))
   (start-time (node obj)))
@@ -312,7 +309,7 @@
 
 (defmethod gain ((obj node))
   (rt-eval (:return-value-p t)
-    (mem-aref (node-gain-data obj) 'sample 0)))
+    (smp-ref (node-gain-data obj) 0)))
 
 (defmethod gain ((obj integer))
   (gain (node obj)))
@@ -321,7 +318,7 @@
 
 (defmethod (setf gain) ((value number) (obj node))
   (rt-eval (:return-value-p t)
-    (setf (mem-aref (node-gain-data obj) 'sample 0)
+    (setf (smp-ref (node-gain-data obj) 0)
           (sample value))))
 
 (defmethod (setf gain) ((value number) (obj integer))
@@ -331,7 +328,7 @@
 
 (defmethod fade-time ((obj node))
   (rt-eval (:return-value-p t)
-    (mem-aref (node-gain-data obj) 'sample 9)))
+    (smp-ref (node-gain-data obj) 9)))
 
 (defmethod fade-time ((obj integer))
   (fade-time (node obj)))
@@ -340,7 +337,7 @@
 
 (defmethod (setf fade-time) ((value number) (obj node))
   (rt-eval (:return-value-p t)
-    (setf (mem-aref (node-gain-data obj) 'sample 9)
+    (setf (smp-ref (node-gain-data obj) 9)
           (sample value))))
 
 (defmethod (setf fade-time) ((value number) (obj integer))
@@ -351,7 +348,7 @@
 (defmethod fade-curve ((obj node))
   (rt-eval (:return-value-p t)
     (sample->seg-function-spec
-     (mem-aref (node-gain-data obj) 'sample 3))))
+     (smp-ref (node-gain-data obj) 3))))
 
 (defmethod fade-curve ((obj integer))
   (fade-curve (node obj)))
@@ -360,7 +357,7 @@
 
 (defmethod (setf fade-curve) (value (obj node))
   (rt-eval (:return-value-p t)
-    (setf (mem-aref (node-gain-data obj) 'sample 3)
+    (setf (smp-ref (node-gain-data obj) 3)
           (seg-function-spec->sample value))))
 
 (defmethod (setf fade-curve) (value (obj integer))
@@ -485,7 +482,7 @@
            (setf (node-id item)        id
                  (node-hash item)      hash
                  (node-name item)      name
-                 (mem-ref (node-start-time-ptr item) 'sample) (now)
+                 (smp-ref (node-start-time-ptr item) 0) (now)
                  (node-pause-p item)   nil
                  (node-function item)  fn
                  (node-last item)      nil
@@ -1271,7 +1268,7 @@
     `(symbol-macrolet ((,instance (node-gain-data ,node))
                        ,@(mapcar
                           (lambda (sym)
-                            (prog1 `(,sym (mem-aref ,instance 'sample ,count))
+                            (prog1 `(,sym (smp-ref ,instance ,count))
                               (incf count)))
                           symbols))
        ,@body)))

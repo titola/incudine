@@ -28,7 +28,7 @@
   (with-samples ((delta (/ +twopi+ size))
                  (phase +sample-zero+))
     (dotimes (i size c-array)
-      (setf (data-ref c-array i)
+      (setf (smp-ref c-array i)
             (* 0.5 (- 1.0 (cos (the limited-sample
                                  phase)))))
       (incf phase delta))))
@@ -37,7 +37,7 @@
   (with-samples ((delta (/ +twopi+ size))
                  (phase +sample-zero+))
     (dotimes (i size c-array)
-      (setf (data-ref c-array i)
+      (setf (smp-ref c-array i)
             (- 0.54 (* 0.46 (cos (the limited-sample
                                    phase)))))
       (incf phase delta))))
@@ -46,7 +46,7 @@
   (with-samples ((delta (/ +twopi+ size))
                  (phase +sample-zero+))
     (dotimes (i size c-array)
-      (setf (data-ref c-array i)
+      (setf (smp-ref c-array i)
             (+ (- 0.42 (* 0.5 (cos (the limited-sample
                                      phase))))
                (* 0.08 (cos (the limited-sample
@@ -56,7 +56,7 @@
 (defwindow sine-window (c-array size)
   (with-samples ((winc (/ (sample pi) size)))
     (dotimes (i size c-array)
-      (setf (data-ref c-array i)
+      (setf (smp-ref c-array i)
             (sin (the limited-sample
                    (* i winc)))))))
 
@@ -65,7 +65,7 @@
     (declare (type non-negative-fixnum half-size))
     (with-samples ((half-recip (/ (sample half-size))))
       (dotimes (i size c-array)
-        (setf (data-ref c-array i)
+        (setf (smp-ref c-array i)
               (if (< i half-size)
                   (* i half-recip)
                   (* (- size i) half-recip)))))))

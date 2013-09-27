@@ -23,8 +23,8 @@
       `(do ((,index ,start (1+ ,index)))
            ((>= ,index ,end))
          (declare (type non-negative-fixnum ,index))
-         (incf ,sum-var (* (data-ref ,data ,index)
-                           (data-ref ,kernel ,kernel-pos-var)))
+         (incf ,sum-var (* (smp-ref ,data ,index)
+                           (smp-ref ,kernel ,kernel-pos-var)))
          (incf ,kernel-pos-var)))))
 
 (define-vug direct-convolve (in (buf buffer))
@@ -38,8 +38,8 @@ stored in a buffer."
          (kernel-pos 0)
          (sum +sample-zero+))
     (declare (type fixnum pos kernel-pos) (type sample sum))
-    (setf (data-ref data pos) in)
-    (setf sum (* in (data-ref kernel 0)))
+    (setf (smp-ref data pos) in)
+    (setf sum (* in (smp-ref kernel 0)))
     (setf kernel-pos 1)
     (direct-conv-loop data kernel kernel-pos sum :start (1+ pos) :end size)
     (direct-conv-loop data kernel kernel-pos sum :end pos)
@@ -79,13 +79,13 @@ stored in a buffer."
            ((>= ,ch ,channels) (setf ,output-index-var ,i))
          (declare (type non-negative-fixnum ,ch ,i))
          (setf (frame-ref ,frame ,ch)
-               (* ,mult (data-ref ,outbuf ,i))))))
+               (* ,mult (smp-ref ,outbuf ,i))))))
 
   (defmacro pconv-update-input (fft-inbuf index value pad-index-var)
     `(progn
-       (setf (data-ref ,fft-inbuf ,index) ,value)
+       (setf (smp-ref ,fft-inbuf ,index) ,value)
        ;; Zero padding of the second half
-       (setf (data-ref ,fft-inbuf ,pad-index-var) +sample-zero+)
+       (setf (smp-ref ,fft-inbuf ,pad-index-var) +sample-zero+)
        (incf ,pad-index-var)
        (incf ,index)))
 
@@ -95,12 +95,12 @@ stored in a buffer."
     (labels ((rec (i j k l)
                (declare (type non-negative-fixnum i j k l))
                (when (< i partsize)
-                 (setf (data-ref outbuf k) (+ (data-ref ifft-outbuf i)
-                                              ;; Overlap the the tail of the
-                                              ;; prior computation
-                                              (data-ref outbuf l)))
+                 (setf (smp-ref outbuf k) (+ (smp-ref ifft-outbuf i)
+                                             ;; Overlap the the tail of the
+                                             ;; prior computation
+                                             (smp-ref outbuf l)))
                  ;; Update the tail to overlap at the next block
-                 (setf (data-ref outbuf l) (data-ref ifft-outbuf j))
+                 (setf (smp-ref outbuf l) (smp-ref ifft-outbuf j))
                  (rec (1+ i) (1+ j) (+ k channels) (+ l channels)))))
       (rec 0 partsize channel (+ channel outbuf-half))))
 
@@ -111,7 +111,7 @@ stored in a buffer."
          (j start (1+ j)))
         ((>= i block-size))
       (declare (type non-negative-fixnum i j))
-      (setf (data-ref fdl j) (data-ref fft-outbuf i))))
+      (setf (smp-ref fdl j) (smp-ref fft-outbuf i))))
 
   (defmacro update-fdl-head (head-var block-size last)
     `(setf ,head-var (if (plusp ,head-var)
