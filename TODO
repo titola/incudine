@@ -1,8 +1,4 @@
-* High priority
-
-  - Code to also use ECL (Embeddable Common Lisp)
-
-(no particular order for the rest)
+(no particular order)
 
 * VUGs
 
@@ -37,9 +33,4 @@
   - external repository for a collection of VUGs
   - script for non-realtime sintesi and the possibility to use pipes
     in the *nix environment (interaction with the other *nix tools)
-
-* External
-
-  - ats
-  - loris ?
-  - fluidsynth ?
+  - nested DSP
