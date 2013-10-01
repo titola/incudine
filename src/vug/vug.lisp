@@ -543,7 +543,7 @@
                  (t (cons (parse-vug-def name nil flist mlist)
                           (parse-vug-def (cdr def) t flist mlist))))))
         (quote-expr-p `',def)
-        ((eq def 'pi) '(sample pi))
+        ((eq def 'pi) (sample pi))
         ((and (symbolp def)
               (or (boundp def)
                   (eq def '%dsp-node%)))
