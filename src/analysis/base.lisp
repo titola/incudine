@@ -268,10 +268,16 @@
   `(smp-ref (abuffer-time-ptr ,obj) 0))
 
 (defmacro abuffer-realpart (obj nbin)
-  `(smp-ref (abuffer-data ,obj) ,nbin))
+  `(mem-ref (abuffer-data ,obj) 'sample
+            (the non-negative-fixnum
+              (* ,nbin +foreign-complex-size+))))
 
 (defmacro abuffer-imagpart (obj nbin)
-  `(smp-ref (abuffer-data ,obj) (1+ ,nbin)))
+  `(mem-ref (abuffer-data ,obj) 'sample
+            (the non-negative-fixnum
+              (+ (the non-negative-fixnum
+                   (* ,nbin +foreign-complex-size+))
+                 +foreign-sample-size+))))
 
 (defgeneric compute (obj &optional arg))
 
