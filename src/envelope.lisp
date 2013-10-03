@@ -408,6 +408,73 @@
 
 (defsetf envelope-curve set-envelope-curve)
 
+(defmacro %envelope-at (beg end pos curve tmp0 tmp1 tmp2)
+  (with-gensyms (sqrt-s expt-s x power)
+    (#+double-samples progn #-double-samples apply-sample-coerce
+     `(flet ((,sqrt-s (,x) (sqrt (the non-negative-sample ,x)))
+             (,expt-s (,x ,power) (expt (the non-negative-sample ,x) ,power)))
+        (curve-case ,curve
+          (+seg-step-func+ ,end)
+          (+seg-lin-func+ (+ (* ,pos (- ,end ,beg)) ,beg))
+          (+seg-exp-func+ (* ,beg (,expt-s (/ ,end ,beg) ,pos)))
+          (+seg-sine-func+ (+ ,beg (* (- ,end ,beg)
+                                      (+ (* (- (cos (* pi ,pos))) 0.5d0) 0.5d0))))
+          (+seg-welch-func+ (if (< ,beg ,end)
+                                (+ ,beg (* (- ,end ,beg)
+                                           (sin (* +half-pi+ ,pos))))
+                                (- ,end (* (- ,end ,beg)
+                                           (sin (- +half-pi+
+                                                   (* +half-pi+ ,pos)))))))
+          (+seg-square-func+ (setf ,tmp0 (,sqrt-s ,beg)
+                                   ,tmp1 (,sqrt-s ,end)
+                                   ,tmp2 (+ (* pos (- ,tmp1 ,tmp0)) ,tmp0))
+                             (* ,tmp2 ,tmp2))
+          (+seg-cubic-func+ (setf ,tmp0 (,expt-s ,beg #.(/ 3.0d0))
+                                  ,tmp1 (,expt-s ,end #.(/ 3.0d0))
+                                  ,tmp2 (+ (* ,pos (- ,tmp1 ,tmp0)) ,tmp0))
+                            (* ,tmp2 ,tmp2 ,tmp2))
+          (otherwise (if (< (abs ,curve) 0.001d0)
+                         ;; Linear segment
+                         (+ (* ,pos (- ,end ,beg)) ,beg)
+                         (+ ,beg (* (- ,end ,beg)
+                                    (/ (- 1.0d0 (exp (* ,pos ,curve)))
+                                       (- 1.0d0 (exp ,curve))))))))))))
+
+(defun envelope-at (env time)
+  "Return the level of the envelope ENV at time TIME."
+  (declare (type envelope env) (type (real 0) time))
+  (if (zerop time)
+      (envelope-level env 0)
+      ;; Temporary C variables to avoid consing with DOUBLE-FLOAT
+      (with-samples ((pos-time time)
+                     (delta-time 0.0)
+                     (t0 0.0)
+                     (t1 0.0)
+                     (tmp0 0.0)
+                     (tmp1 0.0)
+                     (tmp2 0.0))
+        (let ((points (envelope-points env))
+              (data (envelope-data env)))
+          (declare #.*standard-optimize-settings*
+                   #.*reduce-warnings*)
+          (labels ((look (p index)
+                     (declare (type non-negative-fixnum p index))
+                     (setf delta-time (smp-ref data (- index 2)))
+                     (setf t0 t1)
+                     (incf t1 delta-time)
+                     (if (< pos-time t1)
+                         (env-at (smp-ref data (if (zerop p) 0 (- index 4)))
+                                 (smp-ref data (- index 1))
+                                 (/ (- pos-time t0) delta-time)
+                                 (smp-ref data index))
+                         (if (< p points)
+                             (look (1+ p) (+ index 3))
+                             ;; Return the last level
+                             (smp-ref data (- index 1)))))
+                   (env-at (beg end pos curve)
+                     (%envelope-at beg end pos curve tmp0 tmp1 tmp2)))
+            (look 0 3))))))
+
 (defmethod data ((obj envelope))
   (envelope-data obj))
 

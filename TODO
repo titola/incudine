@@ -26,11 +26,9 @@
 
 * Misc
 
-  - ENVELOPE lookup
+  - nested DSP
   - Open Sound Control
   - graph of nodes for multi-core CPUs
   - documentation
-  - external repository for a collection of VUGs
   - script for non-realtime sintesi and the possibility to use pipes
     in the *nix environment (interaction with the other *nix tools)
-  - nested DSP
