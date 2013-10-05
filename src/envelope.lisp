@@ -39,6 +39,8 @@
     (data-size 0 :type non-negative-fixnum)
     (loop-node -1 :type fixnum)
     (release-node -1 :type fixnum)
+    ;; The envelope restarts from the current level if RESTART-LEVEL is NIL
+    (%restart-level nil :type (or sample null))
     (max-points *envelope-default-max-points* :type non-negative-fixnum)
     (real-time-p nil :type boolean)
     (foreign-free #'foreign-free :type function)))
@@ -61,6 +63,17 @@
         (envelope-release-node obj) -1
         (envelope-max-points obj) 0)
   (values))
+
+(declaim (inline envelope-restart-level))
+(defun envelope-restart-level (instance)
+  (envelope-%restart-level instance))
+
+(declaim (inline set-envelope-restart-level))
+(defun set-envelope-restart-level (instance value)
+  (setf (envelope-%restart-level instance)
+        (if value (sample value))))
+
+(defsetf envelope-restart-level set-envelope-restart-level)
 
 (declaim (inline calc-data-size))
 (defun calc-data-size (size)
@@ -112,7 +125,8 @@
               level)))
 
 (defun set-envelope (env levels times &key curve
-                     (loop-node -1) (release-node -1))
+                     (loop-node -1) (release-node -1)
+                     (restart-level nil restart-level-p))
   (declare (type envelope env) (type list levels times))
   (let ((data (envelope-data
                (check-envelope-points env levels times)))
@@ -125,6 +139,8 @@
     (setf (envelope-duration env) +sample-zero+
           (envelope-loop-node env) loop-node
           (envelope-release-node env) release-node)
+    (if restart-level-p
+        (setf (envelope-restart-level env) restart-level))
     (do ((i 1 (1+ i))
          (lev (cdr levels) (or (cdr lev) (cdr levels)))
          (tim times (or (cdr tim) times))
@@ -256,7 +272,7 @@
                         ,level (- ,a2 ,b1))))))
 
 (defun make-envelope (levels times &key curve (loop-node -1)
-                      (release-node -1) real-time-p)
+                      (release-node -1) restart-level real-time-p)
   (declare (type list levels times)
            (type fixnum loop-node release-node)
            (type boolean real-time-p))
@@ -271,6 +287,8 @@
                             #'foreign-free))
          (env (%make-envelope :data data :data-size (calc-data-size size)
                               :points size :max-points max-points
+                              :%restart-level (if restart-level
+                                                  (sample restart-level))
                               :real-time-p real-time-p
                               :foreign-free free-function)))
     (set-envelope env levels times :curve curve :loop-node loop-node
@@ -561,7 +579,7 @@
     (push curve acc)))
 
 (defun breakpoints->env (bpseq &key curve (loop-node -1)
-                         (release-node -1) real-time-p)
+                         (release-node -1) restart-level real-time-p)
   (declare (type (or list array) bpseq))
   (multiple-value-bind (bpseq-p size)
       (breakpoint-sequence-p bpseq)
@@ -575,6 +593,7 @@
                                       :curve curve
                                       :loop-node loop-node
                                       :release-node release-node
+                                      :restart-level restart-level
                                       :real-time-p real-time-p))))
           (let ((bplist (coerce bpseq 'list)))
             (declare #.*standard-optimize-settings* #.*reduce-warnings*)
@@ -620,10 +639,10 @@
 ;;; Frequently used envelope shapes
 
 (defun make-linen (attack-time sustain-time release-time
-                   &key (level 1) (curve :lin) real-time-p)
+                   &key (level 1) (curve :lin) restart-level real-time-p)
   (make-envelope (list 0 level level 0)
                  (list attack-time sustain-time release-time)
-                 :curve curve :real-time-p real-time-p))
+                 :curve curve :restart-level restart-level :real-time-p real-time-p))
 
 (defgeneric linen (obj attack-time sustain-time release-time
                    &key level curve))
@@ -635,9 +654,9 @@
                 :curve curve))
 
 (defun make-perc (attack-time release-time
-                  &key (level 1) (curve -4) real-time-p)
+                  &key (level 1) (curve -4) restart-level real-time-p)
   (make-envelope (list 0 level 0) (list attack-time release-time)
-                 :curve curve :real-time-p real-time-p))
+                 :curve curve :restart-level restart-level :real-time-p real-time-p))
 
 (defgeneric perc (obj attack-time release-time &key level curve))
 
@@ -646,9 +665,10 @@
   (set-envelope obj `(0 ,level 0) `(,attack-time ,release-time)
                 :curve curve))
 
-(defun make-cutoff (release-time &key (level 1) (curve :exp) real-time-p)
+(defun make-cutoff (release-time &key (level 1) (curve :exp) restart-level real-time-p)
   (make-envelope (list level 0) (list release-time)
-                 :curve curve :release-node 0 :real-time-p real-time-p))
+                 :curve curve :release-node 0 :restart-level restart-level
+                 :real-time-p real-time-p))
 
 (defgeneric cutoff (obj release-time &key level curve))
 
@@ -658,9 +678,10 @@
                 :curve curve :release-node 0))
 
 (defun make-asr (attack-time sustain-level release-time
-                 &key (curve -4) real-time-p)
+                 &key (curve -4) restart-level real-time-p)
   (make-envelope (list 0 sustain-level 0) (list attack-time release-time)
-                 :curve curve :release-node 1 :real-time-p real-time-p))
+                 :curve curve :release-node 1 :restart-level restart-level
+                 :real-time-p real-time-p))
 
 (defgeneric asr (obj attack-time sustain-level release-time
                  &key curve))
@@ -671,10 +692,11 @@
                 :curve curve :release-node 1))
 
 (defun make-adsr (attack-time decay-time sustain-level release-time
-                  &key (peak-level 1) (curve -4) real-time-p)
+                  &key (peak-level 1) (curve -4) restart-level real-time-p)
   (make-envelope (list 0 peak-level (* peak-level sustain-level) 0)
                  (list attack-time decay-time release-time)
-                 :curve curve :release-node 2 :real-time-p real-time-p))
+                 :curve curve :release-node 2 :restart-level restart-level
+                 :real-time-p real-time-p))
 
 (defgeneric adsr (obj attack-time decay-time sustain-level
                   release-time &key peak-level curve))
@@ -687,10 +709,11 @@
 
 (defun make-dadsr (delay-time attack-time decay-time sustain-level
                    release-time &key (peak-level 1) (curve -4)
-                   real-time-p)
+                   restart-level real-time-p)
   (make-envelope (list 0 0 peak-level (* peak-level sustain-level) 0)
                  (list delay-time attack-time decay-time release-time)
-                 :curve curve :release-node 3 :real-time-p real-time-p))
+                 :curve curve :release-node 3 :restart-level restart-level
+                 :real-time-p real-time-p))
 
 (defgeneric dadsr (obj delay-time attack-time decay-time sustain-level
                    release-time &key peak-level curve))

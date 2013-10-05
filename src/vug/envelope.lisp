@@ -26,12 +26,13 @@
      incudine:envelope-max-points
      incudine:envelope-loop-node
      incudine:envelope-release-node
+     incudine:envelope-restart-level
      incudine::%segment-init
      incudine::%segment-update-level))
   (object-to-free incudine:make-envelope update-local-envelope))
 
 (defmacro make-local-envelope (levels times &key curve (loop-node -1)
-                               (release-node -1))
+                               (release-node -1) restart-level)
   (with-gensyms (%levels %times %curve env)
     `(with ((,%levels (locally (declare #.*reduce-warnings*)
                         ,levels))
@@ -42,6 +43,7 @@
             (,env (incudine:make-envelope ,%levels ,%times :curve ,%curve
                                           :loop-node ,loop-node
                                           :release-node ,release-node
+                                          :restart-level ,restart-level
                                           :real-time-p t)))
        ,env)))
 
@@ -58,37 +60,37 @@
                                        ,@(butlast args 2)))))))
 
 (defmacro make-local-linen (attack-time sustain-time release-time
-                            &key (level 1) (curve :lin))
+                            &key (level 1) (curve :lin) restart-level)
   `(make-local-envelope (list 0 ,level ,level 0)
                         (list ,attack-time ,sustain-time ,release-time)
-                        :curve ,curve))
+                        :curve ,curve :restart-level ,restart-level))
 
 (defmacro make-local-perc (attack-time release-time
-                           &key (level 1) (curve -4))
+                           &key (level 1) (curve -4) restart-level)
   `(make-local-envelope (list 0 ,level 0) (list ,attack-time ,release-time)
-                        :curve ,curve))
+                        :curve ,curve :restart-level ,restart-level))
 
-(defmacro make-local-cutoff (release-time &key (level 1) (curve :exp))
+(defmacro make-local-cutoff (release-time &key (level 1) (curve :exp) restart-level)
   `(make-local-envelope (list ,level 0) (list ,release-time)
-                        :curve ,curve :release-node 0))
+                        :curve ,curve :release-node 0 :restart-level ,restart-level))
 
 (defmacro make-local-asr (attack-time sustain-level release-time
-                          &key (curve -4))
+                          &key (curve -4) restart-level)
   `(make-local-envelope (list 0 ,sustain-level 0)
                         (list ,attack-time ,release-time)
-                        :curve ,curve :release-node 1))
+                        :curve ,curve :release-node 1 :restart-level ,restart-level))
 
 (defmacro make-local-adsr (attack-time decay-time sustain-level release-time
-                           &key (peak-level 1) (curve -4))
+                           &key (peak-level 1) (curve -4) restart-level)
   `(make-local-envelope (list 0 ,peak-level (* ,peak-level ,sustain-level) 0)
                         (list ,attack-time ,decay-time ,release-time)
-                        :curve ,curve :release-node 2))
+                        :curve ,curve :release-node 2 :restart-level ,restart-level))
 
 (defmacro make-local-dadsr (delay-time attack-time decay-time sustain-level
-                            release-time &key (peak-level 1) (curve -4))
+                            release-time &key (peak-level 1) (curve -4) restart-level)
   `(make-envelope (list 0 0 ,peak-level (* ,peak-level ,sustain-level) 0)
                   (list ,delay-time ,attack-time ,decay-time ,release-time)
-                  :curve ,curve :release-node 3))
+                  :curve ,curve :release-node 3 :restart-level ,restart-level))
 
 ;;; Simple segments
 
@@ -278,8 +280,8 @@
                                prev-index curr-index
                                done-p nil
                                sustain nil
-                               ;; LEVEL is set to END during the performance
-                               end tmp))
+                               ;; LEVEL is set to END during the performance.
+                               end (or (envelope-restart-level env) tmp)))
                         ((zerop dur)
                          (envgen-no-sustain sustain)
                          end)

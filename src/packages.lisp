@@ -303,7 +303,7 @@
    #:envelope #:envelope-p #:make-envelope #:set-envelope #:envelope-points
    #:envelope-max-points #:envelope-level #:envelope-time #:envelope-curve
    #:envelope-data #:envelope-duration #:envelope-loop-node #:envelope-release-node
-   #:envelope-at
+   #:envelope-restart-level #:envelope-at
    #:duration #:max-points #:breakpoints->env #:freq-breakpoints->env
    #:linen #:perc #:cutoff #:asr #:adsr #:dadsr
    #:make-linen #:make-perc #:make-cutoff #:make-asr #:make-adsr #:make-dadsr
