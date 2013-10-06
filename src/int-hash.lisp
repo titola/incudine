@@ -63,7 +63,7 @@
                      (logand (1+ ,index) ,mask))
              (,item (svref ,%items ,index) (svref ,%items ,index)))
             ((or (null-item-p ,item)
-                 (and (= (the (signed-byte 32) (,get-hash-fn ,item))
+                 (and (= (the fixnum (,get-hash-fn ,item))
                          ,hash-id)
                       (= (the fixnum (,get-key-fn ,item))
                          ,in-key)))
@@ -76,7 +76,7 @@
 
 (defmacro %getihash (key int-hash-table get-hash-fn get-key-fn items-type)
   `(svref (int-hash-table-items ,int-hash-table)
-          (%index-for (the (signed-byte 32) (int-hash ,key)) ,key
+          (%index-for (the fixnum (int-hash ,key)) ,key
                       (int-hash-table-items ,int-hash-table) ,items-type
                       ,int-hash-table ,get-hash-fn ,get-key-fn)))
 
@@ -100,7 +100,7 @@
               ((null-item-p ,curr-item))
            (declare (type fixnum ,old-key))
            ,@(when items-type `((declare (type ,items-type ,curr-item))))
-           (let ((,new-key (%index-for (the (signed-byte 32)
+           (let ((,new-key (%index-for (the fixnum
                                          (,get-hash-fn ,old-item))
                                        (the fixnum (,get-key-fn ,old-item))
                                        ,items ,items-type ,int-hash-table

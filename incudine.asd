@@ -101,5 +101,4 @@
      (:file "deprecated" :depends-on ("vug/in-out"))))
    (:static-file "COPYING")
    (:static-file "README")
-   (:static-file "TODO")
    (:static-file "incudinerc-example")))

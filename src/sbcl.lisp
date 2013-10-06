@@ -31,6 +31,11 @@
     (when (< sb-ext:*inline-expansion-limit* limit)
       (setf sb-ext:*inline-expansion-limit* limit))))
 
+(declaim (inline incudine::int-hash))
+(defun incudine::int-hash (x)
+  (declare (type fixnum x))
+  (sxhash x))
+
 (defmacro compare-and-swap (place old new)
   `(sb-ext:compare-and-swap ,place ,old ,new))
 

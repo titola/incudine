@@ -17,7 +17,7 @@
 (defpackage :incudine.external
   (:use :cl)
   (:export
-   #:int-hash #:pthread-set-priority #:sndfile-to-buffer
+   #:pthread-set-priority #:sndfile-to-buffer
    #:foreign-alloc-sample #:foreign-zero-sample #:foreign-set #:foreign-realloc-sample
    #:init-foreign-memory-pool #:destroy-foreign-memory-pool
    #:get-foreign-used-size #:get-foreign-max-size
@@ -249,7 +249,7 @@
   (:import-from #:cffi #:foreign-type-size #:foreign-alloc #:foreign-free
                 #:with-foreign-object #:null-pointer #:null-pointer-p
                 #:mem-ref #:mem-aref #:inc-pointer #:incf-pointer)
-  (:import-from #:incudine.external #:int-hash #:pthread-set-priority #:sndfile-to-buffer
+  (:import-from #:incudine.external #:pthread-set-priority #:sndfile-to-buffer
                 #:foreign-alloc-sample #:foreign-zero-sample #:foreign-realloc-sample
                 #:foreign-alloc-fft #:foreign-free-fft
                 #:sample-complex #:sample-polar #:magnitude

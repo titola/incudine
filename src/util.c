@@ -31,22 +31,6 @@
 #define sf_readf_SAMPLE  sf_readf_float
 #endif
 
-/*
- * Thomas Wang's integer hash.
- * http://www.concentric.net/~Ttwang/tech/inthash.htm
- */
-int32_t int_hash(int32_t key)
-{
-    uint32_t x = (uint32_t) key;
-    x  = ~x + (x << 15);  /* x = (x << 15) - x - 1; */
-    x ^=  x >> 10;
-    x +=  x << 2;
-    x ^=  x >> 4;
-    x *=  2057;           /* x = (x + (x << 3)) + (x << 11); */
-    x ^=  x >> 16;
-    return (int32_t) x;
-}
-
 /* THREAD */
 
 int pthread_set_priority(pthread_t thread, int priority)

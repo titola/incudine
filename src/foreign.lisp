@@ -71,12 +71,6 @@
 
   (import '(incudine.util:sample incudine.util:+foreign-sample-size+)))
 
-;;; HASH-TABLE
-
-(cffi:defcfun "int_hash" :int32
-  "Hash function for integer 32bit."
-  (in-key :int32))
-
 ;;; THREADS
 
 (cffi:defcfun "pthread_set_priority" :int

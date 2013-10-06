@@ -39,7 +39,7 @@
 (defstruct (node (:constructor %make-node)
                  (:copier nil))
   (id nil :type (or fixnum null))
-  (hash 0 :type (signed-byte 32))
+  (hash 0 :type fixnum)
   ;; Index in the array of the nodes
   (index #.(* 2 *max-number-of-nodes*) :type non-negative-fixnum)
   (name nil :type symbol)
@@ -262,7 +262,7 @@
 
 (defmethod (setf get-key) ((id integer) (obj node))
   (declare #.*standard-optimize-settings*)
-  (setf (node-hash obj) (the (signed-byte 32) (int-hash id))
+  (setf (node-hash obj) (int-hash id)
         (node-id obj) id))
 
 (defmethod get-hash ((obj node))
@@ -461,7 +461,7 @@
   "Returns the function to add a new node in the graph."
   (declare #.*standard-optimize-settings*
            (type node item target) (type symbol name add-action)
-           (type (signed-byte 32) hash) (type non-negative-fixnum id)
+           (type fixnum hash) (type non-negative-fixnum id)
            (type function fn))
   (cond ((eq add-action :replace)
          (lambda ()
@@ -804,7 +804,7 @@
                       (index (%index-for hash id nodes node *node-hash*
                                          node-hash node-id)))
                  (declare (type non-negative-fixnum id index)
-                          (type (signed-byte 32) hash))
+                          (type fixnum hash))
                  (when (eq (svref nodes index) node)
                    (when (> id 65535)
                      (setf *last-large-node-id* id)
