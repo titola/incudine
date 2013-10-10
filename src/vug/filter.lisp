@@ -124,20 +124,21 @@
       (biquad in scale 0 (* scale (- r)) 1 (- (* 2 r (cos wt))) (* r r)))))
 
 ;;; It is the same as RESONZ with the bandwidth specified in a 60dB
-;;; ring decay time. Inspired by Ringz in SuperCollider.
+;;; ring decay time and a constant scale factor.
+;;; Inspired by Ringz in SuperCollider.
 (define-vug ringz (in freq decay-time)
   (with-samples ((wt (* freq *twopi-div-sr*))
                  (r (t60->pole decay-time))
                  (rr (* r r))
-                 (scale (* (- 1 rr) 0.5)))
+                 (scale 0.5))
     (biquad in scale 0 (- scale) 1 (- (* 2 r (cos wt))) rr)))
 
 ;;; It is the same as RESONR with the bandwidth specified in a 60dB
-;;; ring decay time.
+;;; ring decay time and a constant scale factor.
 (define-vug ringr (in freq decay-time)
   (with-samples ((wt (* freq *twopi-div-sr*))
                  (r (t60->pole decay-time))
-                 (scale (- 1 r)))
+                 (scale 0.5))
     (biquad in scale 0 (* scale (- r)) 1 (- (* 2 r (cos wt))) (* r r))))
 
 ;;; FOF-like filter based on James McCartney's Formlet.
