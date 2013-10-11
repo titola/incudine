@@ -85,7 +85,8 @@
   (defmacro %osc-phase-modulation (phs phase phase-modulation-p)
     (cond (phase-modulation-p
            (with-gensyms (phase-old %phase)
-             `(with-samples ((,%phase ,phase)
+             `(with-samples ((,%phase (vug-input
+                                       ,(coerce-number phase 'sample)))
                              (,phase-old 0.0d0))
                 (unless (= ,%phase ,phase-old)
                   (setf ,phs (logand (the fixnum
@@ -120,6 +121,7 @@
     (with-gensyms (phase-old phs freq-inc)
       `(with-samples ((,phs (if (zerop ,phase) (sample 1) ,phase))
                       (,freq-inc (* ,freq *sample-duration*)))
+         ,amp
          (prog1 (cond ((>= ,phs 1.0) (decf ,phs 1.0) ,amp)
                       (t +sample-zero+))
            ,@(when phase-modulation-p
@@ -575,9 +577,9 @@
                        (phase 0.0d0) interpolation)
   (with-gensyms (%buffer %freq %amp)
     (with-coerce-arguments (freq amp phase)
-      `(with ((,%buffer ,buffer)
-              (,%freq ,freq)
-              (,%amp ,amp))
+      `(with-vug-inputs ((,%buffer ,buffer)
+                         (,%freq ,freq)
+                         (,%amp ,amp))
          (declare (type buffer ,%buffer) (type sample ,%freq ,%amp))
          (%osc ,%buffer ,%freq ,%amp ,phase ,(null (constantp phase))
                ,interpolation)))))
@@ -592,12 +594,12 @@
 
 ;;; Train of impulses
 (define-vug-macro impulse (&optional (freq 1.0d0) (amp 1.0d0) (phase 0.0d0))
-  (with-gensyms (%freq %amp %phase)
+  (with-gensyms (%freq %amp)
     (with-coerce-arguments (freq amp phase)
-      `(with-samples ((,%freq ,freq)
-                      (,%amp ,amp)
-                      (,%phase ,phase))
-         (%impulse ,%freq ,%amp ,%phase ,(null (constantp phase)))))))
+      `(with-vug-inputs ((,%freq ,freq)
+                         (,%amp ,amp))
+         (declare (type sample ,%freq ,%amp))
+         (%impulse ,%freq ,%amp ,phase ,(null (constantp phase)))))))
 
 ;;; Band limited impulse generator used in Music N languages.
 ;;; The output is a set of harmonically related sine partials.
@@ -607,11 +609,11 @@
       ;; Version with table lookup
       (with-gensyms (%buffer %freq %amp %num-harm %harm-change-lag)
         (with-coerce-arguments (freq amp phase harm-change-lag)
-          `(with ((,%buffer ,(or buffer '*sine-table*))
-                  (,%freq ,freq)
-                  (,%amp ,amp)
-                  (,%num-harm ,num-harm)
-                  (,%harm-change-lag ,harm-change-lag))
+          `(with-vug-inputs ((,%buffer ,(or buffer '*sine-table*))
+                             (,%freq ,freq)
+                             (,%amp ,amp)
+                             (,%num-harm ,num-harm)
+                             (,%harm-change-lag ,harm-change-lag))
              (declare (type buffer ,%buffer) (type fixnum ,%num-harm)
                       (type sample ,%freq ,%amp ,%harm-change-lag))
              (%buzz ,%buffer ,%freq ,%amp ,%num-harm ,phase
@@ -627,13 +629,13 @@
       (with-gensyms (%buffer %freq %amp %num-harm %harm-change-lag
                      %lowest-harm %mul)
         (with-coerce-arguments (freq amp phase mul harm-change-lag)
-          `(with ((,%buffer ,(or buffer '*cosine-table*))
-                  (,%freq ,freq)
-                  (,%amp ,amp)
-                  (,%num-harm ,num-harm)
-                  (,%lowest-harm ,lowest-harm)
-                  (,%mul ,mul)
-                  (,%harm-change-lag ,harm-change-lag))
+          `(with-vug-inputs ((,%buffer ,(or buffer '*cosine-table*))
+                             (,%freq ,freq)
+                             (,%amp ,amp)
+                             (,%num-harm ,num-harm)
+                             (,%lowest-harm ,lowest-harm)
+                             (,%mul ,mul)
+                             (,%harm-change-lag ,harm-change-lag))
              (declare (type buffer ,%buffer)
                       (type (integer 0 1000000) ,%num-harm)
                       (type fixnum ,%lowest-harm)

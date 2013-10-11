@@ -743,3 +743,11 @@
                               ,@(mapcar (lambda (x) (if (consp x) (car x) x))
                                         bindings)))))
      ,@body))
+
+;;; Used only inside the definition of a VUG-MACRO to specify the
+;;; inputs of the VUG.
+;;; BINDINGS is a list ((vug-varname1 value1) (vug-varname2 value2) ...)
+(defmacro with-vug-inputs (bindings &body body)
+  `(with ,(mapcar (lambda (x) `(,(car x) (vug-input ,(cadr x))))
+                  bindings)
+     ,@body))

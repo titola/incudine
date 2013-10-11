@@ -118,7 +118,7 @@
   (:export
    #:vug #:define-vug #:define-vug-macro #:destroy-vug #:all-vug-names
    #:with
-   #:with-coerce-arguments
+   #:with-coerce-arguments #:with-vug-inputs #:vug-input
    #:get-pointer
    #:dsp! #:dsp-debug #:all-dsp-names #:free-dsp-instances #:destroy-dsp
    #:defsynth #:defsynth-debug #:*update-dsp-instances* #:synth #:all-synth-names

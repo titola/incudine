@@ -47,7 +47,7 @@
 (define-vug-macro flux (abuf &optional half-wave-rectifier-p l1-norm-p)
   (with-gensyms (abuf1 abuf-prev i nbins diff result)
     `(with-samples (,diff ,result)
-       (with ((,abuf1 ,abuf)
+       (with ((,abuf1 (vug-input ,abuf))
               (,abuf-prev (make-local-abuffer (abuffer-link ,abuf1))))
          (setf ,result +sample-zero+)
          (dofft-polar (,i ,nbins (,abuf-prev (compute ,abuf1)) ()

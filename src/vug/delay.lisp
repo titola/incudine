@@ -63,8 +63,8 @@
                               &optional (interpolation :linear) wr-index-var)
   (with-gensyms (%buffer dsamps isamps mask dt data wr-index rd-index)
     (with-coerce-arguments (in)
-      `(with ((,%buffer ,buffer)
-              (,dsamps (* ,delay-time *sample-rate*))
+      `(with ((,%buffer (vug-input ,buffer))
+              (,dsamps (vug-input (* ,delay-time *sample-rate*)))
               (,isamps (sample->fixnum ,dsamps))
               (,mask (buffer-mask ,%buffer))
               (,dt (clip ,isamps 0 ,mask))
@@ -83,8 +83,8 @@
 
 (define-vug-macro vtap (buffer delay-time wr-index-var &optional interpolation)
   (with-gensyms (%buffer dsamps isamps mask dt data rd-index)
-    `(with ((,%buffer ,buffer)
-            (,dsamps (* ,delay-time *sample-rate*))
+    `(with ((,%buffer (vug-input ,buffer))
+            (,dsamps (vug-input (* ,delay-time *sample-rate*)))
             (,isamps (sample->fixnum ,dsamps))
             (,mask (buffer-mask ,%buffer))
             (,dt (clip ,isamps 0 ,mask))
@@ -133,8 +133,9 @@
                            &optional (interpolation :linear))
   (with-gensyms (in0 in1)
     (with-coerce-arguments (b0 bM)
-      `(with-samples ((,in0 ,in)
-                      (,in1 (* ,b0 ,in0)))
+      `(with-vug-inputs ((,in0 ,in)
+                         (,in1 (* ,b0 ,in0)))
+         (declare (type sample ,in0 ,in1))
          (+ ,in1
             (* ,bM (vdelay ,in0 ,max-delay-time ,delay-time ,interpolation)))))))
 

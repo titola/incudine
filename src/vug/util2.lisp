@@ -52,27 +52,27 @@
 ;;; Count from START to END (excluded)
 (define-vug-macro counter (start end &key (step 1) loop-p done-action)
   (with-gensyms (%start %end %step index done-p %loop-p)
-    `(with ((,done-p nil)
-            (,%start ,start)
-            (,%end ,end)
-            (,%step ,step)
-            (,%loop-p ,loop-p)
-            (,index (progn (if ,done-p (setf ,done-p nil))
-                           ,%start)))
-       (declare (type fixnum ,%start ,%end ,%step ,index)
-                (type boolean ,done-p ,%loop-p))
-       (prog1 ,index
-         (unless ,done-p
-           (setf ,index (the fixnum
-                          (if (< ,index ,%end)
-                              (+ ,index ,%step)
-                              (if ,%loop-p
-                                  ,%start
-                                  (progn
-                                    (done-action
-                                     ,(or done-action '(function identity)))
-                                    (setf ,done-p t)
-                                    ,index))))))))))
+    `(with-vug-inputs ((,%start ,start)
+                       (,%end ,end)
+                       (,%step ,step)
+                       (,%loop-p ,loop-p))
+       (declare (type fixnum ,%start ,%end ,%step) (type boolean ,%loop-p))
+       (with ((,done-p nil)
+              (,index (progn (if ,done-p (setf ,done-p nil))
+                             ,%start)))
+         (declare (type fixnum ,index) (type boolean ,done-p))
+         (prog1 ,index
+           (unless ,done-p
+             (setf ,index (the fixnum
+                            (if (< ,index ,%end)
+                                (+ ,index ,%step)
+                                (if ,%loop-p
+                                    ,%start
+                                    (progn
+                                      (done-action
+                                       ,(or done-action '(function identity)))
+                                      (setf ,done-p t)
+                                      ,index)))))))))))
 
 (define-vug downsamp ((control-period fixnum) in)
   (with ((count control-period)
@@ -130,7 +130,7 @@
        `(with-samples (,@,@(mapcar (lambda (x)
                                      (let ((value (cadr x)))
                                        `(unless (atom ,value)
-                                          `((,,(car x) ,,value)))))
+                                          `((,,(car x) (vug-input ,,value))))))
                                    bindings))
           ,,@body)))
 
@@ -246,9 +246,9 @@
                     (setf ,x0 ,x1 ,x1 ,x2 ,x2 ,x3 ,x3 (update ,input))
                     (cubic-interp ,phase ,x3 ,x2 ,x1 ,x0)))
           (otherwise `(nil nil (setf ,x0 (update ,input)) ,x0)))
-      `(with-samples ((,input ,generator)
+      `(with-samples ((,input (vug-input ,generator))
                       (,phase 0.0d0)
-                      (,inc (* ,freq *sample-duration*))
+                      (,inc (vug-input (* ,freq *sample-duration*)))
                       (,x0 0.0d0)
                       ,@bindings)
          ,@(when init `((initialize ,init)))

@@ -182,18 +182,19 @@
 
 (define-vug-macro buffer-read (buffer phase &key wrap-p interpolation)
   (with-gensyms (%buffer %phs %wrap-p frames channels data wrap-phase-fn)
-    `(with ((,%buffer ,buffer)
-            (,%phs (sample ,phase))
-            (,%wrap-p ,wrap-p)
-            (,frames (buffer-frames ,%buffer))
-            (,channels (buffer-channels ,%buffer))
-            (,data (buffer-data ,%buffer))
-            (,wrap-phase-fn (wrap-phase-func ,%phs ,frames ,%wrap-p)))
+    `(with-vug-inputs ((,%buffer ,buffer)
+                       (,%phs (sample ,phase))
+                       (,%wrap-p ,wrap-p))
        (declare (type buffer ,%buffer) (type sample ,%phs)
-                (type boolean ,%wrap-p) (type non-negative-fixnum ,frames ,channels)
-                (type function ,wrap-phase-fn))
-       (select-buffer-interp ,interpolation ,data ,%phs ,frames ,channels
-                             (buffer-size ,%buffer) ,%wrap-p ,wrap-phase-fn))))
+                (type boolean ,%wrap-p))
+       (with ((,frames (buffer-frames ,%buffer))
+              (,channels (buffer-channels ,%buffer))
+              (,data (buffer-data ,%buffer))
+              (,wrap-phase-fn (wrap-phase-func ,%phs ,frames ,%wrap-p)))
+         (declare (type non-negative-fixnum ,frames ,channels)
+                  (type function ,wrap-phase-fn))
+         (select-buffer-interp ,interpolation ,data ,%phs ,frames ,channels
+                               (buffer-size ,%buffer) ,%wrap-p ,wrap-phase-fn)))))
 
 ;;; Write an input to a buffer at an index.
 ;;; If INDEX-VAR is the name of an existent variable, the value of the
@@ -201,7 +202,7 @@
 (define-vug-macro buffer-write (buffer index input &optional index-var)
   (with-gensyms (%buffer %index data upper-limit)
     (with-coerce-arguments (input)
-      `(with ((,%buffer ,buffer)
+      `(with ((,%buffer (vug-input ,buffer))
               (,data (buffer-data ,%buffer))
               (,upper-limit (1- (buffer-size ,%buffer))))
          (declare (type buffer ,%buffer) (type foreign-pointer ,data)
@@ -212,13 +213,13 @@
            (setf (smp-ref ,data ,%index) ,input))))))
 
 (define-vug-macro buffer-frame (buffer phase &key wrap-p interpolation)
-  (with-gensyms (channels frame)
-    `(with ((,channels (buffer-channels ,buffer))
+  (with-gensyms (%buffer channels frame)
+    `(with ((,%buffer (vug-input ,buffer))
+            (,channels (buffer-channels ,%buffer))
             (,frame (make-frame ,channels)))
-       (declare (type frame ,frame))
        (foreach-channel (current-channel ,channels)
          (setf (frame-ref ,frame current-channel)
-               (buffer-read ,buffer ,phase
+               (buffer-read ,%buffer ,phase
                             :wrap-p ,wrap-p
                             :interpolation ,interpolation)))
        ,frame)))

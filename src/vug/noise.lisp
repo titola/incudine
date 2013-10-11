@@ -48,7 +48,7 @@
               (,new-random 0)
               (,total 0)
               (,index 0)
-              (,mult (* ,amp ,scale)))
+              (,mult (vug-input (* ,amp ,scale))))
          (declare (type (unsigned-byte 32) ,rand32 ,new-random ,counter ,index)
                   (type (signed-byte 32) ,total)
                   (type (integer 0 ,max-random-rows) ,index)
@@ -95,12 +95,14 @@
                           for key in keys
                           for value = (or (getf pl key) (cdr arg))
                           collect `(,(caar arg)
-                                     ,(if (eq (cadar arg) :double)
-                                          `(coerce ,value 'double-float)
-                                          value)))
+                                    (vug-input
+                                      ,(if (eq (cadar arg) :double)
+                                           `(coerce ,value 'double-float)
+                                           value))))
                   (,rng (progn
                           ,@(when seed
-                              `((incudine.external::gsl-seed-random-state ,seed)))
+                              `((vug-input
+                                 (incudine.external::gsl-seed-random-state ,seed))))
                           (incudine.external::gsl-random-generator))))
              ,@(let ((samples (loop for arg in args
                                     when (eq (cadar arg) :double)
@@ -135,8 +137,9 @@
                                  (lowest-freq 50))
   (with-gensyms (in c1 c2 p z a b sec r-poles-density)
     `(with-samples ((,in (white-noise (sample 1)))
-                    (,r-poles-density (reduce-warnings
-                                        (/ (sample 1) ,poles-density)))
+                    (,r-poles-density (vug-input
+                                       (reduce-warnings
+                                         (/ (sample 1) ,poles-density))))
                     (,c1 (expt (sample 10) ,r-poles-density))
                     (,c2 (expt (sample 10) (* ,beta ,r-poles-density 0.5)))
                     ,@(loop for i from 1 to filter-order
