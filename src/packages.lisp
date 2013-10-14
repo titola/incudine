@@ -329,7 +329,7 @@
   (:export #:voicer #:create #:update #:node #:empty-p #:full-p
            #:steal-first-voice #:steal-last-voice #:trigger #:release
            #:polyphony #:control-value #:get-controls #:set-controls
-           #:define-map #:remove-map #:mapvoicer #:panic
+           #:define-map #:remove-map #:remove-all-maps #:mapvoicer #:panic
            #:unsafe-trigger #:unsafe-release #:unsafe-set-polyphony
            #:unsafe-control-value #:unsafe-get-controls #:unsafe-set-controls
            #:unsafe-define-map #:unsafe-remove-map #:unsafe-mapvoicer

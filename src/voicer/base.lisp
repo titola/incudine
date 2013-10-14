@@ -102,8 +102,8 @@
   (release-function #'release-function-default :type function)
   (object-free-function #'incudine:free :type function)
   (steal-function nil :type (or function null))
-  (argument-set-alist nil :type list)
-  (argument-map-alist nil :type list))
+  (arguments (make-hash-table) :type hash-table)
+  (argument-maps (make-hash-table) :type hash-table))
 
 (defun make-voicer (polyphony)
   (with-spinlock-held (*voicer-pool-spinlock*)
@@ -185,6 +185,8 @@
                                    (cons-pool-push-list *voicer-pool* v))
                                  (voicer-object-hash obj))
       (clrhash (voicer-object-hash obj))
+      (clrhash (voicer-arguments obj))
+      (clrhash (voicer-argument-maps obj))
       (setf (voicer-polyphony obj) 0
             (voicer-available-nodes obj) 0)
       (values))))
@@ -345,8 +347,8 @@
         (funcall (the function (voicer-steal-function voicer))
                  voicer)
         (return-from unsafe-trigger nil)))
-  (dolist (entry (voicer-argument-map-alist voicer))
-    (funcall (the function (cadr entry))))
+  (loop for fn being the hash-values in (voicer-argument-maps voicer)
+        do (funcall (the function (car fn))))
   (let ((new-node (node-pool-pop voicer)))
     (set-node new-node nil tag
               (unless (eq new-node (last-node voicer))
@@ -377,20 +379,22 @@
   (with-safe-change (voicer)
     (unsafe-release voicer tag object-free-p free-function)))
 
-(defmacro arguments-setter-alist (arguments)
-  (with-gensyms (value value-p)
-    `(list ,@(mapcar (lambda (arg)
-                       `(cons ',arg (lambda (&optional (,value nil ,value-p))
-                                      (if ,value-p
-                                          (setf ,arg ,value)
-                                          ,arg))))
-                     arguments))))
+(defmacro init-voicer-arguments (arguments hash)
+  (with-gensyms (value)
+    `(progn
+       (clrhash ,hash)
+       ,@(mapcar (lambda (arg)
+                   `(setf (gethash ',arg ,hash)
+                          (cons (lambda (,value) (setf ,arg ,value))
+                                (lambda () ,arg))))
+                 arguments))))
 
-(declaim (inline remove-unused-map))
-(defun remove-unused-map (mapping-alist args)
-  (remove-if (lambda (al)
-               (set-difference (third al) args))
-             mapping-alist))
+(declaim (inline remove-unused-maps))
+(defun remove-unused-maps (mapping-hash args)
+  (maphash (lambda (key value)
+             (if (set-difference (cdr value) args)
+                 (remhash key mapping-hash)))
+           mapping-hash))
 
 (defmacro %set-default-trigger-function (voicer func-name args)
   (with-gensyms (free-hook tag node v vnode pool)
@@ -438,13 +442,12 @@
                              (incudine:set-control id :gate 0))))
                        (lambda (id)
                          (when id (incudine:free id)))))
-             (setf (voicer-argument-set-alist ,voicer)
-                   (arguments-setter-alist
-                    ,(incudine.vug::dsp-arguments dsp-properties)))
+             (init-voicer-arguments ,(incudine.vug::dsp-arguments dsp-properties)
+                                    (voicer-arguments ,voicer))
              (%set-default-trigger-function ,voicer ,func-name ,#1#)
              ,@(if old-voicer `((unless (null ',#1#)
-                                  (setf #2=(voicer-argument-map-alist ,voicer)
-                                        (remove-unused-map #2# ',#1#)))))
+                                  (remove-unused-maps
+                                   (voicer-argument-maps ,voicer) ',#1#))))
              ,voicer)
           (error "Unknown DSP")))))
 
@@ -458,7 +461,7 @@
 (defun unsafe-control-value (voicer control-name)
   (declare #.*standard-optimize-settings*
            (type voicer voicer) (type symbol control-name))
-  (let ((entry (assoc control-name (voicer-argument-set-alist voicer))))
+  (let ((entry (gethash control-name (voicer-arguments voicer))))
     (if entry
         (values (funcall (the function (cdr entry))) t)
         (values nil nil))))
@@ -467,9 +470,9 @@
 (defun unsafe-set-control (voicer control-name value)
   (declare #.*standard-optimize-settings*
            (type voicer voicer) (type symbol control-name))
-  (let ((entry (assoc control-name (voicer-argument-set-alist voicer))))
+  (let ((entry (gethash control-name (voicer-arguments voicer))))
     (when entry
-      (funcall (the function (cdr entry)) value))))
+      (funcall (the function (car entry)) value))))
 
 (defsetf unsafe-control-value unsafe-set-control)
 
@@ -487,9 +490,11 @@
 
 (defun unsafe-get-controls (voicer)
   (declare (type voicer voicer))
-  (loop for i in (voicer-argument-set-alist voicer)
-     collect (car i)
-     collect (funcall (the function (cdr i)))))
+  (let ((hash (voicer-arguments voicer)))
+    (loop for key being the hash-keys in hash
+          for value being the hash-values in hash
+          collect key
+          collect (funcall (the function (cdr value))))))
 
 (declaim (inline get-controls))
 (defun get-controls (voicer)
@@ -524,14 +529,10 @@
      ,@body))
 
 (defmacro unsafe-define-map (name voicer controls &body function-body)
-  (with-gensyms (entry func)
-    `(with-controls ,controls ,voicer
-       (let ((,entry (assoc ',name #1=(voicer-argument-map-alist ,voicer)))
-             (,func (lambda () ,@function-body)))
-         (if ,entry
-             (setf (cdr ,entry) (list ,func ',controls))
-             (setf #1# (cons (list ',name ,func ',controls) #1#)))
-         ,voicer))))
+  `(with-controls ,controls ,voicer
+     (setf (gethash ',name (voicer-argument-maps ,voicer))
+           (cons (lambda () ,@function-body) ',controls))
+     ,voicer))
 
 (defmacro define-map (name voicer controls &body function-body)
   `(with-safe-change (,voicer)
@@ -542,13 +543,17 @@
 (declaim (inline unsafe-remove-map))
 (defun unsafe-remove-map (voicer map-name)
   (declare (type voicer voicer) (type symbol map-name))
-  (setf #1=(voicer-argument-map-alist voicer)
-        (remove map-name #1# :key #'car)))
+  (remhash map-name (voicer-argument-maps voicer)))
 
 (declaim (inline remove-map))
 (defun remove-map (voicer map-name)
   (with-safe-change (voicer)
     (unsafe-remove-map voicer map-name)))
+
+(declaim (inline remove-all-maps))
+(defun remove-all-maps (voicer)
+  (with-safe-change (voicer)
+    (clrhash (voicer-argument-maps voicer))))
 
 (defun unsafe-mapvoicer (function voicer)
   (declare #.*standard-optimize-settings*
