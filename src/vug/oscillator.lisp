@@ -649,7 +649,9 @@
   (prog1 (buffer-read buffer (%phasor (* rate (buffer-sample-rate buffer)
                                          *sample-duration*)
                                       start-pos
-                                      (sample (buffer-frames buffer)))
+                                      (if loop-p
+                                          (sample (buffer-frames buffer))
+                                          #.(sample 1e30)))
                       :wrap-p loop-p :interpolation :cubic)
     (when (done-self)
       (done-action done-action))))
