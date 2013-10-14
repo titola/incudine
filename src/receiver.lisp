@@ -110,9 +110,7 @@
     (pm:with-receiver ((receiver-status receiver) stream msg)
       (multiple-value-bind (status data1 data2)
           (pm:decode-message msg)
-        (at 0 (lambda ()
-                (incudine.vug::set-midi-message status data1 data2)
-                (values)))
+        (incudine.vug::set-midi-message status data1 data2)
         (recv-funcall-all receiver status data1 data2)))))
 
 ;;; RESPONDER
