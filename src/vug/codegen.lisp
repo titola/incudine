@@ -555,6 +555,30 @@
                                  (car (vug-function-inputs variable-value)))
                :test #'eq)))
 
+(declaim (inline %reinit-vug-variable))
+(defun %reinit-vug-variable (var value param-plist)
+  `(,(gethash (vug-object-name value) *object-to-free-hash*)
+    ,(vug-object-name var)
+    ,(blockexpand (vug-function-inputs value) param-plist)))
+
+(declaim (inline %set-vug-variable))
+(defun %set-vug-variable (var value param-plist)
+  (if (object-to-free-p value)
+      (%reinit-vug-variable var value param-plist)
+      `(setf ,(vug-object-name var) ,(blockexpand value param-plist))))
+
+;;; VUG-VARIABLEs to update after the change of a control of a DSP
+(defun control-dependence (param variables)
+  `(progn
+     ,@(mapcar
+        (lambda (var)
+          (let ((value (vug-variable-value var)))
+            (unless (skip-update-variable-p param value)
+              (%set-vug-variable var value (list (vug-object-name param)
+                                                 (vug-parameter-aux-varname param))))))
+        variables)
+     (values)))
+
 ;;; Fill the hash table for the controls of the DSP
 (defun set-controls-form (control-table arg-names)
   (declare (type symbol control-table))
@@ -565,7 +589,7 @@
       `(progn
          ,@(mapcar
             (lambda (p)
-              `(setf (gethash ,(symbol-name (vug-object-name p)) ,control-table)
+              `(setf (gethash ,(vug-object-name-string p) ,control-table)
                      (cons
                       ;; The CAR is the function to set the value of a control
                       (lambda (,value)
@@ -574,31 +598,29 @@
                                             ,(vug-parameter-aux-varname p)
                                             ,value ,(vug-object-type p))
                             ,(if (and (null (cdr #2=(vug-parameter-vars-to-update p)))
-                                      (vug-name-p (car #2#) (vug-parameter-aux-varname p)))
+                                      (vug-name-p (car #2#)
+                                                  (vug-parameter-aux-varname p)))
                                  `(values)
-                                 `(progn
-                                    ,@(mapcar
-                                       (lambda (var)
-                                         (let ((value (vug-variable-value var)))
-                                           (unless (skip-update-variable-p p value)
-                                             (if (object-to-free-p value)
-                                                 `(,(gethash (vug-object-name value)
-                                                             *object-to-free-hash*)
-                                                    ,(vug-object-name var)
-                                                    ,(blockexpand (vug-function-inputs value)
-                                                       (list (vug-object-name p)
-                                                             (vug-parameter-aux-varname p))))
-                                                 `(setf ,(vug-object-name var)
-                                                        ,(blockexpand value
-                                                           (list (vug-object-name p)
-                                                                 (vug-parameter-aux-varname p))))))))
-                                       (setf #2# (nreverse #2#)))
-                                    (values)))))
+                                 (control-dependence p (setf #2# (nreverse #2#))))))
                       ;; The CDR is the function to get the value of a control
                       (lambda ()
                         (declare #.*reduce-warnings*)
                         ,(vug-object-name (car #2#))))))
             param-list)
+         ,@(loop for p in param-list
+                 when (foreign-object-p p)
+                 ;; There is consing, for example, if we call a (not inline)
+                 ;; function with a DOUBLE-FLOAT value, therefore we can directly
+                 ;; change the value pointed by a C pointer (CAR) and update the
+                 ;; other variables by calling a function (CDR) without arguments.
+                 collect `(setf (gethash (list :pointer ,(vug-object-name-string p))
+                                         ,control-table)
+                                (locally (declare #.*reduce-warnings*)
+                                  (cons (get-pointer ,(vug-parameter-aux-varname p))
+                                        (lambda ()
+                                          (declare #.*reduce-warnings*)
+                                          ,(control-dependence p
+                                             (vug-parameter-vars-to-update p)))))))
          ;; List of the control values
          (setf (gethash "%CONTROL-LIST%" ,control-table)
                (cons nil ; no setter

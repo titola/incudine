@@ -127,6 +127,10 @@
   (declare (type symbol name))
   (values (gethash name *vug-hash*)))
 
+(declaim (inline vug-object-name-string))
+(defun vug-object-name-string (obj)
+  (symbol-name (vug-object-name obj)))
+
 (declaim (inline make-vug-parameter))
 (defun make-vug-parameter (name value type)
   (let ((par (%make-vug-parameter :name name :value value
