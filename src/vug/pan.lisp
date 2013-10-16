@@ -16,8 +16,6 @@
 
 (in-package :incudine.vug)
 
-(define-vug mono (in) (out in 0))
-
 (define-vug stereo (in) (out in in))
 
 (define-vug pan2 (in pos)

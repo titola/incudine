@@ -138,7 +138,7 @@
                       (node-free n))))
                 (nrt-msg error "~A" c)))))
     (when funcons
-      (foreach-channel (chan *number-of-output-bus-channels*)
+      (dochannels (chan *number-of-output-bus-channels*)
         (update-peak-values chan)))))
 
 (defmacro with-restart-point ((label) &body body)

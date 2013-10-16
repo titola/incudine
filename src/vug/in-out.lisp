@@ -16,7 +16,12 @@
 
 (in-package :incudine.vug)
 
-(defmacro %out (&rest values)
+(define-vug-macro out (&rest values)
+  `(progn
+     ,@(loop for value in values for ch from 0
+             collect `(incf (audio-out ,ch) (sample ,value)))))
+
+(defmacro %cout (&rest values)
   (if (cdr values)
       `(cond ,@(loop for value in values
                      for chan from 0
@@ -27,8 +32,8 @@
              (t +sample-zero+))
       `(sample ,(car values))))
 
-(define-vug-macro out (&rest values)
-  (let ((node-value `(%out ,@values)))
+(define-vug-macro cout (&rest values)
+  (let ((node-value `(%cout ,@values)))
     `(progn
        ,(when incudine:*node-enable-gain-p*
           `(initialize
@@ -47,4 +52,4 @@
      (incf (audio-out current-channel)
            (* (mem-aref
                (incudine::node-gain-data (dsp-node)) 'sample)
-              (%out ,@values)))))
+              (%cout ,@values)))))

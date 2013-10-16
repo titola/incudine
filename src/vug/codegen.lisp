@@ -410,14 +410,6 @@
        (vug-block
          (with-argument-bindings (,args ,types) ,@rest)))))
 
-(defmacro performance-loop (&body body)
-  (with-gensyms (i)
-    `(foreach-channel (,i *number-of-output-bus-channels*)
-       (let ((current-channel ,i))
-         (declare (type channel-number current-channel)
-                  (ignorable current-channel))
-         ,@body))))
-
 (defmacro with-foreign-variables ((float-vars float-array
                                    double-vars double-array
                                    int32-vars int32-array
@@ -531,7 +523,11 @@
                                           ',c-array-int32-wrap ,number-of-int32
                                           ',c-array-int64-wrap ,number-of-int64)
                          :perf-function (lambda ()
-                                          (performance-loop ,@,vug-body))))))))))))
+                                          (let ((current-channel 0))
+                                            (declare (type channel-number current-channel)
+                                                     (ignorable current-channel))
+                                            ,@,vug-body
+                                            (values)))))))))))))
 
 (declaim (inline update-free-hook))
 (defun update-free-hook (node hook)

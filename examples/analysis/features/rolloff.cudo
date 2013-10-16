@@ -7,13 +7,11 @@
          (perc (sample->fixnum (* percent 100)))
          (result +sample-zero+))
     (declare (type sample srdiv2 result))
-    (foreach-tick
-      (setf (fft-input fft) (audio-in 0))
-      (generic-rate 1024 0
-        (prog1
-          (setf result (* (rolloff abuf percent) srdiv2))
-          (nrt-msg info "~D% rolloff: ~D" perc
-                   (sample->fixnum result)))))))
+    (setf (fft-input fft) (audio-in 0))
+    (generic-rate 1024 0
+      (prog1 (setf result (* (rolloff abuf percent) srdiv2))
+        (nrt-msg info "~D% rolloff: ~D" perc
+                 (sample->fixnum result))))))
 
 #|
 (setf (logger-level) :info)

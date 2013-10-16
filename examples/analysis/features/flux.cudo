@@ -6,12 +6,11 @@
          (hop-size (sample->fixnum (* *sample-rate* 0.1)))
          (result +sample-zero+))
     (declare (type sample result))
-    (foreach-tick
-      (setf (fft-input fft) (buffer-play buf 1 0 nil #'free))
-      (generic-rate hop-size 0
-        (prog1 (setf result (flux abuf))
-          (nrt-msg info "~D" (sample->fixnum result)))))
-    (out (fft-input fft))))
+    (setf (fft-input fft) (buffer-play buf 1 0 nil #'free))
+    (generic-rate hop-size 0
+      (prog1 (setf result (flux abuf))
+        (nrt-msg info "~D" (sample->fixnum result))))
+    (out (tick (fft-input fft)))))
 
 #|
 (setf (logger-level) :info)

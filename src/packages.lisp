@@ -63,7 +63,7 @@
    #:next-power-of-two #:power-of-two-p
    #:apply-sample-coerce
    #:alloc-multi-channel-data #:free-multi-channel-data
-   #:foreach-channel
+   #:dochannels
    #:lin->db #:db->lin
    #:linear-interp #:cos-interp #:cubic-interp
    #:t60->pole
@@ -126,10 +126,11 @@
    #:current-channel
    #:foreign-float #:foreign-double
    #:make-frame #:frame-ref #:frame-value-bind
-   #:foreach-tick #:counter #:downsamp #:generic-rate #:samphold #:interpolate
+   #:foreach-tick #:foreach-channel #:counter #:downsamp #:generic-rate
+   #:samphold #:interpolate
    #:tick #:external-variable #:init-only #:initialize #:without-follow
    #:update #:object-to-free
-   #:out #:node-out
+   #:out #:cout #:node-out
    #:dsp-node #:synth-node
    #:lin->lin #:lin->exp
    #:done-action #:done-self #:free-self #:free-self-when-done

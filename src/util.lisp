@@ -111,8 +111,8 @@
   (foreign-free data)
   (values))
 
-(defmacro foreach-channel ((var channels &optional (result nil))
-                           &body body)
+(defmacro dochannels ((var channels &optional (result nil))
+                      &body body)
   `(do ((,var 0 (1+ ,var)))
        ((>= ,var ,channels) ,result)
      (declare (type channel-number ,var))

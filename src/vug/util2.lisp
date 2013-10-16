@@ -49,6 +49,14 @@
          ,@body)
        (values))))
 
+(defmacro foreach-channel (&body body)
+  (with-gensyms (i)
+    `(dochannels (,i *number-of-output-bus-channels*)
+       (let ((current-channel ,i))
+         (declare (type channel-number current-channel)
+                  (ignorable current-channel))
+         ,@body))))
+
 ;;; Count from START to END (excluded)
 (define-vug-macro counter (start end &key (step 1) loop-p done-action)
   (with-gensyms (%start %end %step index done-p %loop-p)

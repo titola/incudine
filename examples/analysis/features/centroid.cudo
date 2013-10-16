@@ -5,15 +5,13 @@
          (abuf (make-local-abuffer fft))
          (result +sample-zero+))
     (declare (type sample result))
-    (foreach-tick
-      (setf (fft-input fft)
-            ;; Exponential growth from 1 to 30 harmonics in 20 seconds
-            (buzz 440 .5 (sample->fixnum (x-line 1 30 20 #'free))))
-      (generic-rate (sample->fixnum *sample-rate*) 0
-        (prog1
-          (setf result (* (centroid abuf) *sample-rate* 0.5))
-          (nrt-msg info "~D" (sample->fixnum result)))))
-    (out (fft-input fft))))
+    (setf (fft-input fft)
+          ;; Exponential growth from 1 to 30 harmonics in 20 seconds
+          (buzz 440 .5 (sample->fixnum (x-line 1 30 20 #'free))))
+    (generic-rate (sample->fixnum *sample-rate*) 0
+      (prog1 (setf result (* (centroid abuf) *sample-rate* 0.5))
+        (nrt-msg info "~D" (sample->fixnum result))))
+    (out (tick (fft-input fft)))))
 
 #|
 (setf (logger-level) :info)
