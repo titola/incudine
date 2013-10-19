@@ -30,6 +30,8 @@
 #define __JA_STOPPED     (1)
 #define __JA_TERMINATED  (2)
 
+#define SBCL_SIG_STOP_FOR_GC  (SIGUSR2)
+
 static jack_client_t *client = NULL;
 static SAMPLE ja_sample_rate;
 static unsigned int ja_in_channels, ja_out_channels, ja_frames;
@@ -43,6 +45,7 @@ static pthread_cond_t  ja_lisp_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t ja_c_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  ja_c_cond = PTHREAD_COND_INITIALIZER;
 static char ja_error_msg[256];
+static sigset_t sig_stop_for_gc;
 
 int ja_stop();
 
@@ -78,7 +81,15 @@ static void ja_error(const char *msg) {
 jack_nframes_t ja_cycle_begin ()
 {
     int i;
-    jack_nframes_t frames = jack_cycle_wait(client);
+    jack_nframes_t frames;
+    /*
+     * We are calling `ja_cycle_begin' from lisp, and the signal
+     * sent by SBCL during the gc (SIGUSR2) interrupts `sem_timedwait'
+     * used by Jack, therefore we have to temporarily block this signal.
+     * The gc is inhibited because we are inside SB-SYS:WITHOUT-GCING.
+     */
+    pthread_sigmask(SIG_BLOCK, &sig_stop_for_gc, NULL);
+    frames = jack_cycle_wait(client);
 
     for (i=0; i<ja_in_channels; i++)
         ja_inputs[i] = jack_port_get_buffer(input_ports[i], frames);
@@ -86,6 +97,7 @@ jack_nframes_t ja_cycle_begin ()
     for (i=0; i<ja_out_channels; i++)
         ja_outputs[i] = jack_port_get_buffer(output_ports[i], frames);
 
+    pthread_sigmask(SIG_UNBLOCK, &sig_stop_for_gc, NULL);
     return frames;
 }
 
@@ -127,8 +139,16 @@ void ja_transfer_to_c_thread()
 
 static void* ja_thread(void *arg)
 {
+    sigset_t sset;
     (void) arg;
 
+    /* Unblock signals */
+    sigemptyset(&sset);
+    if (pthread_sigmask(SIG_SETMASK, &sset, NULL) < 0) {
+        fprintf(stderr, "Unblock signals error\n");
+        ja_stop(NULL);
+        return 0;
+    }
     while(1) {
         /* You say goodbye, I say hello */
         if (ja_status != __JA_RUNNING)
@@ -238,7 +258,6 @@ int ja_initialize(SAMPLE srate, unsigned int input_channels,
                   unsigned int output_channels, unsigned int nframes,
                   const char* client_name)
 {
-    sigset_t sset;
     (void) srate;
     (void) nframes;
 
@@ -267,13 +286,10 @@ int ja_initialize(SAMPLE srate, unsigned int input_channels,
 
     jack_set_process_thread(client, ja_thread, NULL);
     jack_on_shutdown(client, ja_terminate, NULL);
-    /* Unblock signals */
-    sigemptyset(&sset);
-    if (sigprocmask(SIG_SETMASK, &sset, NULL) < 0) {
-        ja_error("Unblock signals error");
-        ja_stop(NULL);
-        return 1;
-    }
+
+    sigemptyset(&sig_stop_for_gc);
+    sigaddset(&sig_stop_for_gc, SBCL_SIG_STOP_FOR_GC);
+
     ja_lisp_busy = 1;
 
     return 0;
