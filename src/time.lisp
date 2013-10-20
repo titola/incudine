@@ -94,6 +94,16 @@
   "Get the time synchronized to PERIOD."
   (incudine.external::%tempo-sync *sample-counter* (sample period)))
 
+(defmacro make-tempo-envelope (&whole args bpms beats &key curve
+                               (loop-node -1) (release-node -1)
+                               restart-level real-time-p)
+  (declare (ignore beats curve loop-node release-node
+                   restart-level real-time-p))
+  (with-gensyms (bpm)
+    `(make-envelope (mapcar (lambda (,bpm) (/ ,(sample 60) ,bpm))
+                            ,bpms)
+                    ,@(cddr args))))
+
 (defmacro case-char (char &body cases)
   (with-gensyms (c)
     `(let ((,c ,char))
@@ -105,11 +115,16 @@
                             ,@(cdr x)))
                        cases)))))
 
-(defun parse-time-unit (string arg)
+(defun parse-time-unit (string arg0 arg1)
   (declare (type simple-string string))
   (case-char (char string 0)
     ;; b.*  -> beats    (the optional ARG is a TEMPO instance)
-    (#\b `(* incudine.util:*sample-rate* (bps ,(or arg '*tempo*))))
+    (#\b `(* incudine.util:*sample-rate*
+             ,(if arg1
+                  ;; ARG0 is a temporal envelope where the levels
+                  ;; represent the bps and the time is in beats.
+                  `(envelope-at ,arg0 ,arg1)
+                  `(bps ,(or arg0 '*tempo*)))))
     ;; s    -> seconds
     ;; se.* -> seconds
     ;; sa.* -> samples
@@ -119,18 +134,18 @@
                (#\a 1.0)
                (otherwise (error "Unknown time unit ~S" string)))
              'incudine.util:*sample-rate*))
-    ;; m    -> meters   (the optional ARG is the velocity of the sound [m/s])
-    ;; me.* -> meters   "            "            "            "            "
+    ;; m    -> meters   (the optional ARG0 is the velocity of the sound [m/s])
+    ;; me.* -> meters   "            "            "             "            "
     ;; mi.* -> minutes
     ;; ms.* -> msec
     (#\m (if (> (length string) 1)
              (case-char (char string 1)
                (#\s '(* 1.0e-3 incudine.util:*sample-rate*))
-               (#\e `(* ,(if arg (/ 1.0 arg) 'incudine.util:*r-sound-velocity*)
+               (#\e `(* ,(if arg0 (/ 1.0 arg0) 'incudine.util:*r-sound-velocity*)
                         incudine.util:*sample-rate*))
                (#\i '(* 60.0 incudine.util:*sample-rate*))
                (otherwise (error "Unknown time unit ~S" string)))
-             `(* ,(if arg (/ 1.0 arg) 'incudine.util:*r-sound-velocity*)
+             `(* ,(if arg0 (/ 1.0 arg0) 'incudine.util:*r-sound-velocity*)
                  incudine.util:*sample-rate*)))
     ;; h.*  -> hours
     (#\h '(*     3600.0 incudine.util:*sample-rate*))
@@ -152,7 +167,7 @@
           (when (char/= prev #\space)
             (push (coerce (nreverse lst) 'string) acc)
             (setf lst nil)
-            (if (= count 3)
+            (if (= count 4)
                 (return)
                 (incf count)))
           (push curr lst)))
@@ -166,16 +181,17 @@
     (declare (type list str-list))
     (if (null str-list)
         +sample-zero+
-        (let ((mult (locally
-                        (declare #.*reduce-warnings*)
-                        (sample (read-from-string (first str-list)))))
+        (let ((mult (reduce-warnings
+                      (sample (read-from-string (first str-list)))))
               (time-unit-str (second str-list)))
           (if (null time-unit-str)
               mult
-              (let ((tempo (third str-list)))
-              `(* ,mult ,(parse-time-unit time-unit-str
-                                          (when tempo
-                                            (read-from-string tempo))))))))))
+              (destructuring-bind (&optional tempo beats) (cddr str-list)
+                `(* ,mult ,(parse-time-unit time-unit-str
+                                            (when tempo
+                                              (read-from-string tempo))
+                                            (when beats
+                                              (read-from-string beats))))))))))
 
 (set-dispatch-macro-character #\# #\[ #'parse-time-string
   *incudine-readtable*)

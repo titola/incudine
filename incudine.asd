@@ -57,7 +57,7 @@
      (:file "sync-condition" :depends-on ("packages"))
      (:file "fifo" :depends-on ("util" "sync-condition"))
      (:file "edf-sched" :depends-on ("fifo"))
-     (:file "time" :depends-on ("logger"))
+     (:file "time" :depends-on ("logger" "envelope"))
      (:file "int-hash" :depends-on ("util"))
      (:file "bus" :depends-on ("logger"))
      (:file "buffer" :depends-on ("gen/partials" "gen/envelope" "logger"))
