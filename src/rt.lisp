@@ -111,15 +111,18 @@
 (defvar rt-state 1)
 (declaim (type bit rt-state))
 
-(defun rt-stop ()
-  (unless (eq (rt-status) :stopped)
-    (setf rt-state 1)
-    (sleep .05)
-    (loop while (bt:thread-alive-p *rt-thread*))
-    (setf *rt-thread* nil)
-    (unless (zerop (rt-audio-stop))
-      (msg error (rt-get-error-msg)))
-    (setf (rt-params-status *rt-params*) :stopped)))
+(progn
+  (defun rt-stop ()
+    (unless (eq (rt-status) :stopped)
+      (setf rt-state 1)
+      (sleep .05)
+      (loop while (bt:thread-alive-p *rt-thread*))
+      (setf *rt-thread* nil)
+      (unless (zerop (rt-audio-stop))
+        (msg error (rt-get-error-msg)))
+      (setf (rt-params-status *rt-params*) :stopped)))
+  #+sbcl
+  (pushnew 'rt-stop sb-ext:*exit-hooks*))
 
 (declaim (inline tick-func))
 (defun tick-func ()
@@ -155,7 +158,11 @@
 (defmacro with-rt-cycle ((reset-label frames-var) &body body)
   (declare (ignorable frames-var))
   `(incudine.util::without-gcing
-     #+jack-audio (setf ,frames-var (rt-cycle-begin))
+     #+jack-audio
+     (progn
+       (setf ,frames-var (rt-cycle-begin))
+       (when sb-kernel:*stop-for-gc-pending*
+         (setf ,frames-var 0)))
      #+portaudio (rt-cycle-begin)
      ,@body
      #+jack-audio (rt-cycle-signal 0)

@@ -139,16 +139,8 @@ void ja_transfer_to_c_thread()
 
 static void* ja_thread(void *arg)
 {
-    sigset_t sset;
     (void) arg;
 
-    /* Unblock signals */
-    sigemptyset(&sset);
-    if (pthread_sigmask(SIG_SETMASK, &sset, NULL) < 0) {
-        fprintf(stderr, "Unblock signals error\n");
-        ja_stop(NULL);
-        return 0;
-    }
     while(1) {
         /* You say goodbye, I say hello */
         if (ja_status != __JA_RUNNING)
@@ -258,6 +250,7 @@ int ja_initialize(SAMPLE srate, unsigned int input_channels,
                   unsigned int output_channels, unsigned int nframes,
                   const char* client_name)
 {
+    sigset_t sset;
     (void) srate;
     (void) nframes;
 
@@ -287,6 +280,12 @@ int ja_initialize(SAMPLE srate, unsigned int input_channels,
     jack_set_process_thread(client, ja_thread, NULL);
     jack_on_shutdown(client, ja_terminate, NULL);
 
+    /* Unblock signals */
+    sigemptyset(&sset);
+    if (sigprocmask(SIG_SETMASK, &sset, NULL) < 0) {
+        ja_error("Unblock signals error\n");
+        return 1;
+    }
     sigemptyset(&sig_stop_for_gc);
     sigaddset(&sig_stop_for_gc, SBCL_SIG_STOP_FOR_GC);
 
