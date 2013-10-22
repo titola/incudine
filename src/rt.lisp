@@ -114,10 +114,11 @@
 (progn
   (defun rt-stop ()
     (unless (eq (rt-status) :stopped)
-      (setf rt-state 1)
-      (sleep .05)
-      (loop while (bt:thread-alive-p *rt-thread*))
-      (setf *rt-thread* nil)
+      (when *rt-thread*
+        (setf rt-state 1)
+        (sleep .05)
+        (loop while (bt:thread-alive-p *rt-thread*))
+        (setf *rt-thread* nil))
       (unless (zerop (rt-audio-stop))
         (msg error (rt-get-error-msg)))
       (setf (rt-params-status *rt-params*) :stopped)))

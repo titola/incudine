@@ -28,7 +28,7 @@
 
 #define __JA_RUNNING     (0)
 #define __JA_STOPPED     (1)
-#define __JA_TERMINATED  (2)
+#define __JA_SHUTDOWN    (2)
 
 #define SBCL_SIG_STOP_FOR_GC  (SIGUSR2)
 
@@ -36,7 +36,8 @@ static jack_client_t *client = NULL;
 static SAMPLE ja_sample_rate;
 static unsigned int ja_in_channels, ja_out_channels, ja_frames;
 static size_t ja_buffer_bytes;
-static int ja_status, ja_lisp_busy;
+static int ja_status = __JA_STOPPED;
+static int ja_lisp_busy;
 static jack_default_audio_sample_t **ja_inputs, **ja_outputs;
 static jack_port_t **input_ports, **output_ports;
 static char **input_port_names, **output_port_names;
@@ -48,6 +49,8 @@ static char ja_error_msg[256];
 static sigset_t sig_stop_for_gc;
 
 int ja_stop();
+
+static void ja_shutdown(void *arg);
 
 static void ja_terminate(void *arg);
 
@@ -82,6 +85,9 @@ jack_nframes_t ja_cycle_begin ()
 {
     int i;
     jack_nframes_t frames;
+
+    if (ja_status != __JA_RUNNING)
+        return 0;
     /*
      * We are calling `ja_cycle_begin' from lisp, and the signal
      * sent by SBCL during the gc (SIGUSR2) interrupts `sem_timedwait'
@@ -91,6 +97,10 @@ jack_nframes_t ja_cycle_begin ()
     pthread_sigmask(SIG_BLOCK, &sig_stop_for_gc, NULL);
     frames = jack_cycle_wait(client);
 
+    if (ja_status != __JA_RUNNING) {
+        pthread_sigmask(SIG_UNBLOCK, &sig_stop_for_gc, NULL);
+        return 0;
+    }
     for (i=0; i<ja_in_channels; i++)
         ja_inputs[i] = jack_port_get_buffer(input_ports[i], frames);
 
@@ -278,7 +288,7 @@ int ja_initialize(SAMPLE srate, unsigned int input_channels,
         return 1;
 
     jack_set_process_thread(client, ja_thread, NULL);
-    jack_on_shutdown(client, ja_terminate, NULL);
+    jack_on_shutdown(client, ja_shutdown, NULL);
 
     /* Unblock signals */
     sigemptyset(&sset);
@@ -294,21 +304,34 @@ int ja_initialize(SAMPLE srate, unsigned int input_channels,
     return 0;
 }
 
+static void ja_shutdown(void *arg)
+{
+    (void) arg;
+
+    ja_status = __JA_SHUTDOWN;
+    fprintf(stderr, "JACK Audio shutdown\n");
+    /*
+     * We are blocking SIG_STOP_FOR_GC in `ja_cycle_begin', and
+     * `jack_cycle_wait' blocks if JACK has shut down. The only
+     *  safe thing to do with the actual gc is to quit.
+     */
+    kill(getpid(), SIGQUIT);
+}
+
 static void ja_terminate(void *arg)
 {
     (void) arg;
 
-    if (ja_status != __JA_TERMINATED) {
+    if (ja_status != __JA_STOPPED) {
         int i;
 
-        ja_status = __JA_TERMINATED;
+        ja_status = __JA_STOPPED;
 
         if (client != NULL) {
             jack_deactivate(client);
             jack_client_close(client);
             client = NULL;
         }
-
         ja_free(ja_inputs);
         ja_free(ja_outputs);
         ja_free(input_ports);
