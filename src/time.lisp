@@ -136,8 +136,8 @@
 
 (declaim (inline integrate-linear-curve))
 (defun integrate-linear-curve (y0 y1 x)
-  (+ (* (abs (- y1 y0)) (* x x) 0.5d0)
-     (* (min y0 y1) x)))
+  (let ((x2 (* x x)))
+    (* 0.5 (+ (* x2 y1) (* (- (* 2 x) x2) y0)))))
 
 (declaim (inline integrate-exp-curve))
 (defun integrate-exp-curve (y0 y1 x)
