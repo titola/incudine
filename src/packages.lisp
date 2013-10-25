@@ -282,7 +282,8 @@
    #:rt-start #:rt-stop #:rt-status #:rt-buffer-size
    #:at #:aat #:flush-pending #:flush-all-fifos
    #:tempo #:*tempo* #:make-tempo #:bpm #:bps #:now #:tempo-sync
-   #:make-tempo-envelope
+   #:tempo-envelope #:make-tempo-envelope #:set-tempo-envelope
+   #:time-at #:bps-at #:bpm-at
    #:rt-funcall #:fast-rt-funcall #:nrt-funcall #:fast-nrt-funcall
    #:*sine-table* #:*cosine-table*
    #:all-random-distributions #:rand-args
