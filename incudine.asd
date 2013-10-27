@@ -66,6 +66,7 @@
      (:file "graph" :depends-on ("time" "logger" "int-hash" "envelope"))
      (:file "rt" :depends-on ("fifo" "bus" "graph"))
      (:file "nrt" :depends-on ("rt"))
+     (:file "score" :depends-on ("nrt"))
      (:file "receiver" :depends-on ("vug/midi"))
      (:file "analysis/base" :depends-on ("time" "util" "gen/window"))
      (:file "analysis/fft" :depends-on ("analysis/base"))

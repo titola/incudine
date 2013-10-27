@@ -81,6 +81,12 @@
 (defvar *dummy-function-without-args* (lambda ()))
 (declaim (type function *dummy-function-without-args*))
 
+(defmacro with-ensure-symbol (names &body forms)
+  `(let ,(mapcar (lambda (name)
+                   `(,name (ensure-symbol ,(symbol-name name))))
+                 names)
+     ,@forms))
+
 (declaim (inline sample))
 (defun sample (number)
   (coerce number 'sample))

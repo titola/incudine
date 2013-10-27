@@ -85,6 +85,7 @@
    #:rt-thread-p #:rt-eval #:rt-eval-if
    #:foreign-pointer
    #:smp-ref #:data-ref
+   #:with-ensure-symbol
    #:with-foreign-object #:with-samples #:with-samples*
    #:with-complex
    #:do-complex
