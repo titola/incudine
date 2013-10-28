@@ -198,6 +198,11 @@ int ja_get_buffer_size()
     return ja_frames;
 }
 
+SAMPLE ja_get_sample_rate()
+{
+    return ja_sample_rate;
+}
+
 static int ja_register_ports()
 {
     int i;

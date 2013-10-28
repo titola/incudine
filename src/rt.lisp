@@ -74,6 +74,7 @@
                   (let ((buffer-size (rt-buffer-size)))
                     (setf (rt-params-frames-per-buffer *rt-params*)
                           buffer-size)
+                    #+jack-audio (set-sample-rate (rt-sample-rate))
                     (rt-loop buffer-size)))
                  (t (setf *rt-thread* nil)
                     (msg error (rt-get-error-msg)))))
@@ -111,19 +112,16 @@
 (defvar rt-state 1)
 (declaim (type bit rt-state))
 
-(progn
-  (defun rt-stop ()
-    (unless (eq (rt-status) :stopped)
-      (when *rt-thread*
-        (setf rt-state 1)
-        (sleep .05)
-        (loop while (bt:thread-alive-p *rt-thread*))
-        (setf *rt-thread* nil))
-      (unless (zerop (rt-audio-stop))
-        (msg error (rt-get-error-msg)))
-      (setf (rt-params-status *rt-params*) :stopped)))
-  #+sbcl
-  (pushnew 'rt-stop sb-ext:*exit-hooks*))
+(defun rt-stop ()
+  (unless (eq (rt-status) :stopped)
+    (when *rt-thread*
+      (setf rt-state 1)
+      (sleep .05)
+      (loop while (bt:thread-alive-p *rt-thread*))
+      (setf *rt-thread* nil))
+    (unless (zerop (rt-audio-stop))
+      (msg error (rt-get-error-msg)))
+    (setf (rt-params-status *rt-params*) :stopped)))
 
 (declaim (inline tick-func))
 (defun tick-func ()

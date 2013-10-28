@@ -115,7 +115,7 @@
           (with-samples* ((abs-mul (abs mul))
                           (two-mul (+ mul mul))
                           (squared-mul-plus-one (+ (* mul mul) (sample 1)))
-                          (c2-mult (expt (the (sample #.+sample-zero+) abs-mul) num-harm))
+                          (c2-mult (expt (the non-negative-sample abs-mul) num-harm))
                           c3-mult scale twopi-step angle num denom)
             (when (and (minusp mul)
                        (plusp (logand num-harm 1)))

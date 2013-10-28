@@ -74,12 +74,14 @@ when the duration is undefined.")
 (defvar *nrt-edf-heap-size* 65536)
 (declaim (type non-negative-fixnum *nrt-edf-heap-size*))
 
-(defvar *nrt-heap* (make-array *nrt-edf-heap-size* :element-type 'incudine.edf::node
-                     :initial-contents (loop repeat *nrt-edf-heap-size*
-                                             collect (incudine.edf::make-node))))
+(defvar *nrt-heap*
+  (make-array *nrt-edf-heap-size* :element-type 'incudine.edf::node
+              :initial-contents (loop repeat *nrt-edf-heap-size*
+                                   collect (incudine.edf::make-node))))
 (declaim (type simple-vector *nrt-heap*))
 
-(defvar *nrt-sample-counter* (foreign-alloc :double :initial-element 0.0d0))
+(defvar *nrt-sample-counter*
+  (foreign-alloc :double :initial-element +sample-zero+))
 (declaim (type foreign-pointer *nrt-sample-counter*))
 
 (defvar *nrt-tempo* (make-tempo 60))

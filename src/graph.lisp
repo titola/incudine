@@ -41,7 +41,7 @@
   (id nil :type (or fixnum null))
   (hash 0 :type fixnum)
   ;; Index in the array of the nodes
-  (index #.(* 2 *max-number-of-nodes*) :type non-negative-fixnum)
+  (index (* 2 *max-number-of-nodes*) :type non-negative-fixnum)
   (name nil :type symbol)
   (start-time-ptr (foreign-alloc 'sample :initial-element +sample-zero+)
                   :type foreign-pointer)

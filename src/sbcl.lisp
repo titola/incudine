@@ -72,6 +72,10 @@
   `(when sb-kernel:*stop-for-gc-pending*
      ,@body))
 
+(declaim (inline exit))
+(defun exit (code)
+  (sb-ext:exit :code code))
+
 ;;; Return a string compatible in the non-lisp-world, without loss of
 ;;; precision if SAMPLE type is DOUBLE-FLOAT.
 ;;;

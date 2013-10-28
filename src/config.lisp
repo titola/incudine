@@ -14,10 +14,19 @@
 ;;; along with this program; if not, write to the Free Software
 ;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-(in-package :incudine.util)
+(in-package :incudine.config)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defvar *config-loaded-p* nil)
+
+  (defun load-incudinerc ()
+    (let ((*package* (find-package :incudine.config)))
+      (setf *config-loaded-p*
+            (let ((init-file (merge-pathnames ".incudinerc"
+                                              (user-homedir-pathname))))
+              (if (probe-file init-file)
+                  (load init-file)
+                  t)))))
 
   (declaim (special *sample-rate*
                     *use-foreign-sample-p*
@@ -45,13 +54,11 @@
                     *default-data-format*))
 
   (unless *config-loaded-p*
-    (setf *config-loaded-p*
-          (let ((init-file (merge-pathnames ".incudinerc"
-                                            (user-homedir-pathname))))
-            (if (probe-file init-file)
-                (load init-file)
-                t))))
+    (load-incudinerc)))
 
+(in-package :incudine.util)
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
   (setf *use-foreign-sample-p* (or *use-foreign-sample-p*
                                    (eq *sample-type* 'double-float)))
 
@@ -106,14 +113,16 @@
   (define-constant +phase-mask+ (1- +table-maxlen+))
   (define-constant +rad2inc+ (* +table-maxlen+ +rtwopi+))
 
-  (setq *sample-rate* (coerce (or *sample-rate* 48000) 'sample))
+  (defvar *sample-rate*
+    (coerce (or incudine.config::*sample-rate* 48000) 'sample))
   (declaim (type sample *sample-rate*))
 
   (defvar *sample-duration* (/ 1.0 *sample-rate*))
   (declaim (type sample *sample-duration*))
 
   ;;; Velocity of the sound at 22°C, 1 atmosfera
-  (setf *sound-velocity* (coerce (or *sound-velocity* 345) 'sample))
+  (defvar *sound-velocity*
+    (coerce (or incudine.config::*sound-velocity* 345) 'sample))
   (declaim (type sample *sound-velocity*))
 
   (defvar *r-sound-velocity* (/ 1.0 *sound-velocity*))

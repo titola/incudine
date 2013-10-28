@@ -219,6 +219,9 @@
   (declaim (inline rt-buffer-size))
   (cffi:defcfun ("ja_get_buffer_size" rt-buffer-size) :int)
 
+  (declaim (inline rt-sample-rate))
+  (cffi:defcfun ("ja_get_sample_rate" rt-sample-rate) sample)
+
   (declaim (inline rt-set-busy-state))
   (cffi:defcfun ("ja_set_lisp_busy_state" rt-set-busy-state) :void
     (status :boolean))

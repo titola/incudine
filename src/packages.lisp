@@ -14,6 +14,20 @@
 ;;; along with this program; if not, write to the Free Software
 ;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+(defpackage :incudine.config
+  (:use :cl)
+  (:export
+   #:*use-foreign-sample-p* #:*frames-per-buffer* #:*client-name*
+   #:*max-number-of-channels* #:*number-of-input-bus-channels*
+   #:*number-of-output-bus-channels* #:*number-of-bus-channels*
+   #:*rt-edf-heap-size* #:*nrt-edf-heap-size* #:*rt-priority*
+   #:*nrt-priority* #:*receiver-default-priority* #:*max-number-of-nodes*
+   #:*default-table-size* #:*fade-curve* #:*standard-optimize-settings*
+   #:*foreign-sample-pool-size* #:*foreign-rt-memory-pool-size*
+   #:*sndfile-buffer-size* #:*bounce-to-disk-guard-size*
+   #:*default-header-type* #:*default-data-format*
+   #:load-incudinerc))
+
 (defpackage :incudine.external
   (:use :cl)
   (:export
@@ -30,11 +44,12 @@
    #:foreign-copy #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
    #:rt-audio-init #:rt-audio-start #:rt-audio-stop #:rt-get-input #:rt-set-output
    #:rt-condition-wait #:rt-transfer-to-c-thread #:rt-cycle-begin #:rt-cycle-end
-   #:rt-cycle-signal #:rt-set-busy-state #:rt-buffer-size #:rt-get-error-msg
+   #:rt-cycle-signal #:rt-set-busy-state #:rt-buffer-size #:rt-sample-rate
+   #:rt-get-error-msg
    #:mouse-event #:mouse-init #:mouse-loop-start #:mouse-stop #:get-mouse-status))
 
 (defpackage :incudine.util
-  (:use :cl)
+  (:use :cl :incudine.config)
   (:import-from #:alexandria #:positive-fixnum #:negative-fixnum
                 #:non-negative-fixnum #:define-constant #:with-gensyms
                 #:ensure-symbol)
@@ -60,6 +75,7 @@
    #:*max-number-of-nodes* #:*default-table-size* #:*fade-curve*
    #:*standard-optimize-settings* #:rt-thread*
    #:least-positive-sample #:least-negative-sample
+   #:exit
    #:next-power-of-two #:power-of-two-p
    #:apply-sample-coerce
    #:alloc-multi-channel-data #:free-multi-channel-data
@@ -236,6 +252,7 @@
                 #:*sample-rate* #:+twopi+ #:+half-pi+
                 #:+foreign-sample-size+ #:with-foreign-object
                 #:foreign-pointer #:with-samples #:with-samples* #:sample #:smp-ref
+                #:non-negative-sample
                 #:+sample-zero+ #:limited-sample #:sample->fixnum #:sample->int
                 #:nrt-msg)
   (:export #:envelope
@@ -261,7 +278,7 @@
                 #:rt-audio-init #:rt-audio-start #:rt-audio-stop
                 #:rt-get-input #:rt-set-output #:rt-cycle-begin #:rt-cycle-end
                 #:rt-cycle-signal #:rt-condition-wait #:rt-transfer-to-c-thread
-                #:rt-set-busy-state #:rt-buffer-size #:rt-get-error-msg)
+                #:rt-set-busy-state #:rt-buffer-size #:rt-sample-rate #:rt-get-error-msg)
   (:import-from #:incudine.edf #:at #:aat #:flush-pending)
   (:import-from #:incudine.gen #:all-random-distributions #:rand-args)
   (:export
@@ -280,7 +297,7 @@
    #:bus #:audio-in #:audio-out
    #:peak-info #:print-peak-info #:reset-peak-meters
    #:set-number-of-channels
-   #:rt-start #:rt-stop #:rt-status #:rt-buffer-size
+   #:rt-start #:rt-stop #:rt-status #:rt-buffer-size #:rt-sample-rate
    #:at #:aat #:flush-pending #:flush-all-fifos
    #:tempo #:*tempo* #:make-tempo #:bpm #:bps #:now #:tempo-sync
    #:tempo-envelope #:make-tempo-envelope #:set-tempo-envelope

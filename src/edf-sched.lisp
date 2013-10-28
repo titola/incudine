@@ -35,7 +35,11 @@
 (defvar *dummy-node* (make-node))
 (declaim (type node *dummy-node*))
 
-(defvar *heap-size* (if (numberp *rt-edf-heap-size*) *rt-edf-heap-size* 1024))
+(defvar *heap-size*
+  (if (and (numberp *rt-edf-heap-size*)
+           (not (incudine.util:power-of-two-p *rt-edf-heap-size*)))
+      (incudine.util:next-power-of-two *rt-edf-heap-size*)
+      1024))
 (declaim (type non-negative-fixnum *heap-size*))
 
 (defvar *heap* (make-array *heap-size* :element-type 'node

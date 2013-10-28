@@ -100,6 +100,7 @@
      (:file "vug/fft" :depends-on ("gen/window" "analysis/fft" "vug/codegen"))
      (:file "vug/spectral" :depends-on ("vug/fft"))
      (:file "deprecated" :depends-on ("vug/in-out"))))
+   (:file "src/save-core" :depends-on ("src"))
    (:static-file "COPYING")
    (:static-file "README")
    (:static-file "incudinerc-example")))
