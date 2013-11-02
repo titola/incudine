@@ -96,18 +96,17 @@ jack_nframes_t ja_cycle_begin ()
      */
     pthread_sigmask(SIG_BLOCK, &sig_stop_for_gc, NULL);
     frames = jack_cycle_wait(client);
+    pthread_sigmask(SIG_UNBLOCK, &sig_stop_for_gc, NULL);
 
-    if (ja_status != __JA_RUNNING) {
-        pthread_sigmask(SIG_UNBLOCK, &sig_stop_for_gc, NULL);
+    if (ja_status != __JA_RUNNING)
         return 0;
-    }
+
     for (i=0; i<ja_in_channels; i++)
         ja_inputs[i] = jack_port_get_buffer(input_ports[i], frames);
 
     for (i=0; i<ja_out_channels; i++)
         ja_outputs[i] = jack_port_get_buffer(output_ports[i], frames);
 
-    pthread_sigmask(SIG_UNBLOCK, &sig_stop_for_gc, NULL);
     return frames;
 }
 
