@@ -32,7 +32,6 @@
                              (:file "fifo")
                              (:file "edf")
                              (:file "time")
-                             (:file "int-hash")
                              (:file "bus")
                              (:file "buffer")
                              (:file "foreign-array")
