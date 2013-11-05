@@ -28,8 +28,12 @@
                   (load init-file)
                   t)))))
 
-  (declaim (special *sample-rate*
-                    *use-foreign-sample-p*
+  (defvar *sample-rate* 48000)
+
+  ;;; Velocity of the sound at 22°C, 1 atmosfera
+  (defvar *sound-velocity* 345)
+
+  (declaim (special *use-foreign-sample-p*
                     *frames-per-buffer*
                     *client-name*
                     *max-number-of-channels*
@@ -44,7 +48,6 @@
                     *max-number-of-nodes*
                     *default-table-size*
                     *fade-curve*
-                    *sound-velocity*
                     *standard-optimize-settings*
                     *foreign-sample-pool-size*
                     *foreign-rt-memory-pool-size*
@@ -59,8 +62,7 @@
 (in-package :incudine.util)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (setf *use-foreign-sample-p* (or *use-foreign-sample-p*
-                                   (eq *sample-type* 'double-float)))
+  (defvar *use-foreign-sample-p* (eq *sample-type* 'double-float))
 
   (unless *use-foreign-sample-p*
     (setf *foreign-sample-pool-size* 1))
@@ -114,15 +116,14 @@
   (define-constant +rad2inc+ (* +table-maxlen+ +rtwopi+))
 
   (defvar *sample-rate*
-    (coerce (or incudine.config::*sample-rate* 48000) 'sample))
+    (coerce incudine.config::*sample-rate* 'sample))
   (declaim (type sample *sample-rate*))
 
   (defvar *sample-duration* (/ 1.0 *sample-rate*))
   (declaim (type sample *sample-duration*))
 
-  ;;; Velocity of the sound at 22°C, 1 atmosfera
   (defvar *sound-velocity*
-    (coerce (or incudine.config::*sound-velocity* 345) 'sample))
+    (coerce incudine.config::*sound-velocity* 'sample))
   (declaim (type sample *sound-velocity*))
 
   (defvar *r-sound-velocity* (/ 1.0 *sound-velocity*))
@@ -180,6 +181,15 @@
     (declare (type positive-fixnum n))
     (zerop (logand n (1- n))))
 
+  (defvar *default-table-size* 65536)
+  (declaim (type non-negative-fixnum *default-table-size*))
+
+  (defvar *rt-edf-heap-size* 1024)
+  (declaim (type non-negative-fixnum *nrt-edf-heap-size*))
+
+  (defvar *nrt-edf-heap-size* 65536)
+  (declaim (type non-negative-fixnum *nrt-edf-heap-size*))
+
   (macrolet ((force-pow-of-two (value)
                `(when (and (numberp ,value)
                            (not (power-of-two-p ,value)))
@@ -188,11 +198,8 @@
     (force-pow-of-two *rt-edf-heap-size*)
     (force-pow-of-two *nrt-edf-heap-size*)))
 
-(defvar *client-name* "Incudine")
-(declaim (type (simple-array character) *client-name*))
-
-(defvar *default-table-size* 65536)
-(declaim (type non-negative-fixnum *default-table-size*))
+(defvar *client-name* "incudine")
+(declaim (type string *client-name*))
 
 (defvar *max-number-of-channels* 1024)
 (declaim (type non-negative-fixnum *max-number-of-channels*))
@@ -215,7 +222,7 @@
 
 (defvar *default-header-type* #-darwin "wav" #+darwin "aiff")
 
-(defvar *default-data-format* "float")
+(defvar *default-data-format* "pcm-24")
 
 (defvar *rt-thread* nil)
 (declaim (type (or bt:thread null) *rt-thread*))

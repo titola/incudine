@@ -3,6 +3,7 @@
 (setq *sample-rate* 48000)
 ;; Always T when *SAMPLE-TYPE* is DOUBLE-FLOAT
 (setq *use-foreign-sample-p* t)
+;; Used only with PortAudio
 (setq *frames-per-buffer* 1024)
 (setq *client-name* "incudine")
 (setq *max-number-of-channels* 1024)
@@ -24,6 +25,6 @@
 ;; Safe upper limit when the duration of the sound to render is undefined
 (setq *bounce-to-disk-guard-size* 300) ; 5 minutes
 (setq *default-header-type* #-darwin "wav" #+darwin "aiff")
-(setq *default-data-format* "float")
+(setq *default-data-format* "pcm-24")
 (setq *foreign-sample-pool-size* (* 64 1024 1024))
 (setq *foreign-rt-memory-pool-size* (* 64 1024 1024))

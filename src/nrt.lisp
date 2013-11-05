@@ -71,9 +71,6 @@ when the duration is undefined.")
 (defvar *nrt-temp-node* (incudine.edf::make-node))
 (declaim (type incudine.edf::node *nrt-temp-node*))
 
-(defvar *nrt-edf-heap-size* 65536)
-(declaim (type non-negative-fixnum *nrt-edf-heap-size*))
-
 (defvar *nrt-heap*
   (make-array *nrt-edf-heap-size* :element-type 'incudine.edf::node
               :initial-contents (loop repeat *nrt-edf-heap-size*
