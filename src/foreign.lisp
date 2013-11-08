@@ -206,9 +206,8 @@
   (declaim (inline rt-cycle-begin))
   (cffi:defcfun ("ja_cycle_begin" rt-cycle-begin) :unsigned-int)
 
-  (declaim (inline rt-cycle-signal))
-  (cffi:defcfun ("ja_cycle_signal" rt-cycle-signal) :void
-    (status :int))
+  (declaim (inline rt-cycle-end))
+  (cffi:defcfun ("ja_cycle_end" rt-cycle-end) :void)
 
   (declaim (inline rt-condition-wait))
   (cffi:defcfun ("ja_condition_wait" rt-condition-wait) :void)
@@ -244,10 +243,17 @@
   (cffi:defcfun ("pa_stop" rt-audio-stop) :int)
 
   (declaim (inline rt-cycle-begin))
-  (cffi:defcfun ("pa_cycle_begin" rt-cycle-begin) :void)
+  (cffi:defcfun ("pa_cycle_begin" rt-cycle-begin) :unsigned-int)
 
   (declaim (inline rt-cycle-end))
-  (cffi:defcfun ("pa_cycle_end" rt-cycle-end) :void)
+  (cffi:defcfun ("pa_cycle_end" rt-cycle-end) :void
+    (nframes :unsigned-int))
+
+  (declaim (inline rt-condition-wait))
+  (cffi:defcfun ("pa_condition_wait" rt-condition-wait) :void)
+
+  (declaim (inline rt-transfer-to-c-thread))
+  (cffi:defcfun ("pa_transfer_to_c_thread" rt-transfer-to-c-thread) :void)
 
   (declaim (inline rt-get-input))
   (cffi:defcfun ("pa_get_input" rt-get-input) :void
@@ -256,6 +262,10 @@
   (declaim (inline rt-set-output))
   (cffi:defcfun ("pa_set_output" rt-set-output) :void
     (outputs :pointer))
+
+  (declaim (inline rt-set-busy-state))
+  (cffi:defcfun ("pa_set_lisp_busy_state" rt-set-busy-state) :void
+    (status :boolean))
 
   (cffi:defcfun ("pa_get_error_msg" rt-get-error-msg) :string)
 

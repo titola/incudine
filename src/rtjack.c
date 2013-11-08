@@ -110,11 +110,9 @@ jack_nframes_t ja_cycle_begin ()
     return frames;
 }
 
-void ja_cycle_signal(int status)
+void ja_cycle_end()
 {
-    if (status != __JA_RUNNING)
-        ja_status = status;
-    jack_cycle_signal(client, status);
+    jack_cycle_signal(client, 0);
 }
 
 /* Lisp rt thread is busy ? */
@@ -146,7 +144,7 @@ void ja_transfer_to_c_thread()
     __ja_condition_signal(&ja_c_cond, &ja_c_lock);
 }
 
-static void* ja_thread(void *arg)
+static void* ja_process_thread(void *arg)
 {
     (void) arg;
 
@@ -291,7 +289,7 @@ int ja_initialize(SAMPLE srate, unsigned int input_channels,
     if (ja_register_ports() != 0)
         return 1;
 
-    jack_set_process_thread(client, ja_thread, NULL);
+    jack_set_process_thread(client, ja_process_thread, NULL);
     jack_on_shutdown(client, ja_shutdown, NULL);
 
     /* Unblock signals */

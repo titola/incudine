@@ -44,8 +44,7 @@
    #:foreign-copy #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
    #:rt-audio-init #:rt-audio-start #:rt-audio-stop #:rt-get-input #:rt-set-output
    #:rt-condition-wait #:rt-transfer-to-c-thread #:rt-cycle-begin #:rt-cycle-end
-   #:rt-cycle-signal #:rt-set-busy-state #:rt-buffer-size #:rt-sample-rate
-   #:rt-get-error-msg
+   #:rt-set-busy-state #:rt-buffer-size #:rt-sample-rate #:rt-get-error-msg
    #:mouse-event #:mouse-init #:mouse-loop-start #:mouse-stop #:get-mouse-status))
 
 (defpackage :incudine.util
@@ -277,8 +276,8 @@
                 #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
                 #:rt-audio-init #:rt-audio-start #:rt-audio-stop
                 #:rt-get-input #:rt-set-output #:rt-cycle-begin #:rt-cycle-end
-                #:rt-cycle-signal #:rt-condition-wait #:rt-transfer-to-c-thread
-                #:rt-set-busy-state #:rt-buffer-size #:rt-sample-rate #:rt-get-error-msg)
+                #:rt-condition-wait #:rt-transfer-to-c-thread #:rt-set-busy-state
+                #:rt-buffer-size #:rt-sample-rate #:rt-get-error-msg)
   (:import-from #:incudine.edf #:at #:aat #:flush-pending)
   (:import-from #:incudine.gen #:all-random-distributions #:rand-args)
   (:export

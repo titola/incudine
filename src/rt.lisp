@@ -115,10 +115,11 @@
 (defun rt-stop ()
   (unless (eq (rt-status) :stopped)
     (when *rt-thread*
-      (setf rt-state 1)
-      (sleep .05)
-      (loop while (bt:thread-alive-p *rt-thread*))
-      (setf *rt-thread* nil))
+      (let ((thread *rt-thread*))
+        (setf *rt-thread* nil)
+        (setf rt-state 1)
+        (sleep .05)
+        (loop while (bt:thread-alive-p thread))))
     (unless (zerop (rt-audio-stop))
       (msg error (rt-get-error-msg)))
     (setf (rt-params-status *rt-params*) :stopped)))
@@ -147,7 +148,6 @@
   `(tagbody
     ;; [SBCL] Restart from here after the stop caused by the gc
     ,label
-      #+jack-audio
       (when (zerop rt-state)
         ;; Transfer the control of the client from c to lisp
         (rt-set-busy-state nil)
@@ -157,19 +157,16 @@
 (defmacro with-rt-cycle ((reset-label frames-var) &body body)
   (declare (ignorable frames-var))
   `(incudine.util::without-gcing
-     #+jack-audio
-     (progn
-       (setf ,frames-var (rt-cycle-begin))
-       (when sb-kernel:*stop-for-gc-pending*
-         (setf ,frames-var 0)))
-     #+portaudio (rt-cycle-begin)
+     (setf ,frames-var (rt-cycle-begin))
+     (when sb-kernel:*stop-for-gc-pending*
+       (setf ,frames-var 0))
      ,@body
-     #+jack-audio (rt-cycle-signal 0)
-     #+portaudio (rt-cycle-end)
+     (rt-cycle-end #+portaudio ,frames-var)
      (incudine.util::with-stop-for-gc-pending
+       #+portaudio (rt-cycle-begin)
        ;; No xruns, jack knows that lisp is busy.
        ;; The output buffer is filled with zeroes.
-       #+jack-audio (rt-transfer-to-c-thread)
+       (rt-transfer-to-c-thread)
        (go ,reset-label))))
 
 (defun rt-loop (frames-per-buffer)
@@ -192,5 +189,5 @@
                (tick-func)
                (rt-set-output *output-pointer*)
                (incf-sample-counter))))
-      #+jack-audio
-      (rt-transfer-to-c-thread))))
+      (rt-transfer-to-c-thread)
+      (nrt-funcall #'rt-stop))))
