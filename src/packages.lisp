@@ -16,6 +16,7 @@
 
 (defpackage :incudine.config
   (:use :cl)
+  (:import-from #:alexandria #:define-constant)
   (:export
    #:*use-foreign-sample-p* #:*frames-per-buffer* #:*client-name*
    #:*max-number-of-channels* #:*number-of-input-bus-channels*
@@ -74,6 +75,7 @@
    #:*max-number-of-nodes* #:*default-table-size* #:*fade-curve*
    #:*standard-optimize-settings* #:rt-thread*
    #:least-positive-sample #:least-negative-sample
+   #:incudine-version
    #:exit
    #:next-power-of-two #:power-of-two-p
    #:apply-sample-coerce
@@ -201,9 +203,11 @@
 (defpackage :incudine.edf
   (:use :cl)
   (:import-from #:alexandria #:positive-fixnum #:non-negative-fixnum #:define-constant)
-  (:import-from #:incudine.util #:*rt-edf-heap-size* #:*rt-thread* #:sample #:+sample-zero+
-                #:with-spinlock-held #:rt-thread-p)
-  (:export #:at #:aat #:sched-loop #:flush-pending #:heap-empty-p #:heap-count))
+  (:import-from #:incudine.util #:*standard-optimize-settings* #:*rt-edf-heap-size*
+                #:*rt-thread* #:sample #:+sample-zero+ #:next-power-of-two
+                #:power-of-two-p #:with-spinlock-held #:rt-thread-p)
+  (:export #:at #:aat #:sched-loop #:flush-pending #:heap-empty-p #:heap-count
+           #:last-time))
 
 (defpackage :incudine.analysis
   (:use :cl)
@@ -328,8 +332,8 @@
    #:linen #:perc #:cutoff #:asr #:adsr #:dadsr
    #:make-linen #:make-perc #:make-cutoff #:make-asr #:make-adsr #:make-dadsr
    ;; nrt
-   #:with-nrt #:bounce-to-disk #:scofile->sexp #:scofile->function
-   #:scofile->lispfile))
+   #:with-nrt #:bounce-to-disk #:regofile->sexp #:regofile->function
+   #:regofile->lispfile #:scofile->sexp #:scofile->function #:scofile->lispfile))
 
 (defpackage :incudine.voicer
   (:use :cl)

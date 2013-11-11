@@ -177,6 +177,22 @@ when the duration is undefined.")
   (node-free *node-root*)
   (incudine.edf::sched-loop))
 
+(defun write-sf-metadata-plist (sf plist)
+  (macrolet ((metadata-constants ()
+               `(list ,@(loop for key in incudine.util::*sf-metadata-keywords*
+                              collect key
+                              collect (format-symbol (find-package :sndfile)
+                                                     "STR-~A" key)))))
+    (labels ((write-md (key val)
+               (let ((str-type (getf (metadata-constants) key)))
+                 (if str-type (sf:set-string sf str-type val))))
+             (write-all-md (pl)
+               (when pl
+                 (write-md (car pl) (cadr pl))
+                 (write-all-md (cddr pl)))))
+      (write-all-md plist)
+      sf)))
+
 (defmacro with-sf-info ((var frames sample-rate channels header-type
                          data-format) &body body)
   `(let ((,var (sf:make-info :frames ,frames
@@ -190,18 +206,26 @@ when the duration is undefined.")
                           input-remain input-index max-frames
                           pad-at-the-end-p)
                          &body body)
-  (with-gensyms (info)
-    `(let ((,info (sf:make-info)))
-       (sf:with-open (,var ,path :info ,info :mode sf:sfm-read)
-         (with-foreign-object (,data-var 'sample ,bufsize)
-           (let ((,channels-var (sf:channels ,info))
-                 (,input-remain 0)
-                 (,input-index 0))
-             (declare (type non-negative-fixnum ,channels-var ,input-remain
-                            ,input-index))
-             (when ,pad-at-the-end-p
-               (setf ,max-frames (sf:frames ,info)))
-             ,@body))))))
+  (with-gensyms (info %path-or-stdin path-or-stdin open-stdin-p)
+    `(let ((,%path-or-stdin ,path)
+           (,info (sf:make-info)))
+       (multiple-value-bind (,path-or-stdin ,open-stdin-p)
+           (if (and (stringp ,%path-or-stdin)
+                    (string= ,%path-or-stdin "-"))
+               ;; Read from standard input
+               (values (sb-sys:fd-stream-fd sb-sys:*stdin*) t)
+               (values ,%path-or-stdin nil))
+         (sf:with-open (,var ,path-or-stdin :info ,info :mode sf:sfm-read
+                             :open-fd-p ,open-stdin-p)
+           (with-foreign-object (,data-var 'sample ,bufsize)
+             (let ((,channels-var (sf:channels ,info))
+                   (,input-remain 0)
+                   (,input-index 0))
+               (declare (type non-negative-fixnum ,channels-var ,input-remain
+                              ,input-index))
+               (when ,pad-at-the-end-p
+                 (setf ,max-frames (sf:frames ,info)))
+               ,@body)))))))
 
 (defmacro with-nrt ((channels &key (bpm 60)) &body body)
   `(let ((*to-engine-fifo* *nrt-fifo*)
@@ -229,7 +253,7 @@ when the duration is undefined.")
      ,@body))
 
 (defun %bounce-to-disk (output-filename duration channels header-type
-                        data-format function)
+                        data-format metadata function)
   (declare (type (or string pathname) output-filename) (type function function)
            (type channel-number channels) (type real duration))
   (with-nrt (channels)
@@ -260,32 +284,41 @@ when the duration is undefined.")
             (funcall function)
             (with-sf-info (info max-frames *sample-rate* channels
                            header-type data-format)
-              (sf:with-open (snd output-filename :info info :mode sf:sfm-write)
-                (with-foreign-object (data 'sample bufsize)
-                  (locally (declare #.*standard-optimize-settings*
-                                    #.*reduce-warnings*)
-                    (do ((i 0 (1+ i)))
-                        ((or (incudine.edf:heap-empty-p)
-                             (= i max-frames))
-                         (unless pad-at-the-end-p
-                           (setf frame i)))
-                      (declare (type non-negative-fixnum64 i))
-                      (nrt-loop snd data bufsize count channels))
-                    (loop while (< frame remain) do
-                         (nrt-loop snd data bufsize count channels)
-                         (incf frame))
-                    (when (plusp count)
-                      (write-sample snd data count))
-                    (node-free *node-root*)
-                    (incudine.edf::sched-loop)
-                    (perform-fifos))))))
+              (multiple-value-bind (path-or-stdout open-stdout-p)
+                  (if (and (stringp output-filename)
+                           (string= output-filename "-"))
+                      ;; Write to standard output
+                      (values (sb-sys:fd-stream-fd sb-sys:*stdout*) t)
+                      (values output-filename nil))
+                (sf:with-open (snd path-or-stdout :info info :mode sf:sfm-write
+                               :open-fd-p open-stdout-p)
+                  (write-sf-metadata-plist snd metadata)
+                  (with-foreign-object (data 'sample bufsize)
+                    (locally (declare #.*standard-optimize-settings*
+                                      #.*reduce-warnings*)
+                      (do ((i 0 (1+ i)))
+                          ((or (incudine.edf:heap-empty-p)
+                               (= i max-frames))
+                           (unless pad-at-the-end-p
+                             (setf frame i)))
+                        (declare (type non-negative-fixnum64 i))
+                        (nrt-loop snd data bufsize count channels))
+                      (loop while (< frame remain) do
+                           (nrt-loop snd data bufsize count channels)
+                           (incf frame))
+                      (when (plusp count)
+                        (write-sample snd data count))
+                      (node-free *node-root*)
+                      (incudine.edf::sched-loop)
+                      (perform-fifos)))))))
         (condition (c) (progn (msg error "~A" c)
                               (nrt-cleanup))))
       (print-peak-info channels)
       output-filename)))
 
 (defun %bounce-to-disk-with-infile (input-filename output-filename duration
-                                    channels header-type data-format function)
+                                    channels header-type data-format metadata
+                                    function)
   (declare (type (or string pathname) input-filename output-filename)
            (type real duration) (type function function)
            (type channel-number channels))
@@ -318,28 +351,36 @@ when the duration is undefined.")
                             pad-at-the-end-p)
               (with-sf-info (info max-frames *sample-rate* channels
                              header-type data-format)
-                (sf:with-open (snd-out output-filename :info info :mode sf:sfm-write)
-                  (with-foreign-object (data-out 'sample bufsize)
-                    (locally (declare #.*standard-optimize-settings*
-                                      #.*reduce-warnings*)
-                      (do ((i 0 (1+ i)))
-                          ((= i max-frames)
-                           (unless pad-at-the-end-p
-                             (setf frame i)))
-                        (declare (type non-negative-fixnum64 i))
-                        (nrt-loop-with-infile snd-in data-in snd-out data-out bufsize
-                                              count channels input-remain input-index
-                                              in-channels input-eof-p))
-                      (loop while (< frame remain) do
-                           (nrt-loop-with-infile snd-in data-in snd-out data-out bufsize
-                                                 count channels input-remain input-index
-                                                 in-channels input-eof-p)
-                           (incf frame))
-                      (when (plusp count)
-                        (write-sample snd-out data-out count))
-                      (node-free *node-root*)
-                      (incudine.edf::sched-loop)
-                      (perform-fifos)))))))
+                (multiple-value-bind (path-or-stdout open-stdout-p)
+                    (if (and (stringp output-filename)
+                             (string= output-filename "-"))
+                        ;; Write to standard output
+                        (values (sb-sys:fd-stream-fd sb-sys:*stdout*) t)
+                        (values output-filename nil))
+                  (sf:with-open (snd-out path-or-stdout :info info :mode sf:sfm-write
+                                 :open-fd-p open-stdout-p)
+                    (write-sf-metadata-plist snd-out metadata)
+                    (with-foreign-object (data-out 'sample bufsize)
+                      (locally (declare #.*standard-optimize-settings*
+                                        #.*reduce-warnings*)
+                        (do ((i 0 (1+ i)))
+                            ((= i max-frames)
+                             (unless pad-at-the-end-p
+                               (setf frame i)))
+                          (declare (type non-negative-fixnum64 i))
+                          (nrt-loop-with-infile snd-in data-in snd-out data-out bufsize
+                                                count channels input-remain input-index
+                                                in-channels input-eof-p))
+                        (loop while (< frame remain) do
+                             (nrt-loop-with-infile snd-in data-in snd-out data-out bufsize
+                                                   count channels input-remain input-index
+                                                   in-channels input-eof-p)
+                             (incf frame))
+                        (when (plusp count)
+                          (write-sample snd-out data-out count))
+                        (node-free *node-root*)
+                        (incudine.edf::sched-loop)
+                        (perform-fifos))))))))
         (condition (c) (progn (msg error "~A" c)
                               (nrt-cleanup))))
       (print-peak-info channels)
@@ -348,12 +389,13 @@ when the duration is undefined.")
 (defmacro bounce-to-disk ((output-filename &key input-filename
                            (channels *number-of-output-bus-channels*)
                            duration (pad 2) (header-type *default-header-type*)
-                           (data-format *default-data-format*))
+                           (data-format *default-data-format*) metadata)
                           &body body)
   `(,@(if input-filename
           `(%bounce-to-disk-with-infile ,input-filename)
           '(%bounce-to-disk))
-    ,output-filename ,(or duration `(- ,pad)) ,channels ,header-type ,data-format
+    ,output-filename ,(or duration `(- ,pad)) ,channels
+    ,header-type ,data-format ,metadata
     ,(let ((fst (car body)))
        (if (and (null (cdr body))
                 (eq (car fst) 'funcall)

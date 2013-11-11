@@ -16,6 +16,10 @@
 
 (in-package :incudine.config)
 
+(define-constant +incudine-major+ 0)
+(define-constant +incudine-minor+ 7)
+(define-constant +incudine-patch+ 0)
+
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defvar *config-loaded-p* nil)
 

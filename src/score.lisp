@@ -131,7 +131,7 @@
                            (read-score-line stream))
               s))))))
 
-;;; Local variables usable inside the score file:
+;;; Local variables usable inside the rego file:
 ;;;
 ;;;     TIME          initial time in samples
 ;;;     TEMPO-ENV     temporal envelope of the events
@@ -140,8 +140,8 @@
 ;;; the bindings after WITH, at the beginning of the score.
 ;;; For example:
 ;;;
-;;;     ;;; test.sco
-;;;     with ((id 1) (last 4))
+;;;     ;;; test.rego
+;;;     with (id 1) (last 4)
 ;;;
 ;;;     ;; simple oscillators
 ;;;     0          simple 440 .2 :id id
@@ -161,11 +161,11 @@
 ;;;     (tempo bpms beats &key curve loop-node release-node
 ;;;                            restart-level real-time-p)
 ;;;
-(defun scofile->sexp (path &optional fname)
+(defun regofile->sexp (path &optional fname)
   (declare (type (or pathname string)))
   (with-ensure-symbol (time dur tempo tempo-env)
     (let ((at (ensure-symbol (symbol-name (gensym "%AT%"))))
-          ;; *PRINT-GENSYM* is NIL in SCOFILE->LISPFILE
+          ;; *PRINT-GENSYM* is NIL in REGOFILE->LISPFILE
           (beats (gensym "%%%BEATS%%%")))
       `(,@(if fname `(defun ,fname) '(lambda)) ()
          (let ((,tempo-env (make-tempo-envelope '(60 60) '(0))))
@@ -173,6 +173,7 @@
                           (,at +sample-zero+))
              (flet ((,dur (,beats)
                       (time-at ,tempo-env ,beats ,at)))
+               (declare (ignorable (function ,dur)))
                (macrolet ((,tempo (&rest args)
                             `(set-tempo-envelope ,',tempo-env
                                ,@(if (cdr args)
@@ -188,18 +189,18 @@
                                      unless (score-skip-line-p line)
                                      collect (score-line->sexp line at)))))))))))))
 
-(declaim (inline scofile->function))
-(defun scofile->function (path &optional fname)
-  (eval (scofile->sexp path fname)))
+(declaim (inline regofile->function))
+(defun regofile->function (path &optional fname)
+  (eval (regofile->sexp path fname)))
 
-(defun scofile->lispfile (score-file &optional fname lisp-file)
-  (declare (type (or pathname string null) score-file lisp-file))
+(defun regofile->lispfile (rego-file &optional fname lisp-file)
+  (declare (type (or pathname string null) rego-file lisp-file))
   (let ((lisp-file (or lisp-file
-                       (make-pathname :directory (pathname-directory score-file)
-                                      :name (pathname-name score-file)
+                       (make-pathname :defaults rego-file
                                       :type "cudo"))))
     (with-open-file (lfile lisp-file :direction :output
                      :if-exists :supersede)
-      (write (scofile->sexp score-file fname) :stream lfile :gensym nil)
+      (write (regofile->sexp rego-file fname) :stream lfile :gensym nil)
       (terpri lfile)
+      (msg debug "convert ~A -> ~A" rego-file lisp-file)
       lisp-file)))

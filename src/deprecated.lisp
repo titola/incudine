@@ -10,6 +10,21 @@
   (incudine::deprecated-msg 'synth-seq 'dsp-seq)
   `(dsp-seq ,@functions))
 
+;;; 20131110
+(defmacro scofile->sexp (path &optional fname)
+  (incudine::deprecated-msg 'scofile->sexp 'regofile->sexp)
+  `(regofile->sexp ,path ,fname))
+
+;;; 20131110
+(defmacro scofile->function (path &optional fname)
+  (incudine::deprecated-msg 'scofile->function 'regofile->function)
+  `(regofile->function ,path ,fname))
+
+;;; 20131110
+(defmacro scofile->lispfile (rego-file &optional fname lisp-file)
+  (incudine::deprecated-msg 'scofile->lispfile 'regofile->lispfile)
+  `(regofile->lispfile ,rego-file ,fname ,lisp-file))
+
 (in-package :incudine.util)
 
 ;;; 20130927

@@ -218,17 +218,27 @@
   (get-format (list #-darwin 'wav #+darwin 'aiff 'pcm-24)))
 
 (declaim (inline open))
-(defun open (path &key (mode sfm-read) info)
+(defun open (path-or-fd &key (mode sfm-read) info open-fd-p close-desc-p)
   (let* ((sfinfo (if info
                      (info-to-sndinfo info)
                      (make-sndinfo :pointer (cffi:foreign-alloc '(:struct info)))))
-         (sf (%open path mode sfinfo)))
+         (sf (if open-fd-p
+                 (open-fd path-or-fd mode sfinfo (if close-desc-p true false))
+                 (%open path-or-fd mode sfinfo))))
     (when info
       (sndinfo-to-info sfinfo info))
     sf))
 
-(defmacro with-open ((var path &key info (mode sfm-read)) &body body)
-  `(let ((,var (open (namestring ,path) :mode ,mode :info ,(or info `(make-info)))))
+(defmacro with-open ((var path-or-fd &key info (mode sfm-read)
+                      (open-fd-p nil fdp) close-desc-p) &body body)
+  `(let ((,var (open ,(if fdp
+                          `(if ,open-fd-p
+                               ,path-or-fd
+                               (namestring ,path-or-fd))
+                          `(namestring ,path-or-fd))
+                     :mode ,mode :info ,(or info `(make-info))
+                     ,@(when fdp
+                         `(:open-fd-p ,open-fd-p :close-desc-p ,close-desc-p)))))
      (unwind-protect
           (multiple-value-prog1 ,@body)
        (when ,var (close ,var)))))

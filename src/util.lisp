@@ -86,6 +86,17 @@
 (defvar *dummy-function-without-args* (lambda ()))
 (declaim (type function *dummy-function-without-args*))
 
+(defvar *sf-metadata-keywords*
+  '(:title :copyright :software :artist :comment
+    :date :album :license :tracknumber :genre))
+
+(declaim (inline incudine-version))
+(defun incudine-version ()
+  #.(format nil "~D.~D.~D"
+            incudine.config::+incudine-major+
+            incudine.config::+incudine-minor+
+            incudine.config::+incudine-patch+))
+
 (defmacro with-ensure-symbol (names &body forms)
   `(let ,(mapcar (lambda (name)
                    `(,name (ensure-symbol ,(symbol-name name))))

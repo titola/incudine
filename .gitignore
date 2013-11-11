@@ -3,4 +3,5 @@
 *~
 *.o
 src/audio-driver.lisp
+src/incudine
 src/sample-type.lisp

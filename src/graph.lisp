@@ -657,7 +657,7 @@
 
 (defgeneric dump (obj &optional stream))
 
-(defmethod dump ((obj node) &optional (stream *standard-output*))
+(defmethod dump ((obj node) &optional (stream *logger-stream*))
   (declare #.*standard-optimize-settings*
            (type stream stream))
   (let ((indent 0)

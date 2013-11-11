@@ -112,14 +112,14 @@
           (svref *out-of-range-counter* chan)))
 
 (defun print-peak-info (&optional (channels *number-of-output-bus-channels*)
-                        (stream *standard-output*))
+                        (stream *logger-stream*))
   (format stream "~11tpeak amps:  ")
   (dochannels (ch channels)
     (format stream "~8,3,F  " (smp-ref *output-peak-values* ch)))
   (format stream "~%samples out of range:  ")
   (dochannels (ch channels)
     (format stream "~8,,D  " (svref *out-of-range-counter* ch)))
-  (terpri))
+  (terpri stream))
 
 (declaim (inline %reset-peak-values))
 (defun %reset-peak-meters ()

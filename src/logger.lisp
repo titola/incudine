@@ -34,7 +34,7 @@
 (defvar *logger-time* nil)
 (declaim (type (member :sec :samp nil) *logger-time*))
 
-(defvar *logger-stream* *standard-output*)
+(defvar *logger-stream* *error-output*)
 (declaim (type stream *logger-stream*))
 
 (defvar *logger-force-output* t)

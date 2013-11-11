@@ -1,8 +1,11 @@
+PREFIX      = /usr/local
+BINDIR      = $(PREFIX)/bin
 OS          = $(shell uname)
 HAVE_JACK   = $(shell pkg-config jack && echo 1)
 HAVE_PA     = $(shell pkg-config portaudio-2.0 && echo 1)
 HAVE_X11    = $(shell pkg-config x11 && echo 1)
 HAVE_SIMD   = 1
+HAVE_LV2    = 0
 SAMPLE_SIZE = 64
 LIBNAME     = libincudine
 LIBEXT      = so
@@ -12,6 +15,13 @@ LDFLAGS     = -shared -lpthread -lm
 PA_CFLAGS   =
 TLSF_CFLAGS = -DTLSF_STATISTIC=1
 OBJECTS     = tlsf.o util.o
+SBCL        = sbcl
+
+# DYNAMIC_SPACE_SIZE and CONTROL_STACK_SIZE are used to set
+# respectively `--dynamic-space-size' and `--control-stack-size' for
+# the standalone executable.
+DYNAMIC_SPACE_SIZE =
+CONTROL_STACK_SIZE =
 
 ifeq ($(OS), Linux)
 	CFLAGS += -DLINUX
@@ -56,6 +66,24 @@ else
 	LISP_SAMPLE_TYPE = single-float
 endif
 
+DYNAMIC_SPACE_SIZE_OPT =
+
+ifneq ($(DYNAMIC_SPACE_SIZE),)
+	DYNAMIC_SPACE_SIZE_OPT = --dynamic-space-size $(DYNAMIC_SPACE_SIZE)
+endif
+
+CONTROL_STACK_SIZE_OPT =
+
+ifneq ($(CONTROL_STACK_SIZE),)
+	CONTROL_STACK_SIZE_OPT = --control-stack-size $(CONTROL_STACK_SIZE)
+endif
+
+ifeq ($(HAVE_LV2), 1)
+	INCUDINE_SYSTEM = :incudine-lv2
+else
+	INCUDINE_SYSTEM = :incudine
+endif
+
 all: $(LIBNAME).$(LIBEXT) audio-driver sample-type.lisp
 
 $(LIBNAME).$(LIBEXT): $(OBJECTS)
@@ -87,5 +115,14 @@ sample-type.lisp: util.o
 	@echo -n "$@: "
 	@cat $@
 
+incudine: $(LIBNAME).$(LIBEXT)
+	@echo [building standalone executable]
+	$(SBCL) $(DYNAMIC_SPACE_SIZE_OPT) $(CONTROL_STACK_SIZE_OPT) --noinform \
+	      --eval '(require $(INCUDINE_SYSTEM))' --load "executable.lisp" \
+	      --eval "(save-lisp-and-die \"incudine\" :executable t :toplevel 'incudine::incudine-toplevel :save-runtime-options t)"
+
+install: incudine
+	install -m 755 incudine $(DESTDIR)$(BINDIR)
+
 clean:
-	@rm -f $(LIBNAME).$(LIBEXT) *.o sample-type.lisp audio-driver.lisp
+	@rm -f $(LIBNAME).$(LIBEXT) *.o sample-type.lisp audio-driver.lisp incudine

@@ -19,8 +19,6 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defvar *core-init-function*
     (lambda ()
-      ;; load config
-      (incudine.config:load-incudinerc)
       (set-sample-rate (sample (or incudine.config::*sample-rate* 48000)))
       (set-sound-velocity (sample (or incudine.config::*sound-velocity* 345)))
       ;; gsl random
@@ -115,6 +113,11 @@
     "Allocation of the foreign memory and initialization when a saved
 core image starts up.")
 
+  (defvar *core-config-and-init-function*
+    (lambda ()
+      (incudine.config:load-incudinerc)
+      (funcall *core-init-function*)))
+
   (defvar *core-save-function*
     (lambda ()
       ;; Stop realtime and non-realtime threads
@@ -129,7 +132,7 @@ core image starts up.")
 
   (defvar *set-core-hooks-p* t)
   (when *set-core-hooks-p*
-    (pushnew *core-init-function* sb-ext:*init-hooks*)
+    (pushnew *core-config-and-init-function* sb-ext:*init-hooks*)
     (pushnew *core-save-function* sb-ext:*save-hooks*)
     (pushnew *exit-function* sb-ext:*exit-hooks*)
     (setf *set-core-hooks-p* nil)))

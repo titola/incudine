@@ -37,8 +37,8 @@
 
 (defvar *heap-size*
   (if (and (numberp *rt-edf-heap-size*)
-           (not (incudine.util:power-of-two-p *rt-edf-heap-size*)))
-      (incudine.util:next-power-of-two *rt-edf-heap-size*)
+           (not (power-of-two-p *rt-edf-heap-size*)))
+      (next-power-of-two *rt-edf-heap-size*)
       1024))
 (declaim (type non-negative-fixnum *heap-size*))
 
@@ -90,7 +90,7 @@
   (unless (>= *next-node* *heap-size*)
     (let ((curr *next-node*)
           (t0 (sample time)))
-      (declare #.incudine::*standard-optimize-settings*
+      (declare #.*standard-optimize-settings*
                (type positive-fixnum curr) (type sample t0))
       (loop while (> curr +node-root+) do
            (let ((parent (ash curr -1)))
@@ -128,7 +128,7 @@
        (at ,it ,function ,@args))))
 
 (defun get-heap ()
-  (declare #.incudine::*standard-optimize-settings*
+  (declare #.*standard-optimize-settings*
            #+(or cmu sbcl) (values node))
   (cond ((> *next-node* +node-root+)
          ;; node 0 used for the result
@@ -162,6 +162,24 @@
         do (let ((curr-node (get-heap)))
              (declare (type node curr-node))
              (apply (node-function curr-node) (node-args curr-node)))))
+
+(defun last-time ()
+  (declare #.*standard-optimize-settings*
+           #.incudine.util:*reduce-warnings*)
+  (labels ((rec (i t0)
+             (declare (type non-negative-fixnum i)
+                      (type sample t0))
+             (if (= i *next-node*)
+                 t0
+                 (rec (1+ i) (max t0 (node-time (heap-node i)))))))
+    (let ((start (if (power-of-two-p *next-node*)
+                     (ash *next-node* -1)
+                     (let ((n (ash *next-node* -2)))
+                       (if (< n 2)
+                           (+ n 1)
+                           (next-power-of-two n))))))
+      (declare (type non-negative-fixnum start))
+      (rec (1+ start) (node-time (heap-node start))))))
 
 (declaim (inline flush-pending))
 (defun flush-pending ()

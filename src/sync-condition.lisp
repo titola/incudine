@@ -35,6 +35,11 @@
                    (1+ (the non-negative-fixnum #1#)))
                  #xffffff)))
 
+(declaim (inline sync-condition-flush))
+(defun sync-condition-flush (cond)
+  (setf (sync-condition-read cond)
+        (sync-condition-write cond)))
+
 (defmacro sync-condition-wait (cond)
   `(bt:with-lock-held ((sync-condition-mutex ,cond))
      (loop while (= (sync-condition-read ,cond)

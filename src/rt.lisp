@@ -38,6 +38,7 @@
                                  (sync-condition-wait *nrt-audio-sync*)
                                  (fifo-perform-functions *from-engine-fifo*)))
                           :name "audio-nrt-thread"))
+    (msg debug "non-realtime thread started")
     (thread-set-priority *nrt-thread* *nrt-priority*))
   (unless *fast-nrt-thread*
     (setf *fast-nrt-thread*
@@ -47,6 +48,7 @@
                                  (fifo-perform-functions *fast-from-engine-fifo*)
                                  (fast-nrt-perform-functions)))
                           :name "audio-fast-nrt-thread"))
+    (msg debug "fast non-realtime thread started")
     (thread-set-priority *fast-nrt-thread* *fast-nrt-priority*))
   (and *nrt-thread* *fast-nrt-thread*))
 
@@ -55,7 +57,9 @@
     (bt:destroy-thread *nrt-thread*)
     (bt:destroy-thread *fast-nrt-thread*)
     (loop while (bt:thread-alive-p *nrt-thread*))
+    (msg debug "non-realtime thread stopped")
     (loop while (bt:thread-alive-p *fast-nrt-thread*))
+    (msg debug "fast non-realtime thread stopped")
     (setf *nrt-thread* nil *fast-nrt-thread* nil)))
 
 (defun make-rt-thread ()
@@ -104,7 +108,10 @@
     (make-rt-thread)
     (sleep .1)
     (setf (rt-params-status *rt-params*)
-          (if *rt-thread* :started :stopped))))
+          (cond (*rt-thread* (msg debug "realtime thread started")
+                             :started)
+                (t (msg warn "failed to start the realtime thread")
+                   :stopped)))))
 
 (defun rt-status ()
   (rt-params-status *rt-params*))
@@ -114,15 +121,18 @@
 
 (defun rt-stop ()
   (unless (eq (rt-status) :stopped)
-    (when *rt-thread*
-      (let ((thread *rt-thread*))
-        (setf *rt-thread* nil)
-        (setf rt-state 1)
-        (sleep .05)
-        (loop while (bt:thread-alive-p thread))))
-    (unless (zerop (rt-audio-stop))
-      (msg error (rt-get-error-msg)))
-    (setf (rt-params-status *rt-params*) :stopped)))
+    (cond ((rt-thread-p)
+           (nrt-funcall #'rt-stop))
+          (t (when *rt-thread*
+               (let ((thread *rt-thread*))
+                 (setf *rt-thread* nil)
+                 (setf rt-state 1)
+                 (sleep .05)
+                 (loop while (bt:thread-alive-p thread))
+                 (msg debug "realtime thread stopped")))
+             (unless (zerop (rt-audio-stop))
+               (msg error (rt-get-error-msg)))
+             (setf (rt-params-status *rt-params*) :stopped)))))
 
 (declaim (inline tick-func))
 (defun tick-func ()
