@@ -47,7 +47,11 @@
     (let ((size (length values)))
     `(with ((,frm (make-frame ,size)))
        ,@(loop for value in values for count from 0
-               collect `(setf (frame-ref ,frm ,count) ,value))
+               collect `(setf (frame-ref ,frm ,count)
+                              ,(if (and (numberp value)
+                                        (not (typep value 'sample)))
+                                   (sample value)
+                                   value)))
        (values ,frm ,size)))))
 
 ;;; Calc only one time during a tick
