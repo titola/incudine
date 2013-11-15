@@ -73,7 +73,7 @@
    #:*fast-nrt-priority* #:*receiver-default-priority* #:*sndfile-buffer-size*
    #:*bounce-to-disk-guard-size* #:*default-header-type* #:*default-data-format*
    #:*max-number-of-nodes* #:*default-table-size* #:*fade-curve*
-   #:*standard-optimize-settings* #:rt-thread*
+   #:*standard-optimize-settings*
    #:least-positive-sample #:least-negative-sample
    #:incudine-version
    #:exit

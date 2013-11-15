@@ -22,7 +22,7 @@
   (setf *readtable* incudine::*incudine-readtable*))
 
 (deftest time-units
-    (let ((*sample-rate* 96000.0d0)
+    (let ((*sample-rate* (sample 96000))
           (*tempo* (make-tempo 95))
           (tempo (make-tempo 135)))
       (prog1 (mapcar #'sample->int

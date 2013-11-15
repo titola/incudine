@@ -13,6 +13,10 @@
             '(-100 -10 -24 -12 -6 -3 0 6 12))
   (0.0 0.32 0.06 0.25 0.5 0.71 1.0 2.0 3.98))
 
+(deftest t60->pole
+    (values (truncate (* (t60->pole 0.001) 10000)))
+  8659)
+
 (deftest next-power-of-two
     (mapcar #'next-power-of-two '(5 10 21 44 1234 54321 3456789))
   (8 16 32 64 2048 65536 4194304))
@@ -23,7 +27,7 @@
 
 (deftest sample->fixnum
     (mapcar #'sample->fixnum
-            (mapcar (lambda (x) (coerce x 'sample))
+            (mapcar (lambda (x) (sample x))
                     '(1.234567 5.4358 7.66854 -15.738 5632.589 299.32563
                       -4984.593 38.4892 -93.4583)))
   (1 5 7 -16 5632 299 -4985 38 -94))
@@ -34,31 +38,37 @@
           collect (calc-lobits i))
   #.(loop for i to +max-lobits+ collect i))
 
+(deftest dochannels
+    (let ((acc))
+      (dochannels (ch 8 (nreverse acc))
+        (push ch acc)))
+  (0 1 2 3 4 5 6 7))
+
 ;;;; Interpolation
 
 (deftest linear-interp
-    (let ((y0 (coerce 3.0d0 'sample))
-          (y1 (coerce 11.0d0 'sample)))
+    (let ((y0 (sample 3.0d0))
+          (y1 (sample 11.0d0)))
       (mapcar (lambda (x) (two-decimals (linear-interp x y0 y1)))
-              (mapcar (lambda (x) (coerce x 'sample))
+              (mapcar (lambda (x) (sample x))
                       '(0.0d0 .1d0 .231d0 .5d0 .75d0 1d0))))
   (3.0 3.8 4.85 7.0 9.0 11.0))
 
 (deftest cos-interp
-    (let ((y0 (coerce 3.0d0 'sample))
-          (y1 (coerce 11.0d0 'sample)))
+    (let ((y0 (sample 3.0d0))
+          (y1 (sample 11.0d0)))
       (mapcar (lambda (x) (two-decimals (cos-interp x y0 y1)))
-              (mapcar (lambda (x) (coerce x 'sample))
+              (mapcar (lambda (x) (sample x))
                       '(0.0d0 .11d0 .33d0 .5d0 .75d0 1d0))))
   (3.0 3.24 4.96 7.0 9.83 11.0))
 
 (deftest cubic-interp
-    (let ((y0 (coerce 3.0d0 'sample))
-          (y1 (coerce 11.0d0 'sample))
-          (y2 (coerce 16.32d0 'sample))
-          (y3 (coerce 29.5d0 'sample)))
+    (let ((y0 (sample 3.0d0))
+          (y1 (sample 11.0d0))
+          (y2 (sample 16.32d0))
+          (y3 (sample 29.5d0)))
       (mapcar (lambda (x) (two-decimals (cubic-interp x y0 y1 y2 y3)))
-              (mapcar (lambda (x) (coerce x 'sample))
+              (mapcar (lambda (x) (sample x))
                       '(0.0d0 .12d0 .33d0 .5d0 .75d0 1d0))))
   (11.0 11.71 12.67 13.34 14.5 16.32))
 
@@ -108,10 +118,10 @@
 (deftest with-samples
     (with-samples ((a 3) (b 4))
       (+ a b))
-  #.(coerce 7 'sample))
+  #.(sample 7))
 
 (deftest with-samples*
     (with-samples* ((a 3)
                     (b (+ a 4)))
       (* a b))
-  #.(coerce 21 'sample))
+  #.(sample 21))
