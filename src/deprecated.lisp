@@ -64,3 +64,10 @@
 (defmacro synth-node ()
   (incudine::deprecated-msg 'synth-node 'dsp-node)
   `(dsp-node))
+
+(in-package :incudine.vug)
+
+;;; 20131114
+(defmacro frame-value-bind (vars frame &body body)
+  (incudine::deprecated-msg 'frame-value-bind 'multiple-sample-bind)
+  `(multiple-sample-bind ,vars ,frame ,@body))

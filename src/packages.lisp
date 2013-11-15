@@ -143,12 +143,12 @@
    #:free-synth-instances #:destroy-synth
    #:current-channel
    #:foreign-float #:foreign-double
-   #:make-frame #:frame-ref #:frame-value-bind
+   #:make-frame #:frame-ref #:frame-value-bind #:multiple-sample-bind #:samples
    #:foreach-tick #:foreach-channel #:counter #:downsamp #:generic-rate
    #:samphold #:interpolate
    #:tick #:external-variable #:init-only #:initialize #:without-follow
    #:update #:object-to-free
-   #:out #:cout #:node-out
+   #:out #:frame-out #:cout #:node-out
    #:dsp-node #:synth-node
    #:lin->lin #:lin->exp
    #:done-action #:done-self #:free-self #:free-self-when-done

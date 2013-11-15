@@ -327,7 +327,7 @@
          (frame (make-frame 5 :zero-p t)))
     (declare (type sample freq res damp))
     (with-samples (low high band notch)
-      (frame-value-bind (lp hp bp rb peak) frame
+      (multiple-sample-bind (lp hp bp rb peak) frame
         ;; First pass
         (setf notch (- in (* damp band))
               low   (+ low (* freq band))

@@ -126,27 +126,17 @@
 ;;;
 ;;; Return a frame with the three coordinates.
 (define-vug-macro lorenz (s r b integration-time xinit yinit zinit)
-  (with-gensyms (x y z x0 y0 z0 frm)
+  (with-gensyms (x y z x0 y0 z0)
     (with-coerce-arguments (xinit yinit zinit)
-      `(with-vug-inputs ((,x ,xinit)
-                         (,y ,yinit)
-                         (,z ,zinit))
+      `(with-vug-inputs ((,x ,xinit) (,y ,yinit) (,z ,zinit))
          (declare (type sample ,x ,y ,z))
-         (with ((,x0 0.0d0)
-                (,y0 0.0d0)
-                (,z0 0.0d0)
-                (,frm (make-frame 3)))
-           (declare (type sample ,x0 ,y0 ,z0) (type frame ,frm))
+         (with-samples (,x0 ,y0 ,z0)
            (setf ,x0 (* ,s (- ,y ,x))
                  ,y0 (- (* ,r ,x) (* ,x ,z) ,y)
                  ,z0 (- (* ,x ,y) (* ,b ,z)))
-           (incf ,x (* ,integration-time ,x0))
-           (incf ,y (* ,integration-time ,y0))
-           (incf ,z (* ,integration-time ,z0))
-           (setf (frame-ref ,frm 0) ,x
-                 (frame-ref ,frm 1) ,y
-                 (frame-ref ,frm 2) ,z)
-           ,frm)))))
+           (samples (incf ,x (* ,integration-time ,x0))
+                    (incf ,y (* ,integration-time ,y0))
+                    (incf ,z (* ,integration-time ,z0))))))))
 
 ;;; General quadratic map chaotic generator.
 ;;;

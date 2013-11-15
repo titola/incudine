@@ -34,11 +34,21 @@
   `(smp-ref ,frame ,channel))
 
 ;;; Like MULTIPLE-VALUE-BIND but dedicated to a FRAME
-(defmacro frame-value-bind (vars frame &body body)
-  `(symbol-macrolet
-       ,(loop for var in vars for count from 0
-              collect `(,var (frame-ref ,frame ,count)))
-     ,@body))
+(defmacro multiple-sample-bind (vars frame &body body)
+  (with-gensyms (frm)
+    `(with ((,frm ,frame))
+       (symbol-macrolet
+           ,(loop for var in vars for count from 0
+                  collect `(,var (frame-ref ,frm ,count)))
+         ,@body))))
+
+(defmacro samples (&rest values)
+  (with-gensyms (frm)
+    (let ((size (length values)))
+    `(with ((,frm (make-frame ,size)))
+       ,@(loop for value in values for count from 0
+               collect `(setf (frame-ref ,frm ,count) ,value))
+       (values ,frm ,size)))))
 
 ;;; Calc only one time during a tick
 (defmacro foreach-tick (&body body)

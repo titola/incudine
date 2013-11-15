@@ -21,6 +21,12 @@
      ,@(loop for value in values for ch from 0
              collect `(incf (audio-out ,ch) (sample ,value)))))
 
+(defmacro frame-out (frame channels &optional (offset 0) (scale 1))
+  (with-gensyms (frm)
+    `(with ((,frm ,frame))
+       (out ,@(loop for i from offset below (+ offset channels)
+                    collect `(* ,scale (frame-ref ,frm ,i)))))))
+
 (defmacro %cout (&rest values)
   (if (cdr values)
       `(cond ,@(loop for value in values
