@@ -60,9 +60,10 @@
     (set-var lilv-uri-midi-port    "http://lv2plug.in/ns/ext/midi#MidiEvent")
     (values)))
 
-(declaim (inline lv2-sample))
-(defun lv2-sample (number)
-  (coerce number 'lv2-sample))
+;;; Defined as macro to reduce the inlined functions inside the
+;;; definition of a DSP
+(defmacro lv2-sample (number)
+  `(coerce ,number 'lv2-sample))
 
 (declaim (inline lv2-plugin-instantiate))
 (defun lv2-plugin-instantiate (plugin)

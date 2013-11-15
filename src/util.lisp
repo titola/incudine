@@ -103,9 +103,10 @@
                  names)
      ,@forms))
 
-(declaim (inline sample))
-(defun sample (number)
-  (coerce number 'sample))
+;;; Defined as macro to reduce the inlined functions inside the
+;;; definition of a DSP
+(defmacro sample (number)
+  `(coerce ,number 'sample))
 
 (defun apply-sample-coerce (form)
   (if (atom form)
