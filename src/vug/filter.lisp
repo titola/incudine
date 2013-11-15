@@ -16,6 +16,9 @@
 
 (in-package :incudine.vug)
 
+(define-vug delay1 (in)
+  (with-samples (sig) (prog1 sig (setf sig in))))
+
 (define-vug one-pole (in coef)
   (with-samples (y1)
     (setf y1 (+ in (* coef (- y1 in))))))

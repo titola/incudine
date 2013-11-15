@@ -170,7 +170,7 @@
    ;; delay
    #:buf-delay-s #:buf-delay #:delay-s #:delay #:buf-vdelay #:vtap #:vdelay
    #:ff-comb #:fb-comb #:allpass #:vallpass
-   #:delay-feedback
+   #:delay-feedback #:delay1
    ;; filter
    #:one-pole #:one-zero #:two-pole #:two-zero #:dcblock #:lag #:lag-ud
    #:env-follower #:maf #:median #:decay #:decay-2 #:biquad #:reson
