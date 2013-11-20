@@ -169,6 +169,7 @@
    #:set-instrument
    #:get-loop-info
    ;; utils
+   #:sndfile-p
    #:sndfile-null-p
    #:make-info
    #:frames

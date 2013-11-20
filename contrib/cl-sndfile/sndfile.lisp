@@ -307,9 +307,11 @@
              (cffi:foreign-type-size '(:struct info)))
     (sndinfo-to-info sfinfo)))
 
-(declaim (inline info))
 (defun info (sndfile)
-  (get-current-info sndfile))
+  (if (sndfile-p sndfile)
+      (get-current-info sndfile)
+      (with-open (sf sndfile)
+        (get-current-info sf))))
 
 (defun get-norm-double (sndfile)
   (= 1 (command sndfile #x1010 (cffi:null-pointer) 0)))
