@@ -125,6 +125,17 @@
                  (setf acc nil))
                 (t (push c acc))))))))
 
+(defun fasl-file-p (pathname)
+  (and (probe-file pathname)
+       (with-open-file (f pathname)
+         (when (and (char= (read-char f nil nil) #\#)
+                    (char= (read-char f nil nil) #\!))
+           (let ((seq (make-list 6)))
+             ;; Skip the first line
+             (read-line f nil nil)
+             (read-sequence seq f)
+             (equal seq '(#\# #\Space #\F #\A #\S #\L)))))))
+
 ;;; Complete a file obtained with REGOFILE->LISPFILE. The modified
 ;;; file is a script executable both in realtime and non-rt.
 (defun %complete-score (pathname opt fname)
@@ -199,15 +210,20 @@
          (score-function-name ()
            (format-symbol *package* "SCORE-~:@(~A~)" (pathname-name pathname))))
     (let* ((type (pathname-type pathname))
-           (lisp-pathname (cond ((and (not rego-file-p)
-                                      (or (null type)
-                                          (string= type sb-fasl:*fasl-file-type*)))
-                                 (or (try-with-type "cudo")
-                                     (try-with-type "lisp")))
-                                (rego-file-p
-                                 ;; Name of the intermediate lisp file
-                                 (make-pathname :defaults pathname :type "rexi"))
-                                (t pathname)))
+           (lisp-pathname
+            (cond ((and (not rego-file-p)
+                        (or (null type) (string= type sb-fasl:*fasl-file-type*)))
+                   (or (try-with-type "cudo")
+                       (try-with-type "lisp")
+                       (let ((type (pathname-type pathname)))
+                         (when (or (and type
+                                        (string/= type sb-fasl:*fasl-file-type*))
+                                   (not (fasl-file-p pathname)))
+                           (probe-file pathname)))))
+                  (rego-file-p
+                   ;; Name of the intermediate lisp file
+                   (make-pathname :defaults pathname :type "rexi"))
+                  (t pathname)))
            (rego-pathname (if rego-file-p pathname))
            (src-pathname (if rego-file-p rego-pathname lisp-pathname))
            (fasl-pathname (try-with-type sb-fasl:*fasl-file-type*))
