@@ -526,8 +526,7 @@
                                           (let ((current-channel 0))
                                             (declare (type channel-number current-channel)
                                                      (ignorable current-channel))
-                                            ,@,vug-body
-                                            (values)))))))))))))
+                                            ,@,vug-body))))))))))))
 
 (declaim (inline update-free-hook))
 (defun update-free-hook (node hook)

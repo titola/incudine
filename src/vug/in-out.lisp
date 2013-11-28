@@ -19,7 +19,8 @@
 (define-vug-macro out (&rest values)
   `(progn
      ,@(loop for value in values for ch from 0
-             collect `(incf (audio-out ,ch) (sample ,value)))))
+             collect `(incf (audio-out ,ch) (sample ,value)))
+     (values)))
 
 (defmacro frame-out (frame channels &optional (offset 0) (scale 1))
   (with-gensyms (frm)
@@ -49,7 +50,8 @@
                   `(* (mem-aref
                        (incudine::node-gain-data (dsp-node)) 'sample)
                       ,node-value)
-                  node-value)))))
+                  node-value))
+       (values))))
 
 (define-vug-macro node-out (&rest values)
   `(progn
@@ -58,4 +60,5 @@
      (incf (audio-out current-channel)
            (* (mem-aref
                (incudine::node-gain-data (dsp-node)) 'sample)
-              (%cout ,@values)))))
+              (%cout ,@values)))
+     (values)))
