@@ -146,8 +146,13 @@
                     (progn (setq ,cond-expand-var t)
                            ,(vug-object-name obj)))
                set-form)))
-        ((or (vug-symbol-p obj) (vug-variable-p obj))
-         (vug-object-name obj))
+        ((vug-variable-p obj)
+         (let ((vars-to-recheck (vug-variable-variables-to-recheck obj)))
+           (when (and vars-to-recheck
+                      (vug-variable-performance-time-p obj))
+             (recheck-variables obj))
+           (vug-object-name obj)))
+        ((vug-symbol-p obj) (vug-object-name obj))
         (t obj)))
 
 (defmacro with-vug-arguments (args types &body body)

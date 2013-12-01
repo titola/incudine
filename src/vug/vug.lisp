@@ -508,7 +508,10 @@
                                 (parse-labels-form def flist mlist))
                                ((eq name 'macrolet)
                                 (parse-macrolet-form def flist mlist))
-                               ((macro-function name)
+                               ((and (macro-function name)
+                                     ;; Avoid the expansion of the setter forms.
+                                     ;; This information is used during the code generation.
+                                     (not (setter-form-p name)))
                                 (let ((expansion (macroexpand-1
                                                   (if (member name
                                                               '(with-samples with-samples*))
@@ -602,8 +605,9 @@
               (not (eq (vug-object-name obj) 'initialize)))
          (cond ((eq (vug-object-name obj) 'update)
                 ;; An updated variable is performance-time
-                (set-variable-performance-time
-                 (car (vug-function-inputs obj))))
+                (let ((var (car (vug-function-inputs obj))))
+                  (set-variable-performance-time var)
+                  (update-vug-variables (vug-variable-value var))))
                ((setter-form-p (vug-object-name obj))
                 ;; A variable in a setter form in the body of the VUG
                 ;; becomes performance-time
@@ -615,14 +619,12 @@
   obj)
 
 (defmacro vug-block (&body body)
-  (with-gensyms (result)
-    `(let ((,result
-            (update-vug-variables
-             (fix-sequence-of-forms
-              (remove-wrapped-parens
-               (remove-lisp-declaration
-                (list ,@(parse-vug-def body))))))))
-       (mark-vug-block ,result))))
+  `(mark-vug-block
+    (update-vug-variables
+     (fix-sequence-of-forms
+      (remove-wrapped-parens
+       (remove-lisp-declaration
+        (list ,@(parse-vug-def body))))))))
 
 (declaim (inline fix-sequence-of-forms))
 (defun fix-sequence-of-forms (obj)
@@ -630,13 +632,12 @@
       (make-vug-function :name 'progn :inputs obj)
       obj))
 
+(declaim (inline mark-vug-block))
 (defun mark-vug-block (obj)
-  (cond ((consp obj)
-         (mark-vug-block (car obj))
-         (mark-vug-block (cdr obj)))
-        ((vug-object-p obj)
-         (setf (vug-object-block-p obj) t)
-         obj)))
+  (declare (type (or vug-object null)))
+  (when obj
+    (setf (vug-object-block-p obj) t)
+    obj))
 
 (declaim (inline coerce-number))
 (defun coerce-number (obj output-type-spec)
