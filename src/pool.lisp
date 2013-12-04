@@ -109,21 +109,24 @@
                                           :grow 2048))
 (declaim (type cons-pool *nrt-global-pool*))
 
-(declaim (inline nrt-global-pool-push-cons))
+(defvar *nrt-global-pool-spinlock* (make-spinlock "NRT-GLOBAL-POOL"))
+(declaim (type spinlock *nrt-global-pool-spinlock*))
+
 (defun nrt-global-pool-push-cons (cons)
-  (cons-pool-push-cons *nrt-global-pool* cons))
+  (with-spinlock-held (*nrt-global-pool-spinlock*)
+    (cons-pool-push-cons *nrt-global-pool* cons)))
 
-(declaim (inline nrt-global-pool-pop-cons))
 (defun nrt-global-pool-pop-cons ()
-  (cons-pool-pop-cons *nrt-global-pool*))
+  (with-spinlock-held (*nrt-global-pool-spinlock*)
+    (cons-pool-pop-cons *nrt-global-pool*)))
 
-(declaim (inline nrt-global-pool-push-list))
 (defun nrt-global-pool-push-list (lst)
-  (cons-pool-push-list *nrt-global-pool* lst))
+  (with-spinlock-held (*nrt-global-pool-spinlock*)
+    (cons-pool-push-list *nrt-global-pool* lst)))
 
-(declaim (inline nrt-global-pool-pop-list))
 (defun nrt-global-pool-pop-list (list-size)
-  (cons-pool-pop-list  *nrt-global-pool* list-size))
+  (with-spinlock-held (*nrt-global-pool-spinlock*)
+    (cons-pool-pop-list *nrt-global-pool* list-size)))
 
 ;;; RT GLOBAL CONS-POOL (used in rt-thread)
 
@@ -147,7 +150,7 @@
 
 (declaim (inline rt-global-pool-pop-list))
 (defun rt-global-pool-pop-list (list-size)
-  (cons-pool-pop-list  *rt-global-pool* list-size))
+  (cons-pool-pop-list *rt-global-pool* list-size))
 
 ;;; TLIST
 
