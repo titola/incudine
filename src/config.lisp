@@ -237,6 +237,9 @@
 (defvar *fast-nrt-thread* nil)
 (declaim (type (or bt:thread null) *fast-nrt-thread*))
 
+(defvar *allow-rt-memory-pool-p* t)
+(declaim (type boolean *allow-rt-memory-pool-p*))
+
 (defvar *standard-optimize-settings* '(optimize speed (safety 0)))
 
 (in-package :incudine)

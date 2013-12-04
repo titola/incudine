@@ -53,12 +53,10 @@
               size real-time-p)))
     (when real-time-p
       (setf #1=(ring-input-buffer-foreign-free obj)
-            #'foreign-rt-free))
+            #'safe-foreign-rt-free))
     (let ((data (ring-input-buffer-data obj))
           (foreign-free #1#))
-      (tg:finalize obj (lambda ()
-                         (rt-eval-if (real-time-p)
-                           (funcall foreign-free data))))
+      (tg:finalize obj (lambda () (funcall foreign-free data)))
       obj)))
 
 (defun make-ring-output-buffer (size &optional real-time-p)
@@ -72,14 +70,13 @@
       (setf #1=(ring-output-buffer-tmp obj) (foreign-alloc size nil))
       (when real-time-p
         (setf #2=(ring-output-buffer-foreign-free obj)
-              #'foreign-rt-free))
+              #'safe-foreign-rt-free))
       (let ((data (ring-output-buffer-data obj))
             (tmp #1#)
             (foreign-free #2#))
         (tg:finalize obj (lambda ()
-                           (rt-eval-if (real-time-p)
-                             (funcall foreign-free data)
-                             (funcall foreign-free tmp))))
+                           (funcall foreign-free data)
+                           (funcall foreign-free tmp)))
         obj))))
 
 (defmethod free ((obj ring-buffer))
@@ -230,12 +227,12 @@
                       :coord-complex-p coord-complex-p
                       :real-time-p real-time-p)))
           (when real-time-p
-            (setf #1=(abuffer-foreign-free obj) #'foreign-rt-free))
+            (setf #1=(abuffer-foreign-free obj)
+                  #'safe-foreign-rt-free))
           (let ((foreign-free #1#))
             (tg:finalize obj (lambda ()
-                               (rt-eval-if (real-time-p)
-                                 (funcall foreign-free data)
-                                 (funcall foreign-free time-ptr))))
+                               (funcall foreign-free data)
+                               (funcall foreign-free time-ptr)))
             obj))))))
 
 (defmethod free ((obj abuffer))

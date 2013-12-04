@@ -79,8 +79,8 @@
 
 (declaim (inline node-pool-pop))
 (defun node-pool-pop ()
-  (if (rt-thread-p) (rt-node-pool-pop) (nrt-node-pool-pop)))
+  (if (allow-rt-memory-p) (rt-node-pool-pop) (nrt-node-pool-pop)))
 
 (declaim (inline node-pool-push))
 (defun node-pool-push (node)
-  (if (rt-thread-p) (rt-node-pool-push node) (nrt-node-pool-push node)))
+  (if (allow-rt-memory-p) (rt-node-pool-push node) (nrt-node-pool-push node)))

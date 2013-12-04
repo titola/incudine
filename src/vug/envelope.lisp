@@ -44,7 +44,7 @@
                                           :loop-node ,loop-node
                                           :release-node ,release-node
                                           :restart-level ,restart-level
-                                          :real-time-p t)))
+                                          :real-time-p *allow-rt-memory-pool-p*)))
        ,env)))
 
 (defmacro update-local-envelope (vug-varname args)

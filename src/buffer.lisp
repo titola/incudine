@@ -55,7 +55,7 @@
          (lobits (calc-lobits size))
          (value (ash 1 lobits))
          (free-function (if real-time-p
-                            #'foreign-rt-free
+                            #'safe-foreign-rt-free
                             #'foreign-free))
          (obj (%make-buffer
                :data data
@@ -71,9 +71,7 @@
                :sample-rate (sample sample-rate)
                :real-time-p real-time-p
                :foreign-free free-function)))
-    (tg:finalize obj (lambda ()
-                       (rt-eval-if (real-time-p)
-                         (funcall free-function data))))
+    (tg:finalize obj (lambda () (funcall free-function data)))
     obj))
 
 (defmethod print-object ((obj buffer) stream)

@@ -219,7 +219,7 @@ is the plan for a IFFT."
                  :time-ptr time-ptr
                  :real-time-p real-time-p
                  :foreign-free (if real-time-p
-                                   #'foreign-rt-free
+                                   #'safe-foreign-rt-free
                                    #'foreign-free)
                  :plan-wrap plan-wrap
                  :plan (car (fft-plan-pair plan-wrap)))))
@@ -227,10 +227,9 @@ is the plan for a IFFT."
       (foreign-zero-sample input-buffer size)
       (let ((foreign-free (fft-foreign-free obj)))
         (tg:finalize obj (lambda ()
-                           (rt-eval-if (real-time-p)
-                             (mapc foreign-free
-                                   (list input-buffer output-buffer
-                                         window-buffer time-ptr)))))))))
+                           (mapc foreign-free
+                                 (list input-buffer output-buffer
+                                       window-buffer time-ptr))))))))
 
 (defmethod compute ((obj fft) &optional arg)
   (declare (ignore arg))
@@ -308,7 +307,7 @@ is the plan for a IFFT."
                  :time-ptr time-ptr
                  :real-time-p real-time-p
                  :foreign-free (if real-time-p
-                                   #'foreign-rt-free
+                                   #'safe-foreign-rt-free
                                    #'foreign-free)
                  :plan-wrap plan-wrap
                  :plan (cdr (fft-plan-pair plan-wrap)))))
@@ -316,10 +315,9 @@ is the plan for a IFFT."
       (foreign-zero-sample input-buffer complex-array-size)
       (let ((foreign-free (ifft-foreign-free obj)))
         (tg:finalize obj (lambda ()
-                           (rt-eval-if (real-time-p)
-                             (mapc foreign-free
-                                   (list input-buffer output-buffer
-                                         window-buffer time-ptr)))))))))
+                           (mapc foreign-free
+                                 (list input-buffer output-buffer
+                                       window-buffer time-ptr))))))))
 
 (declaim (inline ifft-apply-window))
 (defun ifft-apply-window (obj abuf)

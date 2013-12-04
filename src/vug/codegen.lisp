@@ -345,30 +345,32 @@
      (add-int32-parameters ,number-of-int32)
      (add-int64-parameters ,number-of-int64)))
 
-;;; Wrapper for a foreign array with type SAMPLE.
-;;; It uses a separate pool to alloc/free the memory in realtime
-(defstruct (foreign-sample-array (:constructor %make-foreign-sample-array)
-                                 (:copier nil))
-  (data (error "missing data for the foreign array")
-        :type (or foreign-pointer null))
-  (size 1 :type positive-fixnum))
+(defun rt-free-foreign-array-sample (obj)
+  (declare (type foreign-array obj))
+  (rt-eval ()
+    (incudine.util::foreign-rt-free-sample #1=(foreign-array-data obj))
+    (setf #1# nil)
+    (tg:cancel-finalization obj)
+    (incudine::rt-foreign-array-pool-push obj)
+    (values)))
 
-(declaim (inline make-foreign-sample-array))
-(defun make-foreign-sample-array (dimension)
+(declaim (inline make-rt-foreign-sample-array))
+(defun make-rt-foreign-sample-array (dimension)
+  ;; Use a separate memory pool for the SAMPLE type
   (let* ((data (incudine.util::foreign-rt-alloc-sample dimension))
-         (obj (%make-foreign-sample-array :data data :size dimension)))
+         (obj (incudine::fill-foreign-array (incudine::rt-foreign-array-pool-pop)
+                                            data dimension 'sample
+                                            #'rt-free-foreign-array-sample)))
     (tg:finalize obj (lambda ()
                        (rt-eval ()
                          (incudine.util::foreign-rt-free-sample data))))
     obj))
 
-(declaim (inline free-foreign-sample-array))
-(defun free-foreign-sample-array (obj)
-  (declare (type foreign-sample-array obj))
-  (when #1=(foreign-sample-array-data obj)
-     (incudine.util::foreign-rt-free-sample #1#)
-     (tg:cancel-finalization obj)
-     (setf #1# nil)))
+(declaim (inline make-foreign-sample-array))
+(defun make-foreign-sample-array (dimension)
+  (if (allow-rt-memory-p)
+      (make-rt-foreign-sample-array dimension)
+      (incudine::make-nrt-foreign-array dimension 'sample nil nil nil)))
 
 (defmacro with-foreign-symbols (variables c-vector type &body body)
   (let ((count 0))
@@ -480,7 +482,7 @@
                              (and #.*use-foreign-sample-p*
                                   (plusp ,number-of-sample)))
                      `((,',c-array-sample-wrap (make-foreign-sample-array ,,number-of-sample))
-                       (,',c-array-sample (foreign-sample-array-data ,',c-array-sample-wrap))))
+                       (,',c-array-sample (foreign-array-data ,',c-array-sample-wrap))))
                  ;; Foreign arrays for the other types
                  ,@(foreign-array-bindings
                     `((,',c-array-float ,',c-array-float-wrap :float ,,number-of-float)
@@ -718,7 +720,7 @@
      ;; Free the foreign arrays
      ,@(locally (declare #.*reduce-warnings*)
            (when (and #.*use-foreign-sample-p* (plusp sample-size))
-             `((free-foreign-sample-array ,c-array-sample-wrap))))
+             `((incudine::free-foreign-array ,c-array-sample-wrap))))
      ,@(when (plusp float-size)
          `((incudine:free ,c-array-float-wrap)))
      ,@(when (plusp double-size)

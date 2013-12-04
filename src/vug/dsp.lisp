@@ -158,9 +158,8 @@
   (declare (type cons cons))
   (let ((s (car cons)))
     (clrhash (dsp-controls s))
+    (funcall (dsp-free-function s))
     (rt-eval ()
-      ;; free rt memory
-      (funcall (dsp-free-function s))
       (set-dummy-functions (dsp-init-function s)
                            (dsp-perf-function s)
                            (dsp-free-function s))

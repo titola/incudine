@@ -102,9 +102,7 @@
                                     (calc-data-size size)))
         (setf (envelope-max-points env) size)
         (let ((data (envelope-data env)))
-          (tg:finalize env (lambda ()
-                             (rt-eval-if (real-time-p)
-                               (funcall free-function data)))))))
+          (tg:finalize env (lambda () (funcall free-function data))))))
     env))
 
 (declaim (inline exponential-curve-p))
@@ -271,6 +269,12 @@
        (otherwise (setf ,b1 (* ,b1 ,grow)
                         ,level (- ,a2 ,b1))))))
 
+(declaim (inline safe-foreign-rt-free))
+(defun safe-foreign-rt-free (ptr)
+  ;; We use a realtime memory allocator without lock, and the memory
+  ;; is (de)allocated in realtime from a single rt-thread.
+  (rt-eval () (foreign-rt-free ptr)))
+
 (defun make-envelope (levels times &key curve (loop-node -1)
                       (release-node -1) restart-level real-time-p)
   (declare (type list levels times)
@@ -283,7 +287,7 @@
                    (foreign-rt-alloc 'sample :count max-data-size)
                    (foreign-alloc-sample max-data-size)))
          (free-function (if real-time-p
-                            #'foreign-rt-free
+                            #'safe-foreign-rt-free
                             #'foreign-free))
          (env (%make-envelope :data data :data-size (calc-data-size size)
                               :points size :max-points max-points
@@ -293,9 +297,7 @@
                               :foreign-free free-function)))
     (set-envelope env levels times :curve curve :loop-node loop-node
                   :release-node release-node)
-    (tg:finalize env (lambda ()
-                       (rt-eval-if (real-time-p)
-                         (funcall free-function data))))
+    (tg:finalize env (lambda () (funcall free-function data)))
     env))
 
 (declaim (inline envelope-level))

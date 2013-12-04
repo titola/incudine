@@ -58,7 +58,7 @@
   (incudine.analysis:make-fft size
                               :window-size window-size
                               :window-function window-function
-                              :real-time-p t))
+                              :real-time-p *allow-rt-memory-pool-p*))
 
 (defmacro make-local-fft (size &optional (window-size size) window-function)
   (with-gensyms (fft)
@@ -90,7 +90,7 @@
   (incudine.analysis:make-ifft size
                                :window-size window-size
                                :window-function window-function
-                               :real-time-p t))
+                               :real-time-p *allow-rt-memory-pool-p*))
 
 (defmacro make-local-ifft (size &optional (window-size size) window-function)
   (with-gensyms (ifft)

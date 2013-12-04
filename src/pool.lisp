@@ -220,6 +220,11 @@
 
 (defvar *initialized-foreign-memory-pools* nil)
 
+;;; Lock used only to free the memory if the rt-thread is absent
+;;; (memory allocated in realtime but the rt-thread has been terminated)
+(defvar *rt-memory-lock* (bt:make-lock "RT-MEMORY"))
+(defvar *rt-memory-sample-lock* (bt:make-lock "RT-MEMORY-SAMPLE"))
+
 (defun init-foreign-memory-pools ()
   (unless *initialized-foreign-memory-pools*
     (incudine.external:init-foreign-memory-pool
@@ -262,9 +267,16 @@ will be used to initialize the contents of the newly allocated memory."
                (setf (mem-aref ptr type i) initial-element))))
       ptr)))
 
+(declaim (inline %foreign-rt-free))
+(defun %foreign-rt-free (ptr)
+  (incudine.external:foreign-rt-free-ex ptr *foreign-rt-memory-pool*))
+
 (declaim (inline foreign-rt-free))
 (defun foreign-rt-free (ptr)
-  (incudine.external:foreign-rt-free-ex ptr *foreign-rt-memory-pool*))
+  (if *rt-thread*
+      (%foreign-rt-free ptr)
+      (bt:with-lock-held (*rt-memory-lock*)
+        (%foreign-rt-free ptr))))
 
 (defun foreign-rt-realloc (ptr type &key zero-p initial-element initial-contents
                            (count 1 count-p))
@@ -300,9 +312,16 @@ reallocated memory."
       (incudine.external:foreign-set ptr 0 dsize))
     ptr))
 
+(declaim (inline %foreign-rt-free-sample))
+(defun %foreign-rt-free-sample (ptr)
+  (incudine.external:foreign-rt-free-ex ptr *foreign-sample-pool*))
+
 (declaim (inline foreign-rt-free-sample))
 (defun foreign-rt-free-sample (ptr)
-  (incudine.external:foreign-rt-free-ex ptr *foreign-sample-pool*))
+  (if *rt-thread*
+      (%foreign-rt-free-sample ptr)
+      (bt:with-lock-held (*rt-memory-sample-lock*)
+        (%foreign-rt-free-sample ptr))))
 
 (declaim (inline foreign-rt-realloc-sample))
 (defun foreign-rt-realloc-sample (ptr size &optional zerop)

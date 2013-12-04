@@ -21,7 +21,8 @@
   (declare (ignore channels file offset sample-rate initial-contents
                    fill-function))
   (with-gensyms (buf)
-    `(with ((,buf (incudine:make-buffer ,frames :real-time-p t
+    `(with ((,buf (incudine:make-buffer ,frames
+                                        :real-time-p *allow-rt-memory-pool-p*
                                         ,@(cddr whole))))
        (declare (type buffer ,buf))
        ,buf)))
@@ -32,7 +33,7 @@
            (,channels ,(or (getf (cdr args) :channels) 1)))
        (declare (type non-negative-fixnum ,frames ,channels))
        (cond ((> (* ,frames ,channels) #1=(buffer-size ,vug-varname))
-              (foreign-rt-free #2=(buffer-data ,vug-varname))
+              (safe-foreign-rt-free #2=(buffer-data ,vug-varname))
               (setf ,vug-varname (incudine:make-buffer ,frames ,@(cdr args))))
              (t ,(unless (do ((pl (cdr args) (cddr pl)))
                              ((or (null pl)
@@ -43,7 +44,8 @@
 
 (defmacro make-local-abuffer (analysis-object)
   (with-gensyms (abuf)
-    `(with ((,abuf (incudine.analysis:make-abuffer ,analysis-object t)))
+    `(with ((,abuf (incudine.analysis:make-abuffer ,analysis-object
+                                                   *allow-rt-memory-pool-p*)))
        ,abuf)))
 
 (defmacro update-local-abuffer (vug-varname args)
@@ -54,7 +56,8 @@
               (foreign-zero-sample (incudine.analysis::abuffer-data ,vug-varname)
                                    (incudine.analysis::abuffer-size ,vug-varname)))
              (t (incudine:free ,vug-varname)
-                (setf ,vug-varname (incudine.analysis:make-abuffer ,obj t)))))))
+                (setf ,vug-varname (incudine.analysis:make-abuffer ,obj
+                                                       *allow-rt-memory-pool-p*)))))))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (object-to-free incudine:make-buffer update-local-buffer)

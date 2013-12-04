@@ -73,6 +73,7 @@
    #:*fast-nrt-priority* #:*receiver-default-priority* #:*sndfile-buffer-size*
    #:*bounce-to-disk-guard-size* #:*default-header-type* #:*default-data-format*
    #:*max-number-of-nodes* #:*default-table-size* #:*fade-curve*
+   #:*allow-rt-memory-pool-p*
    #:*standard-optimize-settings*
    #:least-positive-sample #:least-negative-sample
    #:incudine-version
@@ -99,7 +100,7 @@
    #:sample->fixnum #:sample->int
    #:without-interrupts #:with-gc-pending
    #:calc-lobits
-   #:rt-thread-p #:rt-eval #:rt-eval-if
+   #:rt-thread-p #:rt-eval #:rt-eval-if #:allow-rt-memory-p
    #:foreign-pointer
    #:smp-ref #:data-ref
    #:with-ensure-symbol
@@ -117,7 +118,8 @@
    #:rt-global-pool-push-list #:rt-global-pool-pop-list
    #:make-tlist #:tlist-left #:tlist-right #:tlist-empty-p
    #:tlist-add-left #:tlist-add-right #:tlist-remove-left
-   #:foreign-rt-alloc #:foreign-rt-free #:foreign-rt-realloc
+   #:foreign-rt-alloc #:foreign-rt-free #:safe-foreign-rt-free
+   #:foreign-rt-realloc
    #:get-foreign-sample-used-size #:get-foreign-sample-free-size
    #:get-foreign-sample-max-size #:get-rt-memory-used-size
    #:get-rt-memory-free-size #:get-rt-memory-max-size))
@@ -217,11 +219,11 @@
   (:import-from #:cffi #:mem-ref #:null-pointer #:null-pointer-p #:foreign-free)
   (:import-from #:incudine.util #:sample #:+sample-zero+ #:+twopi+ #:+half-pi+ #:+rtwopi+
                 #:+log001+ #:+pointer-size+ #:+foreign-sample-size+ #:+foreign-complex-size+
-                #:foreign-rt-alloc #:foreign-rt-free #:foreign-pointer
+                #:foreign-rt-alloc #:foreign-rt-free #:safe-foreign-rt-free #:foreign-pointer
                 #:alloc-multi-channel-data #:free-multi-channel-data
                 #:channel-number #:non-negative-fixnum64 #:*standard-optimize-settings*
                 #:*reduce-warnings* #:reduce-warnings #:sample->fixnum #:sample->int
-                #:rt-eval-if #:rt-thread-p)
+                #:rt-eval #:rt-thread-p)
   (:import-from #:incudine.external #:foreign-alloc-sample #:foreign-zero-sample
                 #:foreign-realloc-sample #:foreign-alloc-fft #:foreign-free-fft
                 #:make-fft-plan #:make-ifft-plan #:fft-destroy-plan #:sample-complex

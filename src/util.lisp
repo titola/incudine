@@ -232,6 +232,10 @@
 (defun rt-thread-p ()
   (eq (bt:current-thread) *rt-thread*))
 
+(declaim (inline allow-rt-memory-p))
+(defun allow-rt-memory-p ()
+  (and (rt-thread-p) *allow-rt-memory-pool-p*))
+
 (defmacro with-foreign-rt-object ((var type &optional (count 1)) &body body)
   `(let ((,var (foreign-rt-alloc ,type :count ,count)))
      (unwind-protect (progn ,@body)
