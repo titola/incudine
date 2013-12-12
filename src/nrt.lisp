@@ -78,7 +78,7 @@ when the duration is undefined.")
 (declaim (type simple-vector *nrt-heap*))
 
 (defvar *nrt-sample-counter*
-  (foreign-alloc :double :initial-element +sample-zero+))
+  (foreign-alloc 'sample :initial-element +sample-zero+))
 (declaim (type foreign-pointer *nrt-sample-counter*))
 
 (defvar *nrt-tempo* (make-tempo 60))

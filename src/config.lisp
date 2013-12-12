@@ -145,7 +145,7 @@
   (defvar *cps2inc* (* +table-maxlen+ *sample-duration*))
   (declaim (type sample *cps2inc*))
 
-  (defvar *pi-div-sr* (* pi *sample-duration*))
+  (defvar *pi-div-sr* (coerce (* pi *sample-duration*) 'sample))
   (declaim (type sample *pi-div-sr*))
 
   (defvar *minus-pi-div-sr* (- *pi-div-sr*))
@@ -160,7 +160,7 @@
     (unless *sample-rate-deps-to-hook-p*
       (pushnew (lambda ()
                  (setf *cps2inc* (* +table-maxlen+ *sample-duration*)
-                       *pi-div-sr* (* pi *sample-duration*)
+                       *pi-div-sr* (coerce (* pi *sample-duration*) 'sample)
                        *minus-pi-div-sr* (- *pi-div-sr*)
                        *twopi-div-sr* (* 2 *pi-div-sr*)))
                sample-duration-hook)
