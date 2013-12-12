@@ -132,9 +132,7 @@
   (0.0 220.0 0.5 4000.0 2.5 1027.38)
   (:LINEAR :LINEAR))
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defvar *old-readtable* *readtable*)
-  (setf *readtable* incudine::*incudine-readtable*))
+(enable-sharp-square-bracket-syntax)
 
 (deftest tempo-envelope.1
     (let ((tenv (make-tempo-envelope '(60 60 211 135 96) '(8 4 2 2)
@@ -148,8 +146,7 @@
                 (zoom (loop for beats below 20 by 0.5
                             collect (bpm-at tenv beats)))
                 (zoom (loop for beats below 20 by 0.5
-                            collect #[1 beat tenv beats]
-                            finally (setf *old-readtable* *readtable*))))))
+                            collect #[1 beat tenv beats])))))
  (0 500 1000 1500 2000 2500 3000 3500 4000 4500 5000 5500 6000 6500 7000
   7500 8000 8498 8990 9473 9941 10384 10785 11117 11337 11488 11656 11844
   12054 12281 12531 12816 13124 13436 13749 14061 14374 14686 14999 15311)

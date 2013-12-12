@@ -287,7 +287,7 @@
   (:import-from #:incudine.edf #:at #:aat #:flush-pending)
   (:import-from #:incudine.gen #:all-random-distributions #:rand-args)
   (:export
-   #:init
+   #:init #:enable-sharp-square-bracket-syntax
    #:dsp-seq #:synth-seq
    #:start-time #:uptime
    #:buffer #:make-buffer #:buffer-p #:size #:frames #:channels #:data #:mask

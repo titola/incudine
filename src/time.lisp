@@ -17,13 +17,12 @@
 (in-package :incudine)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (defvar *incudine-readtable* (copy-readtable))
   (defvar *set-readtable-p* t)
 
   (when *set-readtable-p*
     (push (lambda ()
-            (unless (eq *readtable* *incudine-readtable*)
-              (setf *readtable* *incudine-readtable*)))
+            (setf *readtable* (copy-readtable *readtable*))
+            (set-sharp-square-bracket-syntax))
           *initialize-hook*)
     (setf *set-readtable-p* nil)))
 
@@ -383,5 +382,10 @@
                                  (if tempo (read-from-string tempo))
                                  (if beats (read-from-string beats)))))))))
 
-(set-dispatch-macro-character #\# #\[ #'parse-time-string
-  *incudine-readtable*)
+(defmacro enable-sharp-square-bracket-syntax ()
+  `(eval-when (:compile-toplevel :execute)
+     (setf *readtable* (copy-readtable *readtable*))
+     (set-sharp-square-bracket-syntax)))
+
+(defun set-sharp-square-bracket-syntax ()
+  (set-dispatch-macro-character #\# #\[ #'parse-time-string))
