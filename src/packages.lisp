@@ -323,6 +323,8 @@
    #:recv-start #:recv-stop #:recv-status #:recv-functions
    #:make-responder #:add-responder #:remove-responder #:remove-all-responders
    #:get-responder-list
+   ;; midi
+   #:midiout #:midiout-sysex
    ;; envelope
    #:+seg-step-func+ #:+seg-lin-func+ #:+seg-exp-func+ #:+seg-sine-func+
    #:+seg-welch-func+ #:+seg-square-func+ #:+seg-cubic-func+

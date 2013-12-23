@@ -218,7 +218,7 @@
   (when   timestamp)
   (msg    :int32))
 
-(cffi:defcfun ("Pm_WriteSysEx" write-sys-ex) error
+(cffi:defcfun ("Pm_WriteSysEx" write-sysex) error
   (stream stream)
   (when   timestamp)
   (msg    :string))

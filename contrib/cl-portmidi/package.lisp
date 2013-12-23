@@ -83,7 +83,7 @@
    #:poll
    #:write
    #:write-short
-   #:write-sys-ex
+   #:write-sysex
    #:message-status
    #:message-data1
    #:message-data2

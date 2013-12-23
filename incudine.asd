@@ -70,6 +70,7 @@
      (:file "nrt" :depends-on ("rt"))
      (:file "score" :depends-on ("nrt"))
      (:file "receiver" :depends-on ("vug/midi"))
+     (:file "midi" :depends-on ("edf-sched"))
      (:file "analysis/base" :depends-on ("time" "gen/window"))
      (:file "analysis/fft" :depends-on ("analysis/base"))
      (:file "analysis/pvbuffer" :depends-on ("analysis/fft"))
