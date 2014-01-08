@@ -608,9 +608,9 @@
              (t (nrt-msg error "unknown add-action ~S" add-action)))))))
 
 (declaim (inline enqueue-node-function))
-(defun enqueue-node-function (function node id name add-action target
+(defun enqueue-node-function (node function id name add-action target
                               action fade-time fade-curve)
-  (declare (type function function) (type node node)
+  (declare (type node node) (type function function)
            (type non-negative-fixnum id) (type symbol name add-action)
            (type node target) (type (or function null) action))
   (let ((fn (node-add-fn node add-action target id (int-hash id)

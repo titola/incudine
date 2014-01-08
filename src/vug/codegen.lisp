@@ -786,16 +786,36 @@
                   `(,arg (coerce ,arg ',type)))))
           args))
 
+(defmacro update-dsp-instances (name arg-names)
+  (with-gensyms (node)
+    `(rt-eval ()
+       (incudine:dograph (,node)
+         (when (and (eq (incudine::node-name ,node) ',name)
+                    (equal (incudine:control-names ,node)
+                           ',arg-names))
+           (apply #',name
+                  (build-control-list ,node :replace ,node)))))))
+
+(defmacro reuse-dsp-instance (dsp node arg-names)
+  (with-gensyms (obj)
+    `(let ((,obj ,dsp))
+       (funcall (dsp-init-function ,obj) ,node ,@arg-names)
+       (lambda (,node)
+         (declare (ignore ,node))
+         (dsp-perf-function ,obj)))))
+
 ;;; An argument is a symbol or a pair (NAME TYPE), where TYPE is the specifier
 ;;; of NAME. When the argument is a symbol, the default type is SAMPLE.
 (defmacro dsp! (name args &body body)
   (with-gensyms (get-function node dsp-cons dsp-prop)
     (let ((doc (when (stringp (car body))
                  (car body)))
-          (arg-names (%argument-names args)))
+          (arg-names (%argument-names args))
+          (dsp-arg-bindings (dsp-coercing-arguments args)))
       `(macrolet ((,get-function ,arg-names
-                    (generate-code ',name ,args ,arg-names
-                                   (progn ,@(if doc (cdr body) body)))))
+                    `(prog1 ,(generate-code ',name ,args ,arg-names
+                                            (progn ,@(if doc (cdr body) body)))
+                       (nrt-msg info "new alloc for DSP ~A" ',',name))))
          (cond ((vug ',name)
                 (msg error "~A was defined to be a VUG" ',name))
                (t
@@ -814,42 +834,41 @@
                         (get-add-action-and-target head tail before after replace)
                       (let ((target (if (numberp target) (incudine:node target) target)))
                         (rt-eval ()
-                          (let (,@(dsp-coercing-arguments args)
-                                (id (cond (id id)
-                                          ((eq add-action :replace)
-                                           (incudine::next-large-node-id))
-                                          (t (incudine:next-node-id)))))
+                          (let (,@dsp-arg-bindings
+                                (id (get-node-id id add-action)))
                             (declare (type non-negative-fixnum id))
                             (let ((,node (incudine:node id)))
                               (declare (type incudine:node ,node))
                               (when (incudine::null-item-p ,node)
                                 (let ((,dsp-cons (get-next-dsp-instance ',name)))
                                   (declare (type list ,dsp-cons))
-                                  (when stop-hook
-                                    (setf (incudine::node-stop-hook ,node) stop-hook))
-                                  (when free-hook
-                                    (setf (incudine::node-free-hook ,node) free-hook))
                                   (incudine::enqueue-node-function
+                                   (update-node-hooks ,node stop-hook free-hook)
                                    (if ,dsp-cons
-                                       (let ((s (car ,dsp-cons)))
-                                         (funcall (dsp-init-function s) ,node ,@arg-names)
-                                         (lambda (,node)
-                                           (declare (ignore ,node))
-                                           (dsp-perf-function s)))
-                                       (prog1 (,get-function ,@arg-names)
-                                         (nrt-msg info "new alloc for dsp ~A" ',name)))
-                                   ,node id ',name add-action target action
+                                       (reuse-dsp-instance (car ,dsp-cons) ,node
+                                                           ,arg-names)
+                                       (,get-function ,@arg-names))
+                                   id ',name add-action target action
                                    fade-time fade-curve))))))))
                     (values))
                   (when *update-dsp-instances*
-                    (rt-eval ()
-                      (incudine:dograph (,node)
-                        (when (and (eq (incudine::node-name ,node) ',name)
-                                   (equal (incudine:control-names ,node)
-                                          ',arg-names))
-                          (apply #',name
-                                 (build-control-list ,node :replace ,node))))))
+                    (update-dsp-instances ,name ,arg-names))
                   #',name)))))))
+
+(declaim (inline get-node-id))
+(defun get-node-id (id add-action)
+  (cond (id id)
+        ((eq add-action :replace)
+         (incudine::next-large-node-id))
+        (t (incudine:next-node-id))))
+
+(declaim (inline update-node-hooks))
+(defun update-node-hooks (node stop-hook free-hook)
+  (when stop-hook
+    (setf (incudine::node-stop-hook node) stop-hook))
+  (when free-hook
+    (setf (incudine::node-free-hook node) free-hook))
+  node)
 
 (defmacro %dsp-debug (name args arg-names &body body)
   (let ((doc (if (stringp (car body)) (car body))))
