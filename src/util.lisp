@@ -246,16 +246,17 @@
        (with-foreign-rt-object (,var ,type ,count) ,@body)
        (with-foreign-object (,var ,type ,count) ,@body)))
 
+(defmacro %smp-ref (samples index)
+  `(mem-ref ,samples 'sample (the non-negative-fixnum
+                                  (* ,index +foreign-sample-size+))))
+
 (declaim (inline smp-ref))
 (defun smp-ref (samples index)
-  (mem-ref samples 'sample (the non-negative-fixnum
-                             (* index +foreign-sample-size+))))
+  (%smp-ref samples index))
 
 (declaim (inline set-smp-ref))
 (defun set-smp-ref (samples index value)
-  (setf (mem-ref samples 'sample (the non-negative-fixnum
-                                   (* index +foreign-sample-size+)))
-        (sample value)))
+  (setf (%smp-ref samples index) (sample value)))
 
 (defsetf smp-ref set-smp-ref)
 
@@ -271,7 +272,7 @@
                  ,(mapcar
                    (lambda (x)
                      (prog1 `(,(if (consp x) (car x) x)
-                               (smp-ref ,c-array ,count))
+                               (%smp-ref ,c-array ,count))
                        (incf count)))
                    bindings)
                (psetf ,@(loop for i in bindings
@@ -298,7 +299,7 @@
                  ,(mapcar
                    (lambda (x)
                      (prog1 `(,(if (consp x) (car x) x)
-                               (smp-ref ,c-array ,count))
+                               (%smp-ref ,c-array ,count))
                        (incf count)))
                    bindings)
                (setf ,@(loop for i in bindings
@@ -317,9 +318,9 @@
 
 (defmacro with-complex (real-and-imag-vars pointer &body body)
   `(symbol-macrolet ((,(car real-and-imag-vars)
-                      (smp-ref ,pointer 0))
+                      (%smp-ref ,pointer 0))
                      (,(cadr real-and-imag-vars)
-                      (smp-ref ,pointer 1)))
+                      (%smp-ref ,pointer 1)))
      ,@body))
 
 (defmacro do-complex ((realpart-var imagpart-var pointer size) &body body)

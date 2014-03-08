@@ -74,23 +74,23 @@
     (or (null non-blank)
         (char= non-blank #\;))))
 
-(defmacro %at-sample (at-var offset env beats func-symbol &rest args)
-  `(at (+ ,offset (* *sample-rate*
-                     (time-at ,env (setf ,at-var (sample ,beats)))))
+(defmacro %at-sample (at-var time-at-var offset env beats func-symbol &rest args)
+  `(,at-var (+ ,offset (* *sample-rate*
+                          (,time-at-var ,env (setf ,at-var (sample ,beats)))))
        #',func-symbol ,@args))
 
 (declaim (inline score-line->sexp))
-(defun score-line->sexp (line at-var)
+(defun score-line->sexp (line at-var time-at-var)
   (declare (type string line))
   (if (time-tagged-function-p line)
       (macroexpand-1
        (read-from-string
-        (format nil "(INCUDINE::%AT-SAMPLE ~A TIME TEMPO-ENV ~A)"
-                at-var line)))
+        (format nil "(INCUDINE::%AT-SAMPLE ~A ~A TIME TEMPO-ENV ~A)"
+                at-var time-at-var line)))
       ;; Tag or lisp statement
       (read-from-string (string-left-trim '(#\space #\tab) line))))
 
-(defun find-score-local-bindings (stream at)
+(defun find-score-local-bindings (stream at time-at)
   (declare (type stream stream) (type symbol at))
   (labels ((score-bindings-p (line)
              (string-equal (subseq line 0 (min 5 (length line))) "with "))
@@ -105,7 +105,7 @@
                       ;; Local bindings at the beginning of the score
                       (read-from-string (format-bindings line)))
                      (t ;; There aren't local bindings
-                      (list nil (score-line->sexp line at)))))))
+                      (list nil (score-line->sexp line at time-at)))))))
     (first-score-stmt (read-score-line stream))))
 
 (defun read-score-line (stream)
@@ -165,6 +165,7 @@
   (declare (type (or pathname string)))
   (with-ensure-symbol (time dur tempo tempo-env)
     (let ((at (ensure-symbol (symbol-name (gensym "%AT%"))))
+          (time-at (ensure-symbol (symbol-name (gensym "%TIME-AT%"))))
           ;; *PRINT-GENSYM* is NIL in REGOFILE->LISPFILE
           (beats (gensym "%%%BEATS%%%")))
       `(,@(if fname `(defun ,fname) '(lambda)) ()
@@ -172,7 +173,11 @@
            (with-samples ((,time (now))
                           (,at +sample-zero+))
              (flet ((,dur (,beats)
-                      (time-at ,tempo-env ,beats ,at)))
+                      (time-at ,tempo-env ,beats ,at))
+                    (,time-at (tenv beats)
+                      (%time-at tenv beats))
+                    (,at (time fn &rest args)
+                      (incudine.edf::%%at time fn args)))
                (declare (ignorable (function ,dur)))
                (macrolet ((,tempo (&rest args)
                             `(set-tempo-envelope ,',tempo-env
@@ -182,12 +187,12 @@
                                      `((list ,(car args) ,(car args)) '(0))))))
                  (prog*
                    ,@(with-open-file (score path)
-                       (append (find-score-local-bindings score at)
+                       (append (find-score-local-bindings score at time-at)
                                (loop for line of-type (or string null)
                                               = (read-score-line score)
                                      while line
                                      unless (score-skip-line-p line)
-                                     collect (score-line->sexp line at)))))))))))))
+                                     collect (score-line->sexp line at time-at)))))))))))))
 
 (declaim (inline regofile->function))
 (defun regofile->function (path &optional fname)

@@ -102,8 +102,8 @@
       (node-update (heap-node curr) t0 function args)
       (incf *next-node*))))
 
-(declaim (inline at))
-(defun at (time function &rest args)
+(declaim (inline %%at))
+(defun %%at (time function args)
   (declare (type sample time) (type function function)
            (type list args))
   (if (or (null *rt-thread*) (rt-thread-p))
@@ -113,6 +113,10 @@
                                     (lambda ()
                                       (%at time function args))))))
   nil)
+
+(declaim (inline at))
+(defun at (time function &rest args)
+  (%%at time function args))
 
 (define-compiler-macro at (&whole form &environment env time &rest rest)
   (if (and (constantp time env)
