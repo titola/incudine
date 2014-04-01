@@ -404,7 +404,8 @@
                                                  ,nh1 ,mul ,abs-mul))
            (%osc-phase-modulation ,phs ,phase ,phase-modulation-p)
            (let ((,index (the fixnum (ash ,phs ,minus-lobits))))
-             ,mul ; expand here if MUL is modulated
+             ;; Expand here if MUL is modulated
+             (maybe-expand ,mul)
              (unless (or (and (= ,old-num-harm ,num-harm)
                               (= ,old-lowest-harm ,lowest-harm))
                          (plusp ,count))
@@ -509,7 +510,8 @@
                           squared-mul-plus-one (+ (* mul mul) 1.0))
                     (gbuzz-update-multipliers c2-mult c3-mult rsum1
                                               nh1 mul abs-mul))
-        mul ; expand here if MUL is modulated
+        ;; Expand here if MUL is modulated
+        (maybe-expand mul)
         (unless (or (and (= old-num-harm num-harm)
                          (= old-lowest-harm lowest-harm))
                     (plusp count))

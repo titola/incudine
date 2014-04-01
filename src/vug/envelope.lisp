@@ -308,7 +308,7 @@
       ;; Useful when GATE is modulated. In this case, the expansion
       ;; of GATE occurs here. If GATE is not modulated, GATE-TRIG is
       ;; always NIL at this point.
-      (and gate-trig level)
+      (maybe-expand (and gate-trig level))
       (cond ((or done-p sustain) tmp)
             (t (cond ((zerop remain)
                       ;; End of segment

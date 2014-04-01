@@ -65,8 +65,7 @@
 
   (defmacro %check-phase (phase function)
     `(progn
-       ;; Possible expansion of PHASE before to call FUNCTION
-       ,phase
+       (maybe-expand ,phase)
        (funcall ,function)))
 
   (defmacro %no-interp (data phs channels wrap-phase-fn)

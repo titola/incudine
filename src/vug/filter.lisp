@@ -71,7 +71,7 @@
                  (b1 (t60->pole decay-time)))
     ;; Update the input, if it is required, to avoid the expansion
     ;; inside the next condition
-    in
+    (maybe-expand in)
     (setf y1 (if (zerop b1) in (+ in (* b1 y1))))))
 
 (define-vug decay-2 (in attack-time decay-time)
@@ -475,7 +475,7 @@
     (initialize
      ;; Expand the input, if it is required, to avoid the expansion
      ;; inside the next loop
-     in
+     (maybe-expand in)
      (dotimes (i size)
        ;(setf (smp-ref values i) in)
        (setf (svref ages i) i)))

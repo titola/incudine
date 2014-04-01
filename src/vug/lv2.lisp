@@ -251,7 +251,7 @@
                   (lilv:instance-activate ,instance)
                   (setf ,reinit-p t))))
              ;; Expand the inputs if they are performance-time
-             ,@input-names
+             (maybe-expand ,@input-names)
              ;; Process one sample
              (lv2-run ,run-cb ,handle 1)
              ;; Retrieve the output(s)

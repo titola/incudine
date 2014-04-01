@@ -150,7 +150,7 @@
    #:foreach-tick #:foreach-channel #:counter #:downsamp #:generic-rate
    #:samphold #:interpolate
    #:tick #:external-variable #:init-only #:initialize #:without-follow
-   #:update #:object-to-free
+   #:maybe-expand #:update #:object-to-free
    #:out #:frame-out #:cout #:node-out
    #:dsp-node #:synth-node
    #:lin->lin #:lin->exp

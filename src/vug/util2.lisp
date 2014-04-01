@@ -169,7 +169,7 @@
        ;; If the input is to set, here is a good place, because the
        ;; first condition in the next COND contains an explicit setter
        ;; form, so the automatic setter is disabled.
-       ,in
+       (maybe-expand ,in)
        (cond ((zerop ,range)
               (setf ,in ,(if (eql high range) +sample-zero+ low)))
              ,@(mapcar (lambda (x)
@@ -208,7 +208,7 @@
       (let ((%range (or range hi))
             (%offset (or offset in)))
           `(progn
-             ,in
+             (maybe-expand ,in)
              (cond ((zerop ,%range)
                     (setf ,in ,(if (eql hi %range) +sample-zero+ lo)))
                    ((>= ,in ,hi)

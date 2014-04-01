@@ -459,6 +459,13 @@
 
 (defun vug-input (arg) arg)
 
+;;; MAYBE-EXPAND is used inside the definition of a VUG, when the
+;;; expansion of one or more performance-time variables is to inhibit
+;;; after a particular point of the code (i.e. loop or condition). It
+;;; avoids the obscure isolated vug-variables in the body of a VUG.
+(defmacro maybe-expand (&body body)
+  `(progn ,@body))
+
 (defun parse-vug-def (def &optional cdr-p flist mlist quote-expr-p)
   (declare (type boolean cdr-p quote-expr-p)
            (type list flist mlist))
