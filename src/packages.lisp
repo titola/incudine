@@ -75,6 +75,7 @@
    #:*max-number-of-nodes* #:*default-table-size* #:*fade-curve*
    #:*allow-rt-memory-pool-p*
    #:*standard-optimize-settings*
+   #:most-positive-sample #:most-negative-sample
    #:least-positive-sample #:least-negative-sample
    #:incudine-version
    #:exit

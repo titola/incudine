@@ -75,12 +75,16 @@
          (defvar *foreign-sample-type* :double)
          (cffi:defctype sample :double)
          (pushnew :double-samples *features*)
+         (define-constant most-negative-sample most-negative-double-float)
+         (define-constant most-positive-sample most-positive-double-float)
          (define-constant least-negative-sample least-negative-double-float)
          (define-constant least-positive-sample least-positive-double-float))
         (t
          (defvar *foreign-sample-type* :float)
          (cffi:defctype sample :float)
          (pushnew :float-samples *features*)
+         (define-constant most-negative-sample most-negative-single-float)
+         (define-constant most-positive-sample most-positive-single-float)
          (define-constant least-negative-sample least-negative-single-float)
          (define-constant least-positive-sample least-positive-single-float)))
 

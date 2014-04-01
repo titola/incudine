@@ -651,7 +651,7 @@
                                       start-pos
                                       (if loop-p
                                           (sample (buffer-frames buffer))
-                                          #.(sample 1e30)))
+                                          most-positive-sample))
                       :wrap-p loop-p :interpolation :cubic)
     (when (done-self)
       (done-action done-action))))
