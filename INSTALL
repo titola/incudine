@@ -1,0 +1,54 @@
+Installation Instructions
+*************************
+
+    cd /path/to/your/registry/
+    ln -s /path/where/you/put/incudine/incudine.asd
+    cd /path/where/you/put/incudine
+
+Edit and copy the configuration file, with particular attention to the
+priorities *RT-PRIORITY*, *NRT-PRIORITY* and *RECEIVER-DEFAULT-PRIORITY*
+
+    cp incudinerc-example $HOME/.incudinerc
+
+Compile the C utilities:
+
+    cd src && make
+
+The check for the libraries fails if the pkg-config tool is not
+installed on your system. In this case, you can use
+
+    make HAVE_JACK=1 HAVE_PA=1 HAVE_X11=1
+
+replacing 1 with 0 if a library is absent.
+
+If you want to build and install the incudine command:
+
+    make install
+
+The command is installed in /usr/local/bin by default, but you can
+change the location by setting the variables PREFIX and/or BINDIR.
+
+If you have Lilv, a LV2 host library, and you want use LV2 plugins in
+your scripts:
+
+    rm -f incudine
+    make HAVE_LV2=1 install
+
+The variables DYNAMIC_SPACE_SIZE and CONTROL_STACK_SIZE are useful to
+set respectively the runtime options --dynamic-space-size and
+--control-stack-size of SBCL (all the arguments of the incudine
+command are passed to the toplevel).
+
+If you use SLIME, add these lines to $HOME/.swank.lisp
+
+;; Avoid problems in realtime because the default value is :SPAWN (each
+;; request in a separate thread)
+#+sbcl (setf swank:*communication-style* :sigio)
+;; Useful to redirect standard output from any other threads into the REPL
+#+sbcl (defparameter swank:*globally-redirect-io* t)
+
+There is also a major mode for GNU Emacs. If you want to install it,
+add the following lines to your .emacs file:
+
+(push "/path/to/incudine/contrib/editors/emacs" load-path)
+(require 'incudine)

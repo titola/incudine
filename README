@@ -1,9 +1,21 @@
 Incudine - Music/DSP programming environment for Common Lisp
 
-The original motivation for Incudine was to use only the Common Lisp
-language to synthesize high quality sounds controllable at the sample
-level, defining and redefining the dsp code on-the-fly without the
-necessity to use unit generators pre-built in another language.
+Incudine is useful to design software synthesizers or sound plugins
+from scratch, exploiting the expressive power of Common Lisp, without
+the constraint to use pre-built unit generators. It is also a
+compositional tool that allows to produce high quality sounds
+controllable at the sample level, defining and redefining the digital
+signal processors and the musical structures on-the-fly.
 
-For installation and configuration information please consult the web
-page at <http://incudine.sourceforge.net>
+Incudine introduces the Virtual UGen (VUG), a new mechanism for
+defining primitive unit generators by writing concise and reusable
+code. The definition of a VUG contains lisp code and/or other nested
+VUGs, and it is re-arranged and compiled efficiently during the
+creation of a DSP.
+
+For installation and configuration information please consult the
+INSTALL file.
+
+Incudine home page:
+
+    http://incudine.sourceforge.net
