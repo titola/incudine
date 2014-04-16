@@ -88,6 +88,16 @@
 (defun now ()
   (smp-ref *sample-counter* 0))
 
+(declaim (inline incf-time))
+(defun incf-sample-counter ()
+  (incf (smp-ref *sample-counter* 0) 1.0)
+  (values))
+
+(declaim (inline reset-timer))
+(defun reset-sample-counter ()
+  (setf (smp-ref *sample-counter* 0) +sample-zero+)
+  (values))
+
 (declaim (inline tempo-sync))
 (defun tempo-sync (period)
   "Get the time synchronized to PERIOD."

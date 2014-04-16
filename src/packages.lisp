@@ -303,6 +303,7 @@
    #:bus #:audio-in #:audio-out
    #:peak-info #:print-peak-info #:reset-peak-meters
    #:set-number-of-channels
+   #:*rt-thread-start-hook* #:*rt-thread-exit-hook*
    #:rt-start #:rt-stop #:rt-status #:rt-buffer-size #:rt-sample-rate
    #:at #:aat #:flush-pending #:flush-all-fifos
    #:tempo #:*tempo* #:make-tempo #:bpm #:bps #:now #:tempo-sync

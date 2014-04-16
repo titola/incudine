@@ -19,9 +19,20 @@
 (defvar *init-p* t)
 (declaim (type boolean *init-p*))
 
+;;; Borrowed from sbcl/src/code/late-extensions.lisp
+(defun call-hooks (kind hooks &key (on-error :error))
+  (dolist (hook hooks)
+    (handler-case
+        (funcall hook)
+      (error (c)
+        (if (eq :warn on-error)
+            (warn "Problem running ~A hook ~S:~%  ~A" kind hook c)
+            (with-simple-restart (continue "Skip this ~A hook." kind)
+              (error "Problem running ~A hook ~S:~%  ~A" kind hook c)))))))
+
 (defun init (&optional force-p)
   (when (or force-p *init-p*)
-    (mapc #'funcall *initialize-hook*)
+    (call-hooks "Incudine initialization" *initialize-hook*)
     (setf *init-p* nil)
     t))
 

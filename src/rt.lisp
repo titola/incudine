@@ -16,40 +16,27 @@
 
 (in-package :incudine)
 
-(defvar *foreign-client-name* (cffi:null-pointer))
-(defvar *nrt-thread* nil)
-(defvar *fast-nrt-thread* nil)
-
-(declaim (inline incf-time))
-(defun incf-sample-counter ()
-  (incf (smp-ref *sample-counter* 0) 1.0)
-  (values))
-
-(declaim (inline reset-timer))
-(defun reset-sample-counter ()
-  (setf (smp-ref *sample-counter* 0) +sample-zero+)
-  (values))
+(defmacro with-new-thread ((varname name priority debug-message)
+                           &body body)
+  `(unless ,varname
+     (setf ,varname
+           (bt:make-thread (lambda ()
+                             (thread-set-priority (bt:current-thread)
+                                                  ,priority)
+                             ,@body)
+                           :name ,name))
+     (msg debug ,debug-message)))
 
 (defun nrt-start ()
-  (unless *nrt-thread*
-    (setf *nrt-thread*
-          (bt:make-thread (lambda ()
-                            (loop do
-                                 (sync-condition-wait *nrt-audio-sync*)
-                                 (fifo-perform-functions *from-engine-fifo*)))
-                          :name "audio-nrt-thread"))
-    (msg debug "non-realtime thread started")
-    (thread-set-priority *nrt-thread* *nrt-priority*))
-  (unless *fast-nrt-thread*
-    (setf *fast-nrt-thread*
-          (bt:make-thread (lambda ()
-                            (loop do
-                                 (sync-condition-wait *fast-nrt-audio-sync*)
-                                 (fifo-perform-functions *fast-from-engine-fifo*)
-                                 (fast-nrt-perform-functions)))
-                          :name "audio-fast-nrt-thread"))
-    (msg debug "fast non-realtime thread started")
-    (thread-set-priority *fast-nrt-thread* *fast-nrt-priority*))
+  (with-new-thread (*nrt-thread* "audio-nrt-thread" *nrt-priority*
+                    "non-realtime thread started")
+    (loop (sync-condition-wait *nrt-audio-sync*)
+          (fifo-perform-functions *from-engine-fifo*)))
+  (with-new-thread (*fast-nrt-thread* "audio-fast-nrt-thread"
+                    *fast-nrt-priority* "fast non-realtime thread started")
+    (loop (sync-condition-wait *fast-nrt-audio-sync*)
+          (fifo-perform-functions *fast-from-engine-fifo*)
+          (fast-nrt-perform-functions)))
   (and *nrt-thread* *fast-nrt-thread*))
 
 (defun nrt-stop ()
@@ -62,27 +49,29 @@
     (msg debug "fast non-realtime thread stopped")
     (setf *nrt-thread* nil *fast-nrt-thread* nil)))
 
+(defvar *foreign-client-name* (cffi:null-pointer))
+
 (defun make-rt-thread ()
-  (setf *rt-thread*
-        (bt:make-thread
-         (lambda ()
-           (thread-set-priority (bt:current-thread)
-                                (rt-params-priority *rt-params*))
-           (tg:gc :full t)
-           (cond ((and (zerop (rt-audio-init
-                               *sample-rate* *number-of-input-bus-channels*
-                               *number-of-output-bus-channels*
-                               (rt-params-frames-per-buffer *rt-params*)
-                               *foreign-client-name*))
-                       (zerop (rt-audio-start)))
-                  (let ((buffer-size (rt-buffer-size)))
-                    (setf (rt-params-frames-per-buffer *rt-params*)
-                          buffer-size)
-                    #+jack-audio (set-sample-rate (rt-sample-rate))
-                    (rt-loop buffer-size)))
-                 (t (setf *rt-thread* nil)
-                    (msg error (rt-get-error-msg)))))
-         :name "audio-rt-thread")))
+  (with-new-thread (*rt-thread* "audio-rt-thread"
+                    (rt-params-priority *rt-params*)
+                    "realtime thread started")
+    (call-hooks "rt-thread-start" *rt-thread-start-hook* :on-error :warn)
+    (tg:gc :full t)
+    (cond ((and (zerop (rt-audio-init
+                        *sample-rate*
+                        *number-of-input-bus-channels*
+                        *number-of-output-bus-channels*
+                        (rt-params-frames-per-buffer *rt-params*)
+                        *foreign-client-name*))
+                (zerop (rt-audio-start)))
+           (let ((buffer-size (rt-buffer-size)))
+             (setf (rt-params-frames-per-buffer *rt-params*)
+                   buffer-size)
+             #+jack-audio (set-sample-rate (rt-sample-rate))
+             (rt-loop buffer-size)))
+          (t (setf *rt-thread* nil)
+             (msg error (rt-get-error-msg))))
+    (call-hooks "rt-thread-exit" *rt-thread-exit-hook* :on-error :warn)))
 
 (defun destroy-rt-thread ()
   (when (and *rt-thread* (bt:thread-alive-p *rt-thread*))
@@ -108,8 +97,7 @@
     (make-rt-thread)
     (sleep .1)
     (setf (rt-params-status *rt-params*)
-          (cond (*rt-thread* (msg debug "realtime thread started")
-                             :started)
+          (cond (*rt-thread* :started)
                 (t (msg warn "failed to start the realtime thread")
                    :stopped)))))
 

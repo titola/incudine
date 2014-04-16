@@ -256,5 +256,11 @@
 
 (defvar *rt-params* (make-rt-params))
 
+(defvar *rt-thread-start-hook* nil)
+(declaim (type list *rt-thread-start-hook*))
+
+(defvar *rt-thread-exit-hook* nil)
+(declaim (type list *rt-thread-exit-hook*))
+
 (defvar *initialize-hook* nil)
 (declaim (type list *initialize-hook*))
