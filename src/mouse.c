@@ -22,16 +22,18 @@
 #include <time.h>
 #include "common.h"
 
-typedef struct {
-    SAMPLE  x, y;
-    int     button;
-} mouse_event;
+struct mouse_event {
+        SAMPLE x, y;
+        int button;
+};
 
 enum {
-    MOUSE_NOINIT = -1,
-    MOUSE_STOPPED,
-    MOUSE_STARTED
+        MOUSE_NOINIT = -1,
+        MOUSE_STOPPED,
+        MOUSE_STARTED
 };
+
+#define MOUSE_LOOP_WAIT_NSEC  (17000000);
 
 static Display *disp = NULL;
 static Window win, root_ret, child_ret;
@@ -43,45 +45,45 @@ static unsigned int mask_ret;
 static SAMPLE width, height;
 static struct timespec req_time, rem_time;
 
-int mouse_init()
+int mouse_init(void)
 {
-    if (mouse_status == MOUSE_NOINIT || disp == NULL) {
-        XInitThreads();
-        if ((disp = XOpenDisplay(NULL)) == NULL)
-            return -1;
-        mouse_status = MOUSE_STOPPED;
-        req_time.tv_sec = 0;
-        req_time.tv_nsec = 17000000;
-        win = DefaultRootWindow(disp);
-        XGetWindowAttributes(disp, win, &win_attrib);
-        width = 1.0 / (SAMPLE) win_attrib.width;
-        height = 1.0 / (SAMPLE) win_attrib.height;
+        if (mouse_status == MOUSE_NOINIT || disp == NULL) {
+                XInitThreads();
+                if ((disp = XOpenDisplay(NULL)) == NULL)
+                        return -1;
+                mouse_status = MOUSE_STOPPED;
+                req_time.tv_sec = 0;
+                req_time.tv_nsec = MOUSE_LOOP_WAIT_NSEC;
+                win = DefaultRootWindow(disp);
+                XGetWindowAttributes(disp, win, &win_attrib);
+                width = 1.0 / (SAMPLE)win_attrib.width;
+                height = 1.0 / (SAMPLE)win_attrib.height;
+                return 0;
+        }
+        return -1;
+}
+
+int mouse_loop_start(struct mouse_event *ev)
+{
+        mouse_status = MOUSE_STARTED;
+        while (mouse_status) {
+                XQueryPointer(disp, win, &root_ret, &child_ret, &root_x_ret,
+                              &root_y_ret, &win_x_ret, &win_y_ret, &mask_ret);
+                ev->x = (SAMPLE)win_x_ret * width;
+                ev->y = 1.0 - ((SAMPLE)win_y_ret * height);
+                ev->button = (int)(mask_ret & Button1Mask) > 0;
+                nanosleep(&req_time, &rem_time);
+        }
         return 0;
-    }
-    return -1;
 }
 
-int mouse_loop_start(mouse_event *ev)
+int mouse_loop_stop(void)
 {
-    mouse_status = MOUSE_STARTED;
-    while (mouse_status) {
-        XQueryPointer(disp, win, &root_ret, &child_ret, &root_x_ret,
-                      &root_y_ret, &win_x_ret, &win_y_ret, &mask_ret);
-        ev->x = (SAMPLE) win_x_ret * width;
-        ev->y = 1.0 - ((SAMPLE) win_y_ret * height);
-        ev->button = (int) (mask_ret & Button1Mask)>0;
-        nanosleep(&req_time, &rem_time);
-    }
-    return 0;
+        mouse_status = MOUSE_STOPPED;
+        return 0;
 }
 
-int mouse_loop_stop()
+int get_mouse_status(void)
 {
-    mouse_status = MOUSE_STOPPED;
-    return 0;
-}
-
-int get_mouse_status()
-{
-    return mouse_status;
+        return mouse_status;
 }
