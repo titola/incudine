@@ -96,8 +96,7 @@ void sndfile_to_buffer(SAMPLE *buf, SNDFILE *sndfile, unsigned long frames,
         incr = chunk_frames * channels;
 
         for (p = buf + buf_offset * channels; remain > 0; p += incr) {
-                n = sf_readf_SAMPLE(sndfile, p, chunk_frames);
-                if (n == 0) {
+                if ((n = sf_readf_SAMPLE(sndfile, p, chunk_frames)) == 0) {
                         fprintf(stderr, "sndfile_to_buffer fails (%s)\n",
                                 sf_strerror(sndfile));
                         break;
@@ -114,8 +113,8 @@ void map_sndfile_ch_to_buffer(SAMPLE *buf, SNDFILE *sndfile,
                               int chunk_frames, int* chan_map_dest,
                               int* chan_map_src, int chan_map_size)
 {
-        sf_count_t i, n, k, incr, remain = frames;
-        SAMPLE *p, *q, *curr;
+        sf_count_t incr, remain = frames;
+        SAMPLE *p, *q;
 
         if (remain < chunk_frames)
                 chunk_frames = remain;
@@ -124,8 +123,10 @@ void map_sndfile_ch_to_buffer(SAMPLE *buf, SNDFILE *sndfile,
         p = buf + buf_offset * buf_channels;
         q = (SAMPLE *) malloc(incr * sizeof(SAMPLE));
         while (remain > 0) {
-                n = sf_readf_SAMPLE(sndfile, q, chunk_frames);
-                if (n == 0) {
+                sf_count_t i, n;
+                SAMPLE *curr;
+
+                if ((n = sf_readf_SAMPLE(sndfile, q, chunk_frames)) == 0) {
                         fprintf(stderr, "sndfile_ch_to_buffer fails (%s)\n",
                                 sf_strerror(sndfile));
                         break;
@@ -133,6 +134,7 @@ void map_sndfile_ch_to_buffer(SAMPLE *buf, SNDFILE *sndfile,
                 remain -= n;
                 for (i = 0, curr = q; i < incr;
                      i += channels, curr += channels, p += buf_channels) {
+                        sf_count_t k;
                         for (k = 0; k < chan_map_size; k++)
                                 p[chan_map_dest[k]] = curr[chan_map_src[k]];
                 }
@@ -180,30 +182,27 @@ void copy_to_ring_output_buffer(SAMPLE *ring_buffer, SAMPLE *src,
                                 unsigned long bufsize,
                                 unsigned long read_offset, unsigned long items)
 {
-        int i;
         unsigned long last = bufsize - read_offset;
         SAMPLE *ring_buffer_right = ring_buffer + read_offset;
 
         if (bufsize <= items) {
-                for (i = 0; i < last; i++)
+                while (last--)
                         *ring_buffer_right++ += *src++;
-
-                for (i = 0; i < read_offset; i++)
+                while (read_offset--)
                         *ring_buffer++ += *src++;
         } else if (items <= last) {
-                for (i = 0; i < items; i++)
+                while (items--)
                         *ring_buffer_right++ += *src++;
         } else if (read_offset == 0) {
-                for (i = 0; i < items; i++)
+                while (items--)
                         *ring_buffer++ += *src++;
         } else {
                 unsigned long os2 = bufsize - read_offset;
                 unsigned long os1 = items - os2;
 
-                for (i = 0; i < os2; i++)
+                while (os2--)
                         *ring_buffer_right++ += *src++;
-
-                for (i = 0; i < os1; i++)
+                while (os1--)
                         *ring_buffer++ += *src++;
         }
 }
@@ -223,26 +222,22 @@ struct sample_polar {
 /* Destructive conversion from rect to polar */
 void complex_to_polar(struct sample_complex *p, unsigned long size)
 {
-        unsigned long i;
-        SAMPLE mag;
-
-        for (i = 0; i < size; i++, p++) {
-                mag     = hypot(p->real, p->imag);
+        while (size--) {
+                SAMPLE mag = hypot(p->real, p->imag);
                 p->imag = atan2(p->imag, p->real);
                 p->real = mag;
+                p++;
         }
 }
 
 /* Destructive conversion from polar to rect */
 void polar_to_complex(struct sample_polar *p, unsigned long size)
 {
-        unsigned long i;
-        SAMPLE real;
-
-        for (i = 0; i < size; i++, p++) {
-                real     = p->mag * cos(p->phase);
+        while (size--) {
+                SAMPLE real = p->mag * cos(p->phase);
                 p->phase = p->mag * sin(p->phase);
-                p->mag   = real;
+                p->mag = real;
+                p++;
         }
 }
 
@@ -285,14 +280,14 @@ void pconv_multiply_partitions(SAMPLE *out_beg, SAMPLE *fdl_beg, SAMPLE *ir,
                                unsigned long block_size,
                                unsigned long partitions)
 {
-        int i;
-        SAMPLE *fdl, *fdl_end, *out, *out_end;
+        SAMPLE *fdl, *fdl_end, *out_end;
 
         fdl = fdl_beg + fdl_read_head;
         fdl_end = fdl_beg + fdl_size;
         out_end = out_beg + block_size;
         memset(out_beg, 0, sizeof(SAMPLE) * block_size);
-        for (i = 0; i < partitions; i++) {
+        while (partitions--) {
+                SAMPLE *out;
                 for (out = out_beg; out < out_end; fdl += 2, ir += 2) {
                         /* out_real += fdl_real * ir_real - fdl_imag * ir_imag */
                         *out++ += fdl[0] * ir[0] - fdl[1] * ir[1];

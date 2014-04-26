@@ -17,33 +17,7 @@
  *
  */
 
-#include <unistd.h>
-#include <X11/Intrinsic.h>
-#include <time.h>
-#include "common.h"
-
-struct mouse_event {
-        SAMPLE x, y;
-        int button;
-};
-
-enum {
-        MOUSE_NOINIT = -1,
-        MOUSE_STOPPED,
-        MOUSE_STARTED
-};
-
-#define MOUSE_LOOP_WAIT_NSEC  (17000000);
-
-static Display *disp = NULL;
-static Window win, root_ret, child_ret;
-static XWindowAttributes win_attrib;
-static int root_x_ret, root_y_ret;
-static int win_x_ret, win_y_ret;
-static int mouse_status = MOUSE_NOINIT;
-static unsigned int mask_ret;
-static SAMPLE width, height;
-static struct timespec req_time, rem_time;
+#include "mouse.h"
 
 int mouse_init(void)
 {

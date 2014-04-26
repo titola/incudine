@@ -22,100 +22,14 @@
 #include <stdio.h>
 #include <signal.h>
 #include <string.h>
-#include <pthread.h>
-#include <portaudio.h>
-#include "common.h"
-
-#ifdef PA_HAVE_JACK
-#include <pa_jack.h>
-#endif
-
-enum {
-        PA_RUNNING,
-        PA_STOPPED
-};
-
-#define PA_ERROR_MSG_MAX_LENGTH  (256)
-
-static unsigned int pa_in_channels, pa_out_channels, frames_per_buffer;
-static float *pa_inputs, *pa_outputs;
-static float *pa_inputs_anchor, *pa_outputs_anchor;
-static PaStream *stream;
-static size_t pa_outbuf_bytes;
-static int pa_status = PA_STOPPED;
-static int pa_lisp_busy;
-static char pa_error_msg[PA_ERROR_MSG_MAX_LENGTH];
-static pthread_t process_thread;
-static pthread_mutex_t pa_lisp_lock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t  pa_lisp_cond = PTHREAD_COND_INITIALIZER;
-static pthread_mutex_t pa_c_lock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t  pa_c_cond = PTHREAD_COND_INITIALIZER;
+#include "rtpa.h"
 
 static void pa_set_error_msg(const char *msg)
 {
         strncpy(pa_error_msg, msg, PA_ERROR_MSG_MAX_LENGTH);
 }
 
-char *pa_get_error_msg(void)
-{
-        return pa_error_msg;
-}
-
-int pa_get_buffer_size(void)
-{
-        return frames_per_buffer;
-}
-
-unsigned int pa_cycle_begin(void)
-{
-        if (pa_status != PA_RUNNING)
-                return 0;
-
-        pa_inputs = pa_inputs_anchor;
-        Pa_ReadStream(stream, pa_inputs, frames_per_buffer);
-        return frames_per_buffer;
-}
-
-void pa_cycle_end(unsigned int nframes)
-{
-        pa_outputs = pa_outputs_anchor;
-        Pa_WriteStream(stream, pa_outputs, nframes);
-}
-
-/* Lisp rt thread is busy ? */
-void pa_set_lisp_busy_state(int status)
-{
-        pa_lisp_busy = status;
-}
-
-#define __pa_condition_wait(c, l)                       \
-        do {                                            \
-                pthread_mutex_lock(l);                  \
-                pthread_cond_wait(c, l);                \
-                pthread_mutex_unlock(l);                \
-        } while (0)
-
-#define __pa_condition_signal(c, l)                     \
-        do {                                            \
-                pthread_mutex_lock(l);                  \
-                pthread_cond_signal(c);                 \
-                pthread_mutex_unlock(l);                \
-        } while (0)
-
-/* Wait on the lisp realtime thread */
-void pa_condition_wait(void)
-{
-        __pa_condition_wait(&pa_lisp_cond, &pa_lisp_lock);
-}
-
-/* Transfer the control of the client to C realtime thread */
-void pa_transfer_to_c_thread(void)
-{
-        pa_lisp_busy = 1;
-        __pa_condition_signal(&pa_c_cond, &pa_c_lock);
-}
-
-void *pa_process_thread(void *arg)
+static void *pa_process_thread(void *arg)
 {
         (void) arg;
 
@@ -125,11 +39,8 @@ void *pa_process_thread(void *arg)
         }
         pa_status = PA_RUNNING;
 
-        while(1) {
-                if (pa_status != PA_RUNNING)
-                        return 0;
-
-                if (pa_lisp_busy != 0) {
+        while(pa_status == PA_RUNNING) {
+                if (pa_lisp_busy) {
                         memset(pa_outputs_anchor, 0, pa_outbuf_bytes);
                         pa_cycle_end(frames_per_buffer);
                         pa_cycle_begin();
@@ -152,6 +63,35 @@ void *pa_process_thread(void *arg)
                 }
         }
         return 0;
+}
+
+char *pa_get_error_msg(void)
+{
+        return pa_error_msg;
+}
+
+/* Wait on the lisp realtime thread */
+void pa_condition_wait(void)
+{
+        __pa_condition_wait(&pa_lisp_cond, &pa_lisp_lock);
+}
+
+/* Lisp rt thread is busy ? */
+void pa_set_lisp_busy_state(int status)
+{
+        pa_lisp_busy = status;
+}
+
+/* Transfer the control of the client to C realtime thread */
+void pa_transfer_to_c_thread(void)
+{
+        pa_lisp_busy = 1;
+        __pa_condition_signal(&pa_c_cond, &pa_c_lock);
+}
+
+int pa_get_buffer_size(void)
+{
+        return frames_per_buffer;
 }
 
 int pa_initialize(SAMPLE srate, unsigned int input_channels,
@@ -229,6 +169,23 @@ int pa_initialize(SAMPLE srate, unsigned int input_channels,
         return err;
 }
 
+int pa_start(void)
+{
+        int err;
+
+        /*
+         * Auxiliary C realtime thread. If lisp is busy, it continues the work
+         * to avoid xruns.
+         */
+        if ((err = pthread_create(&process_thread, NULL, pa_process_thread,
+                                  NULL))) {
+                pa_set_error_msg("Failed to create the C realtime thread");
+                pa_stop(NULL);
+                return err;
+        }
+        return 0;
+}
+
 int pa_stop(void *arg)
 {
         PaError err;
@@ -258,21 +215,20 @@ int pa_stop(void *arg)
         return err;
 }
 
-int pa_start(void)
+unsigned int pa_cycle_begin(void)
 {
-        int err;
+        if (pa_status != PA_RUNNING)
+                return 0;
 
-        /*
-         * Auxiliary C realtime thread. If lisp is busy, it continues the work
-         * to avoid xruns.
-         */
-        if ((err = pthread_create(&process_thread, NULL, pa_process_thread,
-                                  NULL))) {
-                pa_set_error_msg("Failed to create the C realtime thread");
-                pa_stop(NULL);
-                return err;
-        }
-        return 0;
+        pa_inputs = pa_inputs_anchor;
+        Pa_ReadStream(stream, pa_inputs, frames_per_buffer);
+        return frames_per_buffer;
+}
+
+void pa_cycle_end(unsigned int nframes)
+{
+        pa_outputs = pa_outputs_anchor;
+        Pa_WriteStream(stream, pa_outputs, nframes);
 }
 
 void pa_get_input(SAMPLE *inputs)

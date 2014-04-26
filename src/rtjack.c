@@ -18,203 +18,19 @@
  */
 
 #include <unistd.h>
-#include <signal.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <pthread.h>
-#include <jack/jack.h>
-#include "common.h"
-
-enum {
-        JA_RUNNING,
-        JA_STOPPED,
-        JA_SHUTDOWN
-};
-
-#define SBCL_SIG_STOP_FOR_GC  (SIGUSR2)
-
-#define JA_ERROR_MSG_MAX_LENGTH  (256)
-
-static jack_client_t *client = NULL;
-static SAMPLE ja_sample_rate;
-static unsigned int ja_in_channels, ja_out_channels, ja_frames;
-static size_t ja_buffer_bytes;
-static int ja_status = JA_STOPPED;
-static int ja_lisp_busy;
-static jack_default_audio_sample_t **ja_inputs, **ja_outputs;
-static jack_port_t **input_ports, **output_ports;
-static char **input_port_names, **output_port_names;
-static pthread_mutex_t ja_lisp_lock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t  ja_lisp_cond = PTHREAD_COND_INITIALIZER;
-static pthread_mutex_t ja_c_lock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t  ja_c_cond = PTHREAD_COND_INITIALIZER;
-static char ja_error_msg[JA_ERROR_MSG_MAX_LENGTH];
-static sigset_t sig_stop_for_gc;
-
-int ja_stop(void);
-
-static void ja_shutdown(void *arg);
-
-static void ja_terminate(void *arg);
+#include "rtjack.h"
 
 static void ja_set_error_msg(const char *msg)
 {
         strncpy(ja_error_msg, msg, JA_ERROR_MSG_MAX_LENGTH);
 }
 
-char *ja_get_error_msg(void)
-{
-        return ja_error_msg;
-}
-
 static void ja_error(const char *msg) {
         ja_set_error_msg(msg);
         ja_stop();
-}
-
-#define ja_free(v)                                      \
-        do {                                            \
-                if (v != NULL) {                        \
-                        free(v);                        \
-                        v = NULL;                       \
-                }                                       \
-        } while (0)
-
-#define RETURN_IF_NULLPTR(v, msg)                       \
-        do {                                            \
-                if (v == NULL) {                        \
-                        ja_error(msg);                  \
-                        return 1;                       \
-                }                                       \
-        } while (0)
-
-jack_nframes_t ja_cycle_begin (void)
-{
-        int i;
-        jack_nframes_t frames;
-
-        if (ja_status != JA_RUNNING)
-                return 0;
-        /*
-         * We are calling `ja_cycle_begin' from lisp, and the signal
-         * sent by SBCL during the gc (SIGUSR2) interrupts `sem_timedwait'
-         * used by Jack, therefore we have to temporarily block this signal.
-         * The gc is inhibited because we are inside SB-SYS:WITHOUT-GCING.
-         */
-        pthread_sigmask(SIG_BLOCK, &sig_stop_for_gc, NULL);
-        frames = jack_cycle_wait(client);
-        pthread_sigmask(SIG_UNBLOCK, &sig_stop_for_gc, NULL);
-
-        if (ja_status != JA_RUNNING)
-                return 0;
-
-        for (i = 0; i < ja_in_channels; i++)
-                ja_inputs[i] = jack_port_get_buffer(input_ports[i], frames);
-
-        for (i = 0; i < ja_out_channels; i++)
-                ja_outputs[i] = jack_port_get_buffer(output_ports[i], frames);
-
-        return frames;
-}
-
-void ja_cycle_end(void)
-{
-        jack_cycle_signal(client, 0);
-}
-
-/* Lisp rt thread is busy ? */
-void ja_set_lisp_busy_state(int status)
-{
-        ja_lisp_busy = status;
-}
-
-#define __ja_condition_wait(c, l)                       \
-        do {                                            \
-                pthread_mutex_lock(l);                  \
-                pthread_cond_wait(c, l);                \
-                pthread_mutex_unlock(l);                \
-        } while (0)
-
-#define __ja_condition_signal(c, l)                     \
-        do {                                            \
-                pthread_mutex_lock(l);                  \
-                pthread_cond_signal(c);                 \
-                pthread_mutex_unlock(l);                \
-        } while (0)
-
-/* Wait on the lisp realtime thread */
-void ja_condition_wait(void)
-{
-        __ja_condition_wait(&ja_lisp_cond, &ja_lisp_lock);
-}
-
-/* Transfer the control of the client to C realtime thread */
-void ja_transfer_to_c_thread(void)
-{
-        ja_lisp_busy = 1;
-        __ja_condition_signal(&ja_c_cond, &ja_c_lock);
-}
-
-static void* ja_process_thread(void *arg)
-{
-        (void) arg;
-
-        while(1) {
-                /* You say goodbye, I say hello */
-                if (ja_status != JA_RUNNING)
-                        return 0;
-
-                if (ja_lisp_busy != 0) {
-                        int i;
-                        jack_nframes_t frames = jack_cycle_wait(client);
-
-                        if (ja_frames != frames) {
-                                /* Buffer size is changed */
-                                ja_frames = frames;
-                                ja_buffer_bytes =
-                                        frames*sizeof(jack_default_audio_sample_t);
-                        }
-
-                        for (i = 0; i < ja_out_channels; i++)
-                                ja_outputs[i] =
-                                        jack_port_get_buffer(output_ports[i],
-                                                             ja_frames);
-                        /* Silence please, lisp is busy */
-                        for (i = 0; i < ja_out_channels; i++)
-                                memset(ja_outputs[i], 0, ja_buffer_bytes);
-
-                        jack_cycle_signal(client, ja_status);
-                } else {
-                        /*
-                         * Transfer the control of the client to lisp realtime
-                         * thread and block the current thread.
-                         *
-                         * Notice it is called ONLY ONE TIME after the first
-                         * cycle and ONLY ONE TIME after the gc in SBCL. The rt
-                         * lisp thread uses `jack_cycle_wait' and `jack_cycle_signal'
-                         * with the actual jack client. Practically, this thread
-                         * is an emergency exit when we use an implementation of
-                         * Common Lisp with a gc which stops the rt lisp thread.
-                         * If the implementation of CL has a realtime gc, there
-                         * aren't other transfers of the control from C to Lisp
-                         * and vice versa.
-                         */
-                        __ja_condition_signal(&ja_lisp_cond, &ja_lisp_lock);
-                        __ja_condition_wait(&ja_c_cond, &ja_c_lock);
-                }
-        }
-        return 0;
-}
-
-int ja_get_buffer_size(void)
-{
-        return ja_frames;
-}
-
-SAMPLE ja_get_sample_rate(void)
-{
-        return ja_sample_rate;
 }
 
 static int ja_register_ports(void)
@@ -229,7 +45,8 @@ static int ja_register_ports(void)
         RETURN_IF_NULLPTR(input_port_names, "malloc failure");
 
         for (i = 0; i < ja_in_channels; i++) {
-                input_port_names[i] = (char *) malloc(sizeof(char) * 16);
+                input_port_names[i] =
+                        (char *) malloc(sizeof(char) * JA_PORT_NAME_MAX_LENGTH);
                 RETURN_IF_NULLPTR(input_port_names[i], "malloc failure");
                 sprintf(input_port_names[i], "in_%d", i + 1);
                 input_ports[i] = jack_port_register (client,
@@ -246,7 +63,8 @@ static int ja_register_ports(void)
         RETURN_IF_NULLPTR(output_port_names, "malloc failure");
 
         for (i = 0; i < ja_out_channels; i++) {
-                output_port_names[i] = (char *) malloc(sizeof(char) * 16);
+                output_port_names[i] =
+                        (char *) malloc(sizeof(char) * JA_PORT_NAME_MAX_LENGTH);
                 RETURN_IF_NULLPTR(output_port_names[i], "malloc failure");
                 sprintf(output_port_names[i], "out_%d", i + 1);
                 output_ports[i] = jack_port_register (client,
@@ -283,51 +101,49 @@ static int ja_connect_client(void)
         return 0;
 }
 
-int ja_initialize(SAMPLE srate, unsigned int input_channels,
-                  unsigned int output_channels, unsigned int nframes,
-                  const char* client_name)
+static void* ja_process_thread(void *arg)
 {
-        sigset_t sset;
-        (void) srate;
-        (void) nframes;
+        (void) arg;
 
-        ja_error_msg[0] = '\0';
-        client = jack_client_open(client_name, JackNullOption, NULL);
-        if (client == NULL) {
-                ja_set_error_msg("jack_client_open failure");
-                return 1;
+        while (ja_status == JA_RUNNING) {
+                if (ja_lisp_busy) {
+                        int i;
+                        jack_nframes_t frames = jack_cycle_wait(client);
+
+                        if (ja_frames != frames) {
+                                /* Buffer size is changed */
+                                ja_frames = frames;
+                                ja_buffer_bytes = frames * JA_SAMPLE_SIZE;
+                        }
+
+                        for (i = 0; i < ja_out_channels; i++)
+                                ja_outputs[i] =
+                                        jack_port_get_buffer(output_ports[i],
+                                                             ja_frames);
+                        /* Silence while lisp is busy */
+                        for (i = 0; i < ja_out_channels; i++)
+                                memset(ja_outputs[i], 0, ja_buffer_bytes);
+
+                        jack_cycle_signal(client, ja_status);
+                } else {
+                        /*
+                         * Transfer the control of the client to lisp realtime
+                         * thread and block the current thread.
+                         *
+                         * Notice it is called ONLY ONE TIME after the first
+                         * cycle and ONLY ONE TIME after the gc in SBCL. The rt
+                         * lisp thread uses `jack_cycle_wait' and `jack_cycle_signal'
+                         * with the actual jack client. Practically, this thread
+                         * is an emergency exit when we use an implementation of
+                         * Common Lisp with a gc which stops the rt lisp thread.
+                         * If the implementation of CL has a realtime gc, there
+                         * aren't other transfers of the control from C to Lisp
+                         * and vice versa.
+                         */
+                        __ja_condition_signal(&ja_lisp_cond, &ja_lisp_lock);
+                        __ja_condition_wait(&ja_c_cond, &ja_c_lock);
+                }
         }
-        ja_frames = jack_get_buffer_size(client);
-        ja_sample_rate = (SAMPLE) jack_get_sample_rate(client);
-        ja_in_channels = input_channels;
-        ja_out_channels = output_channels;
-        ja_buffer_bytes = ja_frames * sizeof(jack_default_audio_sample_t);
-
-        ja_inputs = (jack_default_audio_sample_t **)
-                malloc(sizeof(jack_default_audio_sample_t *) * input_channels);
-        RETURN_IF_NULLPTR(ja_inputs, "malloc failure");
-
-        ja_outputs = (jack_default_audio_sample_t **)
-                malloc(sizeof(jack_default_audio_sample_t *) * output_channels);
-        RETURN_IF_NULLPTR(ja_outputs, "malloc failure");
-
-        if (ja_register_ports() != 0)
-                return 1;
-
-        jack_set_process_thread(client, ja_process_thread, NULL);
-        jack_on_shutdown(client, ja_shutdown, NULL);
-
-        /* Unblock signals */
-        sigemptyset(&sset);
-        if (sigprocmask(SIG_SETMASK, &sset, NULL) < 0) {
-                ja_error("Unblock signals error\n");
-                return 1;
-        }
-        sigemptyset(&sig_stop_for_gc);
-        sigaddset(&sig_stop_for_gc, SBCL_SIG_STOP_FOR_GC);
-
-        ja_lisp_busy = 1;
-
         return 0;
 }
 
@@ -374,6 +190,88 @@ static void ja_terminate(void *arg)
         }
 }
 
+char *ja_get_error_msg(void)
+{
+        return ja_error_msg;
+}
+
+/* Wait on the lisp realtime thread */
+void ja_condition_wait(void)
+{
+        __ja_condition_wait(&ja_lisp_cond, &ja_lisp_lock);
+}
+
+/* Lisp rt thread is busy ? */
+void ja_set_lisp_busy_state(int status)
+{
+        ja_lisp_busy = status;
+}
+
+/* Transfer the control of the client to C realtime thread */
+void ja_transfer_to_c_thread(void)
+{
+        ja_lisp_busy = 1;
+        __ja_condition_signal(&ja_c_cond, &ja_c_lock);
+}
+
+int ja_get_buffer_size(void)
+{
+        return ja_frames;
+}
+
+SAMPLE ja_get_sample_rate(void)
+{
+        return ja_sample_rate;
+}
+
+int ja_initialize(SAMPLE srate, unsigned int input_channels,
+                  unsigned int output_channels, unsigned int nframes,
+                  const char* client_name)
+{
+        sigset_t sset;
+        (void) srate;
+        (void) nframes;
+
+        ja_error_msg[0] = '\0';
+        client = jack_client_open(client_name, JackNullOption, NULL);
+        if (client == NULL) {
+                ja_set_error_msg("jack_client_open failure");
+                return 1;
+        }
+        ja_frames = jack_get_buffer_size(client);
+        ja_sample_rate = (SAMPLE) jack_get_sample_rate(client);
+        ja_in_channels = input_channels;
+        ja_out_channels = output_channels;
+        ja_buffer_bytes = ja_frames * JA_SAMPLE_SIZE;
+
+        ja_inputs = (jack_default_audio_sample_t **)
+                malloc(sizeof(jack_default_audio_sample_t *) * input_channels);
+        RETURN_IF_NULLPTR(ja_inputs, "malloc failure");
+
+        ja_outputs = (jack_default_audio_sample_t **)
+                malloc(sizeof(jack_default_audio_sample_t *) * output_channels);
+        RETURN_IF_NULLPTR(ja_outputs, "malloc failure");
+
+        if (ja_register_ports() != 0)
+                return 1;
+
+        jack_set_process_thread(client, ja_process_thread, NULL);
+        jack_on_shutdown(client, ja_shutdown, NULL);
+
+        /* Unblock signals */
+        sigemptyset(&sset);
+        if (sigprocmask(SIG_SETMASK, &sset, NULL) < 0) {
+                ja_error("Unblock signals error\n");
+                return 1;
+        }
+        sigemptyset(&sig_stop_for_gc);
+        sigaddset(&sig_stop_for_gc, SBCL_SIG_STOP_FOR_GC);
+
+        ja_lisp_busy = 1;
+
+        return 0;
+}
+
 int ja_start(void)
 {
         if (client == NULL) {
@@ -394,6 +292,40 @@ int ja_stop(void)
 {
         ja_terminate(NULL);
         return 0;
+}
+
+jack_nframes_t ja_cycle_begin(void)
+{
+        int i;
+        jack_nframes_t frames;
+
+        if (ja_status != JA_RUNNING)
+                return 0;
+        /*
+         * We are calling `ja_cycle_begin' from lisp, and the signal
+         * sent by SBCL during the gc (SIGUSR2) interrupts `sem_timedwait'
+         * used by Jack, therefore we have to temporarily block this signal.
+         * The gc is inhibited because we are inside SB-SYS:WITHOUT-GCING.
+         */
+        pthread_sigmask(SIG_BLOCK, &sig_stop_for_gc, NULL);
+        frames = jack_cycle_wait(client);
+        pthread_sigmask(SIG_UNBLOCK, &sig_stop_for_gc, NULL);
+
+        if (ja_status != JA_RUNNING)
+                return 0;
+
+        for (i = 0; i < ja_in_channels; i++)
+                ja_inputs[i] = jack_port_get_buffer(input_ports[i], frames);
+
+        for (i = 0; i < ja_out_channels; i++)
+                ja_outputs[i] = jack_port_get_buffer(output_ports[i], frames);
+
+        return frames;
+}
+
+void ja_cycle_end(void)
+{
+        jack_cycle_signal(client, 0);
 }
 
 /* Get a frame of the input */
