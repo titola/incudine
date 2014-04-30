@@ -180,6 +180,7 @@
    #:resonz #:resonr #:ringz #:ringr
    #:fofilter #:lpf #:hpf #:bpf #:notch #:apf #:peak-eq #:low-shelf #:hi-shelf
    #:butter-lp #:butter-hp #:butter-bp #:butter-br
+   #:nlf2
    #:moogladder #:moogff #:lpf18 #:svf
    #:direct-convolve #:part-convolve
    ;; multi-channel

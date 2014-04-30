@@ -485,3 +485,25 @@
     (setf (smp-ref values pos) in
           (svref ages pos) 0)
     (smp-ref values median)))
+
+;;; Second order normalized digital waveguide resonator.
+;;;
+;;; Reference:
+;;;
+;;;   [1] Julius O. Smith, "Faust Filter Library" (filter.lib)
+;;;
+;;;   [2] https://ccrma.stanford.edu/~jos/pasp/Power_Normalized_Waveguide_Filters.html
+;;;
+(define-vug nlf2 (in freq r)
+  "Second order normalized digital waveguide resonator."
+  (with-samples ((th (* +twopi+ freq *sample-duration*))
+                 (c (cos th))
+                 (s (sin th))
+                 (fb0 0)
+                 (fb1 0))
+    (with ((frame (make-frame 2)))
+      (multiple-sample-bind (sin-out cos-out) frame
+        (setf sin-out (* r (+ (* fb1 s) (* fb0 c)))
+              cos-out (* (+ in (+ (* fb1 c) (* fb0 (- s))))))
+        (setf fb0 sin-out fb1 cos-out)
+        frame))))
