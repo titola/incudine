@@ -160,6 +160,7 @@
    #:make-local-buffer #:buffer-read #:buffer-write #:buffer-frame #:buffer-play
    ;; oscillator
    #:phasor #:phasor-loop #:osc #:sine #:pulse #:impulse #:buzz #:gbuzz
+   #:oscrq #:oscrs #:oscrc #:oscr
    ;; envelope
    #:make-local-envelope #:make-local-linen #:make-local-perc #:make-local-cutoff
    #:make-local-asr #:make-local-adsr #:make-local-dadsr

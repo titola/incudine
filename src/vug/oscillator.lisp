@@ -613,6 +613,32 @@
              (impulse-oscillator ,%freq ,%amp ,phase ,(null (constantp phase))))))
       '(single-impulse)))
 
+;;; Sinusoidal oscillator based on 2D vector rotation,
+;;;  = undamped "coupled-form" resonator
+;;;  = lossless 2nd-order normalized ladder filter
+;;;
+;;; Reference:
+;;;
+;;;   [1] Julius O. Smith, "Faust Oscillator Library" (oscillator.lib)
+;;;
+;;;   [2] https://ccrma.stanford.edu/~jos/pasp/Normalized_Scattering_Junctions.html
+;;;
+(define-vug oscrq (freq)
+  "Sinusoidal oscillator based on 2D vector rotation (sine and cosine outputs)."
+  (nlf2 (impulse) freq 1))
+
+(define-vug oscrs (freq amp)
+  "Sinusoidal oscillator based on 2D vector rotation (sine output)."
+  (* amp (frame-ref (oscrq freq) 0)))
+
+(define-vug oscrc (freq amp)
+  "Sinusoidal oscillator based on 2D vector rotation (cosine output)."
+  (* amp (frame-ref (oscrq freq) 1)))
+
+(define-vug oscr (freq amp)
+  "Sinusoidal oscillator based on 2D vector rotation (sine output by default)."
+  (oscrs freq amp))
+
 ;;; Band limited impulse generator used in Music N languages.
 ;;; The output is a set of harmonically related sine partials.
 (define-vug-macro buzz (freq amp num-harm &key (phase 0.0d0) (table-lookup-p t)
