@@ -117,7 +117,7 @@
                                                      ,data ,phs ,index))
              (setf ,phs (logand (the fixnum (+ ,phs ,freq-inc)) +phase-mask+)))))))
 
-  (defmacro %impulse (freq amp phase phase-modulation-p)
+  (defmacro impulse-oscillator (freq amp phase phase-modulation-p)
     (with-gensyms (phase-old phs freq-inc)
       `(with-samples ((,phs (if (zerop ,phase) (sample 1) ,phase))
                       (,freq-inc (* ,freq *sample-duration*)))
@@ -594,14 +594,24 @@
 (define-vug pulse (freq amp width)
   (if (< (phasor freq 0) width) amp (- amp)))
 
-;;; Train of impulses
-(define-vug-macro impulse (&optional (freq 1.0d0) (amp 1.0d0) (phase 0.0d0))
-  (with-gensyms (%freq %amp)
-    (with-coerce-arguments (freq amp phase)
-      `(with-vug-inputs ((,%freq ,freq)
-                         (,%amp ,amp))
-         (declare (type sample ,%freq ,%amp))
-         (%impulse ,%freq ,%amp ,phase ,(null (constantp phase)))))))
+(define-vug single-impulse () (- 1 (delay1 1)))
+
+;;; Another single impulse
+;; (define-vug single-impulse ()
+;;   (with-samples ((x 1))
+;;     (initialize (reduce-warnings
+;;                   (at (1+ (now)) (lambda () (setf x +sample-zero+)))))
+;;     x))
+
+(define-vug-macro impulse (&optional (freq 0 freq-p) (amp 1) (phase 0))
+  (if freq-p
+      ;; Impulse oscillator
+      (with-gensyms (%freq %amp)
+        (with-coerce-arguments (freq amp phase)
+          `(with-vug-inputs ((,%freq ,freq) (,%amp ,amp))
+             (declare (type sample ,%freq ,%amp))
+             (impulse-oscillator ,%freq ,%amp ,phase ,(null (constantp phase))))))
+      '(single-impulse)))
 
 ;;; Band limited impulse generator used in Music N languages.
 ;;; The output is a set of harmonically related sine partials.
