@@ -28,11 +28,18 @@ If you want to build and install the incudine command:
 The command is installed in /usr/local/bin by default, but you can
 change the location by setting the variables PREFIX and/or BINDIR.
 
+If you want use LADSPA audio plugins in your scripts:
+
+    make HAVE_LADSPA=1 install
+
 If you have Lilv, a LV2 host library, and you want use LV2 plugins in
 your scripts:
 
-    rm -f incudine
     make HAVE_LV2=1 install
+
+or
+
+    make HAVE_LADSPA=1 HAVE_LV2=1 install
 
 The variables DYNAMIC_SPACE_SIZE and CONTROL_STACK_SIZE are useful to
 set respectively the runtime options --dynamic-space-size and

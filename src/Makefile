@@ -5,6 +5,7 @@ HAVE_JACK   = $(shell pkg-config jack && echo 1)
 HAVE_PA     = $(shell pkg-config portaudio-2.0 && echo 1)
 HAVE_X11    = $(shell pkg-config x11 && echo 1)
 HAVE_SIMD   = 1
+HAVE_LADSPA = 0
 HAVE_LV2    = 0
 SAMPLE_SIZE = 64
 LIBNAME     = libincudine
@@ -78,13 +79,17 @@ ifneq ($(CONTROL_STACK_SIZE),)
 	CONTROL_STACK_SIZE_OPT = --control-stack-size $(CONTROL_STACK_SIZE)
 endif
 
-ifeq ($(HAVE_LV2), 1)
-	INCUDINE_SYSTEM = :incudine-lv2
-else
-	INCUDINE_SYSTEM = :incudine
+ifeq ($(HAVE_LADSPA), 1)
+	incudine_system = --eval '(require "INCUDINE-LADSPA")'
 endif
 
-all: $(LIBNAME).$(LIBEXT) audio-driver sample-type.lisp
+ifeq ($(HAVE_LV2), 1)
+	incudine_system += --eval '(require "INCUDINE-LV2")'
+endif
+
+incudine_system ?= --eval '(require "INCUDINE")'
+
+all: $(LIBNAME).$(LIBEXT) audio-driver.lisp sample-type.lisp
 
 $(LIBNAME).$(LIBEXT): $(OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJECTS)
@@ -101,10 +106,10 @@ tlsf.o: ../contrib/tlsf/src/tlsf.c
 %.o: %.c
 	$(CC) $(CFLAGS) -c $<
 
-audio-driver:
-	@echo '(defparameter incudine.util:*audio-driver*' ":$(DEFAULT_AUDIO_DRIVER))" > $@.lisp
-	@echo -n "$@.lisp: "
-	@cat $@.lisp
+audio-driver.lisp: $(LIBNAME).$(LIBEXT)
+	@echo '(defparameter incudine.util:*audio-driver*' ":$(DEFAULT_AUDIO_DRIVER))" > $@
+	@echo -n "$@: "
+	@cat $@
 
 audio-driver-missing:
 	@echo [ERROR] requires jack or portaudio
@@ -115,10 +120,10 @@ sample-type.lisp: util.o
 	@echo -n "$@: "
 	@cat $@
 
-incudine: $(LIBNAME).$(LIBEXT)
+incudine: all
 	@echo [building standalone executable]
 	$(SBCL) $(DYNAMIC_SPACE_SIZE_OPT) $(CONTROL_STACK_SIZE_OPT) --noinform \
-	      --eval '(require $(INCUDINE_SYSTEM))' --load "executable.lisp" \
+	      $(incudine_system) --load "executable.lisp" \
 	      --eval "(save-lisp-and-die \"incudine\" :executable t :toplevel 'incudine::incudine-toplevel :save-runtime-options t)"
 
 install: incudine
