@@ -13,32 +13,13 @@
 
 (deftest ring-buffer.2
     (with-fifo-test (fifo 8)
-      (incudine::enqueue 123 fifo)
-      (values (incudine::fifo-empty-p fifo)
-              (incudine::perform fifo)
-              (incudine::fifo-empty-p fifo)))
-  NIL NIL T)
-
-(deftest ring-buffer.3
-    (with-fifo-test (fifo 8)
       (loop for i to 10 do (incudine::enqueue i fifo))
       (let ((test1 (incudine::fifo-empty-p fifo)))
         (incudine::fifo-flush fifo)
         (values test1 (incudine::fifo-empty-p fifo))))
   NIL T)
 
-(deftest ring-buffer.4
-    (let ((acc))
-      (with-fifo-test (fifo 8)
-        (mapc (lambda (x)
-                (incudine::enqueue-function (lambda () (push x acc)) fifo))
-              (loop for i to 10 collect i))
-        (let ((test1 (incudine::fifo-empty-p fifo)))
-          (dotimes (i 10) (incudine::perform fifo))
-          (values test1 (incudine::fifo-empty-p fifo) acc))))
-  NIL T (6 5 4 3 2 1 0))
-
-(deftest ring-buffer.5
+(deftest ring-buffer.3
     (let ((acc))
       (with-fifo-test (fifo 8)
         (mapc (lambda (x)

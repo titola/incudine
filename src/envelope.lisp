@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -495,21 +495,20 @@
                      (%envelope-at beg end pos curve tmp0 tmp1 tmp2)))
             (look 1 3))))))
 
-(defmethod data ((obj envelope))
-  (envelope-data obj))
-
-(defmethod scale ((obj envelope) (mult real))
-  (let ((points (envelope-points obj))
-        (data (envelope-data obj)))
-    (setf (envelope-level obj 0)
+(defun scale-envelope (env mult)
+  (declare (type envelope env) (type real mult))
+  (let ((points (envelope-points env))
+        (data (envelope-data env)))
+    (setf (envelope-level env 0)
           (* (smp-ref data 0) mult))
     (loop for i from 1 below points do
-         (setf (envelope-level obj i)
+         (setf (envelope-level env i)
                (* (smp-ref data (1- (* i 3))) mult)))
-    obj))
+    env))
 
-(defmethod normalize ((obj envelope) (norm-value real))
-  (let ((points (envelope-points obj)))
+(defun normalize-envelope (env norm-value)
+  (declare (type envelope env) (type real norm-value))
+  (let ((points (envelope-points env)))
     (declare (type positive-fixnum points))
     (labels ((norm (index maxval)
                (declare (type non-negative-fixnum index)
@@ -517,14 +516,15 @@
                (if (= index points)
                    maxval
                    (norm (1+ index)
-                         (max (envelope-level obj index) maxval)))))
-      (let ((lev (envelope-level obj 0)))
+                         (max (envelope-level env index) maxval)))))
+      (let ((lev (envelope-level env 0)))
         (if lev
-            (scale obj (/ norm-value (norm 1 lev)))
-            obj)))))
+            (scale-envelope env (/ norm-value (norm 1 lev)))
+            env)))))
 
-(defmethod rescale ((obj envelope) (min real) (max real))
-  (let ((points (envelope-points obj)))
+(defun rescale-envelope (env min max)
+  (declare (type envelope env) (type real min max))
+  (let ((points (envelope-points env)))
     (declare (type non-negative-fixnum points))
     (labels ((resc (index old-min old-max)
                (declare (type non-negative-fixnum index)
@@ -532,24 +532,24 @@
                (if (>= index points)
                    (values (/ (sample 1) (- old-max old-min))
                            old-min)
-                   (let ((value (smp-ref (envelope-data obj) index)))
+                   (let ((value (smp-ref (envelope-data env) index)))
                      (resc (+ index 3)
                            (min value old-min)
                            (max value old-max))))))
       (multiple-value-bind (old-delta old-min)
-          (let ((init (envelope-level obj 0)))
+          (let ((init (envelope-level env 0)))
             (resc 2 init init))
         (let ((new-delta (- max min)))
           (flet ((set-level (index offset)
-                   (setf (envelope-level obj index)
+                   (setf (envelope-level env index)
                          (+ min (* new-delta old-delta
-                                   (- (smp-ref (envelope-data obj)
+                                   (- (smp-ref (envelope-data env)
                                                offset)
                                       old-min))))))
             (set-level 0 0)
             (labels ((set-levels (index offset)
                        (declare (type non-negative-fixnum index offset))
-                       (cond ((>= index points) obj)
+                       (cond ((>= index points) env)
                              (t (set-level index offset)
                                 (set-levels (1+ index) (+ offset 3))))))
               (set-levels 1 2))))))))
@@ -640,59 +640,55 @@
 
 ;;; Frequently used envelope shapes
 
+(declaim (inline make-linen))
 (defun make-linen (attack-time sustain-time release-time
                    &key (level 1) (curve :lin) restart-level real-time-p)
   (make-envelope (list 0 level level 0)
                  (list attack-time sustain-time release-time)
                  :curve curve :restart-level restart-level :real-time-p real-time-p))
 
-(defgeneric linen (obj attack-time sustain-time release-time
-                   &key level curve))
-
-(defmethod linen (obj attack-time sustain-time release-time
-                  &key (level 1) (curve :lin))
+(declaim (inline linen))
+(defun linen (obj attack-time sustain-time release-time
+              &key (level 1) (curve :lin))
   (set-envelope obj `(0 ,level ,level 0)
                 `(,attack-time ,sustain-time ,release-time)
                 :curve curve))
 
+(declaim (inline make-perc))
 (defun make-perc (attack-time release-time
                   &key (level 1) (curve -4) restart-level real-time-p)
   (make-envelope (list 0 level 0) (list attack-time release-time)
                  :curve curve :restart-level restart-level :real-time-p real-time-p))
 
-(defgeneric perc (obj attack-time release-time &key level curve))
-
-(defmethod perc (obj attack-time release-time
-                 &key (level 1) (curve -4))
+(declaim (inline perc))
+(defun perc (obj attack-time release-time &key (level 1) (curve -4))
   (set-envelope obj `(0 ,level 0) `(,attack-time ,release-time)
                 :curve curve))
 
+(declaim (inline make-cutoff))
 (defun make-cutoff (release-time &key (level 1) (curve :exp) restart-level real-time-p)
   (make-envelope (list level 0) (list release-time)
                  :curve curve :release-node 0 :restart-level restart-level
                  :real-time-p real-time-p))
 
-(defgeneric cutoff (obj release-time &key level curve))
-
-(defmethod cutoff ((obj envelope) release-time &key (level 1)
-                   (curve :exp))
-  (set-envelope obj `(,level 0) `(,release-time)
+(declaim (inline cutoff))
+(defun cutoff (env release-time &key (level 1) (curve :exp))
+  (set-envelope env `(,level 0) `(,release-time)
                 :curve curve :release-node 0))
 
+(declaim (inline make-asr))
 (defun make-asr (attack-time sustain-level release-time
                  &key (curve -4) restart-level real-time-p)
   (make-envelope (list 0 sustain-level 0) (list attack-time release-time)
                  :curve curve :release-node 1 :restart-level restart-level
                  :real-time-p real-time-p))
 
-(defgeneric asr (obj attack-time sustain-level release-time
-                 &key curve))
-
-(defmethod asr ((obj envelope) attack-time sustain-level release-time
-                &key (curve -4))
-  (set-envelope obj `(0 ,sustain-level 0) `(,attack-time ,release-time)
+(declaim (inline asr))
+(defun asr (env attack-time sustain-level release-time &key (curve -4))
+  (set-envelope env `(0 ,sustain-level 0) `(,attack-time ,release-time)
                 :curve curve :release-node 1))
 
+(declaim (inline make-adsr))
 (defun make-adsr (attack-time decay-time sustain-level release-time
                   &key (peak-level 1) (curve -4) restart-level real-time-p)
   (make-envelope (list 0 peak-level (* peak-level sustain-level) 0)
@@ -700,15 +696,14 @@
                  :curve curve :release-node 2 :restart-level restart-level
                  :real-time-p real-time-p))
 
-(defgeneric adsr (obj attack-time decay-time sustain-level
-                  release-time &key peak-level curve))
-
-(defmethod adsr ((obj envelope) attack-time decay-time sustain-level
-                 release-time &key (peak-level 1) (curve -4))
-  (set-envelope obj `(0 ,peak-level ,(* peak-level sustain-level) 0)
+(declaim (inline adsr))
+(defun adsr (env attack-time decay-time sustain-level release-time
+             &key (peak-level 1) (curve -4))
+  (set-envelope env `(0 ,peak-level ,(* peak-level sustain-level) 0)
                 `(,attack-time ,decay-time ,release-time)
                 :curve curve :release-node 2))
 
+(declaim (inline make-dadsr))
 (defun make-dadsr (delay-time attack-time decay-time sustain-level
                    release-time &key (peak-level 1) (curve -4)
                    restart-level real-time-p)
@@ -717,12 +712,9 @@
                  :curve curve :release-node 3 :restart-level restart-level
                  :real-time-p real-time-p))
 
-(defgeneric dadsr (obj delay-time attack-time decay-time sustain-level
-                   release-time &key peak-level curve))
-
-(defmethod dadsr ((obj envelope) delay-time attack-time decay-time
-                  sustain-level release-time &key (peak-level 1)
-                  (curve -4))
-  (set-envelope obj `(0 0 ,peak-level ,(* peak-level sustain-level) 0)
+(declaim (inline dadsr))
+(defun dadsr (env delay-time attack-time decay-time sustain-level release-time
+              &key (peak-level 1) (curve -4))
+  (set-envelope env `(0 0 ,peak-level ,(* peak-level sustain-level) 0)
                 `(,delay-time ,attack-time ,decay-time ,release-time)
                 :curve curve :release-node 3))

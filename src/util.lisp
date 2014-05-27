@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -56,18 +56,6 @@
 (defgeneric free (obj))
 
 (defgeneric free-p (obj))
-
-(defgeneric scale (obj mult))
-
-(defgeneric normalize (obj norm-value))
-
-(defgeneric rescale (obj min max))
-
-(defgeneric data (obj))
-
-(defgeneric (setf data) (values obj))
-
-(defgeneric touch (obj))
 
 (in-package :incudine.util)
 

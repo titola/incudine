@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -839,7 +839,7 @@
                             (declare (type non-negative-fixnum id))
                             (let ((,node (incudine:node id)))
                               (declare (type incudine:node ,node))
-                              (when (incudine::null-item-p ,node)
+                              (when (incudine::null-node-p ,node)
                                 (let ((,dsp-cons (get-next-dsp-instance ',name)))
                                   (declare (type list ,dsp-cons))
                                   (incudine::enqueue-node-function

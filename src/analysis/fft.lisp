@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -157,16 +157,6 @@ is the plan for a IFFT."
     (format stream "#<FFT :SIZE ~D :WINDOW-SIZE ~D :NBINS ~D>"
             (fft-size obj) (fft-window-size obj) (fft-nbins obj)))
 
-(defgeneric nbins (obj))
-
-(defmethod nbins ((obj fft))
-  (fft-nbins obj))
-
-(defmethod nbins ((obj abuffer))
-  (if (fft-p #1=(abuffer-link obj))
-      (fft-nbins #1#)
-      0))
-
 (declaim (inline rectangular-window))
 (defun rectangular-window (c-array size)
   (declare (type foreign-pointer c-array)
@@ -231,8 +221,8 @@ is the plan for a IFFT."
                                  (list input-buffer output-buffer
                                        window-buffer time-ptr))))))))
 
-(defmethod compute ((obj fft) &optional arg)
-  (declare (ignore arg))
+(defun compute-fft (obj)
+  (declare (type fft obj))
   (when (< (analysis-time obj) (now))
     (let ((fftsize (fft-size obj))
           (winsize (fft-window-size obj)))
@@ -332,9 +322,10 @@ is the plan for a IFFT."
         (t (apply-scaled-window (ifft-output-buffer obj) (ifft-window-buffer obj)
                                 (ifft-window-size obj) (abuffer-scale-factor abuf)))))
 
-(defmethod compute ((obj ifft) &optional arg)
+(defun compute-ifft (obj arg)
+  (declare (type ifft obj) (type (or fft abuffer) arg))
   (when (< (analysis-time obj) (now))
-    (compute arg)
+    (if (fft-p arg) (compute-fft arg) (compute-abuffer arg))
     (unless (abuffer-coord-complex-p arg)
       (polar-to-complex (abuffer-data arg)
                         (abuffer-nbins arg)))

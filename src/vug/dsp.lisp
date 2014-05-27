@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -39,24 +39,6 @@
 (defun dsp (name)
   (declare (type symbol name))
   (values (gethash name *dsp-hash*)))
-
-(defmethod incudine::fade-time ((obj symbol))
-  (let ((prop (dsp obj)))
-    (if prop (dsp-fade-time prop) 0)))
-
-(defmethod (setf incudine::fade-time) ((value number) (obj symbol))
-  (let ((prop (dsp obj)))
-    (when prop
-      (setf (dsp-fade-time prop) value))))
-
-(defmethod incudine::fade-curve ((obj symbol))
-  (let ((prop (dsp obj)))
-    (if prop (dsp-fade-curve prop) :lin)))
-
-(defmethod (setf incudine::fade-curve) (value (obj symbol))
-  (let ((prop (dsp obj)))
-    (when prop
-      (setf (dsp-fade-curve prop) value))))
 
 (declaim (inline expand-dsp-pool))
 (defun expand-dsp-pool (pool &optional (delta 1))

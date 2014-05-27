@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -92,9 +92,8 @@
         (ring-buffer-size obj) 0)
   (values))
 
-(defgeneric resize (obj new-size))
-
-(defmethod resize ((obj ring-buffer) (new-size integer))
+(defun resize-ring-buffer (obj new-size)
+  (declare (type ring-buffer obj) (type positive-fixnum new-size))
   (unless (= (ring-input-buffer-size obj) new-size)
     (let ((new-data (if (ring-buffer-real-time-p obj)
                         (foreign-rt-alloc 'sample :count new-size)
@@ -185,7 +184,9 @@
 
 (defsetf analysis-time set-analysis-time)
 
-(defmethod incudine:touch ((obj analysis))
+(declaim (inline touch-analysis))
+(defun touch-analysis (obj)
+  (declare (type analysis obj))
   (if (< (analysis-time obj) (now))
       (setf (analysis-time obj) (now)))
   obj)
@@ -247,16 +248,14 @@
     (tg:cancel-finalization obj))
   (values))
 
-(defgeneric to-polar (obj))
-
-(defmethod to-polar ((obj abuffer))
+(declaim (inline abuffer-polar))
+(defun abuffer-polar (obj)
   (when (abuffer-coord-complex-p obj)
     (complex-to-polar (abuffer-data obj) (abuffer-nbins obj))
     (setf (abuffer-coord-complex-p obj) nil)))
 
-(defgeneric to-complex (obj))
-
-(defmethod to-complex ((obj abuffer))
+(declaim (inline abuffer-complex))
+(defun abuffer-complex (obj)
   (unless (abuffer-coord-complex-p obj)
     (polar-to-complex (abuffer-data obj) (abuffer-nbins obj))
     (setf (abuffer-coord-complex-p obj) t)))
@@ -276,22 +275,22 @@
                    (* ,nbin +foreign-complex-size+))
                  +foreign-sample-size+))))
 
-(defgeneric compute (obj &optional arg))
+(defun compute-abuffer (abuf)
+  (declare (type abuffer abuf))
+  (when (< (abuffer-time abuf) (now))
+    (let ((link (abuffer-link abuf)))
+      (if (fft-p link) (compute-fft link) (compute-abuffer link))
+      (setf (abuffer-coord-complex-p abuf) (analysis-output-complex-p link))
+      (setf (abuffer-time abuf) (now))
+      (foreign-copy (abuffer-data abuf)
+                    (analysis-output-buffer link)
+                    (the non-negative-fixnum
+                         (* (abuffer-size abuf) +foreign-sample-size+)))))
+  abuf)
 
-(defmethod compute ((obj abuffer) &optional arg)
-  (declare (ignore arg))
-  (when (< (abuffer-time obj) (now))
-    (compute (abuffer-link obj))
-    (setf (abuffer-coord-complex-p obj)
-          (analysis-output-complex-p (abuffer-link obj)))
-    (setf (abuffer-time obj) (now))
-    (foreign-copy (abuffer-data obj)
-                  (analysis-output-buffer (abuffer-link obj))
-                  (the non-negative-fixnum
-                    (* (abuffer-size obj) +foreign-sample-size+))))
-  obj)
-
-(defmethod incudine:touch ((obj abuffer))
+(declaim (inline touch-abuffer))
+(defun touch-abuffer (obj)
+  (declare (type abuffer obj))
   (if (< (abuffer-time obj) (now))
       (setf (abuffer-time obj) (now)))
   obj)
@@ -360,7 +359,7 @@
                                                   (abuffer-imagpart ,abuf ,index-var)))
                  ,@body)))
            ;; Update the time of the destinations
-           ,@(mapcar (lambda (abuf) `(incudine:touch ,abuf)) abuffer-dest-vars)
+           ,@(mapcar (lambda (abuf) `(touch-abuffer ,abuf)) abuffer-dest-vars)
            ,result)))))
 
 ;;; Iterate over the values of one or more ABUFFERs using the polar coordinates

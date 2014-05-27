@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -45,16 +45,9 @@
                           :initial-element-fn initial-element-fn
                           :items (make-items double-size initial-element-fn))))
 
-(declaim (inline get-key get-hash null-item-p))
-
-(defgeneric get-key (obj))
-(defgeneric get-hash (obj))
-
-(defgeneric null-item-p (obj))
-(defmethod  null-item-p (obj) (null obj))
-
-(defmacro %index-for (in-hash-id in-key items items-type
-                      int-hash-table get-hash-fn get-key-fn)
+(defmacro index-for (in-hash-id in-key items items-type
+                     int-hash-table get-hash-fn get-key-fn
+                     null-item-p-fn)
   (with-gensyms (index mask item %items hash-id)
     `(let ((,hash-id ,in-hash-id)
            (,%items ,items)
@@ -62,7 +55,7 @@
        (do* ((,index (logand ,hash-id ,mask)
                      (logand (1+ ,index) ,mask))
              (,item (svref ,%items ,index) (svref ,%items ,index)))
-            ((or (null-item-p ,item)
+            ((or (,null-item-p-fn ,item)
                  (and (= (the fixnum (,get-hash-fn ,item))
                          ,hash-id)
                       (= (the fixnum (,get-key-fn ,item))
@@ -71,23 +64,15 @@
          (declare (type non-negative-fixnum ,mask ,index))
          ,@(when items-type `((declare (type ,items-type ,item))))))))
 
-(defmacro index-for (in-hash-id in-key items int-hash-table)
-  `(%index-for ,in-hash-id ,in-key ,items nil ,int-hash-table get-hash get-key))
-
-(defmacro %getihash (key int-hash-table get-hash-fn get-key-fn items-type)
+(defmacro getihash (key int-hash-table get-hash-fn get-key-fn null-item-p-fn
+                    items-type)
   `(svref (int-hash-table-items ,int-hash-table)
-          (%index-for (the fixnum (int-hash ,key)) ,key
-                      (int-hash-table-items ,int-hash-table) ,items-type
-                      ,int-hash-table ,get-hash-fn ,get-key-fn)))
+          (index-for (the fixnum (int-hash ,key)) ,key
+                     (int-hash-table-items ,int-hash-table) ,items-type
+                     ,int-hash-table ,get-hash-fn ,get-key-fn ,null-item-p-fn)))
 
-(defun getihash (key int-hash-table)
-  (declare #.*standard-optimize-settings*
-           (type fixnum key)
-           (type int-hash-table int-hash-table))
-  (%getihash key int-hash-table get-hash get-key nil))
-
-(defmacro %fix-collisions-from (key int-hash-table get-hash-fn get-key-fn
-                                items-type)
+(defmacro fix-collisions-from (key int-hash-table get-hash-fn get-key-fn
+                               null-item-p-fn items-type)
   (with-gensyms (mask items old-item old-key new-item new-key curr-item)
     `(let ((,mask (int-hash-table-mask ,int-hash-table))
            (,items (int-hash-table-items ,int-hash-table)))
@@ -97,20 +82,14 @@
          (do* ((,old-key (logand (1+ ,key) ,mask)
                          (logand (1+ ,old-key) ,mask))
                (,curr-item ,old-item ,old-item))
-              ((null-item-p ,curr-item))
+              ((,null-item-p-fn ,curr-item))
            (declare (type fixnum ,old-key))
            ,@(when items-type `((declare (type ,items-type ,curr-item))))
-           (let ((,new-key (%index-for (the fixnum
-                                         (,get-hash-fn ,old-item))
-                                       (the fixnum (,get-key-fn ,old-item))
-                                       ,items ,items-type ,int-hash-table
-                                       ,get-hash-fn ,get-key-fn)))
+           (let ((,new-key (index-for (the fixnum (,get-hash-fn ,old-item))
+                                      (the fixnum (,get-key-fn ,old-item))
+                                      ,items ,items-type ,int-hash-table
+                                      ,get-hash-fn ,get-key-fn
+                                      ,null-item-p-fn)))
              (unless (= ,old-key ,new-key)
                (setf ,old-item ,new-item
                      ,new-item ,curr-item))))))))
-
-(defun fix-collisions-from (key int-hash-table)
-  (declare #.*standard-optimize-settings*
-           (type fixnum key)
-           (type int-hash-table int-hash-table))
-  (%fix-collisions-from key int-hash-table get-hash get-key nil))

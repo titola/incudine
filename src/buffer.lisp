@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -300,15 +300,17 @@ It is possible to use line comments that begin with the `;' char."
                     (mapcar (lambda (x) (buffer-value x i))
                             buffers))))))
 
-(defmethod scale ((obj buffer) (mult real))
+(defun scale-buffer (buffer mult)
+  (declare (type buffer buffer) (type real mult))
   (map-buffer (lambda (index value)
                 (declare (ignore index))
                 (* value mult))
-              obj))
+              buffer))
 
-(defmethod normalize ((obj buffer) (norm-value real))
-  (let ((data (buffer-data obj))
-        (size (buffer-size obj)))
+(defun normalize-buffer (buffer norm-value)
+  (declare (type buffer buffer) (type real norm-value))
+  (let ((data (buffer-data buffer))
+        (size (buffer-size buffer)))
     (declare (type positive-fixnum size))
     (labels ((norm (index max)
                (declare (type non-negative-fixnum index)
@@ -317,11 +319,12 @@ It is possible to use line comments that begin with the `;' char."
                    max
                    (norm (1+ index)
                          (max (smp-ref data index) max)))))
-      (scale obj (/ norm-value (norm 1 (smp-ref data 0)))))))
+      (scale-buffer buffer (/ norm-value (norm 1 (smp-ref data 0)))))))
 
-(defmethod rescale ((obj buffer) (min real) (max real))
-  (let ((data (buffer-data obj))
-        (size (buffer-size obj)))
+(defun rescale-buffer (buffer min max)
+  (declare (type buffer buffer) (type real min max))
+  (let ((data (buffer-data buffer))
+        (size (buffer-size buffer)))
     (declare (type positive-fixnum size))
     (labels ((resc (index old-min old-max)
                (declare (type non-negative-fixnum index)
@@ -338,7 +341,7 @@ It is possible to use line comments that begin with the `;' char."
         (map-buffer (lambda (index value)
                       (declare (ignore index))
                       (+ min (* (- max min) old-delta (- value old-min))))
-                    obj)))))
+                    buffer)))))
 
 (declaim (inline buffer->list))
 (defun buffer->list (buf)
@@ -442,9 +445,8 @@ It is possible to use line comments that begin with the `;' char."
         buffer)
       (nrt-msg error "file ~S not found" (namestring path))))
 
-(defun set-buffer-data (buffer values &key (start 0) end
-                        (sndfile-start 0) channel-map
-                        (normalize-p nil normalize-pp))
+(defun fill-buffer (buffer values &key (start 0) end (sndfile-start 0)
+                    channel-map (normalize-p nil normalize-pp))
   (declare (type buffer buffer) (type boolean normalize-p)
            (type non-negative-fixnum start sndfile-start))
   (macrolet ((loop-sequence (clause seq)
@@ -478,7 +480,7 @@ It is possible to use line comments that begin with the `;' char."
                        (when (and norm-p
                                   (numberp mult)
                                   (/= mult 1))
-                         (scale buffer mult)))))))
+                         (scale-buffer buffer mult)))))))
               ((consp values) (loop-sequence in values))
               ((or (stringp values) (pathnamep values))
                (set-buffer-from-sndfile buffer values sndfile-start start
@@ -488,16 +490,10 @@ It is possible to use line comments that begin with the `;' char."
                                         channel-map))
               ((vectorp values) (loop-sequence across values))
               ((envelope-p values)
-               (set-buffer-data buffer (gen:envelope values)
-                                :start start :end end
-                                :normalize-p normalize-p))))
+               (fill-buffer buffer (gen:envelope values)
+                            :start start :end end
+                            :normalize-p normalize-p))))
       buffer)))
-
-(defmethod data ((obj buffer))
-  (buffer-data obj))
-
-(defmethod (setf data) (values (obj buffer))
-  (set-buffer-data obj values))
 
 (defun make-buffer (frames &key (channels 1) file (offset 0)
                     (sample-rate *sample-rate*) real-time-p
@@ -519,9 +515,9 @@ It is possible to use line comments that begin with the `;' char."
               (value (or initial-contents fill-function)))
           (when value
             (if normalize-p
-                (set-buffer-data buf value :start start :end end
-                                 :normalize-p normalize-p)
-                (set-buffer-data buf value :start start :end end)))
+                (fill-buffer buf value :start start :end end
+                             :normalize-p normalize-p)
+                (fill-buffer buf value :start start :end end)))
           buf))))
 
 ;;; Frequently used waveforms

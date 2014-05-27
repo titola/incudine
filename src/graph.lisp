@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -36,8 +36,7 @@
 (defvar *fade-curve* :lin)
 (declaim (type (or symbol real) *fade-curve*))
 
-(defstruct (node (:constructor %make-node)
-                 (:copier nil))
+(defstruct (node (:constructor %make-node) (:copier nil))
   (id nil :type (or fixnum null))
   (hash 0 :type fixnum)
   ;; Index in the array of the nodes
@@ -169,8 +168,8 @@
   (let ((target (if (numberp target) (node target) target)))
     (rt-eval ()
       (let ((group (node id)))
-        (when (and (null-item-p group)
-                   (not (null-item-p target)))
+        (when (and (null-node-p group)
+                   (not (null-node-p target)))
           (flet ((common-set (group id)
                    (setf (node-id group) id
                          (node-hash group) (int-hash id)
@@ -247,32 +246,16 @@
   (declare (type node obj))
   (when (node-last obj) t))
 
-(defgeneric group (obj))
-
-(defmethod group ((obj node))
-  (node-parent obj))
-
-(defmethod group ((obj integer))
-  (group (node obj)))
-
-(defmethod get-key ((obj node))
-  (node-id obj))
-
-(defgeneric (setf get-key) (id obj))
-
-(defmethod (setf get-key) ((id integer) (obj node))
-  (declare #.*standard-optimize-settings*)
-  (setf (node-hash obj) (int-hash id)
-        (node-id obj) id))
-
-(defmethod get-hash ((obj node))
-  (node-hash obj))
+(declaim (inline group))
+(defun group (obj)
+  (declare (type (or node fixnum)))
+  (node-parent (if (node-p obj) obj (node obj))))
 
 (defmethod print-object ((obj node) stream)
   (format stream "#<NODE :ID ~D>" (node-id obj)))
 
-(defmethod null-item-p ((obj node))
-  (declare #.*standard-optimize-settings*)
+(declaim (inline null-node-p))
+(defun null-node-p (obj)
   (null (node-id obj)))
 
 (declaim (inline graph-empty-p))
@@ -284,109 +267,75 @@
            #.*standard-optimize-settings*)
   (if (zerop id)
       *node-root*
-      (%getihash id *node-hash* node-hash node-id node)))
+      (getihash id *node-hash* node-hash node-id null-node-p node)))
 
-(defgeneric start-time (obj))
+(declaim (inline node-start-time))
+(defun node-start-time (obj)
+  (smp-ref (node-start-time-ptr (if (node-p obj) obj (node obj))) 0))
 
-(defmethod start-time ((obj node))
-  (smp-ref (node-start-time-ptr obj) 0))
+(declaim (inline node-uptime))
+(defun node-uptime (obj)
+  (let ((n (if (node-p obj) obj (node obj))))
+    (if (null-node-p n)
+        +sample-zero+
+        (- (now) (node-start-time n)))))
 
-(defmethod start-time ((obj integer))
-  (start-time (node obj)))
-
-(defgeneric uptime (obj))
-
-(defmethod uptime ((obj node))
-  (if (null-item-p obj)
-      +sample-zero+
-      (- (now) (start-time obj))))
-
-(defmethod uptime ((obj integer))
-  (uptime (node obj)))
-
-(declaim (inline gain))
-(defgeneric gain (obj))
-
-(defmethod gain ((obj node))
+(defun node-gain (obj)
+  (declare (type (or node fixnum) obj))
   (rt-eval (:return-value-p t)
-    (smp-ref (node-gain-data obj) 0)))
+    (smp-ref (node-gain-data (if (node-p obj) obj (node obj))) 0)))
 
-(defmethod gain ((obj integer))
-  (gain (node obj)))
-
-(defgeneric (setf gain) (value obj))
-
-(defmethod (setf gain) ((value number) (obj node))
+(defun set-node-gain (obj value)
+  (declare (type (or node fixnum) obj) (type real value))
   (rt-eval (:return-value-p t)
-    (setf (smp-ref (node-gain-data obj) 0)
+    (setf (smp-ref (node-gain-data (if (node-p obj) obj (node obj))) 0)
           (sample value))))
 
-(defmethod (setf gain) ((value number) (obj integer))
-  (setf (gain (node obj)) value))
+(defsetf node-gain set-node-gain)
 
-(defgeneric fade-time (obj))
-
-(defmethod fade-time ((obj node))
+(defun node-fade-time (obj)
+  (declare (type (or node fixnum) obj))
   (rt-eval (:return-value-p t)
-    (smp-ref (node-gain-data obj) 9)))
+    (smp-ref (node-gain-data (if (node-p obj) obj (node obj))) 9)))
 
-(defmethod fade-time ((obj integer))
-  (fade-time (node obj)))
-
-(defgeneric (setf fade-time) (value obj))
-
-(defmethod (setf fade-time) ((value number) (obj node))
+(defun set-node-fade-time (obj value)
+  (declare (type (or node fixnum) obj) (type real value))
   (rt-eval (:return-value-p t)
-    (setf (smp-ref (node-gain-data obj) 9)
+    (setf (smp-ref (node-gain-data (if (node-p obj) obj (node obj))) 9)
           (sample value))))
 
-(defmethod (setf fade-time) ((value number) (obj integer))
-  (setf (fade-time (node obj)) value))
+(defsetf node-fade-time set-node-fade-time)
 
-(defgeneric fade-curve (obj))
-
-(defmethod fade-curve ((obj node))
+(defun node-fade-curve (obj)
+  (declare (type (or node fixnum) obj))
   (rt-eval (:return-value-p t)
     (sample->seg-function-spec
-     (smp-ref (node-gain-data obj) 3))))
+     (smp-ref (node-gain-data (if (node-p obj) obj (node obj))) 3))))
 
-(defmethod fade-curve ((obj integer))
-  (fade-curve (node obj)))
-
-(defgeneric (setf fade-curve) (value obj))
-
-(defmethod (setf fade-curve) (value (obj node))
+(defun set-node-fade-curve (obj value)
+  (declare (type (or node fixnum) obj))
   (rt-eval (:return-value-p t)
-    (setf (smp-ref (node-gain-data obj) 3)
+    (setf (smp-ref (node-gain-data (if (node-p obj) obj (node obj))) 3)
           (seg-function-spec->sample value))))
 
-(defmethod (setf fade-curve) (value (obj integer))
-  (setf (fade-curve (node obj)) value))
+(defsetf node-fade-curve set-node-fade-curve)
 
 (declaim (inline node-current-function))
-(defgeneric node-current-function (obj))
+(defun node-current-function (obj)
+  (car (node-funcons (if (node-p obj) obj (node obj)))))
 
-(defmethod node-current-function ((obj node))
-  (car (node-funcons obj)))
+(declaim (inline set-node-current-function))
+(defun set-node-current-function (obj function)
+  (setf (car (node-funcons (if (node-p obj) obj (node obj))))
+        function))
 
-(defmethod node-current-function ((obj integer))
-  (node-current-function (node obj)))
-
-(defgeneric (setf node-current-function) (function obj))
-
-(defmethod (setf node-current-function) ((function function)
-                                         (obj node))
-  (setf (car (node-funcons obj)) function))
-
-(defmethod (setf node-current-function) ((function function)
-                                         (obj integer))
-  (setf (node-current-function (node obj)) function))
+(defsetf node-current-function set-node-current-function)
 
 (declaim (inline next-node-id))
 (defun next-node-id ()
   (labels ((next (id)
              (let ((id (if (> id 65535) 1 id)))
-               (if (null-item-p (node id))
+               (if (null-node-p (node id))
                    id
                    (next (1+ id))))))
     (next *last-node-id*)))
@@ -395,7 +344,7 @@
 (defun next-large-node-id ()
   (labels ((next (id)
              (let ((id (if (> id 1073741823) 16777216 id)))
-               (if (null-item-p (node id))
+               (if (null-node-p (node id))
                    id
                    (next (1+ id))))))
     (next *last-large-node-id*)))
@@ -426,14 +375,14 @@
            #.*reduce-warnings*)
   (when (or *node-enable-gain-p*
             (node-enable-gain-p node))
-    (setf (fade-time node)
+    (setf (node-fade-time node)
           (if fade-time
               fade-time
-              (let ((time (fade-time name)))
+              (let ((time (node-fade-time name)))
                 (if (plusp time)
                     time
                     *fade-time*))))
-    (fade-in node (fade-time node) fade-curve)))
+    (node-fade-in node (node-fade-time node) fade-curve)))
 
 (defun update-prev-groups (node)
   (declare (type node node))
@@ -473,22 +422,22 @@
              (declare (type (or function null) before-fn))
              (when before-fn
                (funcall before-fn)
-               (fade-out target fade-time fade-curve)
+               (node-fade-out target fade-time fade-curve)
                (swap-nodes target new-node)
                item))))
-        ((null-item-p item)
+        ((null-node-p item)
          (let ((fn (funcall fn item)))
            (declare (type function fn))
-           (setf (node-id item)        id
-                 (node-hash item)      hash
-                 (node-name item)      name
+           (setf (node-id item) id
+                 (node-hash item) hash
+                 (node-name item) name
                  (smp-ref (node-start-time-ptr item) 0) (now)
-                 (node-pause-p item)   nil
-                 (node-function item)  fn
-                 (node-last item)      nil
+                 (node-pause-p item) nil
+                 (node-function item) fn
+                 (node-last item) nil
                  (node-release-phase-p item) nil
-                 (gain item)           (sample 1)
-                 (fade-curve item)     (or fade-curve :lin))
+                 (node-gain item) (sample 1)
+                 (node-fade-curve item) (or fade-curve :lin))
            (if (null (node-funcons item))
                (setf (node-funcons item) (list fn))
                (setf (car (node-funcons item)) fn
@@ -626,7 +575,7 @@
   (with-gensyms (start-node)
     (let ((node (or node '*node-root*)))
       `(let ((,start-node ,node))
-         (unless (null-item-p ,start-node)
+         (unless (null-node-p ,start-node)
            (do ((,var ,start-node (node-next ,var)))
                ((null ,var) ,result)
              (declare (type (or node null) ,var))
@@ -797,12 +746,12 @@
                 (lambda () (unlink-group node) node))
                (t incudine.util::*dummy-function-without-args*)))
         (t (lambda ()
-             (unless (null-item-p node)
+             (unless (null-node-p node)
                (let* ((id (node-id node))
                       (hash (node-hash node))
                       (nodes (int-hash-table-items *node-hash*))
-                      (index (%index-for hash id nodes node *node-hash*
-                                         node-hash node-id)))
+                      (index (index-for hash id nodes node *node-hash*
+                                        node-hash node-id null-node-p)))
                  (declare (type non-negative-fixnum id index)
                           (type fixnum hash))
                  (when (eq (svref nodes index) node)
@@ -814,8 +763,8 @@
                           (%remove-group node)
                           (nrt-msg debug "free group ~D" id))
                          (t (%remove-node node)
-                            (%fix-collisions-from (node-index node) *node-hash*
-                                                  node-hash node-id node)
+                            (fix-collisions-from (node-index node) *node-hash*
+                                                 node-hash node-id null-node-p node)
                             (nrt-msg debug "free node ~D" id)))
                    node)))))))
 
@@ -848,7 +797,7 @@
 
 (defmethod (setf free-hook) ((flist list) (obj node))
   (rt-eval ()
-    (unless (null-item-p obj)
+    (unless (null-node-p obj)
       (setf (node-free-hook obj) flist))
     (values)))
 
@@ -859,7 +808,7 @@
   (declare #.*standard-optimize-settings*
            (type node obj))
   (labels ((rec (node)
-             (unless (null-item-p node)
+             (unless (null-node-p node)
                (cond ((group-p node)
                       (dogroup (n obj) (rec n)))
                      (t (dolist (fn (node-stop-hook node))
@@ -896,7 +845,7 @@
 
 (defmethod (setf stop-hook) ((flist list) (obj node))
   (rt-eval ()
-    (unless (null-item-p obj)
+    (unless (null-node-p obj)
       (setf (node-stop-hook obj) flist))
     (values)))
 
@@ -915,7 +864,7 @@
           (dest (if (numberp dest) (node dest) dest)))
       (declare (type node src dest))
       (rt-eval ()
-        (unless (or (null-item-p src) (null-item-p dest))
+        (unless (or (null-node-p src) (null-node-p dest))
           (case move-action
             (:before
              (cond ((eq dest *node-root*)
@@ -1047,7 +996,7 @@
         (n2 (if (numberp n2) (node n2) n2))
         (result nil))
     (rt-eval (:return-value-p t)
-      (unless (or (null-item-p n1) (null-item-p n2))
+      (unless (or (null-node-p n1) (null-node-p n2))
         (dograph (curr)
           (when (eq curr n2)
             (return result))
@@ -1073,23 +1022,19 @@
         (let ((node (if (numberp node) (node node) node)))
           (eq (node-last group) node))))))
 
-(declaim (inline control-functions))
-(defgeneric control-functions (obj control-name))
-
-(defmethod control-functions ((obj node) (control-name symbol))
-  (declare #.*standard-optimize-settings*
-           #+(or cmu sbcl) (values (or function null)))
-  (unless (null-item-p obj)
-    (let ((ht (node-controls obj)))
-      (declare (type (or hash-table null)))
-      (when ht (gethash (symbol-name control-name) ht)))))
-
-(defmethod control-functions ((obj integer) (control-name symbol))
-   (declare #.*standard-optimize-settings*
-            #+(or cmu sbcl) (values (or function null)))
-   (control-functions (the node (%getihash (the fixnum obj) *node-hash*
-                                           node-hash node-id node))
-                      control-name))
+(defun control-functions (obj control-name)
+  (declare (type (or non-negative-fixnum node) obj)
+           (type symbol control-name)
+           #.*standard-optimize-settings*)
+  (let ((obj (if (node-p obj)
+                 obj
+                 (getihash obj *node-hash* node-hash node-id null-node-p node))))
+    (declare (type node obj))
+    (unless (null-node-p obj)
+      (let ((ht (node-controls obj)))
+        (declare (type (or hash-table null)))
+        (when ht
+          (gethash (symbol-name control-name) ht))))))
 
 (declaim (inline control-getter))
 (defun control-getter (obj control-name)
@@ -1176,7 +1121,7 @@
 (defmethod pause ((obj node))
   (rt-eval (:return-value-p t)
     (locally (declare #.*standard-optimize-settings*)
-      (unless (or (null-item-p obj)
+      (unless (or (null-node-p obj)
                   (node-pause-p obj))
         (let ((prev (unpaused-node-prev obj)))
           (cond ((group-p obj)
@@ -1211,7 +1156,7 @@
   (rt-eval (:return-value-p t)
     (locally (declare #.*standard-optimize-settings*)
       (when (and (node-pause-p obj)
-                 (not (null-item-p obj)))
+                 (not (null-node-p obj)))
         (let ((prev (unpaused-node-prev obj)))
           (setf (node-pause-p obj) nil)
           (cond ((eq obj *node-root*)
@@ -1273,68 +1218,57 @@
                           symbols))
        ,@body)))
 
-(defgeneric node-segment (obj end dur &optional start curve done-action))
-
-(defmethod node-segment ((obj node) end dur
-                         &optional start curve (done-action #'identity))
+(defun node-segment (obj end dur &optional start curve (done-action
+                                                               #'identity))
   (declare #.*standard-optimize-settings*
            #.*reduce-warnings*)
-  (cond ((or (null-item-p obj)
-             (node-release-phase-p obj))
-         obj)
-        ((or *node-enable-gain-p*
-             (node-enable-gain-p obj))
-         (with-node-segment-symbols obj
-             (level start0 end0 curve0 grow a2 b1 y1 y2)
-           (when curve
-             (setf curve0 (seg-function-spec->sample curve)))
-           (let* ((samples (max 1 (sample->fixnum (* dur *sample-rate*))))
-                  (remain samples)
-                  (curve (or curve (sample->seg-function-spec curve0))))
-             (declare (type non-negative-fixnum samples remain))
-             (setf level (envelope-fix-zero level curve))
-             (setf start0 (if start
-                              (envelope-fix-zero start curve)
-                              level))
-             (setf end0 (envelope-fix-zero end curve))
-             (when (eq done-action #'free)
-               (setf (node-release-phase-p obj) t))
-             (%segment-init start0 end0 samples curve0 grow a2 b1 y1 y2)
-             (setf (node-current-function obj)
-                   (lambda (chan)
-                     (declare (type non-negative-fixnum chan))
-                     (cond ((plusp remain)
-                            (when (zerop chan)
-                              (%segment-update-level level curve0 grow a2 b1 y1 y2)
-                              (decf remain))
-                            (funcall (node-function obj) chan))
-                           (t (funcall (setf (node-current-function obj)
-                                             (node-function obj))
-                                       chan)
-                              (funcall done-action obj)))
-                     (values)))
-             obj)))
-        (t (funcall done-action obj))))
+  (let ((obj (if (node-p obj) obj (node obj))))
+    (cond ((or (null-node-p obj)
+               (node-release-phase-p obj))
+           obj)
+          ((or *node-enable-gain-p*
+               (node-enable-gain-p obj))
+           (with-node-segment-symbols obj
+               (level start0 end0 curve0 grow a2 b1 y1 y2)
+             (when curve
+               (setf curve0 (seg-function-spec->sample curve)))
+             (let* ((samples (max 1 (sample->fixnum (* dur *sample-rate*))))
+                    (remain samples)
+                    (curve (or curve (sample->seg-function-spec curve0))))
+               (declare (type non-negative-fixnum samples remain))
+               (setf level (envelope-fix-zero level curve))
+               (setf start0 (if start
+                                (envelope-fix-zero start curve)
+                                level))
+               (setf end0 (envelope-fix-zero end curve))
+               (when (eq done-action #'free)
+                 (setf (node-release-phase-p obj) t))
+               (%segment-init start0 end0 samples curve0 grow a2 b1 y1 y2)
+               (setf (node-current-function obj)
+                     (lambda (chan)
+                       (declare (type non-negative-fixnum chan))
+                       (cond ((plusp remain)
+                              (when (zerop chan)
+                                (%segment-update-level level curve0 grow a2 b1 y1 y2)
+                                (decf remain))
+                              (funcall (node-function obj) chan))
+                             (t (funcall (setf (node-current-function obj)
+                                               (node-function obj))
+                                         chan)
+                                (funcall done-action obj)))
+                       (values)))
+               obj)))
+          (t (funcall done-action obj)))))
 
-(defmethod node-segment ((obj integer) end dur
-                         &optional start curve (done-action #'identity))
-  (node-segment (node obj) end dur start curve done-action))
+(declaim (inline node-fade-in))
+(defun node-fade-in (obj &optional duration curve)
+  (let ((obj (if (node-p obj) obj (node obj))))
+    (setf (node-gain obj) +sample-zero+)
+    (node-segment obj (sample 1) (or duration (node-fade-time obj))
+                  +sample-zero+ curve #'identity)))
 
-(defgeneric fade-in (obj &optional duration curve))
-
-(defmethod fade-in ((obj node) &optional duration curve)
-  (setf (gain obj) +sample-zero+)
-  (node-segment obj (sample 1) (or duration (fade-time obj))
-                +sample-zero+ curve #'identity))
-
-(defmethod fade-in ((obj integer) &optional duration curve)
-  (fade-in (node obj) duration curve))
-
-(defgeneric fade-out (obj &optional duration curve))
-
-(defmethod fade-out ((obj node) &optional duration curve)
-  (node-segment obj +sample-zero+ (or duration (fade-time obj))
-                nil curve #'free))
-
-(defmethod fade-out ((obj integer) &optional duration curve)
-  (fade-out (node obj) duration curve))
+(declaim (inline node-fade-out))
+(defun node-fade-out (obj &optional duration curve)
+  (let ((obj (if (node-p obj) obj (node obj))))
+    (node-segment obj +sample-zero+ (or duration (node-fade-time obj))
+                  nil curve #'free)))

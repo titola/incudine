@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -121,9 +121,8 @@
                                      (release ,voicer ,data1))))))))))
        ,event)))
 
-(defgeneric (setf event-amp-mult) (value obj))
-
-(defmethod (setf event-amp-mult) (value (obj midi-event))
+(declaim (inline scale-midi-event-amp))
+(defun scale-midi-event-amp (obj value)
   (setf (slot-value obj 'amp-mult) value)
   (update-amp-vector obj)
   value)

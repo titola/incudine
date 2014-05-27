@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -33,33 +33,40 @@
   (:use :cl)
   (:export
    #:pthread-set-priority #:sndfile-to-buffer
-   #:foreign-alloc-sample #:foreign-zero-sample #:foreign-set #:foreign-realloc-sample
+   #:foreign-alloc-sample #:foreign-zero-sample #:foreign-set
+   #:foreign-realloc-sample
    #:init-foreign-memory-pool #:destroy-foreign-memory-pool
    #:get-foreign-used-size #:get-foreign-max-size
    #:foreign-rt-alloc-ex #:foreign-rt-free-ex #:foreign-rt-realloc-ex
    #:foreign-alloc-fft #:foreign-free-fft #:make-fft-plan #:make-ifft-plan
-   #:fft-destroy-plan #:sample-complex #:sample-polar #:magnitude #:complex-to-polar
-   #:polar-to-complex #:fft-execute #:ifft-execute
-   #:apply-window #:apply-scaled-window #:apply-scaled-rectwin #:apply-zero-padding
+   #:fft-destroy-plan #:sample-complex #:sample-polar #:magnitude
+   #:complex-to-polar #:polar-to-complex
+   #:fft-execute #:ifft-execute
+   #:apply-window #:apply-scaled-window #:apply-scaled-rectwin
+   #:apply-zero-padding
    #:pconv-multiply-partitions
    #:foreign-copy #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
-   #:rt-audio-init #:rt-audio-start #:rt-audio-stop #:rt-get-input #:rt-set-output
+   #:rt-audio-init #:rt-audio-start #:rt-audio-stop #:rt-get-input
+   #:rt-set-output
    #:rt-condition-wait #:rt-transfer-to-c-thread #:rt-cycle-begin #:rt-cycle-end
    #:rt-set-busy-state #:rt-buffer-size #:rt-sample-rate #:rt-get-error-msg
-   #:mouse-event #:mouse-init #:mouse-loop-start #:mouse-stop #:get-mouse-status))
+   #:mouse-event #:mouse-init #:mouse-loop-start #:mouse-stop
+   #:get-mouse-status))
 
 (defpackage :incudine.util
   (:use :cl :incudine.config)
   (:import-from #:alexandria #:positive-fixnum #:negative-fixnum
                 #:non-negative-fixnum #:define-constant #:with-gensyms
                 #:ensure-symbol)
-  (:import-from #:cffi #:foreign-pointer #:foreign-type-size #:with-foreign-object
-                #:mem-ref #:mem-aref #:make-pointer #:pointer-address #:inc-pointer
-                #:foreign-slot-value #:foreign-alloc #:foreign-free)
+  (:import-from #:cffi #:foreign-pointer #:foreign-type-size
+                #:with-foreign-object #:mem-ref #:mem-aref #:make-pointer
+                #:pointer-address #:inc-pointer #:foreign-slot-value
+                #:foreign-alloc #:foreign-free)
   (:import-from #:incudine.external #:sample-complex #:foreign-alloc-sample)
   (:export
-   #:sample #:positive-sample #:negative-sample #:non-negative-sample #:+sample-zero+
-   #:non-positive-sample #:*sample-type* #:*use-foreign-sample-p*
+   #:sample #:positive-sample #:negative-sample #:non-negative-sample
+   #:+sample-zero+ #:non-positive-sample #:*sample-type*
+   #:*use-foreign-sample-p*
    #:frame
    #:+twopi+ #:+half-pi+ #:+rtwopi+ #:+log001+ #:+sqrt2+
    #:+table-maxlen+ #:+max-lobits+ #:+phase-mask+ #:+rad2inc+ #:*cps2inc*
@@ -69,8 +76,9 @@
    #:*max-number-of-channels* #:*audio-driver* #:*client-name*
    #:*number-of-input-bus-channels* #:*number-of-output-bus-channels*
    #:*number-of-bus-channels* #:*rt-edf-heap-size* #:*nrt-edf-heap-size*
-   #:*rt-thread* #:*nrt-thread* #:*fast-nrt-thread* #:*rt-priority* #:*nrt-priority*
-   #:*fast-nrt-priority* #:*receiver-default-priority* #:*sndfile-buffer-size*
+   #:*rt-thread* #:*nrt-thread* #:*fast-nrt-thread* #:*rt-priority*
+   #:*nrt-priority* #:*fast-nrt-priority* #:*receiver-default-priority*
+   #:*sndfile-buffer-size*
    #:*bounce-to-disk-guard-size* #:*default-header-type* #:*default-data-format*
    #:*max-number-of-nodes* #:*default-table-size* #:*fade-curve*
    #:*allow-rt-memory-pool-p*
@@ -142,7 +150,8 @@
    #:with-coerce-arguments #:with-vug-inputs #:vug-input
    #:get-pointer
    #:dsp! #:dsp-debug #:all-dsp-names #:free-dsp-instances #:destroy-dsp
-   #:defsynth #:defsynth-debug #:*update-dsp-instances* #:synth #:all-synth-names
+   #:defsynth #:defsynth-debug #:*update-dsp-instances*
+   #:synth #:all-synth-names
    #:free-synth-instances #:destroy-synth
    #:current-channel
    #:foreign-float #:foreign-double
@@ -162,9 +171,9 @@
    #:phasor #:phasor-loop #:osc #:sine #:pulse #:impulse #:buzz #:gbuzz
    #:oscrq #:oscrs #:oscrc #:oscr
    ;; envelope
-   #:make-local-envelope #:make-local-linen #:make-local-perc #:make-local-cutoff
-   #:make-local-asr #:make-local-adsr #:make-local-dadsr
-   #:line #:x-line #:envgen #:node-segment #:fade-in #:fade-out
+   #:make-local-envelope #:make-local-linen #:make-local-perc
+   #:make-local-cutoff #:make-local-asr #:make-local-adsr #:make-local-dadsr
+   #:line #:x-line #:envgen #:node-segment
    ;; noise
    #:white-noise #:pink-noise #:fractal-noise #:crackle
    #:make-random-number-generator #:rand
@@ -207,47 +216,57 @@
 
 (defpackage :incudine.edf
   (:use :cl)
-  (:import-from #:alexandria #:positive-fixnum #:non-negative-fixnum #:define-constant)
-  (:import-from #:incudine.util #:*standard-optimize-settings* #:*rt-edf-heap-size*
-                #:*rt-thread* #:sample #:+sample-zero+ #:next-power-of-two
-                #:power-of-two-p #:with-spinlock-held #:rt-thread-p)
+  (:import-from #:alexandria #:positive-fixnum #:non-negative-fixnum
+                #:define-constant)
+  (:import-from #:incudine.util #:*standard-optimize-settings*
+                #:*rt-edf-heap-size* #:*rt-thread* #:sample #:+sample-zero+
+                #:next-power-of-two #:power-of-two-p #:with-spinlock-held
+                #:rt-thread-p)
   (:export #:at #:aat #:sched-loop #:flush-pending #:heap-empty-p #:heap-count
            #:last-time))
 
 (defpackage :incudine.analysis
   (:use :cl)
   (:nicknames :ana)
-  (:import-from #:alexandria #:positive-fixnum #:negative-fixnum #:non-negative-fixnum
-                #:define-constant #:with-gensyms #:ensure-symbol #:format-symbol)
+  (:import-from #:alexandria #:positive-fixnum #:negative-fixnum
+                #:non-negative-fixnum #:define-constant #:with-gensyms
+                #:ensure-symbol #:format-symbol)
   (:import-from #:cffi #:mem-ref #:null-pointer #:null-pointer-p #:foreign-free)
-  (:import-from #:incudine.util #:sample #:+sample-zero+ #:+twopi+ #:+half-pi+ #:+rtwopi+
-                #:+log001+ #:+pointer-size+ #:+foreign-sample-size+ #:+foreign-complex-size+
-                #:foreign-rt-alloc #:foreign-rt-free #:safe-foreign-rt-free #:foreign-pointer
+  (:import-from #:incudine.util #:sample #:+sample-zero+ #:+twopi+ #:+half-pi+
+                #:+rtwopi+ #:+log001+ #:+pointer-size+ #:+foreign-sample-size+
+                #:+foreign-complex-size+ #:foreign-rt-alloc #:foreign-rt-free
+                #:safe-foreign-rt-free #:foreign-pointer
                 #:alloc-multi-channel-data #:free-multi-channel-data
-                #:channel-number #:non-negative-fixnum64 #:*standard-optimize-settings*
-                #:*reduce-warnings* #:reduce-warnings #:sample->fixnum #:sample->int
+                #:channel-number #:non-negative-fixnum64
+                #:*standard-optimize-settings*
+                #:*reduce-warnings* #:reduce-warnings #:sample->fixnum
+                #:sample->int
                 #:rt-eval #:rt-thread-p)
   (:import-from #:incudine.external #:foreign-alloc-sample #:foreign-zero-sample
                 #:foreign-realloc-sample #:foreign-alloc-fft #:foreign-free-fft
-                #:make-fft-plan #:make-ifft-plan #:fft-destroy-plan #:sample-complex
-                #:sample-polar #:magnitude #:complex-to-polar #:polar-to-complex
-                #:fft-execute #:ifft-execute #:apply-window
-                #:apply-scaled-window #:apply-scaled-rectwin #:apply-zero-padding
-                #:foreign-copy #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer)
-  (:export #:analysis #:analysis-p #:analysis-time #:abuffer
+                #:make-fft-plan #:make-ifft-plan #:fft-destroy-plan
+                #:sample-complex #:sample-polar #:magnitude #:complex-to-polar
+                #:polar-to-complex
+                #:fft-execute #:ifft-execute
+                #:apply-window #:apply-scaled-window #:apply-scaled-rectwin
+                #:apply-zero-padding
+                #:foreign-copy #:%copy-from-ring-buffer
+                #:%copy-to-ring-output-buffer)
+  (:export #:analysis #:analysis-p #:analysis-time #:touch-analysis
            #:window-size #:window-function #:rectangular-window
-           #:make-abuffer #:abuffer-time #:abuffer-realpart #:abuffer-imagpart
-           #:abuffer-size #:abuffer-link #:abuffer-nbins #:abuffer-normalized-p
-           #:pvbuffer #:buffer->pvbuffer #:pvbuffer-data #:pvbuffer-size #:pvbuffer-frames
-           #:pvbuffer-channels #:pvbuffer-fft-size #:pvbuffer-block-size
-           #:pvbuffer-scale-factor
-           #:to-polar #:to-complex
-           #:fft #:fft-p #:make-fft #:nbins #:*fft-default-window-function*
+           #:abuffer #:make-abuffer #:abuffer-time #:abuffer-realpart
+           #:abuffer-imagpart #:abuffer-size #:abuffer-link #:abuffer-nbins
+           #:abuffer-normalized-p #:abuffer-polar #:abuffer-complex
+           #:resize-abuffer #:touch-abuffer
+           #:pvbuffer #:buffer->pvbuffer #:pvbuffer-data #:pvbuffer-size
+           #:pvbuffer-frames #:pvbuffer-channels #:pvbuffer-fft-size
+           #:pvbuffer-block-size #:pvbuffer-scale-factor
+           #:fft #:fft-p #:make-fft #:*fft-default-window-function*
            #:ifft #:ifft-p #:make-ifft
            #:+fft-plan-optimal+ #:+fft-plan-best+ #:+fft-plan-fast+
-           #:fft-plan #:get-fft-plan #:new-fft-plan #:remove-fft-plan #:fft-plan-list
-           #:fft-input #:ifft-output #:fft-size
-           #:transform #:compute #:resize
+           #:fft-plan #:get-fft-plan #:new-fft-plan #:remove-fft-plan
+           #:fft-plan-list #:fft-input #:ifft-output #:fft-size
+           #:compute-abuffer #:compute-fft #:compute-ifft
            #:dofft #:dofft-polar #:dofft-complex))
 
 (defpackage :incudine.gen
@@ -256,10 +275,12 @@
   (:import-from #:alexandria #:positive-fixnum #:negative-fixnum
                 #:non-negative-fixnum #:with-gensyms #:make-keyword)
   (:import-from #:cffi #:mem-ref #:mem-aref #:foreign-funcall)
-  (:import-from :incudine.util #:*standard-optimize-settings* #:*reduce-warnings*
+  (:import-from :incudine.util #:*standard-optimize-settings*
+                #:*reduce-warnings*
                 #:*sample-rate* #:+twopi+ #:+half-pi+
                 #:+foreign-sample-size+ #:with-foreign-object
-                #:foreign-pointer #:with-samples #:with-samples* #:sample #:smp-ref
+                #:foreign-pointer #:with-samples #:with-samples* #:sample
+                #:smp-ref
                 #:non-negative-sample
                 #:+sample-zero+ #:limited-sample #:sample->fixnum #:sample->int
                 #:nrt-msg)
@@ -270,38 +291,42 @@
 
 (defpackage :incudine
   (:use :cl :incudine.vug :incudine.util)
-  (:import-from #:alexandria #:positive-fixnum #:negative-fixnum #:non-negative-fixnum
+  (:import-from #:alexandria #:positive-fixnum #:negative-fixnum
+                #:non-negative-fixnum
                 #:with-gensyms #:define-constant #:ensure-symbol #:format-symbol
                 #:maphash-keys)
   (:import-from #:cffi #:foreign-type-size #:foreign-alloc #:foreign-free
                 #:with-foreign-object #:null-pointer #:null-pointer-p
                 #:mem-ref #:mem-aref #:inc-pointer #:incf-pointer)
   (:import-from #:incudine.external #:pthread-set-priority #:sndfile-to-buffer
-                #:foreign-alloc-sample #:foreign-zero-sample #:foreign-realloc-sample
-                #:foreign-alloc-fft #:foreign-free-fft
+                #:foreign-alloc-sample #:foreign-zero-sample
+                #:foreign-realloc-sample #:foreign-alloc-fft #:foreign-free-fft
                 #:sample-complex #:sample-polar #:magnitude
-                #:complex-to-polar #:polar-to-complex #:fft-execute #:ifft-execute
-                #:apply-window #:apply-scaled-window #:apply-zero-padding #:foreign-copy
+                #:complex-to-polar #:polar-to-complex
+                #:fft-execute #:ifft-execute
+                #:apply-window #:apply-scaled-window #:apply-zero-padding
+                #:foreign-copy
                 #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
                 #:rt-audio-init #:rt-audio-start #:rt-audio-stop
                 #:rt-get-input #:rt-set-output #:rt-cycle-begin #:rt-cycle-end
-                #:rt-condition-wait #:rt-transfer-to-c-thread #:rt-set-busy-state
+                #:rt-condition-wait #:rt-transfer-to-c-thread
+                #:rt-set-busy-state
                 #:rt-buffer-size #:rt-sample-rate #:rt-get-error-msg)
   (:import-from #:incudine.edf #:at #:aat #:flush-pending)
   (:import-from #:incudine.gen #:all-random-distributions #:rand-args)
   (:export
    #:init #:enable-sharp-square-bracket-syntax
    #:dsp-seq #:synth-seq
-   #:start-time #:uptime
-   #:buffer #:make-buffer #:buffer-p #:size #:frames #:channels #:data #:mask
-   #:buffer-mask #:buffer-data #:set-buffer-data #:smp-ref #:buffer-value
+   #:buffer #:make-buffer #:buffer-p #:size #:frames #:channels #:mask
+   #:buffer-mask #:buffer-data #:fill-buffer #:smp-ref #:buffer-value
    #:buffer-size #:buffer-frames #:buffer-channels #:buffer-sample-rate
    #:buffer-value #:buffer-mask #:buffer-lobits #:buffer-lomask #:buffer-lodiv
    #:buffer-file #:buffer-load #:buffer-save #:map-buffer #:map-into-buffer
    #:buffer->list
-   #:scale #:rescale #:normalize
-   #:foreign-array #:make-foreign-array #:foreign-array-data #:foreign-array-type
-   #:sample-rate #:filename #:free #:free-p #:stop #:touch
+   #:scale-buffer #:rescale-buffer #:normalize-buffer
+   #:foreign-array #:make-foreign-array #:foreign-array-data
+   #:foreign-array-type
+   #:sample-rate #:filename #:free #:free-p #:stop
    #:bus #:audio-in #:audio-out
    #:peak-info #:print-peak-info #:reset-peak-meters
    #:set-number-of-channels
@@ -316,12 +341,14 @@
    #:all-random-distributions #:rand-args
    ;; node
    #:node #:node-p #:group #:group-p #:make-group #:node-name #:node-id
-   #:next-node-id #:*node-root* #:node-release-phase-p #:gain #:node-enable-gain-p
-   #:*node-enable-gain-p* #:fade-time #:fade-curve #:*fade-time*
+   #:node-start-time #:node-uptime
+   #:next-node-id #:*node-root* #:node-release-phase-p #:node-gain
+   #:node-enable-gain-p #:*node-enable-gain-p* #:node-fade-time
+   #:node-fade-curve #:*fade-time* #:node-fade-in #:node-fade-out
    #:pause #:unpause #:pause-p #:move #:before-p #:after-p #:head-p #:tail-p
    #:node-free-all #:stop-hook #:free-hook #:dograph #:dogroup #:dump
-   #:set-control #:set-controls #:control-value #:control-getter #:control-setter
-   #:control-list #:control-names
+   #:set-control #:set-controls #:control-value #:control-getter
+   #:control-setter #:control-list #:control-names
    ;; responder
    #:get-receiver #:remove-receiver
    #:recv-start #:recv-stop #:recv-status #:recv-functions
@@ -334,14 +361,17 @@
    #:+seg-welch-func+ #:+seg-square-func+ #:+seg-cubic-func+
    #:envelope #:envelope-p #:make-envelope #:set-envelope #:envelope-points
    #:envelope-max-points #:envelope-level #:envelope-time #:envelope-curve
-   #:envelope-data #:envelope-duration #:envelope-loop-node #:envelope-release-node
+   #:envelope-data #:envelope-duration #:envelope-loop-node
+   #:envelope-release-node
    #:envelope-restart-level #:envelope-at
    #:duration #:max-points #:breakpoints->env #:freq-breakpoints->env
+   #:scale-envelope #:normalize-envelope #:rescale-envelope
    #:linen #:perc #:cutoff #:asr #:adsr #:dadsr
    #:make-linen #:make-perc #:make-cutoff #:make-asr #:make-adsr #:make-dadsr
    ;; nrt
    #:with-nrt #:bounce-to-disk #:regofile->sexp #:regofile->function
-   #:regofile->lispfile #:scofile->sexp #:scofile->function #:scofile->lispfile))
+   #:regofile->lispfile #:scofile->sexp #:scofile->function
+   #:scofile->lispfile))
 
 (defpackage :incudine.voicer
   (:use :cl)
@@ -366,7 +396,7 @@
            #:unsafe-control-value #:unsafe-get-controls #:unsafe-set-controls
            #:unsafe-define-map #:unsafe-remove-map #:unsafe-mapvoicer
            #:unsafe-panic #:midi-event #:fill-freq-vector #:fill-amp-vector
-           #:midi-bind #:event-amp-mult))
+           #:midi-bind #:scale-midi-event-amp))
 
 (defpackage :incudine.scratch
   (:use :cl :incudine :incudine.vug :incudine.util :incudine.analysis)

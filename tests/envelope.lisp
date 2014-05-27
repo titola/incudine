@@ -114,21 +114,21 @@
   (0.0 0.0 0.25 0.0 1.4 1.0 0.04 0.75 2.2 0.0)
   (-4.0 -4.0 -4.0 -4.0))
 
-(deftest envelope-scale
+(deftest scale-envelope
     (let ((env (make-envelope '(440 2500 880) '(.5 2.5))))
-      (envelope-test-1 (scale env .01)))
+      (envelope-test-1 (scale-envelope env .01)))
   (0.0 4.4 0.5 25.0 2.5 8.8)
   (:LINEAR :LINEAR))
 
-(deftest envelope-normalize
+(deftest normalize-envelope
     (let ((env (make-envelope '(440 2500 880) '(.5 2.5))))
-      (envelope-test-1 (normalize env 2)))
+      (envelope-test-1 (normalize-envelope env 2)))
   (0.0 0.35 0.5 2.0 2.5 0.7)
   (:LINEAR :LINEAR))
 
-(deftest envelope-rescale
+(deftest rescale-envelope
     (let ((env (make-envelope '(440 2500 880) '(.5 2.5))))
-      (envelope-test-1 (rescale env 220 4000)))
+      (envelope-test-1 (rescale-envelope env 220 4000)))
   (0.0 220.0 0.5 4000.0 2.5 1027.38)
   (:LINEAR :LINEAR))
 

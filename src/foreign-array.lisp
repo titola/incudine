@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -179,6 +179,3 @@
 
 (defmethod free ((obj foreign-array))
   (free-foreign-array obj))
-
-(defmethod data ((obj foreign-array))
-  (foreign-array-data obj))

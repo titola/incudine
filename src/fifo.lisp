@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -157,23 +157,6 @@
     (if (rt-thread-p)
         (nrt-funcall #'print-error)
         (print-error))))
-
-(defgeneric perform (obj))
-
-(defmethod perform ((obj fifo))
-  (declare #.*standard-optimize-settings*)
-  (loop until (fifo-empty-p obj) do
-       (let* ((next (cdr (fifo-read-head obj)))
-              (value (car next)))
-         (barrier (:memory))
-         (setf (fifo-read-head obj) next)
-         (handler-case (perform value)
-           (condition (c) (%print-condition-error c))))))
-
-(defmethod perform ((obj function))
-  (funcall obj))
-
-(defmethod perform (obj) obj)
 
 (declaim (inline fifo-perform-functions))
 (defun fifo-perform-functions (fifo)

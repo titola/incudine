@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -104,23 +104,13 @@
 (defmethod print-object ((obj vug-object) stream)
   (format stream "#<~A ~A>" (type-of obj) (vug-object-name obj)))
 
-(defgeneric init-time-p (obj))
+(declaim (inline init-time-p))
+(defun init-time-p (obj)
+  (if (vug-variable-p obj) (vug-variable-init-time-p obj) t))
 
-(defmethod init-time-p ((obj vug-parameter))
-  (declare (ignore obj))
-  t)
-
-(defmethod init-time-p ((obj vug-variable))
-  (vug-variable-init-time-p obj))
-
-(defgeneric performance-time-p (obj))
-
-(defmethod performance-time-p ((obj vug-parameter))
-  (declare (ignore obj))
-  nil)
-
-(defmethod performance-time-p ((obj vug-variable))
-  (vug-variable-performance-time-p obj))
+(declaim (inline performance-time-p))
+(defun performance-time-p (obj)
+  (if (vug-variable-p obj) (vug-variable-performance-time-p obj) nil))
 
 (declaim (inline vug))
 (defun vug (name)

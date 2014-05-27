@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -25,12 +25,12 @@
      incudine.analysis:abuffer-link
      incudine.analysis:abuffer-nbins
      incudine.analysis:rectangular-window
-     incudine.analysis:compute
+     incudine.analysis:compute-abuffer
      incudine.analysis:dofft
      incudine.analysis:dofft-polar
      incudine.analysis:dofft-complex
-     incudine.analysis:to-polar
-     incudine.analysis:to-complex
+     incudine.analysis:abuffer-polar
+     incudine.analysis:abuffer-complex
      incudine.analysis:fft-input
      incudine.analysis:ifft-output
      incudine.analysis::copy-from-ring-buffer

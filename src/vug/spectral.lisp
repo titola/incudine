@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
   "Compute the spectral centroid using moments."
   (with-samples (num denom)
     (setf num +sample-zero+ denom +sample-zero+)
-    (dofft-polar (i nbins ((compute abuf)) ()
+    (dofft-polar (i nbins ((compute-abuffer abuf)) ()
                   :result (if (zerop denom)
                               (sample 0.5)
                               (/ num (* (abuffer-nbins abuf) denom))))
@@ -50,7 +50,7 @@
        (with ((,abuf1 (vug-input ,abuf))
               (,abuf-prev (make-local-abuffer (abuffer-link ,abuf1))))
          (setf ,result +sample-zero+)
-         (dofft-polar (,i ,nbins (,abuf-prev (compute ,abuf1)) ()
+         (dofft-polar (,i ,nbins (,abuf-prev (compute-abuffer ,abuf1)) ()
                        :result ,(if l1-norm-p
                                     result
                                     `(sqrt (the non-negative-sample ,result))))
@@ -75,7 +75,7 @@
   "Compute the spectral RMS."
   (with-samples (rms)
     (setf rms +sample-zero+)
-    (dofft-polar (i nbins ((compute abuf)) ()
+    (dofft-polar (i nbins ((compute-abuffer abuf)) ()
                   :result (sqrt (the non-negative-sample
                                   (/ rms (abuffer-nbins abuf)))))
       (incf rms (* mag0 mag0)))))
@@ -84,11 +84,11 @@
   "Compute the spectral rolloff."
   (with-samples (threshold result)
     (setf result +sample-zero+)
-    (dofft-polar (i nbins ((compute abuf)) ())
+    (dofft-polar (i nbins ((compute-abuffer abuf)) ())
       (incf result mag0))
     (setf threshold (* result percent))
     (setf result +sample-zero+)
-    (dofft-polar (i nbins ((compute abuf)) ()
+    (dofft-polar (i nbins ((compute-abuffer abuf)) ()
                   :result (/ result (abuffer-nbins abuf)))
       (incf result mag0)
       (when (>= result threshold)
@@ -100,7 +100,7 @@
   (with-samples (geometric-mean arithmetic-mean)
     (setf geometric-mean +sample-zero+
           arithmetic-mean +sample-zero+)
-    (dofft-polar (i nbins ((compute abuf)) ())
+    (dofft-polar (i nbins ((compute-abuffer abuf)) ())
       ;; Sum of logarithms to avoid precision errors with the
       ;; floating point value of the magnitude.
       (incf geometric-mean (the sample (log mag0)))
