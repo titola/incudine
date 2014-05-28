@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -161,7 +161,6 @@
      ,@body
      (rt-cycle-end #+portaudio ,frames-var)
      (incudine.util::with-stop-for-gc-pending
-       #+portaudio (rt-cycle-begin)
        ;; No xruns, jack knows that lisp is busy.
        ;; The output buffer is filled with zeroes.
        (rt-transfer-to-c-thread)

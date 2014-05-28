@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -235,7 +235,7 @@
     (sample-rate       sample)
     (input-channels    :unsigned-int)
     (output-channels   :unsigned-int)
-    (frames-per-buffer :unsigned-int)
+    (frames-per-buffer :unsigned-long)
     (client-name       :pointer))
 
   (cffi:defcfun ("pa_start" rt-audio-start) :int)
@@ -243,11 +243,11 @@
   (cffi:defcfun ("pa_stop" rt-audio-stop) :int)
 
   (declaim (inline rt-cycle-begin))
-  (cffi:defcfun ("pa_cycle_begin" rt-cycle-begin) :unsigned-int)
+  (cffi:defcfun ("pa_cycle_begin" rt-cycle-begin) :unsigned-long)
 
   (declaim (inline rt-cycle-end))
   (cffi:defcfun ("pa_cycle_end" rt-cycle-end) :void
-    (nframes :unsigned-int))
+    (nframes :unsigned-long))
 
   (declaim (inline rt-condition-wait))
   (cffi:defcfun ("pa_condition_wait" rt-condition-wait) :void)

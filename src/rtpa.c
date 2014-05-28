@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Tito Latini
+ * Copyright (c) 2013-2014 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,12 +41,10 @@ static void *pa_process_thread(void *arg)
 
         while(pa_status == PA_RUNNING) {
                 if (pa_lisp_busy) {
-                        memset(pa_outputs_anchor, 0, pa_outbuf_bytes);
-                        pa_cycle_end(frames_per_buffer);
                         pa_cycle_begin();
-                } else {
                         memset(pa_outputs_anchor, 0, pa_outbuf_bytes);
                         pa_cycle_end(frames_per_buffer);
+                } else {
                         /*
                          * Transfer the control of the client to lisp realtime
                          * thread and block the current thread.
@@ -95,7 +93,7 @@ int pa_get_buffer_size(void)
 }
 
 int pa_initialize(SAMPLE srate, unsigned int input_channels,
-                  unsigned int output_channels, unsigned int nframes,
+                  unsigned int output_channels, unsigned long nframes,
                   const char* client_name)
 {
         PaStreamParameters input_param, *iparam = NULL;
@@ -155,7 +153,8 @@ int pa_initialize(SAMPLE srate, unsigned int input_channels,
                 Pa_Terminate();
                 return 1;
         }
-        pa_outbuf_bytes = nframes * output_channels * sizeof(float);
+        pa_frame_bytes = output_channels * sizeof(float);
+        pa_outbuf_bytes = nframes * pa_frame_bytes;
         pa_outputs = (float *) malloc(pa_outbuf_bytes);
         if (pa_outputs == NULL) {
                 pa_set_error_msg("malloc of output buffer failed");
@@ -215,20 +214,32 @@ int pa_stop(void *arg)
         return err;
 }
 
-unsigned int pa_cycle_begin(void)
+unsigned long pa_cycle_begin(void)
 {
+        signed long nframes;
+
         if (pa_status != PA_RUNNING)
                 return 0;
 
         pa_inputs = pa_inputs_anchor;
-        Pa_ReadStream(stream, pa_inputs, frames_per_buffer);
-        return frames_per_buffer;
+        if ((nframes = Pa_GetStreamReadAvailable(stream)) < 0)
+                return 0;
+        else if (nframes == 0 || nframes > frames_per_buffer)
+                nframes = frames_per_buffer;
+
+        /* Blocking only when Pa_GetStreamReadAvailable returns zero. */
+        Pa_ReadStream(stream, pa_inputs, nframes);
+        return nframes;
 }
 
-void pa_cycle_end(unsigned int nframes)
+void pa_cycle_end(unsigned long nframes)
 {
+        signed long remain;
+
+        if ((remain = frames_per_buffer - nframes) > 0)
+                memset(pa_outputs, 0, remain * pa_frame_bytes); /* zero padding */
         pa_outputs = pa_outputs_anchor;
-        Pa_WriteStream(stream, pa_outputs, nframes);
+        Pa_WriteStream(stream, pa_outputs, frames_per_buffer);
 }
 
 void pa_get_input(SAMPLE *inputs)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Tito Latini
+ * Copyright (c) 2013-2014 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,11 +35,12 @@ enum {
 
 #define PA_ERROR_MSG_MAX_LENGTH  (256)
 
-static unsigned int pa_in_channels, pa_out_channels, frames_per_buffer;
+static unsigned int pa_in_channels, pa_out_channels;
+static unsigned long frames_per_buffer;
 static float *pa_inputs, *pa_outputs;
 static float *pa_inputs_anchor, *pa_outputs_anchor;
 static PaStream *stream;
-static size_t pa_outbuf_bytes;
+static size_t pa_outbuf_bytes, pa_frame_bytes;
 static int pa_status = PA_STOPPED;
 static int pa_lisp_busy;
 static char pa_error_msg[PA_ERROR_MSG_MAX_LENGTH];
@@ -72,12 +73,12 @@ void pa_set_lisp_busy_state(int status);
 void pa_transfer_to_c_thread(void);
 int pa_get_buffer_size(void);
 int pa_initialize(SAMPLE srate, unsigned int input_channels,
-                  unsigned int output_channels, unsigned int nframes,
+                  unsigned int output_channels, unsigned long nframes,
                   const char* client_name);
 int pa_start(void);
 int pa_stop(void *arg);
-unsigned int pa_cycle_begin(void);
-void pa_cycle_end(unsigned int nframes);
+unsigned long pa_cycle_begin(void);
+void pa_cycle_end(unsigned long nframes);
 void pa_get_input(SAMPLE *inputs);
 void pa_set_output(SAMPLE *outputs);
 
