@@ -56,7 +56,6 @@
                     (rt-params-priority *rt-params*)
                     "realtime thread started")
     (call-hooks "rt-thread-start" *rt-thread-start-hook* :on-error :warn)
-    (tg:gc :full t)
     (cond ((and (zerop (rt-audio-init
                         *sample-rate*
                         *number-of-input-bus-channels*
@@ -94,6 +93,7 @@
     (init)
     (nrt-start)
     (set-foreign-client-name *client-name*)
+    (tg:gc :full t)
     (make-rt-thread)
     (sleep .1)
     (setf (rt-params-status *rt-params*)
