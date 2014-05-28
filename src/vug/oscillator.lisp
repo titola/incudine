@@ -190,6 +190,9 @@
                   (type foreign-pointer ,data))
          (initialize (setf ,nh1 (max 1 (abs ,num-harm))
                            ,two-nh-plus-one (1+ (* 2 ,nh1))))
+         ;; Expand here and not in the next UNLESS form if the
+         ;; amplitude is modulated
+         (maybe-expand ,mult0 ,mult1)
          (%osc-phase-modulation ,phs ,phase ,phase-modulation-p)
          (let ((,index (the fixnum (ash ,phs ,minus-lobits))))
            (unless (or (= ,old-num-harm ,num-harm)
@@ -252,6 +255,9 @@
                      old-two-nh-plus-one two-nh-plus-one))
       (initialize (setf nh1 (max 1 (abs num-harm))
                         two-nh-plus-one (1+ (* 2 nh1))))
+      ;; Expand here and not in the next UNLESS form if the amplitude
+      ;; is modulated
+      (maybe-expand mult0 mult1)
       (unless (or (= old-num-harm num-harm)
                   (plusp count))
           (setf old-num-harm num-harm
