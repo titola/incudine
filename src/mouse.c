@@ -30,8 +30,8 @@ int mouse_init(void)
                 req_time.tv_nsec = MOUSE_LOOP_WAIT_NSEC;
                 win = DefaultRootWindow(disp);
                 XGetWindowAttributes(disp, win, &win_attrib);
-                width = 1.0 / (SAMPLE)win_attrib.width;
-                height = 1.0 / (SAMPLE)win_attrib.height;
+                xmult = 1.0 / (SAMPLE)(win_attrib.width - 1);
+                ymult = 1.0 / (SAMPLE)(win_attrib.height - 1);
                 return 0;
         }
         return -1;
@@ -43,8 +43,8 @@ int mouse_loop_start(struct mouse_event *ev)
         while (mouse_status) {
                 XQueryPointer(disp, win, &root_ret, &child_ret, &root_x_ret,
                               &root_y_ret, &win_x_ret, &win_y_ret, &mask_ret);
-                ev->x = (SAMPLE)win_x_ret * width;
-                ev->y = 1.0 - ((SAMPLE)win_y_ret * height);
+                ev->x = (SAMPLE) win_x_ret * xmult;
+                ev->y = 1.0 - ((SAMPLE) win_y_ret * ymult);
                 ev->button = (int)(mask_ret & Button1Mask) > 0;
                 nanosleep(&req_time, &rem_time);
         }

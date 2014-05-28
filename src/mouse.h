@@ -45,7 +45,7 @@ static int root_x_ret, root_y_ret;
 static int win_x_ret, win_y_ret;
 static int mouse_status = MOUSE_NOINIT;
 static unsigned int mask_ret;
-static SAMPLE width, height;
+static SAMPLE xmult, ymult;
 static struct timespec req_time, rem_time;
 
 int mouse_init(void);
