@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -15,6 +15,18 @@
 ;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 (in-package :incudine.vug)
+
+(defmacro done-action (action)
+  `(funcall ,action (dsp-node)))
+
+(defmacro done-self ()
+  `(incudine::node-done-p (dsp-node)))
+
+(defmacro free-self ()
+  `(incudine:free (dsp-node)))
+
+(defmacro free-self-when-done ()
+  `(when (done-self) (free-self)))
 
 ;;; A FRAME is a foreign array of SAMPLE type, useful to efficiently
 ;;; store and return multiple values from a VUG

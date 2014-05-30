@@ -141,7 +141,7 @@
   (:import-from #:alexandria #:positive-fixnum #:negative-fixnum
                 #:non-negative-fixnum #:non-positive-fixnum #:with-gensyms
                 #:define-constant #:ensure-symbol #:format-symbol #:make-keyword
-                #:maphash-values)
+                #:maphash-values #:nreversef)
   (:import-from #:cffi #:foreign-type-size #:mem-ref #:mem-aref
                 #:make-pointer #:pointer-address #:inc-pointer)
   (:export
