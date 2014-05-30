@@ -47,8 +47,7 @@
 
 (declaim (inline %%make-buffer))
 (defun %%make-buffer (frames channels sample-rate real-time-p)
-  (let* ((size (the non-negative-fixnum
-                 (* frames channels)))
+  (let* ((size (the non-negative-fixnum (* frames channels)))
          (data (if real-time-p
                    (foreign-rt-alloc 'sample :count size :zero-p t)
                    (foreign-alloc-sample size)))
@@ -94,8 +93,7 @@
 (defun set-buffer-value (buffer index value)
   (declare (type buffer buffer) (type non-negative-fixnum index)
            (type real value))
-  (setf (smp-ref (buffer-data buffer) index)
-        (sample value)))
+  (setf (smp-ref (buffer-data buffer) index) (sample value)))
 
 (defsetf buffer-value set-buffer-value)
 
@@ -105,7 +103,7 @@ Returns T and the number of the counted values, or NIL if the file is
 not valid.
 
 There is not the parsing of the numbers, a text file is valid if it
-contains numbers or spaces or tabs or newlines.
+contains numbers separated with spaces, tabs or newlines.
 
 It is possible to use line comments that begin with the `;' char."
   (flet ((valid-char-p (code)
@@ -123,8 +121,7 @@ It is possible to use line comments that begin with the `;' char."
             while code do
            (when (= code 59)
              ;; Skip line comment
-             (unless sep
-               (setf sep t))
+             (unless sep (setf sep t))
              (loop do (setf code (read-byte f nil nil))
                    until (newline-p code)))
            (if (valid-char-p code)
@@ -132,8 +129,7 @@ It is possible to use line comments that begin with the `;' char."
                    (unless (separator-p code)
                      (setf sep nil)
                      (incf count))
-                   (if (separator-p code)
-                       (setf sep t)))
+                   (if (separator-p code) (setf sep t)))
                (return (values nil count)))
             finally (return (values t count))))))
 
@@ -143,28 +139,26 @@ It is possible to use line comments that begin with the `;' char."
       ;; Skip the first OFFSET frames
       (loop for frame from 0
             while (< frame offset) do
-           (dotimes (ch channels)
-             (read f nil nil))))
+           (loop repeat channels do (read f nil nil))))
     (let ((*read-default-float-format* *sample-type*))
       (loop with count = buffer-start
             while (< count size) do
-           (dotimes (ch channels)
-             (let ((value (read f nil nil)))
-               (setf (buffer-value buffer count)
-                     (typecase value
-                       (number value)
-                       (null +sample-zero+)
-                       (t (nrt-msg warn "bad value (~A) in ~A" value path)
-                          +sample-zero+))))
-             (incf count))))))
+           (loop repeat channels do
+                (flet ((check-value (x)
+                         (typecase x
+                           (number x)
+                           (null +sample-zero+)
+                           (t (nrt-msg warn "bad value (~A) in ~A" x path)
+                              +sample-zero+))))
+                  (setf (buffer-value buffer count)
+                        (check-value (read f nil nil))))
+                (incf count))))))
 
-(defun buffer-load-textfile (path &key (offset 0) frames (channels 1)
-                             (sample-rate *sample-rate*))
-  (multiple-value-bind (valid-p size)
-      (check-numeric-textfile path)
+(defun buffer-load-textfile (path offset frames channels sample-rate)
+  (multiple-value-bind (valid-p size) (check-numeric-textfile path)
     (when valid-p
-      (let* ((offset (if (floatp offset) (sample->fixnum offset) offset))
-             (channels (if (plusp channels) channels 1))
+      (let* ((offset (if (floatp offset) (floor offset) offset))
+             (channels (max channels 1))
              (frames (or frames (- (ceiling (/ size channels)) offset))))
         (when (plusp frames)
           (let ((buf (make-buffer frames :channels channels
@@ -182,11 +176,8 @@ It is possible to use line comments that begin with the `;' char."
        (sf:with-open (,var ,path ,@rest)
          (if (sf:sndfile-null-p ,var)
              ;; Try to load a text file
-             (or (buffer-load-textfile ,path :offset ,offset
-                                       :frames ,frames
-                                       :channels (or ,channels 1)
-                                       :sample-rate (or ,sample-rate
-                                                        *sample-rate*))
+             (or (buffer-load-textfile ,path ,offset ,frames (or ,channels 1)
+                                       (or ,sample-rate *sample-rate*))
                  (nrt-msg error (sf:strerror ,var)))
              ,@body))
        (nrt-msg error "file ~S not found" (namestring ,path))))
@@ -195,14 +186,12 @@ It is possible to use line comments that begin with the `;' char."
                     sample-rate)
   (declare (type (or string pathname) path) (type fixnum channel))
   (with-open-sndfile (sf path offset frames channels sample-rate)
-    (let* ((offset (if (floatp offset) (sample->fixnum offset) offset))
+    (let* ((offset (if (floatp offset) (floor offset) offset))
            (info (sf:info sf))
            (channels (sf:channels info))
            (%frames (- (sf:frames info) offset))
            (frames (if frames
-                       (min (if (floatp frames)
-                                (sample->fixnum frames)
-                                frames)
+                       (min (if (floatp frames) (floor frames) frames)
                             %frames)
                        %frames)))
       (declare (type non-negative-fixnum %frames frames channels offset))
@@ -217,15 +206,13 @@ It is possible to use line comments that begin with the `;' char."
                                  frames channels 0 *sndfile-buffer-size*)
               ;; The buffer is mono
               (let ((channel-map `((,(min channel (1- channels)) 0))))
-                (map-sndfile-ch-to-buffer (buffer-data buffer) sf frames channels
-                                          (buffer-channels buffer) 0
+                (map-sndfile-ch-to-buffer (buffer-data buffer) sf frames
+                                          channels (buffer-channels buffer) 0
                                           *sndfile-buffer-size* channel-map 1)))
           (setf (buffer-file buffer)
                 (if (pathnamep path) path (pathname path)))
-          (locally
-              (declare #.*reduce-warnings*)
-              (setf (buffer-sample-rate buffer)
-                    (sample (sf:sample-rate info))))
+          (reduce-warnings
+            (setf (buffer-sample-rate buffer) (sample (sf:sample-rate info))))
           buffer)))))
 
 (defmacro writef-sample (sndfile ptr items)
@@ -271,35 +258,35 @@ It is possible to use line comments that begin with the `;' char."
 
 (defmethod free ((obj buffer))
   (unless (free-p obj)
-    (funcall (buffer-foreign-free obj)
-             (buffer-data obj))
+    (funcall (buffer-foreign-free obj) (buffer-data obj))
     (tg:cancel-finalization obj)
     (setf (buffer-data obj) (null-pointer))
     (values)))
 
 ;;; FUNCTION has two arguments: the index and the value of the buffer
 (defun map-buffer (function buffer)
-  (declare #.*standard-optimize-settings*
-           (type function function) (type buffer buffer)
-           #.*reduce-warnings*)
+  (declare #.*standard-optimize-settings* #.*reduce-warnings*
+           (type function function) (type buffer buffer))
   (dotimes (i (buffer-size buffer) buffer)
-    (setf #1=(buffer-value buffer i)
-          (funcall function i #1#))))
+    (setf #1=(buffer-value buffer i) (funcall function i #1#))))
 
 ;;; Like MAP-INTO but for the BUFFERs
 (defun map-into-buffer (result-buffer function &rest buffers)
-  (declare #.*standard-optimize-settings*
-           (type function function) (type buffer result-buffer)
-           #.*reduce-warnings*)
+  (declare #.*standard-optimize-settings* #.*reduce-warnings*
+           (type function function) (type buffer result-buffer))
   (let ((size (reduce #'min
                       (mapcar #'buffer-size (cons result-buffer buffers)))))
     (declare (type non-negative-fixnum size))
-    (dotimes (i size result-buffer)
-      (setf (buffer-value result-buffer i)
-            (reduce function
-                    (mapcar (lambda (x) (buffer-value x i))
-                            buffers))))))
+    (flet ((compute-value (i)
+             (cond ((null buffers) (funcall function))
+                   ((cdr buffers)
+                    (reduce function
+                            (mapcar (lambda (x) (buffer-value x i)) buffers)))
+                   (t (funcall function (buffer-value (car buffers) i))))))
+      (dotimes (i size result-buffer)
+        (setf (buffer-value result-buffer i) (compute-value i))))))
 
+(declaim (inline scale-buffer))
 (defun scale-buffer (buffer mult)
   (declare (type buffer buffer) (type real mult))
   (map-buffer (lambda (index value)
@@ -330,8 +317,7 @@ It is possible to use line comments that begin with the `;' char."
                (declare (type non-negative-fixnum index)
                         (type sample old-min old-max))
                (if (= index size)
-                   (values (/ (sample 1) (- old-max old-min))
-                           old-min)
+                   (values (/ (sample 1) (- old-max old-min)) old-min)
                    (let ((value (smp-ref data index)))
                      (resc (1+ index)
                            (min value old-min)
@@ -351,8 +337,7 @@ It is possible to use line comments that begin with the `;' char."
 (defun set-buffer-from-textfile (buffer path start buffer-start buffer-end)
   (declare (type (or string pathname)) (type buffer buffer)
            (type non-negative-fixnum start buffer-start buffer-end))
-  (multiple-value-bind (valid-p size)
-      (check-numeric-textfile path)
+  (multiple-value-bind (valid-p size) (check-numeric-textfile path)
     (when valid-p
       (let* ((channels (buffer-channels buffer))
              (frames (min (- buffer-end buffer-start)
@@ -364,7 +349,6 @@ It is possible to use line comments that begin with the `;' char."
                                   channels (+ buffer-start
                                               (* frames channels))))))))
 
-(declaim (inline check-channel-map))
 (defun check-channel-map (cmap cmap-size sf-channels buf-channels)
   (declare (type list cmap)
            (type positive-fixnum cmap-size sf-channels buf-channels))
@@ -373,19 +357,21 @@ It is possible to use line comments that begin with the `;' char."
         ((> cmap-size buf-channels)
          (nrt-msg error "channel-map size greater than buffer channels"))
         ((some (lambda (x)
-                 (cond ((>= (the non-negative-fixnum (first x))
-                            sf-channels)
-                        (nrt-msg error "wrong channel-map; max value for the source is ~D"
-                                 (1- sf-channels)) t)
-                       ((>= (the non-negative-fixnum (second x))
-                            buf-channels)
-                        (nrt-msg error "wrong channel-map; max value for the destination is ~D"
-                                 (1- buf-channels)) t)))
+                 (cond
+                   ((>= (the non-negative-fixnum (first x)) sf-channels)
+                    (nrt-msg error
+                             "wrong channel-map; max value for the source is ~D"
+                             (1- sf-channels)) t)
+                   ((>= (the non-negative-fixnum (second x)) buf-channels)
+                    (nrt-msg error
+                             "wrong channel-map; max value for the destination is ~D"
+                             (1- buf-channels)) t)))
                cmap))
         (t t)))
 
 (defun map-sndfile-ch-to-buffer (data sndfile frames channels buf-channels
-                                 data-offset chunk-size channel-map channel-map-size)
+                                 data-offset chunk-size channel-map
+                                 channel-map-size)
   (cffi:with-foreign-object (dest :int (* 2 channel-map-size))
     (let ((src (cffi:inc-pointer dest
                                  (the non-negative-fixnum
@@ -424,24 +410,28 @@ It is possible to use line comments that begin with the `;' char."
                   (sf:seek sf start 0)
                   (cond (channel-map
                          (let ((channel-map-size (length channel-map)))
-                           (when (check-channel-map channel-map channel-map-size channels
-                                   (buffer-channels buffer))
-                             (map-sndfile-ch-to-buffer (buffer-data buffer) sf selected-frames
-                               channels (buffer-channels buffer)
-                               buffer-start *sndfile-buffer-size*
-                               channel-map channel-map-size))))
+                           (when (check-channel-map channel-map channel-map-size
+                                                    channels
+                                                    (buffer-channels buffer))
+                             (map-sndfile-ch-to-buffer
+                               (buffer-data buffer) sf selected-frames
+                               channels (buffer-channels buffer) buffer-start
+                               *sndfile-buffer-size* channel-map
+                               channel-map-size))))
                         ((= (buffer-channels buffer) channels)
-                         (sndfile-to-buffer (buffer-data buffer) sf selected-frames
-                                            channels buffer-start *sndfile-buffer-size*))
-                        (t (let ((channel-map (loop for src below channels
-                                                    for dest below (buffer-channels buffer)
-                                                    collect `(,src ,dest))))
+                         (sndfile-to-buffer (buffer-data buffer) sf
+                                            selected-frames channels
+                                            buffer-start *sndfile-buffer-size*))
+                        (t (let ((channel-map
+                                  (loop for src below channels
+                                        for dest below (buffer-channels buffer)
+                                        collect `(,src ,dest))))
                              (nrt-msg debug "use channel-map ~A" channel-map)
-                             (map-sndfile-ch-to-buffer (buffer-data buffer) sf selected-frames
-                               channels (buffer-channels buffer)
-                               buffer-start *sndfile-buffer-size*
-                               channel-map (min channels
-                                                (buffer-channels buffer))))))))))
+                             (map-sndfile-ch-to-buffer
+                               (buffer-data buffer) sf selected-frames
+                               channels (buffer-channels buffer) buffer-start
+                               *sndfile-buffer-size* channel-map
+                               (min channels (buffer-channels buffer))))))))))
         buffer)
       (nrt-msg error "file ~S not found" (namestring path))))
 
@@ -456,30 +446,28 @@ It is possible to use line comments that begin with the `;' char."
                            for ,j ,clause ,seq
                            for ,max = 0 then (max ,j ,max) do
                           (setf (buffer-value buffer ,i) ,j)
-                         finally (when (and normalize-p (/= ,max 1))
-                                   (loop for ,i from start below end
-                                         for ,j ,clause ,seq
-                                         with ,scale = (/ 1.0 ,max) do
-                                        (setf (buffer-value buffer ,i)
-                                              (* (buffer-value buffer ,i) ,scale)))))))))
+                           finally (when (and normalize-p (/= ,max 1))
+                                     (loop for ,i from start below end
+                                           for ,j ,clause ,seq
+                                           with ,scale = (/ 1.0 ,max) do
+                                          (setf (buffer-value buffer ,i)
+                                                (* (buffer-value buffer ,i)
+                                                   ,scale)))))))))
     (let ((size (buffer-size buffer)))
       (when (and (free-p buffer) (plusp size))
         (setf (buffer-data buffer) (foreign-alloc-sample (buffer-size buffer))))
       (unless (free-p buffer)
         (cond ((functionp values)
-               (let ((chunk-size (- (if end (min end size) size)
-                                    start)))
+               (let ((chunk-size (- (if end (min end size) size) start)))
                  (when (plusp chunk-size)
                    (multiple-value-bind (c-array mult norm-p)
-                       (funcall values (inc-pointer
-                                        (buffer-data buffer)
-                                        (* start +foreign-sample-size+))
+                       (funcall values (inc-pointer (buffer-data buffer)
+                                                    (* start
+                                                       +foreign-sample-size+))
                                 chunk-size)
                      (declare (ignore c-array))
                      (let ((norm-p (if normalize-pp normalize-p norm-p)))
-                       (when (and norm-p
-                                  (numberp mult)
-                                  (/= mult 1))
+                       (when (and norm-p (numberp mult) (/= mult 1))
                          (scale-buffer buffer mult)))))))
               ((consp values) (loop-sequence in values))
               ((or (stringp values) (pathnamep values))
