@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -33,9 +33,7 @@
       `(cond ,@(loop for value in values
                      for chan from 0
                      collect `((= current-channel ,chan)
-                               ,(if (numberp value)
-                                    (sample value)
-                                    value)))
+                               ,(if (numberp value) (sample value) value)))
              (t +sample-zero+))
       `(sample ,(car values))))
 
@@ -47,18 +45,15 @@
             (setf (incudine::node-enable-gain-p (dsp-node)) t)))
        (incf (incudine:audio-out current-channel)
              ,(if incudine:*node-enable-gain-p*
-                  `(* (mem-aref
-                       (incudine::node-gain-data (dsp-node)) 'sample)
+                  `(* (mem-aref (incudine::node-gain-data (dsp-node)) 'sample)
                       ,node-value)
                   node-value))
        (values))))
 
 (define-vug-macro node-out (&rest values)
   `(progn
-     (initialize
-      (setf (incudine::node-enable-gain-p (dsp-node)) t))
+     (initialize (setf (incudine::node-enable-gain-p (dsp-node)) t))
      (incf (audio-out current-channel)
-           (* (mem-aref
-               (incudine::node-gain-data (dsp-node)) 'sample)
+           (* (mem-aref (incudine::node-gain-data (dsp-node)) 'sample)
               (%cout ,@values)))
      (values)))

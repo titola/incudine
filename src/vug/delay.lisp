@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -74,12 +74,15 @@
                   (type non-negative-fixnum ,isamps ,dt ,wr-index ,mask)
                   (type sample ,dsamps) (type foreign-pointer ,data))
          (let ((,rd-index (logand (the fixnum (- ,wr-index ,dt)) ,mask)))
-           ,@(when wr-index-var `((setq (external-variable ,wr-index-var) ,wr-index)))
+           ,@(when wr-index-var `((setq (external-variable ,wr-index-var)
+                                        ,wr-index)))
            (prog1
-             (select-delay-interp ,interpolation ,dsamps ,isamps ,data ,rd-index ,mask)
+             (select-delay-interp ,interpolation ,dsamps ,isamps ,data ,rd-index
+                                  ,mask)
              (setf (smp-ref ,data ,wr-index) ,in)
-             (setf ,wr-index (the non-negative-fixnum
-                               (if (>= ,wr-index ,mask) 0 (1+ ,wr-index))))))))))
+             (setf ,wr-index
+                   (the non-negative-fixnum
+                     (if (>= ,wr-index ,mask) 0 (1+ ,wr-index))))))))))
 
 (define-vug-macro vtap (buffer delay-time wr-index-var &optional interpolation)
   (with-gensyms (%buffer dsamps isamps mask dt data rd-index)
@@ -95,7 +98,8 @@
        (let ((,rd-index (logand (the fixnum
                                   (- (external-variable ,wr-index-var) ,dt))
                                 ,mask)))
-         (select-delay-interp ,interpolation ,dsamps ,isamps ,data ,rd-index ,mask)))))
+         (select-delay-interp ,interpolation ,dsamps ,isamps ,data ,rd-index
+                              ,mask)))))
 
 ;;; Delay line with local ring buffer and without interpolation
 (define-vug delay-s (in (max-delay-samples non-negative-fixnum)
@@ -137,7 +141,8 @@
                          (,in1 (* ,b0 ,in0)))
          (declare (type sample ,in0 ,in1))
          (+ ,in1
-            (* ,bM (vdelay ,in0 ,max-delay-time ,delay-time ,interpolation)))))))
+            (* ,bM (vdelay ,in0 ,max-delay-time ,delay-time
+                           ,interpolation)))))))
 
 ;;; Feed Back Comb Filter
 (define-vug-macro fb-comb (in max-delay-time delay-time coef
@@ -152,8 +157,7 @@
   (with-samples (y dx)
     (prog1 y
       (setf y (+ (* (- gain) in) dx))
-      (setf dx (delay (+ in (* gain y))
-                      max-delay-time delay-time)))))
+      (setf dx (delay (+ in (* gain y)) max-delay-time delay-time)))))
 
 ;;; Allpass filter with interpolation of the delay line
 (define-vug-macro vallpass (in max-delay-time delay-time gain
@@ -163,5 +167,5 @@
       `(with-samples (,y ,dx)
          (let ((,%in ,in) (,%gain ,gain))
            (prog1 (setf ,y (+ (* (- ,%gain) ,%in) ,dx))
-             (setf ,dx (vdelay (+ ,%in (* ,%gain ,y)) ,max-delay-time ,delay-time
-                               ,interpolation))))))))
+             (setf ,dx (vdelay (+ ,%in (* ,%gain ,y)) ,max-delay-time
+                               ,delay-time ,interpolation))))))))

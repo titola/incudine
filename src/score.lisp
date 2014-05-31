@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -71,10 +71,10 @@
 (defun score-skip-line-p (line)
   (declare (type string line))
   (let ((non-blank (find-if-not #'blank-char-p line)))
-    (or (null non-blank)
-        (char= non-blank #\;))))
+    (or (null non-blank) (char= non-blank #\;))))
 
-(defmacro %at-sample (at-var time-at-var offset env beats func-symbol &rest args)
+(defmacro %at-sample (at-var time-at-var offset env beats func-symbol
+                      &rest args)
   `(,at-var (+ ,offset (* *sample-rate*
                           (,time-at-var ,env (setf ,at-var (sample ,beats)))))
        #',func-symbol ,@args))
@@ -187,12 +187,14 @@
                                      `((list ,(car args) ,(car args)) '(0))))))
                  (prog*
                    ,@(with-open-file (score path)
-                       (append (find-score-local-bindings score at time-at)
-                               (loop for line of-type (or string null)
-                                              = (read-score-line score)
-                                     while line
-                                     unless (score-skip-line-p line)
-                                     collect (score-line->sexp line at time-at)))))))))))))
+                       (append
+                         (find-score-local-bindings score at time-at)
+                         (loop for line of-type (or string null)
+                                        = (read-score-line score)
+                               while line
+                               unless (score-skip-line-p line)
+                               collect (score-line->sexp line at
+                                                         time-at)))))))))))))
 
 (declaim (inline regofile->function))
 (defun regofile->function (path &optional fname)
@@ -200,11 +202,9 @@
 
 (defun regofile->lispfile (rego-file &optional fname lisp-file)
   (declare (type (or pathname string null) rego-file lisp-file))
-  (let ((lisp-file (or lisp-file
-                       (make-pathname :defaults rego-file
-                                      :type "cudo"))))
-    (with-open-file (lfile lisp-file :direction :output
-                     :if-exists :supersede)
+  (let ((lisp-file (or lisp-file (make-pathname :defaults rego-file
+                                                :type "cudo"))))
+    (with-open-file (lfile lisp-file :direction :output :if-exists :supersede)
       (write (regofile->sexp rego-file fname) :stream lfile :gensym nil)
       (terpri lfile)
       (msg debug "convert ~A -> ~A" rego-file lisp-file)

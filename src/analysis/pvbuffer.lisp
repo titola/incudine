@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -48,8 +48,7 @@
 
 (declaim (inline number-of-partitions))
 (defun number-of-partitions (frames partsize)
-  (declare (type non-negative-fixnum frames partsize)
-           #.*reduce-warnings*)
+  (declare (type non-negative-fixnum frames partsize) #.*reduce-warnings*)
   (ceiling (/ frames partsize)))
 
 (defmacro foreach-pvbuffer-channel ((pvbuf-var pvbuf-ptr-var pvbuf-pos-var
@@ -113,15 +112,14 @@
                                :channels channels :fft-size fft-size
                                :scale-factor (fft-scale-factor fft)
                                :block-size block-size))))
-    (declare (type non-negative-fixnum channels partitions fft-size
-                   block-size size)
+    (declare (type non-negative-fixnum channels partitions fft-size block-size
+                   size)
              #.*standard-optimize-settings*)
-    (tg:finalize obj (lambda ()
-                       (free-multi-channel-data data channels)))
+    (tg:finalize obj (lambda () (free-multi-channel-data data channels)))
     (foreach-pvbuffer-channel (obj pvbuf-ptr pvbpos bpos start channels)
       (foreach-pvbuffer-frame obj
-        (fft-input-from-buffer-partition fft-inbuf fft-size partsize
-                                         bdata bsize bpos channels)
+        (fft-input-from-buffer-partition fft-inbuf fft-size partsize bdata bsize
+                                         bpos channels)
         (fft-execute (fft-plan fft) fft-inbuf fft-outbuf)
         (fft-output-to-pvbuffer-frame fft-outbuf pvbuf-ptr pvbpos block-size)))
     (free fft)

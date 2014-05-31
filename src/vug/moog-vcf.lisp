@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -50,7 +50,8 @@
           (setf tanh-1 (tanh (* stage1 +moogladder-thermal+)))
           (incf stage2 (* tune (- tanh-1 tanh-2)))
           (setf tanh-2 (tanh (* stage2 +moogladder-thermal+)))
-          (incf stage3 (* tune (- tanh-1 (tanh (* stage3 +moogladder-thermal+)))))
+          (incf stage3 (* tune (- tanh-1 (tanh (* stage3
+                                                  +moogladder-thermal+)))))
           ;; 1/2-sample delay for phase compensation
           (setf y0 (* (+ stage3 y1) 0.5))
           (setf y1 stage3))
@@ -61,8 +62,7 @@
 ;;; ICMC07, Copenhagen.
 (define-vug moogff (in freq resonance (reset-p boolean))
   (with-samples (y s s1 s2 s3 s4 u past future)
-    (with ((wc (* 2.0 (tan (* freq *pi-div-sr*))
-                  *sample-rate*))
+    (with ((wc (* 2.0 *sample-rate* (tan (* freq *pi-div-sr*))))
            (wct (if (plusp wc) (* *sample-duration* wc) +sample-zero+))
            (b0 (/ wct (+ wct 2.0)))
            (b0b0 (* b0 b0))

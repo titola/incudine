@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -46,13 +46,10 @@
        (declare (sb-int:truly-dynamic-extent ,got-it))
        (without-interrupts
          (unwind-protect
-              (when (setq ,got-it
-                          (sb-sys:allow-with-interrupts
-                            (acquire-spinlock ,place)))
-                (sb-sys:with-local-interrupts
-                  ,@body))
-           (when ,got-it
-             (release-spinlock ,place)))))))
+              (when (setq ,got-it (sb-sys:allow-with-interrupts
+                                    (acquire-spinlock ,place)))
+                (sb-sys:with-local-interrupts ,@body))
+           (when ,got-it (release-spinlock ,place)))))))
 
 #-sbcl
 (defmacro with-spinlock-held ((place) &body body)

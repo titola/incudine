@@ -290,9 +290,6 @@
          (t (remove-wrapped-parens vug-block)))
    nil t))
 
-(defmacro vug-format-symbol (control &rest args)
-  `(format-symbol :incudine.vug ,control ,@args))
-
 (macrolet (;; Add and count the variables with the foreign TYPE
            (define-add-*-variables (type)
              `(defmacro ,(vug-format-symbol "ADD-~A-VARIABLES" type) (counter)

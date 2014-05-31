@@ -71,8 +71,7 @@
 
 (defun make-node (id index)
   (let ((obj (%make-node :id id :index index)))
-    (when id
-      (setf (node-hash obj) (int-hash id)))
+    (when id (setf (node-hash obj) (int-hash id)))
     ;; default level
     (setf (smp-ref (node-gain-data obj) 0) (sample 1))
     ;; default curve
@@ -127,25 +126,20 @@
 ;;; Next node not in pause
 (defun unpaused-node-next (curr)
   (declare (type node curr))
-  (when (and (group-p curr)
-             (node-p (node-last curr)))
+  (when (and (group-p curr) (node-p (node-last curr)))
     (setf curr (node-last curr)))
   (let ((next (node-next curr)))
     (if (node-p next)
-        (if (node-pause-p next)
-            (unpaused-node-next next)
-            next))))
+        (if (node-pause-p next) (unpaused-node-next next) next))))
 
 (declaim (inline link-to-prev))
 (defun link-to-prev (item prev)
   (declare (type node item))
   (when (node-p prev)
     (cond ((group-p prev)
-           (setf (node-funcons prev)
-                 (node-funcons item))
+           (setf (node-funcons prev) (node-funcons item))
            (update-prev-groups prev))
-          (t (setf (cdr (node-funcons prev))
-                   (node-funcons item))))))
+          (t (setf (cdr (node-funcons prev)) (node-funcons item))))))
 
 (declaim (inline link-to-unpaused-prev))
 (defun link-to-unpaused-prev (item prev)
@@ -158,8 +152,7 @@
 (defun node-next-funcons (node)
   (declare (type node node))
   (let ((next (unpaused-node-next node)))
-    (when (node-p next)
-      (node-funcons next))))
+    (when (node-p next) (node-funcons next))))
 
 (defun make-group (id &optional (add-action :head) (target *node-root*))
   (declare (type fixnum id) (type keyword add-action)
@@ -168,8 +161,7 @@
   (let ((target (if (numberp target) (node target) target)))
     (rt-eval ()
       (let ((group (node id)))
-        (when (and (null-node-p group)
-                   (not (null-node-p target)))
+        (when (and (null-node-p group) (not (null-node-p target)))
           (flet ((common-set (group id)
                    (setf (node-id group) id
                          (node-hash group) (int-hash id)
@@ -196,14 +188,14 @@
                (unless (eq target *node-root*)
                  (common-set group id)
                  (setf (node-parent group) (node-parent target))
-                 (cond ((group-p target)
-                        (let ((last (find-last-node target)))
-                          (setf (node-prev group) last
-                                (node-next group) (node-next last)
-                                (node-next last) group)))
-                       (t (setf (node-prev group) target
-                                (node-next group) (node-next target)
-                                (node-next target) group)))
+                 (if (group-p target)
+                     (let ((last (find-last-node target)))
+                       (setf (node-prev group) last
+                             (node-next group) (node-next last)
+                             (node-next last) group))
+                     (setf (node-prev group) target
+                           (node-next group) (node-next target)
+                           (node-next target) group))
                  (when (node-p (node-next group))
                    (setf (node-funcons group) (node-next-funcons group))
                    (setf (node-prev (node-next group)) group))
@@ -326,8 +318,7 @@
 
 (declaim (inline set-node-current-function))
 (defun set-node-current-function (obj function)
-  (setf (car (node-funcons (if (node-p obj) obj (node obj))))
-        function))
+  (setf (car (node-funcons (if (node-p obj) obj (node obj)))) function))
 
 (defsetf node-current-function set-node-current-function)
 
@@ -335,18 +326,14 @@
 (defun next-node-id ()
   (labels ((next (id)
              (let ((id (if (> id 65535) 1 id)))
-               (if (null-node-p (node id))
-                   id
-                   (next (1+ id))))))
+               (if (null-node-p (node id)) id (next (1+ id))))))
     (next *last-node-id*)))
 
 (declaim (inline next-large-node-id))
 (defun next-large-node-id ()
   (labels ((next (id)
              (let ((id (if (> id 1073741823) 16777216 id)))
-               (if (null-node-p (node id))
-                   id
-                   (next (1+ id))))))
+               (if (null-node-p (node id)) id (next (1+ id))))))
     (next *last-large-node-id*)))
 
 (defun swap-nodes (n1 n2)
@@ -373,15 +360,11 @@
 (defun start-with-fade-in (node name fade-time fade-curve)
   (declare (type node node) (type symbol name)
            #.*reduce-warnings*)
-  (when (or *node-enable-gain-p*
-            (node-enable-gain-p node))
+  (when (or *node-enable-gain-p* (node-enable-gain-p node))
     (setf (node-fade-time node)
-          (if fade-time
-              fade-time
+          (or fade-time
               (let ((time (node-fade-time name)))
-                (if (plusp time)
-                    time
-                    *fade-time*))))
+                (if (plusp time) time *fade-time*))))
     (node-fade-in node (node-fade-time node) fade-curve)))
 
 (defun update-prev-groups (node)
@@ -390,28 +373,22 @@
     (let ((prev (node-prev node)))
       (when (node-p prev)
         (cond ((group-p prev)
-               (setf (node-funcons prev)
-                     (node-funcons node))
+               (setf (node-funcons prev) (node-funcons node))
                (update-prev-groups prev))
-              (t (setf (cdr (node-funcons prev))
-                       (node-funcons node))))))))
+              (t (setf (cdr (node-funcons prev)) (node-funcons node))))))))
 
 (defun find-last-node (node)
   (declare (type node node))
   (let ((last (node-last node)))
     (if (node-p last)
-        (if (group-p last)
-            (find-last-node last)
-            last)
+        (if (group-p last) (find-last-node last) last)
         node)))
 
-(defun node-add-fn (item add-action target id hash name fn
-                    fade-time fade-curve)
+(defun node-add-fn (item add-action target id hash name fn fade-time fade-curve)
   "Returns the function to add a new node in the graph."
   (declare #.*standard-optimize-settings*
            (type node item target) (type symbol name add-action)
-           (type fixnum hash) (type non-negative-fixnum id)
-           (type function fn))
+           (type fixnum hash) (type non-negative-fixnum id) (type function fn))
   (cond ((eq add-action :replace)
          (lambda ()
            (declare #.*reduce-warnings*)
@@ -480,7 +457,8 @@
                                   (setf (node-prev (node-next target)) item))
                                 (setf (node-next target) item)
                                 (unless (node-pause-p target)
-                                  (setf (node-funcons target) (node-funcons item)))
+                                  (setf (node-funcons target)
+                                        (node-funcons item)))
                                 (update-prev-groups target))
                                (t (setf (node-prev item) last
                                         (node-next item) (node-next last)
@@ -488,15 +466,19 @@
                                   (when (node-p (node-next item))
                                     (setf (node-prev (node-next item)) item)
                                     (setf (cdr (node-funcons item))
-                                          (node-funcons (unpaused-node-next item))))
+                                          (node-funcons
+                                           (unpaused-node-next item))))
                                   (cond ((group-p last)
-                                         (setf (node-funcons last) (node-funcons item))
+                                         (setf (node-funcons last)
+                                               (node-funcons item))
                                          (link-to-prev item last)
                                          (link-to-unpaused-prev item last))
-                                        (t (setf (cdr (node-funcons (node-prev item)))
+                                        (t (setf (cdr (node-funcons
+                                                       (node-prev item)))
                                                  (node-funcons item))
                                            (link-to-prev item (node-prev item))
-                                           (link-to-unpaused-prev item (node-prev item))))))
+                                           (link-to-unpaused-prev
+                                            item (node-prev item))))))
                          (setf (node-last target) item
                                (node-parent item) target)
                          (incf (int-hash-table-count *node-hash*))
@@ -505,8 +487,7 @@
                       (t (setf (node-id item) nil)))))
              (:before
               (lambda ()
-                (cond ((and (node-id target)
-                            (not (node-root-p target)))
+                (cond ((and (node-id target) (not (node-root-p target)))
                        (setf (node-prev item) (node-prev target)
                              (node-next item) target
                              (node-prev target) item
@@ -515,8 +496,7 @@
                        (setf (cdr (node-funcons item))
                              (cond ((node-pause-p target)
                                     (let ((next (unpaused-node-next target)))
-                                      (when (node-p next)
-                                        (node-funcons next))))
+                                      (when (node-p next) (node-funcons next))))
                                    (t (node-funcons target))))
                        (link-to-prev item (node-prev item))
                        (link-to-unpaused-prev item (node-prev item))
@@ -567,8 +547,7 @@
     (when fn
       (funcall fn)
       (nrt-msg debug "new node ~D" id)
-      (when action
-        (funcall action node)))))
+      (when action (funcall action node)))))
 
 ;;; Iteration over the nodes of the graph
 (defmacro dograph ((var &optional node result) &body body)
@@ -637,8 +616,7 @@
                          (node-pause-p n))
                  (indent-line)
                  (format stream "  ~A ~{~A ~}~%"
-                         (node-name n) (locally (declare #.*reduce-warnings*)
-                                         (control-list n)))
+                         (node-name n) (reduce-warnings (control-list n)))
                  (dec-indent n))))
       (force-output stream))))
 
@@ -653,20 +631,16 @@
 (defun unlink-node (node)
   (declare #.*reduce-warnings*)
   (when #1=(node-free-hook node)
-    (dolist (fn #1#)
-      (funcall fn node))
+    (dolist (fn #1#) (funcall fn node))
     (setf #1# nil))
-  (when #2=(node-stop-hook node)
-    (setf #2# nil))
+  (when #2=(node-stop-hook node) (setf #2# nil))
   (setf (node-done-p node) nil)
   (remove-node-from-hash node))
 
 (defun unlink-group (group)
   (dogroup (item group nil nil)
     (when (node-p item)
-      (if (group-p item)
-          (unlink-group item)
-          (unlink-node item))))
+      (if (group-p item) (unlink-group item) (unlink-node item))))
   (setf (node-funcons group) nil)
   (if (node-root-p group)
       (setf (node-next group) nil
@@ -675,14 +649,12 @@
       (remove-node-from-hash group)))
 
 (defun unlink-prev (n1 n2)
-  (setf (node-next (node-prev n1))
-        (node-next n2))
+  (setf (node-next (node-prev n1)) (node-next n2))
   (unless (node-pause-p n1)
     (let ((prev (unpaused-node-prev n1)))
       (when (node-p prev)
         (let ((next-funcons (let ((next (unpaused-node-next n2)))
-                              (when (node-p next)
-                                (node-funcons next)))))
+                              (when (node-p next) (node-funcons next)))))
           (unless (eq prev (node-prev n1))
             (cond ((group-p (node-prev n1))
                    (setf (node-funcons (node-prev n1)) next-funcons)
@@ -696,8 +668,7 @@
 (declaim (inline unlink-next))
 (defun unlink-next (n1 n2)
   (when (node-p (node-next n1))
-    (setf (node-prev (node-next n1))
-          (node-prev n2))))
+    (setf (node-prev (node-next n1)) (node-prev n2))))
 
 (declaim (inline unlink-neighbors))
 (defun unlink-neighbors (obj)
@@ -707,8 +678,7 @@
 (declaim (inline unlink-group-neighbors))
 (defun unlink-group-neighbors (obj)
   (let ((last (find-last-node obj)))
-    (cond ((eq last obj)
-           (unlink-neighbors obj))
+    (cond ((eq last obj) (unlink-neighbors obj))
           (t (unlink-prev obj last)
              (unlink-next last obj)))))
 
@@ -764,14 +734,14 @@
                           (nrt-msg debug "free group ~D" id))
                          (t (%remove-node node)
                             (fix-collisions-from (node-index node) *node-hash*
-                                                 node-hash node-id null-node-p node)
+                                                 node-hash node-id null-node-p
+                                                 node)
                             (nrt-msg debug "free node ~D" id)))
                    node)))))))
 
 (declaim (inline node-free))
 (defun node-free (obj)
-  (declare #.*standard-optimize-settings*
-           (type node obj))
+  (declare #.*standard-optimize-settings* (type node obj))
   (at 0 (node-free-fn obj))
   (values))
 
@@ -797,8 +767,7 @@
 
 (defmethod (setf free-hook) ((flist list) (obj node))
   (rt-eval ()
-    (unless (null-node-p obj)
-      (setf (node-free-hook obj) flist))
+    (unless (null-node-p obj) (setf (node-free-hook obj) flist))
     (values)))
 
 (defmethod (setf free-hook) ((flist list) (obj integer))
@@ -812,16 +781,14 @@
                (cond ((group-p node)
                       (dogroup (n obj) (rec n)))
                      (t (dolist (fn (node-stop-hook node))
-                          (locally (declare #.*reduce-warnings*)
-                                   (funcall fn node)))
+                          (reduce-warnings (funcall fn node)))
                         (node-free node))))
              (values)))
     (lambda () (rec obj))))
 
 (declaim (inline node-stop))
 (defun node-stop (obj)
-  (declare #.*standard-optimize-settings*
-           (type node obj))
+  (declare #.*standard-optimize-settings* (type node obj))
   (at 0 (node-stop-fn obj))
   (values))
 
@@ -845,8 +812,7 @@
 
 (defmethod (setf stop-hook) ((flist list) (obj node))
   (rt-eval ()
-    (unless (null-node-p obj)
-      (setf (node-stop-hook obj) flist))
+    (unless (null-node-p obj) (setf (node-stop-hook obj) flist))
     (values)))
 
 (defmethod (setf stop-hook) ((flist list) (obj integer))
@@ -854,8 +820,7 @@
 
 (defun move (src move-action dest)
   "Move a node of the graph."
-  (declare (type (or node fixnum) src dest)
-           (type keyword move-action)
+  (declare (type (or node fixnum) src dest) (type keyword move-action)
            #.*standard-optimize-settings*)
   (flet ((make-loop-p (group dest)
            ;; The final T to optimize the return value in SBCL
@@ -909,11 +874,14 @@
                    (t (unlink-parent src)
                       (unlink-group-neighbors src)
                       (setf (node-parent src) (node-parent dest))
-                      (let ((last-src (if (group-p src) (find-last-node src) src)))
+                      (let ((last-src (if (group-p src)
+                                          (find-last-node src)
+                                          src)))
                         (flet ((link-funcons (src dest)
                                  (when (node-p dest)
                                    (cond ((group-p dest)
-                                          (setf (node-funcons dest) (node-funcons src))
+                                          (setf (node-funcons dest)
+                                                (node-funcons src))
                                           (update-prev-groups dest))
                                          (t (setf (cdr (node-funcons dest))
                                                   (node-funcons src)))))
@@ -929,7 +897,8 @@
                                                      last)))
                                        (link-funcons src last)
                                        (when (node-pause-p dest)
-                                         (link-funcons src (unpaused-node-prev dest)))))))
+                                         (link-funcons src (unpaused-node-prev
+                                                            dest)))))))
                                 (t (setf (node-prev src) dest
                                          (node-next last-src) (node-next dest)
                                          (node-next dest) src)
@@ -938,28 +907,32 @@
                                                      (unpaused-node-prev dest)
                                                      dest)))
                                        (link-funcons src dest))))))
-                        (let ((next-funcons (when (node-p (node-next last-src))
-                                              (setf (node-prev (node-next last-src)) last-src)
-                                              (let ((next (unpaused-node-next last-src)))
-                                                (when (node-p next)
-                                                  (node-funcons next))))))
+                        (let ((next-funcons
+                               (when (node-p (node-next last-src))
+                                 (setf (node-prev (node-next last-src))
+                                       last-src)
+                                 (let ((next (unpaused-node-next last-src)))
+                                   (when (node-p next) (node-funcons next))))))
                           (cond ((group-p last-src)
                                  (setf (node-funcons last-src) next-funcons)
                                  (update-prev-groups last-src))
-                                (t (setf (cdr (node-funcons last-src)) next-funcons))))
+                                (t (setf (cdr (node-funcons last-src))
+                                         next-funcons))))
                         (when (eq dest (node-last (node-parent src)))
                           (setf (node-last (node-parent src)) src))))))
             (:head
              (cond ((not (group-p dest))
                     (nrt-msg error "the node ~D is not a group" (node-id dest)))
                    ((make-loop-p dest src)
-                    (nrt-msg error "~D -> ~D generates a loop"
-                             (node-id src) (node-id dest)))
+                    (nrt-msg error "~D -> ~D generates a loop" (node-id src)
+                             (node-id dest)))
                    ((node-p (node-last dest))
                     (move src :before (node-next dest)))
                    (t (unlink-parent src)
                       (unlink-group-neighbors src)
-                      (let ((last-src (if (group-p src) (find-last-node src) src)))
+                      (let ((last-src (if (group-p src)
+                                          (find-last-node src)
+                                          src)))
                         (setf (node-next last-src) (node-next dest)
                               (node-prev src) dest
                               (node-next dest) src
@@ -972,7 +945,8 @@
                                      (setf (node-funcons last-src)
                                            (node-funcons (node-next last-src)))
                                      (setf (cdr (node-funcons last-src))
-                                           (node-funcons (node-next last-src))))))
+                                           (node-funcons
+                                            (node-next last-src))))))
                               (t (if (group-p last-src)
                                      (setf (node-funcons last-src) nil)
                                      (setf (cdr (node-funcons last-src)) nil))))
@@ -983,8 +957,8 @@
              (cond ((not (group-p dest))
                     (nrt-msg error "the node ~D is not a group" (node-id dest)))
                    ((make-loop-p dest src)
-                    (nrt-msg error "~D -> ~D generates a loop"
-                             (node-id src) (node-id dest)))
+                    (nrt-msg error "~D -> ~D generates a loop" (node-id src)
+                             (node-id dest)))
                    ((node-p (node-last dest))
                     (move src :after (node-last dest)))
                    (t (move src :head dest))))
@@ -998,10 +972,8 @@
     (rt-eval (:return-value-p t)
       (unless (or (null-node-p n1) (null-node-p n2))
         (dograph (curr)
-          (when (eq curr n2)
-            (return result))
-          (when (eq curr n1)
-            (setf result t)))))))
+          (cond ((eq curr n2) (return result))
+                ((eq curr n1) (setf result t))))))))
 
 (defun after-p (n1 n2)
   (before-p n2 n1))
@@ -1028,27 +1000,25 @@
            #.*standard-optimize-settings*)
   (let ((obj (if (node-p obj)
                  obj
-                 (getihash obj *node-hash* node-hash node-id null-node-p node))))
+                 (getihash obj *node-hash* node-hash node-id null-node-p
+                           node))))
     (declare (type node obj))
     (unless (null-node-p obj)
       (let ((ht (node-controls obj)))
         (declare (type (or hash-table null)))
-        (when ht
-          (gethash (symbol-name control-name) ht))))))
+        (when ht (gethash (symbol-name control-name) ht))))))
 
 (declaim (inline control-getter))
 (defun control-getter (obj control-name)
   (declare #.*standard-optimize-settings*
-           (type (or non-negative-fixnum node) obj)
-           (type symbol control-name)
+           (type (or non-negative-fixnum node) obj) (type symbol control-name)
            #+(or cmu sbcl) (values (or function null)))
   (cdr (control-functions obj control-name)))
 
 (declaim (inline control-setter))
 (defun control-setter (obj control-name)
   (declare #.*standard-optimize-settings*
-           (type (or non-negative-fixnum node) obj)
-           (type symbol control-name)
+           (type (or non-negative-fixnum node) obj) (type symbol control-name)
            #+(or cmu sbcl) (values (or function null)))
   (let ((fn (car (control-functions obj control-name))))
     (or fn
@@ -1059,13 +1029,11 @@
                 (dogroup (n node value)
                   (let ((fn (car (control-functions n control-name))))
                     (declare (type (or function null) fn))
-                    (when fn
-                      (funcall fn value))))))))))
+                    (when fn (funcall fn value))))))))))
 
 (declaim (inline control-value))
 (defun control-value (obj control-name)
-  (declare (type (or non-negative-fixnum node) obj)
-           (type symbol control-name))
+  (declare (type (or non-negative-fixnum node) obj) (type symbol control-name))
   (rt-eval (:return-value-p t)
     (locally (declare #.*standard-optimize-settings*)
       (let ((fn (control-getter obj control-name)))
@@ -1076,8 +1044,7 @@
 
 (declaim (inline set-control))
 (defun set-control (obj control-name value)
-  (declare (type (or non-negative-fixnum node) obj)
-           (type symbol control-name))
+  (declare (type (or non-negative-fixnum node) obj) (type symbol control-name))
   (rt-eval (:return-value-p t)
     (locally (declare #.*standard-optimize-settings*)
       (let ((fn (control-setter obj control-name)))
@@ -1107,22 +1074,19 @@
 (declaim (inline control-list))
 (defun control-list (obj)
   (declare (type (or non-negative-fixnum node) obj))
-  (rt-eval (:return-value-p t)
-    (control-value obj :%control-list%)))
+  (rt-eval (:return-value-p t) (control-value obj :%control-list%)))
 
 (declaim (inline control-names))
 (defun control-names (obj)
   (declare (type (or non-negative-fixnum node) obj))
-  (rt-eval (:return-value-p t)
-    (control-value obj :%control-names%)))
+  (rt-eval (:return-value-p t) (control-value obj :%control-names%)))
 
 (defgeneric pause (obj))
 
 (defmethod pause ((obj node))
   (rt-eval (:return-value-p t)
     (locally (declare #.*standard-optimize-settings*)
-      (unless (or (null-node-p obj)
-                  (node-pause-p obj))
+      (unless (or (null-node-p obj) (node-pause-p obj))
         (let ((prev (unpaused-node-prev obj)))
           (cond ((group-p obj)
                  (setf (node-pause-p obj) t)
@@ -1155,8 +1119,7 @@
 (defmethod unpause ((obj node))
   (rt-eval (:return-value-p t)
     (locally (declare #.*standard-optimize-settings*)
-      (when (and (node-pause-p obj)
-                 (not (null-node-p obj)))
+      (when (and (node-pause-p obj) (not (null-node-p obj)))
         (let ((prev (unpaused-node-prev obj)))
           (setf (node-pause-p obj) nil)
           (cond ((eq obj *node-root*)
@@ -1172,8 +1135,7 @@
                    (when (node-pause-p last)
                      (setf last (unpaused-node-prev last)))
                    (cond ((group-p last)
-                          (setf (node-funcons last)
-                                (node-next-funcons last))
+                          (setf (node-funcons last) (node-next-funcons last))
                           (update-prev-groups last))
                          (t (setf (cdr (node-funcons last))
                                   (node-next-funcons last)))))
@@ -1184,8 +1146,7 @@
                          (update-prev-groups prev))
                        (setf (cdr (node-funcons prev)) (node-funcons obj))))
                  (nrt-msg debug "unpause node ~D" (node-id obj)))
-                (t (setf (cdr (node-funcons obj))
-                         (node-next-funcons obj))
+                (t (setf (cdr (node-funcons obj)) (node-next-funcons obj))
                    (if (group-p prev)
                        (unless (node-pause-p (node-parent obj))
                          (setf (node-funcons prev) (node-funcons obj))
@@ -1218,20 +1179,14 @@
                           symbols))
        ,@body)))
 
-(defun node-segment (obj end dur &optional start curve (done-action
-                                                               #'identity))
-  (declare #.*standard-optimize-settings*
-           #.*reduce-warnings*)
+(defun node-segment (obj end dur &optional start curve (done-action #'identity))
+  (declare #.*standard-optimize-settings* #.*reduce-warnings*)
   (let ((obj (if (node-p obj) obj (node obj))))
-    (cond ((or (null-node-p obj)
-               (node-release-phase-p obj))
-           obj)
-          ((or *node-enable-gain-p*
-               (node-enable-gain-p obj))
+    (cond ((or (null-node-p obj) (node-release-phase-p obj)) obj)
+          ((or *node-enable-gain-p* (node-enable-gain-p obj))
            (with-node-segment-symbols obj
                (level start0 end0 curve0 grow a2 b1 y1 y2)
-             (when curve
-               (setf curve0 (seg-function-spec->sample curve)))
+             (when curve (setf curve0 (seg-function-spec->sample curve)))
              (let* ((samples (max 1 (sample->fixnum (* dur *sample-rate*))))
                     (remain samples)
                     (curve (or curve (sample->seg-function-spec curve0))))
@@ -1249,7 +1204,8 @@
                        (declare (type non-negative-fixnum chan))
                        (cond ((plusp remain)
                               (when (zerop chan)
-                                (%segment-update-level level curve0 grow a2 b1 y1 y2)
+                                (%segment-update-level level curve0 grow a2 b1
+                                                       y1 y2)
                                 (decf remain))
                               (funcall (node-function obj) chan))
                              (t (funcall (setf (node-current-function obj)

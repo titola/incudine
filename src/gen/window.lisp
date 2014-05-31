@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -29,8 +29,7 @@
                  (phase +sample-zero+))
     (dotimes (i size c-array)
       (setf (smp-ref c-array i)
-            (* 0.5 (- 1.0 (cos (the limited-sample
-                                 phase)))))
+            (* 0.5 (- 1.0 (cos (the limited-sample phase)))))
       (incf phase delta))))
 
 (defwindow hamming (c-array size)
@@ -38,8 +37,7 @@
                  (phase +sample-zero+))
     (dotimes (i size c-array)
       (setf (smp-ref c-array i)
-            (- 0.54 (* 0.46 (cos (the limited-sample
-                                   phase)))))
+            (- 0.54 (* 0.46 (cos (the limited-sample phase)))))
       (incf phase delta))))
 
 (defwindow blackman (c-array size)
@@ -47,18 +45,15 @@
                  (phase +sample-zero+))
     (dotimes (i size c-array)
       (setf (smp-ref c-array i)
-            (+ (- 0.42 (* 0.5 (cos (the limited-sample
-                                     phase))))
-               (* 0.08 (cos (the limited-sample
-                              (* 2 phase))))))
+            (+ (- 0.42 (* 0.5 (cos (the limited-sample phase))))
+               (* 0.08 (cos (the limited-sample (* 2 phase))))))
       (incf phase delta))))
 
 (defwindow sine-window (c-array size)
   (with-samples ((winc (/ (sample pi) size)))
     (dotimes (i size c-array)
       (setf (smp-ref c-array i)
-            (sin (the limited-sample
-                   (* i winc)))))))
+            (sin (the limited-sample (* i winc)))))))
 
 (defwindow bartlett (c-array size)
   (let ((half-size (/ size 2)))

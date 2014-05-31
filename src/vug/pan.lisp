@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -21,10 +21,8 @@
 (define-vug pan2 (in pos)
   "Stereo equal power panpot."
   (with-samples ((alpha (* +half-pi+ pos)))
-    (cond ((zerop current-channel)
-           (* (cos alpha) in))
-          ((< current-channel 2)
-           (* (sin alpha) in))
+    (cond ((= current-channel 0) (* (cos alpha) in))
+          ((= current-channel 1) (* (sin alpha) in))
           (t +sample-zero+))))
 
 (define-vug fpan2 (in pos)
@@ -34,8 +32,6 @@
          (costab (buffer-data *cosine-table*))
          (index (clip (sample->fixnum (* tabsize pos)) 0 tabsize)))
     (declare (type non-negative-fixnum tabsize index))
-    (cond ((zerop current-channel)
-           (* (smp-ref costab index) in))
-          ((< current-channel 2)
-           (* (smp-ref sintab index) in))
+    (cond ((= current-channel 0) (* (smp-ref costab index) in))
+          ((= current-channel 1) (* (smp-ref sintab index) in))
           (t +sample-zero+))))

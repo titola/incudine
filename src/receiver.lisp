@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -45,9 +45,7 @@
 (defun recv-status (stream)
   (let ((recv (get-receiver stream)))
     (if recv
-        (if (receiver-status recv)
-            :RUNNING
-            :STOPPED)
+        (if (receiver-status recv) :RUNNING :STOPPED)
         :UNKNOWN)))
 
 (declaim (inline recv-functions))
@@ -64,8 +62,7 @@
 
 (declaim (inline recv-set-priority))
 (defun recv-set-priority (thread priority)
-  (when (bt:threadp thread)
-    (thread-set-priority thread priority)))
+  (when (bt:threadp thread) (thread-set-priority thread priority)))
 
 (defmacro add-receiver (stream recv start-function priority)
   (with-gensyms (result)
@@ -84,8 +81,7 @@
   (let ((recv (or (get-receiver stream)
                   (make-receiver stream))))
     (cond ((portmidi-stream-p stream)
-           (add-receiver stream recv start-portmidi-recv
-                         priority)))))
+           (add-receiver stream recv start-portmidi-recv priority)))))
 
 (defun recv-stop (stream)
   (let ((recv (get-receiver stream)))
@@ -118,8 +114,7 @@
 (defvar *responder-hash* (make-hash-table))
 (declaim (type hash-table *responder-hash*))
 
-(defstruct (responder (:constructor %make-responder)
-                      (:copier nil))
+(defstruct (responder (:constructor %make-responder) (:copier nil))
   (receiver nil :type (or receiver null))
   (function nil :type (or function null)))
 
@@ -133,8 +128,7 @@
          (new-resp-list (cons resp old-resp-list))
          (old-func-list (receiver-functions (responder-receiver resp)))
          (new-func-list (cons (responder-function resp) old-func-list)))
-    (when (eq (compare-and-swap (receiver-functions
-                                 (responder-receiver resp))
+    (when (eq (compare-and-swap (receiver-functions (responder-receiver resp))
                                 old-func-list new-func-list)
               old-func-list)
       (setf (gethash stream *responder-hash*) new-resp-list)))
@@ -152,8 +146,7 @@
   (declare (type function function))
   (let ((recv (get-receiver stream)))
     (when recv
-      (let ((resp (%make-responder :receiver recv
-                                   :function function)))
+      (let ((resp (%make-responder :receiver recv :function function)))
         (%add-responder resp stream)))))
 
 (defun remove-responder (resp)
@@ -164,8 +157,8 @@
         (let* ((old-functions (receiver-functions recv))
                (new-functions (remove (responder-function resp)
                                       old-functions :test #'eq)))
-          (when (eq (compare-and-swap (receiver-functions recv)
-                                      old-functions new-functions)
+          (when (eq (compare-and-swap (receiver-functions recv) old-functions
+                                      new-functions)
                     old-functions)
             (let ((new-list (delete resp resp-list)))
               (if new-list
@@ -177,6 +170,5 @@
   (if stream
       (dolist (resp (get-responder-list stream))
         (remove-responder resp))
-      (maphash-keys #'remove-all-responders
-                    *responder-hash*))
+      (maphash-keys #'remove-all-responders *responder-hash*))
   (values))

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -53,11 +53,12 @@
     `(let ((,obj ,(car args)))
        (cond ((eq ,obj (incudine.analysis::abuffer-link ,vug-varname))
               (setf (incudine.analysis:abuffer-time ,vug-varname) (sample -1))
-              (foreign-zero-sample (incudine.analysis::abuffer-data ,vug-varname)
-                                   (incudine.analysis::abuffer-size ,vug-varname)))
+              (foreign-zero-sample
+                (incudine.analysis::abuffer-data ,vug-varname)
+                (incudine.analysis::abuffer-size ,vug-varname)))
              (t (incudine:free ,vug-varname)
                 (setf ,vug-varname (incudine.analysis:make-abuffer ,obj
-                                                       *allow-rt-memory-pool-p*)))))))
+                                     *allow-rt-memory-pool-p*)))))))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (object-to-free incudine:make-buffer update-local-buffer)
@@ -109,10 +110,9 @@
                                                (+ ,y1 current-channel))))
              +sample-zero+))))
 
-  (defmacro %four-points-interp (data phs frames channels size
-                                 wrap-p wrap-phase-fn interp-fn-name)
-    (with-gensyms (frac iphase guard-frame incr1 incr2
-                   decr1 decr2 y0 y1 y2 y3)
+  (defmacro %four-points-interp (data phs frames channels size wrap-p
+                                 wrap-phase-fn interp-fn-name)
+    (with-gensyms (frac iphase guard-frame incr1 incr2 decr1 decr2 y0 y1 y2 y3)
       `(with ((,iphase 0)
               (,frac 0.0d0)
               (,guard-frame (- ,frames 2))
@@ -124,8 +124,7 @@
               (,y1 0)
               (,y2 0)
               (,y3 0))
-         (declare (type fixnum ,iphase ,y0 ,y1 ,y2 ,y3)
-                  (type sample ,frac)
+         (declare (type fixnum ,iphase ,y0 ,y1 ,y2 ,y3) (type sample ,frac)
                   (type positive-fixnum ,guard-frame ,incr1 ,incr2)
                   (type negative-fixnum ,decr1 ,decr2))
          (foreach-tick
@@ -136,10 +135,8 @@
                  ,y0 (the fixnum (- ,y1 ,channels))
                  ,y2 (the fixnum (+ ,y1 ,channels))
                  ,y3 (the fixnum (+ ,y2 ,channels)))
-           (cond ((zerop ,iphase)
-                  (incf ,y0 ,incr1))
-                 ((= ,iphase ,guard-frame)
-                  (incf ,y3 ,decr1))
+           (cond ((zerop ,iphase) (incf ,y0 ,incr1))
+                 ((= ,iphase ,guard-frame) (incf ,y3 ,decr1))
                  ((> ,iphase ,guard-frame)
                   (incf ,y2 ,decr1)
                   (incf ,y3 ,decr2))))
@@ -171,15 +168,15 @@
                       (setf (done-self) t ,phs +sample-zero+)))
                (values))))))
 
-  (defmacro select-buffer-interp (interp data phs frames channels size
-                                  wrap-p wrap-phase-fn)
+  (defmacro select-buffer-interp (interp data phs frames channels size wrap-p
+                                  wrap-phase-fn)
     (case interp
       (:linear
-       `(%two-points-interp ,data ,phs ,frames ,channels ,size
-                            ,wrap-p ,wrap-phase-fn linear-interp))
+       `(%two-points-interp ,data ,phs ,frames ,channels ,size ,wrap-p
+                            ,wrap-phase-fn linear-interp))
       (:cubic
-       `(%four-points-interp ,data ,phs ,frames ,channels ,size
-                             ,wrap-p ,wrap-phase-fn cubic-interp))
+       `(%four-points-interp ,data ,phs ,frames ,channels ,size ,wrap-p
+                             ,wrap-phase-fn cubic-interp))
       (otherwise `(%no-interp ,data ,phs ,channels ,wrap-phase-fn)))))
 
 (define-vug-macro buffer-read (buffer phase &key wrap-p interpolation)
@@ -196,7 +193,8 @@
          (declare (type non-negative-fixnum ,frames ,channels)
                   (type function ,wrap-phase-fn))
          (select-buffer-interp ,interpolation ,data ,%phs ,frames ,channels
-                               (buffer-size ,%buffer) ,%wrap-p ,wrap-phase-fn)))))
+                               (buffer-size ,%buffer) ,%wrap-p
+                               ,wrap-phase-fn)))))
 
 ;;; Write an input to a buffer at an index.
 ;;; If INDEX-VAR is the name of an existent variable, the value of the
@@ -221,7 +219,6 @@
             (,frame (make-frame ,channels)))
        (dochannels (current-channel ,channels)
          (setf (frame-ref ,frame current-channel)
-               (buffer-read ,%buffer ,phase
-                            :wrap-p ,wrap-p
+               (buffer-read ,%buffer ,phase :wrap-p ,wrap-p
                             :interpolation ,interpolation)))
        ,frame)))

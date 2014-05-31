@@ -17,9 +17,10 @@
 (in-package :incudine.external)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (cffi:define-foreign-library (incudine :search-path #.(load-time-value
-                                                         (or *compile-file-pathname*
-                                                             *load-pathname*)))
+  (cffi:define-foreign-library (incudine
+                                :search-path #.(load-time-value
+                                                (or *compile-file-pathname*
+                                                    *load-pathname*)))
     (:unix "libincudine.so")
     (:darwin "libincudine.dylib")
     (:cygwin "cygincudine-0.dll")
@@ -64,57 +65,56 @@
   (defun load-fftw-library ()
     (cffi:use-foreign-library fftw))
 
-  (unless (cffi:foreign-library-loaded-p 'incudine)
-    (load-incudine-library))
-  (unless (cffi:foreign-library-loaded-p 'fftw)
-    (load-fftw-library))
+  (unless (cffi:foreign-library-loaded-p 'incudine) (load-incudine-library))
+
+  (unless (cffi:foreign-library-loaded-p 'fftw) (load-fftw-library))
 
   (import '(incudine.util:sample incudine.util:+foreign-sample-size+)))
 
 ;;; THREADS
 
 (cffi:defcfun "pthread_set_priority" :int
-  (thread   :pointer)
+  (thread :pointer)
   (priority :int))
 
 ;;; SNDFILE
 
 (cffi:defcfun "sndfile_to_buffer" :void
-  (data        :pointer)
-  (sndfile     sf:sndfile)
-  (frames      :unsigned-long)
-  (channels    :int)
+  (data :pointer)
+  (sndfile sf:sndfile)
+  (frames :unsigned-long)
+  (channels :int)
   (data-offset :unsigned-long)
-  (chunk-size  :int))
+  (chunk-size :int))
 
 (declaim (inline %map-sndfile-ch-to-buffer))
 (cffi:defcfun ("map_sndfile_ch_to_buffer" %map-sndfile-ch-to-buffer) :void
-  (data             :pointer)
-  (sndfile          sf:sndfile)
-  (frames           :unsigned-long)
-  (channels         :int)
-  (buffer-channels  :int)
-  (data-offset      :unsigned-long)
-  (chunk-size       :int)
+  (data :pointer)
+  (sndfile sf:sndfile)
+  (frames :unsigned-long)
+  (channels :int)
+  (buffer-channels :int)
+  (data-offset :unsigned-long)
+  (chunk-size :int)
   (channel-map-dest :pointer)
-  (channel-map-src  :pointer)
+  (channel-map-src :pointer)
   (channel-map-size :int))
 
 ;;; RING BUFFER
 
 (cffi:defcfun ("copy_from_ring_buffer" %copy-from-ring-buffer) :void
-  (dest         :pointer)
-  (src          :pointer)
-  (buffer-size  :unsigned-long)
+  (dest :pointer)
+  (src :pointer)
+  (buffer-size :unsigned-long)
   (write-offset :unsigned-long)
-  (items        :unsigned-long))
+  (items :unsigned-long))
 
 (cffi:defcfun ("copy_to_ring_output_buffer" %copy-to-ring-output-buffer) :void
-  (dest         :pointer)
-  (src          :pointer)
-  (buffer-size  :unsigned-long)
-  (read-offset  :unsigned-long)
-  (items        :unsigned-long))
+  (dest :pointer)
+  (src :pointer)
+  (buffer-size :unsigned-long)
+  (read-offset :unsigned-long)
+  (items :unsigned-long))
 
 ;;; MEMORY MANAGEMENT
 
@@ -125,9 +125,7 @@
 (declaim (inline foreign-alloc-sample))
 (defun foreign-alloc-sample (size)
   (let ((ptr (%foreign-alloc-sample size)))
-    (if (cffi:null-pointer-p ptr)
-        (error "FOREIGN-ALLOC-SAMPLE failed")
-        ptr)))
+    (if (cffi:null-pointer-p ptr) (error "FOREIGN-ALLOC-SAMPLE failed") ptr)))
 
 (defmacro foreign-realloc-sample (ptr size)
   `(progn
@@ -135,22 +133,22 @@
      (setf ,ptr (foreign-alloc-sample ,size))))
 
 (cffi:defcfun "foreign_zero_sample" :pointer
-  (ptr  :pointer)
+  (ptr :pointer)
   (size :unsigned-int))
 
 (cffi:defcfun ("memset" foreign-set) :pointer
-  (ptr  :pointer)
-  (c    :int)
+  (ptr :pointer)
+  (c :int)
   (size :unsigned-int))
 
 (cffi:defcfun ("memcpy" foreign-copy) :void
-  (dest  :pointer)
-  (src   :pointer)
+  (dest :pointer)
+  (src :pointer)
   (bytes :unsigned-int))
 
 (cffi:defcfun ("init_memory_pool" init-foreign-memory-pool) :unsigned-int
   (size :unsigned-int)
-  (ptr  :pointer))
+  (ptr :pointer))
 
 (cffi:defcfun ("destroy_memory_pool" destroy-foreign-memory-pool) :void
   (pool :pointer))
@@ -166,18 +164,18 @@
   (pool :pointer))
 
 (cffi:defcfun ("free_ex" foreign-rt-free-ex) :void
-  (ptr  :pointer)
+  (ptr :pointer)
   (pool :pointer))
 
 (cffi:defcfun ("realloc_ex" foreign-rt-realloc-ex) :pointer
-  (ptr  :pointer)
+  (ptr :pointer)
   (size :unsigned-int)
   (pool :pointer))
 
 ;;; TEMPO
 
 (cffi:defcfun ("tempo_sync" %tempo-sync) sample
-  (now    :pointer)
+  (now :pointer)
   (period sample))
 
 ;;; JACK AUDIO DRIVER
@@ -185,11 +183,11 @@
 #+jack-audio
 (progn
   (cffi:defcfun ("ja_initialize" rt-audio-init) :int
-    (sample-rate       sample)
-    (input-channels    :unsigned-int)
-    (output-channels   :unsigned-int)
+    (sample-rate sample)
+    (input-channels :unsigned-int)
+    (output-channels :unsigned-int)
     (frames-per-buffer :unsigned-int)
-    (client-name       :pointer))
+    (client-name :pointer))
 
   (cffi:defcfun ("ja_start" rt-audio-start) :int)
 
@@ -232,11 +230,11 @@
 #+portaudio
 (progn
   (cffi:defcfun ("pa_initialize" rt-audio-init) :int
-    (sample-rate       sample)
-    (input-channels    :unsigned-int)
-    (output-channels   :unsigned-int)
+    (sample-rate sample)
+    (input-channels :unsigned-int)
+    (output-channels :unsigned-int)
     (frames-per-buffer :unsigned-long)
-    (client-name       :pointer))
+    (client-name :pointer))
 
   (cffi:defcfun ("pa_start" rt-audio-start) :int)
 
@@ -278,8 +276,7 @@
 (progn
   (cffi:defcfun "mouse_init" :int)
 
-  (cffi:defcfun "mouse_loop_start" :int
-    (ev :pointer))
+  (cffi:defcfun "mouse_loop_start" :int (ev :pointer))
 
   (cffi:defcfun ("mouse_loop_stop" mouse-stop) :int)
 
@@ -295,38 +292,38 @@
 
 (declaim (inline apply-window))
 (cffi:defcfun "apply_window" :void
-  (buffer      :pointer)
-  (window      :pointer)
+  (buffer :pointer)
+  (window :pointer)
   (window-size :unsigned-long))
 
 (declaim (inline apply-scaled-window))
 (cffi:defcfun "apply_scaled_window" :void
-  (buffer      :pointer)
-  (window      :pointer)
+  (buffer :pointer)
+  (window :pointer)
   (window-size :unsigned-long)
-  (mult        sample))
+  (mult sample))
 
 (declaim (inline apply-scaled-rectwin))
 (cffi:defcfun "apply_scaled_rectwin" :void
-  (buffer      :pointer)
+  (buffer :pointer)
   (window-size :unsigned-long)
-  (mult        sample))
+  (mult sample))
 
 (declaim (inline apply-zero-padding))
 (cffi:defcfun "apply_zero_padding" :void
   (buffer :pointer)
   (offset :unsigned-long)
-  (size   :unsigned-long))
+  (size :unsigned-long))
 
 (declaim (inline pconv-multiply-partitions))
 (cffi:defcfun "pconv_multiply_partitions" :void
-  (output        :pointer)
-  (fdl           :pointer)
-  (irdata        :pointer)
-  (fdl-size      :unsigned-long)
+  (output :pointer)
+  (fdl :pointer)
+  (irdata :pointer)
+  (fdl-size :unsigned-long)
   (fdl-read-head :unsigned-long)
-  (block-size    :unsigned-long)
-  (partitions    :unsigned-long))
+  (block-size :unsigned-long)
+  (partitions :unsigned-long))
 
 ;;; COMPLEX TYPES
 
@@ -336,15 +333,15 @@
 
 (cffi:defcstruct sample-polar
   (magnitude sample)
-  (phase     sample))
+  (phase sample))
 
 ;; Destructive conversions
 (cffi:defcfun "complex_to_polar" :void
-  (ptr  :pointer)
+  (ptr :pointer)
   (size :unsigned-long))
 
 (cffi:defcfun "polar_to_complex" :void
-  (ptr  :pointer)
+  (ptr :pointer)
   (size :unsigned-long))
 
 ;;; FFT
@@ -361,15 +358,15 @@
   (ptr :pointer))
 
 (def-fftw-fun ("plan_dft_r2c_1d" make-fft-plan) :pointer
-  (n     :int)
-  (in    :pointer)
-  (out   :pointer)
+  (n :int)
+  (in :pointer)
+  (out :pointer)
   (flags :unsigned-int))
 
 (def-fftw-fun ("plan_dft_c2r_1d" make-ifft-plan) :pointer
-  (n     :int)
-  (in    :pointer)
-  (out   :pointer)
+  (n :int)
+  (in :pointer)
+  (out :pointer)
   (flags :unsigned-int))
 
 (def-fftw-fun ("destroy_plan" fft-destroy-plan) :void
@@ -377,20 +374,19 @@
 
 (def-fftw-fun ("execute_dft_r2c" fft-execute) :void
   (plan :pointer)
-  (in   :pointer)
-  (out  :pointer))
+  (in :pointer)
+  (out :pointer))
 
 (def-fftw-fun ("execute_dft_c2r" ifft-execute) :void
   (plan :pointer)
-  (in   :pointer)
-  (out  :pointer))
+  (in :pointer)
+  (out :pointer))
 
 ;;; GSL
 
 (cffi:defcvar ("gsl_rng_mt19937" +gsl-rng-mt19937+ :read-only t) :pointer)
 
-(defstruct (gsl-rng (:constructor %make-gsl-rng)
-                    (:copier nil))
+(defstruct (gsl-rng (:constructor %make-gsl-rng) (:copier nil))
   (ptr (cffi:null-pointer) :type cffi:foreign-pointer))
 
 (defun make-gsl-rng ()
@@ -398,8 +394,8 @@
                                     :pointer +gsl-rng-mt19937+ :pointer))
          (res (%make-gsl-rng :ptr gen)))
     (tg:finalize res (lambda ()
-                       (cffi:foreign-funcall "gsl_rng_free"
-                                             :pointer gen :void)))
+                       (cffi:foreign-funcall "gsl_rng_free" :pointer gen
+                                             :void)))
     res))
 
 (defvar *gsl-random-generator* (make-gsl-rng))
@@ -411,6 +407,5 @@
 (declaim (inline gsl-seed-random-state))
 (defun gsl-seed-random-state (seed)
   (declare (type unsigned-byte seed))
-  (cffi:foreign-funcall "gsl_rng_set"
-                        :pointer (gsl-random-generator)
+  (cffi:foreign-funcall "gsl_rng_set" :pointer (gsl-random-generator)
                         :unsigned-long seed :pointer))

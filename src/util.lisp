@@ -97,8 +97,7 @@
             incudine.config::+incudine-patch+))
 
 (defmacro with-ensure-symbol (names &body forms)
-  `(let ,(mapcar (lambda (name)
-                   `(,name (ensure-symbol ,(symbol-name name))))
+  `(let ,(mapcar (lambda (name) `(,name (ensure-symbol ,(symbol-name name))))
                  names)
      ,@forms))
 
@@ -117,8 +116,7 @@
             (apply-sample-coerce (cdr form)))))
 
 (defun alloc-multi-channel-data (channels size)
-  (declare (type channel-number channels)
-           (type positive-fixnum size))
+  (declare (type channel-number channels) (type positive-fixnum size))
   (let ((ptr (cffi:foreign-alloc :pointer :count channels)))
     (dotimes (ch channels ptr)
       (declare (type channel-number ch))
@@ -157,8 +155,7 @@
 (declaim (inline cos-interp))
 (defun cos-interp (in y0 y1)
   (declare (type sample in y0 y1))
-  (linear-interp (* (- 1 (cos (the limited-sample
-                                (* in (sample pi)))))
+  (linear-interp (* (- 1 (cos (the limited-sample (* in (sample pi)))))
                     0.5) y0 y1))
 
 ;;; Catmull-Rom spline
@@ -268,12 +265,11 @@
       (if *use-foreign-sample-p*
           `(%with-foreign-object (,c-array 'sample ,size)
              (symbol-macrolet
-                 ,(mapcar
-                   (lambda (x)
-                     (prog1 `(,(if (consp x) (car x) x)
-                               (%smp-ref ,c-array ,count))
-                       (incf count)))
-                   bindings)
+                 ,(mapcar (lambda (x)
+                            (prog1 `(,(if (consp x) (car x) x)
+                                     (%smp-ref ,c-array ,count))
+                              (incf count)))
+                          bindings)
                (psetf ,@(loop for i in bindings
                               when (consp i)
                               append `(,(car i) (sample ,(cadr i)))))
@@ -295,12 +291,11 @@
       (if *use-foreign-sample-p*
           `(%with-foreign-object (,c-array 'sample ,size)
              (symbol-macrolet
-                 ,(mapcar
-                   (lambda (x)
-                     (prog1 `(,(if (consp x) (car x) x)
-                               (%smp-ref ,c-array ,count))
-                       (incf count)))
-                   bindings)
+                 ,(mapcar (lambda (x)
+                            (prog1 `(,(if (consp x) (car x) x)
+                                     (%smp-ref ,c-array ,count))
+                              (incf count)))
+                          bindings)
                (setf ,@(loop for i in bindings
                              when (consp i)
                              append `(,(car i) (sample ,(cadr i)))))
@@ -316,19 +311,16 @@
              ,@body)))))
 
 (defmacro with-complex (real-and-imag-vars pointer &body body)
-  `(symbol-macrolet ((,(car real-and-imag-vars)
-                      (%smp-ref ,pointer 0))
-                     (,(cadr real-and-imag-vars)
-                      (%smp-ref ,pointer 1)))
+  `(symbol-macrolet ((,(car real-and-imag-vars) (%smp-ref ,pointer 0))
+                     (,(cadr real-and-imag-vars) (%smp-ref ,pointer 1)))
      ,@body))
 
 (defmacro do-complex ((realpart-var imagpart-var pointer size) &body body)
   (with-gensyms (i addr)
     `(do ((,i 0 (1+ ,i))
           (,addr (pointer-address ,pointer)
-                 (pointer-address
-                  (inc-pointer (make-pointer ,addr)
-                               +foreign-complex-size+))))
+                 (pointer-address (inc-pointer (make-pointer ,addr)
+                                               +foreign-complex-size+))))
          ((>= ,i ,size))
        (declare (type unsigned-byte ,i))
        (symbol-macrolet ((,realpart-var (foreign-slot-value (make-pointer ,addr)

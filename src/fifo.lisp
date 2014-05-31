@@ -58,7 +58,8 @@
 
 ;;; Communication from rt-thread to fast-nrt-thread
 ;;; (single producer single consumer)
-(defvar *fast-from-engine-fifo* (make-fifo +fifo-size+ :name "fast from engine"))
+(defvar *fast-from-engine-fifo* (make-fifo +fifo-size+
+                                           :name "fast from engine"))
 (declaim (type fifo *fast-from-engine-fifo*))
 
 ;;; Communication from fast-nrt-thread to fast-rt-thread
@@ -89,10 +90,8 @@
 
 (declaim (inline enqueue-function))
 (defun enqueue-function (function fifo)
-  (declare (type (or function null) function)
-           (type fifo fifo))
-  (when function
-    (enqueue function fifo)))
+  (declare (type (or function null) function) (type fifo fifo))
+  (when function (enqueue function fifo)))
 
 (defvar *fast-nrt-spinlock* (make-spinlock "fast nrt"))
 
@@ -154,9 +153,7 @@
   (flet ((print-error ()
            (format t "~A~%" cond)
            (force-output)))
-    (if (rt-thread-p)
-        (nrt-funcall #'print-error)
-        (print-error))))
+    (if (rt-thread-p) (nrt-funcall #'print-error) (print-error))))
 
 (declaim (inline fifo-perform-functions))
 (defun fifo-perform-functions (fifo)
@@ -173,19 +170,22 @@
 
 (in-package :incudine.util)
 
+(defmacro rt-return-func (varname form)
+  (with-gensyms (c)
+    `(handler-case
+         (let ((,varname (progn ,@form)))
+           (lambda () ,varname))
+       (condition (,c)
+         (progn (nrt-msg error "~A" ,c)
+                incudine.util::*dummy-function-without-args*)))))
+
 (defmacro rt-eval-with-return (&body form)
   (with-gensyms (fn value)
     `(let (,fn)
        (incudine:fast-nrt-funcall
         (lambda ()
           (incudine::fast-rt-funcall
-           (lambda ()
-             (setf ,fn (handler-case
-                           (let ((,value (progn ,@form)))
-                             (lambda () ,value))
-                         (condition (c)
-                           (progn (nrt-msg error "~A" c)
-                                  incudine.util::*dummy-function-without-args*))))))))
+           (lambda () (setf ,fn (rt-return-func ,value ,form))))))
        (loop until ,fn)
        (funcall ,fn))))
 
@@ -210,6 +210,4 @@
 (defmacro rt-eval-if ((predicate) &body body)
   (with-gensyms (func)
     `(flet ((,func () (progn ,@body)))
-       (if ,predicate
-           (rt-eval () (,func))
-           (,func)))))
+       (if ,predicate (rt-eval () (,func)) (,func)))))

@@ -34,10 +34,9 @@
   (consumed (let ((cmd-pathname
                    (list (sb-ext:native-namestring
                           sb-ext:*runtime-pathname* :as-file t)
-                         ;; The first option after #! in the header of
-                         ;; the fasl file is not --script, so we can
-                         ;; directly use, if we want, a sequence of
-                         ;; compiled files.
+                         ;; The first option after #! in the header of the fasl
+                         ;; file is not --script, so we can directly use, if we
+                         ;; want, a sequence of compiled files.
                          "--")))
               (cons cmd-pathname (cdr cmd-pathname)))
             :type cons)
@@ -101,8 +100,7 @@
     (when (and (char= (read-char f nil nil) #\#)
                (char= (read-char f nil nil) #\!))
       (let ((acc) (result) (quoted-p) (escape-p))
-        (declare (type list acc result)
-                 (type boolean quoted-p escape-p))
+        (declare (type list acc result) (type boolean quoted-p escape-p))
         (do ((c (read-char f nil nil) (read-char f nil nil)))
             ((or (null c) (char= c #\#))
              (nreverse result))
@@ -164,16 +162,20 @@
                                      ;; Signal the condition from nrt-thread
                                      (nrt-funcall
                                       (lambda ()
-                                        (sync-condition-signal *rt-executable-sync*)))))))
+                                        (sync-condition-signal
+                                         *rt-executable-sync*)))))))
                          (sync-condition-wait *rt-executable-sync*))
                         ;; Non realtime
                         (t (bounce-to-disk
                                (,(cond (outfile
                                         (prog1 outfile
-                                          ;; Output file valid only for this rego file
-                                          (setf (toplevel-options-outfile opt) nil)))
-                                       (t (make-pathname :name (pathname-name pathname)
-                                                         :type *default-header-type*)))
+                                          ;; Output file valid only for this
+                                          ;; rego file
+                                          (setf (toplevel-options-outfile opt)
+                                                nil)))
+                                       (t (make-pathname
+                                           :name (pathname-name pathname)
+                                           :type *default-header-type*)))
                                 ,@(when infile `(:input-filename ,infile))
                                 :duration ,duration
                                 :metadata ',(toplevel-options-sf-metadata opt))
@@ -189,16 +191,14 @@
   (flet ((try-with-type (type)
            (probe-file (make-pathname :defaults pathname :type type)))
          (set-quit-and-disable-debugger (opt)
-           (unless #1=(toplevel-options-disable-debugger-p opt)
-             (setf #1# t))
-           (unless #2=(toplevel-options-quit-p opt)
-             (setf #2# t)))
+           (unless #1=(toplevel-options-disable-debugger-p opt) (setf #1# t))
+           (unless #2=(toplevel-options-quit-p opt) (setf #2# t)))
          (fasl-updated-p (fasl-pathname src-pathname consumed-options)
            (and fasl-pathname
                 (or (null src-pathname)
-                    (and ;; Check if the options are changed. The options
-                         ;; used during the compilation are in the header
-                         ;; of the fasl, between #! and #
+                    (and ;; Check if the options are changed. The options used
+                         ;; during the compilation are in the header of the
+                         ;; fasl, between #! and #
                          (equal (read-options-from-fasl fasl-pathname)
                                 consumed-options)
                          ;; Check if the source file is changed
@@ -212,12 +212,14 @@
     (let* ((type (pathname-type pathname))
            (lisp-pathname
             (cond ((and (not rego-file-p)
-                        (or (null type) (string= type sb-fasl:*fasl-file-type*)))
+                        (or (null type)
+                            (string= type sb-fasl:*fasl-file-type*)))
                    (or (try-with-type "cudo")
                        (try-with-type "lisp")
                        (let ((type (pathname-type pathname)))
                          (when (or (and type
-                                        (string/= type sb-fasl:*fasl-file-type*))
+                                        (string/= type
+                                                  sb-fasl:*fasl-file-type*))
                                    (not (fasl-file-p pathname)))
                            (probe-file pathname)))))
                   (rego-file-p
@@ -250,19 +252,21 @@
                          (t (when rego-file-p
                               (let ((fname (score-function-name)))
                                 ;; Generate the intermediate file of the rego file
-                                (regofile->lispfile rego-pathname fname lisp-pathname)
-                                ;; The produced file becomes a script usable both
-                                ;; in realtime and non-realtime.
+                                (regofile->lispfile rego-pathname fname
+                                                    lisp-pathname)
+                                ;; The produced file becomes a script usable
+                                ;; both in realtime and non-realtime.
                                 (%complete-score lisp-pathname opt fname)))
                             (let ((sb-ext:*runtime-pathname*
-                                   ;; The consumed options are stored in the header
-                                   ;; of the FASL, between `#!' and `--script\n#'
+                                   ;; The consumed options are stored in the
+                                   ;; header of the FASL, between `#!' and
+                                   ;; `--script\n#'
                                    (format nil "~{~A~^ ~}" consumed-options))
                                   (*standard-output* *logger-stream*))
                               (load (compile-file lisp-pathname)))
                             (when (and rego-file-p
-                                       ;; Preserve the intermediate file of
-                                       ;; the score in debug mode.
+                                       ;; Preserve the intermediate file of the
+                                       ;; score in debug mode.
                                        (not (toplevel-options-debug-p opt)))
                               (delete-file lisp-pathname))))))
                opt)
@@ -274,40 +278,40 @@
                 [USER-OPTIONS]
 
   -b, --sndfile-buffer-size <int>  Buffer size to read/write a soundfile.
-  -c, --channels <int>             Number of the output channels.
-  --client-name <name>             Name of the client for the audio server.
-  -F, --data-format <type>         Format of the sample for the output file.
-  --data-format-list               Available audio formats.
-  --default-table-size <int>       Default size of a table for an oscillator.
-  -d, --duration <seconds>         Duration of the output file.
-  --debug                          Print debug info.
-  --disk-guard-size <seconds>      Size of the output file with undefined duration.
-  -h, --help                       Print this message and exit.
-  -H, --header-type <type>         Type of the header for the output file.
-  --header-type-list               Available header types.
-  -i, --infile <filename>          Sound input filename or `-' for standard input.
-  -L, --logfile <filename>         Logging file.
-  --lisp-version                   Print version information of SBCL and exit.
-  --logtime ( sec | samp )         Log message with time in seconds or in samples.
-  --max-number-of-channels <int>   Max number of the channels.
-  --max-number-of-nodes <int>      Max number of the nodes.
-  -N, --no-realtime                Stop realtime.
-  --nrt-edf-heap-size <int>        Max number of the events in non realtime.
-  --nrt-priority <int>             Priority of the non-realtime thread.
-  -o, --outfile <filename>         Sound output filename or `-' for standard output.
-  -p, --period <int>               Frames per buffer (used only with PortAudio).
-  --pad <seconds>                  Extend the duration of the output file.
-  -r, --rate <int>                 Sample rate.
-  -R, --realtime                   Start realtime.
-  --receiver-priority <int>        Priority of the thread for a receiver.
-  --rt-edf-heap-size <int>         Heap size for realtime scheduling.
-  --rt-pool-size <int>             Size of the pool for the C heap.
-  --rt-priority <int>              Priority of the realtime thread.
-  -s <filename>                    Process a score.
-  --sample-pool-size <int>         Size of the pool for the C arrays defined in DSP!
-  --sound-velocity <real>          Velocity of the sound at 22°C, 1 atmosfera.
-  -v, --verbose                    More verbose.
-  --version                        Print version information and exit.
+  -c, --channels <int>         Number of the output channels.
+  --client-name <name>         Name of the client for the audio server.
+  -F, --data-format <type>     Format of the sample for the output file.
+  --data-format-list           Available audio formats.
+  --default-table-size <int>   Default size of a table for an oscillator.
+  -d, --duration <seconds>     Duration of the output file.
+  --debug                      Print debug info.
+  --disk-guard-size <seconds>  Size of the output file with undefined duration.
+  -h, --help                   Print this message and exit.
+  -H, --header-type <type>     Type of the header for the output file.
+  --header-type-list           Available header types.
+  -i, --infile <filename>      Sound input filename or `-' for standard input.
+  -L, --logfile <filename>     Logging file.
+  --lisp-version               Print version information of SBCL and exit.
+  --logtime ( sec | samp )     Log message with time in seconds or in samples.
+  --max-number-of-channels <int>  Max number of the channels.
+  --max-number-of-nodes <int>  Max number of the nodes.
+  -N, --no-realtime            Stop realtime.
+  --nrt-edf-heap-size <int>    Max number of the events in non realtime.
+  --nrt-priority <int>         Priority of the non-realtime thread.
+  -o, --outfile <filename>     Sound output filename or `-' for standard output.
+  -p, --period <int>           Frames per buffer (used only with PortAudio).
+  --pad <seconds>              Extend the duration of the output file.
+  -r, --rate <int>             Sample rate.
+  -R, --realtime               Start realtime.
+  --receiver-priority <int>    Priority of the thread for a receiver.
+  --rt-edf-heap-size <int>     Heap size for realtime scheduling.
+  --rt-pool-size <int>         Size of the pool for the C heap.
+  --rt-priority <int>          Priority of the realtime thread.
+  -s <filename>                Process a score.
+  --sample-pool-size <int>     Size of the pool for the C arrays defined in DSP!
+  --sound-velocity <real>      Velocity of the sound at 22°C, 1 atmosfera.
+  -v, --verbose                More verbose.
+  --version                    Print version information and exit.
 
 Metadata:
 
@@ -324,17 +328,17 @@ Metadata:
 
 SBCL options:
 
-  --sysinit <filename>             System-wide init-file to use instead of default.
-  --userinit <filename>            Per-user init-file to use instead of default.
-  --no-sysinit                     Inhibit processing of any system-wide init-file.
-  --no-userinit                    Inhibit processing of any per-user init-file.
-  --disable-debugger               Invoke sb-ext:disable-debugger.
-  --noprint                        Run a Read-Eval Loop without printing results.
-  --script [<filename>]            Skip #! line, disable debugger, avoid verbosity.
-  --quit                           Exit with code 0 after option processing.
-  --non-interactive                Sets both --quit and --disable-debugger.
-  --eval <form>                    Form to eval when processing this option.
-  --load <filename>                File to load when processing this option.
+  --sysinit <filename>         System-wide init-file to use instead of default.
+  --userinit <filename>        Per-user init-file to use instead of default.
+  --no-sysinit                 Inhibit processing of any system-wide init-file.
+  --no-userinit                Inhibit processing of any per-user init-file.
+  --disable-debugger           Invoke sb-ext:disable-debugger.
+  --noprint                    Run a Read-Eval Loop without printing results.
+  --script [<filename>]        Skip #! line, disable debugger, avoid verbosity.
+  --quit                       Exit with code 0 after option processing.
+  --non-interactive            Sets both --quit and --disable-debugger.
+  --eval <form>                Form to eval when processing this option.
+  --load <filename>            File to load when processing this option.
 
 ")
   (sb-ext:exit :code 1))
@@ -352,7 +356,8 @@ SBCL options:
                               (gethash ,(cdr option) *toplevel-options*) ,fn)))))
            (set-option (obj &optional read-p)
              `(progn
-                (setf ,obj (,(if read-p 'read-from-string 'progn) (car options)))
+                (setf ,obj
+                      (,(if read-p 'read-from-string 'progn) (car options)))
                 (add-consumed-option opt (car options) t)
                 (cdr options)))
            (push-fn ((error-msg &optional value-var) &body form)
@@ -385,18 +390,22 @@ SBCL options:
                `(progn
                   ,@(mapcar
                      (lambda (key)
-                       (let ((err-msg (format nil "Failed to set the ~(~A~) ~~S" key)))
+                       (let ((err-msg (format nil "Failed to set the ~(~A~) ~~S"
+                                              key)))
                          `(def-toplevel-opt ,(format nil "--~(~A~)" key)
                             (with-eval-form (,value ,err-msg)
-                              (setf (getf (toplevel-options-sf-metadata opt) ,key)
+                              (setf (getf (toplevel-options-sf-metadata opt)
+                                          ,key)
                                     ,value)))))
                      incudine.util::*sf-metadata-keywords*)))))
 
   (defun sf-header-type-list ()
-    (sf-format-list sf:get-format-major-count sf:get-format-major "~A~12t~A~%"))
+    (sf-format-list sf:get-format-major-count sf:get-format-major
+                    "~A~12t~A~%"))
 
   (defun sf-data-format-list ()
-    (sf-format-list sf:get-format-subtype-count sf:get-format-subtype "~A~12t~A~%"))
+    (sf-format-list sf:get-format-subtype-count sf:get-format-subtype
+                    "~A~12t~A~%"))
 
   ;;; SBCL options
 
@@ -425,7 +434,8 @@ SBCL options:
       (add-toplevel-function
        (lambda ()
          ;; Based on SB-IMPL::PROCESS-EVAL/LOAD-OPTIONS
-         (with-simple-restart (continue "Ignore runtime option --eval ~S." value)
+         (with-simple-restart (continue "Ignore runtime option --eval ~S."
+                                        value)
            (multiple-value-bind (expr pos) (read-from-string value)
              (if (eq value (read-from-string value nil value :start pos))
                  (eval expr)
@@ -541,8 +551,7 @@ SBCL options:
     (set-option (rt-params-frames-per-buffer *rt-params*) t))
 
   (def-toplevel-opt "--pad"
-    (setf (toplevel-options-duration opt)
-          (- (read-from-string (car options))))
+    (setf (toplevel-options-duration opt) (- (read-from-string (car options))))
     (add-consumed-option opt (car options) t)
     (cdr options))
 
@@ -601,8 +610,7 @@ SBCL options:
                      (setf options (funcall fn opt options)))
                  ((string= option "--end-toplevel-options")
                   (return))
-                 ((find "--end-toplevel-options" options
-                        :test #'string=)
+                 ((find "--end-toplevel-options" options :test #'string=)
                   (msg error "bad toplevel option: ~S" option)
                   (sb-ext:exit :code 1))
                  (t (return)))))

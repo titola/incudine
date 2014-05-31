@@ -16,13 +16,11 @@
 
 (in-package :incudine)
 
-(defmacro with-new-thread ((varname name priority debug-message)
-                           &body body)
+(defmacro with-new-thread ((varname name priority debug-message) &body body)
   `(unless ,varname
      (setf ,varname
            (bt:make-thread (lambda ()
-                             (thread-set-priority (bt:current-thread)
-                                                  ,priority)
+                             (thread-set-priority (bt:current-thread) ,priority)
                              ,@body)
                            :name ,name))
      (msg debug ,debug-message)))
@@ -56,16 +54,14 @@
                     (rt-params-priority *rt-params*)
                     "realtime thread started")
     (call-hooks "rt-thread-start" *rt-thread-start-hook* :on-error :warn)
-    (cond ((and (zerop (rt-audio-init
-                        *sample-rate*
-                        *number-of-input-bus-channels*
-                        *number-of-output-bus-channels*
-                        (rt-params-frames-per-buffer *rt-params*)
-                        *foreign-client-name*))
+    (cond ((and (zerop (rt-audio-init *sample-rate*
+                                      *number-of-input-bus-channels*
+                                      *number-of-output-bus-channels*
+                                      (rt-params-frames-per-buffer *rt-params*)
+                                      *foreign-client-name*))
                 (zerop (rt-audio-start)))
            (let ((buffer-size (rt-buffer-size)))
-             (setf (rt-params-frames-per-buffer *rt-params*)
-                   buffer-size)
+             (setf (rt-params-frames-per-buffer *rt-params*) buffer-size)
              #+jack-audio (set-sample-rate (rt-sample-rate))
              (rt-loop buffer-size)))
           (t (setf *rt-thread* nil)
@@ -109,8 +105,7 @@
 
 (defun rt-stop ()
   (unless (eq (rt-status) :stopped)
-    (cond ((rt-thread-p)
-           (nrt-funcall #'rt-stop))
+    (cond ((rt-thread-p) (nrt-funcall #'rt-stop))
           (t (when *rt-thread*
                (let ((thread *rt-thread*))
                  (setf *rt-thread* nil)

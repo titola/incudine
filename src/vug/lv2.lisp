@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -41,23 +41,23 @@
   (declare (ignore environment))
   `(get-lv2-plugin ,(lv2-plugin-uri obj)))
 
-(defvar lilv-uri-audio-port   (cffi:null-pointer))
+(defvar lilv-uri-audio-port (cffi:null-pointer))
 (defvar lilv-uri-control-port (cffi:null-pointer))
-(defvar lilv-uri-input-port   (cffi:null-pointer))
-(defvar lilv-uri-output-port  (cffi:null-pointer))
-(defvar lilv-uri-event-port   (cffi:null-pointer))
-(defvar lilv-uri-midi-port    (cffi:null-pointer))
+(defvar lilv-uri-input-port (cffi:null-pointer))
+(defvar lilv-uri-output-port (cffi:null-pointer))
+(defvar lilv-uri-event-port (cffi:null-pointer))
+(defvar lilv-uri-midi-port (cffi:null-pointer))
 
 (defun lv2-init ()
   (lilv:init-world)
   (macrolet ((set-var (var-name uri)
                `(setf ,var-name (lilv:new-uri lilv::*world* ,uri))))
-    (set-var lilv-uri-audio-port   "http://lv2plug.in/ns/lv2core#AudioPort")
+    (set-var lilv-uri-audio-port "http://lv2plug.in/ns/lv2core#AudioPort")
     (set-var lilv-uri-control-port "http://lv2plug.in/ns/lv2core#ControlPort")
-    (set-var lilv-uri-input-port   "http://lv2plug.in/ns/lv2core#InputPort")
-    (set-var lilv-uri-output-port  "http://lv2plug.in/ns/lv2core#OutputPort")
-    (set-var lilv-uri-event-port   "http://lv2plug.in/ns/ext/event#EventPort")
-    (set-var lilv-uri-midi-port    "http://lv2plug.in/ns/ext/midi#MidiEvent")
+    (set-var lilv-uri-input-port "http://lv2plug.in/ns/lv2core#InputPort")
+    (set-var lilv-uri-output-port "http://lv2plug.in/ns/lv2core#OutputPort")
+    (set-var lilv-uri-event-port "http://lv2plug.in/ns/ext/event#EventPort")
+    (set-var lilv-uri-midi-port "http://lv2plug.in/ns/ext/midi#MidiEvent")
     (values)))
 
 ;;; Defined as macro to reduce the inlined functions inside the
@@ -68,8 +68,7 @@
 (declaim (inline lv2-plugin-instantiate))
 (defun lv2-plugin-instantiate (plugin)
   (locally (declare #.*reduce-warnings*)
-    (lilv:plugin-instantiate (lv2-plugin-pointer plugin)
-                             *sample-rate*
+    (lilv:plugin-instantiate (lv2-plugin-pointer plugin) *sample-rate*
                              (cffi:null-pointer))))
 
 (defmacro make-lv2-instance (plugin)
@@ -91,13 +90,13 @@
 
 (declaim (inline lv2-run))
 (defun lv2-run (fn handle sample-count)
-  (cffi:foreign-funcall-pointer fn () :pointer handle :uint32 sample-count :void))
+  (cffi:foreign-funcall-pointer fn () :pointer handle :uint32 sample-count
+                                :void))
 
 (declaim (inline lv2-port-symbol))
 (defun lv2-port-symbol (plugin port)
-  (intern (string-upcase
-           (lilv:node-as-string
-            (lilv:port-get-symbol plugin port)))))
+  (intern (string-upcase (lilv:node-as-string
+                           (lilv:port-get-symbol plugin port)))))
 
 (declaim (inline lv2-input-port-p))
 (defun lv2-input-port-p (plugin port)
@@ -136,8 +135,7 @@
                       (t (push (list i (lv2-port-symbol plugin port)) outputs)
                          (incf output-ports))))))
     (values (the non-negative-fixnum (+ input-ports output-ports))
-            input-ports output-ports
-            (nreverse inputs) (nreverse outputs))))
+            input-ports output-ports (nreverse inputs) (nreverse outputs))))
 
 (defun get-lv2-plugin (uri)
   (declare (type string uri))
@@ -145,10 +143,9 @@
   (let ((node (lilv:new-uri lilv:*world* uri)))
     (unwind-protect
          (let ((plugin-ptr (lilv:plugins-get-by-uri
-                            (lilv:world-get-all-plugins lilv:*world*)
-                            node)))
-           (multiple-value-bind (ports input-ports output-ports
-                                 inputs outputs)
+                             (lilv:world-get-all-plugins lilv:*world*)
+                             node)))
+           (multiple-value-bind (ports input-ports output-ports inputs outputs)
                (analyze-lv2-ports plugin-ptr)
              (make-lv2-plugin :pointer plugin-ptr :uri uri :ports ports
                               :input-ports input-ports
@@ -156,8 +153,8 @@
                               :input-args inputs :output-args outputs)))
       (lilv:node-free node))))
 
-(defun lv2-connect-ports (instance input-param input-names
-                          output-param output-names event-param)
+(defun lv2-connect-ports (instance input-param input-names output-param
+                          output-names event-param)
   (flet ((index-and-var-list (param-list var-names)
            (mapcar (lambda (param name) (cons (car param) name))
                    param-list var-names)))
@@ -166,7 +163,7 @@
       (nconc
        (loop for (index . name) in (append input-ports output-ports)
              collect `(lilv:instance-connect-port
-                       ,instance ,index (get-pointer ,name)))
+                        ,instance ,index (get-pointer ,name)))
        (loop for (index . name) in event-param
              collect `(lilv:instance-connect-port ,instance ,index ,name))))))
 
@@ -190,8 +187,7 @@
       ;; Multiple outputs in a frame
       `(,@(loop for out in output-names
                 for index from 0
-                collect `(setf (frame-ref ,frame ,index)
-                               (sample ,out)))
+                collect `(setf (frame-ref ,frame ,index) (sample ,out)))
         ,frame)
       ;; Single output
       `((sample ,(car output-names)))))
@@ -238,18 +234,18 @@
                   (,reinit-p nil))
              (declare (type foreign-float ,@input-names ,@output-names))
              (initialize
-              (unless ,reinit-p
-                ;; Initialize only after the allocation of the instance
-                (locally (declare #.*reduce-warnings*)
-                  ,@(lv2-connect-ports instance (nreverse filtered-input-param)
-                                       input-names output-param output-names
-                                       event-param)
-                  (setf ,descriptor (lilv:instance-get-descriptor ,instance))
-                  (setf ,handle (lilv:instance-get-handle ,instance))
-                  (setf ,run-cb (lilv:descriptor-slot-value ,descriptor
-                                                            'lv2::run))
-                  (lilv:instance-activate ,instance)
-                  (setf ,reinit-p t))))
+               (unless ,reinit-p
+                 ;; Initialize only after the allocation of the instance
+                 (reduce-warnings
+                   ,@(lv2-connect-ports instance (nreverse filtered-input-param)
+                                        input-names output-param output-names
+                                        event-param)
+                   (setf ,descriptor (lilv:instance-get-descriptor ,instance))
+                   (setf ,handle (lilv:instance-get-handle ,instance))
+                   (setf ,run-cb (lilv:descriptor-slot-value ,descriptor
+                                                             'lv2::run))
+                   (lilv:instance-activate ,instance)
+                   (setf ,reinit-p t))))
              ;; Expand the inputs if they are performance-time
              (maybe-expand ,@input-names)
              ;; Process one sample

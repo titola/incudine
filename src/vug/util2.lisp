@@ -97,16 +97,15 @@
          (declare (type fixnum ,index) (type boolean ,done-p))
          (prog1 ,index
            (unless ,done-p
-             (setf ,index (the fixnum
-                            (if (< ,index ,%end)
-                                (+ ,index ,%step)
-                                (if ,%loop-p
-                                    ,%start
-                                    (progn
-                                      (done-action
-                                       ,(or done-action '(function identity)))
-                                      (setf ,done-p t)
-                                      ,index)))))))))))
+             (setf ,index
+                   (the fixnum
+                     (if (< ,index ,%end)
+                         (+ ,index ,%step)
+                         (cond (,%loop-p ,%start)
+                               (t (done-action ,(or done-action
+                                                    '(function identity)))
+                                  (setf ,done-p t)
+                                  ,index)))))))))))
 
 (define-vug downsamp ((control-period fixnum) in)
   (with ((count control-period)
@@ -138,8 +137,7 @@
 (define-vug samphold (in gate initial-value initial-threshold)
   (with-samples ((threshold initial-threshold)
                  (value initial-value))
-    (when (< gate threshold)
-      (setf value in))
+    (when (< gate threshold) (setf value in))
     (setf threshold gate)
     value))
 
@@ -175,8 +173,7 @@
                ((< ,in ,lo) (setf ,in ,lo)))
          ,in)))
 
-  (defmacro wrap-cond ((in low high range &optional (offset in))
-                       &rest clauses)
+  (defmacro wrap-cond ((in low high range &optional (offset in)) &rest clauses)
     `(progn
        ;; If the input is to set, here is a good place, because the
        ;; first condition in the next COND contains an explicit setter
@@ -201,8 +198,8 @@
               (incf ,in ,delta)))
            ,in))))
 
-  (defmacro %mirror-consequent (in threshold1 threshold2 range
-                                two-range offset offset-p bias)
+  (defmacro %mirror-consequent (in threshold1 threshold2 range two-range offset
+                                offset-p bias)
     (with-gensyms (os)
       `(progn
          (setf ,in (- (+ ,threshold1 ,threshold1) ,in))
@@ -224,11 +221,11 @@
              (cond ((zerop ,%range)
                     (setf ,in ,(if (eql hi %range) +sample-zero+ lo)))
                    ((>= ,in ,hi)
-                    (%mirror-consequent ,in ,hi ,lo ,%range ,two-range
-                                        ,%offset ,offset ,lo))
+                    (%mirror-consequent ,in ,hi ,lo ,%range ,two-range ,%offset
+                                        ,offset ,lo))
                    ((< ,in ,lo)
-                    (%mirror-consequent ,in ,lo ,hi ,%range ,two-range
-                                        ,%offset ,offset ,lo))
+                    (%mirror-consequent ,in ,lo ,hi ,%range ,two-range ,%offset
+                                        ,offset ,lo))
                    (t ,in)))))))
 
 (declaim (inline clip))
@@ -256,8 +253,7 @@
 ;;; generator are calculated with a modulable frequency. The possible
 ;;; types of the interpolation are :LINEAR (or :LIN), :COS, :CUBIC or NIL.
 ;;; INTERPOLATE is particularly useful with the random or chaotic VUGs.
-(define-vug-macro interpolate (generator freq
-                               &optional (interpolation :linear)
+(define-vug-macro interpolate (generator freq &optional (interpolation :linear)
                                initial-value-p)
   (with-gensyms (input phase inc x0 x1 x2 x3 delta)
     (destructuring-bind (bindings init update result)

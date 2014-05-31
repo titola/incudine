@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -45,8 +45,7 @@
 (defun thread-set-priority (thread priority)
   (when (bt:threadp thread)
     (incudine.external:pthread-set-priority
-     (cffi:make-pointer (sb-thread::thread-os-thread thread))
-     priority)
+      (cffi:make-pointer (sb-thread::thread-os-thread thread)) priority)
     thread))
 
 (declaim (inline seed-from-random-state))
@@ -57,9 +56,7 @@
 (defun seed-random-state (&optional state)
   (setf *random-state* (sb-ext:seed-random-state state))
   (incudine.external::gsl-seed-random-state
-   (if (numberp state)
-       state
-       (seed-from-random-state *random-state*)))
+    (if (numberp state) state (seed-from-random-state *random-state*)))
   (values))
 
 (defmacro without-gcing (&body body)
@@ -69,14 +66,12 @@
   `(sb-sys:without-interrupts ,@body))
 
 (defmacro with-stop-for-gc-pending (&body body)
-  `(when sb-kernel:*stop-for-gc-pending*
-     ,@body))
+  `(when sb-kernel:*stop-for-gc-pending* ,@body))
 
 (declaim (inline exit))
 (defun exit (&optional (code 0))
   (if (rt-thread-p)
-      (incudine::nrt-funcall
-       (lambda () (sb-ext:exit :code code)))
+      (incudine::nrt-funcall (lambda () (sb-ext:exit :code code)))
       (sb-ext:exit :code code)))
 
 ;;; Return a string compatible in the non-lisp-world, without loss of

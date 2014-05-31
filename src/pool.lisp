@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -256,8 +256,8 @@ will be used to initialize the contents of the newly allocated memory."
           (assert (>= count contents-length))
           (setq count contents-length)))
     (let* ((size (* (foreign-type-size type) count))
-           (ptr (incudine.external:foreign-rt-alloc-ex size
-                                                       *foreign-rt-memory-pool*)))
+           (ptr (incudine.external:foreign-rt-alloc-ex
+                   size *foreign-rt-memory-pool*)))
       (cond (zero-p (incudine.external:foreign-set ptr 0 size))
             (initial-contents
              (dotimes (i contents-length)
@@ -293,8 +293,8 @@ reallocated memory."
           (assert (>= count contents-length))
           (setq count contents-length)))
     (let* ((size (* (foreign-type-size type) count))
-           (ptr (incudine.external:foreign-rt-realloc-ex ptr size
-                                                         *foreign-rt-memory-pool*)))
+           (ptr (incudine.external:foreign-rt-realloc-ex
+                   ptr size *foreign-rt-memory-pool*)))
       (cond (zero-p (incudine.external:foreign-set ptr 0 size))
             (initial-contents
              (dotimes (i contents-length)
@@ -307,9 +307,9 @@ reallocated memory."
 (declaim (inline foreign-rt-alloc-sample))
 (defun foreign-rt-alloc-sample (size &optional zerop)
   (let* ((dsize (* size +foreign-sample-size+))
-         (ptr (incudine.external:foreign-rt-alloc-ex dsize *foreign-sample-pool*)))
-    (when zerop
-      (incudine.external:foreign-set ptr 0 dsize))
+         (ptr (incudine.external:foreign-rt-alloc-ex
+                 dsize *foreign-sample-pool*)))
+    (when zerop (incudine.external:foreign-set ptr 0 dsize))
     ptr))
 
 (declaim (inline %foreign-rt-free-sample))
@@ -326,9 +326,9 @@ reallocated memory."
 (declaim (inline foreign-rt-realloc-sample))
 (defun foreign-rt-realloc-sample (ptr size &optional zerop)
   (let* ((dsize (* size +foreign-sample-size+))
-         (ptr (incudine.external:foreign-rt-realloc-ex ptr dsize *foreign-sample-pool*)))
-    (when zerop
-      (incudine.external:foreign-set ptr 0 dsize))
+         (ptr (incudine.external:foreign-rt-realloc-ex
+                 ptr dsize *foreign-sample-pool*)))
+    (when zerop (incudine.external:foreign-set ptr 0 dsize))
     ptr))
 
 (declaim (inline get-foreign-sample-used-size))

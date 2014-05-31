@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -74,7 +74,7 @@ when the duration is undefined.")
 (defvar *nrt-heap*
   (make-array *nrt-edf-heap-size* :element-type 'incudine.edf::node
               :initial-contents (loop repeat *nrt-edf-heap-size*
-                                   collect (incudine.edf::make-node))))
+                                      collect (incudine.edf::make-node))))
 (declaim (type simple-vector *nrt-heap*))
 
 (defvar *nrt-sample-counter*
@@ -118,13 +118,11 @@ when the duration is undefined.")
 
 (declaim (inline clear-inputs))
 (defun clear-inputs ()
-  (foreign-zero-sample *input-pointer*
-                       *number-of-input-bus-channels*))
+  (foreign-zero-sample *input-pointer* *number-of-input-bus-channels*))
 
 (declaim (inline clear-outputs))
 (defun clear-outputs ()
-  (foreign-zero-sample *output-pointer*
-                       *number-of-output-bus-channels*))
+  (foreign-zero-sample *output-pointer* *number-of-output-bus-channels*))
 
 (defmacro read-sample (sndfile ptr items)
   `(#+double-samples sf:read-double
@@ -154,7 +152,8 @@ when the duration is undefined.")
   `(progn
      (unless ,input-eof-p
        (cond ((plusp ,input-remain)
-              (read-snd-buffer ,data-in ,input-remain ,input-index ,in-channels))
+              (read-snd-buffer ,data-in ,input-remain ,input-index
+                               ,in-channels))
              (t ;; Fill the input buffer
               (setf ,input-remain (read-sample ,snd-in ,data-in ,bufsize))
               (setf ,input-index 0)
@@ -358,8 +357,8 @@ when the duration is undefined.")
                         ;; Write to standard output
                         (values (sb-sys:fd-stream-fd sb-sys:*stdout*) t)
                         (values output-filename nil))
-                  (sf:with-open (snd-out path-or-stdout :info info :mode sf:sfm-write
-                                 :open-fd-p open-stdout-p)
+                  (sf:with-open (snd-out path-or-stdout :info info
+                                 :mode sf:sfm-write :open-fd-p open-stdout-p)
                     (write-sf-metadata-plist snd-out metadata)
                     (with-foreign-object (data-out 'sample bufsize)
                       (locally (declare #.*standard-optimize-settings*
@@ -369,13 +368,16 @@ when the duration is undefined.")
                              (unless pad-at-the-end-p
                                (setf frame i)))
                           (declare (type non-negative-fixnum64 i))
-                          (nrt-loop-with-infile snd-in data-in snd-out data-out bufsize
-                                                count channels input-remain input-index
+                          (nrt-loop-with-infile snd-in data-in snd-out data-out
+                                                bufsize count channels
+                                                input-remain input-index
                                                 in-channels input-eof-p))
                         (loop while (< frame remain) do
-                             (nrt-loop-with-infile snd-in data-in snd-out data-out bufsize
-                                                   count channels input-remain input-index
-                                                   in-channels input-eof-p)
+                             (nrt-loop-with-infile snd-in data-in snd-out
+                                                   data-out bufsize count
+                                                   channels input-remain
+                                                   input-index in-channels
+                                                   input-eof-p)
                              (incf frame))
                         (when (plusp count)
                           (write-sample snd-out data-out count))

@@ -33,8 +33,7 @@
       (make-array size :initial-element nil)))
 
 (defmethod print-object ((obj int-hash-table) stream)
-  (format stream "#<~S :COUNT ~D>"
-          (type-of obj) (int-hash-table-count obj)))
+  (format stream "#<~S :COUNT ~D>" (type-of obj) (int-hash-table-count obj)))
 
 (defun make-int-hash-table (&key (size +int-hash-table-size+)
                             initial-element-fn)
@@ -45,21 +44,17 @@
                           :initial-element-fn initial-element-fn
                           :items (make-items double-size initial-element-fn))))
 
-(defmacro index-for (in-hash-id in-key items items-type
-                     int-hash-table get-hash-fn get-key-fn
-                     null-item-p-fn)
+(defmacro index-for (in-hash-id in-key items items-type int-hash-table
+                     get-hash-fn get-key-fn null-item-p-fn)
   (with-gensyms (index mask item %items hash-id)
     `(let ((,hash-id ,in-hash-id)
            (,%items ,items)
            (,mask (int-hash-table-mask ,int-hash-table)))
-       (do* ((,index (logand ,hash-id ,mask)
-                     (logand (1+ ,index) ,mask))
+       (do* ((,index (logand ,hash-id ,mask) (logand (1+ ,index) ,mask))
              (,item (svref ,%items ,index) (svref ,%items ,index)))
             ((or (,null-item-p-fn ,item)
-                 (and (= (the fixnum (,get-hash-fn ,item))
-                         ,hash-id)
-                      (= (the fixnum (,get-key-fn ,item))
-                         ,in-key)))
+                 (and (= ,hash-id (the fixnum (,get-hash-fn ,item)))
+                      (= ,in-key (the fixnum (,get-key-fn ,item)))))
              ,index)
          (declare (type non-negative-fixnum ,mask ,index))
          ,@(when items-type `((declare (type ,items-type ,item))))))))
@@ -91,5 +86,4 @@
                                       ,get-hash-fn ,get-key-fn
                                       ,null-item-p-fn)))
              (unless (= ,old-key ,new-key)
-               (setf ,old-item ,new-item
-                     ,new-item ,curr-item))))))))
+               (setf ,old-item ,new-item ,new-item ,curr-item))))))))

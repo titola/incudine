@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -68,8 +68,7 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defvar *use-foreign-sample-p* (eq *sample-type* 'double-float))
 
-  (unless *use-foreign-sample-p*
-    (setf *foreign-sample-pool-size* 1))
+  (unless *use-foreign-sample-p* (setf *foreign-sample-pool-size* 1))
 
   (cond ((eq *sample-type* 'double-float)
          (defvar *foreign-sample-type* :double)
@@ -88,13 +87,9 @@
          (define-constant least-negative-sample least-negative-single-float)
          (define-constant least-positive-sample least-positive-single-float)))
 
-  (pushnew (if (eq *audio-driver* :jack)
-               :jack-audio
-               :portaudio)
-           *features*)
+  (pushnew (if (eq *audio-driver* :jack) :jack-audio :portaudio) *features*)
 
-  (deftype sample (&optional min max)
-    `(,*sample-type* ,min ,max))
+  (deftype sample (&optional min max) `(,*sample-type* ,min ,max))
 
   (define-constant +sample-zero+ (coerce 0 'sample))
 
@@ -108,8 +103,8 @@
 
   (deftype frame () 'foreign-pointer)
 
-  (define-constant +twopi+ (* 2 (coerce pi 'sample)))
-  (define-constant +half-pi+ (* 0.5 (coerce pi 'sample)))
+  (define-constant +twopi+ (coerce (* 2 pi) 'sample))
+  (define-constant +half-pi+ (coerce (* 0.5 pi) 'sample))
   (define-constant +rtwopi+ (/ 1.0 +twopi+))
   (define-constant +log001+ (log (coerce 0.001 'sample)))
   (define-constant +sqrt2+ (sqrt (coerce 2.0 'sample)))
@@ -123,15 +118,13 @@
   (define-constant +phase-mask+ (1- +table-maxlen+))
   (define-constant +rad2inc+ (* +table-maxlen+ +rtwopi+))
 
-  (defvar *sample-rate*
-    (coerce incudine.config::*sample-rate* 'sample))
+  (defvar *sample-rate* (coerce incudine.config::*sample-rate* 'sample))
   (declaim (type sample *sample-rate*))
 
   (defvar *sample-duration* (/ 1.0 *sample-rate*))
   (declaim (type sample *sample-duration*))
 
-  (defvar *sound-velocity*
-    (coerce incudine.config::*sound-velocity* 'sample))
+  (defvar *sound-velocity* (coerce incudine.config::*sound-velocity* 'sample))
   (declaim (type sample *sound-velocity*))
 
   (defvar *r-sound-velocity* (/ 1.0 *sound-velocity*))
@@ -193,14 +186,13 @@
   (declaim (type non-negative-fixnum *default-table-size*))
 
   (defvar *rt-edf-heap-size* 1024)
-  (declaim (type non-negative-fixnum *nrt-edf-heap-size*))
+  (declaim (type non-negative-fixnum *rt-edf-heap-size*))
 
   (defvar *nrt-edf-heap-size* 65536)
   (declaim (type non-negative-fixnum *nrt-edf-heap-size*))
 
   (macrolet ((force-pow-of-two (value)
-               `(when (and (numberp ,value)
-                           (not (power-of-two-p ,value)))
+               `(when (and (numberp ,value) (not (power-of-two-p ,value)))
                   (setf ,value (next-power-of-two ,value)))))
     (force-pow-of-two *default-table-size*)
     (force-pow-of-two *rt-edf-heap-size*)
@@ -216,10 +208,9 @@
 
 (defvar *nrt-priority* 60)
 
-(defvar *fast-nrt-priority* (let ((prio (1+ *nrt-priority*)))
-                              (if (= prio *rt-priority*)
-                                  *nrt-priority*
-                                  prio)))
+(defvar *fast-nrt-priority*
+  (let ((prio (1+ *nrt-priority*)))
+    (if (= prio *rt-priority*) *nrt-priority* prio)))
 
 (defvar *receiver-default-priority* 63)
 
@@ -249,10 +240,10 @@
 (in-package :incudine)
 
 (defstruct (rt-params (:copier nil))
-  (driver            *audio-driver*)
-  (priority          *rt-priority*)
+  (driver *audio-driver*)
+  (priority *rt-priority*)
   (frames-per-buffer incudine.util::*frames-per-buffer*)
-  (status            :stopped))
+  (status :stopped))
 
 (defvar *rt-params* (make-rt-params))
 

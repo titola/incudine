@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -40,7 +40,8 @@
       `(with (#+x86-64
               (,rows (make-array ,max-random-rows :initial-element 0))
               #-x86-64
-              (,rows-wrap (make-foreign-array ,max-random-rows :int32 :zero-p t))
+              (,rows-wrap (make-foreign-array ,max-random-rows :int32
+                                              :zero-p t))
               #-x86-64
               (,rows (foreign-array-data ,rows-wrap))
               (,counter 0)
@@ -70,23 +71,23 @@
            (setf #+x86-64 (svref ,rows ,index)
                  #-x86-64 (mem-aref ,rows :int32 ,index)
                  ,new-random))
-         (* ,mult (the (signed-byte 32)
-                    (+ ,total (random ,random-limit24))))))))
+         (* ,mult (the (signed-byte 32) (+ ,total
+                                           (random ,random-limit24))))))))
 
 ;;; Noise generator based on a chaotic function (used in SuperCollider).
 (define-vug crackle (param amp)
   (with-samples (y0 (y1 0.3d0) y2)
-    (setf y0 (abs (- (* y1 param) y2 0.05))
-          y2 y1 y1 y0)
+    (setf y0 (abs (- (* y1 param) y2 0.05)))
+    (setf y2 y1 y1 y0)
     (* amp y0)))
 
-(define-vug-macro rand (&whole whole distribution
-                        &key a b c n n1 n2 p alpha beta mu nu sigma tt zeta seed)
+(define-vug-macro rand (&whole whole distribution &key a b c n n1 n2 p alpha
+                        beta mu nu sigma tt zeta seed)
   (declare (ignorable a b c n n1 n2 p alpha beta mu nu sigma tt zeta))
   (let ((spec (gen::find-rand-func-spec distribution))
         (pl (cddr whole)))
-    (destructuring-bind (type-list (lisp-name foreign-name)
-                         return-type &rest args)
+    (destructuring-bind (type-list (lisp-name foreign-name) return-type
+                         &rest args)
         spec
       (declare (ignore type-list foreign-name return-type))
       (let ((keys (mapcar (lambda (x) (make-keyword (caar x))) args)))
@@ -102,7 +103,8 @@
                   (,rng (progn
                           ,@(when seed
                               `((vug-input
-                                 (incudine.external::gsl-seed-random-state ,seed))))
+                                 (incudine.external::gsl-seed-random-state
+                                   ,seed))))
                           (incudine.external::gsl-random-generator))))
              ,@(let ((samples (loop for arg in args
                                     when (eq (cadar arg) :double)
@@ -133,42 +135,43 @@
 (defun fractal-noise-coeff-calc (freq)
   (- (exp (- (* 2.0 (sample pi) freq *sample-duration*)))))
 
-(define-vug-macro fractal-noise (amp beta &key (poles-density 6) (filter-order 15)
-                                 (lowest-freq 50))
+(define-vug-macro fractal-noise (amp beta &key (poles-density 6)
+                                 (filter-order 15) (lowest-freq 50))
   (with-gensyms (in c1 c2 p z a b sec r-poles-density)
     `(with-samples ((,in (white-noise (sample 1)))
                     (,r-poles-density (vug-input
-                                       (reduce-warnings
-                                         (/ (sample 1) ,poles-density))))
+                                        (reduce-warnings
+                                          (/ (sample 1) ,poles-density))))
                     (,c1 (expt (sample 10) ,r-poles-density))
                     (,c2 (expt (sample 10) (* ,beta ,r-poles-density 0.5)))
                     ,@(loop for i from 1 to filter-order
-                            for pole = (format-symbol :incudine.vug "~A~D" p i)
+                            for pole = (vug-format-symbol "~A~D" p i)
                             for pole-value = (sample lowest-freq)
-                                             then `(* ,(format-symbol :incudine.vug
-                                                                      "~A~D" p (1- i))
-                                                      ,c1)
-                            for zero = (format-symbol :incudine.vug "~A~D" z i)
+                                           then `(* ,(vug-format-symbol
+                                                       "~A~D" p (1- i))
+                                                    ,c1)
+                            for zero = (vug-format-symbol "~A~D" z i)
                             collect `(,pole ,pole-value)
-                            collect `(,(format-symbol :incudine.vug "~A~D" a i)
-                                       (fractal-noise-coeff-calc ,pole))
+                            collect `(,(vug-format-symbol "~A~D" a i)
+                                      (fractal-noise-coeff-calc ,pole))
                             collect `(,zero (* ,pole ,c2))
-                            collect `(,(format-symbol :incudine.vug "~A~D" b i)
-                                       (fractal-noise-coeff-calc ,zero)))
+                            collect `(,(vug-format-symbol "~A~D" b i)
+                                      (fractal-noise-coeff-calc ,zero)))
                     ,@(loop for i from 1 to (/ filter-order 2)
                             for j from 1 by 2
                             for input = in then sec-name
-                            for sec-name = (format-symbol :incudine.vug "~A~D" sec i)
-                            for b1 = (format-symbol :incudine.vug "~A~D" b j)
-                            for b2 = (format-symbol :incudine.vug "~A~D" b (1+ j))
-                            for a1 = (format-symbol :incudine.vug "~A~D" a j)
-                            for a2 = (format-symbol :incudine.vug "~A~D" a (1+ j))
-                            collect `(,sec-name (biquad ,input 1 (+ ,b1 ,b2) (* ,b1 ,b2)
-                                                        1 (+ ,a1 ,a2) (* ,a1 ,a2)))))
-       (* ,amp ,(let ((last-sec (format-symbol :incudine.vug "~A~D"
-                                               sec (floor (/ filter-order 2)))))
+                            for sec-name = (vug-format-symbol "~A~D" sec i)
+                            for b1 = (vug-format-symbol "~A~D" b j)
+                            for b2 = (vug-format-symbol "~A~D" b (1+ j))
+                            for a1 = (vug-format-symbol "~A~D" a j)
+                            for a2 = (vug-format-symbol "~A~D" a (1+ j))
+                            collect `(,sec-name
+                                      (biquad ,input 1 (+ ,b1 ,b2) (* ,b1 ,b2) 1
+                                              (+ ,a1 ,a2) (* ,a1 ,a2)))))
+       (* ,amp ,(let ((last-sec (vug-format-symbol "~A~D" sec
+                                                   (floor (/ filter-order 2)))))
                   (if (oddp filter-order)
-                      `(biquad ,last-sec
-                               1 ,(format-symbol :incudine.vug "~A~D" b filter-order)
-                               0 1 ,(format-symbol :incudine.vug "~A~D" a filter-order) 0)
+                      `(biquad ,last-sec 1
+                               ,(vug-format-symbol "~A~D" b filter-order)
+                               0 1 ,(vug-format-symbol "~A~D" a filter-order) 0)
                       last-sec))))))

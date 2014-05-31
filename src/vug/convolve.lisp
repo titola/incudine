@@ -156,8 +156,8 @@ of a multichannel finite impulse response."
                            0))
          (frame (make-frame channels)))
     (declare (type non-negative-fixnum fft-size half-size partitions channels
-                   block-size fdl-size fdl-last fdl-head outbuf-half output-index
-                   input-index pad-index)
+                   block-size fdl-size fdl-last fdl-head outbuf-half
+                   output-index input-index pad-index)
              (type sample scale-factor))
     (foreach-tick
       ;; Fill the zero-padded input buffer of the FFT

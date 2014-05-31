@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -20,31 +20,34 @@
   (defvar *random-number-distributions* nil)
 
   (unless *random-number-distributions*
-    (macrolet ((define-random-functions (lst)
-                 `(progn
-                    (setf *random-number-distributions* ',lst)
-                    ,@(mapcar
-                       (lambda (entry)
-                         (destructuring-bind (type-list (lisp-name foreign-name)
-                                              return-type &rest args)
-                             entry
-                           (declare (ignore type-list))
-                           (when foreign-name
-                             `(progn
-                                (declaim (inline ,lisp-name))
-                                ,(if (and (eq incudine::*sample-type* 'double-float)
-                                          (eq return-type :double))
-                                     `(cffi:defcfun (,lisp-name ,foreign-name) ,return-type
-                                        (rng-type :pointer)
-                                        ,@(loop for l in args collect (car l)))
-                                     `(defun ,lisp-name (rng-type ,@(mapcar #'caar args))
-                                        (coerce (cffi:foreign-funcall ,foreign-name
-                                                  :pointer rng-type
-                                                  ,@(loop for l in args
-                                                          append `(,(cadar l) ,(caar l)))
-                                                  ,return-type)
-                                                'sample)))))))
-                       lst))))
+    (macrolet
+        ((define-random-functions (lst)
+           `(progn
+              (setf *random-number-distributions* ',lst)
+              ,@(mapcar
+                 (lambda (entry)
+                   (destructuring-bind (type-list (lisp-name foreign-name)
+                                        return-type &rest args)
+                       entry
+                     (declare (ignore type-list))
+                     (when foreign-name
+                       `(progn
+                          (declaim (inline ,lisp-name))
+                          ,(if (and (eq incudine::*sample-type* 'double-float)
+                                    (eq return-type :double))
+                               `(cffi:defcfun (,lisp-name ,foreign-name)
+                                  ,return-type (rng-type :pointer)
+                                  ,@(loop for l in args collect (car l)))
+                               `(defun ,lisp-name (rng-type
+                                                    ,@(mapcar #'caar args))
+                                  (coerce (cffi:foreign-funcall ,foreign-name
+                                            :pointer rng-type
+                                            ,@(loop for l in args
+                                                    append `(,(cadar l)
+                                                             ,(caar l)))
+                                            ,return-type)
+                                          'sample)))))))
+                 lst))))
       (define-random-functions
           (((:linear :low :low-pass :lp)
             (ran-low-pass nil)
@@ -188,8 +191,8 @@
   (with-gensyms (rng i c-array size)
     (let ((spec (find-rand-func-spec distribution))
           (pl (cddr whole)))
-      (destructuring-bind (type-list (lisp-name foreign-name)
-                           return-type &rest args)
+      (destructuring-bind (type-list (lisp-name foreign-name) return-type
+                           &rest args)
           spec
         (declare (ignore type-list foreign-name return-type))
         (let ((keys (mapcar (lambda (x) (make-keyword (caar x))) args)))

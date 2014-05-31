@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -18,8 +18,8 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (cffi:defcstruct mouse-event
-    (x      sample)
-    (y      sample)
+    (x sample)
+    (y sample)
     (button :int))
 
   (declaim (inline alloc-mouse-event))
@@ -41,8 +41,8 @@
   (defun mouse-status ()
     (case (get-mouse-status)
       (-1 :no-init)
-      (0  :stopped)
-      (1  :started)))
+      (0 :stopped)
+      (1 :started)))
 
   #+linux
   (defun mouse-start ()

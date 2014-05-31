@@ -52,8 +52,7 @@
                   :grow +nrt-foreign-array-pool-grow+))
 (declaim (type cons-pool *nrt-foreign-array-pool*))
 
-(defvar *nrt-foreign-array-pool-spinlock*
-  (make-spinlock "NRT-FOREIGN-ARRAY"))
+(defvar *nrt-foreign-array-pool-spinlock* (make-spinlock "NRT-FOREIGN-ARRAY"))
 (declaim (type spinlock *nrt-foreign-array-pool-spinlock*))
 
 (declaim (inline rt-foreign-array-pool-pop))
@@ -132,8 +131,7 @@
          (obj (fill-foreign-array (rt-foreign-array-pool-pop)
                                   data dimension element-type
                                   #'rt-free-foreign-array)))
-    (tg:finalize obj (lambda ()
-                       (rt-eval () (foreign-rt-free data))))
+    (tg:finalize obj (lambda () (rt-eval () (foreign-rt-free data))))
     obj))
 
 (defun make-nrt-foreign-array-data (dimension element-type zero-p

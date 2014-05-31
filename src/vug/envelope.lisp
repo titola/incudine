@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -40,11 +40,12 @@
                        ,times))
             (,%curve (locally (declare #.*reduce-warnings*)
                        ,curve))
-            (,env (incudine:make-envelope ,%levels ,%times :curve ,%curve
-                                          :loop-node ,loop-node
-                                          :release-node ,release-node
-                                          :restart-level ,restart-level
-                                          :real-time-p *allow-rt-memory-pool-p*)))
+            (,env (incudine:make-envelope ,%levels ,%times
+                    :curve ,%curve
+                    :loop-node ,loop-node
+                    :release-node ,release-node
+                    :restart-level ,restart-level
+                    :real-time-p *allow-rt-memory-pool-p*)))
        ,env)))
 
 (defmacro update-local-envelope (vug-varname args)
@@ -70,24 +71,29 @@
   `(make-local-envelope (list 0 ,level 0) (list ,attack-time ,release-time)
                         :curve ,curve :restart-level ,restart-level))
 
-(defmacro make-local-cutoff (release-time &key (level 1) (curve :exp) restart-level)
+(defmacro make-local-cutoff (release-time &key (level 1) (curve :exp)
+                             restart-level)
   `(make-local-envelope (list ,level 0) (list ,release-time)
-                        :curve ,curve :release-node 0 :restart-level ,restart-level))
+                        :curve ,curve :release-node 0
+                        :restart-level ,restart-level))
 
 (defmacro make-local-asr (attack-time sustain-level release-time
                           &key (curve -4) restart-level)
   `(make-local-envelope (list 0 ,sustain-level 0)
                         (list ,attack-time ,release-time)
-                        :curve ,curve :release-node 1 :restart-level ,restart-level))
+                        :curve ,curve :release-node 1
+                        :restart-level ,restart-level))
 
 (defmacro make-local-adsr (attack-time decay-time sustain-level release-time
                            &key (peak-level 1) (curve -4) restart-level)
   `(make-local-envelope (list 0 ,peak-level (* ,peak-level ,sustain-level) 0)
                         (list ,attack-time ,decay-time ,release-time)
-                        :curve ,curve :release-node 2 :restart-level ,restart-level))
+                        :curve ,curve :release-node 2
+                        :restart-level ,restart-level))
 
 (defmacro make-local-dadsr (delay-time attack-time decay-time sustain-level
-                            release-time &key (peak-level 1) (curve -4) restart-level)
+                            release-time &key (peak-level 1) (curve -4)
+                            restart-level)
   `(make-envelope (list 0 0 ,peak-level (* ,peak-level ,sustain-level) 0)
                   (list ,delay-time ,attack-time ,decay-time ,release-time)
                   :curve ,curve :release-node 3 :restart-level ,restart-level))
@@ -127,8 +133,7 @@
                   (init-only (when done-p
                                ;; Restart
                                (setf done-p nil))
-                             (expt (the non-negative-sample
-                                     (/ end value))
+                             (expt (the non-negative-sample (/ end value))
                                    (/ (sample samples)))))))
     (declare (type sample %start value power) (type boolean done-p)
              (type non-negative-fixnum samples remain))
@@ -146,18 +151,16 @@
 (eval-when (:compile-toplevel :load-toplevel)
   (declaim (inline envgen-next-dur))
   (defun envgen-next-dur (env-data index time-scale offset)
-    (max 1 (+ offset (sample->fixnum
-                      (* (smp-ref env-data index)
-                         time-scale *sample-rate*)))))
+    (max 1 (+ offset (sample->fixnum (* (smp-ref env-data index)
+                                        time-scale *sample-rate*)))))
 
   (defmacro envgen-next-index (data-size index curr-node)
     `(the non-negative-fixnum
        (cond ((zerop ,index) 0)
              ((>= ,index ,data-size)
               ;; point to the last segment
-              (setf ,index (- ,data-size 4)
-                    ,curr-node (1- (the positive-fixnum
-                                     (/ ,index 3))))
+              (setf ,index (- ,data-size 4))
+              (setf ,curr-node (1- (the positive-fixnum (/ ,index 3))))
               ,index)
              (t (- ,index 3)))))
 
@@ -165,9 +168,7 @@
     (with-gensyms (dest)
       `(let ((,dest ,node-dest))
          (incf ,index (the non-negative-fixnum
-                        (* (the non-negative-fixnum
-                             (- ,dest ,node-src))
-                           3)))
+                        (* (the non-negative-fixnum (- ,dest ,node-src)) 3)))
          (setf ,node-src ,dest))))
 
   (declaim (inline jump-to-loop-node-p))
@@ -193,9 +194,8 @@
          (< release-node curr-node)))
 
   (defmacro envgen-update-sustain (var gate curr-node release-node)
-    `(setf ,var
-           (and (>= ,curr-node 0)
-                (envgen-to-sustain-p ,gate ,curr-node ,release-node))))
+    `(setf ,var (and (>= ,curr-node 0)
+                     (envgen-to-sustain-p ,gate ,curr-node ,release-node))))
 
   (defmacro envgen-sustain (sustain-var)
     `(setf ,sustain-var t))
@@ -236,7 +236,8 @@
            (remain 0)
            (curve +seg-lin-func+)
            (gate-trig (plusp gate))
-           (level (cond ((release-before-sustain-p gate sustain curr-node release-node)
+           (level (cond ((release-before-sustain-p gate sustain curr-node
+                                                   release-node)
                          (envgen-jump-node (1- release-node) curr-node index)
                          (setf remain 0)
                          tmp)
@@ -247,9 +248,9 @@
                         ((release-with-custom-duration-p gate)
                          ;; Force the release stage with custom duration
                          (setf dur (envgen-custom-duration gate)
-                               ;; Anticipate one sample to avoid the repetition of
-                               ;; a vertex because the last value of a segment is
-                               ;; the first value of the next segment.
+                               ;; Anticipate one sample to avoid the repetition
+                               ;; of a vertex because the last value of a segment
+                               ;; is the first value of the next segment.
                                remain (1- dur)
                                curr-node (1+ curr-node))
                          (unless (= curr-node last-point)
@@ -264,7 +265,8 @@
                          tmp)
                         ((envgen-begin-p index dur)
                          (cond (gate-trig
-                                (envgen-update-sustain sustain gate curr-node release-node)
+                                (envgen-update-sustain sustain gate curr-node
+                                                       release-node)
                                 (setf gate-trig nil)
                                 (smp-ref env-data 0))
                                ;; ENVGEN started with GATE zero
@@ -276,7 +278,8 @@
                                remain 0
                                index 0
                                curr-node -1
-                               curr-index (envgen-next-index data-size index curr-node)
+                               curr-index (envgen-next-index data-size index
+                                                             curr-node)
                                prev-index curr-index
                                done-p nil
                                sustain nil
@@ -303,7 +306,8 @@
       (declare (type non-negative-fixnum index data-size last-point dur remain
                      curr-index prev-index)
                (type fixnum curr-node loop-node release-node)
-               (type sample level curve) (type boolean sustain done-p gate-trig))
+               (type sample level curve)
+               (type boolean sustain done-p gate-trig))
       (initialize (setf end level))
       ;; Useful when GATE is modulated. In this case, the expansion
       ;; of GATE occurs here. If GATE is not modulated, GATE-TRIG is
@@ -316,23 +320,27 @@
                              (done-action done-action)
                              (setf done-p t tmp end))
                             (t (incf curr-node)
-                               (cond ((jump-to-loop-node-p gate curr-node loop-node
-                                                           release-node)
-                                      (envgen-jump-node loop-node curr-node index))
-                                     ((envgen-to-sustain-p gate curr-node release-node)
-                                      (envgen-sustain sustain)))
+                               (cond
+                                 ((jump-to-loop-node-p gate curr-node loop-node
+                                                       release-node)
+                                  (envgen-jump-node loop-node curr-node index))
+                                 ((envgen-to-sustain-p gate curr-node
+                                                       release-node)
+                                  (envgen-sustain sustain)))
                                ;; Compute the parameters for the next segment
-                               (setf dur (envgen-next-dur env-data index time-scale 0)
+                               (setf dur (envgen-next-dur env-data index
+                                                          time-scale 0)
                                      remain (1- dur)
                                      index (1+ index)
-                                     ;; The first value of the segment is the last value
-                                     ;; of the previous segment
+                                     ;; The first value of the segment is the
+                                     ;; last value of the previous segment
                                      level end
                                      end (smp-ref env-data index)
                                      index (1+ index)
                                      curve (smp-ref env-data index)
                                      prev-index curr-index)
-                               (%segment-init level end dur curve grow a2 b1 y1 y2)
+                               (%segment-init level end dur curve grow a2 b1
+                                              y1 y2)
                                (setf tmp level))))
                      (t (decf remain)
                         ;; Compute the next point

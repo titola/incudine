@@ -114,28 +114,23 @@
 (declaim (inline inc-ring-buffer))
 (defun inc-ring-buffer (buf delta)
   (incf (ring-buffer-head buf) delta)
-  (loop while (>= (ring-buffer-head buf)
-                  (ring-buffer-size buf))
-        do (decf (ring-buffer-head buf)
-                 (ring-buffer-size buf)))
+  (loop while (>= (ring-buffer-head buf) (ring-buffer-size buf))
+        do (decf (ring-buffer-head buf) (ring-buffer-size buf)))
   buf)
 
 (declaim (inline ring-input-buffer-put))
 (defun ring-input-buffer-put (value buf)
   (declare (type sample value) (type ring-input-buffer buf))
-  (setf (smp-ref (ring-input-buffer-data buf)
-                 (ring-input-buffer-head buf))
+  (setf (smp-ref (ring-input-buffer-data buf) (ring-input-buffer-head buf))
         value)
   (incf (ring-buffer-head buf))
-  (when (>= (ring-buffer-head buf)
-            (ring-buffer-size buf))
+  (when (>= (ring-buffer-head buf) (ring-buffer-size buf))
     (setf (ring-buffer-head buf) 0))
   value)
 
 (declaim (inline copy-from-ring-buffer))
 (defun copy-from-ring-buffer (c-array ring-buffer items)
-  (declare (type ring-buffer ring-buffer)
-           (type foreign-pointer c-array)
+  (declare (type ring-buffer ring-buffer) (type foreign-pointer c-array)
            (type non-negative-fixnum items))
   (%copy-from-ring-buffer c-array (ring-buffer-data ring-buffer)
                           (ring-buffer-size ring-buffer)
@@ -158,8 +153,7 @@
                     (ring-output-buffer-head buf)))
   (setf #1# +sample-zero+)
   (incf (ring-output-buffer-head buf))
-  (when (>= (ring-output-buffer-head buf)
-            (ring-output-buffer-size buf))
+  (when (>= (ring-output-buffer-head buf) (ring-output-buffer-size buf))
     (setf (ring-output-buffer-head buf) 0))
   (smp-ref (ring-output-buffer-tmp buf) 0))
 
@@ -197,7 +191,8 @@
   (size 0 :type non-negative-fixnum)
   (nbins 0 :type non-negative-fixnum)
   (scale-factor (sample 1) :type sample)
-  (time-ptr (error "missing time-ptr pointer for the abuffer") :type foreign-pointer)
+  (time-ptr (error "missing time-ptr pointer for the abuffer")
+            :type foreign-pointer)
   (link nil :type (or analysis null))
   (coord-complex-p nil :type boolean)
   (normalized-p nil :type boolean)
@@ -240,11 +235,11 @@
   (when (plusp (abuffer-size obj))
     (mapc (abuffer-foreign-free obj)
           (list (abuffer-data obj) (abuffer-time-ptr obj)))
-    (setf (abuffer-data obj)      (null-pointer)
-          (abuffer-time-ptr obj)  (null-pointer)
-          (abuffer-size obj)      0
-          (abuffer-nbins obj)     0
-          (abuffer-link obj)      nil)
+    (setf (abuffer-data obj) (null-pointer)
+          (abuffer-time-ptr obj) (null-pointer)
+          (abuffer-size obj) 0
+          (abuffer-nbins obj) 0
+          (abuffer-link obj) nil)
     (tg:cancel-finalization obj))
   (values))
 
@@ -265,14 +260,12 @@
 
 (defmacro abuffer-realpart (obj nbin)
   `(mem-ref (abuffer-data ,obj) 'sample
-            (the non-negative-fixnum
-              (* ,nbin +foreign-complex-size+))))
+            (the non-negative-fixnum (* ,nbin +foreign-complex-size+))))
 
 (defmacro abuffer-imagpart (obj nbin)
   `(mem-ref (abuffer-data ,obj) 'sample
             (the non-negative-fixnum
-              (+ (the non-negative-fixnum
-                   (* ,nbin +foreign-complex-size+))
+              (+ (the non-negative-fixnum (* ,nbin +foreign-complex-size+))
                  +foreign-sample-size+))))
 
 (defun compute-abuffer (abuf)
@@ -325,7 +318,8 @@
                       `(progn
                          ,@(mapcar (lambda (x)
                                      `(unless (abuffer-coord-complex-p ,x)
-                                        (polar-to-complex (abuffer-data ,x) ,nbins-var)
+                                        (polar-to-complex (abuffer-data ,x)
+                                                          ,nbins-var)
                                         (setf (abuffer-coord-complex-p ,x) t)))
                                    abuffer-src-vars)
                          ,@(mapcar (lambda (x)
@@ -335,7 +329,8 @@
                       `(progn
                          ,@(mapcar (lambda (x)
                                      `(when (abuffer-coord-complex-p ,x)
-                                        (complex-to-polar (abuffer-data ,x) ,nbins-var)
+                                        (complex-to-polar (abuffer-data ,x)
+                                                          ,nbins-var)
                                         (setf (abuffer-coord-complex-p ,x) nil)))
                                    abuffer-src-vars)
                          ,@(mapcar (lambda (x)
@@ -349,14 +344,15 @@
              (do ((,index-var ,start (1+ ,index-var)))
                  ((>= ,index-var ,end))
                (declare (type non-negative-fixnum ,index-var))
-               (symbol-macrolet ,(loop for abuf in abuffer-full-vars
-                                       for count from 0
-                                       collect `(,(format-symbol *package* "~A~D"
-                                                                 x-var-prefix count)
-                                                  (abuffer-realpart ,abuf ,index-var))
-                                       collect `(,(format-symbol *package* "~A~D"
-                                                                 y-var-prefix count)
-                                                  (abuffer-imagpart ,abuf ,index-var)))
+               (symbol-macrolet
+                   ,(loop for abuf in abuffer-full-vars
+                          for count from 0
+                          collect `(,(format-symbol *package* "~A~D"
+                                                    x-var-prefix count)
+                                    (abuffer-realpart ,abuf ,index-var))
+                          collect `(,(format-symbol *package* "~A~D"
+                                                    y-var-prefix count)
+                                    (abuffer-imagpart ,abuf ,index-var)))
                  ,@body)))
            ;; Update the time of the destinations
            ,@(mapcar (lambda (abuf) `(touch-abuffer ,abuf)) abuffer-dest-vars)
@@ -366,9 +362,10 @@
 (defmacro dofft-polar ((index-var nbins-var abuffer-src-list abuffer-dest-list
                         &key (index-start 0) index-end (coord-check-p t)
                         init result) &body body)
-  `(dofft (,index-var ,nbins-var ,abuffer-src-list ,abuffer-dest-list "MAG" "PHASE"
-           :coord-complex-p nil :index-start ,index-start :index-end ,index-end
-           :coord-check-p ,coord-check-p :init ,init :result ,result)
+  `(dofft (,index-var ,nbins-var ,abuffer-src-list ,abuffer-dest-list
+           "MAG" "PHASE" :coord-complex-p nil :index-start ,index-start
+           :index-end ,index-end :coord-check-p ,coord-check-p :init ,init
+           :result ,result)
      ,@body))
 
 ;;; Iterate over the values of one or more ABUFFERs using the complex coordinates

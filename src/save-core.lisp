@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -39,9 +39,10 @@
                 (next-power-of-two *rt-edf-heap-size*)
                 1024))
       (setf incudine.edf::*heap*
-            (make-array incudine.edf::*heap-size* :element-type 'incudine.edf::node
-                        :initial-contents (loop repeat incudine.edf::*heap-size*
-                                                collect (incudine.edf::make-node))))
+            (make-array incudine.edf::*heap-size*
+              :element-type 'incudine.edf::node
+              :initial-contents (loop repeat incudine.edf::*heap-size*
+                                   collect (incudine.edf::make-node))))
       (setf *nrt-edf-heap-size*
             (if (and (numberp *nrt-edf-heap-size*)
                      (not (power-of-two-p *nrt-edf-heap-size*)))
@@ -54,22 +55,21 @@
                                             collect (incudine.edf::make-node))))
       ;; buffer
       (setf *sine-table*
-            (make-buffer *default-table-size* :fill-function (gen:partials '(1))))
+            (make-buffer *default-table-size*
+                         :fill-function (gen:partials '(1))))
       (setf *cosine-table*
             (make-buffer *default-table-size*
                          :fill-function (gen:partials '((1 1 .25)))))
       ;; bus
       (setf *bus-channels* (foreign-alloc-sample *bus-channels-size*))
       (setf *input-pointer*
-            (inc-pointer *bus-channels*
-                         (* *number-of-output-bus-channels*
-                            +foreign-sample-size+)))
+            (inc-pointer *bus-channels* (* *number-of-output-bus-channels*
+                                           +foreign-sample-size+)))
       (setf *output-pointer* *bus-channels*)
       (setf *bus-pointer*
-            (inc-pointer *bus-channels*
-                         (* (+ %number-of-input-bus-channels
-                               *number-of-output-bus-channels*)
-                            +foreign-sample-size+)))
+            (inc-pointer *bus-channels* (* (+ %number-of-input-bus-channels
+                                              *number-of-output-bus-channels*)
+                                           +foreign-sample-size+)))
       (setf *output-peak-values*
             (foreign-alloc-sample *number-of-output-bus-channels*))
       ;; time
@@ -93,12 +93,11 @@
                     (node-last group) :dummy-node)
               group))
       (setf *nrt-node-hash* (make-node-hash *max-number-of-nodes*))
-      (setf *nrt-bus-channels*
-            (foreign-alloc-sample *nrt-bus-channels-size*))
+      (setf *nrt-bus-channels* (foreign-alloc-sample *nrt-bus-channels-size*))
       (setf *nrt-input-pointer*
             (inc-pointer *nrt-bus-channels* %nrt-bus-pointer-offset))
-      (setf *nrt-bus-pointer* (inc-pointer *nrt-input-pointer*
-                                           %nrt-bus-pointer-offset))
+      (setf *nrt-bus-pointer*
+            (inc-pointer *nrt-input-pointer* %nrt-bus-pointer-offset))
       (setf *nrt-output-peak-values*
             (foreign-alloc-sample *max-number-of-channels*))
       (setf *nrt-sample-counter*

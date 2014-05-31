@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -75,8 +75,7 @@
     (setf y1 (if (zerop b1) in (+ in (* b1 y1))))))
 
 (define-vug decay-2 (in attack-time decay-time)
-  (- (decay in decay-time)
-     (decay in attack-time)))
+  (- (decay in decay-time) (decay in attack-time)))
 
 (define-vug biquad (in b0 b1 b2 a0 a1 a2)
   (with-samples (x1 x2 y y1 y2)
@@ -110,8 +109,7 @@
   "Two pole resonant filter."
   (with-reson-common (wt r freq q)
     (with-samples ((rr (* r r)))
-      (biquad in (* (- 1 rr) (sin wt))
-              0 0 1 (- (* 2 r (cos wt))) rr))))
+      (biquad in (* (- 1 rr) (sin wt)) 0 0 1 (- (* 2 r (cos wt))) rr))))
 
 (define-vug resonz (in freq q)
   "Two pole resonant filter with zeroes located at z = 1 and z = -1."
@@ -200,8 +198,8 @@
 
 (define-vug bpf (in freq q)
   (%with-biquad-common ()
-    (biquad in alpha 0.0 (- alpha) (+ 1.0 alpha)
-            (- (* 2.0 cos-w0)) (- 1.0 alpha))))
+    (biquad in alpha 0.0 (- alpha) (+ 1.0 alpha) (- (* 2.0 cos-w0))
+            (- 1.0 alpha))))
 
 (define-vug notch (in freq q)
   (%with-biquad-common
@@ -324,8 +322,7 @@
          ;; Inferior limit for the resonance, however it is safer a
          ;; value not greater than one.
          (res (if (minusp resonance) +sample-zero+ resonance))
-         (damp (min (* 2.0 (- 1.0 (expt (the non-negative-sample res)
-                                        0.25)))
+         (damp (min (* 2.0 (- 1.0 (expt (the non-negative-sample res) 0.25)))
                     (min 2.0 (- (/ 2.0 freq) (* freq 0.5)))))
          (frame (make-frame 5 :zero-p t)))
     (declare (type sample freq res damp))
@@ -335,8 +332,7 @@
         (setf notch (- in (* damp band))
               low   (+ low (* freq band))
               high  (- notch low)
-              band  (- (+ (* freq high) band)
-                       (* drive band band band)))
+              band  (- (+ (* freq high) band) (* drive band band band)))
         (setf lp (* 0.5 low)
               hp (* 0.5 high)
               bp (* 0.5 band)
@@ -345,8 +341,7 @@
         (setf notch (- in (* damp band))
               low   (+ low (* freq band))
               high  (- notch low)
-              band  (- (+ (* freq high) band)
-                       (* drive band band band)))
+              band  (- (+ (* freq high) band) (* drive band band band)))
         (setf lp (+ lp (* 0.5 low))
               hp (+ hp (* 0.5 high))
               bp (+ bp (* 0.5 band))
@@ -373,8 +368,8 @@
              (type non-negative-fixnum index old-size)
              (type positive-fixnum size))
     ;; Subtract the old, add the new and update the index
-    (setf sum (+ (- sum (smp-ref data index)) in)
-          (smp-ref data index) in)
+    (setf sum (+ (- sum (smp-ref data index)) in))
+    (setf (smp-ref data index) in)
     (let ((new (1+ index)))
       (setf index (if (>= index size) 0 new)))
     (/ sum size)))
@@ -453,8 +448,7 @@
   (with ((values-wrap (without-follow (max-size)
                         (make-foreign-array max-size 'sample :zero-p t)))
          (values (foreign-array-data values-wrap))
-         (ages (without-follow (max-size)
-                 (make-array max-size)))
+         (ages (without-follow (max-size) (make-array max-size)))
          (old-size 0)
          (init-pass-p t)
          (size (without-follow (max-size)
@@ -482,8 +476,8 @@
     (%median-update-ages pos ages size last)
     (%median-search-lower in values ages pos)
     (%median-search-higher in values ages pos last)
-    (setf (smp-ref values pos) in
-          (svref ages pos) 0)
+    (setf (smp-ref values pos) in)
+    (setf (svref ages pos) 0)
     (smp-ref values median)))
 
 ;;; Second order normalized digital waveguide resonator.

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -21,8 +21,7 @@
     (note 0 :type (integer 0))
     (poly-aftertouch (make-array 128 :element-type '(integer 0)
                                  :initial-element 0))
-    (cc (make-array 128 :element-type '(integer 0)
-                    :initial-element 0))
+    (cc (make-array 128 :element-type '(integer 0) :initial-element 0))
     (program 0 :type (integer 0))
     (global-aftertouch 0 :type (integer 0))
     ;; pitch bend normalized between -1 and 1
@@ -30,8 +29,8 @@
 
   (defvar *midi-table*
     (make-array 16 :element-type 'midi-table
-                :initial-contents
-                (loop for i below 16 collect (make-midi-table)))
+                :initial-contents (loop for i below 16
+                                        collect (make-midi-table)))
     "Table to store the received MIDI channel messages")
   (declaim (type vector *midi-table*))
 
@@ -73,7 +72,7 @@
 (macrolet ((define-midi-*-p (spec)
              `(progn
                 ,@(mapcar (lambda (cons)
-                            `(defun ,(format-symbol :incudine.vug "MIDI-~A-P" (car cons))
+                            `(defun ,(vug-format-symbol "MIDI-~A-P" (car cons))
                                  (status)
                                (declare (type (unsigned-byte 8) status))
                                (= (ldb (byte 4 4) status) ,(cdr cons))))
@@ -81,28 +80,22 @@
            (define-vug-midi (names)
              `(progn
                 ,@(mapcar (lambda (name)
-                            `(define-vug ,(format-symbol :incudine.vug "MIDI-~A" name)
+                            `(define-vug ,(vug-format-symbol "MIDI-~A" name)
                                  ((channel fixnum))
                                (with ((table (svref *midi-table* channel)))
                                  (declare (type midi-table table))
-                                 (the fixnum (,(format-symbol
-                                                :incudine.vug "MIDI-TABLE-~A" name)
-                                               table)))))
+                                 (the fixnum
+                                   (,(vug-format-symbol "MIDI-TABLE-~A" name)
+                                    table)))))
                           names))))
   (define-midi-*-p
-      ((note-off          . #x8)
-       (note-on           . #x9)
-       (poly-aftertouch   . #xa)
-       (cc                . #xb)
-       (program           . #xc)
-       (global-aftertouch . #xd)
-       (pitch-bend        . #xe)))
+      ((note-off . #x8) (note-on . #x9) (poly-aftertouch . #xa) (cc . #xb)
+       (program . #xc) (global-aftertouch . #xd) (pitch-bend . #xe)))
   (define-vug-midi (program global-aftertouch)))
 
 (defun midi-note-p (status)
   (declare (type (unsigned-byte 8) status))
-  (or (midi-note-on-p status)
-      (midi-note-off-p status)))
+  (or (midi-note-on-p status) (midi-note-off-p status)))
 
 (define-vug midi-note ((channel fixnum))
   (with ((table (svref *midi-table* channel)))
@@ -131,12 +124,10 @@
     (midi-table-pitch-bend table)))
 
 (define-vug lin-midi-poly-aftertouch ((channel fixnum) (keynum fixnum) min max)
-  (lin->lin (sample (midi-poly-aftertouch channel keynum))
-            0 127 min max))
+  (lin->lin (sample (midi-poly-aftertouch channel keynum)) 0 127 min max))
 
 (define-vug exp-midi-poly-aftertouch ((channel fixnum) (keynum fixnum) min max)
-  (lin->exp (sample (midi-poly-aftertouch channel keynum))
-            0 127 min max))
+  (lin->exp (sample (midi-poly-aftertouch channel keynum)) 0 127 min max))
 
 (define-vug lin-midi-cc ((channel fixnum) (number fixnum) min max)
   (lin->lin (sample (midi-cc channel number)) 0 127 min max))
@@ -145,17 +136,13 @@
   (lin->exp (sample (midi-cc channel number)) 0 127 min max))
 
 (define-vug lin-midi-global-aftertouch ((channel fixnum) min max)
-  (lin->lin (sample (midi-global-aftertouch channel))
-            0 127 min max))
+  (lin->lin (sample (midi-global-aftertouch channel)) 0 127 min max))
 
 (define-vug exp-midi-global-aftertouch ((channel fixnum) min max)
-  (lin->exp (sample (midi-global-aftertouch channel))
-            0 127 min max))
+  (lin->exp (sample (midi-global-aftertouch channel)) 0 127 min max))
 
 (define-vug lin-midi-pitch-bend ((channel fixnum) min max)
-  (lin->lin (sample (midi-pitch-bend channel))
-            -8192 8191 min max))
+  (lin->lin (sample (midi-pitch-bend channel)) -8192 8191 min max))
 
 (define-vug exp-midi-pitch-bend ((channel fixnum) min max)
-  (lin->exp (sample (midi-pitch-bend channel))
-            -8192 8191 min max))
+  (lin->exp (sample (midi-pitch-bend channel)) -8192 8191 min max))

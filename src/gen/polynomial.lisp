@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -26,15 +26,12 @@
            (type boolean normalize-p))
   (let* ((xmin (sample xmin))
          (range (abs (- xmax xmin)))
-         (coeffs (or (mapcar (lambda (x) (sample x))
-                             coefficients)
+         (coeffs (or (mapcar (lambda (x) (sample x)) coefficients)
                      `(,+sample-zero+))))
     (declare (type sample xmin range) (type cons coeffs))
     (lambda (c-array size)
-      (declare (type foreign-pointer c-array)
-               (type non-negative-fixnum size)
-               #.*standard-optimize-settings*
-               #.*reduce-warnings*)
+      (declare (type foreign-pointer c-array) (type non-negative-fixnum size)
+               #.*standard-optimize-settings* #.*reduce-warnings*)
       (with-samples* ((scale (/ range size))
                       (xloc (sample->fixnum (/ xmin scale)))
                       (max-value 0.0)
@@ -49,6 +46,4 @@
                   (setf abs-value (abs sum))
                   (when (< max-value abs-value)
                     (setf max-value abs-value)))))
-        (values c-array
-                (/ max-value)
-                normalize-p)))))
+        (values c-array (/ max-value) normalize-p)))))

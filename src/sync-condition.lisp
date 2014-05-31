@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -28,8 +28,8 @@
                         :mutex (bt:make-lock name)))
 
 (defmacro inc-condition-counter (cond counter-name)
-  `(setf #1=(,(format-symbol (find-package :incudine)
-                             "SYNC-CONDITION-~A" counter-name)
+  `(setf #1=(,(format-symbol (find-package :incudine) "SYNC-CONDITION-~A"
+                             counter-name)
              ,cond)
          (logand (the non-negative-fixnum
                    (1+ (the non-negative-fixnum #1#)))
@@ -37,8 +37,7 @@
 
 (declaim (inline sync-condition-flush))
 (defun sync-condition-flush (cond)
-  (setf (sync-condition-read cond)
-        (sync-condition-write cond)))
+  (setf (sync-condition-read cond) (sync-condition-write cond)))
 
 (defmacro sync-condition-wait (cond)
   `(bt:with-lock-held ((sync-condition-mutex ,cond))

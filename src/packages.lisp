@@ -379,7 +379,7 @@
   (:import-from #:alexandria #:positive-fixnum #:negative-fixnum
                 #:non-negative-fixnum #:with-gensyms #:define-constant
                 #:ensure-symbol)
-  (:import-from #:incudine.util #:*standard-optimize-settings*
+  (:import-from #:incudine.util #:*standard-optimize-settings* #:reduce-warnings
                 #:cons-pool #:make-cons-pool #:expand-cons-pool #:cons-pool-size
                 #:cons-pool-pop-cons #:cons-pool-push-cons
                 #:cons-pool-pop-list #:cons-pool-push-list

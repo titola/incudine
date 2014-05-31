@@ -47,8 +47,7 @@
 
 (defmethod print-object ((obj envelope) stream)
   (format stream "#<~S :POINTS ~D :LOOP-NODE ~D :RELEASE-NODE ~D>"
-          (type-of obj)
-          (envelope-points obj) (envelope-loop-node obj)
+          (type-of obj) (envelope-points obj) (envelope-loop-node obj)
           (envelope-release-node obj)))
 
 (defmethod free ((obj envelope))
@@ -75,31 +74,31 @@
 
 (defsetf envelope-restart-level set-envelope-restart-level)
 
-(declaim (inline calc-data-size))
-(defun calc-data-size (size)
+(declaim (inline compute-envelope-data-size))
+(defun compute-envelope-data-size (size)
   (declare (type non-negative-fixnum size))
   (- (* size 3) 2))
 
-(declaim (inline calc-envelope-points))
-(defun calc-envelope-points (levels times)
+(declaim (inline compute-envelope-points))
+(defun compute-envelope-points (levels times)
   (declare (type list levels times))
   (max (length levels) (1+ (length times))))
 
 (defun check-envelope-points (env levels times)
   (declare (type envelope env) (type list levels times))
-  (let ((size (calc-envelope-points levels times)))
+  (let ((size (compute-envelope-points levels times)))
     (when (/= size (envelope-points env))
       (setf (envelope-points env) size
-            (envelope-data-size env) (calc-data-size size)))
+            (envelope-data-size env) (compute-envelope-data-size size)))
     (when (> size (envelope-max-points env))
       (tg:cancel-finalization env)
       (let ((real-time-p (envelope-real-time-p env))
             (free-function (envelope-foreign-free env)))
         (if real-time-p
             (foreign-rt-realloc (envelope-data env) 'sample
-                                :count (calc-data-size size))
+                                :count (compute-envelope-data-size size))
             (foreign-realloc-sample (envelope-data env)
-                                    (calc-data-size size)))
+                                    (compute-envelope-data-size size)))
         (setf (envelope-max-points env) size)
         (let ((data (envelope-data env)))
           (tg:finalize env (lambda () (funcall free-function data))))))
@@ -112,15 +111,16 @@
 
 (declaim (inline exponential-curve-index-p))
 (defun exponential-curve-index-p (index)
-  (or (< index +seg-step-func+)
-      (= index +seg-exp-func+)))
+  (or (< index +seg-step-func+) (= index +seg-exp-func+)))
+
+;;; Default zero level in an exponential curve
+(define-constant +exp-sample-zero+ (sample 1.0e-5))
 
 (declaim (inline envelope-fix-zero))
 (defun envelope-fix-zero (level curve)
-  (sample (if (and (exponential-curve-p curve)
-                   (zerop level))
-              1.0e-5
-              level)))
+  (if (and (exponential-curve-p curve) (zerop level))
+      +exp-sample-zero+
+      (sample level)))
 
 (defun set-envelope (env levels times &key curve
                      (loop-node -1) (release-node -1)
@@ -144,8 +144,7 @@
          (tim times (or (cdr tim) times))
          (cur curve (or (cdr cur) curve)))
         ((= i (envelope-data-size env)))
-      (declare (type positive-fixnum i)
-               (type list lev tim cur))
+      (declare (type positive-fixnum i) (type list lev tim cur))
       (incf (envelope-duration env)
             (setf (smp-ref data i) (sample (car tim))))
       (setf (smp-ref data (incf i))
@@ -156,30 +155,30 @@
 
 (declaim (inline seg-function-spec->sample))
 (defun seg-function-spec->sample (x)
-  (cond ((numberp x) (sample x))
-        ((keywordp x)
-         (case x
-           (:step +seg-step-func+)
-           ((:lin :linear) +seg-lin-func+)
-           ((:exp :exponential) +seg-exp-func+)
-           ((:sin :sine) +seg-sine-func+)
-           ((:wel :welch) +seg-welch-func+)
-           ((:sqr :square) +seg-square-func+)
-           ((:cub :cubic) +seg-cubic-func+)
-           (otherwise +seg-lin-func+)))
-        (t +seg-lin-func+)))
+  (typecase x
+    (number (sample x))
+    (keyword (case x
+               (:step +seg-step-func+)
+               ((:lin :linear) +seg-lin-func+)
+               ((:exp :exponential) +seg-exp-func+)
+               ((:sin :sine) +seg-sine-func+)
+               ((:wel :welch) +seg-welch-func+)
+               ((:sqr :square) +seg-square-func+)
+               ((:cub :cubic) +seg-cubic-func+)
+               (otherwise +seg-lin-func+)))
+    (otherwise +seg-lin-func+)))
 
 (declaim (inline sample->seg-function-spec))
 (defun sample->seg-function-spec (x)
   (declare (type sample x)
            #+(or cmu sbcl) (values (or symbol sample)))
-  (cond ((= x +seg-step-func+)   :step)
-        ((= x +seg-lin-func+)    :linear)
-        ((= x +seg-exp-func+)    :exponential)
-        ((= x +seg-sine-func+)   :sine)
-        ((= x +seg-welch-func+)  :welch)
+  (cond ((= x +seg-step-func+) :step)
+        ((= x +seg-lin-func+) :linear)
+        ((= x +seg-exp-func+) :exponential)
+        ((= x +seg-sine-func+) :sine)
+        ((= x +seg-welch-func+) :welch)
         ((= x +seg-square-func+) :square)
-        ((= x +seg-cubic-func+)  :cubic)
+        ((= x +seg-cubic-func+) :cubic)
         (t x)))
 
 (defmacro curve-case (keyform &body cases)
@@ -190,15 +189,14 @@
                          `(,(if (eq (car x) 'otherwise)
                                 t
                                 `(= ,curve ,(car x)))
-                            ,@(cdr x)))
+                           ,@(cdr x)))
                        cases)))))
 
 (defmacro %%segment-init (beg end dur curve grow a2 b1 y1 y2)
   (with-gensyms (w)
     `(curve-case ,curve
        (+seg-step-func+ (values))
-       (+seg-lin-func+
-        (setf ,grow (/ (- ,end ,beg) ,dur)))
+       (+seg-lin-func+ (setf ,grow (/ (- ,end ,beg) ,dur)))
        (+seg-exp-func+
         (setf ,grow (expt (the non-negative-sample (/ ,end ,beg))
                           (/ 1.0d0 ,dur))))
@@ -226,8 +224,8 @@
               ,y2 (the non-negative-sample (sqrt ,end))
               ,grow (/ (- ,y2 ,y1) ,dur)))
        (+seg-cubic-func+
-        (setf ,y1 (expt (the non-negative-sample ,beg) 0.3333333333333333d0)
-              ,y2 (expt (the non-negative-sample ,end) 0.3333333333333333d0)
+        (setf ,y1 (expt (the non-negative-sample ,beg) ,(sample 1/3))
+              ,y2 (expt (the non-negative-sample ,end) ,(sample 1/3))
               ,grow (/ (- ,y2 ,y1) ,dur)))
        ;; custom curve
        (otherwise (if (< (abs ,curve) 0.001d0)
@@ -247,23 +245,19 @@
   (with-gensyms (y0)
     `(curve-case ,curve
        (+seg-step-func+ ,level)
-       (+seg-lin-func+
-        (setf ,level (+ ,level ,grow)))
-       (+seg-exp-func+
-        (setf ,level (* ,level ,grow)))
+       (+seg-lin-func+ (setf ,level (+ ,level ,grow)))
+       (+seg-exp-func+ (setf ,level (* ,level ,grow)))
        (+seg-sine-func+
         (let ((,y0 (- (* ,b1 ,y1) ,y2)))
-          (setf ,level (- ,a2 ,y0)
-                ,y2 ,y1 ,y1 ,y0)))
+          (setf ,level (- ,a2 ,y0) ,y2 ,y1 ,y1 ,y0)))
        (+seg-welch-func+
         (let ((,y0 (- (* ,b1 ,y1) ,y2)))
-          (setf ,level (+ ,a2 ,y0)
-                ,y2 ,y1 ,y1 ,y0)))
+          (setf ,level (+ ,a2 ,y0) ,y2 ,y1 ,y1 ,y0)))
        (+seg-square-func+
-        (setf ,y1    (+ ,y1 ,grow)
+        (setf ,y1 (+ ,y1 ,grow)
               ,level (* ,y1 ,y1)))
        (+seg-cubic-func+
-        (setf ,y1    (+ ,y1 ,grow)
+        (setf ,y1 (+ ,y1 ,grow)
               ,level (* ,y1 ,y1 ,y1)))
        ;; custom curve
        (otherwise (setf ,b1 (* ,b1 ,grow)
@@ -282,14 +276,13 @@
            (type boolean real-time-p))
   (let* ((size (max (length levels) (1+ (length times))))
          (max-points (max size *envelope-default-max-points*))
-         (max-data-size (calc-data-size max-points))
+         (max-data-size (compute-envelope-data-size max-points))
          (data (if real-time-p
                    (foreign-rt-alloc 'sample :count max-data-size)
                    (foreign-alloc-sample max-data-size)))
-         (free-function (if real-time-p
-                            #'safe-foreign-rt-free
-                            #'foreign-free))
-         (env (%make-envelope :data data :data-size (calc-data-size size)
+         (free-function (if real-time-p #'safe-foreign-rt-free #'foreign-free))
+         (env (%make-envelope :data data
+                              :data-size (compute-envelope-data-size size)
                               :points size :max-points max-points
                               :%restart-level (if restart-level
                                                   (sample restart-level))
@@ -302,80 +295,64 @@
 
 (declaim (inline envelope-level))
 (defun envelope-level (env node-number)
-  (declare #.*standard-optimize-settings*
-           (type envelope env)
-           (type non-negative-fixnum node-number)
-           #.*reduce-warnings*)
+  (declare #.*standard-optimize-settings* #.*reduce-warnings*
+           (type envelope env) (type non-negative-fixnum node-number))
   (when (check-envelope-node env node-number)
     (smp-ref (envelope-data env)
              (if (zerop node-number)
                  0
-                 (the non-negative-fixnum
-                   (1- (* node-number 3)))))))
+                 (the non-negative-fixnum (1- (* node-number 3)))))))
 
 (declaim (inline check-envelope-node))
 (defun check-envelope-node (env number)
   (declare (type non-negative-fixnum number))
   (and (>= number 0)
-       (< number (the non-negative-fixnum
-                   (envelope-points env)))))
+       (< number (the non-negative-fixnum (envelope-points env)))))
 
 (defun set-envelope-level (env node-number level)
-  (declare #.*standard-optimize-settings*
-           (type envelope env)
-           (type non-negative-fixnum node-number)
-           (type number level)
-           #.*reduce-warnings*)
+  (declare #.*standard-optimize-settings* #.*reduce-warnings*
+           (type envelope env) (type non-negative-fixnum node-number)
+           (type number level))
   (when (check-envelope-node env node-number)
     (let ((data (inc-pointer (envelope-data env)
                              (the non-negative-fixnum
-                               (* node-number 3
-                                  +foreign-sample-size+)))))
+                               (* node-number 3 +foreign-sample-size+)))))
       (when (zerop level)
         (block nil
           (when (and (plusp node-number)
-                     (exponential-curve-index-p
-                      (smp-ref data 0)))
-            (return (setf level (sample 1.0e-5))))
-          (when (/= node-number (1- (the non-negative-fixnum
-                                      (envelope-points env))))
+                     (exponential-curve-index-p (smp-ref data 0)))
+            (return (setf level +exp-sample-zero+)))
+          (when (/= node-number
+                    (1- (the non-negative-fixnum (envelope-points env))))
             (incf-pointer data (* 3 +foreign-sample-size+))
-            (when (exponential-curve-index-p
-                   (smp-ref data 0))
+            (when (exponential-curve-index-p (smp-ref data 0))
               (incf-pointer data (* -3 +foreign-sample-size+))
-              (return (setf level (sample 1.0e-5))))
+              (return (setf level +exp-sample-zero+)))
             (incf-pointer data (* -3 +foreign-sample-size+)))))
-      (if (> node-number 0)
-          (incf-pointer data (- +foreign-sample-size+)))
+      (if (> node-number 0) (incf-pointer data (- +foreign-sample-size+)))
       (setf (smp-ref data 0) (sample level)))))
 
 (defsetf envelope-level set-envelope-level)
 
 (declaim (inline envelope-time))
 (defun envelope-time (env node-number)
-  (declare #.*standard-optimize-settings*
-           (type envelope env)
-           (type non-negative-fixnum node-number)
-           #.*reduce-warnings*)
+  (declare #.*standard-optimize-settings* #.*reduce-warnings*
+           (type envelope env) (type non-negative-fixnum node-number))
   (when (check-envelope-node env node-number)
     (if (zerop node-number)
         +sample-zero+
         (smp-ref (envelope-data env)
-                 (the non-negative-fixnum
-                   (- (* node-number 3) 2))))))
+                 (the non-negative-fixnum (- (* node-number 3) 2))))))
 
 (declaim (inline set-envelope-time))
 (defun set-envelope-time (env node-number time)
-  (declare #.*standard-optimize-settings*
-           (type envelope env)
-           (type non-negative-fixnum node-number)
-           (type number time)
-           #.*reduce-warnings*)
+  (declare #.*standard-optimize-settings* #.*reduce-warnings*
+           (type envelope env) (type non-negative-fixnum node-number)
+           (type number time))
   (cond ((zerop node-number) +sample-zero+)
         ((< node-number (the non-negative-fixnum (envelope-points env)))
          (setf (smp-ref (envelope-data env)
-                        (the positive-fixnum
-                          (- (* node-number 3) 2)))
+                        (the positive-fixnum (- (* node-number 3) 2)))
                (sample time)))
         (t +sample-zero+)))
 
@@ -383,24 +360,18 @@
 
 (declaim (inline envelope-curve))
 (defun envelope-curve (env node-number)
-  (declare #.*standard-optimize-settings*
-           (type envelope env)
-           (type non-negative-fixnum node-number)
-           #.*reduce-warnings*
+  (declare #.*standard-optimize-settings* #.*reduce-warnings*
+           (type envelope env) (type non-negative-fixnum node-number)
            #+(or cmu sbcl) (values (or symbol sample)))
-  (when (< 0 node-number (the non-negative-fixnum
-                           (envelope-points env)))
-    (sample->seg-function-spec
-     (smp-ref (envelope-data env)
-              (the non-negative-fixnum
-                (* 3 node-number))))))
+  (when (< 0 node-number (the non-negative-fixnum (envelope-points env)))
+    (sample->seg-function-spec (smp-ref (envelope-data env)
+                                        (the non-negative-fixnum
+                                             (* 3 node-number))))))
 
 (defun set-envelope-curve (env node-number curve)
-  (declare #.*standard-optimize-settings*
-           (type envelope env)
-           (type non-negative-fixnum node-number)
+  (declare #.*standard-optimize-settings* #.*reduce-warnings*
+           (type envelope env) (type non-negative-fixnum node-number)
            (type (or symbol real) curve)
-           #.*reduce-warnings*
            #+(or cmu sbcl) (values (or symbol sample)))
   (macrolet ((segment-fix-zero (ptr new-zero old-zero)
                `(when (= (smp-ref ,ptr 0) ,old-zero)
@@ -409,21 +380,19 @@
                `(progn
                   (segment-fix-zero ,beg-ptr ,new-zero ,old-zero)
                   (segment-fix-zero ,end-ptr ,new-zero ,old-zero))))
-    (when (< 0 node-number (the non-negative-fixnum
-                             (envelope-points env)))
+    (when (< 0 node-number (the non-negative-fixnum (envelope-points env)))
       (let* ((curve-ptr (inc-pointer (envelope-data env)
                                      (the non-negative-fixnum
-                                       (* node-number 3 +foreign-sample-size+))))
+                                       (* node-number 3
+                                          +foreign-sample-size+))))
              (end-ptr (inc-pointer curve-ptr (- +foreign-sample-size+)))
              (beg-ptr (if (= node-number 1)
                           (envelope-data env)
                           (inc-pointer end-ptr (* -3 +foreign-sample-size+)))))
         (if (exponential-curve-p curve)
-            (segment-fix-zeros beg-ptr end-ptr (sample 1.0e-5) 0)
-            (segment-fix-zeros beg-ptr end-ptr +sample-zero+
-                               (sample 1.0e-5)))
-        (setf (smp-ref curve-ptr 0)
-              (seg-function-spec->sample curve))
+            (segment-fix-zeros beg-ptr end-ptr +exp-sample-zero+ 0)
+            (segment-fix-zeros beg-ptr end-ptr +sample-zero+ +exp-sample-zero+))
+        (setf (smp-ref curve-ptr 0) (seg-function-spec->sample curve))
         curve))))
 
 (defsetf envelope-curve set-envelope-curve)
@@ -437,14 +406,14 @@
           (+seg-step-func+ ,end)
           (+seg-lin-func+ (+ (* ,pos (- ,end ,beg)) ,beg))
           (+seg-exp-func+ (* ,beg (,expt-s (/ ,end ,beg) ,pos)))
-          (+seg-sine-func+ (+ ,beg (* (- ,end ,beg)
-                                      (+ (* (- (cos (* pi ,pos))) 0.5d0) 0.5d0))))
-          (+seg-welch-func+ (if (< ,beg ,end)
-                                (+ ,beg (* (- ,end ,beg)
-                                           (sin (* +half-pi+ ,pos))))
-                                (- ,end (* (- ,end ,beg)
-                                           (sin (- +half-pi+
-                                                   (* +half-pi+ ,pos)))))))
+          (+seg-sine-func+
+           (+ ,beg (* (- ,end ,beg)
+                      (+ (* (- (cos (* pi ,pos))) 0.5d0) 0.5d0))))
+          (+seg-welch-func+
+           (if (< ,beg ,end)
+               (+ ,beg (* (- ,end ,beg) (sin (* +half-pi+ ,pos))))
+               (- ,end (* (- ,end ,beg) (sin (- +half-pi+
+                                                (* +half-pi+ ,pos)))))))
           (+seg-square-func+ (setf ,tmp0 (,sqrt-s ,beg)
                                    ,tmp1 (,sqrt-s ,end)
                                    ,tmp2 (+ (* pos (- ,tmp1 ,tmp0)) ,tmp0))
@@ -475,8 +444,7 @@
                      (tmp2 0.0))
         (let ((last-point-index (1- (envelope-points env)))
               (data (envelope-data env)))
-          (declare #.*standard-optimize-settings*
-                   #.*reduce-warnings*)
+          (declare #.*standard-optimize-settings* #.*reduce-warnings*)
           (labels ((look (p index)
                      (declare (type non-negative-fixnum p index))
                      (setf delta-time (smp-ref data (- index 2)))
@@ -499,8 +467,7 @@
   (declare (type envelope env) (type real mult))
   (let ((points (envelope-points env))
         (data (envelope-data env)))
-    (setf (envelope-level env 0)
-          (* (smp-ref data 0) mult))
+    (setf (envelope-level env 0) (* (smp-ref data 0) mult))
     (loop for i from 1 below points do
          (setf (envelope-level env i)
                (* (smp-ref data (1- (* i 3))) mult)))
@@ -530,8 +497,7 @@
                (declare (type non-negative-fixnum index)
                         (type sample old-min old-max))
                (if (>= index points)
-                   (values (/ (sample 1) (- old-max old-min))
-                           old-min)
+                   (values (/ (sample 1) (- old-max old-min)) old-min)
                    (let ((value (smp-ref (envelope-data env) index)))
                      (resc (+ index 3)
                            (min value old-min)
@@ -568,8 +534,7 @@
                  (complete-curve-list lst (or (cdr curr) lst)
                                       (cons (car curr) result)
                                       (1- size)))))
-    (if (and (consp curve)
-             (/= (length curve) points))
+    (if (and (consp curve) (/= (length curve) points))
         (complete-curve-list curve curve nil points)
         curve)))
 
@@ -608,7 +573,8 @@
                     ;; Add the first curve
                     (setf curve (if (consp curve)
                                     (cons :lin (expand-curve-list curve points))
-                                    (cons :lin (loop repeat points collect curve)))))))
+                                    (cons :lin (loop repeat points
+                                                     collect curve)))))))
             (rec (cddr bplist) (list (cadr bplist)) nil (car bplist))))
         (msg error "wrong breakpoint sequence"))))
 
@@ -634,7 +600,8 @@
                   (setf curve (if (consp curve)
                                   (nconc (expand-curve-list curve points)
                                          (list :lin))
-                                  (expanded-atomic-curve-plus-linear curve points)))))
+                                  (expanded-atomic-curve-plus-linear curve
+                                                                     points)))))
             (breakpoints->env bplist :curve curve :real-time-p real-time-p)))
         (msg error "wrong breakpoint sequence"))))
 
@@ -645,7 +612,8 @@
                    &key (level 1) (curve :lin) restart-level real-time-p)
   (make-envelope (list 0 level level 0)
                  (list attack-time sustain-time release-time)
-                 :curve curve :restart-level restart-level :real-time-p real-time-p))
+                 :curve curve :restart-level restart-level
+                 :real-time-p real-time-p))
 
 (declaim (inline linen))
 (defun linen (obj attack-time sustain-time release-time
@@ -658,7 +626,8 @@
 (defun make-perc (attack-time release-time
                   &key (level 1) (curve -4) restart-level real-time-p)
   (make-envelope (list 0 level 0) (list attack-time release-time)
-                 :curve curve :restart-level restart-level :real-time-p real-time-p))
+                 :curve curve :restart-level restart-level
+                 :real-time-p real-time-p))
 
 (declaim (inline perc))
 (defun perc (obj attack-time release-time &key (level 1) (curve -4))
@@ -666,15 +635,15 @@
                 :curve curve))
 
 (declaim (inline make-cutoff))
-(defun make-cutoff (release-time &key (level 1) (curve :exp) restart-level real-time-p)
+(defun make-cutoff (release-time &key (level 1) (curve :exp) restart-level
+                    real-time-p)
   (make-envelope (list level 0) (list release-time)
                  :curve curve :release-node 0 :restart-level restart-level
                  :real-time-p real-time-p))
 
 (declaim (inline cutoff))
 (defun cutoff (env release-time &key (level 1) (curve :exp))
-  (set-envelope env `(,level 0) `(,release-time)
-                :curve curve :release-node 0))
+  (set-envelope env `(,level 0) `(,release-time) :curve curve :release-node 0))
 
 (declaim (inline make-asr))
 (defun make-asr (attack-time sustain-level release-time
@@ -700,8 +669,8 @@
 (defun adsr (env attack-time decay-time sustain-level release-time
              &key (peak-level 1) (curve -4))
   (set-envelope env `(0 ,peak-level ,(* peak-level sustain-level) 0)
-                `(,attack-time ,decay-time ,release-time)
-                :curve curve :release-node 2))
+                `(,attack-time ,decay-time ,release-time) :curve curve
+                :release-node 2))
 
 (declaim (inline make-dadsr))
 (defun make-dadsr (delay-time attack-time decay-time sustain-level

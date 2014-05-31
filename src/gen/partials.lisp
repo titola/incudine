@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -32,29 +32,26 @@
         (par #1=(car par-list) #1#)
         (acc nil))
        ((null par) (nreverse acc))
-    (declare (type list par-list acc)
-             (type positive-fixnum i))
+    (declare (type list par-list acc) (type positive-fixnum i))
     (cond ((and (numberp par) (>= par 0))
            (push `(,i ,par ,+sample-zero+ ,+sample-zero+) acc))
           ((and (consp par) (every #'numberp par))
            (push `(,(car par)
-                    ,(or (second par) (sample 1))
-                    ,(or (third par) +sample-zero+)
-                    ,(or (fourth par) +sample-zero+))
+                   ,(or (second par) (sample 1))
+                   ,(or (third par) +sample-zero+)
+                   ,(or (fourth par) +sample-zero+))
                  acc)
            (setf i (car par)))
           (t (decf i)))))
 
 ;;; Inspired by GEN09, GEN10 and GEN19 of Csound
 (defun partials (lst &optional (periodic-p t) (normalize-p t))
-  (declare #.*standard-optimize-settings*
-           (type list lst) (type boolean periodic-p normalize-p)
-           #.*reduce-warnings*)
+  (declare #.*standard-optimize-settings* #.*reduce-warnings*
+           (type list lst) (type boolean periodic-p normalize-p))
   (let ((pl (complete-partial-list lst)))
     (declare (type list pl))
     (lambda (c-array size)
-      (declare (type foreign-pointer c-array)
-               (type non-negative-fixnum size))
+      (declare (type foreign-pointer c-array) (type non-negative-fixnum size))
       (let ((size (if periodic-p size (1- size))))
         (declare (type non-negative-fixnum size))
         (with-foreign-object (tmp 'sample)
@@ -62,17 +59,14 @@
             (dotimes (i size)
               (setf (smp-ref c-array i)
                     (reduce #'+
-                            (mapcar (lambda (x)
-                                      (destructuring-bind (num amp phs dc) x
-                                        (partial-ref num amp phs dc
-                                                     i size tmp)))
-                                    pl)))
+                      (mapcar (lambda (x)
+                                (destructuring-bind (num amp phs dc) x
+                                  (partial-ref num amp phs dc i size tmp)))
+                              pl)))
               (setf abs-value (abs (smp-ref c-array i)))
-              (when (> abs-value max)
-                (setf max abs-value)))
+              (when (> abs-value max) (setf max abs-value)))
             (unless periodic-p
-              (setf (smp-ref c-array size)
-                    (smp-ref c-array 0)))
+              (setf (smp-ref c-array size) (smp-ref c-array 0)))
             (values c-array
                     ;; Factor to scale the amplitude
                     (/ max)
@@ -84,8 +78,7 @@
   (let ((two-nh-plus-one (1+ (ash num-harm 1))))
     (declare (type positive-fixnum two-nh-plus-one))
     (lambda (c-array size)
-      (declare (type foreign-pointer c-array)
-               (type non-negative-fixnum size))
+      (declare (type foreign-pointer c-array) (type non-negative-fixnum size))
       (with-samples ((mult (/ 0.5 num-harm))
                      (pi-step (/ pi size))
                      angle num denom)
@@ -106,8 +99,7 @@
              (c2 (+ lowest-harm num-harm))
              (c3 (1- c2))
              (mul (sample mul)))
-        (declare (type non-negative-fixnum c1 c2 c3)
-                 (type sample mul))
+        (declare (type non-negative-fixnum c1 c2 c3) (type sample mul))
         (lambda (c-array size)
           (declare (type foreign-pointer c-array)
                    (type non-negative-fixnum size)
@@ -115,30 +107,33 @@
           (with-samples* ((abs-mul (abs mul))
                           (two-mul (+ mul mul))
                           (squared-mul-plus-one (+ (* mul mul) (sample 1)))
-                          (c2-mult (expt (the non-negative-sample abs-mul) num-harm))
+                          (c2-mult (expt (the non-negative-sample abs-mul)
+                                         num-harm))
                           c3-mult scale twopi-step angle num denom)
-            (when (and (minusp mul)
-                       (plusp (logand num-harm 1)))
+            (when (and (minusp mul) (plusp (logand num-harm 1)))
               (setf c2-mult (- c2-mult)))
-            (setf c3-mult (* c2-mult mul)
-                  scale (let ((one (sample 1)))
+            (setf c3-mult (* c2-mult mul))
+            (setf scale (let ((one (sample 1)))
                           (if (and (> abs-mul (sample 0.999))
                                    (< abs-mul (sample 1.001)))
                               (/ one num-harm)
-                              (/ (- one abs-mul)
-                                 (- one (abs c2-mult)))))
-                  twopi-step (/ +twopi+ size))
+                              (/ (- one abs-mul) (- one (abs c2-mult))))))
+            (setf twopi-step (/ +twopi+ size))
             (dotimes (i size c-array)
               (setf angle (* i twopi-step)
-                    denom (- squared-mul-plus-one (* two-mul
-                                                     (cos (the limited-sample angle)))))
+                    denom (- squared-mul-plus-one
+                             (* two-mul (cos (the limited-sample angle)))))
               (setf (smp-ref c-array i)
                     (cond ((or (> denom (sample 1.e-5))
                                (< denom (sample -1.e-5)))
-                           (setf num (+ (- (cos (the limited-sample (* lowest-harm angle)))
-                                           (* mul (cos (the limited-sample (* c1 angle))))
-                                           (* c2-mult (cos (the limited-sample (* c2 angle)))))
-                                        (* c3-mult (cos (the limited-sample (* c3 angle))))))
+                           (setf num (+ (- (cos (the limited-sample
+                                                  (* lowest-harm angle)))
+                                           (* mul (cos (the limited-sample
+                                                         (* c1 angle))))
+                                           (* c2-mult (cos (the limited-sample
+                                                             (* c2 angle)))))
+                                        (* c3-mult (cos (the limited-sample
+                                                          (* c3 angle))))))
                            (* scale (/ num denom)))
                           (t (sample 1))))))))))
 
@@ -147,8 +142,7 @@
                     (normalize-p t))
   (declare (type list strength-list) (type real xmin xmax)
            (type boolean offset-p normalize-p)
-           #.*standard-optimize-settings*
-           #.*reduce-warnings*)
+           #.*standard-optimize-settings* #.*reduce-warnings*)
   (with-samples ((phase-init (sample xmin))
                  (phase 0.0)
                  (phase-inc 0.0)
@@ -156,8 +150,7 @@
                  (abs-value 0.0)
                  (max-value 0.0))
     (lambda (c-array size)
-      (declare (type foreign-pointer c-array)
-               (type non-negative-fixnum size))
+      (declare (type foreign-pointer c-array) (type non-negative-fixnum size))
       ;; Clear the buffer
       (incudine.external:foreign-zero-sample c-array size)
       (setf phase-inc (sample (/ (- xmax xmin) size)))
@@ -184,6 +177,4 @@
         (setf abs-value (abs (smp-ref c-array i)))
         (when (> abs-value max-value)
           (setf max-value abs-value)))
-      (values c-array
-              (/ max-value)
-              normalize-p))))
+      (values c-array (/ max-value) normalize-p))))

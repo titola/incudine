@@ -63,8 +63,7 @@
 (defmacro make-local-fft (size &optional (window-size size) window-function)
   (with-gensyms (fft)
     `(with ((,fft (%make-local-fft ,size ,window-size
-                                   ,(or window-function
-                                        '(gen:sine-window)))))
+                                   ,(or window-function '(gen:sine-window)))))
        ,fft)))
 
 (defmacro update-local-fft (vug-varname args)
@@ -73,13 +72,17 @@
            (,window-size ,(second args)))
        (declare (type non-negative-fixnum ,size ,window-size))
        (cond ((and (= ,size (slot-value ,vug-varname 'incudine.analysis::size))
-                   (= ,window-size (slot-value ,vug-varname 'incudine.analysis::window-size)))
+                   (= ,window-size
+                      (slot-value ,vug-varname
+                                  'incudine.analysis::window-size)))
               (setf (incudine.analysis:analysis-time ,vug-varname) (sample -1))
               (foreign-zero-sample
-               (slot-value ,vug-varname 'incudine.analysis::input-buffer) ,size)
-              (foreign-zero-sample (incudine.analysis::ring-buffer-data
-                                    (slot-value ,vug-varname 'incudine.analysis::ring-buffer))
-                                   ,window-size))
+                (slot-value ,vug-varname 'incudine.analysis::input-buffer)
+                ,size)
+              (foreign-zero-sample
+                (incudine.analysis::ring-buffer-data
+                  (slot-value ,vug-varname 'incudine.analysis::ring-buffer))
+                ,window-size))
              (t (incudine:free ,vug-varname)
                 (setf ,vug-varname (%make-local-fft ,@args)))))))
 
@@ -95,8 +98,7 @@
 (defmacro make-local-ifft (size &optional (window-size size) window-function)
   (with-gensyms (ifft)
     `(with ((,ifft (%make-local-ifft ,size ,window-size
-                                     ,(or window-function
-                                          '(gen:sine-window)))))
+                                     ,(or window-function '(gen:sine-window)))))
        ,ifft)))
 
 (defmacro update-local-ifft (vug-varname args)
@@ -105,12 +107,16 @@
            (,window-size ,(second args)))
        (declare (type non-negative-fixnum ,size ,window-size))
        (cond ((and (= ,size (slot-value ,vug-varname 'incudine.analysis::size))
-                   (= ,window-size (slot-value ,vug-varname 'incudine.analysis::window-size)))
+                   (= ,window-size
+                      (slot-value ,vug-varname
+                                  'incudine.analysis::window-size)))
               (setf (incudine.analysis:analysis-time ,vug-varname) (sample -1))
               (foreign-zero-sample
-               (slot-value ,vug-varname 'incudine.analysis::output-buffer) ,size)
-              (foreign-zero-sample (incudine.analysis::ring-buffer-data
-                                    (slot-value ,vug-varname 'incudine.analysis::ring-buffer))
-                                   ,window-size))
+                (slot-value ,vug-varname 'incudine.analysis::output-buffer)
+                ,size)
+              (foreign-zero-sample
+                (incudine.analysis::ring-buffer-data
+                  (slot-value ,vug-varname 'incudine.analysis::ring-buffer))
+                ,window-size))
              (t (incudine:free ,vug-varname)
                 (setf ,vug-varname (%make-local-ifft ,@args)))))))

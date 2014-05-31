@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -25,13 +25,10 @@
      incudine::%segment-update-level)))
 
 (defun envelope (env &optional (periodic-p t) normalize-p)
-  (declare (type incudine:envelope env)
-           (type boolean periodic-p normalize-p))
+  (declare (type incudine:envelope env) (type boolean periodic-p normalize-p))
   (lambda (c-array size)
-    (declare (type foreign-pointer c-array)
-             (type non-negative-fixnum size)
-             #.*standard-optimize-settings*
-             #.*reduce-warnings*)
+    (declare (type foreign-pointer c-array) (type non-negative-fixnum size)
+             #.*standard-optimize-settings* #.*reduce-warnings*)
     (let* ((size (if periodic-p size (1- size)))
            ;; Used at the end of the envelope to fix roundoff errors
            (size-remained size)
@@ -77,8 +74,7 @@
                     (progn (decf remain)
                            (%segment-update-level level curve grow a2 b1 y1 y2)
                            level))))
-        (unless periodic-p
-          (setf (smp-ref c-array size) end))
+        (unless periodic-p (setf (smp-ref c-array size) end))
         (values c-array
                 ;; Factor to scale the amplitude
                 (/ max)

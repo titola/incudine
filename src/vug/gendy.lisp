@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -71,8 +71,7 @@
 (defun gendy-hyperbcos (a)
   (let ((r (/ (tan (the maybe-limited-sample
                      (* 1.5692255 a (random (sample 1.0)))))
-              (tan (the maybe-limited-sample
-                     (* 1.5692255 a))))))
+              (tan (the maybe-limited-sample (* 1.5692255 a))))))
     (- (* 2.0 (* (the sample (log (+ (* r 0.999) .001))) -0.1447648))
        1.0)))
 
@@ -113,13 +112,13 @@
 ;;; according to a stochastic action and they are limited within the
 ;;; boundaries of a mirror formed by an amplitude barrier and a time
 ;;; barrier.
-(define-vug-macro gendy (amp-distr dur-distr amp-distr-param
-                         dur-distr-param freq-min freq-max amp-scale
-                         dur-scale &optional (max-points 12)
-                         (used-points max-points) (interpolation :linear))
+(define-vug-macro gendy (amp-distr dur-distr amp-distr-param dur-distr-param
+                         freq-min freq-max amp-scale dur-scale
+                         &optional (max-points 12) (used-points max-points)
+                         (interpolation :linear))
   (if (constantp max-points)
-      (with-gensyms (amps-wrap durs-wrap amps durs distrib index i
-                     adist ddist points freq-delta)
+      (with-gensyms (amps-wrap durs-wrap amps durs distrib index i adist ddist
+                     points freq-delta)
         (with-coerce-arguments (amp-distr-param dur-distr-param freq-min
                                 freq-max amp-scale dur-scale)
           `(with ((,amps-wrap (make-foreign-array ,max-points 'sample))
@@ -131,7 +130,8 @@
                   (,distrib 0.0d0)
                   (,freq-delta (vug-input (- ,freq-max ,freq-min)))
                   (,index 0)
-                  (,points (vug-input (clip (the fixnum ,used-points) 1 ,max-points))))
+                  (,points (vug-input (clip (the fixnum ,used-points) 1
+                                            ,max-points))))
              (declare (type sample ,distrib ,freq-delta)
                       (type non-negative-fixnum ,index ,adist ,ddist ,points))
              (initialize
@@ -139,14 +139,13 @@
                 (setf (smp-ref ,amps ,i) (- (random (sample 2)) 1.0)
                       (smp-ref ,durs ,i) (random (sample 1)))))
              (interpolate
-              (tick
-               (prog1 (smp-ref ,amps ,index)
-                 (when (>= (incf ,index) ,points)
-                   (setf ,index 0))
-                 (gendy-update-value ,amps ,index ,distrib ,adist
-                                     ,amp-distr-param ,amp-scale -1 1)
-                 (gendy-update-value ,durs ,index ,distrib ,ddist
-                                     ,dur-distr-param ,dur-scale 0 1)))
-              (* (+ ,freq-min (* ,freq-delta (smp-ref ,durs ,index))) ,points)
-              ,interpolation))))
+               (tick
+                (prog1 (smp-ref ,amps ,index)
+                  (when (>= (incf ,index) ,points) (setf ,index 0))
+                  (gendy-update-value ,amps ,index ,distrib ,adist
+                                      ,amp-distr-param ,amp-scale -1 1)
+                  (gendy-update-value ,durs ,index ,distrib ,ddist
+                                      ,dur-distr-param ,dur-scale 0 1)))
+               (* (+ ,freq-min (* ,freq-delta (smp-ref ,durs ,index))) ,points)
+               ,interpolation))))
       (error "MAX-POINTS of GENDY is not a constant")))

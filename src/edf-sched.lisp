@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -36,9 +36,10 @@
 (declaim (type node *dummy-node*))
 
 (defvar *heap-size*
-  (if (and (numberp *rt-edf-heap-size*)
-           (not (power-of-two-p *rt-edf-heap-size*)))
-      (next-power-of-two *rt-edf-heap-size*)
+  (if (typep *rt-edf-heap-size* 'positive-fixnum)
+      (if (power-of-two-p *rt-edf-heap-size*)
+          *rt-edf-heap-size*
+          (next-power-of-two *rt-edf-heap-size*))
       1024))
 (declaim (type non-negative-fixnum *heap-size*))
 
@@ -67,9 +68,9 @@
 
 (declaim (inline node-update))
 (defun node-update (node time function args)
-  (setf (node-time node)     time
+  (setf (node-time node) time
         (node-function node) function
-        (node-args node)     args)
+        (node-args node) args)
   node)
 
 (declaim (inline node-copy))
@@ -104,23 +105,20 @@
 
 (declaim (inline %%at))
 (defun %%at (time function args)
-  (declare (type sample time) (type function function)
-           (type list args))
+  (declare (type sample time) (type function function) (type list args))
   (if (or (null *rt-thread*) (rt-thread-p))
       (%at time function args)
       (incudine:fast-nrt-funcall (lambda ()
                                    (incudine::fast-rt-funcall
-                                    (lambda ()
-                                      (%at time function args))))))
-  nil)
+                                    (lambda () (%at time function args))))))
+  (values))
 
 (declaim (inline at))
 (defun at (time function &rest args)
   (%%at time function args))
 
 (define-compiler-macro at (&whole form &environment env time &rest rest)
-  (if (and (constantp time env)
-           (not (typep time 'sample)))
+  (if (and (constantp time env) (not (typep time 'sample)))
       `(at ,(sample time) ,@rest)
       form))
 
@@ -152,8 +150,7 @@
                   (cond ((> (node-time *temp-node*)
                             (node-time (heap-node curr)))
                          (node-copy (heap-node parent) (heap-node curr))
-                         (setf parent curr
-                               curr   (ash parent 1)))
+                         (setf parent curr curr (ash parent 1)))
                         (t (return)))))
            (node-copy (heap-node parent) *temp-node*)
            (heap-node 0)))
@@ -168,20 +165,16 @@
              (apply (node-function curr-node) (node-args curr-node)))))
 
 (defun last-time ()
-  (declare #.*standard-optimize-settings*
-           #.incudine.util:*reduce-warnings*)
+  (declare #.*standard-optimize-settings* #.incudine.util:*reduce-warnings*)
   (labels ((rec (i t0)
-             (declare (type non-negative-fixnum i)
-                      (type sample t0))
+             (declare (type non-negative-fixnum i) (type sample t0))
              (if (= i *next-node*)
                  t0
                  (rec (1+ i) (max t0 (node-time (heap-node i)))))))
     (let ((start (if (power-of-two-p *next-node*)
                      (ash *next-node* -1)
                      (let ((n (ash *next-node* -2)))
-                       (if (< n 2)
-                           (+ n 1)
-                           (next-power-of-two n))))))
+                       (if (< n 2) (+ n 1) (next-power-of-two n))))))
       (declare (type non-negative-fixnum start))
       (rec (1+ start) (node-time (heap-node start))))))
 

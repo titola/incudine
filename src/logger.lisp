@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -61,8 +61,7 @@
 (defsetf logger-level set-logger-level)
 
 (declaim (inline logger-time))
-(defun logger-time ()
-  *logger-time*)
+(defun logger-time () *logger-time*)
 
 (declaim (inline set-logger-time))
 (defun set-logger-time (unit)
@@ -83,8 +82,7 @@
 (declaim (type function  *logger-time-function*))
 
 (declaim (inline logger-time-function))
-(defun logger-time-function ()
-  *logger-time-function*)
+(defun logger-time-function () *logger-time-function*)
 
 (declaim (inline set-logger-time-function))
 (defun set-logger-time-function (function)
@@ -101,14 +99,12 @@
 
 (defmacro msg (type &rest rest)
   `(when (logger-active-p ,type)
-     (when *logger-time*
-       (funcall *logger-time-function*))
+     (when *logger-time* (funcall *logger-time-function*))
      ,(unless (eq type 'info)
         `(princ ,(format nil "~A: " type) *logger-stream*))
      (format *logger-stream* ,@rest)
      (terpri *logger-stream*)
-     (when *logger-force-output*
-       (force-output *logger-stream*))
+     (when *logger-force-output* (force-output *logger-stream*))
      nil))
 
 (defmacro nrt-msg (type &rest rest)

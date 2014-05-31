@@ -141,8 +141,7 @@
       ;; Multiple outputs in a frame
       `(,@(loop for out in output-names
                 for index from 0
-                collect `(setf (frame-ref ,frame ,index)
-                               (sample ,out)))
+                collect `(setf (frame-ref ,frame ,index) (sample ,out)))
         ,frame)
       ;; Single output
       `((sample ,(car output-names)))))
@@ -189,13 +188,13 @@
                         (,reinit-p nil))
                    (declare (type foreign-float ,@input-names ,@output-names))
                    (initialize
-                    (unless ,reinit-p
-                      ;; Initialize only after the allocation of the instance
-                      (reduce-warnings
-                        ,@(ladspa-connect-port-form instance connect-port-cb
-                                                    input-param output-param)
-                        (ladspa:activate ,instance)
-                        (setf ,reinit-p t))))
+                     (unless ,reinit-p
+                       ;; Initialize only after the allocation of the instance
+                       (reduce-warnings
+                         ,@(ladspa-connect-port-form instance connect-port-cb
+                                                     input-param output-param)
+                         (ladspa:activate ,instance)
+                         (setf ,reinit-p t))))
                    ;; Expand the inputs if they are performance-time
                    (maybe-expand ,@input-names)
                    ;; Process one sample

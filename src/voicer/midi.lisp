@@ -16,6 +16,10 @@
 
 (in-package :incudine.voicer)
 
+(define-constant midi-velocity-max #x7f)
+
+(define-constant r-midi-velocity-max (/ 1.0 midi-velocity-max))
+
 ;;; TODO: it is provisory
 (declaim (inline keynum->cps))
 (defun keynum->cps (keynum)
@@ -65,29 +69,28 @@
 (defun update-amp-vector (midi-event)
   (declare (type midi-event midi-event))
   (fill-amp-vector (lambda (vel)
-                      (* vel (midi-event-amp-mult midi-event) 0.007874016))
-                    midi-event))
+                     (* vel (midi-event-amp-mult midi-event)
+                        r-midi-velocity-max))
+                   midi-event))
 
 ;;; If NOTE-OFF-P is T, a note-on message (status byte 9) with velocity 0
 ;;; is interpreted as a note-off message.
-(defmacro responder-noteon-form (voicer note-off-p keynum velocity &body body)
+(defmacro responder-noteon-form ((voicer note-off-p keynum velocity) &body body)
   (if note-off-p
       `(if (plusp ,velocity)
            (progn ,@body)
            (unsafe-release ,voicer ,keynum))
       `(progn ,@body)))
 
-(defmacro midi-bind (voicer stream
-                     &key (channel 0) (lokey 0) (hikey 127)
-                     (freq-keyword :freq) (amp-keyword :amp)
-                     (amp-mult 0.2) (gate-keyword :gate)
-                     (gate-value 1) (note-off-p t))
+(defmacro midi-bind (voicer stream &key (channel 0) (lokey 0) (hikey 127)
+                     (freq-keyword :freq) (amp-keyword :amp) (amp-mult 0.2)
+                     (gate-keyword :gate) (gate-value 1) (note-off-p t))
   (with-gensyms (event status data1 data2 typ)
-    `(let ((,event (make-midi-event :voicer ,voicer
-                     :channel ,channel :lokey ,lokey :hikey ,hikey
-                     :freq-keyword ,freq-keyword :amp-keyword ,amp-keyword
-                     :amp-mult ,amp-mult :gate-keyword ,gate-keyword
-                     :gate-value ,gate-value :note-off-p ,note-off-p)))
+    `(let ((,event (make-midi-event :voicer ,voicer :channel ,channel
+                     :lokey ,lokey :hikey ,hikey :freq-keyword ,freq-keyword
+                     :amp-keyword ,amp-keyword :amp-mult ,amp-mult
+                     :gate-keyword ,gate-keyword :gate-value ,gate-value
+                     :note-off-p ,note-off-p)))
        (update-freq-vector (update-amp-vector ,event))
        (setf (midi-event-responder ,event)
              (incudine:make-responder ,stream
@@ -99,26 +102,27 @@
                              (<= ,lokey ,data1)
                              (<= ,data1 ,hikey))
                     (let ((,typ (ldb (byte 4 4) ,status)))
-                      (cond ((= ,typ 9)
-                             (with-safe-change (,voicer)
-                               (responder-noteon-form ,voicer ,note-off-p ,data1 ,data2
-                                 (unsafe-set-controls ,voicer
-                                   ,@(if freq-keyword
-                                         `(,freq-keyword
-                                           (the single-float
-                                             (svref (midi-event-freq-vector ,event)
-                                                    ,data1))))
-                                   ,@(if amp-keyword
-                                         `(,amp-keyword
-                                           (the single-float
-                                             (svref (midi-event-amp-vector ,event)
-                                                    ,data2))))
-                                   ,@(if gate-keyword
-                                         `(,gate-keyword ,gate-value)))
-                                 (unsafe-trigger ,voicer ,data1))))
-                            ,@(if note-off-p
-                                  `(((= ,typ 8)
-                                     (release ,voicer ,data1))))))))))
+                      (cond
+                        ((= ,typ 9)
+                         (with-safe-change (,voicer)
+                           (responder-noteon-form (,voicer ,note-off-p ,data1
+                                                   ,data2)
+                             (unsafe-set-controls ,voicer
+                               ,@(if freq-keyword
+                                     `(,freq-keyword
+                                       (the single-float
+                                         (svref (midi-event-freq-vector ,event)
+                                                ,data1))))
+                               ,@(if amp-keyword
+                                     `(,amp-keyword
+                                       (the single-float
+                                         (svref (midi-event-amp-vector ,event)
+                                                ,data2))))
+                               ,@(if gate-keyword
+                                     `(,gate-keyword ,gate-value)))
+                             (unsafe-trigger ,voicer ,data1))))
+                        ,@(if note-off-p
+                              `(((= ,typ 8) (release ,voicer ,data1))))))))))
        ,event)))
 
 (declaim (inline scale-midi-event-amp))

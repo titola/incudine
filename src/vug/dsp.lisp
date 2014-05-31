@@ -23,11 +23,9 @@
   (init-function #'dummy-function :type function)
   (perf-function #'dummy-function :type function)
   (free-function #'dummy-function :type function)
-  (controls (make-hash-table :size 16 :test #'equal)
-            :type hash-table))
+  (controls (make-hash-table :size 16 :test #'equal) :type hash-table))
 
-(defstruct (dsp-properties (:conc-name dsp-)
-                           (:copier nil))
+(defstruct (dsp-properties (:conc-name dsp-) (:copier nil))
   (instances nil :type list)
   (arguments nil :type list)
   (redefine-hook nil :type list)
@@ -73,8 +71,7 @@
 (declaim (inline get-dsp-properties))
 (defun get-dsp-properties (name)
   (or (dsp name)
-      (setf (gethash name *dsp-hash*)
-            (dsp-pool-pop))))
+      (setf (gethash name *dsp-hash*) (dsp-pool-pop))))
 
 (declaim (inline expand-dsp-inst-pool))
 (defun expand-dsp-inst-pool (pool &optional (delta 1))
@@ -127,8 +124,7 @@
                    ,(or (cadr l) '#'dummy-function)))))
 
 (defmacro set-dummy-functions (&rest functions)
-  `(progn ,@(mapcar (lambda (fn)
-                      `(setf ,fn #'dummy-function))
+  `(progn ,@(mapcar (lambda (fn) `(setf ,fn #'dummy-function))
                     functions)))
 
 (declaim (inline all-dsp-names))
@@ -163,8 +159,7 @@
 (defun free-dsp-instances (&optional name)
   (if name
       (let ((dsp-prop (dsp name)))
-        (when dsp-prop
-          (free-dsp-instance dsp-prop)))
+        (when dsp-prop (free-dsp-instance dsp-prop)))
       (maphash-values #'free-dsp-instance *dsp-hash*))
   (values))
 

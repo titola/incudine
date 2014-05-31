@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -46,8 +46,7 @@
   (expand-cons-pool pool delta (make-node)))
 
 (defvar *node-pool*
-  (make-cons-pool :data (loop repeat +node-pool-size+
-                              collect (make-node))
+  (make-cons-pool :data (loop repeat +node-pool-size+ collect (make-node))
                   :size +node-pool-size+
                   :expand-func #'expand-node-pool
                   :grow +node-pool-grow+))
@@ -76,10 +75,9 @@
              (when obj
                (tlist-add-right pending-tlist obj pool)
                (cond ((node-value obj)
-                      (locally
-                          (declare #.incudine.util:*reduce-warnings*)
-                          (funcall (voicer-object-free-function voicer)
-                                   (node-value obj)))
+                      (reduce-warnings
+                        (funcall (voicer-object-free-function voicer)
+                                 (node-value obj)))
                       (setf (node-value obj) nil))
                      (t (setf (node-to-release obj) t))))))
           (t (remove-node voicer
@@ -132,10 +130,9 @@
     (let ((delta (- value (voicer-available-nodes voicer)))
           (node-pool (voicer-node-pool voicer))
           (generic-pool (voicer-generic-pool voicer)))
-      (funcall (incudine.util::cons-pool-expand-func node-pool)
-               node-pool delta)
-      (funcall (incudine.util::cons-pool-expand-func generic-pool)
-               generic-pool (* delta 3))
+      (funcall (incudine.util::cons-pool-expand-func node-pool) node-pool delta)
+      (funcall (incudine.util::cons-pool-expand-func generic-pool) generic-pool
+               (* delta 3))
       (setf (voicer-available-nodes voicer) value)))
   (setf (voicer-polyphony voicer) value))
 
@@ -235,24 +232,21 @@
 (declaim (inline full-p))
 (defun full-p (voicer)
   (declare (type voicer voicer))
-  (>= (voicer-count voicer)
-      (voicer-polyphony voicer)))
+  (>= (voicer-count voicer) (voicer-polyphony voicer)))
 
 (declaim (inline steal-first-voice))
 (defun steal-first-voice (voicer)
   (declare (type voicer voicer))
   (let ((first (car (voicer-objects voicer))))
     (when first
-      (funcall (voicer-object-free-function voicer)
-               (node-value first)))))
+      (funcall (voicer-object-free-function voicer) (node-value first)))))
 
 (declaim (inline steal-last-voice))
 (defun steal-last-voice (voicer)
   (declare (type voicer voicer))
   (let ((last (cdr (voicer-objects voicer))))
-      (when last
-        (funcall (voicer-object-free-function voicer)
-                 (node-value last)))))
+    (when last
+      (funcall (voicer-object-free-function voicer) (node-value last)))))
 
 (declaim (inline expand-local-node-pool))
 (defun expand-local-node-pool (pool &optional (delta 0))
@@ -290,16 +284,14 @@
     (cons-pool-push-cons (voicer-node-pool voicer) entry)))
 
 (defun add-node (voicer tag new)
-  (declare #.*standard-optimize-settings*
-           (type voicer voicer))
+  (declare #.*standard-optimize-settings* (type voicer voicer))
   (let ((last (last-node voicer)))
     (declare (type (or node null) last))
     (setf (last-node voicer) new)
     (if (empty-p voicer)
         (setf (first-node voicer) new)
         (setf (node-next last) new))
-    (let ((object-tlist
-           (car #1=(gethash tag (voicer-object-hash voicer))))
+    (let ((object-tlist (car #1=(gethash tag (voicer-object-hash voicer))))
           (pool (voicer-generic-pool voicer)))
       (declare (type list object-tlist))
       (if object-tlist
@@ -317,12 +309,10 @@
   (declare #.*standard-optimize-settings*
            (type voicer voicer))
   (if (node-prev obj)
-      (setf (node-next (node-prev obj))
-            (node-next obj))
+      (setf (node-next (node-prev obj)) (node-next obj))
       (setf (first-node voicer) (node-next obj)))
   (if (node-next obj)
-      (setf (node-prev (node-next obj))
-            (node-prev obj))
+      (setf (node-prev (node-next obj)) (node-prev obj))
       (setf (last-node voicer) (node-prev obj)))
   (node-pool-push voicer obj)
   (counter-dec voicer)
@@ -334,18 +324,16 @@
            (type (or node null) prev next))
   (setf (node-value node) value
         (node-to-release node) nil
-        (node-tag   node) tag
-        (node-prev  node) prev
-        (node-next  node) next))
+        (node-tag node) tag
+        (node-prev node) prev
+        (node-next node) next))
 
 (declaim (inline unsafe-trigger))
 (defun unsafe-trigger (voicer tag)
-  (declare #.*standard-optimize-settings*
-           (type voicer voicer))
+  (declare #.*standard-optimize-settings* (type voicer voicer))
   (when (full-p voicer)
     (if (voicer-steal-function voicer)
-        (funcall (the function (voicer-steal-function voicer))
-                 voicer)
+        (funcall (the function (voicer-steal-function voicer)) voicer)
         (return-from unsafe-trigger nil)))
   (loop for fn being the hash-values in (voicer-argument-maps voicer)
         do (funcall (the function (car fn))))
@@ -354,8 +342,7 @@
               (unless (eq new-node (last-node voicer))
                 (last-node voicer))
               nil)
-    (funcall (voicer-trigger-function voicer)
-             voicer tag new-node)
+    (funcall (voicer-trigger-function voicer) voicer tag new-node)
     (add-node voicer tag new-node)))
 
 (declaim (inline trigger))
@@ -363,19 +350,14 @@
   (with-safe-change (voicer) (unsafe-trigger voicer tag)))
 
 (declaim (inline unsafe-release))
-(defun unsafe-release (voicer tag &optional (object-free-p t)
-                       free-function)
-  (declare #.*standard-optimize-settings*
-           (type voicer voicer)
+(defun unsafe-release (voicer tag &optional (object-free-p t) free-function)
+  (declare #.*standard-optimize-settings* (type voicer voicer)
            (type (or function null) free-function))
-  (funcall (voicer-release-function voicer)
-           voicer tag object-free-p)
-  (when free-function
-    (funcall free-function)))
+  (funcall (voicer-release-function voicer) voicer tag object-free-p)
+  (when free-function (funcall free-function)))
 
 (declaim (inline release))
-(defun release (voicer tag &optional (object-free-p t)
-                free-function)
+(defun release (voicer tag &optional (object-free-p t) free-function)
   (with-safe-change (voicer)
     (unsafe-release voicer tag object-free-p free-function)))
 
@@ -409,20 +391,21 @@
                                   (lambda ()
                                     (cons-pool-push-cons ,pool ,free-hook)))))
                  (,func-name ,@args
-                             :free-hook ,free-hook
-                             :action (lambda (,node)
-                                       (incudine:fast-nrt-funcall
-                                        (lambda ()
-                                          (with-safe-change (,voicer)
-                                            (cond ((node-to-release ,vnode)
-                                                   ;; Very short event
-                                                   (incudine:fast-rt-funcall
-                                                    (lambda ()
-                                                      (funcall
-                                                       (voicer-object-free-function ,v)
-                                                       (incudine::node-id ,node)))))
-                                                  (t (setf (node-value ,vnode)
-                                                           (incudine::node-id ,node)))))))))))))))
+                    :free-hook ,free-hook
+                    :action (lambda (,node)
+                              (incudine:fast-nrt-funcall
+                                (lambda ()
+                                  (with-safe-change (,voicer)
+                                    (cond ((node-to-release ,vnode)
+                                           ;; Very short event
+                                           (incudine:fast-rt-funcall
+                                             (lambda ()
+                                               (funcall
+                                                (voicer-object-free-function ,v)
+                                                (incudine::node-id ,node)))))
+                                          (t (setf (node-value ,vnode)
+                                                   (incudine::node-id
+                                                     ,node)))))))))))))))
 
 (defmacro %create-voicer (old-voicer obj &optional polyphony)
   (with-gensyms (voicer)
@@ -432,18 +415,18 @@
           `(let (,@(mapcar (lambda (arg value) `(,arg ,value))
                            #1=(incudine.vug::dsp-arguments dsp-properties)
                            (cdr obj))
-                 (,voicer ,(or old-voicer
-                               `(make-voicer ,polyphony))))
+                 (,voicer ,(or old-voicer `(make-voicer ,polyphony))))
              (setf (voicer-object-free-function ,voicer)
-                   (if (member "GATE" ',#1# :key #'symbol-name :test #'string-equal)
+                   (if (member "GATE" ',#1# :key #'symbol-name
+                               :test #'string-equal)
                        (lambda (id)
                          (when id
                            (incudine.util:rt-eval (:return-value-p nil)
                              (incudine:set-control id :gate 0))))
-                       (lambda (id)
-                         (when id (incudine:free id)))))
-             (init-voicer-arguments ,(incudine.vug::dsp-arguments dsp-properties)
-                                    (voicer-arguments ,voicer))
+                       (lambda (id) (when id (incudine:free id)))))
+             (init-voicer-arguments
+               ,(incudine.vug::dsp-arguments dsp-properties)
+               (voicer-arguments ,voicer))
              (%set-default-trigger-function ,voicer ,func-name ,#1#)
              ,@(if old-voicer `((unless (null ',#1#)
                                   (remove-unused-maps
@@ -471,8 +454,7 @@
   (declare #.*standard-optimize-settings*
            (type voicer voicer) (type symbol control-name))
   (let ((entry (gethash control-name (voicer-arguments voicer))))
-    (when entry
-      (funcall (the function (car entry)) value))))
+    (when entry (funcall (the function (car entry)) value))))
 
 (defsetf unsafe-control-value unsafe-set-control)
 
@@ -504,8 +486,7 @@
 (defmacro unsafe-set-controls (voicer &rest arguments)
   `(progn
      ,@(loop for l on arguments by #'cddr collect
-            `(setf (unsafe-control-value ,voicer
-                                         ',(ensure-symbol (car l)))
+            `(setf (unsafe-control-value ,voicer ',(ensure-symbol (car l)))
                    ,(cadr l)))))
 
 (defmacro set-controls (voicer &rest arguments)
@@ -515,16 +496,13 @@
 (defmacro with-controls (controls voicer &body body)
   `(symbol-macrolet
        ,(mapcar (lambda (arg-entry)
-                  (let ((var-name
-                         (if (symbolp arg-entry)
-                             arg-entry
-                             (car arg-entry)))
-                        (arg-name
-                         (if (symbolp arg-entry)
-                             arg-entry
-                             (cadr arg-entry))))
-                    `(,var-name
-                      (unsafe-control-value ,voicer ',arg-name))))
+                  (let ((var-name (if (symbolp arg-entry)
+                                      arg-entry
+                                      (car arg-entry)))
+                        (arg-name (if (symbolp arg-entry)
+                                      arg-entry
+                                      (cadr arg-entry))))
+                    `(,var-name (unsafe-control-value ,voicer ',arg-name))))
                 controls)
      ,@body))
 
@@ -536,9 +514,7 @@
 
 (defmacro define-map (name voicer controls &body function-body)
   `(with-safe-change (,voicer)
-     (unsafe-define-map ,name ,voicer ,controls
-       ,@function-body
-       (values))))
+     (unsafe-define-map ,name ,voicer ,controls ,@function-body (values))))
 
 (declaim (inline unsafe-remove-map))
 (defun unsafe-remove-map (voicer map-name)
@@ -560,8 +536,7 @@
            (type function function) (type voicer voicer))
   (labels ((rec (obj)
              (funcall function obj)
-             (when #1=(node-next obj)
-               (rec #1#))))
+             (when #1=(node-next obj) (rec #1#))))
     (let ((first (car (voicer-objects voicer))))
       (when first (rec first)))))
 
@@ -570,9 +545,8 @@
 
 (defun unsafe-panic (voicer)
   (declare (type voicer voicer))
-  (unsafe-mapvoicer (lambda (obj)
-                      (funcall (voicer-object-free-function voicer)
-                               (node-value obj)))
+  (unsafe-mapvoicer (lambda (obj) (funcall (voicer-object-free-function voicer)
+                                           (node-value obj)))
                     voicer)
   voicer)
 

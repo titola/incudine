@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -28,8 +28,7 @@
 (defvar %number-of-input-bus-channels
   ;; It is possible to use (AUDIO-IN CURRENT-CHANNEL)
   ;; without the risk to read a different bus
-  (max *number-of-input-bus-channels*
-       *number-of-output-bus-channels*))
+  (max *number-of-input-bus-channels* *number-of-output-bus-channels*))
 
 (defvar *bus-channels-size* (+ *number-of-output-bus-channels*
                                %number-of-input-bus-channels
@@ -40,27 +39,25 @@
 (declaim (type foreign-pointer *bus-channels*))
 
 (defvar *input-pointer*
-  (inc-pointer *bus-channels*
-               (* *number-of-output-bus-channels*
-                  +foreign-sample-size+)))
+  (inc-pointer *bus-channels* (* *number-of-output-bus-channels*
+                                 +foreign-sample-size+)))
 (declaim (type foreign-pointer *input-pointer*))
 
 (defvar *output-pointer* *bus-channels*)
 (declaim (type foreign-pointer *output-pointer*))
 
 (defvar *bus-pointer*
-  (inc-pointer *bus-channels*
-               (* (+ %number-of-input-bus-channels
-                     *number-of-output-bus-channels*)
-                  +foreign-sample-size+)))
+  (inc-pointer *bus-channels* (* (+ %number-of-input-bus-channels
+                                    *number-of-output-bus-channels*)
+                                 +foreign-sample-size+)))
 (declaim (type foreign-pointer *bus-pointer*))
 
 (defvar *output-peak-values*
   (foreign-alloc-sample *number-of-output-bus-channels*))
 (declaim (type foreign-pointer *output-peak-values*))
 
-(defvar *out-of-range-counter* (make-array *number-of-output-bus-channels*
-                                           :initial-element 0))
+(defvar *out-of-range-counter*
+  (make-array *number-of-output-bus-channels* :initial-element 0))
 (declaim (type simple-vector *out-of-range-counter*))
 
 (declaim (inline bus))
@@ -101,8 +98,7 @@
       (setf (smp-ref *output-peak-values* chan) value))
     (when (> value (sample 1))
       (setf #1=(svref *out-of-range-counter* chan)
-            (the positive-fixnum
-              (1+ (the positive-fixnum #1#)))))
+            (the positive-fixnum (1+ (the positive-fixnum #1#)))))
     (values)))
 
 (declaim (inline peak-info))
@@ -113,7 +109,7 @@
 
 (defun print-peak-info (&optional (channels *number-of-output-bus-channels*)
                         (stream *logger-stream*))
-  (format stream "~11tpeak amps:  ")
+  (format stream "~11Tpeak amps:  ")
   (dochannels (ch channels)
     (format stream "~8,3,F  " (smp-ref *output-peak-values* ch)))
   (format stream "~%samples out of range:  ")

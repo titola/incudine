@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -26,8 +26,7 @@
           *initialize-hook*)
     (setf *set-readtable-p* nil)))
 
-(defstruct (tempo (:constructor %make-tempo)
-                  (:copier nil))
+(defstruct (tempo (:constructor %make-tempo) (:copier nil))
   (bpm-ptr (error "Missing BPM") :type foreign-pointer))
 
 (defun make-tempo (bpm)
@@ -80,8 +79,7 @@
 (defmethod print-object ((obj tempo) stream)
   (format stream "#<TEMPO ~,2F>" (bpm obj)))
 
-(defvar *sample-counter* (foreign-alloc 'sample
-                                        :initial-element +sample-zero+))
+(defvar *sample-counter* (foreign-alloc 'sample :initial-element +sample-zero+))
 (declaim (type foreign-pointer *sample-counter*))
 
 (declaim (inline now))
@@ -116,15 +114,14 @@
             (tempo-envelope-points obj) (envelope-loop-node bps-env)
             (envelope-release-node bps-env))))
 
-(defmacro make-tempo-envelope (&whole args bpms beats &key curve
-                               (loop-node -1) (release-node -1)
-                               restart-level real-time-p)
-  (declare (ignore beats curve loop-node release-node
-                   restart-level real-time-p))
+(defmacro make-tempo-envelope (&whole args bpms beats &key curve (loop-node -1)
+                               (release-node -1) restart-level real-time-p)
+  (declare (ignore beats curve loop-node release-node restart-level
+                   real-time-p))
   (with-gensyms (tempo-env bps-env bpm points twarp-data)
-    `(let* ((,bps-env (make-envelope
-                       (mapcar (lambda (,bpm) (/ ,(sample 60) ,bpm)) ,bpms)
-                       ,@(cddr args)))
+    `(let* ((,bps-env (make-envelope (mapcar (lambda (,bpm)
+                                               (/ ,(sample 60) ,bpm)) ,bpms)
+                                     ,@(cddr args)))
             (,points (envelope-points ,bps-env))
             (,twarp-data (foreign-alloc 'sample :count ,points))
             (,tempo-env (%make-tempo-envelope :bps ,bps-env
@@ -261,8 +258,7 @@
                (bps-env (tempo-envelope-bps tempo-env))
                (data (envelope-data bps-env))
                (twarp-data (tempo-envelope-time-warp tempo-env)))
-          (declare #.*standard-optimize-settings*
-                   #.*reduce-warnings*)
+          (declare #.*standard-optimize-settings* #.*reduce-warnings*)
           (labels ((look (p index)
                      (declare (type non-negative-fixnum p index))
                      (setf delta-time (smp-ref data (- index 2)))
@@ -271,13 +267,14 @@
                      (if (< pos-time t1)
                          (+ (smp-ref twarp-data (1- p))
                             (segment-time-warp
-                             (smp-ref data (if (= p 1) 0 (- index 4)))
-                             (smp-ref data (- index 1))
-                             (smp-ref data index)
-                             delta-time (/ (- pos-time t0) delta-time)))
+                              (smp-ref data (if (= p 1) 0 (- index 4)))
+                              (smp-ref data (- index 1))
+                              (smp-ref data index)
+                              delta-time (/ (- pos-time t0) delta-time)))
                          (if (< p last-point-index)
                              (look (1+ p) (+ index 3))
-                             (let ((last-time (smp-ref twarp-data last-point-index)))
+                             (let ((last-time (smp-ref twarp-data
+                                                       last-point-index)))
                                (+ last-time (* (smp-ref data (- index 1))
                                                (- pos-time t1))))))))
             (look 1 3))))))
@@ -307,7 +304,7 @@
                          `(,(if (eq (car x) 'otherwise)
                                 t
                                 `(char= ,c ,(car x)))
-                            ,@(cdr x)))
+                           ,@(cdr x)))
                        cases)))))
 
 (defun parse-time-unit (string mult arg0 arg1)
@@ -320,8 +317,7 @@
                   ;; start time in beats
                   `(time-at ,arg0 (incudine.util:sample ,mult) ,arg1)
                   ;; ARG0 is an instance of TEMPO
-                  `(* (incudine.util:sample ,mult)
-                      (bps ,(or arg0 '*tempo*))))))
+                  `(* (incudine.util:sample ,mult) (bps ,(or arg0 '*tempo*))))))
     ;; s    -> seconds
     ;; se.* -> seconds
     ;; sa.* -> samples
@@ -362,28 +358,23 @@
     (do ((prev #\space curr)
          (curr (read-char stream) (read-char stream)))
         ((char= curr #\])
-         (when lst
-           (push (coerce (nreverse lst) 'string) acc)))
+         (when lst (push (coerce (nreverse lst) 'string) acc)))
       (if (char= curr #\space)
           (when (char/= prev #\space)
             (push (coerce (nreverse lst) 'string) acc)
             (setf lst nil)
-            (if (= count 4)
-                (return)
-                (incf count)))
+            (if (= count 4) (return) (incf count)))
           (push curr lst)))
     (nreverse acc)))
 
 (defun parse-time-string (stream subchar arg)
   (declare #.*standard-optimize-settings*
-           (type stream stream)
-           (ignore subchar arg))
+           (type stream stream) (ignore subchar arg))
   (let ((str-list (split-unit-time-string stream)))
     (declare (type list str-list))
     (if (null str-list)
         +sample-zero+
-        (let ((mult (reduce-warnings
-                      (read-from-string (first str-list))))
+        (let ((mult (reduce-warnings (read-from-string (first str-list))))
               (time-unit-str (second str-list)))
           (if (null time-unit-str)
               mult
