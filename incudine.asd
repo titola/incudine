@@ -2,7 +2,7 @@
 ;;;
 ;;; ASDF system definition for INCUDINE.
 ;;;
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -21,8 +21,21 @@
 (defpackage :incudine-system (:use :cl :asdf))
 (in-package :incudine-system)
 
+;;; It is T after the (re)compilation of the C utils (see compile-clib.lisp).
+(defvar *incudine-force-compile-p* nil)
+
+(defvar *fasl-file-type* (pathname-type (compile-file-pathname "V")))
+
+(defmethod perform :before ((o load-op) (c cl-source-file))
+  (when *incudine-force-compile-p*
+    (let ((path (component-pathname c)))
+      (compile-file path
+        :output-file (asdf:apply-output-translations
+                       (make-pathname :type *fasl-file-type*
+                                      :defaults path))))))
+
 (defsystem "incudine"
-  :version "0.1"
+  :version "0.7.3"
   :description "Incudine is a Music/DSP programming environment."
   :licence "GPL v2"
   :author "Tito Latini"
@@ -46,9 +59,8 @@
     :depends-on ("contrib/cl-sndfile" "contrib/cl-portmidi")
     :components
     ((:file "packages")
-     (:file "sample-type" :depends-on ("packages"))
-     (:file "audio-driver" :depends-on ("packages"))
-     (:file "config" :depends-on ("sample-type" "audio-driver"))
+     (:file "compile-clib" :depends-on ("packages"))
+     (:file "config" :depends-on ("compile-clib"))
      (:file "logger" :depends-on ("edf-sched"))
      (:file "foreign" :depends-on ("config"))
      (:file "sbcl" :depends-on ("foreign"))
@@ -78,7 +90,7 @@
      (:file "gen/partials" :depends-on ("util"))
      (:file "gen/polynomial" :depends-on ("util"))
      (:file "gen/window" :depends-on ("util"))
-     (:file "gen/random" :depends-on ("config" "foreign"))
+     (:file "gen/random" :depends-on ("foreign"))
      (:file "voicer/base" :depends-on ("vug/dsp"))
      (:file "voicer/midi" :depends-on ("voicer/base" "receiver"))
      (:file "vug/util" :depends-on ("fifo"))

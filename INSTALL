@@ -3,48 +3,31 @@ Installation Instructions
 
     cd /path/to/your/registry/
     ln -s /path/where/you/put/incudine/incudine.asd
-    cd /path/where/you/put/incudine
 
 Edit and copy the configuration file, with particular attention to the
 priorities *RT-PRIORITY*, *NRT-PRIORITY* and *RECEIVER-DEFAULT-PRIORITY*
 
+    cd /path/where/you/put/incudine
     cp incudinerc-example $HOME/.incudinerc
 
-Compile the C utilities:
+If you want to create and install the incudine command:
 
-    cd src && make
+    cd src && sh install_executable
 
-The check for the libraries fails if the pkg-config tool is not
-installed on your system. In this case, you can use
+The options for the script `install_executable' are:
 
-    make HAVE_JACK=1 HAVE_PA=1 HAVE_X11=1
+  --prefix=PREFIX       install architecture-independent files in PREFIX
+                        [/usr/local]
+  --bindir=DIR          user executables [PREFIX/bin]
+  --with-ladspa         support for LADSPA plugins.
+  --with-lv2            support for LV2 plugins.
+  --sbcl-options=OPTS   options for SBCL.
 
-replacing 1 with 0 if a library is absent.
+For example:
 
-If you want to build and install the incudine command:
+    sh install_executable --with-ladspa --with-lv2
 
-    make install
-
-The command is installed in /usr/local/bin by default, but you can
-change the location by setting the variables PREFIX and/or BINDIR.
-
-If you want use LADSPA audio plugins in your scripts:
-
-    make HAVE_LADSPA=1 install
-
-If you have Lilv, a LV2 host library, and you want use LV2 plugins in
-your scripts:
-
-    make HAVE_LV2=1 install
-
-or
-
-    make HAVE_LADSPA=1 HAVE_LV2=1 install
-
-The variables DYNAMIC_SPACE_SIZE and CONTROL_STACK_SIZE are useful to
-set respectively the runtime options --dynamic-space-size and
---control-stack-size of SBCL (all the arguments of the incudine
-command are passed to the toplevel).
+Note: the support for LV2 plugins requires Lilv, a LV2 host library.
 
 If you use SLIME, add these lines to $HOME/.swank.lisp
 

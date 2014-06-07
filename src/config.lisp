@@ -18,50 +18,7 @@
 
 (define-constant +incudine-major+ 0)
 (define-constant +incudine-minor+ 7)
-(define-constant +incudine-patch+ 2)
-
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defvar *config-loaded-p* nil)
-
-  (defun load-incudinerc ()
-    (let ((*package* (find-package :incudine.config)))
-      (setf *config-loaded-p*
-            (let ((init-file (merge-pathnames ".incudinerc"
-                                              (user-homedir-pathname))))
-              (if (probe-file init-file)
-                  (load init-file)
-                  t)))))
-
-  (defvar *sample-rate* 48000)
-
-  ;;; Velocity of the sound at 22°C, 1 atmosfera
-  (defvar *sound-velocity* 345)
-
-  (declaim (special *use-foreign-sample-p*
-                    *frames-per-buffer*
-                    *client-name*
-                    *max-number-of-channels*
-                    *number-of-input-bus-channels*
-                    *number-of-output-bus-channels*
-                    *number-of-bus-channels*
-                    *rt-edf-heap-size*
-                    *nrt-edf-heap-size*
-                    *rt-priority*
-                    *nrt-priority*
-                    *receiver-default-priority*
-                    *max-number-of-nodes*
-                    *default-table-size*
-                    *fade-curve*
-                    *standard-optimize-settings*
-                    *foreign-sample-pool-size*
-                    *foreign-rt-memory-pool-size*
-                    *sndfile-buffer-size*
-                    *bounce-to-disk-guard-size*
-                    *default-header-type*
-                    *default-data-format*))
-
-  (unless *config-loaded-p*
-    (load-incudinerc)))
+(define-constant +incudine-patch+ 3)
 
 (in-package :incudine.util)
 

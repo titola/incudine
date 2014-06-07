@@ -1,30 +1,88 @@
-;;; -*- Mode: Lisp -*-
+;;; .incudinerc
+;;;
+;;; Sample configuration file for Incudine
+;;;
+
+;;;-------------------------[ C compiler ]--------------------------
+
+(setq *c-compiler* "cc")
+
+;;;--------------------[ RT and NRT priorities ]--------------------
+
+;; Priority for the realtime thread.
+(setq *rt-priority* 68)
+
+;; Priority for the non-realtime thread.
+(setq *nrt-priority* 60)
+
+;; Priority for the threads of the receivers (i.e. MIDI input)
+(setq *receiver-default-priority* 63)
+
+;;;-----------------------[ Audio settings ]------------------------
+
+;; Real time audio:
+;;
+;;     :jack
+;;     :portaudio
+;;     :portaudio-jack
+;;
+;; :portaudio and :portaudio-jack are the same, but with the last
+;; it is possible to set the Jack client name.
+;;
+(setq *audio-driver*
+      #+linux :jack
+      #-linux :portaudio)
+
+;; Used only with PortAudio.
+(setq *frames-per-buffer* 512)
 
 (setq *sample-rate* 48000)
-;; Always T when *SAMPLE-TYPE* is DOUBLE-FLOAT
-(setq *use-foreign-sample-p* t)
-;; Used only with PortAudio
-(setq *frames-per-buffer* 1024)
 (setq *client-name* "incudine")
 (setq *max-number-of-channels* 1024)
 (setq *number-of-input-bus-channels* 2)
 (setq *number-of-output-bus-channels* 2)
 (setq *number-of-bus-channels* 4096)
+
+;;;---------------------------[ Graph ]-----------------------------
+
 (setq *max-number-of-nodes* 1024)
-(setq *default-table-size* 65536)
-(setq *fade-curve* :lin)
-(setq *sound-velocity* 345)
-;; Realtime heap size of the EDF (power of two)
+
+;;;----------------------[ Event scheduling ]-----------------------
+
+;; Max number of scheduled events in realtime (a power of two).
 (setq *rt-edf-heap-size* 1024)
-;; Non-realtime heap size of the EDF (max number of the events)
+
+;; Max number of scheduled events in non-realtime (a power of two).
 (setq *nrt-edf-heap-size* 65536)
-(setq *rt-priority* 68)
-(setq *nrt-priority* 60)
-(setq *receiver-default-priority* 63)
-(setq *sndfile-buffer-size* 1024)
-;; Safe upper limit when the duration of the sound to render is undefined
+
+;;;-------------------------[ Soundfile ]---------------------------
+
+;; Safe upper limit when the duration of the soundfile is undefined.
 (setq *bounce-to-disk-guard-size* 300) ; 5 minutes
+
+(setq *sndfile-buffer-size* 1024)
 (setq *default-header-type* #-darwin "wav" #+darwin "aiff")
 (setq *default-data-format* "pcm-24")
+
+;;;--------------------[ Foreign memory pool ]----------------------
+
+;; Size in bytes (default: 64M).
 (setq *foreign-sample-pool-size* (* 64 1024 1024))
 (setq *foreign-rt-memory-pool-size* (* 64 1024 1024))
+
+;;;---------------------------[ Misc ]------------------------------
+
+;; Size in samples (power of two) for frequently used waveforms
+;; (i.e. *SINE-TABLE* and *COSINE-TABLE*).
+(setq *default-table-size* 65536)
+
+;;; Curve for fade in/out.
+(setq *fade-curve* :lin)
+
+;;; Velocity of the sound at 22°C, 1 atmosfera.
+(setq *sound-velocity* 345)
+
+
+;;; Local Variables:
+;;; mode: lisp
+;;; End:

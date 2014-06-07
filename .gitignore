@@ -2,6 +2,5 @@
 *.so
 *~
 *.o
-src/audio-driver.lisp
+src/cache.lisp
 src/incudine
-src/sample-type.lisp

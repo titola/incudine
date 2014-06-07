@@ -1,0 +1,58 @@
+#!/bin/sh
+#
+# Create and install the standalone executable.
+#
+
+PREFIX="${PREFIX:-/usr/local}"
+options="--noinform"
+systems="progn (require \"INCUDINE\")"
+
+usage()
+{
+        cat <<EOF
+Usage: $0 [options]
+Create and install the standalone executable.
+
+  --prefix=PREFIX       install architecture-independent files in PREFIX
+                        [${PREFIX}]
+  --bindir=DIR          user executables [PREFIX/bin]
+  --with-ladspa         support for LADSPA plugins.
+  --with-lv2            support for LV2 plugins.
+  --sbcl-options=OPTS   options for SBCL.
+
+EOF
+        exit 1
+}
+
+add_opt()
+{
+        options="${options} $1"
+}
+
+add_system()
+{
+        systems="${systems} (require \"$1\")"
+}
+
+for arg in "$@"; do
+        case "${arg}" in
+        --prefix=*)       PREFIX="${arg:9}" ;;
+        --bindir=*)       BINDIR="${arg:9}" ;;
+        --with-ladspa)    add_system "INCUDINE-LADSPA" ;;
+        --with-lv2)       add_system "INCUDINE-LV2" ;;
+        --sbcl-options=*) add_opt "${arg:15}" ;;
+        *)                usage ;;
+        esac
+done
+
+sbcl ${options} --eval "(${systems})" --load "executable.lisp" \
+     --eval "(save-lisp-and-die \"incudine\" :executable t :toplevel 'incudine::incudine-toplevel :save-runtime-options t)" || exit
+
+BINDIR="${BINDIR:-${PREFIX}/bin}"
+readonly install_dir="${DESTDIR}${BINDIR}"
+
+echo -n "[installing standalone executable... "
+[ ! -d "${install_dir}" ] && mkdir -p "${install_dir}"
+cp incudine "${install_dir}" && rm -f incudine || exit
+echo "done]"
+ls "${install_dir}/incudine"
