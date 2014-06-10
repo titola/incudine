@@ -18,7 +18,7 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (import 'sb-ext:*posix-argv* (find-package :incudine.scratch))
-  (export '*argv*)
+  (export '(*argv* read-arg))
   ;; The initialization will occur after the toplevel
   (setf sb-ext:*init-hooks*
         (delete *core-config-and-init-function* sb-ext:*init-hooks*))
@@ -59,9 +59,6 @@
 
 (defvar *toplevel-options* (make-hash-table :test 'equal))
 (declaim (type hash-table *toplevel-options*))
-
-(defvar *argv* nil)
-(declaim (type list *argv*))
 
 (defvar *rt-executable-sync* (make-sync-condition "rt executable"))
 (declaim (type sync-condition *rt-executable-sync*))
@@ -591,6 +588,29 @@ SBCL options:
 
   (set-metadata))
 
+(defun posix-argv-to-array ()
+  (let ((argv (if (equal (second sb-ext:*posix-argv*) "--")
+                  ;; Skip "--", possibly used to separate toplevel and
+                  ;; user options.
+                  (cons (car sb-ext:*posix-argv*) (cddr sb-ext:*posix-argv*))
+                  sb-ext:*posix-argv*)))
+    (make-array (length argv) :initial-contents argv)))
+
+(declaim (special *argv*) (type simple-vector *argv*))
+
+(defun read-arg (index &optional (parse-p t))
+  "Read an argument passed to the command line. If PARSE-P is T (default),
+the argument is parsed with READ-FROM-STRING."
+  (declare (type non-negative-fixnum index))
+  (cond ((< index (length *argv*))
+         (let ((val (aref *argv* index)))
+           (declare (type string val))
+           (if parse-p
+               (values (read-from-string val))
+               val)))
+        (parse-p nil)
+        (t "")))
+
 ;;; Adapted to SB-IMPL::TOPLEVEL-INIT in `sbcl/src/code/toplevel.lisp'.
 (defun incudine-toplevel ()
   (let ((options (cdr sb-ext:*posix-argv*))
@@ -616,7 +636,7 @@ SBCL options:
                  (t (return)))))
     (when sb-ext:*posix-argv*
       (setf (cdr sb-ext:*posix-argv*) options)
-      (setf *argv* sb-ext:*posix-argv*))
+      (setf *argv* (posix-argv-to-array)))
     (when (toplevel-options-disable-debugger-p opt)
       (sb-ext:disable-debugger))
     (catch 'toplevel-catcher
