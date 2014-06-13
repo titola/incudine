@@ -216,7 +216,7 @@ when the duration is undefined.")
                (values ,%path-or-stdin nil))
          (sf:with-open (,var ,path-or-stdin :info ,info :mode sf:sfm-read
                              :open-fd-p ,open-stdin-p)
-           (with-foreign-object (,data-var 'sample ,bufsize)
+           (with-foreign-array (,data-var 'sample ,bufsize)
              (let ((,channels-var (sf:channels ,info))
                    (,input-remain 0)
                    (,input-index 0))
@@ -293,7 +293,7 @@ when the duration is undefined.")
                 (sf:with-open (snd path-or-stdout :info info :mode sf:sfm-write
                                :open-fd-p open-stdout-p)
                   (write-sf-metadata-plist snd metadata)
-                  (with-foreign-object (data 'sample bufsize)
+                  (with-foreign-array (data 'sample bufsize)
                     (locally (declare #.*standard-optimize-settings*
                                       #.*reduce-warnings*)
                       (do ((i 0 (1+ i)))
@@ -360,7 +360,7 @@ when the duration is undefined.")
                   (sf:with-open (snd-out path-or-stdout :info info
                                  :mode sf:sfm-write :open-fd-p open-stdout-p)
                     (write-sf-metadata-plist snd-out metadata)
-                    (with-foreign-object (data-out 'sample bufsize)
+                    (with-foreign-array (data-out 'sample bufsize)
                       (locally (declare #.*standard-optimize-settings*
                                         #.*reduce-warnings*)
                         (do ((i 0 (1+ i)))

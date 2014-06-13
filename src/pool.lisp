@@ -208,35 +208,53 @@
 
 ;;; FOREIGN MEMORY POOL
 
-(defvar *foreign-sample-pool-size* (* 32 1024 1024))
-
-(defvar *foreign-rt-memory-pool-size* (* 32 1024 1024))
-
-(defvar *foreign-sample-pool*
-  (foreign-alloc :char :count *foreign-sample-pool-size*))
-
-(defvar *foreign-rt-memory-pool*
-  (foreign-alloc :char :count *foreign-rt-memory-pool-size*))  
-
-(defvar *initialized-foreign-memory-pools* nil)
-
-;;; Lock used only to free the memory if the rt-thread is absent
-;;; (memory allocated in realtime but the rt-thread has been terminated)
-(defvar *rt-memory-lock* (bt:make-lock "RT-MEMORY"))
-(defvar *rt-memory-sample-lock* (bt:make-lock "RT-MEMORY-SAMPLE"))
-
-(defun init-foreign-memory-pools ()
-  (unless *initialized-foreign-memory-pools*
-    (incudine.external:init-foreign-memory-pool
-     *foreign-sample-pool-size* *foreign-sample-pool*)
-    (incudine.external:init-foreign-memory-pool
-     *foreign-rt-memory-pool-size* *foreign-rt-memory-pool*)
-    (setf *initialized-foreign-memory-pools* t)))
-
 (eval-when (:compile-toplevel :load-toplevel :execute)
+  (defvar *foreign-sample-pool-size*
+    (or incudine.config:*foreign-sample-pool-size*
+        (* 64 1024 1024)))
+
+  (defvar *foreign-rt-memory-pool-size*
+    (or incudine.config:*foreign-rt-memory-pool-size*
+        (* 64 1024 1024)))
+
+  (defvar *foreign-nrt-memory-pool-size*
+    (or incudine.config:*foreign-nrt-memory-pool-size*
+        (* 64 1024 1024)))
+
+  (defvar *foreign-sample-pool*
+    (foreign-alloc :char :count *foreign-sample-pool-size*))
+
+  (defvar *foreign-rt-memory-pool*
+    (foreign-alloc :char :count *foreign-rt-memory-pool-size*))
+
+  ;;; This pool is used in non-realtime for short temporary arrays.
+  (defvar *foreign-nrt-memory-pool*
+    (foreign-alloc :char :count *foreign-nrt-memory-pool-size*))
+
+  (defvar *initialized-foreign-memory-pools* nil)
+
+  ;;; Lock used only to free the memory if the rt-thread is absent
+  ;;; (memory allocated in realtime but the rt-thread has been terminated)
+  (defvar *rt-memory-lock* (bt:make-lock "RT-MEMORY"))
+  (defvar *rt-memory-sample-lock* (bt:make-lock "RT-MEMORY-SAMPLE"))
+
+  ;;; Lock to alloc/free the memory in non-realtime.
+  (defvar *nrt-memory-lock* (make-spinlock "NRT-MEMORY"))
+
+  (defun init-foreign-memory-pools ()
+    (unless *initialized-foreign-memory-pools*
+      (incudine.external:init-foreign-memory-pool
+       *foreign-sample-pool-size* *foreign-sample-pool*)
+      (incudine.external:init-foreign-memory-pool
+       *foreign-rt-memory-pool-size* *foreign-rt-memory-pool*)
+      (incudine.external:init-foreign-memory-pool
+       *foreign-nrt-memory-pool-size* *foreign-nrt-memory-pool*)
+      (setf *initialized-foreign-memory-pools* t)))
+
   (defvar *add-init-foreign-memory-pools-p* t)
   (when *add-init-foreign-memory-pools-p*
     (setf *add-init-foreign-memory-pools-p* nil)
+    (init-foreign-memory-pools)
     (push (lambda () (init-foreign-memory-pools))
           incudine::*initialize-hook*)))
 
@@ -331,6 +349,38 @@ reallocated memory."
     (when zerop (incudine.external:foreign-set ptr 0 dsize))
     ptr))
 
+;;; Based on CFFI:FOREIGN-ALLOC to use TLSF Memory Storage allocator.
+;;; The NULL-TERMINATED-P keyword is removed.
+(defun foreign-nrt-alloc (type &key zero-p initial-element initial-contents
+                          (count 1 count-p))
+  "Allocate enough memory to hold COUNT objects of type TYPE. If
+ZEROP is T, the memory is initialized with zeros. If INITIAL-ELEMENT
+is supplied, each element of the newly allocated memory is initialized
+with its value. If INITIAL-CONTENTS is supplied, each of its elements
+will be used to initialize the contents of the newly allocated memory."
+  (let (contents-length)
+    (when initial-contents
+      (setq contents-length (length initial-contents))
+      (if count-p
+          (assert (>= count contents-length))
+          (setq count contents-length)))
+    (let* ((size (* (foreign-type-size type) count))
+           (ptr (with-spinlock-held (*nrt-memory-lock*)
+                  (incudine.external:foreign-rt-alloc-ex
+                   size *foreign-nrt-memory-pool*))))
+      (cond (zero-p (incudine.external:foreign-set ptr 0 size))
+            (initial-contents
+             (dotimes (i contents-length)
+               (setf (mem-aref ptr type i) (elt initial-contents i))))
+            (initial-element
+             (dotimes (i count)
+               (setf (mem-aref ptr type i) initial-element))))
+      ptr)))
+
+(defun foreign-nrt-free (ptr)
+  (with-spinlock-held (*nrt-memory-lock*)
+    (incudine.external:foreign-rt-free-ex ptr *foreign-nrt-memory-pool*)))
+
 (declaim (inline get-foreign-sample-used-size))
 (defun get-foreign-sample-used-size ()
   (incudine.external:get-foreign-used-size *foreign-sample-pool*))
@@ -354,3 +404,15 @@ reallocated memory."
 (declaim (inline get-rt-memory-max-size))
 (defun get-rt-memory-max-size ()
   (incudine.external:get-foreign-max-size *foreign-rt-memory-pool*))
+
+(declaim (inline get-nrt-memory-used-size))
+(defun get-nrt-memory-used-size ()
+  (incudine.external:get-foreign-used-size *foreign-nrt-memory-pool*))
+
+(declaim (inline get-nrt-memory-free-size))
+(defun get-nrt-memory-free-size ()
+  (- *foreign-nrt-memory-pool-size* (get-nrt-memory-used-size)))
+
+(declaim (inline get-nrt-memory-max-size))
+(defun get-nrt-memory-max-size ()
+  (incudine.external:get-foreign-max-size *foreign-nrt-memory-pool*))

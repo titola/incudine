@@ -177,3 +177,76 @@
 
 (defmethod free ((obj foreign-array))
   (free-foreign-array obj))
+
+(in-package :incudine.util)
+
+(define-constant +fast-nrt-foreign-array-max-size+ 64)
+
+(defmacro with-foreign-array ((var type &optional (count 1)) &body body)
+  (with-gensyms (array-wrap array-wrap-p)
+    `(let* ((,array-wrap-p (or (rt-thread-p)
+                               (> ,count +fast-nrt-foreign-array-max-size+)))
+            (,array-wrap (if ,array-wrap-p
+                             (incudine:make-foreign-array ,count ,type)))
+            (,var (if ,array-wrap-p
+                      (incudine:foreign-array-data ,array-wrap)
+                      (incudine.util::foreign-nrt-alloc ,type :count ,count))))
+       (declare (ignorable ,array-wrap))
+       (unwind-protect (progn ,@body)
+         (if ,array-wrap-p
+             (incudine::free-foreign-array ,array-wrap)
+             (incudine.util::foreign-nrt-free ,var))))))
+
+;;; The expansion inside a definition of a VUG is different
+;;; (see %WITH-SAMPLES in `vug/vug.lisp')
+(defmacro with-samples (bindings &body body)
+  (with-gensyms (c-array)
+    (let ((size (length bindings))
+          (count 0))
+      (if *use-foreign-sample-p*
+          `(with-foreign-array (,c-array 'sample ,size)
+             (symbol-macrolet
+                 ,(mapcar (lambda (x)
+                            (prog1 `(,(if (consp x) (car x) x)
+                                     (smp-ref ,c-array ,count))
+                              (incf count)))
+                          bindings)
+               (psetf ,@(loop for i in bindings
+                              when (consp i)
+                              append `(,(car i) (sample ,(cadr i)))))
+               ,@body))
+          `(let (,@(mapcar (lambda (x)
+                             (if (consp x)
+                                 `(,(car x) (sample ,(cadr x)))
+                                 `(,x ,+sample-zero+)))
+                           bindings))
+             (declare (type sample ,@(mapcar (lambda (x)
+                                               (if (consp x) (car x) x))
+                                             bindings)))
+             ,@body)))))
+
+(defmacro with-samples* (bindings &body body)
+  (with-gensyms (c-array)
+    (let ((size (length bindings))
+          (count 0))
+      (if *use-foreign-sample-p*
+          `(with-foreign-array (,c-array 'sample ,size)
+             (symbol-macrolet
+                 ,(mapcar (lambda (x)
+                            (prog1 `(,(if (consp x) (car x) x)
+                                     (smp-ref ,c-array ,count))
+                              (incf count)))
+                          bindings)
+               (setf ,@(loop for i in bindings
+                             when (consp i)
+                             append `(,(car i) (sample ,(cadr i)))))
+               ,@body))
+          `(let* (,@(mapcar (lambda (x)
+                              (if (consp x)
+                                  `(,(car x) (sample ,(cadr x)))
+                                  `(,x ,+sample-zero+)))
+                            bindings))
+             (declare (type sample ,@(mapcar (lambda (x)
+                                               (if (consp x) (car x) x))
+                                             bindings)))
+             ,@body)))))

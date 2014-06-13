@@ -31,6 +31,9 @@
       (setf incudine.util::*foreign-rt-memory-pool*
             (foreign-alloc :char
                            :count incudine.util::*foreign-rt-memory-pool-size*))
+      (setf incudine.util::*foreign-nrt-memory-pool*
+            (foreign-alloc :char
+                           :count incudine.util::*foreign-nrt-memory-pool-size*))
       (setf incudine.util::*initialized-foreign-memory-pools* nil)
       ;; edf
       (setf incudine.edf::*heap-size*
@@ -53,13 +56,6 @@
                     :element-type 'incudine.edf::node
                     :initial-contents (loop repeat *nrt-edf-heap-size*
                                             collect (incudine.edf::make-node))))
-      ;; buffer
-      (setf *sine-table*
-            (make-buffer *default-table-size*
-                         :fill-function (gen:partials '(1))))
-      (setf *cosine-table*
-            (make-buffer *default-table-size*
-                         :fill-function (gen:partials '((1 1 .25)))))
       ;; bus
       (setf *bus-channels* (foreign-alloc-sample *bus-channels-size*))
       (setf *input-pointer*
@@ -108,6 +104,13 @@
       ;; init
       (setf *set-readtable-p* t)
       (funcall #'init t)
+      ;; buffer
+      (setf *sine-table*
+            (make-buffer *default-table-size*
+                         :fill-function (gen:partials '(1))))
+      (setf *cosine-table*
+            (make-buffer *default-table-size*
+                         :fill-function (gen:partials '((1 1 .25)))))
       (setf *package* (find-package :incudine.scratch)))
     "Allocation of the foreign memory and initialization when a saved
 core image starts up.")

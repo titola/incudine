@@ -372,7 +372,7 @@ It is possible to use line comments that begin with the `;' char."
 (defun map-sndfile-ch-to-buffer (data sndfile frames channels buf-channels
                                  data-offset chunk-size channel-map
                                  channel-map-size)
-  (cffi:with-foreign-object (dest :int (* 2 channel-map-size))
+  (with-foreign-array (dest :int (* 2 channel-map-size))
     (let ((src (cffi:inc-pointer dest
                                  (the non-negative-fixnum
                                    (* channel-map-size

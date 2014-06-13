@@ -294,6 +294,7 @@
   --max-number-of-nodes <int>  Max number of the nodes.
   -N, --no-realtime            Stop realtime.
   --nrt-edf-heap-size <int>    Max number of the events in non realtime.
+  --nrt-pool-size <bytes>      Size of the pool for temporary C malloc in nrt.
   --nrt-priority <int>         Priority of the non-realtime thread.
   -o, --outfile <filename>     Sound output filename or `-' for standard output.
   -p, --period <int>           Frames per buffer (used only with PortAudio).
@@ -302,10 +303,10 @@
   -R, --realtime               Start realtime.
   --receiver-priority <int>    Priority of the thread for a receiver.
   --rt-edf-heap-size <int>     Heap size for realtime scheduling.
-  --rt-pool-size <int>         Size of the pool for the C heap.
+  --rt-pool-size <bytes>       Size of the pool for the C heap used in realtime.
   --rt-priority <int>          Priority of the realtime thread.
   -s <filename>                Process a score.
-  --sample-pool-size <int>     Size of the pool for the C arrays defined in DSP!
+  --sample-pool-size <bytes>   Size of the pool for the C arrays defined in DSP!
   --sound-velocity <real>      Velocity of the sound at 22°C, 1 atmosfera.
   -v, --verbose                More verbose.
   --version                    Print version information and exit.
@@ -536,6 +537,9 @@ SBCL options:
 
   (def-toplevel-opt "--nrt-edf-heap-size"
     (set-option *rt-edf-heap-size* t))
+
+  (def-toplevel-opt "--nrt-pool-size"
+    (set-option incudine.util::*foreign-nrt-memory-pool-size* t))
 
   (def-toplevel-opt "--nrt-priority"
     (set-option *nrt-priority* t))

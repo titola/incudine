@@ -54,7 +54,7 @@
       (declare (type foreign-pointer c-array) (type non-negative-fixnum size))
       (let ((size (if periodic-p size (1- size))))
         (declare (type non-negative-fixnum size))
-        (with-foreign-object (tmp 'sample)
+        (with-foreign-array (tmp 'sample)
           (with-samples (value abs-value (max 0.0))
             (dotimes (i size)
               (setf (smp-ref c-array i)

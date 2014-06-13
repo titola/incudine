@@ -232,87 +232,13 @@
 (defun allow-rt-memory-p ()
   (and (rt-thread-p) *allow-rt-memory-pool-p*))
 
-(defmacro with-foreign-rt-object ((var type &optional (count 1)) &body body)
-  `(let ((,var (foreign-rt-alloc ,type :count ,count)))
-     (unwind-protect (progn ,@body)
-       (foreign-rt-free ,var))))
-
-(defmacro %with-foreign-object ((var type &optional (count 1)) &body body)
-  `(if (rt-thread-p)
-       (with-foreign-rt-object (,var ,type ,count) ,@body)
-       (with-foreign-object (,var ,type ,count) ,@body)))
-
-(defmacro %smp-ref (samples index)
+(defmacro smp-ref (samples index)
   `(mem-ref ,samples 'sample (the non-negative-fixnum
                                   (* ,index +foreign-sample-size+))))
 
-(declaim (inline smp-ref))
-(defun smp-ref (samples index)
-  (%smp-ref samples index))
-
-(declaim (inline set-smp-ref))
-(defun set-smp-ref (samples index value)
-  (setf (%smp-ref samples index) (sample value)))
-
-(defsetf smp-ref set-smp-ref)
-
-;;; The expansion inside a definition of a VUG is different
-;;; (see %WITH-SAMPLES in `vug/vug.lisp')
-(defmacro with-samples (bindings &body body)
-  (with-gensyms (c-array)
-    (let ((size (length bindings))
-          (count 0))
-      (if *use-foreign-sample-p*
-          `(%with-foreign-object (,c-array 'sample ,size)
-             (symbol-macrolet
-                 ,(mapcar (lambda (x)
-                            (prog1 `(,(if (consp x) (car x) x)
-                                     (%smp-ref ,c-array ,count))
-                              (incf count)))
-                          bindings)
-               (psetf ,@(loop for i in bindings
-                              when (consp i)
-                              append `(,(car i) (sample ,(cadr i)))))
-               ,@body))
-          `(let (,@(mapcar (lambda (x)
-                             (if (consp x)
-                                 `(,(car x) (sample ,(cadr x)))
-                                 `(,x ,+sample-zero+)))
-                           bindings))
-             (declare (type sample ,@(mapcar (lambda (x)
-                                               (if (consp x) (car x) x))
-                                             bindings)))
-             ,@body)))))
-
-(defmacro with-samples* (bindings &body body)
-  (with-gensyms (c-array)
-    (let ((size (length bindings))
-          (count 0))
-      (if *use-foreign-sample-p*
-          `(%with-foreign-object (,c-array 'sample ,size)
-             (symbol-macrolet
-                 ,(mapcar (lambda (x)
-                            (prog1 `(,(if (consp x) (car x) x)
-                                     (%smp-ref ,c-array ,count))
-                              (incf count)))
-                          bindings)
-               (setf ,@(loop for i in bindings
-                             when (consp i)
-                             append `(,(car i) (sample ,(cadr i)))))
-               ,@body))
-          `(let* (,@(mapcar (lambda (x)
-                              (if (consp x)
-                                  `(,(car x) (sample ,(cadr x)))
-                                  `(,x ,+sample-zero+)))
-                            bindings))
-             (declare (type sample ,@(mapcar (lambda (x)
-                                               (if (consp x) (car x) x))
-                                             bindings)))
-             ,@body)))))
-
 (defmacro with-complex (real-and-imag-vars pointer &body body)
-  `(symbol-macrolet ((,(car real-and-imag-vars) (%smp-ref ,pointer 0))
-                     (,(cadr real-and-imag-vars) (%smp-ref ,pointer 1)))
+  `(symbol-macrolet ((,(car real-and-imag-vars) (smp-ref ,pointer 0))
+                     (,(cadr real-and-imag-vars) (smp-ref ,pointer 1)))
      ,@body))
 
 (defmacro do-complex ((realpart-var imagpart-var pointer size) &body body)

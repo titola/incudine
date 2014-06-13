@@ -44,6 +44,7 @@
                     *standard-optimize-settings*
                     *foreign-sample-pool-size*
                     *foreign-rt-memory-pool-size*
+                    *foreign-nrt-memory-pool-size*
                     *sndfile-buffer-size*
                     *bounce-to-disk-guard-size*
                     *default-header-type*

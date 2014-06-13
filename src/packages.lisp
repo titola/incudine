@@ -25,6 +25,7 @@
    #:*nrt-priority* #:*receiver-default-priority* #:*max-number-of-nodes*
    #:*default-table-size* #:*fade-curve* #:*standard-optimize-settings*
    #:*foreign-sample-pool-size* #:*foreign-rt-memory-pool-size*
+   #:*foreign-nrt-memory-pool-size*
    #:*sndfile-buffer-size* #:*bounce-to-disk-guard-size*
    #:*default-header-type* #:*default-data-format*
    #:load-incudinerc))
@@ -59,8 +60,8 @@
                 #:non-negative-fixnum #:define-constant #:with-gensyms
                 #:ensure-symbol)
   (:import-from #:cffi #:foreign-pointer #:foreign-type-size
-                #:with-foreign-object #:mem-ref #:mem-aref #:make-pointer
-                #:pointer-address #:inc-pointer #:foreign-slot-value
+                #:mem-ref #:mem-aref #:make-pointer #:pointer-address
+                #:inc-pointer #:foreign-slot-value
                 #:foreign-alloc #:foreign-free)
   (:import-from #:incudine.external #:sample-complex #:foreign-alloc-sample)
   (:export
@@ -113,7 +114,7 @@
    #:foreign-pointer
    #:smp-ref #:data-ref
    #:with-ensure-symbol
-   #:with-foreign-object #:with-samples #:with-samples*
+   #:with-foreign-array #:with-samples #:with-samples*
    #:with-complex
    #:do-complex
    #:spinlock #:make-spinlock #:acquire-spinlock #:release-spinlock
@@ -131,7 +132,9 @@
    #:foreign-rt-realloc
    #:get-foreign-sample-used-size #:get-foreign-sample-free-size
    #:get-foreign-sample-max-size #:get-rt-memory-used-size
-   #:get-rt-memory-free-size #:get-rt-memory-max-size))
+   #:get-rt-memory-free-size #:get-rt-memory-max-size
+   #:get-nrt-memory-used-size #:get-nrt-memory-free-size
+   #:get-nrt-memory-max-size))
 
 (defpackage :incudine.vug
   (:use :cl :incudine.util)
@@ -278,8 +281,9 @@
   (:import-from :incudine.util #:*standard-optimize-settings*
                 #:*reduce-warnings*
                 #:*sample-rate* #:+twopi+ #:+half-pi+
-                #:+foreign-sample-size+ #:with-foreign-object
-                #:foreign-pointer #:with-samples #:with-samples* #:sample
+                #:+foreign-sample-size+
+                #:foreign-pointer #:with-foreign-array
+                #:with-samples #:with-samples* #:sample
                 #:smp-ref
                 #:non-negative-sample
                 #:+sample-zero+ #:limited-sample #:sample->fixnum #:sample->int
@@ -296,7 +300,7 @@
                 #:with-gensyms #:define-constant #:ensure-symbol #:format-symbol
                 #:maphash-keys)
   (:import-from #:cffi #:foreign-type-size #:foreign-alloc #:foreign-free
-                #:with-foreign-object #:null-pointer #:null-pointer-p
+                #:null-pointer #:null-pointer-p
                 #:mem-ref #:mem-aref #:inc-pointer #:incf-pointer)
   (:import-from #:incudine.external #:pthread-set-priority #:sndfile-to-buffer
                 #:foreign-alloc-sample #:foreign-zero-sample

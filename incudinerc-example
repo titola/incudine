@@ -66,9 +66,12 @@
 
 ;;;--------------------[ Foreign memory pool ]----------------------
 
-;; Size in bytes (default: 64M).
+;; Size (in bytes) of the pool for the C heap used in realtime.
 (setq *foreign-sample-pool-size* (* 64 1024 1024))
 (setq *foreign-rt-memory-pool-size* (* 64 1024 1024))
+
+;; Size of the pool used for temporary C malloc in non-realtime.
+(setq *foreign-nrt-memory-pool-size* (* 64 1024 1024))
 
 ;;;---------------------------[ Misc ]------------------------------
 
