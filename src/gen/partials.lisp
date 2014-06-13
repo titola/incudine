@@ -18,7 +18,7 @@
 
 (declaim (inline partial-ref))
 (defun partial-ref (partial-number amp phase dc index size tmp-var)
-  (declare (type non-negative-fixnum partial-number index size)
+  (declare (type non-negative-fixnum index size)
            (type foreign-pointer tmp-var ))
   (setf (smp-ref tmp-var 0)
         (+ dc (* amp (sin (the limited-sample
@@ -32,7 +32,7 @@
         (par #1=(car par-list) #1#)
         (acc nil))
        ((null par) (nreverse acc))
-    (declare (type list par-list acc) (type positive-fixnum i))
+    (declare (type list par-list acc) (type non-negative-fixnum i))
     (cond ((and (numberp par) (>= par 0))
            (push `(,i ,par ,+sample-zero+ ,+sample-zero+) acc))
           ((and (consp par) (every #'numberp par))
@@ -41,7 +41,7 @@
                    ,(or (third par) +sample-zero+)
                    ,(or (fourth par) +sample-zero+))
                  acc)
-           (setf i (car par)))
+           (setf i (floor (car par))))
           (t (decf i)))))
 
 ;;; Inspired by GEN09, GEN10 and GEN19 of Csound
