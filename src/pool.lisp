@@ -209,17 +209,11 @@
 ;;; FOREIGN MEMORY POOL
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (defvar *foreign-sample-pool-size*
-    (or incudine.config:*foreign-sample-pool-size*
-        (* 64 1024 1024)))
+  (defvar *foreign-sample-pool-size* (* 64 1024 1024))
 
-  (defvar *foreign-rt-memory-pool-size*
-    (or incudine.config:*foreign-rt-memory-pool-size*
-        (* 64 1024 1024)))
+  (defvar *foreign-rt-memory-pool-size* (* 64 1024 1024))
 
-  (defvar *foreign-nrt-memory-pool-size*
-    (or incudine.config:*foreign-nrt-memory-pool-size*
-        (* 64 1024 1024)))
+  (defvar *foreign-nrt-memory-pool-size* (* 64 1024 1024))
 
   (defvar *foreign-sample-pool*
     (foreign-alloc :char :count *foreign-sample-pool-size*))
