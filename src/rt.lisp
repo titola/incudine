@@ -117,25 +117,27 @@
                (msg error (rt-get-error-msg)))
              (setf (rt-params-status *rt-params*) :stopped)))))
 
-(declaim (inline tick-func))
-(defun tick-func ()
-  (let ((funcons (node-funcons *node-root*)))
-    (loop for flist on funcons by #'cdr
-          for fn function = (car flist) do
-          (handler-case
-              (funcall (the function fn))
-            (condition (c)
-              ;; Set a dummy function and free the node at the next tick
-              (let ((dummy-fn (lambda (ch) (declare (ignore ch)))))
-                (setf (car flist) dummy-fn fn dummy-fn)
-                (dograph (n)
-                  (unless (group-p n)
-                    (when (eq (car (node-funcons n)) dummy-fn)
-                      (node-free n))))
-                (nrt-msg error "~A" c)))))
-    (when funcons
-      (dochannels (chan *number-of-output-bus-channels*)
-        (update-peak-values chan)))))
+(defmacro compute-tick ()
+  (with-gensyms (funcons flist fn dummy-fn c n chan)
+    `(let ((,funcons (node-funcons *node-root*)))
+       (do ((,flist ,funcons (cdr ,flist)))
+           ((null ,flist))
+         (declare (type list ,flist))
+         (let ((,fn (car ,flist)))
+           (declare (type function ,fn))
+           (handler-case (funcall ,fn)
+             (condition (,c)
+               ;; Set a dummy function and free the node at the next tick
+               (let ((,dummy-fn (lambda (ch) (declare (ignore ch)))))
+                 (setf (car ,flist) ,dummy-fn ,fn ,dummy-fn)
+                 (dograph (,n)
+                   (unless (group-p ,n)
+                     (when (eq (car (node-funcons ,n)) ,dummy-fn)
+                       (node-free ,n))))
+                 (nrt-msg error "~A" ,c))))))
+       (when ,funcons
+         (dochannels (,chan *number-of-output-bus-channels*)
+           (update-peak-values ,chan))))))
 
 (defmacro with-restart-point ((label) &body body)
   `(tagbody
@@ -178,7 +180,7 @@
                (rt-get-input *input-pointer*)
                (fifo-perform-functions *fast-to-engine-fifo*)
                (incudine.edf::sched-loop)
-               (tick-func)
+               (compute-tick)
                (rt-set-output *output-pointer*)
                (incf-sample-counter))))
       (rt-transfer-to-c-thread)

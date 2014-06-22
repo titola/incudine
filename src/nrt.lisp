@@ -138,7 +138,7 @@ when the duration is undefined.")
   `(progn
      (incudine.edf::sched-loop)
      (perform-fifos)
-     (tick-func)
+     (compute-tick)
      (write-snd-buffer ,data ,count ,channels)
      (when (= ,count ,bufsize)
        (write-sample ,snd ,data ,bufsize)
