@@ -35,6 +35,7 @@
                     *number-of-bus-channels*
                     *rt-edf-heap-size*
                     *nrt-edf-heap-size*
+                    *sched-policy*
                     *rt-priority*
                     *nrt-priority*
                     *receiver-default-priority*
@@ -66,6 +67,10 @@
 
   (defvar *sample-type* 'double-float)
 
+  (defvar *sched-policy*
+    #+linux "SCHED_FIFO"
+    #-linux "SCHED_RR")
+
   ;;; Real time audio:
   ;;;
   ;;;     :JACK
@@ -93,9 +98,9 @@
   (defvar *c-compiler-flags*
     (concatenate 'string "-O3 -Wall"
                  #-cygwin " -fPIC"
-                 #+linux " -DLINUX"
                  (if (eq incudine.util:*sample-type* 'double-float)
-                     " -D__INCUDINE_USE_64_BIT_SAMPLE__")))
+                     " -D__INCUDINE_USE_64_BIT_SAMPLE__")
+                 (format nil " -D__INCUDINE_~A__" *sched-policy*)))
 
   (defvar *c-linker-flags*
     (concatenate 'string
@@ -182,6 +187,7 @@
        (cons *c-compiler* :all)
        (cons *sample-type* :all)
        (cons *tlsf-block-align* :tlsf)
+       (cons *sched-policy* :util)
        (cons *audio-driver* drv))))
 
   (defun store-compiler-options ()

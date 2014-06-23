@@ -7,4 +7,10 @@
 #define SAMPLE  float
 #endif
 
+#ifdef __INCUDINE_SCHED_FIFO__
+#define INCUDINE_SCHED_POLICY  SCHED_FIFO
+#else
+#define INCUDINE_SCHED_POLICY  SCHED_RR
+#endif
+
 #endif  /* __SAMPLE_DEF_H */

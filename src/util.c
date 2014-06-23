@@ -39,21 +39,16 @@ int pthread_set_priority(pthread_t thread, int priority)
         struct sched_param param;
 
         pthread_getschedparam(thread, &policy, &param);
-#ifdef LINUX
-        policy = SCHED_FIFO;
-#else
-        policy = SCHED_RR;
-#endif
-        minprio = sched_get_priority_min(policy);
+        minprio = sched_get_priority_min(INCUDINE_SCHED_POLICY);
         if (priority < minprio) {
                 priority = minprio;
         } else {
-                int maxprio = sched_get_priority_max(policy);
+                int maxprio = sched_get_priority_max(INCUDINE_SCHED_POLICY);
                 if (priority > maxprio)
                         priority = maxprio;
         }
         param.sched_priority = priority;
-        return pthread_setschedparam(thread, policy, &param);
+        return pthread_setschedparam(thread, INCUDINE_SCHED_POLICY, &param);
 }
 
 /* MEMORY */

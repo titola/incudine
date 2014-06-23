@@ -9,6 +9,11 @@
 
 ;;;--------------------[ RT and NRT priorities ]--------------------
 
+;; Thread scheduling algorithm.
+(setq *sched-policy*
+      #+linux "SCHED_FIFO"
+      #-linux "SCHED_RR")
+
 ;; Priority for the realtime thread.
 (setq *rt-priority* 68)
 
