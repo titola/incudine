@@ -16,8 +16,71 @@
 
 (in-package :incudine)
 
-;;; A score file can contain time-tagged lisp functions, lisp statements
-;;; and lisp tags.
+;;; A score file can contain time-tagged lisp functions, lisp statements,
+;;; arbitrary score statements and lisp tags.
+;;;
+;;; The syntax of a time-tagged lisp function is:
+;;;
+;;;     start-time-in-beats   function-name   [arg1]   [arg2]   ...
+;;;
+
+(defvar *score-statements* (make-hash-table :test #'equal))
+(declaim (type hash-table *score-statements*))
+
+;;; Define an arbitrary score statement.
+;;; The statement is formed by the elements of the returned list.
+;;;
+;;; Example:
+;;;
+;;;     (defscore-statement i1 (time dur freq amp)
+;;;       `(,time my-func (dur ,dur) ,freq ,amp))
+;;;
+;;; where the Csound score statement
+;;;
+;;;     i1 3.4 1.75 440 .3
+;;;
+;;; will be expanded in a time tagged lisp function
+;;;
+;;;     3.4 my-func (dur 1.75) 440 0.3
+;;;
+(defmacro defscore-statement (name args &rest body)
+  `(progn
+     (setf (gethash (symbol-name ',name) *score-statements*)
+           (lambda ,args
+             (let* ((*print-pretty* nil)
+                    (str (format nil "~S" (progn ,@body)))
+                    (len (length str)))
+               (if (< len 2)
+                   ""
+                   (subseq str 1 (1- len))))))
+     ',name))
+
+(declaim (inline delete-score-statement))
+(defun delete-score-statement (name)
+  "Delete the score statement defined by DEFSCORE-STATEMENT."
+  (remhash (symbol-name name) *score-statements*))
+
+(declaim (inline score-statement-name))
+(defun score-statement-name (str)
+  (let ((name-endpos (position-if #'blank-char-p str)))
+    (values (string-upcase (subseq str 0 name-endpos))
+            name-endpos)))
+
+(declaim (inline score-statement-args))
+(defun score-statement-args (str name-endpos)
+  (read-from-string
+    (concatenate 'string "(" (subseq str name-endpos) ")")))
+
+(defun expand-score-statement (str)
+  (declare (type string str))
+  (multiple-value-bind (name name-endpos)
+      (score-statement-name str)
+    (when name
+      (let ((fn (gethash name *score-statements*)))
+        (declare (type (or function null) fn))
+        (when fn
+          (apply fn (when name-endpos
+                      (score-statement-args str name-endpos))))))))
 
 (declaim (inline blank-char-p))
 (defun blank-char-p (c)
@@ -53,17 +116,13 @@
                            (otherwise (stmt-p (1+ i) unmatched-parens)))))))
           (stmt-p 1 1)))))
 
-;;; The syntax of a time-tagged lisp function is:
-;;;
-;;;     start-time-in-beats   function-name   [arg1]   [arg2]   ...
-;;;
 (declaim (inline time-tagged-function-p))
 (defun time-tagged-function-p (string)
   (declare (type string string))
   (if (char= (char string 0) #\()
       (%time-tagged-function-p string)
       (let ((space-pos (position-if #'blank-char-p string)))
-        (declare (type (or non-negative-fixnum null))) 
+        (declare (type (or non-negative-fixnum null) space-pos))
         (when space-pos
           (find-if-not #'blank-char-p string :start space-pos)))))
 
@@ -76,15 +135,16 @@
 (defmacro %at-sample (at-fname beats func-symbol &rest args)
   `(,at-fname ,beats #',func-symbol ,@args))
 
-(declaim (inline score-line->sexp))
 (defun score-line->sexp (line at-fname)
   (declare (type string line))
-  (if (time-tagged-function-p line)
-      (macroexpand-1
-       (read-from-string
-         (format nil "(INCUDINE::%AT-SAMPLE ~A ~A)" at-fname line)))
-      ;; Tag or lisp statement
-      (read-from-string (string-left-trim '(#\space #\tab) line))))
+  (let ((line (or (expand-score-statement line) line)))
+    (declare (type string line))
+    (if (time-tagged-function-p line)
+        (macroexpand-1
+          (read-from-string
+           (format nil "(INCUDINE::%AT-SAMPLE ~A ~A)" at-fname line)))
+        ;; Tag or lisp statement
+        (read-from-string (string-left-trim '(#\space #\tab) line)))))
 
 (defun find-score-local-bindings (stream at)
   (declare (type stream stream) (type symbol at))

@@ -375,7 +375,8 @@
    ;; nrt
    #:with-nrt #:bounce-to-disk #:regofile->sexp #:regofile->function
    #:regofile->lispfile #:scofile->sexp #:scofile->function
-   #:scofile->lispfile))
+   #:scofile->lispfile
+   #:defscore-statement #:delete-score-statement))
 
 (defpackage :incudine.voicer
   (:use :cl)
