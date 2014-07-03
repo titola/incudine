@@ -308,6 +308,7 @@
   -s <filename>                Process a score.
   --sample-pool-size <bytes>   Size of the pool for the C arrays defined in DSP!
   --sound-velocity <real>      Velocity of the sound at 22°C, 1 atmosfera.
+  --tempo <bpm>                Initial tempo in beats per minute.
   -v, --verbose                More verbose.
   --version                    Print version information and exit.
 
@@ -581,6 +582,9 @@ SBCL options:
 
   (def-toplevel-opt "--sound-velocity"
     (set-option incudine.config::*sound-velocity* t))
+
+  (def-toplevel-opt ("--tempo")
+    (set-option *default-bpm* t))
 
   (def-toplevel-opt ("-v" . "--verbose")
     (setf (logger-level) :info)

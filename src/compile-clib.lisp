@@ -41,6 +41,7 @@
                     *receiver-default-priority*
                     *max-number-of-nodes*
                     *default-table-size*
+                    *default-bpm*
                     *fade-curve*
                     *standard-optimize-settings*
                     *foreign-sample-pool-size*

@@ -23,7 +23,8 @@
    #:*number-of-output-bus-channels* #:*number-of-bus-channels*
    #:*rt-edf-heap-size* #:*nrt-edf-heap-size* #:*rt-priority*
    #:*nrt-priority* #:*receiver-default-priority* #:*max-number-of-nodes*
-   #:*default-table-size* #:*fade-curve* #:*standard-optimize-settings*
+   #:*default-table-size* #:*default-bpm* #:*fade-curve*
+   #:*standard-optimize-settings*
    #:*foreign-sample-pool-size* #:*foreign-rt-memory-pool-size*
    #:*foreign-nrt-memory-pool-size*
    #:*sndfile-buffer-size* #:*bounce-to-disk-guard-size*
@@ -81,7 +82,7 @@
    #:*nrt-priority* #:*fast-nrt-priority* #:*receiver-default-priority*
    #:*sndfile-buffer-size*
    #:*bounce-to-disk-guard-size* #:*default-header-type* #:*default-data-format*
-   #:*max-number-of-nodes* #:*default-table-size* #:*fade-curve*
+   #:*max-number-of-nodes* #:*default-table-size* #:*default-bpm* #:*fade-curve*
    #:*allow-rt-memory-pool-p*
    #:*standard-optimize-settings*
    #:most-positive-sample #:most-negative-sample

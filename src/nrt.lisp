@@ -81,7 +81,7 @@ when the duration is undefined.")
   (foreign-alloc 'sample :initial-element +sample-zero+))
 (declaim (type foreign-pointer *nrt-sample-counter*))
 
-(defvar *nrt-tempo* (make-tempo 60))
+(defvar *nrt-tempo* (make-tempo *default-bpm*))
 (declaim (type tempo *nrt-tempo*))
 
 (defmacro perform-fifos ()
@@ -226,7 +226,7 @@ when the duration is undefined.")
                  (setf ,max-frames (sf:frames ,info)))
                ,@body)))))))
 
-(defmacro with-nrt ((channels &key (bpm 60)) &body body)
+(defmacro with-nrt ((channels &key (bpm *default-bpm*)) &body body)
   `(let ((*to-engine-fifo* *nrt-fifo*)
          (*from-engine-fifo* *nrt-fifo*)
          (*from-world-fifo* *nrt-from-world-fifo*)

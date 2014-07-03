@@ -69,7 +69,7 @@
       (setf *output-peak-values*
             (foreign-alloc-sample *number-of-output-bus-channels*))
       ;; time
-      (setf *tempo* (make-tempo 60))
+      (setf *tempo* (make-tempo *default-bpm*))
       (setf *sample-counter*
             (foreign-alloc 'sample :initial-element +sample-zero+))
       ;; graph
@@ -98,7 +98,7 @@
             (foreign-alloc-sample *max-number-of-channels*))
       (setf *nrt-sample-counter*
             (foreign-alloc :double :initial-element +sample-zero+))
-      (setf *nrt-tempo* (make-tempo 60))
+      (setf *nrt-tempo* (make-tempo *default-bpm*))
       ;; mouse
       (setf incudine.vug::*mouse-event* (incudine.vug::alloc-mouse-event))
       ;; init

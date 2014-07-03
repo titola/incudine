@@ -142,6 +142,9 @@
   (defvar *default-table-size* 65536)
   (declaim (type non-negative-fixnum *default-table-size*))
 
+  (defvar *default-bpm* 60)
+  (declaim (type alexandria:positive-real *default-bpm*))
+
   (defvar *rt-edf-heap-size* 1024)
   (declaim (type non-negative-fixnum *rt-edf-heap-size*))
 

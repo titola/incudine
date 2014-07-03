@@ -38,7 +38,7 @@
     obj))
 
 ;;; Default tempo
-(defvar *tempo* (make-tempo 60))
+(defvar *tempo* (make-tempo *default-bpm*))
 (declaim (type tempo *tempo*))
 
 (declaim (inline bpm))

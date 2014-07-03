@@ -84,6 +84,9 @@
 ;; (i.e. *SINE-TABLE* and *COSINE-TABLE*).
 (setq *default-table-size* 65536)
 
+;; Initial tempo in beats per minute.
+(setq *default-bpm* 60)
+
 ;;; Curve for fade in/out.
 (setq *fade-curve* :lin)
 

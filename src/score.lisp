@@ -255,7 +255,9 @@
           (sched (ensure-complex-gensym "AT")))
       (with-complex-gensyms (beats last-time last-dur c-array-wrap c-array)
         `(,@(if fname `(defun ,fname) '(lambda)) ()
-           (let* ((,tempo-env (make-tempo-envelope '(60 60) '(0)))
+           (let* ((,tempo-env (make-tempo-envelope (list *default-bpm*
+                                                         *default-bpm*)
+                                                   '(0)))
                   (,c-array-wrap (make-foreign-array 4 'sample :zero-p t))
                   (,c-array (foreign-array-data ,c-array-wrap)))
              ;; Foreign memory to reduce consing.
