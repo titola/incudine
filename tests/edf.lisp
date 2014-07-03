@@ -36,3 +36,25 @@
    (844 . 0) (868 . 26) (896 . 3) (935 . 20))
   #.(sample 935)
   32)
+
+(deftest edf-sort.1
+    (let ((incudine::*sample-counter* incudine::*nrt-sample-counter*)
+          (stack nil))
+      ;; Undefined order if the time is the same.
+      (dotimes (n 10) (at 0 (lambda (x) (push x stack)) n))
+      (incudine::reset-sample-counter)
+      (incudine.edf::sched-loop)
+      (incudine::reset-sample-counter)
+      (equal stack '(9 8 7 6 5 4 3 2 1 0)))
+  NIL)
+
+(deftest edf-sort.2
+    (let ((incudine::*sample-counter* incudine::*nrt-sample-counter*)
+          (stack nil))
+      ;; Correct order with a fractional value of the time.
+      (dotimes (n 10) (at (sample (* n 0.01)) (lambda (x) (push x stack)) n))
+      (incudine::reset-sample-counter)
+      (incudine.edf::sched-loop)
+      (incudine::reset-sample-counter)
+      stack)
+  (9 8 7 6 5 4 3 2 1 0))
