@@ -98,14 +98,14 @@
 
   (defvar *c-compiler-flags*
     (concatenate 'string "-O3 -Wall"
-                 #-cygwin " -fPIC"
+                 #-(or darwin cygwin) " -fPIC"
                  (if (eq incudine.util:*sample-type* 'double-float)
                      " -D__INCUDINE_USE_64_BIT_SAMPLE__")
                  (format nil " -D__INCUDINE_~A__" *sched-policy*)))
 
   (defvar *c-linker-flags*
     (concatenate 'string
-                 #+darwin "-bundle"
+                 #+darwin "-dynamic -bundle -flat_namespace -undefined suppress"
                  #-darwin "-shared"
                  " -lpthread -lm"))
 
