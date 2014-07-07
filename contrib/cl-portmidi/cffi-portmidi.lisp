@@ -21,8 +21,8 @@
     '(optimize speed (safety 0)))
 
   (cffi:define-foreign-library portmidi
-    (:unix "libportmidi.so")
     (:darwin "libportmidi.dylib")
+    (:unix "libportmidi.so")
     (:cygwin "cygportmidi-0.dll")
     (t (:default "libportmidi")))
 

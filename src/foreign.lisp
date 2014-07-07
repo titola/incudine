@@ -21,27 +21,27 @@
                                 :search-path #.(load-time-value
                                                 (or *compile-file-pathname*
                                                     *load-pathname*)))
-    (:unix "libincudine.so")
     (:darwin "libincudine.dylib")
+    (:unix "libincudine.so")
     (:cygwin "cygincudine-0.dll")
     (t (:default "libincudine")))
 
   (cffi:define-foreign-library fftw
-    (:unix #+double-samples "libfftw3.so" #-double-samples "libfftw3f.so")
     (:darwin #+double-samples "libfftw3.dylib" #-double-samples "libfftw3f.dylib")
+    (:unix #+double-samples "libfftw3.so" #-double-samples "libfftw3f.so")
     (:cygwin #+double-samples "cygfftw3-0.dll" #-double-samples "cygfftw3f-0.dll")
     (t (:default #+double-samples "libfftw3" #-double-samples "libfftw3f")))
 
   (unless (find-package :gsll)
     (cffi:define-foreign-library libgslcblas
-      (:unix "libgslcblas.so")
       (:darwin "libgslcblas.dylib")
+      (:unix "libgslcblas.so")
       (:cygwin "cyggslcblas-0.dll")
       (t (:default "libgslcblas")))
 
     (cffi:define-foreign-library libgsl
-      (:unix "libgsl.so")
       (:darwin "libgsl.dylib")
+      (:unix "libgsl.so")
       (:cygwin "cyggsl-0.dll")
       (t (:default "libgsl")))
 

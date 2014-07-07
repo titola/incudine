@@ -21,8 +21,8 @@
     '(optimize speed (safety 0)))
 
   (cffi:define-foreign-library lilv
-    (:unix "liblilv-0.so")
     (:darwin "liblilv-0.dylib")
+    (:unix "liblilv-0.so")
     (:cygwin "cyglilv-0.dll")
     (t (:default "liblilv-0")))
 

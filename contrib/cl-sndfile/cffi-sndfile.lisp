@@ -18,7 +18,9 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (cffi:define-foreign-library sndfile
+    (:darwin "libsndfile.dylib")
     (:unix "libsndfile.so")
+    (:cygwin "cygsndfile-0.dll")
     (t (:default "libsndfile")))
 
   (defun load-sndfile-library ()
