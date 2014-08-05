@@ -174,7 +174,7 @@
   (declaim (inline jump-to-loop-node-p))
   (defun jump-to-loop-node-p (gate curr-node loop-node release-node)
     (and (>= loop-node 0)
-         (= (1+ curr-node) release-node)
+         (= curr-node release-node)
          (plusp gate)
          (/= curr-node loop-node)))
 
@@ -220,7 +220,7 @@
     (and (zerop index) (zerop dur))))
 
 (define-vug envgen ((env envelope) gate time-scale (done-action function))
-  (with-samples (tmp end grow a2 b1 y1 y2)
+  (with-samples (last-level end old-gate grow a2 b1 y1 y2)
     (with ((index 0)
            (curr-node -1)
            (env-data (envelope-data env))
@@ -236,17 +236,22 @@
            (remain 0)
            (curve +seg-lin-func+)
            (gate-trig (plusp gate))
-           (level (cond ((release-before-sustain-p gate sustain curr-node
+           (level (cond ((prog1 (and gate-trig (<= gate old-gate))
+                           (setf old-gate gate))
+                         ;; Restart only when the current gate is major than
+                         ;; the gate of the previous audio cycle.
+                         last-level)
+                        ((release-before-sustain-p gate sustain curr-node
                                                    release-node)
                          (envgen-jump-node (1- release-node) curr-node index)
                          (setf remain 0)
-                         tmp)
+                         last-level)
                         ((immediate-cutoff-p gate)
                          (setf sustain nil remain 0)
                          (envgen-jump-node last-point curr-node index)
                          +sample-zero+)
                         ((release-with-custom-duration-p gate)
-                         ;; Force the release stage with custom duration
+                         ;; Force the release stage with custom duration.
                          (setf dur (envgen-custom-duration gate)
                                ;; Anticipate one sample to avoid the repetition
                                ;; of a vertex because the last value of a segment
@@ -261,19 +266,20 @@
                                  curve (smp-ref env-data index)
                                  prev-index curr-index))
                          (setf sustain nil)
-                         (%segment-init tmp end dur curve grow a2 b1 y1 y2)
-                         tmp)
+                         (%segment-init last-level end dur curve
+                                        grow a2 b1 y1 y2)
+                         last-level)
                         ((envgen-begin-p index dur)
                          (cond (gate-trig
                                 (envgen-update-sustain sustain gate curr-node
                                                        release-node)
                                 (setf gate-trig nil)
                                 (smp-ref env-data 0))
-                               ;; ENVGEN started with GATE zero
+                               ;; ENVGEN started with GATE zero.
                                (t (setf index data-size)
-                                  (samples-zero tmp end))))
+                                  (samples-zero last-level end))))
                         (gate-trig
-                         ;; Restart
+                         ;; Restart.
                          (setf gate-trig nil
                                remain 0
                                index 0
@@ -284,13 +290,14 @@
                                done-p nil
                                sustain nil
                                ;; LEVEL is set to END during the performance.
-                               end (or (envelope-restart-level env) tmp)))
+                               end (or (envelope-restart-level env)
+                                       last-level)))
                         ((zerop dur)
                          (envgen-no-sustain sustain)
                          end)
                         ((or done-p (= curr-index prev-index))
                          (envgen-no-sustain sustain)
-                         tmp)
+                         last-level)
                         (t (envgen-no-sustain sustain)
                            (setf dur (envgen-next-dur env-data index time-scale
                                                       (- remain dur))
@@ -301,24 +308,23 @@
                                  end (smp-ref env-data index)
                                  index (1+ index)
                                  curve (smp-ref env-data index))
-                           (%segment-init tmp end dur curve grow a2 b1 y1 y2)
-                           tmp))))
+                           (%segment-init last-level end dur curve
+                                          grow a2 b1 y1 y2)
+                           last-level))))
       (declare (type non-negative-fixnum index data-size last-point dur remain
                      curr-index prev-index)
                (type fixnum curr-node loop-node release-node)
                (type sample level curve)
                (type boolean sustain done-p gate-trig))
       (initialize (setf end level))
-      ;; Useful when GATE is modulated. In this case, the expansion
-      ;; of GATE occurs here. If GATE is not modulated, GATE-TRIG is
-      ;; always NIL at this point.
-      (maybe-expand (and gate-trig level))
-      (cond ((or done-p sustain) tmp)
+      ;; Expand if GATE is modulated.
+      (maybe-expand level)
+      (cond ((or done-p sustain) last-level)
             (t (cond ((zerop remain)
-                      ;; End of segment
+                      ;; End of segment.
                       (cond ((envgen-end-of-data-p (incf index) data-size)
                              (done-action done-action)
-                             (setf done-p t tmp end))
+                             (setf done-p t last-level end))
                             (t (incf curr-node)
                                (cond
                                  ((jump-to-loop-node-p gate curr-node loop-node
@@ -327,13 +333,13 @@
                                  ((envgen-to-sustain-p gate curr-node
                                                        release-node)
                                   (envgen-sustain sustain)))
-                               ;; Compute the parameters for the next segment
+                               ;; Compute the parameters for the next segment.
                                (setf dur (envgen-next-dur env-data index
                                                           time-scale 0)
                                      remain (1- dur)
                                      index (1+ index)
                                      ;; The first value of the segment is the
-                                     ;; last value of the previous segment
+                                     ;; last value of the previous segment.
                                      level end
                                      end (smp-ref env-data index)
                                      index (1+ index)
@@ -341,8 +347,8 @@
                                      prev-index curr-index)
                                (%segment-init level end dur curve grow a2 b1
                                               y1 y2)
-                               (setf tmp level))))
+                               (setf last-level level))))
                      (t (decf remain)
-                        ;; Compute the next point
+                        ;; Compute the next point.
                         (%segment-update-level level curve grow a2 b1 y1 y2)
-                        (setf tmp level))))))))
+                        (setf last-level level))))))))
