@@ -99,6 +99,17 @@
       (setf *nrt-sample-counter*
             (foreign-alloc :double :initial-element +sample-zero+))
       (setf *nrt-tempo* (make-tempo *default-bpm*))
+      ;; midi
+      (setf incudine.vug::*midi-frequency-table*
+            (incudine.vug::make-default-midi-frequency-table))
+      (setf incudine.vug::*midi-normalize-table*
+            (incudine.vug::make-midi-normalize-table))
+      (setf incudine.vug::*midi-normalize-pb-bipolar-table*
+            (incudine.vug::make-midi-normalize-pb-bipolar-table))
+      (setf incudine.vug::*midi-normalize-pb-table*
+            (incudine.vug::make-midi-normalize-pb-table))
+      (setf incudine.vug::*midi-amplitude-table*
+            (incudine.vug::make-midi-normalize-table))
       ;; mouse
       (setf incudine.vug::*mouse-event* (incudine.vug::alloc-mouse-event))
       ;; init

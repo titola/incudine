@@ -72,42 +72,48 @@
       (declare (type (integer 0 127) keynum))
       (* freq-base (expt 2 (* (- keynum keynum-base) (/ 1.0 steps))))))
 
-  ;;; Table used to get the cycles for seconds from the value of a MIDI keynum.
-  (defvar *midi-frequency-table*
+  (defun make-default-midi-frequency-table ()
     (cffi:foreign-alloc 'sample :count 128
       :initial-contents (loop for i below 128
                               with fn = (create-equal-temperament 12 440 69)
                               collect (sample (funcall fn i)))))
 
-  ;;; Table used to normalize a data byte from [0, 0x7F] to [0.0, 1.0]
-  (defvar *midi-normalize-table*
+  (defun make-midi-normalize-table ()
     (cffi:foreign-alloc 'sample :count 128
       :initial-contents (loop for i below 128
                               with r-midi-data2-max = (/ (sample #x7f))
                               collect (* i r-midi-data2-max))))
 
-  ;;; Table used to normalize the value of the pitch bend
-  ;;; from [-8192, 8191] to [-1.0, 1.0]
-  (defvar *midi-normalize-pb-bipolar-table*
+  (defun make-midi-normalize-pb-bipolar-table ()
     (cffi:foreign-alloc 'sample :count 16384
       :initial-contents (loop for i from -8192 to 8191
                               with r1 = (/ (sample 8192))
                               with r2 = (/ (sample 8191))
                               collect (* i (if (plusp i) r2 r1)))))
 
-  ;;; Table used to normalize the value of the pitch bend to [0.0, 1.0]
-  (defvar *midi-normalize-pb-table*
+  (defun make-midi-normalize-pb-table ()
     (cffi:foreign-alloc 'sample :count 16384
       :initial-contents (loop for i from 0 below 16384
                               with r = (/ (sample 16383))
                               collect (* i r))))
 
+  ;;; Table used to get the cycles for seconds from the value of a MIDI keynum.
+  (defvar *midi-frequency-table* (make-default-midi-frequency-table))
+
+  ;;; Table used to normalize a data byte from [0, 0x7F] to [0.0, 1.0]
+  (defvar *midi-normalize-table* (make-midi-normalize-table))
+
+  ;;; Table used to normalize the value of the pitch bend
+  ;;; from [-8192, 8191] to [-1.0, 1.0]
+  (defvar *midi-normalize-pb-bipolar-table*
+    (make-midi-normalize-pb-bipolar-table))
+
+  ;;; Table used to normalize the value of the pitch bend to [0.0, 1.0]
+  (defvar *midi-normalize-pb-table* (make-midi-normalize-pb-table))
+
   ;;; Table used to get the amplitude from the value of a MIDI velocity.
   ;;; The default is a linear mapping from [0, 0x7F] to [0.0, 1.0]
-  (defvar *midi-amplitude-table*
-    (let ((ptr (foreign-alloc-sample 128)))
-      (foreign-copy ptr *midi-normalize-table* (* 128 +foreign-sample-size+))
-      ptr)))
+  (defvar *midi-amplitude-table* (make-midi-normalize-table)))
 
 (declaim (inline midi-note-off-p midi-note-on-p midi-note-p
                  midi-poly-aftertouch-p midi-cc-p midi-program-p
