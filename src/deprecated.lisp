@@ -71,3 +71,10 @@
 (defmacro frame-value-bind (vars frame &body body)
   (incudine::deprecated-msg 'frame-value-bind 'multiple-sample-bind)
   `(multiple-sample-bind ,vars ,frame ,@body))
+
+(in-package :incudine.voicer)
+
+;;; 20140806
+(defmacro scale-midi-event-amp (midi-event mult)
+  (incudine::deprecated-msg 'scale-midi-event-amp 'scale-midi-amp)
+  `(scale-midi-amp ,midi-event ,mult))

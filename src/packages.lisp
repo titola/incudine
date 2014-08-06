@@ -402,7 +402,9 @@
            #:unsafe-control-value #:unsafe-get-controls #:unsafe-set-controls
            #:unsafe-define-map #:unsafe-remove-map #:unsafe-mapvoicer
            #:unsafe-panic #:midi-event #:fill-freq-vector #:fill-amp-vector
-           #:midi-bind #:scale-midi-event-amp))
+           #:midi-bind #:scale-midi-amp #:scale-midi-event-amp
+           #:keynum->cps #:velocity->amp #:set-midi-freq-function
+           #:set-midi-amp-function))
 
 (defpackage :incudine.scratch
   (:use :cl :incudine :incudine.vug :incudine.util :incudine.analysis)
