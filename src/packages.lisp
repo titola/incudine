@@ -113,7 +113,7 @@
    #:calc-lobits
    #:rt-thread-p #:rt-eval #:rt-eval-if #:allow-rt-memory-p
    #:foreign-pointer
-   #:smp-ref #:data-ref
+   #:smp-ref
    #:with-ensure-symbol
    #:with-foreign-array #:with-samples #:with-samples*
    #:with-complex
@@ -154,18 +154,16 @@
    #:with-coerce-arguments #:with-vug-inputs #:vug-input
    #:get-pointer
    #:dsp! #:dsp-debug #:all-dsp-names #:free-dsp-instances #:destroy-dsp
-   #:defsynth #:defsynth-debug #:*update-dsp-instances*
-   #:synth #:all-synth-names
-   #:free-synth-instances #:destroy-synth
+   #:*update-dsp-instances*
    #:current-channel
    #:foreign-float #:foreign-double
-   #:make-frame #:frame-ref #:frame-value-bind #:multiple-sample-bind #:samples
+   #:make-frame #:frame-ref #:multiple-sample-bind #:samples
    #:foreach-tick #:foreach-channel #:counter #:downsamp #:generic-rate
    #:samphold #:interpolate
    #:tick #:external-variable #:init-only #:initialize #:without-follow
    #:maybe-expand #:update #:object-to-free
    #:out #:frame-out #:cout #:node-out
-   #:dsp-node #:synth-node
+   #:dsp-node
    #:lin->lin #:lin->exp
    #:done-action #:done-self #:free-self #:free-self-when-done
    #:clip #:nclip #:wrap #:nwrap #:mirror #:nmirror
@@ -321,7 +319,7 @@
   (:import-from #:incudine.gen #:all-random-distributions #:rand-args)
   (:export
    #:init #:enable-sharp-square-bracket-syntax
-   #:dsp-seq #:synth-seq
+   #:dsp-seq
    #:buffer #:make-buffer #:buffer-p #:size #:frames #:channels #:mask
    #:buffer-mask #:buffer-data #:fill-buffer #:smp-ref #:buffer-value
    #:buffer-size #:buffer-frames #:buffer-channels #:buffer-sample-rate
@@ -375,8 +373,7 @@
    #:make-linen #:make-perc #:make-cutoff #:make-asr #:make-adsr #:make-dadsr
    ;; nrt
    #:with-nrt #:bounce-to-disk #:regofile->sexp #:regofile->function
-   #:regofile->lispfile #:scofile->sexp #:scofile->function
-   #:scofile->lispfile
+   #:regofile->lispfile
    #:defscore-statement #:delete-score-statement))
 
 (defpackage :incudine.voicer
