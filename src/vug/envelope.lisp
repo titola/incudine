@@ -191,7 +191,7 @@
     (and (zerop gate)
          (null sustain)
          (plusp release-node)
-         (< release-node curr-node)))
+         (< curr-node release-node)))
 
   (defmacro envgen-update-sustain (var gate curr-node release-node)
     `(setf ,var (and (>= ,curr-node 0)
@@ -245,7 +245,7 @@
                                                    release-node)
                          (envgen-jump-node (1- release-node) curr-node index)
                          (setf remain 0)
-                         last-level)
+                         (setf end last-level))
                         ((immediate-cutoff-p gate)
                          (setf sustain nil remain 0)
                          (envgen-jump-node last-point curr-node index)
