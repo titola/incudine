@@ -16,9 +16,11 @@
 
 (in-package :incudine.voicer)
 
-;;; Function used by default to fill the table of the frequencies (12-tET).
-(setf (symbol-function 'keynum->cps)
-      (incudine.vug::create-equal-temperament 12 440 69))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (unless (fboundp 'keynum->cps)
+    ;;; Function used by default to fill the table of the frequencies (12-tET).
+    (setf (symbol-function 'keynum->cps)
+          (incudine.vug::create-equal-temperament 12 440 69))))
 
 (defvar *default-midi-amplitude-array*
   ;; Linear map from velocity to amplitude.
