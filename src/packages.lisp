@@ -150,6 +150,7 @@
                 #:make-pointer #:pointer-address #:inc-pointer)
   (:export
    #:vug #:define-vug #:define-vug-macro #:destroy-vug #:all-vug-names
+   #:rename-vug
    #:with
    #:with-coerce-arguments #:with-vug-inputs #:vug-input
    #:get-pointer

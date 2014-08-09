@@ -698,6 +698,22 @@
          (defmacro ,name ,lambda-list ,@body)
          (add-vug ',name ',lambda-list nil))))
 
+(defun rename-vug (old-name new-name)
+  (declare (type symbol old-name new-name))
+  (if (dsp new-name)
+      (msg error "~A was defined to be a DSP." new-name)
+      (let ((vug (vug old-name)))
+        (cond (vug
+               (remhash old-name *vug-hash*)
+               (setf (gethash new-name *vug-hash*) vug)
+               (setf (vug-name vug) new-name)
+               (if (macro-function old-name)
+                   (setf (macro-function new-name) (macro-function old-name))
+                   (setf (symbol-function new-name) (symbol-function old-name)))
+               (fmakunbound old-name)
+               new-name)
+              (t (msg error "~A is not a legal VUG name." old-name))))))
+
 (declaim (inline extract-vug-config))
 (defun extract-vug-config (code)
   (declare (type list code))
