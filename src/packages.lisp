@@ -199,7 +199,9 @@
    ;; multi-channel
    #:mono #:stereo #:pan2 #:fpan2
    ;; midi
-   #:midi-note #:midi-keynum #:midi-velocity #:midi-poly-aftertouch #:midi-cc
+   #:midi-note #:midi-keynum #:midi-highest-keynum #:midi-lowest-keynum
+   #:midi-note-on #:midi-note-off #:reset-midi-notes
+   #:midi-velocity #:midi-cps #:midi-amp #:midi-poly-aftertouch #:midi-cc
    #:midi-program #:midi-global-aftertouch #:midi-pitch-bend
    #:midi-note-on-p #:midi-note-off-p #:midi-note-p #:midi-poly-aftertouch-p
    #:midi-cc-p #:midi-program-p #:midi-global-aftertouch-p #:midi-pitch-bend-p

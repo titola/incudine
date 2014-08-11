@@ -18,7 +18,8 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defstruct (midi-table (:copier nil))
-    (note 0 :type (integer 0))
+    (note-priority-vec (make-note-priority-vector))
+    (note-velocity-vec (make-note-velocity-vector))
     (poly-aftertouch (make-array 128 :element-type '(integer 0)
                                  :initial-element 0))
     (cc (make-array 128 :element-type '(integer 0) :initial-element 0))
@@ -39,7 +40,6 @@
     (declare (type (unsigned-byte 8) status))
     (ldb (byte 4 0) status))
 
-  (declaim (inline set-midi-message))
   (defun set-midi-message (status data1 data2)
     (declare (type (unsigned-byte 8) status data1 data2))
     (when (< #x7f status #xf0)
@@ -49,9 +49,19 @@
                        (with-gensyms (old)
                          `(let ((,old ,place))
                             (compare-and-swap ,place ,old ,value)))))
-            (cond ((< status #xa0)
-                   (update-midi-msg (midi-table-note tab)
-                                    (+ (ash data1 8) data2)))
+            (cond ((or (< status #x90)
+                       (and (< status #xa0) (zerop data2)))
+                   ;; Note off.
+                   (rt-eval ()
+                     (note-priority-remove (midi-table-note-priority-vec tab)
+                                           (midi-table-note-velocity-vec tab)
+                                           data1)))
+                  ((< status #xa0)
+                   ;; Note on.
+                   (rt-eval ()
+                     (note-priority-add (midi-table-note-priority-vec tab)
+                                        (midi-table-note-velocity-vec tab)
+                                        data1 data2)))
                   ((< status #xb0)
                    (update-midi-msg
                     (svref (midi-table-poly-aftertouch tab) data1) data2))
@@ -147,16 +157,38 @@
   (declare (type (unsigned-byte 8) status))
   (or (midi-note-on-p status) (midi-note-off-p status)))
 
-(define-vug midi-note ((channel fixnum))
-  (with ((table (svref *midi-table* channel)))
-    (declare (type midi-table table))
-    (the (unsigned-byte 16) (midi-table-note table))))
+(define-vug midi-note-on ((channel fixnum))
+  "Keynum of the last MIDI note-on message for the channel CHANNEL."
+  (with ((note-prio-vec (midi-table-note-priority-vec
+                          (svref *midi-table* channel))))
+    (%last-note-on note-prio-vec)))
 
-(define-vug midi-keynum ((channel fixnum))
-  (ldb (byte 8 8) (midi-note channel)))
+(define-vug midi-note-off ((channel fixnum))
+  "Keynum of the last MIDI note-off message for the channel CHANNEL."
+  (with ((note-prio-vec (midi-table-note-priority-vec
+                          (svref *midi-table* channel))))
+    (%last-note-off note-prio-vec)))
 
-(define-vug midi-velocity ((channel fixnum))
-  (logand (midi-note channel) #x7f))
+(define-vug midi-lowest-keynum ((channel fixnum))
+  (with ((note-prio-vec (midi-table-note-priority-vec
+                          (svref *midi-table* channel))))
+    (lowest-note-priority note-prio-vec)))
+
+(define-vug midi-highest-keynum ((channel fixnum))
+  (with ((note-prio-vec (midi-table-note-priority-vec
+                          (svref *midi-table* channel))))
+    (highest-note-priority note-prio-vec)))
+
+(define-vug midi-cps ((channel fixnum) (keynum (unsigned-byte 8)))
+  (smp-ref *midi-frequency-table* keynum))
+
+(define-vug midi-velocity ((channel fixnum) (keynum (unsigned-byte 8)))
+  (with ((velocity-vec (midi-table-note-velocity-vec (svref *midi-table*
+                                                            channel))))
+    (the (integer 0 127) (svref velocity-vec keynum))))
+
+(define-vug midi-amp ((channel fixnum) (keynum (unsigned-byte 8)))
+  (smp-ref *midi-amplitude-table* (midi-velocity channel keynum)))
 
 (define-vug midi-poly-aftertouch ((channel fixnum) (keynum fixnum))
   (with ((pat-table (midi-table-poly-aftertouch (svref *midi-table* channel))))
@@ -211,3 +243,11 @@
 (define-vug exp-midi-pitch-bend ((channel fixnum) min max)
   (midi-exponential-map (+ (midi-pitch-bend channel) 8192) min max
                         *midi-normalize-pb-table*))
+
+(defun reset-midi-notes (&optional channel)
+  (declare (type (or (unsigned-byte 4) null) channel))
+  (if channel
+      (let ((table (svref *midi-table* channel)))
+        (reset-note-priority (midi-table-note-priority-vec table)
+                             (midi-table-note-velocity-vec table)))
+      (dotimes (i 16) (reset-midi-notes i))))
