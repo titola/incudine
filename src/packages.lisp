@@ -372,7 +372,7 @@
    #:envelope-release-node
    #:envelope-restart-level #:envelope-at
    #:duration #:max-points #:breakpoints->env #:freq-breakpoints->env
-   #:scale-envelope #:normalize-envelope #:rescale-envelope
+   #:copy-envelope #:scale-envelope #:normalize-envelope #:rescale-envelope
    #:linen #:perc #:cutoff #:asr #:adsr #:dadsr
    #:make-linen #:make-perc #:make-cutoff #:make-asr #:make-adsr #:make-dadsr
    ;; nrt

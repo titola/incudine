@@ -50,18 +50,49 @@
           (type-of obj) (envelope-points obj) (envelope-loop-node obj)
           (envelope-release-node obj)))
 
+(defmethod free-p ((obj envelope))
+  (null-pointer-p (envelope-data obj)))
+
 (defmethod free ((obj envelope))
-  (unless (null-pointer-p #1=(envelope-data obj))
-    (funcall (envelope-foreign-free obj) #1#)
-    (tg:cancel-finalization obj))
-  (setf #1# (null-pointer)
-        (envelope-duration obj) +sample-zero+
-        (envelope-points obj) 0
-        (envelope-data-size obj) 0
-        (envelope-loop-node obj) -1
-        (envelope-release-node obj) -1
-        (envelope-max-points obj) 0)
+  (unless (free-p obj)
+    (funcall (envelope-foreign-free obj) #1=(envelope-data obj))
+    (tg:cancel-finalization obj)
+    (setf #1# (null-pointer)
+          (envelope-duration obj) +sample-zero+
+          (envelope-points obj) 0
+          (envelope-data-size obj) 0
+          (envelope-loop-node obj) -1
+          (envelope-release-node obj) -1
+          (envelope-max-points obj) 0))
   (values))
+
+(defun copy-envelope (envelope)
+  (declare (type envelope envelope))
+  (if (free-p envelope)
+      (msg error "The envelope is unusable.")
+      (let* ((points (envelope-points envelope))
+             (data-size (compute-envelope-data-size points))
+             (max-points (max points *envelope-default-max-points*))
+             (max-data-size (compute-envelope-data-size max-points)))
+        (declare (type non-negative-fixnum points data-size max-points
+                       max-data-size))
+        (multiple-value-bind (data free-function)
+            (if (rt-thread-p)
+                (values (foreign-rt-alloc 'sample :count max-data-size)
+                        #'safe-foreign-rt-free)
+                (values (foreign-alloc-sample max-data-size) #'foreign-free))
+          (let ((new (%make-envelope :data data :data-size data-size
+                       :duration (envelope-duration envelope)
+                       :points points :max-points max-points
+                       :loop-node (envelope-loop-node envelope)
+                       :release-node (envelope-release-node envelope)
+                       :%restart-level (envelope-%restart-level envelope)
+                       :real-time-p (rt-thread-p)
+                       :foreign-free free-function)))
+            (foreign-copy data (envelope-data envelope)
+                          (* data-size +foreign-sample-size+))
+            (tg:finalize new (lambda () (funcall free-function data)))
+            new)))))
 
 (declaim (inline envelope-restart-level))
 (defun envelope-restart-level (instance)
