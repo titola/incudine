@@ -46,7 +46,7 @@
             (- (next-power-of-two half) 1)))))
 
 (declaim (inline %%make-buffer))
-(defun %%make-buffer (frames channels sample-rate real-time-p)
+(defun %%make-buffer (frames channels sample-rate real-time-p finalize-p)
   (let* ((size (the non-negative-fixnum (* frames channels)))
          (data (if real-time-p
                    (foreign-rt-alloc 'sample :count size :zero-p t)
@@ -70,7 +70,8 @@
                :sample-rate (sample sample-rate)
                :real-time-p real-time-p
                :foreign-free free-function)))
-    (tg:finalize obj (lambda () (funcall free-function data)))
+    (if finalize-p
+        (tg:finalize obj (lambda () (funcall free-function data))))
     obj))
 
 (defmethod print-object ((obj buffer) stream)
@@ -262,6 +263,53 @@ It is possible to use line comments that begin with the `;' char."
     (tg:cancel-finalization obj)
     (setf (buffer-data obj) (null-pointer))
     (values)))
+
+(defun copy-buffer (buffer)
+  (declare (type buffer buffer))
+  (if (free-p buffer)
+      (msg error "The buffer is unusable.")
+      (let ((new (make-buffer (buffer-frames buffer)
+                              :channels (buffer-channels buffer)
+                              :sample-rate (buffer-sample-rate buffer)
+                              :real-time-p (rt-thread-p))))
+        (foreign-copy (buffer-data new) (buffer-data buffer)
+                      (* (buffer-size buffer) +foreign-sample-size+))
+        (copy-struct-slots buffer (file textfile-p) buffer new)
+        new)))
+
+(defun resize-buffer (buffer frames &optional channels)
+  (declare (type buffer buffer) (type non-negative-fixnum frames)
+           (type (or non-negative-fixnum null) channels))
+  (if (or (free-p buffer)
+          (and (= (buffer-frames buffer) frames)
+               (or (null channels)
+                   (= (buffer-channels buffer) channels))))
+      buffer
+      (let* ((old-channels (buffer-channels buffer))
+             (old-data (buffer-data buffer))
+             (old-size (buffer-size buffer))
+             (channels (or channels old-channels))
+             (new (%%make-buffer frames channels (buffer-sample-rate buffer)
+                                 (rt-thread-p) nil))
+             (data (buffer-data new))
+             (size (buffer-size new)))
+        (declare (type non-negative-fixnum old-channels old-size channels size))
+        (loop for i of-type non-negative-fixnum below size by channels
+              for j of-type non-negative-fixnum below old-size by old-channels do
+             (dochannels (ch channels)
+               (setf (smp-ref data (+ i ch))
+                     (if (< ch old-channels)
+                         (smp-ref old-data (+ j ch))
+                         +sample-zero+))))
+        (funcall (buffer-foreign-free buffer) (buffer-data buffer))
+        (tg:cancel-finalization buffer)
+        (copy-struct-slots buffer (data size mask lobits lomask lodiv frames
+                                   channels sample-rate real-time-p
+                                   foreign-free)
+                           new buffer)
+        (tg:finalize buffer
+                     (lambda () (funcall (buffer-foreign-free buffer) data)))
+        buffer)))
 
 ;;; FUNCTION has two arguments: the index and the value of the buffer
 (defun map-buffer (function buffer)
@@ -488,7 +536,7 @@ It is possible to use line comments that begin with the `;' char."
                     initial-contents fill-function (start 0) end
                     normalize-p)
   (flet ((new-from-file (frm ch f os sr)
-           (set-buffer-from-sndfile (%%make-buffer frm ch sr real-time-p)
+           (set-buffer-from-sndfile (%%make-buffer frm ch sr real-time-p t)
                                     f os 0 frm)))
     (if file
         (if (zerop frames)
@@ -499,7 +547,7 @@ It is possible to use line comments that begin with the `;' char."
                                  (sf:channels info)
                                  file offset sample-rate)))
             (new-from-file frames channels file offset sample-rate))
-        (let ((buf (%%make-buffer frames channels sample-rate real-time-p))
+        (let ((buf (%%make-buffer frames channels sample-rate real-time-p t))
               (value (or initial-contents fill-function)))
           (when value
             (if normalize-p

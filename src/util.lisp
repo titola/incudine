@@ -57,6 +57,13 @@
 
 (defgeneric free-p (obj))
 
+(defmacro copy-struct-slots (struct-name slot-names from to)
+  `(setf ,@(loop for name in slot-names
+                 for slot-name = (format-symbol *package* "~A-~A"
+                                                struct-name name)
+                 collect `(,slot-name ,to)
+                 collect `(,slot-name ,from))))
+
 (in-package :incudine.util)
 
 ;;; TYPES
