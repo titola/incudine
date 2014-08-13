@@ -47,7 +47,8 @@
 
 (declaim (inline %%make-buffer))
 (defun %%make-buffer (frames channels sample-rate real-time-p finalize-p)
-  (let* ((size (the non-negative-fixnum (* frames channels)))
+  (let* ((frames (floor frames))
+         (size (the non-negative-fixnum (* frames channels)))
          (data (if real-time-p
                    (foreign-rt-alloc 'sample :count size :zero-p t)
                    (foreign-alloc-sample size)))
@@ -158,8 +159,7 @@ It is possible to use line comments that begin with the `;' char."
 (defun buffer-load-textfile (path offset frames channels sample-rate)
   (multiple-value-bind (valid-p size) (check-numeric-textfile path)
     (when valid-p
-      (let* ((offset (if (floatp offset) (floor offset) offset))
-             (channels (max channels 1))
+      (let* ((channels (max channels 1))
              (frames (or frames (- (ceiling (/ size channels)) offset))))
         (when (plusp frames)
           (let ((buf (make-buffer frames :channels channels
@@ -185,36 +185,39 @@ It is possible to use line comments that begin with the `;' char."
 
 (defun buffer-load (path &key (offset 0) frames (channel -1) channels
                     sample-rate)
-  (declare (type (or string pathname) path) (type fixnum channel))
-  (with-open-sndfile (sf path offset frames channels sample-rate)
-    (let* ((offset (if (floatp offset) (floor offset) offset))
-           (info (sf:info sf))
-           (channels (sf:channels info))
-           (%frames (- (sf:frames info) offset))
-           (frames (if frames
-                       (min (if (floatp frames) (floor frames) frames)
-                            %frames)
-                       %frames)))
-      (declare (type non-negative-fixnum %frames frames channels offset))
-      (when (plusp frames)
-        (let ((buffer (make-buffer frames
-                                   :channels (if (minusp channel) channels 1))))
-          (declare (type buffer buffer) #.*standard-optimize-settings*)
-          (sf:seek sf offset 0)
-          (if (minusp channel)
-              ;; All channels
-              (sndfile-to-buffer (buffer-data buffer) sf
-                                 frames channels 0 *sndfile-buffer-size*)
-              ;; The buffer is mono
-              (let ((channel-map `((,(min channel (1- channels)) 0))))
-                (map-sndfile-ch-to-buffer (buffer-data buffer) sf frames
-                                          channels (buffer-channels buffer) 0
-                                          *sndfile-buffer-size* channel-map 1)))
-          (setf (buffer-file buffer)
-                (if (pathnamep path) path (pathname path)))
-          (reduce-warnings
-            (setf (buffer-sample-rate buffer) (sample (sf:sample-rate info))))
-          buffer)))))
+  (declare (type (or string pathname) path) (type fixnum channel)
+           (type non-negative-real offset))
+  (let ((offset (floor offset))
+        (frames (and frames (floor frames))))
+    (declare (type non-negative-fixnum offset)
+             (type (or non-negative-fixnum null) frames))
+    (with-open-sndfile (sf path offset frames channels sample-rate)
+      (let* ((info (sf:info sf))
+             (channels (sf:channels info))
+             (%frames (- (sf:frames info) offset))
+             (frames (if frames (min (floor frames) %frames) %frames)))
+        (declare (type non-negative-fixnum channels)
+                 (type fixnum %frames frames))
+        (when (plusp frames)
+          (let ((buffer (make-buffer frames
+                          :channels (if (minusp channel) channels 1))))
+            (declare (type buffer buffer) #.*standard-optimize-settings*)
+            (sf:seek sf offset 0)
+            (if (minusp channel)
+                ;; All channels
+                (sndfile-to-buffer (buffer-data buffer) sf
+                                   frames channels 0 *sndfile-buffer-size*)
+                ;; The buffer is mono
+                (let ((channel-map `((,(min channel (1- channels)) 0))))
+                  (map-sndfile-ch-to-buffer (buffer-data buffer) sf frames
+                                            channels (buffer-channels buffer) 0
+                                            *sndfile-buffer-size* channel-map
+                                            1)))
+            (setf (buffer-file buffer)
+                  (if (pathnamep path) path (pathname path)))
+            (reduce-warnings
+              (setf (buffer-sample-rate buffer) (sample (sf:sample-rate info))))
+            buffer))))))
 
 (defmacro writef-sample (sndfile ptr items)
   `(#+double-samples sf:writef-double
@@ -231,8 +234,8 @@ It is possible to use line comments that begin with the `;' char."
                     textfile-p (header-type *default-header-type*)
                     (data-format *default-data-format*))
   (declare (type buffer buf) (type (or string pathname) path)
-           (type alexandria:non-negative-real start end)
-           (type (or alexandria:positive-real null) sample-rate))
+           (type non-negative-real start end)
+           (type (or positive-real null) sample-rate))
   (let* ((offset (floor (if (< 0 start (buffer-frames buf)) start 0)))
          (max-frames (- (buffer-frames buf) offset))
          (frames (floor (if (and (plusp end) (> end offset))
@@ -278,7 +281,7 @@ It is possible to use line comments that begin with the `;' char."
         new)))
 
 (defun resize-buffer (buffer frames &optional channels)
-  (declare (type buffer buffer) (type non-negative-fixnum frames)
+  (declare (type buffer buffer) (type non-negative-real frames)
            (type (or non-negative-fixnum null) channels))
   (if (or (free-p buffer)
           (and (= (buffer-frames buffer) frames)
@@ -384,14 +387,18 @@ It is possible to use line comments that begin with the `;' char."
 
 (defun set-buffer-from-textfile (buffer path start buffer-start buffer-end)
   (declare (type (or string pathname)) (type buffer buffer)
-           (type non-negative-fixnum start buffer-start buffer-end))
+           (type non-negative-real start buffer-start buffer-end))
   (multiple-value-bind (valid-p size) (check-numeric-textfile path)
     (when valid-p
       (let* ((channels (buffer-channels buffer))
+             (start (floor start))
+             (buffer-start (floor buffer-start))
+             (buffer-end (floor buffer-end))
              (frames (min (- buffer-end buffer-start)
                           (- (ceiling (/ size channels)) start))))
         (declare (type channel-number channels)
-                 (type non-negative-fixnum frames))
+                 (type non-negative-fixnum start buffer-start buffer-end
+                       frames))
         (when (plusp frames)
           (buffer-import-textfile buffer path start buffer-start
                                   channels (+ buffer-start
@@ -535,6 +542,11 @@ It is possible to use line comments that begin with the `;' char."
                     (sample-rate *sample-rate*) real-time-p
                     initial-contents fill-function (start 0) end
                     normalize-p)
+  (declare (type non-negative-real frames start offset sample-rate)
+           (type (or non-negative-real null) end)
+           (type non-negative-fixnum channels)
+           (type boolean real-time-p normalize-p)
+           (type (or function null) fill-function))
   (flet ((new-from-file (frm ch f os sr)
            (set-buffer-from-sndfile (%%make-buffer frm ch sr real-time-p t)
                                     f os 0 frm)))

@@ -90,7 +90,7 @@ when the duration is undefined.")
         (fifo-perform-functions *nrt-fifo*)
         (unless (fifo-empty-p *nrt-from-world-fifo*)
           ;; Probably *nrt-from-world-fifo* is always empty and
-          ;; never performed
+          ;; never performed.
           (fast-nrt-perform-functions))
         (incudine.edf::sched-loop)))
 
@@ -154,7 +154,7 @@ when the duration is undefined.")
        (cond ((plusp ,input-remain)
               (read-snd-buffer ,data-in ,input-remain ,input-index
                                ,in-channels))
-             (t ;; Fill the input buffer
+             (t ;; Fill the input buffer.
               (setf ,input-remain (read-sample ,snd-in ,data-in ,bufsize))
               (setf ,input-index 0)
               (cond ((zerop ,input-remain)
@@ -171,7 +171,7 @@ when the duration is undefined.")
 (declaim (inline nrt-cleanup))
 (defun nrt-cleanup ()
   (flush-all-fifos)
-  ;; Flush the EDF
+  ;; Flush the EDF.
   (flush-pending)
   (node-free *node-root*)
   (incudine.edf::sched-loop))
@@ -211,7 +211,7 @@ when the duration is undefined.")
        (multiple-value-bind (,path-or-stdin ,open-stdin-p)
            (if (and (stringp ,%path-or-stdin)
                     (string= ,%path-or-stdin "-"))
-               ;; Read from standard input
+               ;; Read from standard input.
                (values (sb-sys:fd-stream-fd sb-sys:*stdin*) t)
                (values ,%path-or-stdin nil))
          (sf:with-open (,var ,path-or-stdin :info ,info :mode sf:sfm-read
@@ -263,7 +263,7 @@ when the duration is undefined.")
            (remain (sample->fixnum (* (abs duration) *sample-rate*)))
            (max-frames (if pad-at-the-end-p
                            ;; Upper limit to avoid to fill the disk when
-                           ;; the duration is undefined
+                           ;; the duration is undefined.
                            (- (* (sample->fixnum *sample-rate*)
                                  (max *bounce-to-disk-guard-size* remain))
                               remain)
@@ -280,14 +280,14 @@ when the duration is undefined.")
       (%reset-peak-meters)
       (handler-case
           (progn
-            ;; Fill the EDF
+            ;; Fill the EDF.
             (funcall function)
             (with-sf-info (info max-frames *sample-rate* channels
                            header-type data-format)
               (multiple-value-bind (path-or-stdout open-stdout-p)
                   (if (and (stringp output-filename)
                            (string= output-filename "-"))
-                      ;; Write to standard output
+                      ;; Write to standard output.
                       (values (sb-sys:fd-stream-fd sb-sys:*stdout*) t)
                       (values output-filename nil))
                 (sf:with-open (snd path-or-stdout :info info :mode sf:sfm-write
@@ -302,6 +302,7 @@ when the duration is undefined.")
                            (unless pad-at-the-end-p
                              (setf frame i)))
                         (declare (type non-negative-fixnum64 i))
+                        ;; COUNT is incremented by CHANNELS.
                         (nrt-loop snd data bufsize count channels))
                       (loop while (< frame remain) do
                            (nrt-loop snd data bufsize count channels)
@@ -328,7 +329,7 @@ when the duration is undefined.")
            (pad-at-the-end-p (<= duration 0))
            (remain (sample->fixnum (* (abs duration) *sample-rate*)))
            (max-frames (if pad-at-the-end-p
-                           ;; Frames of the input file
+                           ;; Frames of the input file.
                            0
                            remain))
            (bufsize (* *sndfile-buffer-size* *sample-size*))
@@ -344,7 +345,7 @@ when the duration is undefined.")
       (%reset-peak-meters)
       (handler-case
           (progn
-            ;; Fill the EDF
+            ;; Fill the EDF.
             (funcall function)
             (with-sf-input (snd-in input-filename data-in in-channels bufsize
                             input-remain input-index max-frames
@@ -354,7 +355,7 @@ when the duration is undefined.")
                 (multiple-value-bind (path-or-stdout open-stdout-p)
                     (if (and (stringp output-filename)
                              (string= output-filename "-"))
-                        ;; Write to standard output
+                        ;; Write to standard output.
                         (values (sb-sys:fd-stream-fd sb-sys:*stdout*) t)
                         (values output-filename nil))
                   (sf:with-open (snd-out path-or-stdout :info info
@@ -368,6 +369,9 @@ when the duration is undefined.")
                              (unless pad-at-the-end-p
                                (setf frame i)))
                           (declare (type non-negative-fixnum64 i))
+                          ;; COUNT and INPUT-INDEX are incremented respectively
+                          ;; by CHANNELS and IN-CHANNELS. INPUT-REMAIN is
+                          ;; decremented by IN-CHANNELS.
                           (nrt-loop-with-infile snd-in data-in snd-out data-out
                                                 bufsize count channels
                                                 input-remain input-index
@@ -389,6 +393,15 @@ when the duration is undefined.")
       (print-peak-info channels)
       output-filename)))
 
+(defmacro bounce-function (form)
+  (let ((fst (car form)))
+    (if (and (null (cdr form))
+             (eq (car fst) 'funcall)
+             (null (cddr fst)))
+        ;; Simplify a single (FUNCALL FN).
+        (cadr fst)
+        `(lambda () ,@form))))
+
 (defmacro bounce-to-disk ((output-filename &key input-filename
                            (channels *number-of-output-bus-channels*)
                            duration (pad 2) (header-type *default-header-type*)
@@ -398,11 +411,88 @@ when the duration is undefined.")
           `(%bounce-to-disk-with-infile ,input-filename)
           '(%bounce-to-disk))
     ,output-filename ,(or duration `(- ,pad)) ,channels
-    ,header-type ,data-format ,metadata
-    ,(let ((fst (car body)))
-       (if (and (null (cdr body))
-                (eq (car fst) 'funcall)
-                (null (cddr fst)))
-           ;; Simplify a single (FUNCALL FN)
-           (cadr fst)
-           `(lambda () ,@body)))))
+    ,header-type ,data-format ,metadata (bounce-function ,body)))
+
+(defmacro nrt-write-buffer-loop (in-data out-data in-count out-count
+                                 in-channels out-channels in-size mix-p)
+  (with-gensyms (ch value)
+    `(progn
+       (when (and ,in-data (< ,in-count ,in-size))
+         (dochannels (,ch ,in-channels)
+           (setf (smp-ref *input-pointer* ,ch)
+                 (smp-ref ,in-data ,in-count))
+           (incf ,in-count)))
+       (incudine.edf::sched-loop)
+       (perform-fifos)
+       ;; Update the peak meters if MIX-P is NIL.
+       (compute-tick (null ,mix-p))
+       (dochannels (,ch ,out-channels)
+         (cond (,mix-p
+                (incf (smp-ref ,out-data ,out-count)
+                      (smp-ref *output-pointer* ,ch))
+                ;; Update the peak meters after the mix.
+                (let ((,value (smp-ref ,out-data ,out-count)))
+                  (when (> ,value (smp-ref *output-peak-values* ,ch))
+                    (setf (smp-ref *output-peak-values* ,ch) ,value))
+                  (when (> ,value 1)
+                    (setf (svref *out-of-range-counter* ,ch)
+                          (the positive-fixnum
+                            (1+ (the positive-fixnum
+                                  (svref *out-of-range-counter* ,ch))))))))
+               (t (setf (smp-ref ,out-data ,out-count)
+                        (smp-ref *output-pointer* ,ch))))
+         (incf ,out-count))
+       (clear-outputs)
+       (incf-sample-counter))))
+
+(defun %bounce-to-buffer (output-buffer input-buffer start frames mix-p
+                          function)
+  (declare (type buffer output-buffer) (type (or buffer null) input-buffer)
+           (type function function) (type non-negative-real start)
+           (type (or non-negative-real null) frames) (type boolean mix-p))
+  (let* ((out-channels (buffer-channels output-buffer))
+         (start (floor start))
+         (max-frames (max 0 (- (buffer-frames output-buffer) start)))
+         (frames (if frames (min (floor frames) max-frames) max-frames))
+         (begin (* start out-channels))
+         (out-data (buffer-data output-buffer)))
+    (declare (type non-negative-fixnum out-channels start max-frames
+                   frames begin))
+    (multiple-value-bind (in-channels in-size in-data)
+        (if input-buffer
+            (values (buffer-channels input-buffer) (buffer-size input-buffer)
+                    (buffer-data input-buffer)))
+      (declare (type (or non-negative-fixnum null) in-channels in-size))
+      (with-nrt (out-channels)
+        (nrt-cleanup)
+        (zeroes-nrt-bus-channels)
+        (reset-sample-counter)
+        (%reset-peak-meters)
+        (handler-case
+            (progn
+              (funcall function)
+              (locally (declare #.*standard-optimize-settings*)
+                (do ((i 0 (1+ i))
+                     (in-count 0)
+                     (out-count begin))
+                    ((= i frames))
+                  (declare (type non-negative-fixnum i in-count out-count))
+                  ;; IN-COUNT and OUT-COUNT are incremented respectively
+                  ;; by IN-CHANNELS (if INPUT-BUFFER exists) and OUT-CHANNELS.
+                  (nrt-write-buffer-loop in-data out-data in-count out-count
+                                         in-channels out-channels in-size
+                                         mix-p))
+                (node-free *node-root*)
+                (incudine.edf::sched-loop)
+                (perform-fifos)))
+          (condition (c) (progn (msg error "~A" c)
+                                (nrt-cleanup))))
+        (unless (= (buffer-sample-rate output-buffer) *sample-rate*)
+          (setf (buffer-sample-rate output-buffer) *sample-rate*))
+        (print-peak-info out-channels)
+        output-buffer))))
+
+(defmacro bounce-to-buffer ((output-buffer &key input-buffer (start 0) frames
+                            mix-p) &body body)
+  `(%bounce-to-buffer ,output-buffer ,input-buffer ,start ,frames ,mix-p
+                      (bounce-function ,body)))

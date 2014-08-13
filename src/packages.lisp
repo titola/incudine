@@ -298,7 +298,7 @@
 (defpackage :incudine
   (:use :cl :incudine.vug :incudine.util)
   (:import-from #:alexandria #:positive-fixnum #:negative-fixnum
-                #:non-negative-fixnum
+                #:non-negative-fixnum #:non-negative-real #:positive-real
                 #:with-gensyms #:define-constant #:ensure-symbol #:format-symbol
                 #:maphash-keys)
   (:import-from #:cffi #:foreign-type-size #:foreign-alloc #:foreign-free
@@ -376,8 +376,8 @@
    #:linen #:perc #:cutoff #:asr #:adsr #:dadsr
    #:make-linen #:make-perc #:make-cutoff #:make-asr #:make-adsr #:make-dadsr
    ;; nrt
-   #:with-nrt #:bounce-to-disk #:regofile->sexp #:regofile->function
-   #:regofile->lispfile
+   #:with-nrt #:bounce-to-disk #:bounce-to-buffer
+   #:regofile->sexp #:regofile->function #:regofile->lispfile
    #:defscore-statement #:delete-score-statement))
 
 (defpackage :incudine.voicer

@@ -117,7 +117,7 @@
                (msg error (rt-get-error-msg)))
              (setf (rt-params-status *rt-params*) :stopped)))))
 
-(defmacro compute-tick ()
+(defmacro compute-tick (&optional (update-peak-p t))
   (with-gensyms (funcons flist fn dummy-fn c n chan)
     `(let ((,funcons (node-funcons *node-root*)))
        (do ((,flist ,funcons (cdr ,flist)))
@@ -135,9 +135,10 @@
                      (when (eq (car (node-funcons ,n)) ,dummy-fn)
                        (node-free ,n))))
                  (nrt-msg error "~A" ,c))))))
-       (when ,funcons
-         (dochannels (,chan *number-of-output-bus-channels*)
-           (update-peak-values ,chan))))))
+       ,(if update-peak-p
+            `(when ,funcons
+               (dochannels (,chan *number-of-output-bus-channels*)
+                 (update-peak-values ,chan)))))))
 
 (defmacro with-restart-point ((label) &body body)
   `(tagbody
