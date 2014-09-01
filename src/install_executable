@@ -18,6 +18,7 @@ Create and install the standalone executable.
   --bindir=DIR          user executables [PREFIX/bin]
   --with-ladspa         support for LADSPA plugins.
   --with-lv2            support for LV2 plugins.
+  --with-module=NAME    load the module NAME before to create the executable.
   --sbcl-options=OPTS   options for SBCL.
 
 EOF
@@ -40,6 +41,7 @@ for arg in "$@"; do
         --bindir=*)       BINDIR="${arg:9}" ;;
         --with-ladspa)    add_system "INCUDINE-LADSPA" ;;
         --with-lv2)       add_system "INCUDINE-LV2" ;;
+        --with-module=*)  add_system "${arg:14}" ;;
         --sbcl-options=*) add_opt "${arg:15}" ;;
         *)                usage ;;
         esac

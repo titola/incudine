@@ -21,11 +21,14 @@ The options for the script `install_executable' are:
   --bindir=DIR          user executables [PREFIX/bin]
   --with-ladspa         support for LADSPA plugins.
   --with-lv2            support for LV2 plugins.
+  --with-module=NAME    load the module NAME before to create the executable.
   --sbcl-options=OPTS   options for SBCL.
 
 For example:
 
-    sh install_executable --with-ladspa --with-lv2
+    sh install_executable --with-ladspa --with-lv2 \
+                          --with-module=ltk \
+                          --with-module=dsp-collection
 
 Note: the support for LV2 plugins requires Lilv, a LV2 host library.
 
