@@ -19,6 +19,18 @@
 (defvar *reduce-warnings*
   '(sb-ext:muffle-conditions sb-ext:compiler-note))
 
+(defvar *null-output*
+  (sb-sys:make-fd-stream
+    (sb-unix:unix-open #-win32 "/dev/null" #+win32 "nul" sb-unix:o_wronly #o666)
+    :name "null output"
+    :input nil
+    :output t
+    :buffering :line
+    :element-type :default
+    :serve-events nil
+    :auto-close t
+    :external-format (stream-external-format sb-sys:*stdout*)))
+
 (defmacro reduce-warnings (&body body)
   `(locally (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
      ,@body))

@@ -103,7 +103,7 @@
    #:channel-number #:bus-number
    #:*reduce-warnings* #:reduce-warnings
    #:msg #:nrt-msg #:logger-level #:logger-time #:logger-time-function
-   #:*logger-stream* #:*logger-force-output* #:info
+   #:*logger-stream* #:*null-output* #:*logger-force-output* #:info
    #:compare-and-swap #:barrier
    #:get-bytes-consed-in
    #:thread-set-priority
