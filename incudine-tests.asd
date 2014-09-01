@@ -22,10 +22,11 @@
 (in-package :incudine-tests-system)
 
 (defsystem incudine-tests
-  :depends-on (:incudine #+sbcl :sb-rt #-sbcl :rt)
+  :depends-on (:incudine #+sbcl :sb-rt #-sbcl :rt #+sbcl :sb-md5)
   :components ((:module "tests"
                 :serial t
                 :components ((:file "packages")
+                      #+sbcl (:file "sbcl")
                              (:file "util")
                              (:file "logger")
                              (:file "pool")
@@ -39,7 +40,9 @@
                              (:file "gen-partials")
                              (:file "gen-polynomial")
                              (:file "gen-random")
-                             (:file "gen-window")))))
+                             (:file "gen-window")
+                             (:file "vug-base")
+                             (:file "vug-oscillator")))))
 
 (defmethod operation-done-p ((o test-op) (c (eql (find-system :incudine-tests))))
   nil)
