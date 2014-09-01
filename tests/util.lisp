@@ -14,7 +14,8 @@
   (0.0 0.32 0.06 0.25 0.5 0.71 1.0 2.0 3.98))
 
 (deftest t60->pole
-    (values (truncate (* (t60->pole 0.001) 10000)))
+    (let ((*sample-duration* (/ (sample 48000))))
+      (values (truncate (* (t60->pole 0.001) 10000))))
   8659)
 
 (deftest next-power-of-two
