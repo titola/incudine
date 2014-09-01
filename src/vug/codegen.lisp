@@ -575,14 +575,10 @@
       (%reinit-vug-variable var value param-plist)
       `(setf ,(vug-object-name var) ,(blockexpand value param-plist))))
 
-(defmacro %with-set-control ((param varvalue) &body body)
-  (let* ((varname (vug-parameter-varname param))
-         (aux-varname (vug-parameter-aux-varname param))
-         (type (vug-object-type param))
-         (binding `(,aux-varname (coerce ,varvalue ',type))))
-    (if (or (eq type 'sample) (eq varname aux-varname))
-        `(progn (setf ,@binding) ,@body)
-        `(let (,binding) ,@body))))
+(defmacro %with-set-control ((varname aux-varname type binding) &body body)
+  (if (or (eq type 'sample) (eq varname aux-varname))
+      `(progn (setf ,@binding) ,@body)
+      `(let (,binding) ,@body)))
 
 ;;; VUG-VARIABLEs to update after the change of a control of a DSP
 (defun control-dependence (param variables)
@@ -599,13 +595,17 @@
 
 (defun dsp-control-setter-func (param)
   (with-gensyms (value)
-    `(lambda (,value)
-       (declare #.*reduce-warnings*)
-       (%with-set-control (,param ,value)
-         ,(if (and (null (cdr #1=(vug-parameter-vars-to-update param)))
-                   (vug-name-p (car #1#) (vug-parameter-aux-varname param)))
-              `(values)
-              (control-dependence param (nreversef #1#)))))))
+    (let ((varname (vug-parameter-varname param))
+          (aux-varname (vug-parameter-aux-varname param))
+          (type (vug-object-type param)))
+      `(lambda (,value)
+         (declare #.*reduce-warnings*)
+         (%with-set-control (,varname aux-varname ,type
+                             (,aux-varname (coerce ,value ',type)))
+           ,(if (and (null (cdr #1=(vug-parameter-vars-to-update param)))
+                     (vug-name-p (car #1#) (vug-parameter-aux-varname param)))
+                `(values)
+                (control-dependence param (nreversef #1#))))))))
 
 (defun dsp-control-getter-func (param)
   `(lambda ()
