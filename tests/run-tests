@@ -3,7 +3,7 @@
 # Run the unit tests.
 #
 
-exec sbcl --quit \
+exec sbcl --quit "$@" \
           --eval '(require :incudine-tests)' \
           --eval '(incudine-tests:run-tests)' \
           --eval '(terpri)'
