@@ -404,9 +404,14 @@
 (defun reorder-parameter-list ()
   (nreversef (vug-variables-parameter-list *vug-variables*)))
 
+(declaim (inline make-initialization-code-stack))
+(defun make-initialization-code-stack ()
+  (list 'progn))
+
 (declaim (inline reorder-initialization-code))
 (defun reorder-initialization-code ()
-  (nreversef *initialization-code*))
+  (nreversef *initialization-code*)
+  (values))
 
 (defun dsp-vug-block (arguments &rest rest)
   (multiple-value-bind (args types) (arg-names-and-types arguments)
@@ -444,7 +449,7 @@
                  number-of-double number-of-int32 number-of-int64 dsp-cons
                  dsp node free-hook function-object)
     `(let* ((*vug-variables* (make-vug-variables))
-            (*initialization-code* (list '(values)))
+            (*initialization-code* (make-initialization-code-stack))
             (,number-of-sample 0)
             (,number-of-float 0)
             (,number-of-double 0)
@@ -506,16 +511,16 @@
                     ,(vug-foreign-variables-names int64)  ,',c-array-int64)
                  ,@(%expand-variables
                     (set-controls-form ',control-table ',arg-names)
+                    (reorder-initialization-code)
                     `(progn
                        (setf (dsp-name ,',dsp) ,',name)
                        (setf (incudine::node-controls %dsp-node%)
                              ,',control-table)
                        (update-free-hook %dsp-node% ,',free-hook)
-                       (reorder-initialization-code)
                        (let ((current-channel 0))
                          (declare (type channel-number current-channel)
                                   (ignorable current-channel))
-                         ,@*initialization-code*)
+                         ,*initialization-code*)
                        (set-dsp-object ,',dsp
                          :init-function
                          (lambda (,',node ,@',arg-names)
@@ -528,7 +533,7 @@
                            (let ((current-channel 0))
                              (declare (type channel-number current-channel)
                                       (ignorable current-channel))
-                             ,@*initialization-code*)
+                             ,*initialization-code*)
                            ,',node)
                          :free-function ,(to-free-form
                                           ',c-array-sample-wrap ,number-of-sample
