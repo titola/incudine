@@ -2,6 +2,7 @@
 
 (defpackage :incudine-tests
   (:use :cl :incudine :incudine.util :incudine.vug #+sbcl :sb-rt #-sbcl :rtest)
+  (:shadow #:dsp!)
   (:import-from #+sbcl :sb-rt #-sbcl :rtest
                 #:*compile-tests* #:*expected-failures*)
   (:import-from :alexandria #:define-constant #:format-symbol #:with-gensyms)
