@@ -119,15 +119,18 @@
 
   (defmacro impulse-oscillator (freq amp phase phase-modulation-p)
     (with-gensyms (phase-old phs freq-inc)
-      `(with-samples ((,phs (if (zerop ,phase) (sample 1) ,phase))
+      `(with-samples ((,phs (sample 1))
                       (,freq-inc (* ,freq *sample-duration*)))
-         ,amp
+         (initialize (unless (zerop ,phase)
+                       (decf ,phs ,phase)))
+         (maybe-expand ,amp)
          (prog1 (cond ((>= ,phs 1.0)
                        (decf ,phs 1.0)
                        ,amp)
                       (t +sample-zero+))
            ,@(when phase-modulation-p
                `((with-samples (,phase-old)
+                   (initialize (setf ,phase-old ,phase))
                    (unless (= ,phase ,phase-old)
                      (incf ,phs (- ,phase ,phase-old))
                      (setf ,phase-old ,phase)))))
@@ -606,11 +609,11 @@
 (define-vug-macro impulse (&optional (freq 0 freq-p) (amp 1) (phase 0))
   (if freq-p
       ;; Impulse oscillator
-      (with-gensyms (%freq %amp)
+      (with-gensyms (%freq %amp %phase)
         (with-coerce-arguments (freq amp phase)
-          `(with-vug-inputs ((,%freq ,freq) (,%amp ,amp))
-             (declare (type sample ,%freq ,%amp))
-             (impulse-oscillator ,%freq ,%amp ,phase
+          `(with-vug-inputs ((,%freq ,freq) (,%amp ,amp) (,%phase ,phase))
+             (declare (type sample ,%freq ,%amp ,%phase))
+             (impulse-oscillator ,%freq ,%amp ,%phase
                                  ,(null (constantp phase))))))
       '(single-impulse)))
 
