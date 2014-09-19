@@ -546,7 +546,9 @@
                                             (declare (type channel-number
                                                            current-channel)
                                                      (ignorable current-channel))
-                                            ,@,vug-body))))))))))))
+                                            ,@,vug-body)))
+                       (values (dsp-init-function ,',dsp)
+                               (dsp-perf-function ,',dsp)))))))))))
 
 (defmacro dsp-node () '%dsp-node%)
 
@@ -801,60 +803,91 @@
        (funcall (dsp-init-function ,obj) ,node ,@arg-names)
        (lambda (,node)
          (declare (ignore ,node))
-         (dsp-perf-function ,obj)))))
+         (values (dsp-init-function ,obj)
+                 (dsp-perf-function ,obj))))))
+
+(declaim (inline set-dsp-arg-names))
+(defun set-dsp-arg-names (dsp-name arg-names)
+  (setf (dsp-arguments (get-dsp-properties dsp-name)) arg-names))
+
+;;; Returns the function to parse the arguments of a DSP.
+(defmacro parse-dsp-args-func (bindings args)
+  `(lambda ,args
+     (let (,@bindings)
+       (list ,@args))))
+
+(defmacro dsp-init-args (bindings arg-names)
+  `(list (parse-dsp-args-func ,bindings ,arg-names) ,@arg-names))
+
+(defmacro with-add-action ((add-action target head tail before after replace)
+                           &body body)
+  `(multiple-value-bind (,add-action ,target)
+       (get-add-action-and-target ,head ,tail ,before ,after ,replace)
+     (let ((,target (if (numberp ,target)
+                        (incudine:node ,target)
+                        ,target)))
+       ,@body)))
+
+(defmacro enqueue-dsp-node (name node-id arg-names arg-bindings get-dsp-func
+                            head tail before after replace stop-hook free-hook
+                            action fade-time fade-curve)
+  (with-gensyms (node dsp add-action target)
+    `(with-add-action (,add-action ,target ,head ,tail ,before ,after ,replace)
+       (rt-eval ()
+         (let* (,@arg-bindings
+                (,node-id (get-node-id ,node-id ,add-action))
+                (,node (incudine:node ,node-id)))
+           (declare (type non-negative-fixnum ,node-id)
+                    (type incudine:node ,node))
+           (when (incudine::null-node-p ,node)
+             (let ((,dsp (get-next-dsp-instance ',name)))
+               (declare (type list ,dsp))
+               (incudine::enqueue-node-function
+                 (update-node-hooks ,node ,stop-hook ,free-hook)
+                 (if ,dsp
+                     (reuse-dsp-instance ,dsp ,node ,arg-names)
+                     (,get-dsp-func ,@arg-names))
+                 (dsp-init-args ,arg-bindings ,arg-names)
+                 ,node-id ',name ,add-action ,target ,action ,fade-time
+                 ,fade-curve))))))))
+
+(defmacro maybe-update-dsp-instances (dsp-name arg-names)
+  `(when *update-dsp-instances*
+     (update-dsp-instances ,dsp-name ,arg-names)))
 
 ;;; An argument is a symbol or a pair (NAME TYPE), where TYPE is the specifier
 ;;; of NAME. When the argument is a symbol, the default type is SAMPLE.
 (defmacro dsp! (name args &body body)
-  (with-gensyms (get-function node dsp dsp-prop)
-    (let ((doc (when (stringp (car body)) (car body)))
-          (arg-names (%argument-names args))
-          (dsp-arg-bindings (dsp-coercing-arguments args)))
+  (with-gensyms (get-function)
+    (let* ((doc (when (stringp (car body)) (car body)))
+           (body (if doc (cdr body) body))
+           (arg-names (%argument-names args))
+           (dsp-arg-bindings (dsp-coercing-arguments args)))
       `(macrolet ((,get-function ,arg-names
-                    `(prog1 ,(generate-code ',name ,args ,arg-names
-                                            (progn ,@(if doc (cdr body) body)))
+                    `(prog1
+                       ,(generate-code ',name ,args ,arg-names (progn ,@body))
                        (nrt-msg info "new alloc for DSP ~A" ',',name))))
          (cond ((vug ',name)
                 (msg error "~A was defined to be a VUG" ',name))
                (t
+                ;; If there is a DSP called NAME, remove the cached instances.
                 (free-dsp-instances ',name)
-                (let ((,dsp-prop (get-dsp-properties ',name)))
-                  (setf (dsp-arguments ,dsp-prop) ',arg-names)
-                  (defun ,name (,@arg-names &key id head tail before after
-                                replace action stop-hook free-hook fade-time
-                                fade-curve)
-                    (declare (type (or fixnum null) id)
-                             (type (or incudine:node fixnum null)
-                                   head tail before after replace)
-                             (type (or function null) action)
-                             (type list stop-hook free-hook))
-                    ,doc
-                    (multiple-value-bind (add-action target)
-                        (get-add-action-and-target head tail before after
-                                                   replace)
-                      (let ((target (if (numberp target)
-                                        (incudine:node target)
-                                        target)))
-                        (rt-eval ()
-                          (let (,@dsp-arg-bindings
-                                (id (get-node-id id add-action)))
-                            (declare (type non-negative-fixnum id))
-                            (let ((,node (incudine:node id)))
-                              (declare (type incudine:node ,node))
-                              (when (incudine::null-node-p ,node)
-                                (let ((,dsp (get-next-dsp-instance ',name)))
-                                  (declare (type list ,dsp))
-                                  (incudine::enqueue-node-function
-                                   (update-node-hooks ,node stop-hook free-hook)
-                                   (if ,dsp
-                                       (reuse-dsp-instance ,dsp ,node ,arg-names)
-                                       (,get-function ,@arg-names))
-                                   id ',name add-action target action
-                                   fade-time fade-curve))))))))
-                    (values))
-                  (when *update-dsp-instances*
-                    (update-dsp-instances ,name ,arg-names))
-                  #',name)))))))
+                (set-dsp-arg-names ',name ',arg-names)
+                (defun ,name (,@arg-names &key id head tail before after replace
+                              action stop-hook free-hook fade-time fade-curve)
+                  (declare (type (or fixnum null) id)
+                           (type (or incudine:node fixnum null) head tail before
+                                 after replace)
+                           (type (or function null) action)
+                           (type list stop-hook free-hook))
+                  ,doc
+                  (enqueue-dsp-node ,name id ,arg-names ,dsp-arg-bindings
+                                    ,get-function head tail before after replace
+                                    stop-hook free-hook action fade-time
+                                    fade-curve)
+                  (values))
+                (maybe-update-dsp-instances ,name ,arg-names)
+                #',name))))))
 
 (declaim (inline get-node-id))
 (defun get-node-id (id add-action)

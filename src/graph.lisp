@@ -49,6 +49,8 @@
   ;; is a group, it is the FUNCONS of the next node of the group
   (funcons (list nil) :type list)
   (function #'identity :type function)
+  (init-function #'identity :type function)
+  (init-args nil :type list)
   (controls nil :type (or hash-table null))
   ;; c-array to control the master gain of the node.
   ;; The value at the first pointer is the current level. The other
@@ -384,7 +386,8 @@
         (if (group-p last) (find-last-node last) last)
         node)))
 
-(defun node-add-fn (item add-action target id hash name fn fade-time fade-curve)
+(defun node-add-fn (item add-action target id hash name fn init-args
+                    fade-time fade-curve)
   "Returns the function to add a new node in the graph."
   (declare #.*standard-optimize-settings*
            (type node item target) (type symbol name add-action)
@@ -394,7 +397,7 @@
            (declare #.*reduce-warnings*)
            (let* ((new-node (node (next-large-node-id)))
                   (before-fn (node-add-fn new-node :before target
-                                          id hash name fn
+                                          id hash name fn init-args
                                           fade-time fade-curve)))
              (declare (type (or function null) before-fn))
              (when before-fn
@@ -403,21 +406,23 @@
                (swap-nodes target new-node)
                item))))
         ((null-node-p item)
-         (let ((fn (funcall fn item)))
-           (declare (type function fn))
+         (multiple-value-bind (init-fn perf-fn) (funcall fn item)
+           (declare (type function init-fn perf-fn))
            (setf (node-id item) id
                  (node-hash item) hash
                  (node-name item) name
                  (smp-ref (node-start-time-ptr item) 0) (now)
                  (node-pause-p item) nil
-                 (node-function item) fn
+                 (node-init-function item) init-fn
+                 (node-init-args item) init-args
+                 (node-function item) perf-fn
                  (node-last item) nil
                  (node-release-phase-p item) nil
                  (node-gain item) (sample 1)
                  (node-fade-curve item) (or fade-curve :lin))
            (if (null (node-funcons item))
-               (setf (node-funcons item) (list fn))
-               (setf (car (node-funcons item)) fn
+               (setf (node-funcons item) (list perf-fn))
+               (setf (car (node-funcons item)) perf-fn
                      (cdr (node-funcons item)) nil))
            (if (> id 65535)
                (setf *last-large-node-id* id)
@@ -537,13 +542,13 @@
              (t (nrt-msg error "unknown add-action ~S" add-action)))))))
 
 (declaim (inline enqueue-node-function))
-(defun enqueue-node-function (node function id name add-action target
-                              action fade-time fade-curve)
+(defun enqueue-node-function (node function init-args id name add-action
+                              target action fade-time fade-curve)
   (declare (type node node) (type function function)
            (type non-negative-fixnum id) (type symbol name add-action)
            (type node target) (type (or function null) action))
   (let ((fn (node-add-fn node add-action target id (int-hash id)
-                         name function fade-time fade-curve)))
+                         name function init-args fade-time fade-curve)))
     (when fn
       (funcall fn)
       (nrt-msg debug "new node ~D" id)
@@ -1080,6 +1085,28 @@
 (defun control-names (obj)
   (declare (type (or non-negative-fixnum node) obj))
   (rt-eval (:return-value-p t) (control-value obj :%control-names%)))
+
+(declaim (inline node-init-parse-args))
+(defun node-init-parse-args (node)
+  (the function (car (node-init-args node))))
+
+(defun reinit (node &rest args)
+  (declare (type (or node positive-fixnum) node)
+           #.*standard-optimize-settings*)
+  (at 0
+      (lambda ()
+        (let ((node (if (node-p node) node (node node))))
+          (declare (type node node))
+          (when (node-id node)
+            (let ((free-hook #1=(node-free-hook node)))
+              (setf #1# nil)
+              (apply (node-init-function node) node
+                     (if args
+                         (apply (node-init-parse-args node) args)
+                         (cdr (node-init-args node))))
+              ;; Restore the complete FREE-HOOK after the re-initialization.
+              (setf #1# free-hook)))
+          node))))
 
 (defgeneric pause (obj))
 

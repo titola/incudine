@@ -356,6 +356,7 @@
    #:node-free-all #:stop-hook #:free-hook #:dograph #:dogroup #:dump
    #:set-control #:set-controls #:control-value #:control-getter
    #:control-setter #:control-list #:control-names
+   #:reinit
    ;; responder
    #:get-receiver #:remove-receiver
    #:recv-start #:recv-stop #:recv-status #:recv-functions

@@ -23,26 +23,28 @@
 
 (defsystem incudine-tests
   :depends-on (:incudine #+sbcl :sb-rt #-sbcl :rt #+sbcl :sb-md5)
-  :components ((:module "tests"
-                :serial t
-                :components ((:file "packages")
-                      #+sbcl (:file "sbcl")
-                             (:file "util")
-                             (:file "logger")
-                             (:file "pool")
-                             (:file "fifo")
-                             (:file "edf")
-                             (:file "time")
-                             (:file "bus")
-                             (:file "buffer")
-                             (:file "foreign-array")
-                             (:file "envelope")
-                             (:file "gen-partials")
-                             (:file "gen-polynomial")
-                             (:file "gen-random")
-                             (:file "gen-window")
-                             (:file "vug-base")
-                             (:file "vug-oscillator")))))
+  :components
+  ((:module "tests"
+    :components
+    ((:file "packages")
+     (:file "sbcl" :depends-on ("packages"))
+     (:file "util" :depends-on ("sbcl"))
+     (:file "logger" :depends-on ("util"))
+     (:file "pool" :depends-on ("util"))
+     (:file "fifo" :depends-on ("util"))
+     (:file "edf" :depends-on ("util"))
+     (:file "time" :depends-on ("util"))
+     (:file "bus" :depends-on ("util"))
+     (:file "buffer" :depends-on ("util"))
+     (:file "foreign-array" :depends-on ("util"))
+     (:file "envelope" :depends-on ("util"))
+     (:file "gen-partials" :depends-on ("util"))
+     (:file "gen-polynomial" :depends-on ("util"))
+     (:file "gen-random" :depends-on ("util"))
+     (:file "gen-window" :depends-on ("util"))
+     (:file "vug-base" :depends-on ("util"))
+     (:file "vug-misc" :depends-on ("vug-base"))
+     (:file "vug-oscillator" :depends-on ("vug-base"))))))
 
 (defmethod operation-done-p ((o test-op) (c (eql (find-system :incudine-tests))))
   nil)
