@@ -44,16 +44,18 @@
 ;;;     3.4 my-func (dur 1.75) 440 0.3
 ;;;
 (defmacro defscore-statement (name args &rest body)
-  `(progn
-     (setf (gethash (symbol-name ',name) *score-statements*)
-           (lambda ,args
-             (let* ((*print-pretty* nil)
-                    (str (format nil "~S" (progn ,@body)))
-                    (len (length str)))
-               (if (< len 2)
-                   ""
-                   (subseq str 1 (1- len))))))
-     ',name))
+  (multiple-value-bind (decl rest)
+      (incudine.util::separate-declaration body)
+    `(progn
+       (setf (gethash (symbol-name ',name) *score-statements*)
+             (lambda ,args ,@decl
+               (let* ((*print-pretty* nil)
+                      (str (format nil "~S" (progn ,@rest)))
+                      (len (length str)))
+                 (if (< len 2)
+                     ""
+                     (subseq str 1 (1- len))))))
+       ',name)))
 
 (declaim (inline delete-score-statement))
 (defun delete-score-statement (name)

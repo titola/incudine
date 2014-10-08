@@ -242,10 +242,6 @@
 (defun binding-form-p (lst)
   (member (car lst) '(let let* symbol-macrolet compiler-let)))
 
-(declaim (inline declare-form-p))
-(defun declare-form-p (lst)
-  (eq (car lst) 'declare))
-
 (declaim (inline setter-form-p))
 (defun setter-form-p (obj)
   (member obj '(setf setq incf decf psetf psetq)))
@@ -286,14 +282,6 @@
   `(make-vug-function :name ',(car form)
      :inputs (list ',(cadr form) ,@(parse-vug-def (cddr form)
                                                   nil flist mlist))))
-
-(declaim (inline separate-declaration))
-(defun separate-declaration (form)
-  (let (acc)
-    (do ((l form (cdr l)))
-        ((null (and (consp (car l)) (declare-form-p (car l))))
-         (values (nreverse acc) l))
-      (push (car l) acc))))
 
 (defun parse-lambda-body (form flist mlist)
   (multiple-value-bind (decl rest)

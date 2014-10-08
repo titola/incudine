@@ -234,6 +234,18 @@
           ((plusp (logand i +table-maxlen+)) lobits)
         (declare (type non-negative-fixnum i lobits)))))
 
+(declaim (inline declare-form-p))
+(defun declare-form-p (lst)
+  (eq (car lst) 'declare))
+
+(declaim (inline separate-declaration))
+(defun separate-declaration (form)
+  (let (acc)
+    (do ((l form (cdr l)))
+        ((null (and (consp (car l)) (declare-form-p (car l))))
+         (values (nreverse acc) l))
+      (push (car l) acc))))
+
 (declaim (inline rt-thread-p))
 (defun rt-thread-p ()
   (eq (bt:current-thread) *rt-thread*))
