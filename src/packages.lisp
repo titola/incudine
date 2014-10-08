@@ -102,8 +102,9 @@
    #:limited-sample #:maybe-limited-sample
    #:channel-number #:bus-number
    #:*reduce-warnings* #:reduce-warnings
-   #:msg #:nrt-msg #:logger-level #:logger-time #:logger-time-function
-   #:*logger-stream* #:*null-output* #:*logger-force-output* #:info
+   #:*logger-stream* #:*null-output* #:*logger-force-output*
+   #:msg #:nrt-msg #:logger-level #:with-local-logger
+   #:logger-time #:logger-time-function #:default-logger-time-function
    #:compare-and-swap #:barrier
    #:get-bytes-consed-in
    #:thread-set-priority

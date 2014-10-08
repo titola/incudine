@@ -16,15 +16,15 @@
 
 (in-package :incudine.util)
 
-(defconstant +logger-error+  1)
-(defconstant +logger-warn+   2)
-(defconstant +logger-info+   4)
-(defconstant +logger-debug+  8)
+(define-constant +logger-error+  1)
+(define-constant +logger-warn+   2)
+(define-constant +logger-info+   4)
+(define-constant +logger-debug+  8)
 
-(defconstant +logger-error-mask+ #b00000001)
-(defconstant +logger-warn-mask+  #b00000011)
-(defconstant +logger-info-mask+  #b00000111)
-(defconstant +logger-debug-mask+ #b00001111)
+(define-constant +logger-error-mask+ #b00000001)
+(define-constant +logger-warn-mask+  #b00000011)
+(define-constant +logger-info-mask+  #b00000111)
+(define-constant +logger-debug-mask+ #b00001111)
 
 (defvar *logger-mask* +logger-warn-mask+)
 (declaim (type (integer 0 15) *logger-mask*))
@@ -45,15 +45,18 @@
         ((= *logger-mask* +logger-info-mask+) :info)
         (t :debug)))
 
+(declaim (inline get-logger-mask))
+(defun get-logger-mask (level)
+  (case level
+    (:error +logger-error-mask+)
+    (:warn  +logger-warn-mask+)
+    (:info  +logger-info-mask+)
+    (otherwise +logger-debug-mask+)))
+
 (declaim (inline set-logger-level))
 (defun set-logger-level (level)
   (declare (type (member :error :warn :info :debug) level))
-  (setf *logger-mask*
-        (case level
-          (:error +logger-error-mask+)
-          (:warn  +logger-warn-mask+)
-          (:info  +logger-info-mask+)
-          (otherwise +logger-debug-mask+)))
+  (setf *logger-mask* (get-logger-mask level))
   level)
 
 (defsetf logger-level set-logger-level)
@@ -90,6 +93,14 @@
 
 (defsetf logger-time-function set-logger-time-function)
 
+(defmacro with-local-logger ((&optional stream level (time nil time-p)
+                              time-function) &body body)
+  `(let (,@(if stream `((*logger-stream* ,stream)))
+         ,@(if level `((*logger-mask* (get-logger-mask ,level))))
+         ,@(if time-p `((*logger-time* ,time)))
+         ,@(if time-function `((*logger-time-function* ,time-function))))
+     ,@body))
+
 (defmacro logger-active-p (type)
   `(plusp (logand ,(alexandria:format-symbol :incudine.util
                                              "+LOGGER-~A+" type)
@@ -98,7 +109,7 @@
 (defmacro msg (type &rest rest)
   `(when (logger-active-p ,type)
      (when *logger-time* (funcall *logger-time-function*))
-     ,(unless (eq type 'info)
+     ,(unless (string= (symbol-name type) "INFO")
         `(princ ,(format nil "~A: " type) *logger-stream*))
      (format *logger-stream* ,@rest)
      (terpri *logger-stream*)

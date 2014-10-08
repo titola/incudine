@@ -60,40 +60,51 @@
                     (cffi:mem-aref data :unsigned-char i))))
         :start 0 :end bytes))))
 
-(defmacro with-dsp-test ((name &key bindings (channels 1) input-buffer (mult 1d7)
-                         (byte-order :little-endian) md5) &body body)
+(defun scale-and-round-buffer (buffer mult)
+  (map-buffer (lambda (index value)
+                (setf (buffer-value buffer index)
+                      (fround (* value mult))))
+              buffer))
+
+(defun dsp-test-header (name)
+  (fresh-line)
+  (format t "~%DSP test: ~A~%" name)
+  (force-output))
+
+(defmacro with-dsp-test ((name &key bindings (channels 1) input-buffer
+                          (mult 1d7) (byte-order :little-endian) md5)
+                         &body body)
   ;; Tested only with double float samples.
   (when (eq *sample-type* 'double-float)
     (let ((output-buffer (format-symbol *package* "*BUFFER-TEST-C~D*"
                                         channels)))
-      (with-gensyms (index value)
-        `(deftest ,name
+      `(deftest ,name
+           (with-local-logger (*standard-output*
+                               (if (eq (logger-level) :debug) :debug :info)
+                               :sec)
              (let ((*sample-rate* +sample-rate-test+)
                    (*sample-duration* +sample-duration-test+)
                    (*cps2inc* (* +table-maxlen+ *sample-duration*))
                    (*pi-div-sr* (coerce (* pi *sample-duration*) 'sample))
                    (*minus-pi-div-sr* (- *pi-div-sr*))
                    (*twopi-div-sr* (* 2 *pi-div-sr*))
-                   (*logger-stream* *standard-output*)
-                   ,@bindings)
-               (terpri)
-               (force-output)
-               (bounce-to-buffer (,output-buffer
-                                  ,@(and input-buffer
-                                         `(:input-buffer ,input-buffer)))
-                 ,@body)
-               ;; Scale and round the values before the MD5 checksums because
-               ;; the precision of the sample could slightly vary on different
-               ;; machines (i.e. due to the conversions from/to the data
-               ;; registers of the x87 FPU on x86, from double extended
-               ;; precision to double precision and vice versa).
-               ;; By default MULT is 1d7 (140 dB).
-               (map-buffer (lambda (,index ,value)
-                             (setf (buffer-value ,output-buffer ,index)
-                                   (fround (* ,value ,mult))))
-                           ,output-buffer)
-               (md5sum-buffer-test ,output-buffer ,byte-order))
-           ,md5)))))
+                    ,@bindings)
+               (dsp-test-header ',name)
+               (md5sum-buffer-test
+                 ;; Scale and round the values before the MD5 checksums because
+                 ;; the precision of the sample could slightly vary on different
+                 ;; machines (i.e. due to the conversions from/to the data
+                 ;; registers of the x87 FPU on x86, from double extended
+                 ;; precision to double precision and vice versa).
+                 ;; By default MULT is 1d7 (140 dB).
+                 (scale-and-round-buffer
+                   (bounce-to-buffer (,output-buffer
+                                      ,@(and input-buffer
+                                             `(:input-buffer ,input-buffer)))
+                     ,@body)
+                   ,mult)
+                 ,byte-order)))
+           ,md5))))
 
 (defmacro dsp! (name args &body body)
   `(progn
