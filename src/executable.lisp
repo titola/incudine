@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -42,8 +42,11 @@
             :type cons)
   (outfile nil :type (or string null))
   (infile nil :type (or string null))
+  (ochans 0 :type channel-number)
+  (ichans 0 :type channel-number)
   (duration 0 :type real)
   (rego-files nil :type list)
+  (compile-rego-contents-p nil :type boolean)
   (sf-metadata nil :type list)
   (debug-p nil :type boolean)
   (script nil :type (or string null))
@@ -86,6 +89,11 @@
 (declaim (inline consumed-options))
 (defun consumed-options (opt)
   (car (toplevel-options-consumed opt)))
+
+(declaim (inline changed-number-of-channels-p))
+(defun changed-number-of-channels-p (opt)
+  (or (plusp (toplevel-options-ichans opt))
+      (plusp (toplevel-options-ochans opt))))
 
 ;;; Return a list with the name of the command and the arguments
 ;;; written between `#!' and `--script\n#' in the header of a
@@ -250,7 +258,8 @@
                               (let ((fname (score-function-name)))
                                 ;; Generate the intermediate file of the rego file
                                 (regofile->lispfile rego-pathname fname
-                                                    lisp-pathname)
+                                  lisp-pathname
+                                  (toplevel-options-compile-rego-contents-p opt))
                                 ;; The produced file becomes a script usable
                                 ;; both in realtime and non-realtime.
                                 (%complete-score lisp-pathname opt fname)))
@@ -269,6 +278,9 @@
                opt)
               options))))))
 
+(defmacro maybe-read-from-string (value read-p)
+  (if read-p `(read-from-string ,value) value))
+
 (defun usage ()
   (princ "Usage: incudine [OPTIONS] [FILE1 [FILE2 ...]]
                 [OPTIONS] [FILE1 [FILE2 ...]] ...
@@ -277,6 +289,7 @@
   -b, --sndfile-buffer-size <int>  Buffer size to read/write a soundfile.
   -c, --channels <int>         Number of the output channels.
   --client-name <name>         Name of the client for the audio server.
+  --compile-score-contents     Compile the contents of the score.
   -F, --data-format <type>     Format of the sample for the output file.
   --data-format-list           Available audio formats.
   --default-table-size <int>   Default size of a table for an oscillator.
@@ -287,6 +300,8 @@
   -H, --header-type <type>     Type of the header for the output file.
   --header-type-list           Available header types.
   -i, --infile <filename>      Sound input filename or `-' for standard input.
+  --input-channels <int>       Number of the input channels.
+  --interpret-score-contents   Interpret the contents of the score (default).
   -L, --logfile <filename>     Logging file.
   --lisp-version               Print version information of SBCL and exit.
   --logtime ( sec | samp )     Log message with time in seconds or in samples.
@@ -308,7 +323,7 @@
   -s <filename>                Process a score.
   --sample-pool-size <bytes>   Size of the pool for the C arrays defined in DSP!
   --sound-velocity <real>      Velocity of the sound at 22°C, 1 atmosfera.
-  --tempo <bpm>                Initial tempo in beats per minute.
+  -T, --tempo <bpm>            Initial tempo in beats per minute.
   -v, --verbose                More verbose.
   --version                    Print version information and exit.
 
@@ -355,8 +370,7 @@ SBCL options:
                               (gethash ,(cdr option) *toplevel-options*) ,fn)))))
            (set-option (obj &optional read-p)
              `(progn
-                (setf ,obj
-                      (,(if read-p 'read-from-string 'progn) (car options)))
+                (setf ,obj (maybe-read-from-string (car options) ,read-p))
                 (add-consumed-option opt (car options) t)
                 (cdr options)))
            (push-fn ((error-msg &optional value-var) &body form)
@@ -366,12 +380,14 @@ SBCL options:
                                                 ,@(if value-var `(,value-var)))
                    ,@form))
                opt))
-           (with-eval-form ((value-var error-msg) &body form)
+           (with-eval-form ((value-var error-msg &optional read-p) &body form)
              (if value-var
-                 `(let ((,value-var (car options)))
-                    (push-fn (,error-msg ,value-var) ,@form)
-                    (add-consumed-option opt ,value-var t)
-                    (cdr options))
+                 (with-gensyms (curr)
+                   `(let* ((,curr (car options))
+                           (,value-var (maybe-read-from-string ,curr ,read-p)))
+                      (push-fn (,error-msg ,value-var) ,@form)
+                      (add-consumed-option opt ,curr t)
+                      (cdr options)))
                  `(progn
                     (push-fn (,error-msg) ,@form)
                     options)))
@@ -465,16 +481,29 @@ SBCL options:
   ;;; Incudine options
 
   (def-toplevel-opt ("-b" . "--sndfile-buffer-size")
-    (set-option *sndfile-buffer-size* t))
+    (with-eval-form (bufsize "Failed to set the buffer size ~D" t)
+      (setf *sndfile-buffer-size* bufsize)))
 
   (def-toplevel-opt ("-c" . "--channels")
-    (set-option *number-of-output-bus-channels* t))
+    (with-eval-form (outputs "Failed to set the number of output channels ~D" t)
+      (setf (toplevel-options-ochans opt) outputs)
+      (if (eq (rt-status) :started)
+          (set-number-of-channels (if (zerop (toplevel-options-ichans opt))
+                                      *number-of-input-bus-channels*
+                                      (toplevel-options-ichans opt))
+                                  outputs)
+          (setf *number-of-output-bus-channels* outputs))))
 
   (def-toplevel-opt "--client-name"
     (set-option *client-name*))
 
+  (def-toplevel-opt "--compile-score-contents"
+    (with-eval-form (nil "Cannot compile the contents of the score")
+      (setf (toplevel-options-compile-rego-contents-p opt) t)))
+
   (def-toplevel-opt ("-F" . "--data-format")
-    (set-option *default-data-format*))
+    (with-eval-form (df "Failed to set the data format ~A")
+      (setf *default-data-format* df)))
 
   (def-toplevel-opt ("--data-format-list")
     (sf-data-format-list)
@@ -484,29 +513,47 @@ SBCL options:
     (set-option *default-table-size* t))
 
   (def-toplevel-opt ("-d" . "--duration")
-    (set-option (toplevel-options-duration opt) t))
+    (with-eval-form (dur "Failed to set the duration to ~A seconds" t)
+      (setf (toplevel-options-duration opt) dur)))
 
   (def-toplevel-opt "--debug"
-    (setf (logger-level) :debug)
     (setf (toplevel-options-debug-p opt) t)
-    options)
+    (with-eval-form (nil "Failed to set the logger level")
+      (setf (logger-level) :debug)))
 
   (def-toplevel-opt "--disk-guard-size"
-    (set-option *bounce-to-disk-guard-size* t))
+    (with-eval-form (size "Failed to set the disk guard size ~D" t)
+      (setf *bounce-to-disk-guard-size* size)))
 
   (def-toplevel-opt ("-h" . "--help")
     (usage)
     (sb-ext:exit))
 
   (def-toplevel-opt ("-H" . "--header-type")
-    (set-option *default-header-type*))
+    (with-eval-form (ht "Failed to set the header type ~A")
+      (setf *default-header-type* ht)))
 
   (def-toplevel-opt ("--header-type-list")
     (sf-header-type-list)
     (sb-ext:exit))
 
   (def-toplevel-opt ("-i" . "--infile")
-    (set-option (toplevel-options-infile opt)))
+    (with-eval-form (infile "Failed to set the input ~S")
+      (setf (toplevel-options-infile opt) infile)))
+
+  (def-toplevel-opt "--input-channels"
+    (with-eval-form (inputs "Failed to set the number of input channels ~D" t)
+      (setf (toplevel-options-ichans opt) inputs)
+      (if (eq (rt-status) :started)
+          (set-number-of-channels inputs
+                                  (if (zerop (toplevel-options-ochans opt))
+                                      *number-of-output-bus-channels*
+                                      (toplevel-options-ochans opt)))
+          (setf *number-of-input-bus-channels* inputs))))
+
+  (def-toplevel-opt "--interpret-score-contents"
+    (with-eval-form (nil "Cannot interpret the contents of the score")
+      (setf (toplevel-options-compile-rego-contents-p opt) nil)))
 
   (def-toplevel-opt ("-L" . "--logfile")
     (setf (toplevel-options-disable-debugger-p opt) t)
@@ -553,16 +600,20 @@ SBCL options:
     (set-option (rt-params-frames-per-buffer *rt-params*) t))
 
   (def-toplevel-opt "--pad"
-    (setf (toplevel-options-duration opt) (- (read-from-string (car options))))
-    (add-consumed-option opt (car options) t)
-    (cdr options))
+    (with-eval-form (pad "Failed to extend the duration by ~A seconds" t)
+      (setf (toplevel-options-duration opt) (- pad))))
 
   (def-toplevel-opt ("-r" . "--rate")
-    (set-option incudine.config::*sample-rate* t))
+    (with-eval-form (sr "Failed to set the sample rate ~A" t)
+      (set-sample-rate sr)))
 
   (def-toplevel-opt ("-R" . "--realtime")
     (setf (toplevel-options-disable-debugger-p opt) t)
     (with-eval-form (nil "Failed to start realtime")
+      (when (changed-number-of-channels-p opt)
+        ;; Change the size of the rt buffers.
+        (set-number-of-channels (toplevel-options-ichans opt)
+                                (toplevel-options-ochans opt)))
       (rt-start)))
 
   (def-toplevel-opt "--receiver-priority"
@@ -583,8 +634,9 @@ SBCL options:
   (def-toplevel-opt "--sound-velocity"
     (set-option incudine.config::*sound-velocity* t))
 
-  (def-toplevel-opt ("--tempo")
-    (set-option *default-bpm* t))
+  (def-toplevel-opt ("-T" . "--tempo")
+    (with-eval-form (bpm "Failed to set the BPM ~A" t)
+      (setf *default-bpm* bpm)))
 
   (def-toplevel-opt ("-v" . "--verbose")
     (setf (logger-level) :info)
