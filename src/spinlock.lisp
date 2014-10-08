@@ -27,14 +27,14 @@
 (declaim (inline acquire-spinlock))
 (defun acquire-spinlock (spinlock)
   (declare (type spinlock spinlock))
-  (loop while (= 1 (compare-and-swap (spinlock-state spinlock) 0 1)))
-  t)
+  (loop if (zerop (compare-and-swap (spinlock-state spinlock) 0 1))
+        return t))
 
 (declaim (inline release-spinlock))
 (defun release-spinlock (spinlock)
   (declare (type spinlock spinlock))
-  (barrier (:memory))
-  (setf (spinlock-state spinlock) 0)
+  (barrier (:memory)
+    (setf (spinlock-state spinlock) 0))
   nil)
 
 ;;; Acquire spinlock for the dynamic scope of BODY.
