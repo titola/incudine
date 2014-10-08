@@ -185,7 +185,7 @@
                            (node-next-funcons target)
                            (node-funcons target)))
                  (link-to-unpaused-prev group (node-prev group))
-                 (nrt-msg debug "new group ~D" id)))
+                 (nrt-msg info "new group ~D" id)))
               (:after
                (unless (eq target *node-root*)
                  (common-set group id)
@@ -203,7 +203,7 @@
                    (setf (node-prev (node-next group)) group))
                  (when (eq target (node-last (node-parent group)))
                    (setf (node-last (node-parent group)) group))
-                 (nrt-msg debug "new group ~D" id)))
+                 (nrt-msg info "new group ~D" id)))
               (:head
                (when (group-p target)
                  (common-set group id)
@@ -219,7 +219,7 @@
                        (if (node-pause-p target)
                            (node-next-funcons group)
                            (node-funcons target)))
-                 (nrt-msg debug "new group ~D" id)))
+                 (nrt-msg info "new group ~D" id)))
               (:tail
                (when (group-p target)
                  (common-set group id)
@@ -232,7 +232,7 @@
                    (when (node-p (node-next group))
                      (setf (node-prev (node-next group)) group))
                    (setf (node-funcons group) (node-next-funcons group)))
-                 (nrt-msg debug "new group ~D" id)))
+                 (nrt-msg info "new group ~D" id)))
               (t (nrt-msg error "unknown add-action ~S" add-action)))))))))
 
 (declaim (inline group-p))
@@ -551,7 +551,7 @@
                          name function init-args fade-time fade-curve)))
     (when fn
       (funcall fn)
-      (nrt-msg debug "new node ~D" id)
+      (nrt-msg info "new node ~D" id)
       (when action (funcall action node)))))
 
 ;;; Iteration over the nodes of the graph
@@ -717,7 +717,7 @@
   (cond ((node-root-p node)
          (setf *last-node-id* 1)
          (cond ((node-next *node-root*)
-                (nrt-msg debug "free group 0")
+                (nrt-msg info "free group 0")
                 (lambda () (unlink-group node) node))
                (t incudine.util::*dummy-function-without-args*)))
         (t (lambda ()
@@ -736,12 +736,12 @@
                    (unlink-parent node)
                    (cond ((group-p node)
                           (%remove-group node)
-                          (nrt-msg debug "free group ~D" id))
+                          (nrt-msg info "free group ~D" id))
                          (t (%remove-node node)
                             (fix-collisions-from (node-index node) *node-hash*
                                                  node-hash node-id null-node-p
                                                  node)
-                            (nrt-msg debug "free node ~D" id)))
+                            (nrt-msg info "free node ~D" id)))
                    node)))))))
 
 (declaim (inline node-free))
@@ -1056,6 +1056,9 @@
         (declare (type (or function null) fn))
         (when fn
           (funcall fn value)
+          (nrt-msg info "set node ~D ~A ~A"
+                   (if (numberp obj) obj (node-id obj))
+                   control-name value)
           value)))))
 
 (defsetf control-value set-control)
@@ -1126,7 +1129,7 @@
                                     (node-next-funcons (find-last-node obj)))))
                      (setf (node-funcons obj)
                            (node-next-funcons (find-last-node obj))))
-                 (nrt-msg debug "pause node ~D" (node-id obj)))
+                 (nrt-msg info "pause node ~D" (node-id obj)))
                 ((null prev) nil)
                 (t (setf (node-pause-p obj) t)
                    (cond ((group-p prev)
@@ -1135,7 +1138,7 @@
                             (update-prev-groups prev)))
                          (t (setf (cdr (node-funcons prev))
                                   (cdr (node-funcons obj)))))
-                   (nrt-msg debug "pause node ~D" (node-id obj))))
+                   (nrt-msg info "pause node ~D" (node-id obj))))
           obj)))))
 
 (defmethod pause ((obj integer))
@@ -1156,7 +1159,7 @@
                                      (node-next obj)))))
                    (when next
                      (setf (node-funcons *node-root*) (node-funcons next))))
-                 (nrt-msg debug "unpause node ~D" (node-id obj)))
+                 (nrt-msg info "unpause node ~D" (node-id obj)))
                 ((group-p obj)
                  (let ((last (find-last-node obj)))
                    (when (node-pause-p last)
@@ -1172,14 +1175,14 @@
                          (setf (node-funcons prev) (node-funcons obj))
                          (update-prev-groups prev))
                        (setf (cdr (node-funcons prev)) (node-funcons obj))))
-                 (nrt-msg debug "unpause node ~D" (node-id obj)))
+                 (nrt-msg info "unpause node ~D" (node-id obj)))
                 (t (setf (cdr (node-funcons obj)) (node-next-funcons obj))
                    (if (group-p prev)
                        (unless (node-pause-p (node-parent obj))
                          (setf (node-funcons prev) (node-funcons obj))
                          (update-prev-groups prev))
                        (setf (cdr (node-funcons prev)) (node-funcons obj)))
-                   (nrt-msg debug "unpause node ~D" (node-id obj))))
+                   (nrt-msg info "unpause node ~D" (node-id obj))))
           obj)))))
 
 (defmethod unpause ((obj integer))

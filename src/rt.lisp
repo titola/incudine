@@ -16,6 +16,11 @@
 
 (in-package :incudine)
 
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defvar *after-gc-fn* (lambda () (nrt-msg debug "gc happened")))
+
+  (incudine.util::add-after-gc-hook *after-gc-fn*))
+
 (defmacro with-new-thread ((varname name priority debug-message) &body body)
   `(unless ,varname
      (setf ,varname

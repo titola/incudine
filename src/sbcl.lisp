@@ -80,6 +80,13 @@
 (defmacro with-stop-for-gc-pending (&body body)
   `(when sb-kernel:*stop-for-gc-pending* ,@body))
 
+(defun add-after-gc-hook (function)
+  (pushnew function sb-ext:*after-gc-hooks*))
+
+(defmacro cudo-eval (&body body)
+  `(let ((sb-ext:*evaluator-mode* :interpret))
+     (eval '(progn ,@body))))
+
 (declaim (inline exit))
 (defun exit (&optional (code 0))
   (if (rt-thread-p)

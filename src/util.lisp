@@ -57,6 +57,9 @@
 
 (defgeneric free-p (obj))
 
+(defmethod free ((obj cons))
+  (mapc #'free obj))
+
 (defmacro copy-struct-slots (struct-name slot-names from to)
   `(setf ,@(loop for name in slot-names
                  for slot-name = (format-symbol *package* "~A-~A"

@@ -849,7 +849,9 @@
                      (,get-dsp-func ,@arg-names))
                  (dsp-init-args ,arg-bindings ,arg-names)
                  ,node-id ',name ,add-action ,target ,action ,fade-time
-                 ,fade-curve))))))))
+                 ,fade-curve))
+             (nrt-msg debug "node ~D ~{~A ~}" ,node-id
+                      (list ,@(loop for i in arg-names append `(',i ,i))))))))))
 
 (defmacro maybe-update-dsp-instances (dsp-name arg-names)
   `(when *update-dsp-instances*
