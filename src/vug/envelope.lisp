@@ -320,7 +320,7 @@
       ;; Expand if GATE is modulated.
       (maybe-expand level)
       (cond ((or done-p sustain) last-level)
-            (t (cond ((zerop remain)
+            (t (cond ((<= remain 1)
                       ;; End of segment.
                       (cond ((envgen-end-of-data-p (incf index) data-size)
                              (done-action done-action)

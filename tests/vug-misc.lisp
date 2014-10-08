@@ -30,7 +30,7 @@
   (at #[2.1 sec] #'set-control 123 :dur .4))
 
 (with-dsp-test (reinit.3 :channels 2
-      :md5 #(171 189 68 111 168 184 150 173 223 103 82 68 222 137 54 49))
+      :md5 #(236 6 236 54 51 199 179 205 70 41 211 178 131 87 22 88))
   (reinit-test-3 .75 1 :id 123)
   (at #[1/2 sec] #'set-control 123 :dur .1)
   (at #[2 sec] #'set-control 123 :dur .3)
