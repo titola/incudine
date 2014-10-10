@@ -117,10 +117,12 @@
      nil))
 
 (defmacro nrt-msg (type &rest rest)
-  `(progn
-     (when (logger-active-p ,type)
-       (incudine.edf:at #.+sample-zero+
-                        (lambda ()
-                          (incudine:nrt-funcall (lambda ()
-                                                  (msg ,type ,@rest)))))
+  (with-gensyms (msg-fn)
+    `(when (logger-active-p ,type)
+       (flet ((,msg-fn ()
+                (msg ,type ,@rest)))
+         (if *rt-thread*
+             (incudine.edf:at ,+sample-zero+
+               (lambda () (incudine:nrt-funcall #',msg-fn)))
+             (,msg-fn)))
        nil)))
