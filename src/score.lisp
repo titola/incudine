@@ -139,7 +139,8 @@
 
 (defun score-line->sexp (line at-fname)
   (declare (type string line))
-  (let ((line (or (expand-score-statement line) line)))
+  (let ((line (or (expand-score-statement line) line))
+        (*read-default-float-format* *sample-type*))
     (declare (type string line))
     (if (time-tagged-function-p line)
         (macroexpand-1
