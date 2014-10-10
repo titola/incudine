@@ -115,7 +115,7 @@
              (type non-negative-fixnum samples remain))
     (if done-p
         value
-        (cond ((zerop remain)
+        (cond ((<= remain 1)
                (done-action done-action)
                (setf done-p t)
                value)
@@ -139,7 +139,7 @@
              (type non-negative-fixnum samples remain))
     (if done-p
         value
-        (cond ((zerop remain)
+        (cond ((<= remain 1)
                (done-action done-action)
                (setf done-p t)
                value)

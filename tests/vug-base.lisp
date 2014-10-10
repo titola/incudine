@@ -106,11 +106,6 @@
                  ,byte-order)))
            ,md5))))
 
-(defmacro dsp! (name args &body body)
-  `(progn
-     (tg:gc :full t)
-     (incudine.vug:dsp! ,name ,args ,@body)))
-
 (define-vug vug-test-1 (freq amp phase)
   (sine freq amp phase))
 

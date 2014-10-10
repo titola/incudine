@@ -162,11 +162,11 @@
         do (at time #'set-controls 123 :index index :amp (- amp))))
 
 (with-dsp-test (vug-oscr.fm.am.1 :channels 2
-      :md5 #(22 185 8 55 177 34 64 15 65 124 215 6 139 207 243 27))
+      :md5 #(196 215 27 219 114 123 99 91 101 28 210 61 228 63 34 72))
   (vug-oscr-test-3 50 4000 .35 1 400 +vug-test-duration-sec+))
 
 (with-dsp-test (vug-oscr.fm.am.2 :channels 2
-      :md5 #(240 12 130 93 94 80 167 130 101 2 16 169 26 53 98 168))
+      :md5 #(218 245 5 125 14 193 74 93 31 204 86 34 33 192 65 115))
   (vug-oscr-test-4 50 4000 .35 1 400 +vug-test-duration-sec+))
 
 (with-dsp-test (vug-single-impulse.1
@@ -185,7 +185,7 @@
   (vug-impulse-test-2 1 0.123 0.890))
 
 (with-dsp-test (vug-impulse.fm.1
-      :md5 #(204 75 28 149 171 249 229 186 49 185 81 110 168 14 128 86))
+      :md5 #(200 245 132 208 35 88 187 80 79 50 219 254 211 191 194 59))
   (vug-impulse-test-3 50 0.5 0.4 30 :id 1)
   (at #[2.3 s] #'set-controls 1 :freq 100 :fmod .1 :dev 70)
   (at #[4 s] #'set-controls 1 :freq 20 :fmod 3 :dev 10 :amp .3))
