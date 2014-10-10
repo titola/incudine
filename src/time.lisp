@@ -105,7 +105,8 @@
                            (:copier nil))
   (bps (error "Missing BPS envelope") :type envelope)
   (time-warp (null-pointer) :type foreign-pointer)
-  (points 0 :type non-negative-fixnum))
+  (points 0 :type non-negative-fixnum)
+  (constant-p t :type boolean))
 
 (defmethod print-object ((obj tempo-envelope) stream)
   (let ((bps-env (tempo-envelope-bps obj)))
@@ -114,19 +115,24 @@
             (tempo-envelope-points obj) (envelope-loop-node bps-env)
             (envelope-release-node bps-env))))
 
+(declaim (inline tenv-constant-p))
+(defun tenv-constant-p (values)
+  (apply #'= values))
+
 (defmacro make-tempo-envelope (&whole args bpms beats &key curve (loop-node -1)
                                (release-node -1) restart-level real-time-p)
   (declare (ignore beats curve loop-node release-node restart-level
                    real-time-p))
-  (with-gensyms (tempo-env bps-env bpm points twarp-data)
-    `(let* ((,bps-env (make-envelope (mapcar (lambda (,bpm)
-                                               (/ ,(sample 60) ,bpm)) ,bpms)
-                                     ,@(cddr args)))
+  (with-gensyms (tempo-env bps bps-env bpm points twarp-data)
+    `(let* ((,bps (mapcar (lambda (,bpm) (/ ,(sample 60) ,bpm)) ,bpms))
+            (,bps-env (make-envelope ,bps ,@(cddr args)))
             (,points (envelope-points ,bps-env))
             (,twarp-data (foreign-alloc 'sample :count ,points))
-            (,tempo-env (%make-tempo-envelope :bps ,bps-env
-                                              :time-warp ,twarp-data
-                                              :points ,points)))
+            (,tempo-env (%make-tempo-envelope
+                          :bps ,bps-env
+                          :time-warp ,twarp-data
+                          :points ,points
+                          :constant-p (tenv-constant-p ,bps))))
        (tg:finalize ,tempo-env (lambda () (foreign-free ,twarp-data)))
        (fill-time-warp-data ,twarp-data ,bps-env)
        ,tempo-env)))
@@ -231,13 +237,14 @@
                               (loop-node -1) (release-node -1)
                               restart-level)
   (declare (ignore beats curve loop-node release-node restart-level))
-  (with-gensyms (bps-env twarp-data bpm points)
+  (with-gensyms (bps-env bps twarp-data bpm points)
     `(let ((,bps-env (tempo-envelope-bps ,env))
-           (,twarp-data (tempo-envelope-time-warp ,env)))
-       (set-envelope ,bps-env (mapcar (lambda (,bpm) (/ ,(sample 60) ,bpm))
-                                      ,bpms)
-                     ,@(cdddr args))
+           (,twarp-data (tempo-envelope-time-warp ,env))
+           (,bps (mapcar (lambda (,bpm) (/ ,(sample 60) ,bpm)) ,bpms)))
+       (set-envelope ,bps-env ,bps ,@(cdddr args))
        (let ((,points (envelope-points ,bps-env)))
+         (setf (tempo-envelope-constant-p ,env)
+               (tenv-constant-p ,bps))
          (unless (= ,points #1=(tempo-envelope-points ,env))
            (setf #1# ,points)
            (foreign-realloc-sample ,twarp-data ,points)
@@ -281,7 +288,7 @@
 
 (declaim (inline time-at))
 (defun time-at (tempo-env beats &optional (offset 0))
-  (if (zerop offset)
+  (if (or (zerop offset) (tempo-envelope-constant-p tempo-env))
       (%time-at tempo-env beats)
       (- (%time-at tempo-env (+ offset beats))
          (%time-at tempo-env offset))))
@@ -370,7 +377,8 @@
 (defun parse-time-string (stream subchar arg)
   (declare #.*standard-optimize-settings*
            (type stream stream) (ignore subchar arg))
-  (let ((str-list (split-unit-time-string stream)))
+  (let ((str-list (split-unit-time-string stream))
+        (*read-default-float-format* *sample-type*))
     (declare (type list str-list))
     (if (null str-list)
         +sample-zero+
