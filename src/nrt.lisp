@@ -134,11 +134,13 @@ when the duration is undefined.")
     #-double-samples sf:write-float
     ,sndfile ,ptr ,items))
 
-(defmacro nrt-loop (snd data bufsize count channels)
+(defmacro nrt-loop (snd data bufsize count channels &optional stop-if-empty-p)
   `(progn
      (incudine.edf::sched-loop)
      (perform-fifos)
      (compute-tick)
+     ,(when stop-if-empty-p
+        `(if (incudine.edf:heap-empty-p) (return)))
      (write-snd-buffer ,data ,count ,channels)
      (when (= ,count ,bufsize)
        (write-sample ,snd ,data ,bufsize)
@@ -148,7 +150,8 @@ when the duration is undefined.")
 
 (defmacro nrt-loop-with-infile (snd-in data-in snd-out data-out
                                 bufsize count out-channels input-remain
-                                input-index in-channels input-eof-p)
+                                input-index in-channels input-eof-p
+                                &optional stop-if-empty-p)
   `(progn
      (unless ,input-eof-p
        (cond ((plusp ,input-remain)
@@ -162,7 +165,7 @@ when the duration is undefined.")
                      (setf ,input-eof-p t))
                     (t (read-snd-buffer ,data-in ,input-remain ,input-index
                                         ,in-channels))))))
-     (nrt-loop ,snd-out ,data-out ,bufsize ,count ,out-channels)))
+     (nrt-loop ,snd-out ,data-out ,bufsize ,count ,out-channels ,stop-if-empty-p)))
 
 (declaim (inline zeroes-nrt-bus-channels))
 (defun zeroes-nrt-bus-channels ()
@@ -252,6 +255,28 @@ when the duration is undefined.")
      (setf (bpm *tempo*) ,bpm)
      ,@body))
 
+(defmacro write-to-disk-loop ((index limit) &body body)
+  `(loop while (< ,index ,limit) do ,@body (incf ,index)))
+
+(defmacro write-to-disk ((frame-var max-frames remain snd bufsize data-var
+                          metadata count padding-p &optional stop-if-empty-p)
+                         form)
+  `(progn
+     (write-sf-metadata-plist ,snd ,metadata)
+     (with-foreign-array (,data-var 'sample ,bufsize)
+       (locally (declare #.*standard-optimize-settings*
+                         #.*reduce-warnings*)
+         (write-to-disk-loop (,frame-var ,max-frames)
+           ,(if stop-if-empty-p `(,@form ,padding-p) form))
+         (when ,padding-p
+           (setf ,frame-var 0))
+         (write-to-disk-loop (,frame-var ,remain) ,form)
+         (when (plusp ,count)
+           (write-sample ,snd ,data-var ,count))
+         (node-free *node-root*)
+         (incudine.edf::sched-loop)
+         (perform-fifos)))))
+
 (defun %bounce-to-disk (output-filename duration channels header-type
                         data-format metadata function)
   (declare (type (or string pathname) output-filename) (type function function)
@@ -292,26 +317,10 @@ when the duration is undefined.")
                       (values output-filename nil))
                 (sf:with-open (snd path-or-stdout :info info :mode sf:sfm-write
                                :open-fd-p open-stdout-p)
-                  (write-sf-metadata-plist snd metadata)
-                  (with-foreign-array (data 'sample bufsize)
-                    (locally (declare #.*standard-optimize-settings*
-                                      #.*reduce-warnings*)
-                      (do ((i 0 (1+ i)))
-                          ((or (incudine.edf:heap-empty-p)
-                               (= i max-frames))
-                           (unless pad-at-the-end-p
-                             (setf frame i)))
-                        (declare (type non-negative-fixnum64 i))
-                        ;; COUNT is incremented by CHANNELS.
-                        (nrt-loop snd data bufsize count channels))
-                      (loop while (< frame remain) do
-                           (nrt-loop snd data bufsize count channels)
-                           (incf frame))
-                      (when (plusp count)
-                        (write-sample snd data count))
-                      (node-free *node-root*)
-                      (incudine.edf::sched-loop)
-                      (perform-fifos)))))))
+                  (write-to-disk (frame max-frames remain snd bufsize data
+                                  metadata count pad-at-the-end-p t)
+                    ;; COUNT is incremented by CHANNELS.
+                    (nrt-loop snd data bufsize count channels))))))
         (condition (c) (progn (msg error "~A" c)
                               (nrt-cleanup))))
       (print-peak-info channels)
@@ -360,34 +369,14 @@ when the duration is undefined.")
                         (values output-filename nil))
                   (sf:with-open (snd-out path-or-stdout :info info
                                  :mode sf:sfm-write :open-fd-p open-stdout-p)
-                    (write-sf-metadata-plist snd-out metadata)
-                    (with-foreign-array (data-out 'sample bufsize)
-                      (locally (declare #.*standard-optimize-settings*
-                                        #.*reduce-warnings*)
-                        (do ((i 0 (1+ i)))
-                            ((= i max-frames)
-                             (unless pad-at-the-end-p
-                               (setf frame i)))
-                          (declare (type non-negative-fixnum64 i))
-                          ;; COUNT and INPUT-INDEX are incremented respectively
-                          ;; by CHANNELS and IN-CHANNELS. INPUT-REMAIN is
-                          ;; decremented by IN-CHANNELS.
-                          (nrt-loop-with-infile snd-in data-in snd-out data-out
-                                                bufsize count channels
-                                                input-remain input-index
-                                                in-channels input-eof-p))
-                        (loop while (< frame remain) do
-                             (nrt-loop-with-infile snd-in data-in snd-out
-                                                   data-out bufsize count
-                                                   channels input-remain
-                                                   input-index in-channels
-                                                   input-eof-p)
-                             (incf frame))
-                        (when (plusp count)
-                          (write-sample snd-out data-out count))
-                        (node-free *node-root*)
-                        (incudine.edf::sched-loop)
-                        (perform-fifos))))))))
+                    (write-to-disk (frame max-frames remain snd-out bufsize
+                                    data-out metadata count pad-at-the-end-p)
+                      ;; COUNT and INPUT-INDEX are incremented respectively
+                      ;; by CHANNELS and IN-CHANNELS.
+                      ;; INPUT-REMAIN is decremented by IN-CHANNELS.
+                      (nrt-loop-with-infile snd-in data-in snd-out
+                                  data-out bufsize count channels input-remain
+                                  input-index in-channels input-eof-p)))))))
         (condition (c) (progn (msg error "~A" c)
                               (nrt-cleanup))))
       (print-peak-info channels)
