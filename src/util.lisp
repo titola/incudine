@@ -182,7 +182,7 @@
   "Return a real pole for a 60dB exponential decay in TIME seconds."
   (if (plusp time)
       ;; tau = time / log(0.001) = time / 6.9077
-      (exp (/ (* +log001+ *sample-duration*) time))
+      (exp (* *sample-duration* (/ +log001+ time)))
       +sample-zero+))
 
 (declaim (inline set-sample-rate))
