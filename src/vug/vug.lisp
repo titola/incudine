@@ -16,20 +16,20 @@
 
 (in-package :incudine.vug)
 
-(defvar *vug-hash* (make-hash-table))
-(declaim (type hash-table *vug-hash*))
+(defvar *vugs* (make-hash-table))
+(declaim (type hash-table *vugs*))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defvar *constructors-for-objects-to-free* nil)
   (declaim (type list *constructors-for-objects-to-free*))
 
-  (defvar *object-to-free-hash* (make-hash-table))
-  (declaim (type hash-table *object-to-free-hash*))
+  (defvar *objects-to-free* (make-hash-table))
+  (declaim (type hash-table *objects-to-free*))
 
   (defmacro object-to-free (name reinit-fname)
     `(progn
        (pushnew ',name *constructors-for-objects-to-free*)
-       (setf (gethash ',name *object-to-free-hash*)
+       (setf (gethash ',name *objects-to-free*)
              ',reinit-fname)))
 
   (object-to-free make-array update-lisp-array)
@@ -70,21 +70,27 @@
   (variables-to-recheck nil :type list))
 
 (defstruct (vug-variables (:copier nil))
-  (bindings        nil :type list)
+  (bindings nil :type list)
   (from-parameters nil :type list)
-  (parameter-list  nil :type list)
-  (to-update       nil :type list)
-  (to-free         nil :type list)
+  (parameter-list nil :type list)
+  (to-update nil :type list)
+  (to-free nil :type list)
+  ;; List of the variables with at least a setter form in the
+  ;; init-time bindings. It is used to determine if an init-time
+  ;; variable is unused after the first binding.
+  (init-time-setter nil :type list)
+  ;; Unused variables
+  (deleted (make-hash-table :test 'eq) :type hash-table)
   ;; List of the variables with type SAMPLE
-  (foreign-sample  nil :type list)
+  (foreign-sample nil :type list)
   ;; List of the variables with type single and double float
-  (foreign-float   nil :type list)
-  (foreign-double  nil :type list)
+  (foreign-float nil :type list)
+  (foreign-double nil :type list)
   ;; List of the variables with unboxed type 32-bit integer
   ;; (used only on a 32-bit system)
-  (foreign-int32   nil :type list)
+  (foreign-int32 nil :type list)
   ;; List of the variables with unboxed type 64-bit integer
-  (foreign-int64   nil :type list))
+  (foreign-int64 nil :type list))
 
 (defstruct (vug-function (:include vug-object)
                          (:copier nil))
@@ -112,10 +118,14 @@
 (defun performance-time-p (obj)
   (and (vug-variable-p obj) (vug-variable-performance-time-p obj)))
 
+(declaim (inline no-performance-time-p))
+(defun no-performance-time-p (obj)
+  (and (vug-variable-p obj) (not (vug-variable-performance-time-p obj))))
+
 (declaim (inline vug))
 (defun vug (name)
   (declare (type symbol name))
-  (values (gethash name *vug-hash*)))
+  (values (gethash name *vugs*)))
 
 (declaim (inline vug-object-name-string))
 (defun vug-object-name-string (obj)
@@ -410,8 +420,8 @@
 (declaim (inline lambda-bindings))
 (defun lambda-bindings (args)
   (loop for i in args
-     unless (member i '(&optional &key &rest))
-     collect `(,i ',i)))
+        unless (member i '(&optional &key &rest))
+        collect `(,i ',i)))
 
 ;;; The follow functions are only "tags"
 (defun tick (&rest forms) forms)
@@ -566,22 +576,29 @@
   (declare (type vug-variable var))
   (let ((vardep (pop (vug-variable-variables-to-recheck var))))
     (when vardep
-      (if #1=(vug-variable-init-time-p vardep) (setf #1# nil))
+      (when #1=(vug-variable-init-time-p vardep)
+        (setf #1# nil)
+        (when (vug-variable-replacement vardep)
+          (undelete-vug-variable vardep)
+          (msg debug "undelete ~A" vardep))
+        (msg debug "~A is performance-time after recheck" vardep))
       (recheck-variables var)
       (recheck-variables vardep))))
 
 (declaim (inline set-variable-performance-time))
 (defun set-variable-performance-time (var)
+  (declare (type vug-variable var))
   (unless #1=(vug-variable-performance-time-p var) (setf #1# t))
   (recheck-variables var)
   var)
 
 (declaim (inline update-setter-form))
 (defun update-setter-form (obj)
+  (declare (type vug-function obj))
   (loop for i on (vug-function-inputs obj) by #'cddr
-        for var = (car i) do
-       (if (vug-variable-p var) (set-variable-performance-time var))
-       (update-vug-variables (cadr i))))
+        for var = (first i) do
+          (if (vug-variable-p var) (set-variable-performance-time var))
+          (update-vug-variables (cadr i))))
 
 (defun update-vug-variables (obj)
   (cond ((and (vug-function-p obj)
@@ -600,6 +617,121 @@
          (update-vug-variables (car obj))
          (update-vug-variables (cdr obj))))
   obj)
+
+(defun update-variables-init-time-setter ()
+  (labels ((update-setter (obj)
+             (loop for i on (vug-function-inputs obj) by #'cddr
+                   for var = (first i) do
+                     (when (and (vug-variable-p var)
+                                (not (vug-variable-performance-time-p var)))
+                       (pushnew var (vug-variables-init-time-setter
+                                      *vug-variables*)))))
+           (update (obj)
+             (cond ((vug-function-p obj)
+                    (when (setter-form-p (vug-object-name obj))
+                      (update-setter obj))
+                    (update (vug-function-inputs obj)))
+                   ((vug-variable-p obj)
+                    (update (vug-variable-value obj)))
+                   ((consp obj)
+                    (update (car obj))
+                    (update (cdr obj))))))
+    (loop for var in (vug-variables-bindings *vug-variables*)
+          do (update (vug-variable-value var)))
+    *vug-variables*))
+
+(declaim (inline vug-variable-with-init-time-setter-p))
+(defun vug-variable-with-init-time-setter-p (var)
+  (declare (type vug-variable var))
+  (find var (vug-variables-init-time-setter *vug-variables*) :test 'eq))
+
+(declaim (inline reducible-vug-variable-p))
+(defun reducible-vug-variable-p (var)
+  (declare (type vug-variable var))
+  (and (vug-variable-init-time-p var)
+       (not (vug-variable-performance-time-p var))
+       (not (vug-variable-with-init-time-setter-p var))))
+
+(declaim (inline constant-vug-variable-value-p))
+(defun constant-vug-variable-value-p (value)
+  (and (not (vug-object-p value)) (constantp value)))
+
+(declaim (inline reduce-vug-variable-p))
+(defun reduce-vug-variable-p (var)
+  (and (reducible-vug-variable-p var)
+       (let ((value (vug-variable-value var)))
+         (or (constant-vug-variable-value-p value)
+             (no-performance-time-p value)))))
+
+(declaim (inline update-variable-bindings))
+(defun update-variable-bindings ()
+  (when *vug-variables*
+    (setf (vug-variables-bindings *vug-variables*)
+          (delete-if #'reduce-vug-variable-p
+                     (vug-variables-bindings
+                       (update-variables-init-time-setter))))))
+
+(defun delete-vug-variable-dependencies (var)
+  (declare (type vug-variable var))
+  (when *vug-variables*
+    (dolist (par (vug-variables-to-update *vug-variables*))
+      (setf (vug-parameter-vars-to-update par)
+            (delete-if (lambda (x) (eq var x))
+                       (vug-parameter-vars-to-update par))))))
+
+(declaim (inline replace-vug-variable))
+(defun replace-vug-variable (var value &optional delete-deps-p)
+  (declare (type vug-variable var) (type boolean delete-deps-p))
+  (setf (gethash var (vug-variables-deleted *vug-variables*)) value)
+  (when delete-deps-p (delete-vug-variable-dependencies var)))
+
+(declaim (inline vug-variable-replacement))
+(defun vug-variable-replacement (var)
+  (declare (type vug-variable var))
+  (gethash var (vug-variables-deleted *vug-variables*)))
+
+(declaim (inline undelete-vug-variable))
+(defun undelete-vug-variable (var)
+  (declare (type vug-variable var))
+  (remhash var (vug-variables-deleted *vug-variables*)))
+
+(defun reduce-vug-variables (obj)
+  (labels ((reduce-vars (x)
+             (cond
+               ((vug-variable-p x)
+                (multiple-value-bind (cached cached-p)
+                    (vug-variable-replacement x)
+                  (declare (ignore cached))
+                  (let ((value (vug-variable-value x)))
+                    (cond
+                      ((and (reducible-vug-variable-p x)
+                            (constant-vug-variable-value-p value))
+                       (unless cached-p
+                         (replace-vug-variable x value)
+                         (msg debug "delete ~A" x)))
+                      ((vug-variable-performance-time-p x)
+                       (when (vug-variable-variables-to-recheck x)
+                         (recheck-variables x))
+                       (reduce-vars value))
+                      (t
+                       (reduce-vars value)
+                       (when (and (not cached-p) (no-performance-time-p value))
+                         (multiple-value-bind (cached cached-p)
+                             (vug-variable-replacement value)
+                           (replace-vug-variable x (if cached-p cached value) t)
+                           (msg debug "delete ~A" x))))))))
+               ((vug-function-p x)
+                (reduce-vars (vug-function-inputs x)))
+               ((consp x)
+                (reduce-vars (car x))
+                (reduce-vars (cdr x))))))
+    (update-variable-bindings)
+    (reduce-vars obj)
+    (msg debug "deleted ~D unused variables~%~4T~A"
+         (hash-table-count #1=(vug-variables-deleted *vug-variables*))
+         (loop for var being the hash-keys in #1#
+               collect (vug-object-name var)))
+    obj))
 
 (defmacro vug-block (&body body)
   `(mark-vug-block
@@ -655,7 +787,7 @@
 
 (declaim (inline add-vug))
 (defun add-vug (name args arg-types)
-  (setf (gethash name *vug-hash*)
+  (setf (gethash name *vugs*)
         (make-vug :name name :args args :arg-types arg-types)))
 
 (defmacro define-vug (name lambda-list &body body)
@@ -692,8 +824,8 @@
       (msg error "~A was defined to be a DSP." new-name)
       (let ((vug (vug old-name)))
         (cond (vug
-               (remhash old-name *vug-hash*)
-               (setf (gethash new-name *vug-hash*) vug)
+               (remhash old-name *vugs*)
+               (setf (gethash new-name *vugs*) vug)
                (setf (vug-name vug) new-name)
                (if (macro-function old-name)
                    (setf (macro-function new-name) (macro-function old-name))
@@ -717,13 +849,13 @@
 (declaim (inline destroy-vug))
 (defun destroy-vug (name)
   (when (vug name)
-    (remhash name *vug-hash*)
+    (remhash name *vugs*)
     (fmakunbound name)
     (values)))
 
 (declaim (inline all-vug-names))
 (defun all-vug-names ()
-  (sort (loop for name being the hash-keys in *vug-hash*
+  (sort (loop for name being the hash-keys in *vugs*
               when (find-symbol (symbol-name name))
               collect name)
         #'string-lessp :key #'symbol-name))

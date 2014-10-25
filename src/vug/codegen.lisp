@@ -39,16 +39,16 @@
          (mapc #'resolve-conditional-expansion (vug-function-inputs value)))))
 
 (defun expand-setter-form (obj init-time-p)
-  (do ((l (vug-function-inputs obj) (cddr l)))
-      ((null l))
-    (let ((input (car l)))
-      (when (vug-variable-p input)
-        (cond (init-time-p
-               (resolve-conditional-expansion (cadr l))
-               (setf (vug-variable-skip-init-set-p input) t))
-              (t (setf (vug-variable-to-set-p input) nil)
-                 (recheck-variables input)))
-        (unless #1=(vug-variable-performance-time-p input) (setf #1# t))))))
+  (loop for i on (vug-function-inputs obj) by #'cddr
+        for input = (first i) do
+          (when (vug-variable-p input)
+            (cond (init-time-p
+                   (resolve-conditional-expansion (second i))
+                   (setf (vug-variable-skip-init-set-p input) t))
+                  (t (setf (vug-variable-to-set-p input) nil)
+                     (recheck-variables input)))
+            (unless #1=(vug-variable-performance-time-p input)
+              (setf #1# t)))))
 
 ;;; Transform a VUG block in lisp code
 (defun blockexpand (obj &optional param-plist vug-body-p init-time-p
@@ -147,11 +147,13 @@
                            ,(vug-object-name obj)))
                set-form)))
         ((vug-variable-p obj)
-         (let ((vars-to-recheck (vug-variable-variables-to-recheck obj)))
-           (when (and vars-to-recheck
-                      (vug-variable-performance-time-p obj))
-             (recheck-variables obj))
-           (vug-object-name obj)))
+         (multiple-value-bind (cached cached-p)
+             (gethash obj (vug-variables-deleted *vug-variables*))
+           (if cached-p
+               (if (vug-variable-p cached)
+                   (vug-object-name cached)
+                   cached)
+               (vug-object-name obj))))
         ((vug-symbol-p obj) (vug-object-name obj))
         (t obj)))
 
@@ -416,7 +418,8 @@
 (defun dsp-vug-block (arguments &rest rest)
   (multiple-value-bind (args types) (arg-names-and-types arguments)
     `(with-vug-arguments ,args ,types
-       (vug-block (with-argument-bindings (,args ,types) ,@rest)))))
+       (reduce-vug-variables
+         (vug-block (with-argument-bindings (,args ,types) ,@rest))))))
 
 (defmacro with-foreign-variables ((float-vars float-array
                                    double-vars double-array
@@ -572,7 +575,7 @@
 
 (declaim (inline %reinit-vug-variable))
 (defun %reinit-vug-variable (var value param-plist)
-  `(,(gethash (vug-object-name value) *object-to-free-hash*)
+  `(,(gethash (vug-object-name value) *objects-to-free*)
     ,(vug-object-name var)
     ,(blockexpand (vug-function-inputs value) param-plist)))
 
@@ -735,7 +738,7 @@
              collect (let* ((value (vug-variable-value var))
                             (update-fname (when (vug-function-p value)
                                             (gethash (vug-object-name value)
-                                                     *object-to-free-hash*))))
+                                                     *objects-to-free*))))
                        (if update-fname
                            `(,update-fname ,(vug-object-name var)
                                            ,(blockexpand
