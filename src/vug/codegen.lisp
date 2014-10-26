@@ -147,6 +147,9 @@
                            ,(vug-object-name obj)))
                set-form)))
         ((vug-variable-p obj)
+         (when (and (vug-variable-variables-to-recheck obj)
+                    (vug-variable-performance-time-p obj))
+           (recheck-variables obj))
          (multiple-value-bind (cached cached-p)
              (gethash obj (vug-variables-deleted *vug-variables*))
            (if cached-p

@@ -666,10 +666,8 @@
 (declaim (inline update-variable-bindings))
 (defun update-variable-bindings ()
   (when *vug-variables*
-    (setf (vug-variables-bindings *vug-variables*)
-          (delete-if #'reduce-vug-variable-p
-                     (vug-variables-bindings
-                       (update-variables-init-time-setter))))))
+    (setf #1=(vug-variables-bindings *vug-variables*)
+          (delete-if #'reduce-vug-variable-p #1#))))
 
 (defun delete-vug-variable-dependencies (var)
   (declare (type vug-variable var))
@@ -693,6 +691,7 @@
 (declaim (inline undelete-vug-variable))
 (defun undelete-vug-variable (var)
   (declare (type vug-variable var))
+  (pushnew var (vug-variables-bindings *vug-variables*))
   (remhash var (vug-variables-deleted *vug-variables*)))
 
 (defun reduce-vug-variables (obj)
@@ -710,8 +709,6 @@
                          (replace-vug-variable x value)
                          (msg debug "delete ~A" x)))
                       ((vug-variable-performance-time-p x)
-                       (when (vug-variable-variables-to-recheck x)
-                         (recheck-variables x))
                        (reduce-vars value))
                       (t
                        (reduce-vars value)
@@ -725,8 +722,9 @@
                ((consp x)
                 (reduce-vars (car x))
                 (reduce-vars (cdr x))))))
-    (update-variable-bindings)
+    (update-variables-init-time-setter)
     (reduce-vars obj)
+    (update-variable-bindings)
     (msg debug "deleted ~D unused variables~%~4T~A"
          (hash-table-count #1=(vug-variables-deleted *vug-variables*))
          (loop for var being the hash-keys in #1#
