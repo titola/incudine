@@ -78,12 +78,12 @@
   (- (decay in decay-time) (decay in attack-time)))
 
 (define-vug biquad (in b0 b1 b2 a0 a1 a2)
-  (with-samples (x1 x2 y y1 y2)
-    (setf y (- (+ (* (/ b0 a0) in)
-                  (* (/ b1 a0) x1)
-                  (* (/ b2 a0) x2))
-               (* (/ a1 a0) y1)
-               (* (/ a2 a0) y2))
+  (with-samples (x1 x2 y y1 y2 (a0r (/ a0)))
+    (setf y (- (+ (* b0 a0r in)
+                  (* b1 a0r x1)
+                  (* b2 a0r x2))
+               (* a1 a0r y1)
+               (* a2 a0r y2))
           x2 x1 x1 in y2 y1 y1 y)
     y))
 
@@ -166,7 +166,7 @@
 
   (defmacro %with-biquad-common (bindings &body body)
     `(%%with-biquad-common
-         ((alpha (/ sin-w0 (* 2.0 (if (plusp q) q 0.001))))
+         ((alpha (* sin-w0 (if (plusp q) (/ 0.5 q) 1000.0)))
           ,@bindings)
        ,@body))
 
