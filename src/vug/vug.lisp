@@ -51,7 +51,6 @@
                           (:constructor %make-vug-parameter)
                           (:copier nil))
   (value nil)
-  (varname nil)
   (aux-varname nil)
   (vars-to-update nil :type list))
 
@@ -71,7 +70,6 @@
 
 (defstruct (vug-variables (:copier nil))
   (bindings nil :type list)
-  (from-parameters nil :type list)
   (parameter-list nil :type list)
   (to-update nil :type list)
   (to-free nil :type list)
@@ -133,9 +131,7 @@
 
 (declaim (inline make-vug-parameter))
 (defun make-vug-parameter (name value type)
-  (let ((par (%make-vug-parameter :name name :value value
-                                  :aux-varname (gensym (string name))
-                                  :type type)))
+  (let ((par (%make-vug-parameter :name name :value value :type type)))
     (push par (vug-variables-parameter-list *vug-variables*))
     par))
 

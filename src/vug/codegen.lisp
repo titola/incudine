@@ -50,24 +50,32 @@
             (unless #1=(vug-variable-performance-time-p input)
               (setf #1# t)))))
 
+(declaim (inline vug-variable-to-set-inside-body-p))
+(defun vug-variable-to-set-inside-body-p (obj vug-body-p init-pass-p)
+  (and (vug-variable-p obj)
+       vug-body-p
+       (vug-variable-to-set-p obj)
+       (not (and init-pass-p (vug-variable-skip-init-set-p obj)))
+       (not (vug-variable-init-time-p obj))))
+
 ;;; Transform a VUG block in lisp code
-(defun blockexpand (obj &optional param-plist vug-body-p init-time-p
+(defun blockexpand (obj &optional param-plist vug-body-p init-pass-p
                     (conditional-expansion-p t))
   (declare (type list param-plist) (type boolean vug-body-p))
   (cond ((consp obj)
-         (cons (blockexpand (car obj) param-plist vug-body-p init-time-p
+         (cons (blockexpand (car obj) param-plist vug-body-p init-pass-p
                             conditional-expansion-p)
-               (blockexpand (cdr obj) param-plist vug-body-p init-time-p
+               (blockexpand (cdr obj) param-plist vug-body-p init-pass-p
                             conditional-expansion-p)))
         ((vug-function-p obj)
          (when (and vug-body-p (setter-form-p (vug-object-name obj)))
-           (expand-setter-form obj init-time-p))
+           (expand-setter-form obj init-pass-p))
          (cond ((consp (vug-object-name obj)) (vug-object-name obj))
                ((vug-name-p obj 'initialize)
                 (if (null *initialization-code*)
                     ;; Inside a definition of a VUG
                     (blockexpand (vug-function-inputs obj) param-plist
-                                 vug-body-p init-time-p conditional-expansion-p)
+                                 vug-body-p init-pass-p conditional-expansion-p)
                     ;; Inside a definition of a DSP
                     (push `(progn ,@(blockexpand (vug-function-inputs obj)
                                                  param-plist vug-body-p t nil))
@@ -77,14 +85,14 @@
                 (if (cdr (vug-function-inputs obj))
                     `(progn ,@(blockexpand (vug-function-inputs obj)
                                            param-plist vug-body-p
-                                           init-time-p conditional-expansion-p))
+                                           init-pass-p conditional-expansion-p))
                     (blockexpand (car (vug-function-inputs obj))
                                  param-plist vug-body-p
-                                 init-time-p conditional-expansion-p)))
+                                 init-pass-p conditional-expansion-p)))
                ((vug-name-p obj 'without-follow)
                 `(progn ,@(blockexpand (cdr (vug-function-inputs obj))
                                        param-plist vug-body-p
-                                       init-time-p conditional-expansion-p)))
+                                       init-pass-p conditional-expansion-p)))
                ((vug-name-p obj 'get-pointer)
                 `(get-pointer
                    ,(vug-object-name (car (vug-function-inputs obj)))))
@@ -96,46 +104,33 @@
                ((vug-name-p obj 'init-only)
                 `(progn ,@(blockexpand (vug-function-inputs obj)
                                        param-plist vug-body-p
-                                       init-time-p conditional-expansion-p)))
+                                       init-pass-p conditional-expansion-p)))
                ((vug-name-p obj 'update)
                 (let ((var (car (vug-function-inputs obj))))
-                  (if init-time-p
+                  (if init-pass-p
                       (setf (vug-variable-skip-init-set-p var) t)
                       (setf (vug-variable-to-set-p var) nil))
                   `(setf ,(vug-object-name var)
                          ,(blockexpand (vug-variable-value var) nil t
-                                       init-time-p conditional-expansion-p))))
+                                       init-pass-p conditional-expansion-p))))
                (t (cons (vug-object-name obj)
                         (blockexpand (vug-function-inputs obj)
                                      param-plist vug-body-p
-                                     init-time-p conditional-expansion-p)))))
+                                     init-pass-p conditional-expansion-p)))))
         ((vug-parameter-p obj)
-         (cond (vug-body-p
-                (unless (vug-parameter-varname obj)
-                  (setf (vug-parameter-varname obj)
-                        (or (vug-parameter-aux-varname obj)
-                            (gensym (string (vug-object-name obj)))))
-                  (push obj (vug-variables-from-parameters *vug-variables*))
-                  (variable-to-update
-                   (%make-vug-variable :name (vug-parameter-varname obj)
-                                       :value obj
-                                       :type (vug-object-type obj))
-                   obj))
-                (vug-parameter-varname obj))
-               (t (let ((value (getf param-plist (vug-object-name obj))))
-                    (or value (vug-parameter-value obj))))))
-        ((and (vug-variable-p obj) vug-body-p (vug-variable-to-set-p obj)
-              (not (and init-time-p (vug-variable-skip-init-set-p obj)))
-              (not (init-time-p obj)))
-         (if init-time-p
+         (assert (not vug-body-p))
+         (or (getf param-plist (vug-object-name obj))
+             (vug-parameter-value obj)))
+        ((vug-variable-to-set-inside-body-p obj vug-body-p init-pass-p)
+         (if init-pass-p
              (setf (vug-variable-skip-init-set-p obj) t)
              (setf (vug-variable-to-set-p obj) nil))
          (let* ((cond-expand-var (and conditional-expansion-p
-                                      (not init-time-p)
+                                      (not init-pass-p)
                                       (vug-variable-conditional-expansion obj)))
                 (set-form `(setf ,(vug-object-name obj)
                                  ,(blockexpand (vug-variable-value obj) nil t
-                                               init-time-p
+                                               init-pass-p
                                                (and conditional-expansion-p
                                                     (null cond-expand-var))))))
            (if cond-expand-var
@@ -226,16 +221,13 @@
   (loop for vars on variables by #'cdr
         for var = (car vars)
         until (foreign-object-p var)
-        if (vug-parameter-p var)
-          collect `(,(vug-parameter-varname var) ,(vug-parameter-value var))
-        else
-          collect `(,(vug-object-name var)
-                    ,(if (init-time-p var)
-                         (blockexpand (remove-wrapped-parens
-                                       (vug-variable-value var)))
-                         (cond ((integer-has-zero-p (vug-object-type var)) 0)
-                               ((vug-type-p var 'positive-fixnum) 1)
-                               ((vug-type-p var 'negative-fixnum) -1))))
+        collect `(,(vug-object-name var)
+                  ,(if (init-time-p var)
+                       (blockexpand (remove-wrapped-parens
+                                      (vug-variable-value var)))
+                       (cond ((integer-has-zero-p (vug-object-type var)) 0)
+                             ((vug-type-p var 'positive-fixnum) 1)
+                             ((vug-type-p var 'negative-fixnum) -1))))
         finally (funcall finally-func vars)))
 
 ;;; (Re)init time: setter forms for the slots of the foreign array
@@ -245,46 +237,37 @@
         for var = (car vars)
         while (foreign-object-p var)
         when (init-time-p var)
-        if (vug-parameter-p var)
-          collect `(setf ,(vug-parameter-aux-varname var)
-                         ,(vug-parameter-value var))
-        else
-          collect `(setf ,(vug-object-name var)
-                         ,(blockexpand (remove-wrapped-parens
-                                        (vug-variable-value var))))
+        collect `(setf ,(vug-object-name var)
+                       ,(blockexpand (remove-wrapped-parens
+                                       (vug-variable-value var))))
         finally (funcall finally-func vars)))
 
 ;;; (Re)init time: declarations for the local bindings
-(defun %set-local-declarations (variables stop-var control-names-p)
-  (declare (type list variables) (type boolean control-names-p))
-  (let ((get-varname (if control-names-p
-                         #'vug-parameter-varname
-                         #'vug-object-name)))
-    (loop for var in variables
-          for type = (vug-object-type var)
-          until (eq var stop-var)
-          unless (or (foreign-sample-p type) (null type))
-          collect `(declare (type ,type ,(funcall get-varname var))))))
+(defun %set-local-declarations (variables stop-var)
+  (declare (type list variables))
+  (loop for var in variables
+        for type = (vug-object-type var)
+        until (eq var stop-var)
+        unless (or (foreign-sample-p type) (null type))
+        collect `(declare (type ,type ,(vug-object-name var)))))
 
 ;;; Bindings during the (re)initialization
-(defun %set-variables (variables control-names-p body)
-  (declare (type list variables) (type boolean control-names-p))
+(defun %set-variables (variables body)
+  (declare (type list variables))
   (let* ((rest nil)
          (finally-func (lambda (x) (setf rest x))))
     (if variables
         (if (foreign-object-p (car variables))
             `(,@(%set-setf-variables-loop variables finally-func)
-              ,@(%set-variables rest control-names-p body))
+              ,@(%set-variables rest body))
             `((let* ,(%set-let-variables-loop variables finally-func)
-                ,@(%set-local-declarations variables (car rest) control-names-p)
-                ,@(%set-variables rest control-names-p body))))
+                ,@(%set-local-declarations variables (car rest))
+                ,@(%set-variables rest body))))
         body)))
 
 (defmacro %expand-variables (&body body)
-  `(%set-variables (vug-variables-from-parameters *vug-variables*) t
-     (%set-variables
-       (nreversef (vug-variables-bindings *vug-variables*))
-       nil (list ,@body))))
+  `(%set-variables (nreversef (vug-variables-bindings *vug-variables*))
+                   (list ,@body)))
 
 (declaim (inline format-vug-code))
 (defun format-vug-code (vug-block)
@@ -305,32 +288,12 @@
                        (push ,v (,',(vug-format-symbol "VUG-VARIABLES-FOREIGN-~A"
                                                        type)
                                     *vug-variables*))
-                       (incf ,counter))))))
-           ;;; Add and count the parameters with the foreign TYPE
-           (define-add-*-parameters (type)
-             `(defmacro ,(vug-format-symbol "ADD-~A-PARAMETERS" type) (counter)
-                (with-gensyms (p)
-                  `(dolist (,p (vug-variables-to-update *vug-variables*))
-                     (when (and (vug-parameter-p ,p)
-                                (,',(vug-format-symbol "FOREIGN-~A-P" type)
-                                    (vug-object-type ,p)))
-                       (push (%make-vug-variable
-                               :name (vug-parameter-aux-varname ,p)
-                               :type (vug-object-type ,p))
-                             (,',(vug-format-symbol "VUG-VARIABLES-FOREIGN-~A"
-                                                    type)
-                                 *vug-variables*))
                        (incf ,counter)))))))
   (define-add-*-variables sample)
   (define-add-*-variables float)
   (define-add-*-variables double)
   (define-add-*-variables int32)
-  (define-add-*-variables int64)
-  (define-add-*-parameters sample)
-  (define-add-*-parameters float)
-  (define-add-*-parameters double)
-  (define-add-*-parameters int32)
-  (define-add-*-parameters int64))
+  (define-add-*-variables int64))
 
 (defmacro add-foreign-vars-and-params (number-of-sample number-of-float
                                        number-of-double number-of-int32
@@ -342,13 +305,7 @@
      (add-double-variables ,number-of-double)
      #-x86-64
      (add-int32-variables ,number-of-int32)
-     (add-int64-variables ,number-of-int64)
-     (add-sample-parameters ,number-of-sample)
-     (add-float-parameters ,number-of-float)
-     (add-double-parameters ,number-of-double)
-     #-x86-64
-     (add-int32-parameters ,number-of-int32)
-     (add-int64-parameters ,number-of-int64)))
+     (add-int64-variables ,number-of-int64)))
 
 (defun rt-free-foreign-array-sample (obj)
   (declare (type foreign-array obj))
@@ -588,54 +545,47 @@
       (%reinit-vug-variable var value param-plist)
       `(setf ,(vug-object-name var) ,(blockexpand value param-plist))))
 
-(defmacro %with-set-control ((varname aux-varname type binding) &body body)
-  (if (or (eq type 'sample) (eq varname aux-varname))
+(defmacro %with-set-control ((type binding) &body body)
+  (if (eq type 'sample)
       `(progn (setf ,@binding) ,@body)
       `(let (,binding) ,@body)))
 
 ;;; VUG-VARIABLEs to update after the change of a control of a DSP
-(defun control-dependence (param variables)
-  `(progn
-     ,@(mapcar
-        (lambda (var)
-          (let ((value (vug-variable-value var)))
-            (unless (skip-update-variable-p param value)
-              (%set-vug-variable var value
-                                 (list (vug-object-name param)
-                                       (vug-parameter-aux-varname param))))))
-        variables)
-     (values)))
+(defun control-dependence (param)
+  (mapcar
+    (lambda (var)
+      (let ((value (vug-variable-value var)))
+        (unless (skip-update-variable-p param value)
+          (%set-vug-variable var value
+                             (list (vug-object-name param)
+                                   (vug-object-name
+                                     (car (vug-parameter-vars-to-update param))))))))
+    (cdr (vug-parameter-vars-to-update param))))
 
 (defun dsp-control-setter-func (param)
   (with-gensyms (value)
-    (let ((varname (vug-parameter-varname param))
-          (aux-varname (vug-parameter-aux-varname param))
-          (type (vug-object-type param)))
-      `(lambda (,value)
-         (declare #.*reduce-warnings*)
-         (%with-set-control (,varname aux-varname ,type
-                             (,aux-varname (coerce ,value ',type)))
-           ,(if (and (null (cdr #1=(vug-parameter-vars-to-update param)))
-                     (vug-name-p (car #1#) (vug-parameter-aux-varname param)))
-                `(values)
-                (control-dependence param (nreversef #1#))))))))
+    `(lambda (,value)
+       (declare #.*reduce-warnings*)
+       (setf ,(vug-parameter-aux-varname param)
+             (coerce ,value ',(vug-object-type param)))
+       ,@(control-dependence param)
+       (values))))
 
 (defun dsp-control-getter-func (param)
   `(lambda ()
      (declare #.*reduce-warnings*)
-     ,(vug-object-name (car (vug-parameter-vars-to-update param)))))
+     ,(vug-parameter-aux-varname param)))
 
 (defun dsp-control-update-ptr-dep-func (param)
   `(lambda ()
-     (declare #.*reduce-warnings*)
-     ,(control-dependence param (vug-parameter-vars-to-update param))))
+     ,@(when (cdr (vug-parameter-vars-to-update param))
+         `((declare #.*reduce-warnings*)
+           ,@(control-dependence param)))))
 
 (defun dsp-control-list-func ()
   `(lambda ()
      (declare #.*reduce-warnings*)
-     (list ,@(mapcar (lambda (p)
-                       (vug-object-name
-                        (car (vug-parameter-vars-to-update p))))
+     (list ,@(mapcar #'vug-parameter-aux-varname
                      (vug-variables-parameter-list *vug-variables*)))))
 
 (defun dsp-control (obj control-table &optional pointer-p)
@@ -664,13 +614,28 @@
                 ((string= obj "%CONTROL-NAMES%")
                  `(cons nil (lambda () ',arg-names))))))
 
+(declaim (inline reorder-vug-parameter-vars-to-update))
+(defun reorder-vug-parameter-vars-to-update (param)
+  (declare (type vug-parameter param))
+  (nreversef (vug-parameter-vars-to-update param)))
+
+(declaim (inline update-vug-parameter-aux-varname))
+(defun update-vug-parameter-aux-varname (param)
+  (declare (type vug-parameter param))
+  (unless (vug-parameter-aux-varname param)
+    (setf (vug-parameter-aux-varname param)
+          (vug-object-name
+            (car (reorder-vug-parameter-vars-to-update param))))))
+
 ;;; Fill the hash table for the controls of the DSP
 (defun set-controls-form (control-table names)
   (let ((param-list (nreversef (vug-variables-to-update *vug-variables*))))
-    (declare (type list param-list))
     `(progn
        ;; Controls
-       ,@(mapcar (lambda (p) (set-dsp-control p control-table)) param-list)
+       ,@(mapcar (lambda (p)
+                   (update-vug-parameter-aux-varname p)
+                   (set-dsp-control p control-table))
+                 param-list)
        ;; Control pointers
        ,@(loop for p in param-list
                when (foreign-object-p p)
@@ -732,10 +697,6 @@
 
 (defun reinit-bindings-form ()
   `(progn
-     ,@(loop for par in (vug-variables-from-parameters *vug-variables*)
-             collect `(setf ,(vug-parameter-varname par)
-                            ,(coerce-vug-float (vug-object-name par)
-                                               (vug-object-type par))))
      ,@(loop for var in (vug-variables-bindings *vug-variables*)
              when (init-time-p var)
              collect (let* ((value (vug-variable-value var))
