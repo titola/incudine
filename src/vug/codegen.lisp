@@ -370,6 +370,10 @@
 (defun make-initialization-code-stack ()
   (list 'progn))
 
+(declaim (inline empty-initialization-code-stack-p))
+(defun empty-initialization-code-stack-p ()
+  (null (cdr *initialization-code*)))
+
 (declaim (inline reorder-initialization-code))
 (defun reorder-initialization-code ()
   (nreversef *initialization-code*)
@@ -403,6 +407,13 @@
                (,array-var (foreign-array-data ,array-wrap-var))))))
     (loop for args in array-bindings
           append (apply #'foreign-array-binding args))))
+
+(defun initialization-code ()
+  (unless (empty-initialization-code-stack-p)
+    `(let ((current-channel 0))
+       (declare (type channel-number current-channel)
+                (ignorable current-channel))
+       ,*initialization-code*)))
 
 (defmacro generate-code (name arguments arg-names obj)
   (with-gensyms (result vug-body control-table c-array-sample-wrap
@@ -480,10 +491,7 @@
                        (setf (incudine::node-controls %dsp-node%)
                              ,',control-table)
                        (update-free-hook %dsp-node% ,',free-hook)
-                       (let ((current-channel 0))
-                         (declare (type channel-number current-channel)
-                                  (ignorable current-channel))
-                         ,*initialization-code*)
+                       ,(initialization-code)
                        (set-dsp-object ,',dsp
                          :init-function
                          (lambda (,',node ,@',arg-names)
@@ -493,10 +501,7 @@
                            (setf %dsp-node% ,',node)
                            ,(reinit-bindings-form)
                            (update-free-hook ,',node ,',free-hook)
-                           (let ((current-channel 0))
-                             (declare (type channel-number current-channel)
-                                      (ignorable current-channel))
-                             ,*initialization-code*)
+                           ,(initialization-code)
                            ,',node)
                          :free-function ,(to-free-form
                                           ',c-array-sample-wrap ,number-of-sample
