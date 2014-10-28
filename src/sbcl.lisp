@@ -16,6 +16,8 @@
 
 (in-package :incudine.util)
 
+(define-constant n-fixnum-bits sb-vm:n-fixnum-bits)
+
 (defvar *reduce-warnings*
   '(sb-ext:muffle-conditions sb-ext:compiler-note))
 

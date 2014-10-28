@@ -158,7 +158,6 @@
    #:dsp! #:dsp-debug #:all-dsp-names #:free-dsp-instances #:destroy-dsp
    #:*update-dsp-instances*
    #:current-channel
-   #:foreign-float #:foreign-double
    #:make-frame #:frame-ref #:multiple-sample-bind #:samples
    #:foreach-tick #:foreach-channel #:counter #:downsamp #:generic-rate
    #:samphold #:interpolate

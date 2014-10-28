@@ -187,34 +187,47 @@
                  non-negative-sample non-positive-sample)))
 
 (declaim (inline foreign-symbol-type-p))
-(defun foreign-symbol-type-p (foreign-type sym)
-  (eq sym (if (consp foreign-type) (car foreign-type) foreign-type)))
+(defun foreign-symbol-type-p (foreign-type name)
+  (string= name (symbol-name (if (consp foreign-type)
+                                 (car foreign-type)
+                                 foreign-type))))
 
 (declaim (inline foreign-float-p))
 (defun foreign-float-p (type)
-  (foreign-symbol-type-p type 'foreign-float))
+  (foreign-symbol-type-p type "FOREIGN-FLOAT"))
 
 (declaim (inline foreign-double-p))
 (defun foreign-double-p (type)
-  (foreign-symbol-type-p type 'foreign-double))
+  (foreign-symbol-type-p type "FOREIGN-DOUBLE"))
+
+(declaim (inline signed-or-unsigned-byte-p))
+(defun signed-or-unsigned-byte-p (sym)
+  (and (member sym '(signed-byte unsigned-byte)) t))
+
+(declaim (inline foreign-int-p))
+(defun foreign-int-p (type symbol-names)
+  (and (member (symbol-name type) symbol-names :test #'string=) t))
 
 (declaim (inline foreign-int32-p))
 (defun foreign-int32-p (type)
-  (declare (ignorable type))
-  ;; Useless on 64-bits systems
-  #+x86-64 nil
-  #-x86-64 (if (consp type)
-               (and (member (car type) '(signed-byte unsigned-byte))
-                    (= (cadr type) 32))
-               (member type '(unsigned-byte signed-byte))))
+  (reduce-warnings
+    (cond ((consp type)
+           (when (< incudine.util::n-fixnum-bits 32)
+             (and (signed-or-unsigned-byte-p (car type))
+                  (= (cadr type) 32))))
+          (t (or (foreign-int-p type '("INT32" "UINT32"))
+                 (when (< incudine.util::n-fixnum-bits 32)
+                   (signed-or-unsigned-byte-p type)))))))
 
 (declaim (inline foreign-int64-p))
 (defun foreign-int64-p (type)
-  (if (consp type)
-      (and (member (car type) '(signed-byte unsigned-byte))
-           (= (cadr type) 64))
-      #+x86-64 (member type '(unsigned-byte signed-byte))
-      #-x86-64 nil))
+  (reduce-warnings
+    (cond ((consp type)
+           (and (signed-or-unsigned-byte-p (car type))
+                (= (cadr type) 64)))
+          (t (or (foreign-int-p type '("INT64" "UINT64"))
+                 (and (> incudine.util::n-fixnum-bits 32)
+                      (signed-or-unsigned-byte-p type)))))))
 
 (declaim (inline foreign-type-p))
 (defun foreign-type-p (type)
