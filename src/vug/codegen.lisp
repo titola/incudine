@@ -19,6 +19,27 @@
 (defvar *initialization-code* nil)
 (declaim (type list *initialization-code*))
 
+(declaim (inline add-initialization-code))
+(defun add-initialization-code (form)
+  (push form *initialization-code*))
+
+(declaim (inline make-initialization-code-stack))
+(defun make-initialization-code-stack ()
+  (list 'progn))
+
+(declaim (inline empty-initialization-code-stack-p))
+(defun empty-initialization-code-stack-p ()
+  (null (cdr *initialization-code*)))
+
+(declaim (inline reorder-initialization-code))
+(defun reorder-initialization-code ()
+  (nreversef *initialization-code*)
+  (values))
+
+(declaim (inline vug-definition-p))
+(defun vug-definition-p ()
+  (null *initialization-code*))
+
 (defun resolve-conditional-expansion (value)
   (cond ((vug-variable-p value)
          (when (and (not (vug-variable-init-time-p value))
@@ -70,16 +91,15 @@
         ((vug-function-p obj)
          (when (and vug-body-p (setter-form-p (vug-object-name obj)))
            (expand-setter-form obj init-pass-p))
-         (cond ((consp (vug-object-name obj)) (vug-object-name obj))
+         (cond ((consp (vug-object-name obj))
+                (vug-object-name obj))
                ((vug-name-p obj 'initialize)
-                (if (null *initialization-code*)
-                    ;; Inside a definition of a VUG
+                (if (vug-definition-p)
                     (blockexpand (vug-function-inputs obj) param-plist
                                  vug-body-p init-pass-p conditional-expansion-p)
-                    ;; Inside a definition of a DSP
-                    (push `(progn ,@(blockexpand (vug-function-inputs obj)
-                                                 param-plist vug-body-p t nil))
-                          *initialization-code*))
+                    (add-initialization-code
+                      `(progn ,@(blockexpand (vug-function-inputs obj)
+                                             param-plist vug-body-p t nil))))
                 (values))
                ((vug-name-p obj 'progn)
                 (if (cdr (vug-function-inputs obj))
@@ -107,9 +127,7 @@
                                        init-pass-p conditional-expansion-p)))
                ((vug-name-p obj 'update)
                 (let ((var (car (vug-function-inputs obj))))
-                  (if init-pass-p
-                      (setf (vug-variable-skip-init-set-p var) t)
-                      (setf (vug-variable-to-set-p var) nil))
+                  (no-vug-variable-to-set var init-pass-p)
                   `(setf ,(vug-object-name var)
                          ,(blockexpand (vug-variable-value var) nil t
                                        init-pass-p conditional-expansion-p))))
@@ -122,9 +140,7 @@
          (or (getf param-plist (vug-object-name obj))
              (vug-parameter-value obj)))
         ((vug-variable-to-set-inside-body-p obj vug-body-p init-pass-p)
-         (if init-pass-p
-             (setf (vug-variable-skip-init-set-p obj) t)
-             (setf (vug-variable-to-set-p obj) nil))
+         (no-vug-variable-to-set obj init-pass-p)
          (let* ((cond-expand-var (and conditional-expansion-p
                                       (not init-pass-p)
                                       (vug-variable-conditional-expansion obj)))
@@ -155,7 +171,7 @@
         ((vug-symbol-p obj) (vug-object-name obj))
         (t obj)))
 
-(defmacro with-vug-arguments (args types &body body)
+(defmacro with-vug-arguments ((args types) &body body)
   `(let ,(mapcar (lambda (name type)
                    `(,name (make-vug-parameter ',name ,name ',type)))
                  args types)
@@ -280,32 +296,22 @@
 
 (macrolet (;; Add and count the variables with the foreign TYPE
            (define-add-*-variables (type)
-             `(defmacro ,(vug-format-symbol "ADD-~A-VARIABLES" type) (counter)
-                (with-gensyms (v)
-                  `(dolist (,v (vug-variables-bindings *vug-variables*))
-                     (when (,',(vug-format-symbol "FOREIGN-~A-P" type)
-                              (vug-object-type ,v))
-                       (push ,v (,',(vug-format-symbol "VUG-VARIABLES-FOREIGN-~A"
-                                                       type)
-                                    *vug-variables*))
-                       (incf ,counter)))))))
+             `(defmacro ,(vug-format-symbol "ADD-~A-VARIABLES" type) ()
+                (with-gensyms (v counter)
+                  `(loop for ,v in (vug-variables-bindings *vug-variables*)
+                         with ,counter = 0 do
+                           (when (,',(vug-format-symbol "FOREIGN-~A-P" type)
+                                     (vug-object-type ,v))
+                             (push ,v (,',(vug-format-symbol
+                                            "VUG-VARIABLES-FOREIGN-~A" type)
+                                        *vug-variables*))
+                             (incf ,counter))
+                         finally (return ,counter))))))
   (define-add-*-variables sample)
   (define-add-*-variables float)
   (define-add-*-variables double)
   (define-add-*-variables int32)
   (define-add-*-variables int64))
-
-(defmacro add-foreign-vars-and-params (number-of-sample number-of-float
-                                       number-of-double number-of-int32
-                                       number-of-int64)
-  (declare (ignorable number-of-int32))
-  `(progn
-     (add-sample-variables ,number-of-sample)
-     (add-float-variables ,number-of-float)
-     (add-double-variables ,number-of-double)
-     #-x86-64
-     (add-int32-variables ,number-of-int32)
-     (add-int64-variables ,number-of-int64)))
 
 (defun rt-free-foreign-array-sample (obj)
   (declare (type foreign-array obj))
@@ -334,7 +340,7 @@
       (make-rt-foreign-sample-array dimension)
       (incudine::make-nrt-foreign-array dimension 'sample nil nil nil)))
 
-(defmacro with-foreign-symbols (variables c-vector type &body body)
+(defmacro with-foreign-symbols ((variables c-vector type) &body body)
   (let ((count 0))
     `(symbol-macrolet
          ,(mapcar (lambda (var-name)
@@ -355,33 +361,27 @@
                           (the non-negative-fixnum
                             (cffi:foreign-type-size ,type))))))
 
-(defmacro with-sample-variables (variables unused &body body)
+(defmacro %with-sample-variables ((variables &rest unused) &body body)
   (declare (ignore unused))
   `(let ,(mapcar (lambda (var-name) `(,var-name ,+sample-zero+))
                  variables)
      ,@(if variables `((declare (type sample ,@variables))))
      ,@body))
 
+(defmacro with-sample-variables ((variables &rest unused) &body body)
+  `(#.(if *use-foreign-sample-p*
+          'with-foreign-symbols
+          '%with-sample-variables)
+      (,variables ,@unused)
+      ,@body))
+
 (declaim (inline reorder-parameter-list))
 (defun reorder-parameter-list ()
   (nreversef (vug-variables-parameter-list *vug-variables*)))
 
-(declaim (inline make-initialization-code-stack))
-(defun make-initialization-code-stack ()
-  (list 'progn))
-
-(declaim (inline empty-initialization-code-stack-p))
-(defun empty-initialization-code-stack-p ()
-  (null (cdr *initialization-code*)))
-
-(declaim (inline reorder-initialization-code))
-(defun reorder-initialization-code ()
-  (nreversef *initialization-code*)
-  (values))
-
 (defun dsp-vug-block (arguments &rest rest)
   (multiple-value-bind (args types) (arg-names-and-types arguments)
-    `(with-vug-arguments ,args ,types
+    `(with-vug-arguments (,args ,types)
        (reduce-vug-variables
          (vug-block (with-argument-bindings (,args ,types) ,@rest))))))
 
@@ -389,16 +389,22 @@
                                    double-vars double-array
                                    int32-vars int32-array
                                    int64-vars int64-array) &body body)
-  `(with-foreign-symbols ,float-vars ,float-array :float
-     (with-foreign-symbols ,double-vars ,double-array :double
-       (with-foreign-symbols ,int32-vars ,int32-array :int32
-         (with-foreign-symbols ,int64-vars ,int64-array :int64
+  `(with-foreign-symbols (,float-vars ,float-array :float)
+     (with-foreign-symbols (,double-vars ,double-array :double)
+       (with-foreign-symbols (,int32-vars ,int32-array :int32)
+         (with-foreign-symbols (,int64-vars ,int64-array :int64)
            ,@body)))))
 
-(defmacro vug-foreign-variables-names (type)
+(defmacro vug-foreign-varnames (type)
   `(mapcar #'vug-object-name
            (,(format-symbol :incudine.vug "VUG-VARIABLES-FOREIGN-~A" type)
-            *vug-variables*)))
+             *vug-variables*)))
+
+(defun sample-array-bindings (name wrap-name size)
+  (when (reduce-warnings
+          (and #.*use-foreign-sample-p* (plusp size)))
+    `((,wrap-name (make-foreign-sample-array ,size))
+      (,name (foreign-array-data ,wrap-name)))))
 
 (defun foreign-array-bindings (array-bindings)
   (flet ((foreign-array-binding (array-var array-wrap-var type size)
@@ -410,113 +416,110 @@
 
 (defun initialization-code ()
   (unless (empty-initialization-code-stack-p)
-    `(let ((current-channel 0))
-       (declare (type channel-number current-channel)
-                (ignorable current-channel))
-       ,*initialization-code*)))
+    `((let ((current-channel 0))
+        (declare (type channel-number current-channel)
+                 (ignorable current-channel))
+        ,*initialization-code*))))
+
+(declaim (inline vug-variables-foreign-sample-names))
+(defun vug-variables-foreign-sample-names ()
+  (mapcar #'vug-object-name
+          (vug-variables-foreign-sample *vug-variables*)))
+
+(defmacro with-dsp-preamble ((dsp-var name control-table-var
+                              free-hook-var) &body body)
+  (with-gensyms (dsp-wrap function-object node)
+    `(let* ((,dsp-wrap (dsp-inst-pool-pop))
+            (,dsp-var (unwrap-dsp ,dsp-wrap))
+            ;; Hash table for the controls of the DSP
+            (,control-table-var (dsp-controls ,dsp-var))
+            ;; Function related with the DSP
+            (,function-object (symbol-function ,name))
+            ;; FREE-HOOK for the node
+            (,free-hook-var
+             (list (lambda (,node)
+                     (declare (ignore ,node) #.*reduce-warnings*)
+                     (if (eq ,function-object (symbol-function ,name))
+                         ;; The instance is reusable the next time
+                         (store-dsp-instance ,name ,dsp-wrap)
+                         (free-dsp-wrap ,dsp-wrap))))))
+       (declare (type cons ,dsp-wrap ,free-hook-var) (type dsp ,dsp-var)
+                (type hash-table ,control-table-var))
+       ,@body)))
+
+(defmacro with-foreign-arrays ((smp-spec f32-spec f64-spec i32-spec i64-spec)
+                               &body body)
+  (destructuring-bind (smpvec smpvecw type smpvec-size) smp-spec
+    (declare (ignore type))
+    `(let* (,@(sample-array-bindings smpvec smpvecw smpvec-size)
+            ,@(foreign-array-bindings `(,f32-spec ,f64-spec ,i32-spec
+                                        ,i64-spec)))
+       ,@body)))
 
 (defmacro generate-code (name arguments arg-names obj)
-  (with-gensyms (result vug-body control-table c-array-sample-wrap
-                 c-array-float-wrap c-array-double-wrap c-array-int32-wrap
-                 c-array-int64-wrap c-array-sample c-array-float c-array-double
-                 c-array-int32 c-array-int64 number-of-sample number-of-float
-                 number-of-double number-of-int32 number-of-int64 dsp-cons
-                 dsp node free-hook function-object)
+  (with-gensyms (result vug-body smpvec-size f32vec-size f64vec-size
+                 i32vec-size i64vec-size)
     `(let* ((*vug-variables* (make-vug-variables))
             (*initialization-code* (make-initialization-code-stack))
-            (,number-of-sample 0)
-            (,number-of-float 0)
-            (,number-of-double 0)
-            (,number-of-int32 0)
-            (,number-of-int64 0)
             (,result ,(dsp-vug-block arguments obj))
-            (,vug-body (format-vug-code ,result)))
+            (,vug-body (format-vug-code ,result))
+            (,smpvec-size (add-sample-variables))
+            (,f32vec-size (add-float-variables))
+            (,f64vec-size (add-double-variables))
+            (,i32vec-size (add-int32-variables))
+            (,i64vec-size (add-int64-variables)))
        (reorder-parameter-list)
-       (add-foreign-vars-and-params ,number-of-sample ,number-of-float
-                                    ,number-of-double ,number-of-int32
-                                    ,number-of-int64)
-       `(lambda (%dsp-node%)
-          (declare #.*standard-optimize-settings*
-                   (type incudine:node %dsp-node%))
-          (let* ((,',dsp-cons (dsp-inst-pool-pop-cons))
-                 (,',dsp (car ,',dsp-cons))
-                 ;; Hash table for the controls of the dsp
-                 (,',control-table (dsp-controls ,',dsp))
-                 ;; Function related with the dsp
-                 (,',function-object (symbol-function ,',name))
-                 ;; FREE-HOOK for the node
-                 (,',free-hook
-                  (list (lambda (,',node)
-                          (declare (ignore ,',node) #.*reduce-warnings*)
-                          (if (eq ,',function-object (symbol-function ,',name))
-                              ;; The instance is reusable the next time
-                              (store-dsp-instance ,',name ,',dsp-cons)
-                              (free-dsp-cons ,',dsp-cons)))))
-                 ;; Foreign array with type SAMPLE
-                 ,@(when (reduce-warnings
-                           (and #.*use-foreign-sample-p*
-                                (plusp ,number-of-sample)))
-                     `((,',c-array-sample-wrap
-                        (make-foreign-sample-array ,,number-of-sample))
-                       (,',c-array-sample
-                        (foreign-array-data ,',c-array-sample-wrap))))
-                 ;; Foreign arrays for the other types
-                 ,@(foreign-array-bindings
-                    `((,',c-array-float ,',c-array-float-wrap :float
-                       ,,number-of-float)
-                      (,',c-array-double ,',c-array-double-wrap :double
-                       ,,number-of-double)
-                      (,',c-array-int32 ,',c-array-int32-wrap :int32
-                       ,,number-of-int32)
-                      (,',c-array-int64 ,',c-array-int64-wrap :int64
-                       ,,number-of-int64))))
-            (declare (type cons ,',dsp-cons ,',free-hook) (type dsp ,',dsp)
-                     (type hash-table ,',control-table))
-            (#.(if *use-foreign-sample-p*
-                   'with-foreign-symbols
-                   'with-sample-variables)
-               ,(mapcar #'vug-object-name
-                        (vug-variables-foreign-sample *vug-variables*))
-               ,',c-array-sample 'sample
-               (with-foreign-variables
-                   (,(vug-foreign-variables-names float)  ,',c-array-float
-                    ,(vug-foreign-variables-names double) ,',c-array-double
-                    ,(vug-foreign-variables-names int32)  ,',c-array-int32
-                    ,(vug-foreign-variables-names int64)  ,',c-array-int64)
-                 ,@(%expand-variables
-                    (set-controls-form ',control-table ',arg-names)
-                    (reorder-initialization-code)
-                    `(progn
-                       (setf (dsp-name ,',dsp) ,',name)
-                       (setf (incudine::node-controls %dsp-node%)
-                             ,',control-table)
-                       (update-free-hook %dsp-node% ,',free-hook)
-                       ,(initialization-code)
-                       (set-dsp-object ,',dsp
-                         :init-function
-                         (lambda (,',node ,@',arg-names)
-                           (declare #.*reduce-warnings*)
-                           (setf (incudine::node-controls ,',node)
-                                 (dsp-controls ,',dsp))
-                           (setf %dsp-node% ,',node)
-                           ,(reinit-bindings-form)
-                           (update-free-hook ,',node ,',free-hook)
-                           ,(initialization-code)
-                           ,',node)
-                         :free-function ,(to-free-form
-                                          ',c-array-sample-wrap ,number-of-sample
-                                          ',c-array-float-wrap ,number-of-float
-                                          ',c-array-double-wrap ,number-of-double
-                                          ',c-array-int32-wrap ,number-of-int32
-                                          ',c-array-int64-wrap ,number-of-int64)
-                         :perf-function (lambda ()
-                                          (let ((current-channel 0))
-                                            (declare (type channel-number
-                                                           current-channel)
-                                                     (ignorable current-channel))
-                                            ,@,vug-body)))
-                       (values (dsp-init-function ,',dsp)
-                               (dsp-perf-function ,',dsp)))))))))))
+       (with-gensyms (dsp control-table free-hook node smpvecw smpvec f32vecw
+                      f32vec f64vecw f64vec i32vecw i32vec i64vecw i64vec)
+         `(lambda (%dsp-node%)
+            (declare #.*standard-optimize-settings*
+                     (type incudine:node %dsp-node%))
+            (with-dsp-preamble (,dsp ,',name ,control-table ,free-hook)
+              (with-foreign-arrays ((,smpvec ,smpvecw 'sample ,,smpvec-size)
+                                    (,f32vec ,f32vecw :float ,,f32vec-size)
+                                    (,f64vec ,f64vecw :double ,,f64vec-size)
+                                    (,i32vec ,i32vecw :int32 ,,i32vec-size)
+                                    (,i64vec ,i64vecw :int64 ,,i64vec-size))
+                (with-sample-variables (,(vug-variables-foreign-sample-names)
+                                        ,smpvec 'sample)
+                  (with-foreign-variables
+                      (,(vug-foreign-varnames float) ,f32vec
+                       ,(vug-foreign-varnames double) ,f64vec
+                       ,(vug-foreign-varnames int32) ,i32vec
+                       ,(vug-foreign-varnames int64) ,i64vec)
+                    ,@(%expand-variables
+                        (set-controls-form control-table ',arg-names)
+                        (reorder-initialization-code)
+                        `(progn
+                           (setf (dsp-name ,dsp) ,',name)
+                           (setf (node-controls %dsp-node%) ,control-table)
+                           (update-free-hook %dsp-node% ,free-hook)
+                           ,@(initialization-code)
+                           (set-dsp-object ,dsp
+                             :init-function
+                               (lambda (,node ,@',arg-names)
+                                 (declare #.*reduce-warnings*)
+                                 (setf (node-controls ,node) (dsp-controls ,dsp))
+                                 (setf %dsp-node% ,node)
+                                 ,(reinit-bindings-form)
+                                 (update-free-hook ,node ,free-hook)
+                                 ,@(initialization-code)
+                                 ,node)
+                             :free-function
+                               ,(to-free-form smpvecw ,smpvec-size
+                                              f32vecw ,f32vec-size
+                                              f64vecw ,f64vec-size
+                                              i32vecw ,i32vec-size
+                                              i64vecw ,i64vec-size)
+                             :perf-function
+                               (lambda ()
+                                 (let ((current-channel 0))
+                                   (declare (type channel-number
+                                                  current-channel)
+                                            (ignorable current-channel))
+                                   ,@,vug-body)))
+                         (values (dsp-init-function ,dsp)
+                                 (dsp-perf-function ,dsp)))))))))))))
 
 (defmacro dsp-node () '%dsp-node%)
 
@@ -541,8 +544,8 @@
 (declaim (inline %reinit-vug-variable))
 (defun %reinit-vug-variable (var value param-plist)
   `(,(gethash (vug-object-name value) *objects-to-free*)
-    ,(vug-object-name var)
-    ,(blockexpand (vug-function-inputs value) param-plist)))
+     ,(vug-object-name var)
+     ,(blockexpand (vug-function-inputs value) param-plist)))
 
 (declaim (inline %set-vug-variable))
 (defun %set-vug-variable (var value param-plist)
@@ -564,7 +567,8 @@
           (%set-vug-variable var value
                              (list (vug-object-name param)
                                    (vug-object-name
-                                     (car (vug-parameter-vars-to-update param))))))))
+                                     (car (vug-parameter-vars-to-update
+                                            param))))))))
     (cdr (vug-parameter-vars-to-update param))))
 
 (defun dsp-control-setter-func (param)
@@ -711,7 +715,7 @@
                        (if update-fname
                            `(,update-fname ,(vug-object-name var)
                                            ,(blockexpand
-                                             (vug-function-inputs value)))
+                                              (vug-function-inputs value)))
                            `(setf ,(vug-object-name var)
                                   ,(if (vug-parameter-p value)
                                        (coerce-vug-float (vug-object-name value)
@@ -744,7 +748,8 @@
   (mapcar (lambda (x) (if (consp x) (car x) x)) args))
 
 (defmacro get-add-action-and-target (&rest keywords)
-  `(cond ,@(mapcar (lambda (x) `(,x (values ,(make-keyword x) ,x))) keywords)
+  `(cond ,@(mapcar (lambda (x) `(,x (values ,(make-keyword x) ,x)))
+                   keywords)
          (t (values :head incudine::*node-root*))))
 
 (declaim (inline compound-type-p))

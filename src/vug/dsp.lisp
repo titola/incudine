@@ -87,12 +87,12 @@
                   :grow +dsp-instance-pool-grow+))
 (declaim (type cons-pool *dsp-instance-pool*))
 
-(declaim (inline dsp-inst-pool-pop-cons))
-(defun dsp-inst-pool-pop-cons ()
+(declaim (inline dsp-inst-pool-pop))
+(defun dsp-inst-pool-pop ()
   (cons-pool-pop-cons *dsp-instance-pool*))
 
-(declaim (inline dsp-inst-pool-push-cons))
-(defun dsp-inst-pool-push-cons (cons)
+(declaim (inline dsp-inst-pool-push))
+(defun dsp-inst-pool-push (cons)
   (cons-pool-push-cons *dsp-instance-pool* cons))
 
 (declaim (inline dsp-inst-pool-push-list))
@@ -100,41 +100,45 @@
   (cons-pool-push-list *dsp-instance-pool* lst))
 
 (declaim (inline store-dsp-instance))
-(defun store-dsp-instance (name dsp-cons)
-  (declare (type symbol name) (type cons dsp-cons))
+(defun store-dsp-instance (name dsp-wrap)
+  (declare (type symbol name) (type cons dsp-wrap))
   (let ((prop (dsp name)))
-    (setf (cdr dsp-cons) #1=(dsp-instances prop))
-    (setf #1# dsp-cons)))
+    (setf (cdr dsp-wrap) #1=(dsp-instances prop))
+    (setf #1# dsp-wrap)))
 
 (declaim (inline get-next-dsp-instance))
 (defun get-next-dsp-instance (name)
   (declare (type symbol name))
   (let* ((prop (dsp name))
-         (dsp-cons #1=(dsp-instances prop)))
-    (declare (type list dsp-cons))
-    (when dsp-cons
-      (setf #1# (cdr dsp-cons)
-            (cdr dsp-cons) nil))
-    dsp-cons))
+         (dsp-wrap #1=(dsp-instances prop)))
+    (declare (type list dsp-wrap))
+    (when dsp-wrap
+      (setf #1# (cdr dsp-wrap)
+            (cdr dsp-wrap) nil))
+    dsp-wrap))
 
 (defmacro set-dsp-object (dsp &rest keys-values)
   `(progn
      ,@(loop for l on keys-values by #'cddr collect
-            `(setf (,(format-symbol :incudine.vug "DSP-~A" (car l)) ,dsp)
-                   ,(or (cadr l) '#'dummy-function)))))
+               `(setf (,(format-symbol :incudine.vug "DSP-~A" (car l)) ,dsp)
+                      ,(or (cadr l) '#'dummy-function)))))
 
 (defmacro set-dummy-functions (&rest functions)
-  `(progn ,@(mapcar (lambda (fn) `(setf ,fn #'dummy-function))
-                    functions)))
+  `(progn ,@(mapcar (lambda (fn) `(setf ,fn #'dummy-function)) functions)))
 
 (declaim (inline all-dsp-names))
 (defun all-dsp-names ()
   (loop for dsp being the hash-keys in *dsp-hash* collect dsp))
 
-(declaim (inline free-dsp-cons))
-(defun free-dsp-cons (cons)
+(declaim (inline unwrap-dsp))
+(defun unwrap-dsp (cons)
   (declare (type cons cons))
-  (let ((s (car cons)))
+  (car cons))
+
+(declaim (inline free-dsp-wrap))
+(defun free-dsp-wrap (cons)
+  (declare (type cons cons))
+  (let ((s (unwrap-dsp cons)))
     (clrhash (dsp-controls s))
     (funcall (dsp-free-function s))
     (rt-eval ()
@@ -142,7 +146,7 @@
                            (dsp-perf-function s)
                            (dsp-free-function s))
       ;; push/pop in the rt thread
-      (dsp-inst-pool-push-cons cons))))
+      (dsp-inst-pool-push cons))))
 
 (defun free-dsp-instance (dsp-prop)
   (declare (type dsp-properties dsp-prop))
@@ -153,7 +157,7 @@
            (old (cdr instances) (cdr old)))
           ((null inst) (setf #1# nil))
         (declare (list inst old))
-        (free-dsp-cons inst)))))
+        (free-dsp-wrap inst)))))
 
 (declaim (inline free-dsp-instances))
 (defun free-dsp-instances (&optional name)

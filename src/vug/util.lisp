@@ -44,6 +44,7 @@
      incudine:make-foreign-array
      incudine:foreign-array-data
      incudine::apply-sample-coerce
+     incudine::node-controls
      incudine.util::declare-form-p
      incudine.util::separate-declaration
      incudine.external:foreign-alloc-sample

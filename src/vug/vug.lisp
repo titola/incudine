@@ -120,6 +120,12 @@
 (defun no-performance-time-p (obj)
   (and (vug-variable-p obj) (not (vug-variable-performance-time-p obj))))
 
+(declaim (inline no-vug-variable-to-set))
+(defun no-vug-variable-to-set (var init-pass-p)
+  (if init-pass-p
+      (setf (vug-variable-skip-init-set-p var) t)
+      (setf (vug-variable-to-set-p var) nil)))
+
 (declaim (inline vug))
 (defun vug (name)
   (declare (type symbol name))
@@ -276,22 +282,21 @@
                   `(make-vug-variable
                      (gensym (string ',(car x)))
                      (remove-wrapped-parens
-                      ,(let ((value (cadr x)))
-                         (parse-vug-def (if (vug-parameter-p value)
-                                            (vug-parameter-value value)
-                                            value)
-                                        nil flist mlist))))))
+                       ,(let ((value (cadr x)))
+                          (parse-vug-def (if (vug-parameter-p value)
+                                             (vug-parameter-value value)
+                                             value)
+                                         nil flist mlist))))))
           lst))
 
 (declaim (inline parse-block-form))
 (defun parse-block-form (form flist mlist)
   `(make-vug-function :name ',(car form)
-     :inputs (list ',(cadr form) ,@(parse-vug-def (cddr form)
-                                                  nil flist mlist))))
+     :inputs (list ',(cadr form)
+                   ,@(parse-vug-def (cddr form) nil flist mlist))))
 
 (defun parse-lambda-body (form flist mlist)
-  (multiple-value-bind (decl rest)
-      (separate-declaration form)
+  (multiple-value-bind (decl rest) (separate-declaration form)
     `(,@(mapcar (lambda (x)
                   `(make-vug-function :name 'declare :inputs ',(cdr x)))
                 decl)
@@ -299,8 +304,7 @@
 
 (defun parse-let-form (form flist mlist)
   (let ((args (cadr form)))
-    `(let ,(mapcar (lambda (x) `(,(car x) ',(car x)))
-                   args)
+    `(let ,(mapcar (lambda (x) `(,(car x) ',(car x))) args)
        (declare (type symbol ,@(mapcar #'car args)))
        (make-vug-function :name ',(car form)
          :inputs (list (list ,@(mapcar (lambda (x)
@@ -313,8 +317,7 @@
 (defun parse-init-bindings (form flist mlist)
   `(,(car form)
     ,(parse-bindings (cadr form) flist mlist)
-    ,@(multiple-value-bind (decl rest)
-          (separate-declaration (cddr form))
+    ,@(multiple-value-bind (decl rest) (separate-declaration (cddr form))
         `(,@(parse-vug-def decl)
           (make-vug-function :name 'progn
             :inputs (list ,@(parse-vug-def rest nil flist mlist)))))))
@@ -408,10 +411,10 @@
 (defun parse-tick-form (form flist mlist)
   (if (atom (cadr form))
       `(make-vug-symbol :name ',(cadr form) :block-p t)
-      `(make-vug-function :name 'progn
-                          :inputs (list ,@(parse-vug-def (cdr form)
-                                                         t flist mlist))
-                          :block-p t)))
+      `(make-vug-function
+         :name 'progn
+         :inputs (list ,@(parse-vug-def (cdr form) t flist mlist))
+         :block-p t)))
 
 (declaim (inline lambda-bindings))
 (defun lambda-bindings (args)
@@ -515,7 +518,7 @@
                                             `(%with-samples ,@(cdr def)) def))))
                                   (if (vug name)
                                       `(mark-vug-block
-                                        ,(parse-vug-def expansion nil flist mlist))
+                                         ,(parse-vug-def expansion nil flist mlist))
                                       (parse-vug-def expansion nil flist mlist))))
                                ((quote-symbol-p def)
                                 `(make-vug-symbol :name '',(second def)))
@@ -535,8 +538,8 @@
                                 ;; X86 uses FSIN, FCOS and FPTAN
                                 `(make-vug-function :name ',name
                                    :inputs (list ,(parse-vug-def
-                                                   `(the limited-sample
-                                                         ,@(cdr def))))))
+                                                    `(the limited-sample
+                                                          ,@(cdr def))))))
                                (t `(make-vug-function :name ',name
                                      :inputs (list
                                               ,@(parse-vug-def (cdr def) t
@@ -729,11 +732,11 @@
 
 (defmacro vug-block (&body body)
   `(mark-vug-block
-    (update-vug-variables
-     (fix-sequence-of-forms
-      (remove-wrapped-parens
-       (remove-lisp-declaration
-        (list ,@(parse-vug-def body))))))))
+     (update-vug-variables
+       (fix-sequence-of-forms
+         (remove-wrapped-parens
+           (remove-lisp-declaration
+             (list ,@(parse-vug-def body))))))))
 
 (declaim (inline fix-sequence-of-forms))
 (defun fix-sequence-of-forms (obj)
@@ -786,10 +789,8 @@
 
 (defmacro define-vug (name lambda-list &body body)
   (with-gensyms (fn init)
-    (multiple-value-bind (args types)
-        (arg-names-and-types lambda-list)
-      (multiple-value-bind (doc config vug-body)
-          (extract-vug-config body)
+    (multiple-value-bind (args types) (arg-names-and-types lambda-list)
+      (multiple-value-bind (doc config vug-body) (extract-vug-config body)
         (if (dsp name)
             (msg error "~A was defined to be a DSP." name)
             `(progn
@@ -869,9 +870,9 @@
                         `(,x ,+sample-zero+)))
                   bindings)
      ,@(when bindings
-             `((declare (type sample
-                              ,@(mapcar (lambda (x) (if (consp x) (car x) x))
-                                        bindings)))))
+         `((declare (type sample
+                          ,@(mapcar (lambda (x) (if (consp x) (car x) x))
+                                    bindings)))))
      ,@body))
 
 ;;; Used only inside the definition of a VUG-MACRO to specify the
