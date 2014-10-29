@@ -28,18 +28,57 @@
 (defmacro free-self-when-done ()
   `(when (done-self) (free-self)))
 
-;;; A FRAME is a foreign array of SAMPLE type, useful to efficiently
-;;; store and return multiple values from a VUG
-(defmacro make-frame (size &key zero-p initial-element initial-contents)
-  (with-gensyms (frame-wrap)
-    `(with ((,frame-wrap (make-foreign-array ,size 'sample
-                           ,@(if zero-p `(:zero-p ,zero-p))
-                           ,@(if initial-element
-                                 `(:initial-element ,initial-element))
-                           ,@(if initial-contents
-                                 `(:initial-contents ,initial-contents)))))
-       (declare (type foreign-array ,frame-wrap))
-       (foreign-array-data ,frame-wrap))))
+(defmacro %make-foreign-array (size type &rest args)
+  (let ((arr-wrap (gensym (format nil "~A-WRAP" type))))
+    `(with ((,arr-wrap (make-foreign-array ,size ',type ,@args)))
+       (declare (type foreign-array ,arr-wrap))
+       (foreign-array-data ,arr-wrap))))
+
+(macrolet ((make-*-array (name type)
+             `(defmacro ,name (&whole whole size &key zero-p initial-element
+                               initial-contents)
+                (declare (ignore zero-p initial-element initial-contents))
+                `(%make-foreign-array ,size ,,type ,@(cddr whole)))))
+  ;; A FRAME is a foreign array of SAMPLE type, useful to efficiently
+  ;; store and return multiple values from a VUG
+  (make-*-array make-frame 'sample)
+  ;; Other utilities to create foreign arrays.
+  (make-*-array make-int32-array :int32)
+  (make-*-array make-uint32-array :uint32)
+  (make-*-array make-int64-array :int64)
+  (make-*-array make-uint64-array :uint64)
+  (make-*-array make-f32-array :float)
+  (make-*-array make-f64-array :double))
+
+(defmacro maybe-make-i32-array (&whole whole size &key zero-p initial-element
+                                initial-contents)
+  (if (< incudine.util::n-fixnum-bits 32)
+      `(make-int32-array ,size ,@(cddr whole))
+      `(make-array ,size ,@(if zero-p `(:initial-element 0))
+                   ,@(if initial-element
+                         `(:initial-element ,initial-element))
+                   ,@(if initial-contents
+                         `(:initial-contents ,initial-contents)))))
+
+(defmacro maybe-make-u32-array (&whole whole size &key zero-p initial-element
+                                initial-contents)
+  (if (< incudine.util::n-fixnum-bits 32)
+      `(make-uint32-array ,size ,@(cddr whole))
+      `(make-array ,size ,@(if zero-p `(:initial-element 0))
+                   ,@(if initial-element
+                         `(:initial-element ,initial-element))
+                   ,@(if initial-contents
+                         `(:initial-contents ,initial-contents)))))
+
+(defmacro maybe-i32-ref (array index)
+  (if (< incudine.util::n-fixnum-bits 32)
+      `(i32-ref ,array ,index)
+      `(the fixnum (svref ,array ,index))))
+
+(defmacro maybe-u32-ref (array index)
+  (if (< incudine.util::n-fixnum-bits 32)
+      `(u32-ref ,array ,index)
+      `(the fixnum (svref ,array ,index))))
 
 ;;; Return a value of a frame
 (defmacro frame-ref (frame channel)

@@ -114,7 +114,7 @@
    #:calc-lobits
    #:rt-thread-p #:rt-eval #:rt-eval-if #:allow-rt-memory-p
    #:foreign-pointer
-   #:smp-ref
+   #:smp-ref #:i32-ref #:u32-ref #:i64-ref #:u64-ref #:f32-ref #:f64-ref
    #:with-ensure-symbol
    #:with-foreign-array #:with-samples #:with-samples*
    #:with-complex
@@ -159,6 +159,9 @@
    #:*update-dsp-instances*
    #:current-channel
    #:make-frame #:frame-ref #:multiple-sample-bind #:samples
+   #:make-int32-array #:make-uint32-array #:make-int64-array #:make-uint64-array
+   #:make-f32-array #:make-f64-array
+   #:maybe-make-i32-array #:maybe-make-u32-array #:maybe-i32-ref #:maybe-u32-ref
    #:foreach-tick #:foreach-channel #:counter #:downsamp #:generic-rate
    #:samphold #:interpolate
    #:tick #:external-variable #:init-only #:initialize #:without-follow

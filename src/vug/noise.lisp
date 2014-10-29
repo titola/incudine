@@ -23,27 +23,17 @@
 ;;; Pink Noise generator using the Gardner method with the James
 ;;; McCartney's optimization (http://www.firstpr.com.au/dsp/pink-noise).
 ;;; Based on Phil Burk's code in C.
-(define-vug-macro pink-noise (amp &key (number-of-bands 20))
+(define-vug-macro pink-noise (amp &optional (number-of-bands 20))
   (let* ((max-random-rows 30)
-         (number-of-rows (let ((nb number-of-bands))
-                           (cond ((< nb 4) 4)
-                                 ((> nb 30) 30)
-                                 (t nb))))
+         (number-of-rows (clip number-of-bands 4 30))
          (random-limit32 4294967296)
          (random-limit24 16777216)
          (random-bits 24)
          (mask (1- (ash 1 number-of-rows)))
          (scale (/ (sample 1) (* (1+ number-of-rows)
                                  (ash 1 (1- random-bits))))))
-    (with-gensyms (#-x86-64 rows-wrap
-                   rows counter rand32 new-random total index mult)
-      `(with (#+x86-64
-              (,rows (make-array ,max-random-rows :initial-element 0))
-              #-x86-64
-              (,rows-wrap (make-foreign-array ,max-random-rows :int32
-                                              :zero-p t))
-              #-x86-64
-              (,rows (foreign-array-data ,rows-wrap))
+    (with-gensyms (rows counter rand32 new-random total index mult)
+      `(with ((,rows (maybe-make-i32-array ,max-random-rows :zero-p t))
               (,counter 0)
               (,rand32 0)
               (,new-random 0)
@@ -55,8 +45,7 @@
                   (type (integer 0 ,max-random-rows) ,index)
                   (type sample ,mult))
          (initialize (dotimes (i ,number-of-rows)
-                       (setf #+x86-64 (svref ,rows i)
-                             #-x86-64 (mem-aref ,rows :int32 i)
+                       (setf (maybe-i32-ref ,rows i)
                              (random ,random-limit24))))
          (setf ,rand32 (random ,random-limit32))
          ;; Magnus Jonsson's suggestion
@@ -65,14 +54,10 @@
            (setf ,index (ctz ,counter))
            (setf ,new-random (ash ,rand32 -8))
            (incf ,total (the (signed-byte 32)
-                          (- ,new-random
-                             #+x86-64 (the fixnum (svref ,rows ,index))
-                             #-x86-64 (mem-aref ,rows :int32 ,index))))
-           (setf #+x86-64 (svref ,rows ,index)
-                 #-x86-64 (mem-aref ,rows :int32 ,index)
-                 ,new-random))
-         (* ,mult (the (signed-byte 32) (+ ,total
-                                           (random ,random-limit24))))))))
+                             (- ,new-random (maybe-i32-ref ,rows ,index))))
+           (setf (maybe-i32-ref ,rows ,index) ,new-random))
+         (* ,mult (the (signed-byte 32)
+                       (+ ,total (random ,random-limit24))))))))
 
 ;;; Noise generator based on a chaotic function (used in SuperCollider).
 (define-vug crackle (param amp)

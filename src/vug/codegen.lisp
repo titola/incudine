@@ -470,12 +470,11 @@
        ,@body)))
 
 (defmacro generate-code (name arguments arg-names obj)
-  (with-gensyms (result vug-body smpvec-size f32vec-size f64vec-size
-                 i32vec-size i64vec-size)
+  (with-gensyms (vug-body smpvec-size f32vec-size f64vec-size i32vec-size
+                 i64vec-size)
     `(let* ((*vug-variables* (make-vug-variables))
             (*initialization-code* (make-initialization-code-stack))
-            (,result ,(dsp-vug-block arguments obj))
-            (,vug-body (format-vug-code ,result))
+            (,vug-body (format-vug-code ,(dsp-vug-block arguments obj)))
             (,smpvec-size (add-sample-variables))
             (,f32vec-size (add-float-variables))
             (,f64vec-size (add-double-variables))

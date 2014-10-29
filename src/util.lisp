@@ -258,6 +258,18 @@
   `(mem-ref ,samples 'sample (the non-negative-fixnum
                                   (* ,index +foreign-sample-size+))))
 
+(macrolet ((define-*-ref (name type)
+             `(defmacro ,name (ptr index)
+                `(mem-ref ,ptr ,',type
+                          (the non-negative-fixnum
+                               (* ,index ,(cffi:foreign-type-size ,type)))))))
+  (define-*-ref i32-ref :int32)
+  (define-*-ref u32-ref :uint32)
+  (define-*-ref i64-ref :int64)
+  (define-*-ref u64-ref :uint64)
+  (define-*-ref f32-ref :float)
+  (define-*-ref f64-ref :double))
+
 (defmacro with-complex (real-and-imag-vars pointer &body body)
   `(symbol-macrolet ((,(car real-and-imag-vars) (smp-ref ,pointer 0))
                      (,(cadr real-and-imag-vars) (smp-ref ,pointer 1)))
