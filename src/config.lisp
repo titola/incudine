@@ -18,7 +18,7 @@
 
 (define-constant +incudine-major+ 0)
 (define-constant +incudine-minor+ 7)
-(define-constant +incudine-patch+ 5)
+(define-constant +incudine-patch+ 9)
 
 (in-package :incudine.util)
 
@@ -69,6 +69,10 @@
   (define-constant +pointer-size+ (foreign-type-size :pointer))
   (define-constant +foreign-sample-size+ (foreign-type-size 'sample))
   (define-constant +foreign-complex-size+ (* 2 (foreign-type-size 'sample)))
+
+  (define-constant +pointer-address-type+
+      (alexandria:make-keyword (format nil "INT~D"
+                                       (* +pointer-size+ 8))))
 
   (define-constant +table-maxlen+ #x1000000)
   (define-constant +max-lobits+ (floor (log +table-maxlen+ 2)))

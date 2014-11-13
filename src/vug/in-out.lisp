@@ -25,6 +25,7 @@
 (defmacro frame-out (frame channels &optional (offset 0) (scale 1))
   (with-gensyms (frm)
     `(with ((,frm ,frame))
+       (declare (type frame ,frm))
        (out ,@(loop for i from offset below (+ offset channels)
                     collect `(* ,scale (frame-ref ,frm ,i)))))))
 

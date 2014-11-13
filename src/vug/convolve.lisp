@@ -132,9 +132,8 @@ of a multichannel finite impulse response."
          ;; Impulse response
          (irdata (pvbuffer-data pvbuf))
          (fdl-size (pvbuffer-size pvbuf))
-         (fdl-wrap (make-foreign-array fdl-size 'sample :zero-p t))
          ;; Frequency Delay Line
-         (fdl (foreign-array-data fdl-wrap))
+         (fdl (make-frame fdl-size :zero-p t))
          (fdl-last (- fdl-size block-size))
          (fdl-head 0)
          (fft (make-local-fft fft-size fft-size #'rectangular-window))
@@ -144,9 +143,8 @@ of a multichannel finite impulse response."
          (ifft-inbuf (ifft-input-buffer ifft))
          (ifft-outbuf (ifft-output-buffer ifft))
          (outbuf-size (the non-negative-fixnum (* channels fft-size)))
-         (outbuf-wrap (make-foreign-array outbuf-size 'sample :zero-p t))
          ;; Output buffer
-         (outbuf (foreign-array-data outbuf-wrap))
+         (outbuf (make-frame outbuf-size :zero-p t))
          (outbuf-half (ash outbuf-size -1))
          (input-index 0)
          (pad-index half-size)

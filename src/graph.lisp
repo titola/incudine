@@ -110,6 +110,16 @@
   (declare #.*standard-optimize-settings*)
   (eq obj *node-root*))
 
+(defmacro make-temp-node (&rest rest)
+  `(prog1 (%make-node :id -1 ,@rest)
+     (nrt-msg info "new temporary node")))
+
+(declaim (inline temp-node-p))
+(defun temp-node-p (node)
+  (declare (type node node))
+  (let ((id (node-id node)))
+    (and id (minusp id))))
+
 ;;; Previous node not in pause
 (defun unpaused-node-prev (curr)
   (declare (type node curr))
@@ -720,6 +730,13 @@
                 (nrt-msg info "free group 0")
                 (lambda () (unlink-group node) node))
                (t incudine.util::*dummy-function-without-args*)))
+        ((temp-node-p node)
+         (lambda ()
+           (foreign-free (node-start-time-ptr node))
+           (foreign-free (node-gain-data node))
+           (tg:cancel-finalization node)
+           (setf (node-id node) nil)
+           (nrt-msg info "free temporary node")))
         (t (lambda ()
              (unless (null-node-p node)
                (let* ((id (node-id node))
@@ -747,7 +764,9 @@
 (declaim (inline node-free))
 (defun node-free (obj)
   (declare #.*standard-optimize-settings* (type node obj))
-  (at 0 (node-free-fn obj))
+  (if (temp-node-p obj)
+      (funcall (the function (node-free-fn obj)))
+      (at 0 (node-free-fn obj)))
   (values))
 
 (defmethod free ((obj node))

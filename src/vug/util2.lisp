@@ -88,9 +88,10 @@
 (defmacro multiple-sample-bind (vars frame &body body)
   (with-gensyms (frm)
     `(with ((,frm ,frame))
-       (symbol-macrolet
-           ,(loop for var in vars for count from 0
-                  collect `(,var (frame-ref ,frm ,count)))
+       (declare (type frame ,frm))
+       (maybe-expand ,frm)
+       (symbol-macrolet ,(loop for var in vars for count from 0
+                               collect `(,var (frame-ref ,frm ,count)))
          ,@body))))
 
 (defmacro samples (&rest values)

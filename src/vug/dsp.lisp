@@ -53,11 +53,16 @@
                   :grow +dsp-pool-grow+))
 (declaim (type cons-pool *dsp-pool*))
 
+(declaim (inline unwrap-dsp))
+(defun unwrap-dsp (cons)
+  (declare (type cons cons))
+  (car cons))
+
 (declaim (inline dsp-pool-pop))
 (defun dsp-pool-pop ()
   #+(or cmu sbcl) (declare (values dsp-properties))
   (let* ((cons (cons-pool-pop-cons *dsp-pool*))
-         (value (car cons)))
+         (value (unwrap-dsp cons)))
     (rt-global-pool-push-cons cons)
     value))
 
@@ -129,11 +134,6 @@
 (declaim (inline all-dsp-names))
 (defun all-dsp-names ()
   (loop for dsp being the hash-keys in *dsp-hash* collect dsp))
-
-(declaim (inline unwrap-dsp))
-(defun unwrap-dsp (cons)
-  (declare (type cons cons))
-  (car cons))
 
 (declaim (inline free-dsp-wrap))
 (defun free-dsp-wrap (cons)

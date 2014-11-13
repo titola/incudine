@@ -89,7 +89,6 @@
 
 (declaim (inline gendy-distribution))
 (defun gendy-distribution (which a)
-  (declare #.*reduce-warnings*)
   (let ((a (clip a (sample 0.0001) (sample 1.0))))
     (cond ((= which 1) (gendy-cauchy a))
           ((= which 2) (gendy-logist a))
@@ -117,14 +116,11 @@
                          &optional (max-points 12) (used-points max-points)
                          (interpolation :linear))
   (if (constantp max-points)
-      (with-gensyms (amps-wrap durs-wrap amps durs distrib index i adist ddist
-                     points freq-delta)
+      (with-gensyms (amps durs distrib index i adist ddist points freq-delta)
         (with-coerce-arguments (amp-distr-param dur-distr-param freq-min
                                 freq-max amp-scale dur-scale)
-          `(with ((,amps-wrap (make-foreign-array ,max-points 'sample))
-                  (,durs-wrap (make-foreign-array ,max-points 'sample))
-                  (,amps (foreign-array-data ,amps-wrap))
-                  (,durs (foreign-array-data ,durs-wrap))
+          `(with ((,amps (make-frame ,max-points))
+                  (,durs (make-frame ,max-points))
                   (,adist (vug-input ,amp-distr))
                   (,ddist (vug-input ,dur-distr))
                   (,distrib 0.0d0)
@@ -132,12 +128,13 @@
                   (,index 0)
                   (,points (vug-input (clip (the fixnum ,used-points) 1
                                             ,max-points))))
-             (declare (type sample ,distrib ,freq-delta)
+             (declare (type pointer ,amps ,durs)
+                      (type sample ,distrib ,freq-delta)
                       (type non-negative-fixnum ,index ,adist ,ddist ,points))
              (initialize
-              (dotimes (,i ,max-points)
-                (setf (smp-ref ,amps ,i) (- (random (sample 2)) 1.0)
-                      (smp-ref ,durs ,i) (random (sample 1)))))
+               (dotimes (,i ,max-points)
+                 (setf (smp-ref ,amps ,i) (- (random (sample 2)) 1.0)
+                       (smp-ref ,durs ,i) (random (sample 1)))))
              (interpolate
                (tick
                 (prog1 (smp-ref ,amps ,index)

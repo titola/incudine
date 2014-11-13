@@ -102,9 +102,8 @@
      ,@body))
 
 (defmacro logger-active-p (type)
-  `(plusp (logand ,(alexandria:format-symbol :incudine.util
-                                             "+LOGGER-~A+" type)
-                  *logger-mask*)))
+  `(logtest ,(alexandria:format-symbol :incudine.util "+LOGGER-~A+" type)
+            *logger-mask*))
 
 (defmacro msg (type &rest rest)
   `(when (logger-active-p ,type)

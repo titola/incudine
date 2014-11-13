@@ -16,6 +16,8 @@
 
 (in-package :incudine.util)
 
+(define-constant n-machine-word-bits sb-vm:n-machine-word-bits)
+
 (define-constant n-fixnum-bits sb-vm:n-fixnum-bits)
 
 (defvar *reduce-warnings*

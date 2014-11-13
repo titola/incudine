@@ -351,8 +351,7 @@
 
 ;;; Moving Average Filter
 (define-vug maf (in (max-size positive-fixnum) (size positive-fixnum))
-  (with ((array-wrap (make-foreign-array max-size 'sample :zero-p t))
-         (data (foreign-array-data array-wrap))
+  (with ((data (make-frame max-size :zero-p t))
          (sum 0.0d0)
          (old-size 0)
          (size (prog1 (min size max-size)
@@ -363,8 +362,7 @@
                         (setf (smp-ref data i) +sample-zero+)))
                  (setf old-size size)))
          (index 0))
-    (declare (type foreign-array array-wrap)
-             (type foreign-pointer data) (type sample sum)
+    (declare (type pointer data) (type sample sum)
              (type non-negative-fixnum index old-size)
              (type positive-fixnum size))
     ;; Subtract the old, add the new and update the index
@@ -445,9 +443,8 @@
 
 (define-vug median (in (max-size positive-fixnum) (size positive-fixnum))
   "Median filter."
-  (with ((values-wrap (without-follow (max-size)
-                        (make-foreign-array max-size 'sample :zero-p t)))
-         (values (foreign-array-data values-wrap))
+  (with ((values (without-follow (max-size)
+                   (make-frame max-size :zero-p t)))
          (ages (without-follow (max-size) (make-array max-size)))
          (old-size 0)
          (init-pass-p t)
@@ -464,8 +461,8 @@
          (median (ash size -1))
          (pos 0))
     (declare (type non-negative-fixnum pos old-size size last median)
-             (type boolean init-pass-p) (type foreign-array values-wrap)
-             (type foreign-pointer values) (type simple-vector ages))
+             (type boolean init-pass-p) (type pointer values)
+             (type simple-vector ages))
     (initialize
      ;; Expand the input, if it is required, to avoid the expansion
      ;; inside the next loop

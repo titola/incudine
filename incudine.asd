@@ -35,7 +35,7 @@
                                       :defaults path))))))
 
 (defsystem "incudine"
-  :version "0.7.5"
+  :version "0.7.9"
   :description "Incudine is a Music/DSP programming environment."
   :licence "GPL v2"
   :author "Tito Latini"
@@ -98,6 +98,7 @@
      (:file "vug/vug" :depends-on ("vug/util" "buffer" "foreign-array" "node-pool"))
      (:file "vug/dsp" :depends-on ("vug/vug"))
      (:file "vug/codegen" :depends-on ("vug/dsp"))
+     (:file "vug/ugen" :depends-on ("vug/codegen"))
      (:file "vug/util2" :depends-on ("vug/codegen"))
      (:file "vug/buffer" :depends-on ("vug/util2" "buffer" "analysis/base"))
      (:file "vug/in-out" :depends-on ("bus" "vug/util2"))

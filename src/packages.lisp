@@ -74,6 +74,7 @@
    #:+table-maxlen+ #:+max-lobits+ #:+phase-mask+ #:+rad2inc+ #:*cps2inc*
    #:*pi-div-sr* #:*minus-pi-div-sr* #:*twopi-div-sr*
    #:+pointer-size+ #:+foreign-sample-size+ #:+foreign-complex-size+
+   #:+pointer-address-type+
    #:*sample-rate* #:*sample-duration* #:*sound-velocity* #:*r-sound-velocity*
    #:*max-number-of-channels* #:*audio-driver* #:*client-name*
    #:*number-of-input-bus-channels* #:*number-of-output-bus-channels*
@@ -150,8 +151,10 @@
   (:import-from #:cffi #:foreign-type-size #:mem-ref #:mem-aref
                 #:make-pointer #:pointer-address #:inc-pointer)
   (:export
-   #:vug #:define-vug #:define-vug-macro #:destroy-vug #:all-vug-names
-   #:rename-vug
+   #:vug #:define-vug #:define-vug-macro #:vug-funcall #:destroy-vug
+   #:rename-vug #:all-vug-names #:vug-macro-p #:fix-vug
+   #:ugen #:define-ugen #:ugen-debug #:compile-vug #:compiled-vug-p
+   #:ugen-funcall #:destroy-ugen #:rename-ugen #:fix-ugen #:all-ugen-names
    #:with
    #:with-coerce-arguments #:with-vug-inputs #:vug-input
    #:get-pointer
