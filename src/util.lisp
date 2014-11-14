@@ -80,7 +80,7 @@
 
 ;; FLOAT with arbitrary range between -2^63 and 2^63.
 ;; Used in SBCL on X86 with SIN, COS and TAN.
-(deftype limited-sample () (let ((high (coerce 4.0e18 'sample)))
+(deftype limited-sample () (let ((high (force-sample-format 4.0e18)))
                              `(,*sample-type* ,(- high) ,high)))
 
 (deftype maybe-limited-sample () #+(and sbcl x86) 'limited-sample
@@ -119,7 +119,7 @@
 (defun apply-sample-coerce (form)
   (if (atom form)
       (cond ((and (numberp form) (floatp form))
-             (sample form))
+             (force-sample-format form))
             ((eq form 'pi) '(sample pi))
             (t form))
       (cons (apply-sample-coerce (car form))

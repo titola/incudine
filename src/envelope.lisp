@@ -230,17 +230,17 @@
        (+seg-lin-func+ (setf ,grow (/ (- ,end ,beg) ,dur)))
        (+seg-exp-func+
         (setf ,grow (expt (the non-negative-sample (/ ,end ,beg))
-                          (/ 1.0d0 ,dur))))
+                          (/ 1.0 ,dur))))
        (+seg-sine-func+
         (let ((,w (/ pi ,dur)))
-          (setf ,a2 (* (+ ,end ,beg) 0.5d0)
-                ,b1 (* 2.0d0 (cos (the maybe-limited-sample ,w)))
-                ,y1 (* (- ,end ,beg) 0.5d0)
+          (setf ,a2 (* (+ ,end ,beg) 0.5)
+                ,b1 (* 2.0 (cos (the maybe-limited-sample ,w)))
+                ,y1 (* (- ,end ,beg) 0.5)
                 ,y2 (* ,y1 (sin (the maybe-limited-sample
                                   (- +half-pi+ ,w)))))))
        (+seg-welch-func+
         (let ((,w (/ +half-pi+ ,dur)))
-          (setf ,b1 (* 2.0d0 (cos (the maybe-limited-sample ,w))))
+          (setf ,b1 (* 2.0 (cos (the maybe-limited-sample ,w))))
           (if (>= ,end ,beg)
               (setf ,a2 ,beg
                     ,y1 +sample-zero+
@@ -259,18 +259,17 @@
               ,y2 (expt (the non-negative-sample ,end) ,(sample 1/3))
               ,grow (/ (- ,y2 ,y1) ,dur)))
        ;; custom curve
-       (otherwise (if (< (abs ,curve) 0.001d0)
+       (otherwise (if (< (abs ,curve) 0.001)
                       (setf ,grow (/ (- ,end ,beg) ,dur)
                             ,curve +seg-lin-func+)
-                      (setf ,b1 (/ (- ,end ,beg) (- 1.0d0 (exp ,curve)))
+                      (setf ,b1 (/ (- ,end ,beg) (- 1.0 (exp ,curve)))
                             ,a2 (+ ,beg ,b1)
                             ,grow (exp (/ ,curve ,dur))))))))
 
 (defmacro %segment-init (beg end dur curve grow a2 b1 y1 y2)
-  (let ((result `(%%segment-init ,beg ,end ,dur ,curve ,grow
-                                 ,a2 ,b1 ,y1 ,y2)))
-    #+double-samples result
-    #-double-samples (apply-sample-coerce (macroexpand-1 result))))
+  (apply-sample-coerce
+    (macroexpand-1
+      `(%%segment-init ,beg ,end ,dur ,curve ,grow ,a2 ,b1 ,y1 ,y2))))
 
 (defmacro %segment-update-level (level curve grow a2 b1 y1 y2)
   (with-gensyms (y0)
@@ -430,7 +429,7 @@
 
 (defmacro %envelope-at (beg end pos curve tmp0 tmp1 tmp2)
   (with-gensyms (sqrt-s expt-s x power)
-    (#+double-samples progn #-double-samples apply-sample-coerce
+    (apply-sample-coerce
      `(flet ((,sqrt-s (,x) (sqrt (the non-negative-sample ,x)))
              (,expt-s (,x ,power) (expt (the non-negative-sample ,x) ,power)))
         (curve-case ,curve
@@ -439,7 +438,7 @@
           (+seg-exp-func+ (* ,beg (,expt-s (/ ,end ,beg) ,pos)))
           (+seg-sine-func+
            (+ ,beg (* (- ,end ,beg)
-                      (+ (* (- (cos (* pi ,pos))) 0.5d0) 0.5d0))))
+                      (+ (* (- (cos (* pi ,pos))) 0.5) 0.5))))
           (+seg-welch-func+
            (if (< ,beg ,end)
                (+ ,beg (* (- ,end ,beg) (sin (* +half-pi+ ,pos))))
@@ -449,16 +448,16 @@
                                    ,tmp1 (,sqrt-s ,end)
                                    ,tmp2 (+ (* pos (- ,tmp1 ,tmp0)) ,tmp0))
                              (* ,tmp2 ,tmp2))
-          (+seg-cubic-func+ (setf ,tmp0 (,expt-s ,beg #.(/ 3.0d0))
-                                  ,tmp1 (,expt-s ,end #.(/ 3.0d0))
+          (+seg-cubic-func+ (setf ,tmp0 (,expt-s ,beg ,(sample 1/3))
+                                  ,tmp1 (,expt-s ,end ,(sample 1/3))
                                   ,tmp2 (+ (* ,pos (- ,tmp1 ,tmp0)) ,tmp0))
                             (* ,tmp2 ,tmp2 ,tmp2))
-          (otherwise (if (< (abs ,curve) 0.001d0)
+          (otherwise (if (< (abs ,curve) 0.001)
                          ;; Linear segment
                          (+ (* ,pos (- ,end ,beg)) ,beg)
                          (+ ,beg (* (- ,end ,beg)
-                                    (/ (- 1.0d0 (exp (* ,pos ,curve)))
-                                       (- 1.0d0 (exp ,curve))))))))))))
+                                    (/ (- 1.0 (exp (* ,pos ,curve)))
+                                       (- 1.0 (exp ,curve))))))))))))
 
 (defun envelope-at (env time)
   "Return the level of the envelope ENV at time TIME."

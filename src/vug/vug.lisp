@@ -193,7 +193,7 @@
             (t (values nil value 0)))
     (let ((obj (%make-vug-variable :name name :value value :type type
                                    :ref-count ref-count :input-p input-p)))
-      (when *vug-variables*
+      (when (boundp '*vug-variables*)
         (if (performance-time-code-p obj value input-p)
             (setf (vug-variable-init-time-p obj) nil)
             (resolve-variable-to-update value obj))
@@ -637,7 +637,8 @@
                                             ;; difference between WITH-SAMPLES
                                             ;; and WITH-SAMPLES* inside a
                                             ;; definition of a VUG
-                                            `(%with-samples ,@(cdr def)) def))))
+                                            `(%with-samples ,@(cdr def))
+                                            def))))
                                   (if (vug name)
                                       `(mark-vug-block
                                          ,(parse-vug-def expansion nil flist mlist))
@@ -677,7 +678,7 @@
         ((and (symbolp def) (eq def 'current-channel))
          `(make-vug-symbol :name 'current-channel :block-p t))
         ((and (numberp def) (floatp def))
-         (sample def))
+         (force-sample-format def))
         (t def)))
 
 (defun remove-wrapped-parens (obj)
@@ -898,7 +899,11 @@
 
 (declaim (inline coerce-number))
 (defun coerce-number (obj output-type-spec)
-  (if (numberp obj) (coerce obj output-type-spec) obj))
+  (if (numberp obj)
+      (if (subtypep output-type-spec 'sample)
+          (force-sample-format obj)
+          (coerce obj output-type-spec))
+      obj))
 
 (defmacro with-coerce-arguments (bindings &body body)
   `(let ,(mapcar (lambda (x)
@@ -1034,7 +1039,7 @@
                           `(,(car x)
                             ,(if (and (numberp value)
                                       (not (typep value 'sample)))
-                                 (sample value)
+                                 (force-sample-format value)
                                  value)))
                         `(,x ,+sample-zero+)))
                   bindings)

@@ -17,7 +17,7 @@
   (out (sine freq amp (sine phs-frq phs-dev 0))))
 
 (with-dsp-test (vug-sine.1
-      :md5 #(225 41 118 182 36 172 231 7 76 60 161 222 67 21 199 30))
+      :md5 #(101 132 59 132 40 118 106 208 181 47 167 103 207 183 22 12))
   (vug-sine-test-1 440 .7 0 :id 123)
   (at #[1 sec] #'set-control 123 :freq 880)
   (at #[5/2 sec] #'set-controls 123 :freq 220 :amp .25)
@@ -45,7 +45,7 @@
         do (at time #'set-controls 123 :index index :amp (- amp))))
 
 (with-dsp-test (vug-sine.fm.am.1 :channels 2
-      :md5 #(105 182 64 57 150 240 34 179 230 127 199 123 145 75 107 3))
+      :md5 #(43 16 206 140 123 93 192 110 57 68 227 96 150 201 239 160))
   (vug-sine-test-3 50 4000 .35 1 400 +vug-test-duration-sec+))
 
 (with-dsp-test (vug-sine.pm.1

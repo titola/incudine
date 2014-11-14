@@ -60,11 +60,21 @@
 
   (deftype frame () 'foreign-pointer)
 
+  (defun force-sample-format (x)
+    (declare (type real x))
+    (cond ((typep x 'sample) x)
+          ((floatp x)
+           ;; Avoid coercing from SINGLE-FLOAT to DOUBLE-FLOAT
+           (let ((str (write-to-string x))
+                 (*read-default-float-format* *sample-type*))
+             (values (read-from-string str))))
+          (t (coerce x 'sample))))
+
   (define-constant +twopi+ (coerce (* 2 pi) 'sample))
   (define-constant +half-pi+ (coerce (* 0.5 pi) 'sample))
   (define-constant +rtwopi+ (/ 1.0 +twopi+))
-  (define-constant +log001+ (log (coerce 0.001 'sample)))
-  (define-constant +sqrt2+ (sqrt (coerce 2.0 'sample)))
+  (define-constant +log001+ (log (force-sample-format 0.001)))
+  (define-constant +sqrt2+ (sqrt (force-sample-format 2.0)))
 
   (define-constant +pointer-size+ (foreign-type-size :pointer))
   (define-constant +foreign-sample-size+ (foreign-type-size 'sample))
@@ -79,13 +89,14 @@
   (define-constant +phase-mask+ (1- +table-maxlen+))
   (define-constant +rad2inc+ (* +table-maxlen+ +rtwopi+))
 
-  (defvar *sample-rate* (coerce incudine.config::*sample-rate* 'sample))
+  (defvar *sample-rate* (force-sample-format incudine.config::*sample-rate*))
   (declaim (type sample *sample-rate*))
 
   (defvar *sample-duration* (/ 1.0 *sample-rate*))
   (declaim (type sample *sample-duration*))
 
-  (defvar *sound-velocity* (coerce incudine.config::*sound-velocity* 'sample))
+  (defvar *sound-velocity*
+    (force-sample-format incudine.config::*sound-velocity*))
   (declaim (type sample *sound-velocity*))
 
   (defvar *r-sound-velocity* (/ 1.0 *sound-velocity*))

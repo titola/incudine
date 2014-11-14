@@ -19,7 +19,7 @@
   (out (osc buf freq amp (osc buf phs-frq phs-dev 0 :cubic) :cubic)))
 
 (with-dsp-test (vug-osc.1
-      :md5 #(196 80 85 127 53 96 164 210 199 49 67 184 70 43 255 107))
+      :md5 #(160 229 58 63 53 36 236 190 96 200 148 1 37 166 191 253))
   (vug-osc-test-1 *sine-table* 440 .7 0 :id 123)
   (at #[1 sec] #'set-control 123 :freq 880)
   (at #[5/2 sec] #'set-controls 123 :freq 220 :amp .25)
@@ -47,7 +47,7 @@
         do (at time #'set-controls 123 :index index :amp (- amp))))
 
 (with-dsp-test (vug-osc.fm.am.1 :channels 2
-      :md5 #(145 167 145 97 161 168 242 36 143 141 66 245 37 66 121 159))
+      :md5 #(60 201 63 28 177 236 172 107 19 37 101 191 4 62 217 71))
   (vug-osc-test-3 50 4000 .35 1 400 +vug-test-duration-sec+))
 
 (with-dsp-test (vug-osc.pm.1

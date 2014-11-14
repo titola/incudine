@@ -47,6 +47,7 @@
      incudine::node-controls
      incudine.util::declare-form-p
      incudine.util::separate-declaration
+     incudine.util::force-sample-format
      incudine.external:foreign-alloc-sample
      incudine.external:foreign-zero-sample
      incudine.external:foreign-copy

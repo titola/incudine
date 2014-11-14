@@ -54,12 +54,12 @@
   (stereo (sinosc-perc* amp dur)))
 
 (with-dsp-test (ugen-reinit.1
-      :md5 #(122 125 246 3 179 93 157 236 30 86 211 108 208 77 241 46))
+      :md5 #(111 65 233 19 87 24 110 145 222 109 13 187 206 192 236 177))
   (ugen-reinit-test-1 50 4000 .7 2 :id 123)
   (at #[2.1 sec] #'set-control 123 :dur .4))
 
 (with-dsp-test (ugen-reinit.2
-      :md5 #(122 125 246 3 179 93 157 236 30 86 211 108 208 77 241 46))
+      :md5 #(111 65 233 19 87 24 110 145 222 109 13 187 206 192 236 177))
   (ugen-reinit-test-2 50 4000 .7 2 :id 123)
   (at #[2.1 sec] #'set-control 123 :dur .4))
 

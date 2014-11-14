@@ -659,10 +659,6 @@
 
 (defmacro dsp-node () '%dsp-node%)
 
-(declaim (inline dsp-node-p))
-(defun dsp-node-p ()
-  (boundp '%dsp-node%))
-
 (declaim (inline update-free-hook))
 (defun update-free-hook (node hook)
   (if #1=(incudine::node-free-hook node)
@@ -853,12 +849,7 @@
 
 (declaim (inline coerce-vug-float))
 (defun coerce-vug-float (obj type)
-  (flet ((float-symbol-type-p (x)
-           (member x '(double-float float))))
-    (if (or (float-symbol-type-p type)
-            (and (consp type) (float-symbol-type-p (car type))))
-        `(coerce ,obj ',type)
-        obj)))
+  (if (subtypep type 'float) `(coerce ,obj ',type) obj))
 
 (defmacro update-lisp-array (vug-varname args)
   (with-gensyms (dimensions)
@@ -956,13 +947,13 @@
   (and (consp type)
        (member (car type) '(or and member eql not satisfies))))
 
-(declaim (inline dsp-coercing-arguments))
 (defun dsp-coercing-arguments (args)
   (mapcar (lambda (x)
             (destructuring-bind (arg type) (if (consp x) x `(,x sample))
-              (if (compound-type-p type)
-                  `(,arg (the ,type ,arg))
-                  `(,arg (coerce ,arg ',type)))))
+              `(,arg ,(cond
+                       ((compound-type-p type) `(the ,type ,arg))
+                       ((subtypep type 'sample) `(force-sample-format ,arg))
+                       (t `(coerce ,arg ',type))))))
           args))
 
 (defmacro update-dsp-instances (name arg-names)
@@ -1088,7 +1079,9 @@
        (let ,(mapcar (lambda (x)
                        (destructuring-bind (arg type)
                            (if (consp x) x `(,x sample))
-                         `(,arg (coerce ,arg ',type))))
+                         `(,arg ,(if (subtypep type 'sample)
+                                     `(force-sample-format ,arg)
+                                     `(coerce ,arg ',type)))))
                      args)
          (,codegen-fname ',name ,args ,arg-names ,@rest
                          (progn ,@(if doc (cdr body) body)))))))

@@ -19,7 +19,7 @@
       (out (* am sin) (* am cos)))))
 
 (with-dsp-test (vug-oscr.1
-      :md5 #(52 30 52 249 0 198 98 93 64 211 5 18 88 125 34 98))
+      :md5 #(46 37 244 97 137 184 139 101 6 226 179 99 33 45 52 30))
   (vug-oscr-test-1 440 .7 :id 123)
   (at #[1 sec] #'set-control 123 :freq 880)
   (at #[5/2 sec] #'set-controls 123 :freq 220 :amp .25)
@@ -34,9 +34,9 @@
         do (at time #'set-controls 123 :index index :amp (- amp))))
 
 (with-dsp-test (vug-oscr.fm.am.1 :channels 2
-      :md5 #(196 215 27 219 114 123 99 91 101 28 210 61 228 63 34 72))
+      :md5 #(174 95 76 86 49 17 101 188 200 1 225 170 161 136 209 23))
   (vug-oscr-test-3 50 4000 .35 1 400 +vug-test-duration-sec+))
 
 (with-dsp-test (vug-oscr.fm.am.2 :channels 2
-      :md5 #(218 245 5 125 14 193 74 93 31 204 86 34 33 192 65 115))
+      :md5 #(42 85 169 236 127 134 21 182 181 128 4 52 145 198 58 45))
   (vug-oscr-test-4 50 4000 .35 1 400 +vug-test-duration-sec+))
