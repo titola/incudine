@@ -177,6 +177,13 @@
                              (lambda (,@',arg-names &optional ,init-node)
                                (declare (type (or incudine:node null) ,init-node)
                                         #.*reduce-warnings*)
+                               (reset-foreign-arrays
+                                 ,smpvec ,,smpvec-size ,+foreign-sample-size+
+                                 ,f32vec ,,f32vec-size 4
+                                 ,f64vec ,,f64vec-size 8
+                                 ,i32vec ,,i32vec-size 4
+                                 ,i64vec ,,i64vec-size 8
+                                 ,ptrvec ,,ptrvec-size ,+pointer-size+)
                                (if ,init-node (setf %dsp-node% ,init-node))
                                (let* ,',bindings
                                  ,(reinit-bindings-form)

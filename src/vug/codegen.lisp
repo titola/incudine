@@ -359,7 +359,8 @@
   (loop for vars on variables by #'cdr
         for var = (car vars)
         while (foreign-object-p var)
-        when (init-time-p var)
+        when (and (init-time-p var)
+                  (not (vug-variable-value-zero-p var)))
         collect `(setf ,(vug-object-name var)
                        ,(blockexpand (remove-wrapped-parens
                                        (vug-variable-value var))))
@@ -435,7 +436,7 @@
 (declaim (inline make-rt-foreign-sample-array))
 (defun make-rt-foreign-sample-array (dimension)
   ;; Use a separate memory pool for the SAMPLE type
-  (let* ((data (incudine.util::foreign-rt-alloc-sample dimension))
+  (let* ((data (incudine.util::foreign-rt-alloc-sample dimension t))
          (obj (incudine::fill-foreign-array (incudine::rt-foreign-array-pool-pop)
                                             data dimension 'sample
                                             #'rt-free-foreign-array-sample)))
@@ -448,7 +449,7 @@
 (defun make-foreign-sample-array (dimension)
   (if (allow-rt-memory-p)
       (make-rt-foreign-sample-array dimension)
-      (incudine::make-nrt-foreign-array dimension 'sample nil nil nil)))
+      (incudine::make-nrt-foreign-array dimension 'sample t nil nil)))
 
 (defmacro with-foreign-symbols ((variables c-vector type) &body body)
   (let ((count 0))
@@ -530,7 +531,7 @@
 (defun foreign-array-bindings (array-bindings)
   (flet ((foreign-array-binding (array-var array-wrap-var type size)
            (when (plusp size)
-             `((,array-wrap-var (make-foreign-array ,size ,type))
+             `((,array-wrap-var (make-foreign-array ,size ,type :zero-p t))
                (,array-var (foreign-array-data ,array-wrap-var))))))
     (loop for args in array-bindings
           append (apply #'foreign-array-binding args))))
@@ -585,6 +586,13 @@
           (* 8 array-64-size)
           (* +pointer-size+ array-ptr-size))))
 
+(defmacro reset-foreign-arrays (&rest rest)
+  `(progn
+     ,@(loop for (arr dim type-size) on rest by #'cdddr
+             when (plusp dim)
+             collect `(incudine.external:foreign-set
+                        ,arr 0 ,(* dim type-size)))))
+
 (defmacro generate-dsp-code (name arguments arg-names obj)
   (with-gensyms (vug-body smpvec-size f32vec-size f64vec-size i32vec-size
                  i64vec-size ptrvec-size)
@@ -633,6 +641,13 @@
                              :init-function
                                (lambda (,node ,@',arg-names)
                                  (declare #.*reduce-warnings*)
+                                 (reset-foreign-arrays
+                                   ,smpvec ,,smpvec-size ,+foreign-sample-size+
+                                   ,f32vec ,,f32vec-size 4
+                                   ,f64vec ,,f64vec-size 8
+                                   ,i32vec ,,i32vec-size 4
+                                   ,i64vec ,,i64vec-size 8
+                                   ,ptrvec ,,ptrvec-size ,+pointer-size+)
                                  (setf (node-controls ,node) (dsp-controls ,dsp))
                                  (setf %dsp-node% ,node)
                                  ,(reinit-bindings-form)

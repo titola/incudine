@@ -137,6 +137,12 @@
       (setf (vug-variable-skip-init-set-p var) t)
       (setf (vug-variable-to-set-p var) nil)))
 
+(defun vug-variable-value-zero-p (var)
+  (let ((val (vug-variable-value var)))
+    (or (and (numberp val) (zerop val))
+        (and (vug-symbol-p val)
+             (eq (vug-symbol-name val) '+sample-zero+)))))
+
 (declaim (inline vug))
 (defun vug (name)
   (declare (type symbol name))
