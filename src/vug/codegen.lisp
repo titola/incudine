@@ -18,6 +18,9 @@
 
 (declaim (special *initialization-code*))
 
+(defvar *common-code-in-local-functions-p* t)
+(declaim (type boolean *common-code-in-local-functions-p*))
+
 (declaim (inline add-initialization-code))
 (defun add-initialization-code (form)
   (push form *initialization-code*))
@@ -78,6 +81,14 @@
        (not (and init-pass-p (vug-variable-skip-init-set-p obj)))
        (not (vug-variable-init-time-p obj))))
 
+(declaim (inline vug-variable-setter-name))
+(defun vug-variable-setter-name (var)
+  (format-symbol *package* "SET-~A" (vug-object-name var)))
+
+(declaim (inline %update-vug-variable))
+(defun %update-vug-variable (var)
+  `(,(vug-variable-setter-name var)))
+
 (defun set-vug-variable-inside-body (var init-pass-p conditional-expansion-p)
   (declare (type vug-variable var)
            (type boolean init-pass-p conditional-expansion-p))
@@ -90,7 +101,10 @@
                    (blockexpand (vug-variable-value var) nil t init-pass-p
                                 (and conditional-expansion-p
                                      (null cond-expand-var)))))
-         (set-form `(setf ,(vug-object-name var) ,form)))
+         (set-form (if (and *common-code-in-local-functions-p*
+                            (vug-variable-to-expand-multiple-times-p var))
+                       (%update-vug-variable var)
+                       `(setf ,(vug-object-name var) ,form))))
     (cond (cond-expand-var
            ;; COND-EXPAND-VAR is NIL during the process of the
            ;; first sample because the expansion of the code is
@@ -164,11 +178,13 @@
                     (when cached-p (setf var cached))
                     (cond ((vug-variable-p var)
                            (no-vug-variable-to-set var init-pass-p)
-                           `(setf ,(vug-object-name var)
-                                  ,(blockexpand (vug-variable-value var) nil t
-                                                init-pass-p
-                                                conditional-expansion-p)))
-                          (t (blockexpand cached param-plist vug-body-p
+                           (if *common-code-in-local-functions-p*
+                               (%update-vug-variable var)
+                               `(setf ,(vug-object-name var)
+                                      ,(blockexpand (vug-variable-value var)
+                                                    nil t init-pass-p
+                                                    conditional-expansion-p))))
+                          (t (blockexpand cached param-plist t
                                           init-pass-p))))))
                (t (cons (vug-object-name obj)
                         (blockexpand (vug-function-inputs obj)
@@ -336,12 +352,18 @@
                    append (ugen-param-dependence varname arg i flag nil t))
          ,varname))))
 
+(declaim (inline vug-variable-value-to-cache-p))
+(defun vug-variable-value-to-cache-p (var)
+  (and *common-code-in-local-functions-p*
+       (member var (vug-variables-bindings-to-cache *vug-variables*))))
+
 ;;; (Re)init time: local bindings
 (defun %set-let-variables-loop (variables finally-func)
   (declare (type list variables) (type function finally-func))
   (loop for vars on variables by #'cdr
         for var = (car vars)
-        until (foreign-object-p var)
+        until (or (foreign-object-p var)
+                  (vug-variable-value-to-cache-p var))
         collect `(,(vug-object-name var)
                   ,(cond ((init-time-p var)
                           (blockexpand (remove-wrapped-parens
@@ -358,7 +380,8 @@
   (declare (type list variables) (type function finally-func))
   (loop for vars on variables by #'cdr
         for var = (car vars)
-        while (foreign-object-p var)
+        while (and (foreign-object-p var)
+                   (not (vug-variable-value-to-cache-p var)))
         when (and (init-time-p var)
                   (not (vug-variable-value-zero-p var)))
         collect `(setf ,(vug-object-name var)
@@ -381,17 +404,50 @@
   (let* ((rest nil)
          (finally-func (lambda (x) (setf rest x))))
     (if variables
-        (if (foreign-object-p (car variables))
-            `(,@(%set-setf-variables-loop variables finally-func)
-              ,@(%set-variables rest body))
-            `((let* ,(%set-let-variables-loop variables finally-func)
-                ,@(%set-local-declarations variables (car rest))
-                ,@(%set-variables rest body))))
+        (let ((var (car variables)))
+          (cond
+            ((vug-variable-value-to-cache-p var)
+             (let ((setter-name (vug-variable-setter-name var)))
+               `((flet ((,setter-name ()
+                          ,(if (ugen-variable-p var)
+                               `(get-ugen-instance ,@(init-modulated-ugen var))
+                               (blockexpand (remove-wrapped-parens
+                                              (vug-variable-value var))))))
+                   ,(if (foreign-object-p var)
+                        `((setf ,(vug-object-name var) (,setter-name))
+                          ,@(%set-variables (cdr variables) body))
+                        `(let* ((,(vug-variable-name var) (,setter-name))
+                                ,@(%set-let-variables-loop (cdr variables)
+                                                           finally-func))
+                           ,@(%set-local-declarations variables (car rest))
+                           ,@(%set-variables rest body)))))))
+            ((foreign-object-p var)
+             `(,@(%set-setf-variables-loop variables finally-func)
+               ,@(%set-variables rest body)))
+            (t
+             `((let* ,(%set-let-variables-loop variables finally-func)
+                 ,@(%set-local-declarations variables (car rest))
+                 ,@(%set-variables rest body))))))
         body)))
+
+(defun %expand-local-functions (&rest rest)
+  (multiple-value-bind (fname local-decl)
+      (if *common-code-in-local-functions-p*
+          (values 'labels
+                  (list
+                    (mapcar (lambda (v)
+                              `(,(vug-variable-setter-name v) ()
+                                 (setf ,(vug-variable-name v)
+                                       ,(blockexpand (vug-variable-value v)
+                                                     nil t))))
+                            (vug-variables-to-expand-multiple-times
+                              *vug-variables*))))
+          (values 'progn nil))
+    `(,fname ,@local-decl ,@rest)))
 
 (defmacro %expand-variables (&body body)
   `(%set-variables (nreversef (vug-variables-bindings *vug-variables*))
-                   (list ,@body)))
+                   (list (%expand-local-functions ,@body))))
 
 (defun format-vug-code (vug-block)
   (let ((*variables-to-preserve* nil))
@@ -402,7 +458,7 @@
                          (t (remove-wrapped-parens vug-block)))
                    nil t)
       (reorder-parameter-list)
-      (update-variable-bindings))))
+      (find-bindings-to-cache (update-variable-bindings)))))
 
 (macrolet (;; Add and count the variables with the foreign TYPE
            (define-add-*-variables (type)
@@ -698,11 +754,13 @@
       ,(vug-object-name var)
       ,(blockexpand (vug-function-inputs value) param-plist)))
 
-(declaim (inline %set-vug-variable))
 (defun %set-vug-variable (var value param-plist)
   (if (object-to-free-p value)
       (%reinit-vug-variable var value param-plist)
-      `(setf ,(vug-object-name var) ,(blockexpand value param-plist))))
+      `(setf ,(vug-object-name var)
+             ,(if (vug-variable-value-to-cache-p var)
+                  (%update-vug-variable var)
+                  (blockexpand value param-plist)))))
 
 (defmacro %with-set-control ((type binding) &body body)
   (if (eq type 'sample)
@@ -907,25 +965,35 @@
                         incudine::size ,size)))
          ,vug-varname))))
 
+(defun reinit-binding-form (var)
+  (declare (type vug-variable var))
+  (if (vug-variable-value-to-cache-p var)
+      `(setf ,(vug-object-name var) ,(%update-vug-variable var))
+      (let* ((value (vug-variable-value var))
+             (update-fname (when (vug-function-p value)
+                             (gethash (vug-object-name value)
+                                      *objects-to-free*))))
+        (if update-fname
+            `(,update-fname ,(vug-object-name var)
+                            ,(if (not (init-time-p var))
+                                 (init-modulated-ugen var)
+                                 (blockexpand (vug-function-inputs value))))
+            `(setf ,(vug-object-name var)
+                   ,(if (vug-parameter-p value)
+                        (coerce-vug-float (vug-object-name value)
+                                          (vug-object-type value))
+                        (blockexpand value)))))))
+
 (defun reinit-bindings-form ()
   `(progn
      ,@(loop for var in (vug-variables-bindings *vug-variables*)
-             when (or (init-time-p var) (ugen-variable-p var))
-             collect (let* ((value (vug-variable-value var))
-                            (update-fname (when (vug-function-p value)
-                                            (gethash (vug-object-name value)
-                                                     *objects-to-free*))))
-                       (if update-fname
-                           `(,update-fname ,(vug-object-name var)
-                                           ,(if (not (init-time-p var))
-                                                (init-modulated-ugen var)
-                                                (blockexpand
-                                                  (vug-function-inputs value))))
-                           `(setf ,(vug-object-name var)
-                                  ,(if (vug-parameter-p value)
-                                       (coerce-vug-float (vug-object-name value)
-                                                         (vug-object-type value))
-                                       (blockexpand value))))))))
+             when (or (and (init-time-p var)
+                           ;; Unnecessary because each element of the
+                           ;; foreign memory is reinitialized to zero.
+                           (not (and (foreign-object-p var)
+                                     (vug-variable-value-zero-p var))))
+                      (ugen-variable-p var))
+             collect (reinit-binding-form var))))
 
 ;;; ARGS is a list (c-array size c-array size ...)
 (defun to-free-form (c-array-sample-wrap sample-size &rest args)

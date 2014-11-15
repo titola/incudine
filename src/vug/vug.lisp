@@ -83,6 +83,8 @@
   (parameter-list nil :type list)
   (to-update nil :type list)
   (to-free nil :type list)
+  (to-expand-multiple-times nil :type list)
+  (bindings-to-cache nil :type list)
   ;; List of the variables with at least a setter form in the
   ;; init-time bindings. It is used to determine if an init-time
   ;; variable is unused after the first binding.
@@ -142,6 +144,10 @@
     (or (and (numberp val) (zerop val))
         (and (vug-symbol-p val)
              (eq (vug-symbol-name val) '+sample-zero+)))))
+
+(declaim (inline vug-variable-to-expand-multiple-times-p))
+(defun vug-variable-to-expand-multiple-times-p (var)
+  (member var (vug-variables-to-expand-multiple-times *vug-variables*)))
 
 (declaim (inline vug))
 (defun vug (name)
@@ -720,21 +726,45 @@
   (recheck-variables var)
   var)
 
-(declaim (inline update-setter-form))
 (defun update-setter-form (obj)
   (declare (type vug-function obj))
-  (loop for i on (vug-function-inputs obj) by #'cddr
-        for var = (first i) do
+  (loop for (var value) on (vug-function-inputs obj) by #'cddr do
           (when (vug-variable-p var)
             (set-variable-performance-time var))
-          (update-vug-variables (cadr i))))
+          (update-vug-variables value)))
+
+(declaim (inline force-vug-expansion-p))
+(defun force-vug-expansion-p (obj)
+  (declare (type vug-function obj))
+  (eq (vug-function-name obj) 'update))
+
+(declaim (inline add-variable-to-expand-multiple-times))
+(defun add-variable-to-expand-multiple-times (var)
+  (when (boundp '*vug-variables*)
+    (pushnew var (vug-variables-to-expand-multiple-times *vug-variables*))))
+
+(defun update-variables-to-expand-multiple-times (obj)
+  (cond ((vug-function-p obj)
+         (cond ((force-vug-expansion-p obj)
+                (let ((var (car (vug-function-inputs obj))))
+                  (add-variable-to-expand-multiple-times var)
+                  (update-variables-to-expand-multiple-times
+                    (vug-variable-value var))))
+               (t (update-variables-to-expand-multiple-times
+                    (vug-function-inputs obj)))))
+        ((vug-variable-p obj)
+         (update-variables-to-expand-multiple-times (vug-variable-value obj)))
+        ((consp obj)
+         (update-variables-to-expand-multiple-times (car obj))
+         (update-variables-to-expand-multiple-times (cdr obj)))))
 
 (defun update-vug-variables (obj)
   (cond ((and (vug-function-p obj)
               (not (eq (vug-object-name obj) 'initialize)))
-         (cond ((eq (vug-object-name obj) 'update)
+         (cond ((force-vug-expansion-p obj)
                 ;; An updated variable is performance-time
                 (let ((var (car (vug-function-inputs obj))))
+                  (add-variable-to-expand-multiple-times var)
                   (set-variable-performance-time var)
                   (update-vug-variables (vug-variable-value var))))
                ((setter-form-p (vug-object-name obj))
@@ -742,6 +772,8 @@
                 ;; becomes performance-time
                 (update-setter-form obj))
                (t (update-vug-variables (vug-function-inputs obj)))))
+        ((vug-variable-p obj)
+         (update-variables-to-expand-multiple-times (vug-variable-value obj)))
         ((consp obj)
          (update-vug-variables (car obj))
          (update-vug-variables (cdr obj))))
@@ -798,6 +830,22 @@
   (when *vug-variables*
     (setf #1=(vug-variables-bindings *vug-variables*)
           (delete-if #'vug-variable-deleted-p #1#))))
+
+(defun variable-binding-to-cache-p (var)
+  (declare (type vug-variable var))
+  (labels ((to-cache-p (obj)
+             (cond ((vug-function-p obj)
+                    (if (eq (vug-function-name obj) 'lambda)
+                        t
+                        (to-cache-p (vug-function-inputs obj))))
+                   ((consp obj)
+                    (or (to-cache-p (car obj)) (to-cache-p (cdr obj)))))))
+    (to-cache-p (vug-variable-value var))))
+
+(defun find-bindings-to-cache (variables)
+  (let ((to-cache (remove-if-not #'variable-binding-to-cache-p variables)))
+    (when to-cache
+      (setf (vug-variables-bindings-to-cache *vug-variables*) to-cache))))
 
 (defun delete-vug-variable-dependencies (var)
   (declare (type vug-variable var))
