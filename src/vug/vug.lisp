@@ -840,7 +840,10 @@
                         (to-cache-p (vug-function-inputs obj))))
                    ((consp obj)
                     (or (to-cache-p (car obj)) (to-cache-p (cdr obj)))))))
-    (to-cache-p (vug-variable-value var))))
+    (let ((value (vug-variable-value var)))
+      ;; When OBJECT-TO-FREE-P is T, the right side of the binding is different.
+      (unless (object-to-free-p value)
+        (to-cache-p value)))))
 
 (defun find-bindings-to-cache (variables)
   (let ((to-cache (remove-if-not #'variable-binding-to-cache-p variables)))
