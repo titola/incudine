@@ -155,6 +155,7 @@
    #:rename-vug #:all-vug-names #:vug-macro-p #:fix-vug
    #:ugen #:define-ugen #:ugen-debug #:compile-vug #:compiled-vug-p
    #:ugen-funcall #:destroy-ugen #:rename-ugen #:fix-ugen #:all-ugen-names
+   #:*eval-some-specials-p* #:*specials-to-eval*
    #:with
    #:with-coerce-arguments #:with-vug-inputs #:vug-input
    #:get-pointer

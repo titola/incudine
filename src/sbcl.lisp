@@ -35,6 +35,9 @@
     :auto-close t
     :external-format (stream-external-format sb-sys:*stdout*)))
 
+(defmacro var-globally-special-p (symbol)
+  `(sb-walker:var-globally-special-p ,symbol))
+
 (defmacro reduce-warnings (&body body)
   `(locally (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
      ,@body))

@@ -211,7 +211,11 @@
                    (vug-object-name cached)
                    (blockexpand cached param-plist vug-body-p init-pass-p))
                (vug-object-name obj))))
-        ((vug-symbol-p obj) (vug-object-name obj))
+        ((vug-symbol-p obj)
+         (let ((name (vug-object-name obj)))
+           (if (and *eval-some-specials-p* (special-var-to-eval-p name))
+               (eval name)
+               name)))
         (t obj)))
 
 (defmacro with-vug-arguments ((args types) &body body)

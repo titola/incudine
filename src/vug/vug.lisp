@@ -41,6 +41,23 @@
   (object-to-free make-array update-lisp-array)
   (object-to-free make-foreign-array update-foreign-array))
 
+(defvar *default-specials-to-eval*
+  '(*sample-rate* *sample-duration* *cps2inc* *pi-div-sr* *minus-pi-div-sr*
+    *twopi-div-sr* *sound-velocity* *r-sound-velocity*))
+(declaim (type list *default-specials-to-eval*))
+
+(defvar *specials-to-eval* *default-specials-to-eval*)
+(declaim (type list *specials-to-eval*))
+
+(defvar *eval-some-specials-p* nil)
+(declaim (type boolean *eval-some-specials-p*))
+
+(declaim (inline special-var-to-eval-p))
+(defun special-var-to-eval-p (varname)
+  (and (symbolp varname)
+       (incudine.util::var-globally-special-p varname)
+       (member varname *specials-to-eval*)))
+
 ;;; Virtual Unit Generator
 (defstruct (vug (:copier nil))
   (name nil :type symbol)
@@ -854,9 +871,7 @@
   (declare (type vug-variable var))
   (when *vug-variables*
     (dolist (par (vug-variables-to-update *vug-variables*))
-      (setf (vug-parameter-vars-to-update par)
-            (delete-if (lambda (x) (eq var x))
-                       (vug-parameter-vars-to-update par))))))
+      (setf #1=(vug-parameter-vars-to-update par) (delete var #1#)))))
 
 (defmacro replace-vug-variable (var value &optional delete-deps-p)
   `(progn
