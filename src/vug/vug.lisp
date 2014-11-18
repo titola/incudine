@@ -39,7 +39,43 @@
              ',reinit-fname)))
 
   (object-to-free make-array update-lisp-array)
-  (object-to-free make-foreign-array update-foreign-array))
+  (object-to-free make-foreign-array update-foreign-array)
+
+  (defvar *numeric-operations*
+    '(* + - / 1+ 1- conjugate gcd lcm
+      abs acos acosh asin asinh atan atanh cis cos cosh exp expt isqrt log phase
+      signum sin sinh sqrt tan tanh
+      /= < <= = > >= evenp max min minusp oddp plusp zerop
+      ceiling complex decode-float denominator fceiling ffloor float
+      float-digits float-precision float-radix float-sign floor fround ftruncate
+      imagpart integer-decode-float mod numerator rational rationalize realpart
+      rem round scale-float truncate ash boole boole-1 boole-2 boole-and
+      boole-andc1 boole-andc2 boole-c1 boole-c2 boole-clr boole-eqv boole-ior
+      boole-nand boole-nor boole-orc1 boole-orc2 boole-set boole-xor
+      integer-length logand logandc1 logandc2 logbitp logcount logeqv logior
+      lognand lognor lognot logorc1 logorc2 logtest logxor byte byte-position
+      byte-size deposit-field dpb ldb ldb-test mask-field))
+
+  (defvar *misc-non-destructive-operations*
+    '(coerce locally progn))
+
+  (defvar *incudine-non-destructive-operations*
+    '(sample next-power-of-two power-of-two-p lin->db db->lin linear-interp
+      cos-interp cubic-interp t60->pole sample->fixnum sample->int calc-lobits))
+
+  (defvar *known-non-destructive-functions*
+    (let ((ht (make-hash-table)))
+      (dolist (flist (list *numeric-operations*
+                           *misc-non-destructive-operations*
+                           *incudine-non-destructive-operations*)
+               ht)
+        (dolist (op flist) (setf (gethash op ht) nil)))))
+
+  (defun known-non-destructive-function-p (fname)
+    (multiple-value-bind (ign present-p)
+        (gethash fname *known-non-destructive-functions*)
+      (declare (ignore ign))
+      present-p)))
 
 (defvar *default-specials-to-eval*
   '(*sample-rate* *sample-duration* *cps2inc* *pi-div-sr* *minus-pi-div-sr*
@@ -835,18 +871,42 @@
 (defun constant-vug-variable-value-p (value)
   (and (not (vug-object-p value)) (constantp value)))
 
-(declaim (inline reduce-vug-variable-p))
-(defun reduce-vug-variable-p (var)
-  (and (reducible-vug-variable-p var)
-       (let ((value (vug-variable-value var)))
-         (or (constant-vug-variable-value-p value)
-             (no-performance-time-p value)))))
+(defun reducible-vug-function-p (obj)
+  (labels ((reducible-p (x)
+             (cond ((vug-function-p x)
+                    (when (known-non-destructive-function-p
+                            (vug-function-name x))
+                      (every #'reducible-p (vug-function-inputs x))))
+                   ((numberp x) t)
+                   ((and *eval-some-specials-p* (vug-symbol-p x)
+                         (special-var-to-eval-p (vug-object-name x)))
+                    t)
+                   ((vug-variable-p x)
+                    (multiple-value-bind (cached cached-p)
+                        (vug-variable-replacement x)
+                      (and cached-p (constant-vug-variable-value-p cached))))
+                   ((vug-object-p x) nil)
+                   ((constantp x) t))))
+    (and (vug-function-p obj) (reducible-p obj))))
 
-(declaim (inline update-variable-bindings))
-(defun update-variable-bindings ()
-  (when *vug-variables*
-    (setf #1=(vug-variables-bindings *vug-variables*)
-          (delete-if #'vug-variable-deleted-p #1#))))
+(defun reduce-vug-function (obj)
+  (labels ((f-reduce (x)
+             (cond ((vug-function-p x)
+                    `(,(vug-function-name x)
+                       ,@(mapcar #'f-reduce (vug-function-inputs x))))
+                   ((vug-variable-p x) (vug-variable-replacement x))
+                   ((vug-symbol-p x) (vug-symbol-name x))
+                   ((atom x) x))))
+    (eval (f-reduce obj))))
+
+(defmacro replace-vug-variable (var value &optional delete-deps-p)
+  `(progn
+     (setf (gethash ,var (vug-variables-deleted *vug-variables*)) ,value)
+     ,(when delete-deps-p `(delete-vug-variable-dependencies ,var))))
+
+(defmacro msg-debug-delete-variable (var init-or-performance)
+  `(msg debug "delete ~A ~A of type ~A" ,init-or-performance ,var
+        (vug-variable-type ,var)))
 
 (defun variable-binding-to-cache-p (var)
   (declare (type vug-variable var))
@@ -873,11 +933,6 @@
     (dolist (par (vug-variables-to-update *vug-variables*))
       (setf #1=(vug-parameter-vars-to-update par) (delete var #1#)))))
 
-(defmacro replace-vug-variable (var value &optional delete-deps-p)
-  `(progn
-     (setf (gethash ,var (vug-variables-deleted *vug-variables*)) ,value)
-     ,(when delete-deps-p `(delete-vug-variable-dependencies ,var))))
-
 (declaim (inline vug-variable-replacement))
 (defun vug-variable-replacement (var)
   (declare (type vug-variable var))
@@ -893,10 +948,6 @@
 (defun undelete-vug-variable (var)
   (declare (type vug-variable var))
   (remhash var (vug-variables-deleted *vug-variables*)))
-
-(defmacro msg-debug-delete-variable (var init-or-performance)
-  `(msg debug "delete ~A ~A of type ~A" ,init-or-performance ,var
-        (vug-variable-type ,var)))
 
 (defun reduce-vug-variables (obj)
   (labels ((reduce-vars (x)

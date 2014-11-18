@@ -121,6 +121,19 @@
            form)
           (t set-form))))
 
+(defun maybe-cached-vug-variable-value (var param-plist vug-body-p init-pass-p)
+  (labels ((maybe-cached-val (obj)
+             (multiple-value-bind (cached cached-p)
+                 (vug-variable-replacement obj)
+               (if cached-p
+                   (if (vug-variable-p cached)
+                       (if (vug-variable-deleted-p cached)
+                           (maybe-cached-val cached)
+                           (vug-object-name cached))
+                       (blockexpand cached param-plist vug-body-p init-pass-p))
+                   (vug-object-name obj)))))
+    (maybe-cached-val var)))
+
 ;;; Transform a VUG block in lisp code.
 (defun blockexpand (obj &optional param-plist vug-body-p init-pass-p
                     (conditional-expansion-p t))
@@ -204,13 +217,8 @@
          (when (and (vug-variable-variables-to-recheck obj)
                     (vug-variable-performance-time-p obj))
            (recheck-variables obj))
-         (multiple-value-bind (cached cached-p)
-             (vug-variable-replacement obj)
-           (if cached-p
-               (if (vug-variable-p cached)
-                   (vug-object-name cached)
-                   (blockexpand cached param-plist vug-body-p init-pass-p))
-               (vug-object-name obj))))
+         (maybe-cached-vug-variable-value obj param-plist vug-body-p
+                                          init-pass-p))
         ((vug-symbol-p obj)
          (let ((name (vug-object-name obj)))
            (if (and *eval-some-specials-p* (special-var-to-eval-p name))
@@ -450,19 +458,35 @@
     `(,fname ,@local-decl ,@rest)))
 
 (defmacro %expand-variables (&body body)
-  `(%set-variables (nreversef (vug-variables-bindings *vug-variables*))
+  `(%set-variables (vug-variables-bindings *vug-variables*)
                    (list (%expand-local-functions ,@body))))
 
+(defun update-variable-values (variables)
+  (dolist (var variables variables)
+    (when (reducible-vug-variable-p var)
+      (let ((value (let ((res (or (vug-variable-replacement var)
+                                  (vug-variable-value var))))
+                     (if (vug-variable-p res)
+                         (vug-variable-replacement res)
+                         res))))
+        (when (reducible-vug-function-p value)
+          (replace-vug-variable var (reduce-vug-function value))
+          (msg-debug-delete-variable var "init-time"))))))
+
 (defun format-vug-code (vug-block)
-  (let ((*variables-to-preserve* nil))
-    (prog1
-      (blockexpand (cond ((vug-progn-function-p vug-block)
+  (let* ((*variables-to-preserve* nil)
+         (vug-form (cond ((vug-progn-function-p vug-block)
                           (vug-function-inputs vug-block))
                          ((atom vug-block) (list vug-block))
-                         (t (remove-wrapped-parens vug-block)))
-                   nil t)
-      (reorder-parameter-list)
-      (find-bindings-to-cache (update-variable-bindings)))))
+                         (t (remove-wrapped-parens vug-block)))))
+    (reorder-parameter-list)
+    (find-bindings-to-cache
+      (setf #1=(vug-variables-bindings *vug-variables*)
+            (delete-if #'vug-variable-deleted-p
+                       (update-variable-values (nreverse #1#)))))
+    (prog1 (blockexpand vug-form nil t)
+      ;; Some variables could be deleted during the generation of the code.
+      (setf #1# (delete-if #'vug-variable-deleted-p #1#)))))
 
 (macrolet (;; Add and count the variables with the foreign TYPE
            (define-add-*-variables (type)
@@ -557,6 +581,7 @@
                (setf (vug-variable-name var) (vug-variable-name cached)
                      (vug-variable-value var) (vug-variable-value cached)))
               (t (undelete-vug-variable var)
+                 (pushnew var *variables-to-preserve*)
                  (msg debug "undelete ~A (fix dependences in ~A)" var par)))))))
 
 (defun reorder-parameter-list ()
