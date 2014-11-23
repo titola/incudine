@@ -161,23 +161,23 @@
   "Keynum of the last MIDI note-on message for the channel CHANNEL."
   (with ((note-prio-vec (midi-table-note-priority-vec
                           (svref *midi-table* channel))))
-    (%last-note-on note-prio-vec)))
+    (the (integer 0 127) (%last-note-on note-prio-vec))))
 
 (define-vug midi-note-off ((channel fixnum))
   "Keynum of the last MIDI note-off message for the channel CHANNEL."
   (with ((note-prio-vec (midi-table-note-priority-vec
                           (svref *midi-table* channel))))
-    (%last-note-off note-prio-vec)))
+    (the (integer 0 127) (%last-note-off note-prio-vec))))
 
 (define-vug midi-lowest-keynum ((channel fixnum))
   (with ((note-prio-vec (midi-table-note-priority-vec
                           (svref *midi-table* channel))))
-    (lowest-note-priority note-prio-vec)))
+    (the (integer 0 127) (lowest-note-priority note-prio-vec))))
 
 (define-vug midi-highest-keynum ((channel fixnum))
   (with ((note-prio-vec (midi-table-note-priority-vec
                           (svref *midi-table* channel))))
-    (highest-note-priority note-prio-vec)))
+    (the (integer 0 127) (highest-note-priority note-prio-vec))))
 
 (define-vug midi-cps ((channel fixnum) (keynum (unsigned-byte 8)))
   (smp-ref *midi-frequency-table* keynum))
