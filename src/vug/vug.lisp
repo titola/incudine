@@ -234,6 +234,11 @@
   (and (vug-function-p obj)
        (eq (vug-function-name obj) 'vug-input)))
 
+(declaim (inline get-ugen-instance-p))
+(defun get-ugen-instance-p (obj)
+  (and (vug-function-p obj)
+       (eq (vug-function-name obj) 'get-ugen-instance)))
+
 (declaim (inline unquote-vug-symbol-name))
 (defun unquote-vug-symbol-name (obj)
   (second (vug-object-name obj)))
@@ -257,9 +262,10 @@
              (values nil (car (vug-function-inputs value)) 1))
             (t (values nil value 0)))
     (let ((obj (%make-vug-variable :name name :value value :type type
-                                   :ref-count ref-count :input-p input-p)))
+                                   :ref-count ref-count :input-p input-p))
+          (to-recheck-p (or input-p (get-ugen-instance-p value))))
       (when (boundp '*vug-variables*)
-        (if (performance-time-code-p obj value input-p)
+        (if (performance-time-code-p obj value to-recheck-p)
             (setf (vug-variable-init-time-p obj) nil)
             (resolve-variable-to-update value obj))
         (when (object-to-free-p value)
@@ -287,7 +293,7 @@
 (defun performance-time-vug-function-p (obj)
   (performance-time-function-p (vug-object-name obj)))
 
-(defun performance-time-code-p (var obj vug-input-p)
+(defun performance-time-code-p (var obj var-to-recheck-p)
   (labels ((ptime-p (obj)
              (cond ((vug-object-p obj)
                     (cond ((vug-object-block-p obj) t)
@@ -296,8 +302,9 @@
                              (or (performance-time-vug-function-p obj)
                                  (ptime-p (vug-function-inputs obj)))))
                           ((vug-variable-p obj)
-                           (cond ((vug-variable-init-time-p obj)
-                                  (if (or vug-input-p
+                           (cond ((vug-variable-performance-time-p obj) t)
+                                 ((vug-variable-init-time-p obj)
+                                  (if (or var-to-recheck-p
                                           (vug-variable-input-p obj))
                                       (pushnew var
                                         (vug-variable-variables-to-recheck obj)))
