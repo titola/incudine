@@ -4,6 +4,6 @@
 #
 
 exec sbcl "$@" --quit \
-          --eval '(require :incudine-tests)' \
-          --eval '(incudine-tests:run-tests)' \
-          --eval '(terpri)'
+          --eval "(asdf:oos 'asdf:load-op :incudine-tests :force t)" \
+          --eval "(incudine-tests:run-tests)" \
+          --eval "(terpri)"
