@@ -27,6 +27,7 @@
 
 ;; Real time audio:
 ;;
+;;     :dummy
 ;;     :jack
 ;;     :portaudio
 ;;     :portaudio-jack

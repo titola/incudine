@@ -54,6 +54,7 @@
 
 (defvar *foreign-client-name* (cffi:null-pointer))
 
+#-dummy-audio
 (defun rt-thread-callback (loop-function)
   (declare (type function loop-function))
   (cond ((and (zerop (rt-audio-init *sample-rate*
@@ -68,6 +69,11 @@
            (funcall loop-function buffer-size)))
         (t (setf *rt-thread* nil)
            (msg error (rt-get-error-msg)))))
+
+#+dummy-audio
+(defun rt-thread-callback (loop-function)
+  (declare (ignore loop-function))
+  (msg warn "using dummy audio driver; you could change the realtime callback"))
 
 (defun make-rt-thread (name function args)
   (declare (type function function))
@@ -95,9 +101,11 @@
 
 (defun rt-preamble ()
   (nrt-start)
+  #-dummy-audio
   (set-foreign-client-name *client-name*)
   (values))
 
+#-dummy-audio
 (defun after-rt-stop ()
   (unless (zerop (rt-audio-stop))
     (msg error (rt-get-error-msg))))
@@ -108,13 +116,15 @@
 (defun rt-start (&key (preamble-function #'rt-preamble)
                  (thread-name "audio-rt-thread")
                  (thread-function #'rt-thread-callback)
-                 (thread-function-args (list #'rt-loop))
-                 (after-stop-function #'after-rt-stop)
+                 (thread-function-args (list #-dummy-audio #'rt-loop
+                                             #+dummy-audio nil))
+                 (after-stop-function #-dummy-audio #'after-rt-stop
+                                      #+dummy-audio nil)
                  (gc-p t))
   (declare (type string thread-name)
            (type (or function null) preamble-function after-stop-function)
            (type function thread-function)
-           (type list thread-function-args)
+           (type cons thread-function-args)
            (type boolean gc-p))
   (unless *rt-thread*
     (init)
@@ -124,8 +134,10 @@
     (make-rt-thread thread-name thread-function thread-function-args)
     (sleep .1)
     (setf (rt-params-status *rt-params*)
-          (cond (*rt-thread* :started)
+          (cond ((and *rt-thread* (bt:thread-alive-p *rt-thread*))
+                 :started)
                 (t (msg warn "failed to start the realtime thread")
+                   (setf *rt-thread* nil)
                    :stopped)))))
 
 (defun rt-status ()
@@ -174,6 +186,7 @@
                (dochannels (,chan *number-of-output-bus-channels*)
                  (update-peak-values ,chan)))))))
 
+#-dummy-audio
 (defmacro with-restart-point ((label) &body body)
   `(tagbody
     ;; [SBCL] Restart from here after the stop caused by the gc
@@ -184,6 +197,7 @@
         (rt-condition-wait))
       ,@body))
 
+#-dummy-audio
 (defmacro with-rt-cycle ((reset-label frames-var) &body body)
   (declare (ignorable frames-var))
   `(incudine.util::without-gcing
@@ -198,6 +212,7 @@
        (rt-transfer-to-c-thread)
        (go ,reset-label))))
 
+#-dummy-audio
 (defun rt-loop (frames-per-buffer)
   (declare #.*standard-optimize-settings*
            (type non-negative-fixnum frames-per-buffer))

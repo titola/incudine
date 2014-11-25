@@ -74,6 +74,7 @@
 
   ;;; Real time audio:
   ;;;
+  ;;;     :DUMMY
   ;;;     :JACK
   ;;;     :PORTAUDIO
   ;;;     :PORTAUDIO-JACK
@@ -181,7 +182,7 @@
     (let ((drv (case *audio-driver*
                  ((:jack :portaudio) *audio-driver*)
                  ((:portaudio-jack) :portaudio)
-                 (otherwise #+linux :jack #-linux :portaudio))))
+                 (otherwise :dummy))))
       (list
        ;; The CAR is the option and the CDR is the influenced object.
        ;; The keyword :ALL specifies all the objects.
@@ -266,20 +267,22 @@
           (error "compile C library failed"))))
 
   (defun get-audio-driver ()
-    (let ((jack-or-pa "Incudine requires Jack or PortAudio"))
+    (flet ((no-jack-or-pa ()
+             (warn "Jack or PortAudio not installed; using dummy audio driver")
+             (setf incudine.util:*audio-driver* :dummy)))
       (case incudine.util:*audio-driver*
         (:jack
          (cond ((probe-c-library "jack") :jack)
                ((probe-c-library "portaudio")
                 (warn "Jack not installed; audio driver changed to PortAudio.")
                 (setf incudine.util:*audio-driver* :portaudio))
-               (t (error jack-or-pa))))
+               (t (no-jack-or-pa))))
         (:portaudio
          (cond ((probe-c-library "portaudio") :portaudio)
                ((probe-c-library "jack")
                 (warn "PortAudio not installed; audio driver changed to Jack")
                 (setf incudine.util:*audio-driver* :jack))
-               (t (error jack-or-pa))))
+               (t (no-jack-or-pa))))
         (:portaudio-jack
          (cond ((probe-c-library "portaudio")
                 (if (probe-c-library "jack")
@@ -291,10 +294,11 @@
                ((probe-c-library "jack")
                 (warn "PortAudio not installed; audio driver changed to Jack")
                 (setf incudine.util:*audio-driver* :jack))
-               (t (error jack-or-pa))))
+               (t (no-jack-or-pa))))
+        (:dummy :dummy)
         (t (unless (null incudine.util:*audio-driver*)
              (warn "~S is unknown; *AUDIO-DRIVER* must be ~
-                    :JACK, :PORTAUDIO OR :PORTAUDIO-JACK"
+                    :JACK, :PORTAUDIO, :PORTAUDIO-JACK or :DUMMY"
                    incudine.util:*audio-driver*))
            ;; The default is Jack for Linux and PortAudio for the other OS.
            (setf incudine.util:*audio-driver*
@@ -302,7 +306,7 @@
            #+linux ((probe-c-library "jack") :jack)
                    ((probe-c-library "portaudio") :portaudio)
            #-linux ((probe-c-library "jack") :jack)
-                   (t (error jack-or-pa))))))))
+                   (t (no-jack-or-pa))))))))
 
   (defmacro force-compile-system ()
     (when (find-package "INCUDINE-SYSTEM")

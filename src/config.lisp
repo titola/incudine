@@ -44,7 +44,11 @@
          (define-constant least-negative-sample least-negative-single-float)
          (define-constant least-positive-sample least-positive-single-float)))
 
-  (pushnew (if (eq *audio-driver* :jack) :jack-audio :portaudio) *features*)
+  (pushnew (case *audio-driver*
+             (:jack :jack-audio)
+             (:dummy :dummy-audio)
+             (otherwise :portaudio))
+           *features*)
 
   (deftype sample (&optional min max) `(,*sample-type* ,min ,max))
 
