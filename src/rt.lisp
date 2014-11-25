@@ -54,23 +54,27 @@
 
 (defvar *foreign-client-name* (cffi:null-pointer))
 
-(defun make-rt-thread ()
-  (with-new-thread (*rt-thread* "audio-rt-thread"
-                    (rt-params-priority *rt-params*)
+(defun rt-thread-callback (loop-function)
+  (declare (type function loop-function))
+  (cond ((and (zerop (rt-audio-init *sample-rate*
+                                    *number-of-input-bus-channels*
+                                    *number-of-output-bus-channels*
+                                    (rt-params-frames-per-buffer *rt-params*)
+                                    *foreign-client-name*))
+              (zerop (rt-audio-start)))
+         (let ((buffer-size (rt-buffer-size)))
+           (setf (rt-params-frames-per-buffer *rt-params*) buffer-size)
+           #+jack-audio (set-sample-rate (rt-sample-rate))
+           (funcall loop-function buffer-size)))
+        (t (setf *rt-thread* nil)
+           (msg error (rt-get-error-msg)))))
+
+(defun make-rt-thread (name function args)
+  (declare (type function function))
+  (with-new-thread (*rt-thread* name (rt-params-priority *rt-params*)
                     "realtime thread started")
     (call-hooks "rt-thread-start" *rt-thread-start-hook* :on-error :warn)
-    (cond ((and (zerop (rt-audio-init *sample-rate*
-                                      *number-of-input-bus-channels*
-                                      *number-of-output-bus-channels*
-                                      (rt-params-frames-per-buffer *rt-params*)
-                                      *foreign-client-name*))
-                (zerop (rt-audio-start)))
-           (let ((buffer-size (rt-buffer-size)))
-             (setf (rt-params-frames-per-buffer *rt-params*) buffer-size)
-             #+jack-audio (set-sample-rate (rt-sample-rate))
-             (rt-loop buffer-size)))
-          (t (setf *rt-thread* nil)
-             (msg error (rt-get-error-msg))))
+    (apply function args)
     (call-hooks "rt-thread-exit" *rt-thread-exit-hook* :on-error :warn)))
 
 (defun destroy-rt-thread ()
@@ -89,13 +93,35 @@
           (cffi:foreign-string-alloc name :end (min (length name) max-size))))
   name)
 
-(defun rt-start ()
+(defun rt-preamble ()
+  (nrt-start)
+  (set-foreign-client-name *client-name*)
+  (values))
+
+(defun after-rt-stop ()
+  (unless (zerop (rt-audio-stop))
+    (msg error (rt-get-error-msg))))
+
+(defvar *after-rt-stop-function* nil)
+(declaim (type (or function null) *after-rt-stop-function*))
+
+(defun rt-start (&key (preamble-function #'rt-preamble)
+                 (thread-name "audio-rt-thread")
+                 (thread-function #'rt-thread-callback)
+                 (thread-function-args (list #'rt-loop))
+                 (after-stop-function #'after-rt-stop)
+                 (gc-p t))
+  (declare (type string thread-name)
+           (type (or function null) preamble-function after-stop-function)
+           (type function thread-function)
+           (type list thread-function-args)
+           (type boolean gc-p))
   (unless *rt-thread*
     (init)
-    (nrt-start)
-    (set-foreign-client-name *client-name*)
-    (tg:gc :full t)
-    (make-rt-thread)
+    (setf *after-rt-stop-function* after-stop-function)
+    (when preamble-function (funcall preamble-function))
+    (when gc-p (tg:gc :full t))
+    (make-rt-thread thread-name thread-function thread-function-args)
     (sleep .1)
     (setf (rt-params-status *rt-params*)
           (cond (*rt-thread* :started)
@@ -118,8 +144,11 @@
                  (sleep .05)
                  (loop while (bt:thread-alive-p thread))
                  (msg debug "realtime thread stopped")))
-             (unless (zerop (rt-audio-stop))
-               (msg error (rt-get-error-msg)))
+             (nrt-funcall (lambda ()
+                            (when *after-rt-stop-function*
+                              (funcall *after-rt-stop-function*)
+                              (setf *after-rt-stop-function* nil)
+                              (msg debug "after realtime stop"))))
              (setf (rt-params-status *rt-params*) :stopped)))))
 
 (defmacro compute-tick (&optional (update-peak-p t))
