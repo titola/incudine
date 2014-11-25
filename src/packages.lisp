@@ -154,6 +154,8 @@
    #:vug #:define-vug #:define-vug-macro #:vug-funcall #:destroy-vug
    #:rename-vug #:all-vug-names #:vug-macro-p #:fix-vug
    #:ugen #:define-ugen #:ugen-debug #:compile-vug #:compiled-vug-p
+   #:ugen-perf-function #:ugen-reinit-function #:ugen-return-pointer
+   #:ugen-control-pointer #:define-ugen-control-setter
    #:ugen-funcall #:destroy-ugen #:rename-ugen #:fix-ugen #:all-ugen-names
    #:*eval-some-specials-p* #:*specials-to-eval*
    #:with

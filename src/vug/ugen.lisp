@@ -47,6 +47,96 @@
   (format stream "#<UGEN-INSTANCE ~A>"
           (or (ugen-instance-name obj) "(free)")))
 
+(declaim (inline index-of-ugen-control))
+(defun index-of-ugen-control (ugen control-name)
+  (position control-name (ugen-args ugen) :key #'symbol-name :test #'string=))
+
+(declaim (inline ugen-control-flag))
+(defun ugen-control-flag (ugen index)
+  (nth index (ugen-control-flags ugen)))
+
+(declaim (inline ugen-arg-type))
+(defun ugen-arg-type (ugen index)
+  (nth index (ugen-arg-types ugen)))
+
+(declaim (inline ugen-reinit-function))
+(defun ugen-reinit-function (ugen-instance)
+  "Return the function to reinitialize UGEN-INSTANCE."
+  (declare (type ugen-instance ugen-instance))
+  (ugen-instance-init-function ugen-instance))
+
+(declaim (inline ugen-perf-function))
+(defun ugen-perf-function (ugen-instance)
+  "Return UGEN-INSTANCE's performance function."
+  (declare (type ugen-instance ugen-instance))
+  (ugen-instance-perf-function ugen-instance))
+
+(declaim (inline ugen-return-pointer))
+(defun ugen-return-pointer (ugen-instance)
+  "Return the foreign pointer to the memory used to store the
+UGEN-INSTANCE's result when the type of the result is foreign."
+  (declare (type ugen-instance ugen-instance))
+  (ugen-instance-return-pointer ugen-instance))
+
+(defun ugen-control-pointer (ugen-instance control-name)
+  "Return the foreign pointer to the memory used to store the value of
+the UGEN-INSTANCE's control CONTROL-NAME and the function of no
+arguments to update the dependencies if it exists."
+  (let* ((u (ugen (ugen-instance-name ugen-instance)))
+         (index (index-of-ugen-control u control-name)))
+    (when index
+      (let* ((pos (* 2 index))
+             (ptr (svref (ugen-instance-controls ugen-instance) pos)))
+        (when ptr
+          (values ptr (svref (ugen-instance-controls ugen-instance)
+                             (1+ pos))))))))
+
+(defun ugen-control-new-value (value ctrl-type value-type value-type-p)
+  (if value-type-p
+      (if (subtypep value-type ctrl-type)
+          value
+          `(coerce ,value ',ctrl-type))
+      (if (subtypep ctrl-type 'sample)
+          `(coerce ,value ',ctrl-type)
+          value)))
+
+(defmacro define-ugen-control-setter (ugen-name control-name
+                                      &optional setter-name (value-type nil
+                                                             value-type-p))
+  (let* ((u (ugen ugen-name))
+         (index (index-of-ugen-control u control-name)))
+    (when index
+      (let* ((flag (ugen-control-flag u index))
+             (type (ugen-arg-type u index))
+             (ptr-p (ctrl-foreign-object-p flag))
+             (id (* index 2))
+             (name (or setter-name
+                       (format-symbol *package* "SET-~A-~A"
+                                      ugen-name control-name))))
+        (with-gensyms (ctrl)
+          (with-ensure-symbol (ugen-instance value)
+            (let* ((type (if ptr-p
+                             (if (subtypep type 'sample) type :pointer)
+                             type))
+                   (new-value (ugen-control-new-value value type value-type
+                                                      value-type-p)))
+              `(progn
+                 ,@(if (and ptr-p
+                            value-type-p
+                            (or (subtypep value-type 'sample)
+                                (subtypep value-type 'foreign-pointer)))
+                       `((declaim (inline ,name))))
+                 (defun ,name (,ugen-instance ,value)
+                   (declare (type ugen-instance ,ugen-instance)
+                            ,@(if value-type-p `((type ,value-type ,value))))
+                   (let ((,ctrl (ugen-instance-controls ,ugen-instance)))
+                     ,@(if ptr-p `((setf (mem-ref (svref ,ctrl ,id) ',type)
+                                         ,new-value)))
+                     ,@(if (ctrl-update-function-p flag)
+                           `((funcall (the function (svref ,ctrl ,(1+ id)))
+                                      ,@(unless ptr-p `(,new-value)))))
+                     (values)))))))))))
+
 (defmacro ugen-funcall (name &rest arguments)
   `(funcall (ugen-callback (ugen ,name)) ,@arguments))
 
