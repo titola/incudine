@@ -209,53 +209,54 @@ int pa_stop(void *arg)
         }
         if (pa_outputs_anchor != NULL) {
                 free(pa_outputs_anchor);
-                pa_inputs_anchor = NULL;
+                pa_outputs_anchor = NULL;
         }
         return err;
 }
 
+void pa_set_lisp_io(SAMPLE *input, SAMPLE *output)
+{
+        lisp_input = input;
+        lisp_output = output;
+}
+
 unsigned long pa_cycle_begin(void)
 {
+        int i;
         signed long nframes;
+        SAMPLE *tmp;
 
         if (pa_status != PA_RUNNING)
                 return 0;
 
-        pa_inputs = pa_inputs_anchor;
         if ((nframes = Pa_GetStreamReadAvailable(stream)) < 0)
                 return 0;
         else if (nframes == 0 || nframes > frames_per_buffer)
                 nframes = frames_per_buffer;
 
+        pa_inputs = pa_inputs_anchor;
         /* Blocking only when Pa_GetStreamReadAvailable returns zero. */
         Pa_ReadStream(stream, pa_inputs, nframes);
+        tmp = lisp_input;
+        for (i = 0; i < nframes * pa_in_channels; i++)
+                *tmp++ = (SAMPLE) *pa_inputs++;
         return nframes;
 }
 
 void pa_cycle_end(unsigned long nframes)
 {
+        int i;
         signed long remain;
+        SAMPLE *tmp;
 
         if ((remain = frames_per_buffer - nframes) > 0)
-                memset(pa_outputs, 0, remain * pa_frame_bytes); /* zero padding */
+                memset(pa_outputs_anchor + nframes, 0,
+                       remain * pa_frame_bytes); /* zero padding */
         pa_outputs = pa_outputs_anchor;
-        Pa_WriteStream(stream, pa_outputs, frames_per_buffer);
-}
-
-void pa_get_input(SAMPLE *inputs)
-{
-        int i;
-
-        for (i = 0; i < pa_in_channels; i++)
-                inputs[i] = (SAMPLE) *pa_inputs++;
-}
-
-void pa_set_output(SAMPLE *outputs)
-{
-        int i;
-
-        for (i = 0; i < pa_out_channels; i++) {
-                *pa_outputs++ = (float) outputs[i];
-                outputs[i] = 0.0f;
+        tmp = lisp_output;
+        for (i = 0; i < nframes * pa_out_channels; i++) {
+                *pa_outputs++ = (float) *tmp;
+                *tmp++ = (SAMPLE) 0.0;
         }
+        Pa_WriteStream(stream, pa_outputs_anchor, frames_per_buffer);
 }

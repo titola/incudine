@@ -132,15 +132,18 @@
      (cffi:foreign-free ,ptr)
      (setf ,ptr (foreign-alloc-sample ,size))))
 
+(declaim (inline foreign-zero-sample))
 (cffi:defcfun "foreign_zero_sample" :pointer
   (ptr :pointer)
   (size :unsigned-int))
 
+(declaim (inline foreign-set))
 (cffi:defcfun ("memset" foreign-set) :pointer
   (ptr :pointer)
   (c :int)
   (size :unsigned-int))
 
+(declaim (inline foreign-copy))
 (cffi:defcfun ("memcpy" foreign-copy) :void
   (dest :pointer)
   (src :pointer)
@@ -193,19 +196,17 @@
 
   (cffi:defcfun ("ja_stop" rt-audio-stop) :int)
 
-  (declaim (inline rt-get-input))
-  (cffi:defcfun ("ja_get_input" rt-get-input) :void
-    (inputs :pointer))
-
-  (declaim (inline rt-set-output))
-  (cffi:defcfun ("ja_set_output" rt-set-output) :void
-    (outputs :pointer))
+  (declaim (inline rt-set-io-buffers))
+  (cffi:defcfun ("ja_set_lisp_io" rt-set-io-buffers) :void
+    (input :pointer)
+    (output :pointer))
 
   (declaim (inline rt-cycle-begin))
-  (cffi:defcfun ("ja_cycle_begin" rt-cycle-begin) :unsigned-int)
+  (cffi:defcfun ("ja_cycle_begin" rt-cycle-begin) :uint32)
 
   (declaim (inline rt-cycle-end))
-  (cffi:defcfun ("ja_cycle_end" rt-cycle-end) :void)
+  (cffi:defcfun ("ja_cycle_end" rt-cycle-end) :void
+    (frames :uint32))
 
   (declaim (inline rt-condition-wait))
   (cffi:defcfun ("ja_condition_wait" rt-condition-wait) :void)
@@ -240,6 +241,11 @@
 
   (cffi:defcfun ("pa_stop" rt-audio-stop) :int)
 
+  (declaim (inline rt-set-io-buffers))
+  (cffi:defcfun ("pa_set_lisp_io" rt-set-io-buffers) :void
+    (input :pointer)
+    (output :pointer))
+
   (declaim (inline rt-cycle-begin))
   (cffi:defcfun ("pa_cycle_begin" rt-cycle-begin) :unsigned-long)
 
@@ -252,14 +258,6 @@
 
   (declaim (inline rt-transfer-to-c-thread))
   (cffi:defcfun ("pa_transfer_to_c_thread" rt-transfer-to-c-thread) :void)
-
-  (declaim (inline rt-get-input))
-  (cffi:defcfun ("pa_get_input" rt-get-input) :void
-    (inputs :pointer))
-
-  (declaim (inline rt-set-output))
-  (cffi:defcfun ("pa_set_output" rt-set-output) :void
-    (outputs :pointer))
 
   (declaim (inline rt-set-busy-state))
   (cffi:defcfun ("pa_set_lisp_busy_state" rt-set-busy-state) :void

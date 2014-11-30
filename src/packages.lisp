@@ -18,8 +18,8 @@
   (:use :cl)
   (:import-from #:alexandria #:define-constant)
   (:export
-   #:*use-foreign-sample-p* #:*frames-per-buffer* #:*client-name*
-   #:*max-number-of-channels* #:*number-of-input-bus-channels*
+   #:*use-foreign-sample-p* #:*max-buffer-size* #:*frames-per-buffer*
+   #:*client-name* #:*max-number-of-channels* #:*number-of-input-bus-channels*
    #:*number-of-output-bus-channels* #:*number-of-bus-channels*
    #:*rt-edf-heap-size* #:*nrt-edf-heap-size* #:*rt-priority*
    #:*nrt-priority* #:*receiver-default-priority* #:*max-number-of-nodes*
@@ -51,7 +51,8 @@
    #:rt-audio-init #:rt-audio-start #:rt-audio-stop #:rt-get-input
    #:rt-set-output
    #:rt-condition-wait #:rt-transfer-to-c-thread #:rt-cycle-begin #:rt-cycle-end
-   #:rt-set-busy-state #:rt-buffer-size #:rt-sample-rate #:rt-get-error-msg
+   #:rt-set-busy-state #:rt-buffer-size #:rt-sample-rate #:rt-set-io-buffers
+   #:rt-get-error-msg
    #:mouse-event #:mouse-init #:mouse-loop-start #:mouse-stop
    #:get-mouse-status))
 
@@ -79,6 +80,7 @@
    #:*max-number-of-channels* #:*audio-driver* #:*client-name*
    #:*number-of-input-bus-channels* #:*number-of-output-bus-channels*
    #:*number-of-bus-channels* #:*rt-edf-heap-size* #:*nrt-edf-heap-size*
+   #:*max-buffer-size*
    #:*rt-thread* #:*nrt-thread* #:*fast-nrt-thread* #:*rt-priority*
    #:*nrt-priority* #:*fast-nrt-priority* #:*receiver-default-priority*
    #:*sndfile-buffer-size*
@@ -324,6 +326,7 @@
                 #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
                 #:rt-audio-init #:rt-audio-start #:rt-audio-stop
                 #:rt-get-input #:rt-set-output #:rt-cycle-begin #:rt-cycle-end
+                #:rt-set-io-buffers
                 #:rt-condition-wait #:rt-transfer-to-c-thread
                 #:rt-set-busy-state
                 #:rt-buffer-size #:rt-sample-rate #:rt-get-error-msg)

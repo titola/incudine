@@ -40,24 +40,25 @@ when the duration is undefined.")
 (defvar *nrt-node-hash* (make-node-hash *max-number-of-nodes*))
 (declaim (type int-hash-table *nrt-node-hash*))
 
-(defvar *nrt-bus-channels-size* (+ *max-number-of-channels*   ; outputs
-                                   *max-number-of-channels*   ; inputs
-                                   *number-of-bus-channels*))
-(declaim (type bus-number *nrt-bus-channels-size*))
+(defvar *%nrt-input-pointer*
+  (foreign-alloc-sample (* *max-buffer-size*
+                           %number-of-input-bus-channels)))
+(declaim (type foreign-pointer *%nrt-input-pointer*))
 
-(defvar *nrt-bus-channels* (foreign-alloc-sample *nrt-bus-channels-size*))
-(declaim (type foreign-pointer *nrt-bus-channels*))
-
-(defvar %nrt-bus-pointer-offset (* *max-number-of-channels*
-                                   +foreign-sample-size+))
-(declaim (type non-negative-fixnum %nrt-bus-pointer-offset))
-
-(defvar *nrt-input-pointer* (inc-pointer *nrt-bus-channels*
-                                         %nrt-bus-pointer-offset))
+(defvar *nrt-input-pointer*
+  (cffi:foreign-alloc :pointer :initial-element *%nrt-input-pointer*))
 (declaim (type foreign-pointer *nrt-input-pointer*))
 
-(defvar *nrt-bus-pointer* (inc-pointer *nrt-input-pointer*
-                                       %nrt-bus-pointer-offset))
+(defvar *%nrt-output-pointer*
+  (foreign-alloc-sample (* *max-buffer-size*
+                           *number-of-output-bus-channels*)))
+(declaim (type foreign-pointer *%nrt-output-pointer*))
+
+(defvar *nrt-output-pointer*
+  (cffi:foreign-alloc :pointer :initial-element *%nrt-output-pointer*))
+(declaim (type foreign-pointer *nrt-output-pointer*))
+
+(defvar *nrt-bus-pointer* (foreign-alloc-sample *number-of-bus-channels*))
 (declaim (type foreign-pointer *nrt-bus-pointer*))
 
 (defvar *nrt-output-peak-values*
@@ -104,7 +105,7 @@ when the duration is undefined.")
 (defmacro read-snd-buffer (buf remain index channels)
   (with-gensyms (ch)
     `(dochannels (,ch ,channels)
-       (setf (smp-ref *input-pointer* ,ch)
+       (setf (smp-ref (input-pointer) ,ch)
              (smp-ref ,buf ,index))
        (decf ,remain)
        (incf ,index))))
@@ -113,16 +114,16 @@ when the duration is undefined.")
   (with-gensyms (ch)
     `(dochannels (,ch ,channels)
        (setf (smp-ref ,buf ,index)
-             (smp-ref *output-pointer* ,ch))
+             (smp-ref (output-pointer) ,ch))
        (incf ,index))))
 
 (declaim (inline clear-inputs))
 (defun clear-inputs ()
-  (foreign-zero-sample *input-pointer* *number-of-input-bus-channels*))
+  (foreign-zero-sample (input-pointer) *number-of-input-bus-channels*))
 
 (declaim (inline clear-outputs))
 (defun clear-outputs ()
-  (foreign-zero-sample *output-pointer* *number-of-output-bus-channels*))
+  (foreign-zero-sample (output-pointer) *number-of-output-bus-channels*))
 
 (defmacro read-sample (sndfile ptr items)
   `(#+double-samples sf:read-double
@@ -169,7 +170,9 @@ when the duration is undefined.")
 
 (declaim (inline zeroes-nrt-bus-channels))
 (defun zeroes-nrt-bus-channels ()
-  (foreign-zero-sample *nrt-bus-channels* *nrt-bus-channels-size*))
+  (foreign-zero-sample *%nrt-input-pointer* *number-of-input-bus-channels*)
+  (foreign-zero-sample *%nrt-output-pointer* *number-of-output-bus-channels*)
+  (foreign-zero-sample *nrt-bus-pointer* *number-of-bus-channels*))
 
 (declaim (inline nrt-cleanup))
 (defun nrt-cleanup ()
@@ -239,10 +242,9 @@ when the duration is undefined.")
          (*allow-rt-memory-pool-p* nil)
          (*node-hash* *nrt-node-hash*)
          (*node-root* *nrt-node-root*)
-         (*bus-channels* *nrt-bus-channels*)
-         (*output-pointer* *nrt-bus-channels*)
-         (*input-pointer* *nrt-input-pointer*)
          (*bus-pointer* *nrt-bus-pointer*)
+         (*output-pointer* *nrt-output-pointer*)
+         (*input-pointer* *nrt-input-pointer*)
          (*number-of-output-bus-channels* ,channels)
          (*output-peak-values* *nrt-output-peak-values*)
          (*out-of-range-counter* *nrt-out-of-range-counter*)
@@ -408,7 +410,7 @@ when the duration is undefined.")
     `(progn
        (when (and ,in-data (< ,in-count ,in-size))
          (dochannels (,ch ,in-channels)
-           (setf (smp-ref *input-pointer* ,ch)
+           (setf (smp-ref (input-pointer) ,ch)
                  (smp-ref ,in-data ,in-count))
            (incf ,in-count)))
        (incudine.edf::sched-loop)
@@ -418,7 +420,7 @@ when the duration is undefined.")
        (dochannels (,ch ,out-channels)
          (cond (,mix-p
                 (incf (smp-ref ,out-data ,out-count)
-                      (smp-ref *output-pointer* ,ch))
+                      (smp-ref (output-pointer) ,ch))
                 ;; Update the peak meters after the mix.
                 (let ((,value (smp-ref ,out-data ,out-count)))
                   (when (> ,value (smp-ref *output-peak-values* ,ch))
@@ -429,7 +431,7 @@ when the duration is undefined.")
                             (1+ (the positive-fixnum
                                   (svref *out-of-range-counter* ,ch))))))))
                (t (setf (smp-ref ,out-data ,out-count)
-                        (smp-ref *output-pointer* ,ch))))
+                        (smp-ref (output-pointer) ,ch))))
          (incf ,out-count))
        (clear-outputs)
        (incf-sample-counter))))

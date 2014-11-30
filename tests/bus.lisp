@@ -2,15 +2,9 @@
 
 (defmacro with-bus-test ((&rest rest) &body body)
   (declare (ignore rest))
-  `(let ((incudine::*bus-channels* incudine::*nrt-bus-channels*)
-         (incudine::*output-pointer* incudine::*nrt-bus-channels*)
-         (incudine::*input-pointer* (cffi:inc-pointer incudine::*nrt-bus-channels*
-                                                 (* *number-of-output-bus-channels*
-                                                    #.(cffi:foreign-type-size 'sample))))
-         (incudine::*bus-pointer* (cffi:inc-pointer incudine::*nrt-bus-channels*
-                                               (* (+ *number-of-input-bus-channels*
-                                                     *number-of-output-bus-channels*)
-                                                  #.(cffi:foreign-type-size 'sample))))
+  `(let ((incudine::*output-pointer* incudine::*nrt-output-pointer*)
+         (incudine::*input-pointer* incudine::*nrt-input-pointer*)
+         (incudine::*bus-pointer* incudine::*nrt-bus-pointer*)
          (incudine::*output-peak-values* incudine::*nrt-output-peak-values*)
          (incudine::*out-of-range-counter* incudine::*nrt-out-of-range-counter*))
      (incudine::zeroes-nrt-bus-channels)

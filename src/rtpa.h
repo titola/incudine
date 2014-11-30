@@ -39,6 +39,7 @@ static unsigned int pa_in_channels, pa_out_channels;
 static unsigned long frames_per_buffer;
 static float *pa_inputs, *pa_outputs;
 static float *pa_inputs_anchor, *pa_outputs_anchor;
+static SAMPLE *lisp_input, *lisp_output;
 static PaStream *stream;
 static size_t pa_outbuf_bytes, pa_frame_bytes;
 static int pa_status = PA_STOPPED;
@@ -77,9 +78,8 @@ int pa_initialize(SAMPLE srate, unsigned int input_channels,
                   const char* client_name);
 int pa_start(void);
 int pa_stop(void *arg);
+void pa_set_lisp_io(SAMPLE *input, SAMPLE *output);
 unsigned long pa_cycle_begin(void);
 void pa_cycle_end(unsigned long nframes);
-void pa_get_input(SAMPLE *inputs);
-void pa_set_output(SAMPLE *outputs);
 
 #endif  /* __RTPA_H */

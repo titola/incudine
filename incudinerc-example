@@ -39,6 +39,8 @@
       #+linux :jack
       #-linux :portaudio)
 
+(setq *max-buffer-size* 1024)
+
 ;; Used only with PortAudio.
 (setq *frames-per-buffer* 512)
 

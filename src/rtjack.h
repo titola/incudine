@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Tito Latini
+ * Copyright (c) 2013-2014 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,6 +43,7 @@ static unsigned int ja_in_channels, ja_out_channels, ja_frames;
 static size_t ja_buffer_bytes;
 static int ja_status = JA_STOPPED;
 static int ja_lisp_busy;
+static SAMPLE *lisp_input, *lisp_output;
 static jack_default_audio_sample_t **ja_inputs, **ja_outputs;
 static jack_port_t **input_ports, **output_ports;
 static char **input_port_names, **output_port_names;
@@ -102,9 +103,8 @@ int ja_initialize(SAMPLE srate, unsigned int input_channels,
                   const char* client_name);
 int ja_start(void);
 int ja_stop(void);
+void ja_set_lisp_io(SAMPLE *input, SAMPLE *output);
 jack_nframes_t ja_cycle_begin(void);
-void ja_cycle_end(void);
-void ja_get_input(SAMPLE *inputs);
-void ja_set_output(SAMPLE *outputs);
+void ja_cycle_end(jack_nframes_t frames);
 
 #endif  /* __RTJACK_H */

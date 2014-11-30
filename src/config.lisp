@@ -193,6 +193,8 @@
 
 (defvar *receiver-default-priority* 63)
 
+(defvar *max-buffer-size* 1024)
+
 (defvar *frames-per-buffer* 256)
 
 (defvar *sndfile-buffer-size* 1024)

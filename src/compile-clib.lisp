@@ -27,6 +27,7 @@
                     *c-compiler*
                     *tlsf-block-align*
                     *use-foreign-sample-p*
+                    *max-buffer-size*
                     *frames-per-buffer*
                     *client-name*
                     *max-number-of-channels*

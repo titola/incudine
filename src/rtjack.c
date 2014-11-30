@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Tito Latini
+ * Copyright (c) 2013-2014 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -116,14 +116,13 @@ static void* ja_process_thread(void *arg)
                                 ja_buffer_bytes = frames * JA_SAMPLE_SIZE;
                         }
 
-                        for (i = 0; i < ja_out_channels; i++)
+                        for (i = 0; i < ja_out_channels; i++) {
                                 ja_outputs[i] =
                                         jack_port_get_buffer(output_ports[i],
                                                              ja_frames);
-                        /* Silence while lisp is busy */
-                        for (i = 0; i < ja_out_channels; i++)
+                                /* Silence while lisp is busy */
                                 memset(ja_outputs[i], 0, ja_buffer_bytes);
-
+                        }
                         jack_cycle_signal(client, ja_status);
                 } else {
                         /*
@@ -294,6 +293,12 @@ int ja_stop(void)
         return 0;
 }
 
+void ja_set_lisp_io(SAMPLE *input, SAMPLE *output)
+{
+        lisp_input = input;
+        lisp_output = output;
+}
+
 jack_nframes_t ja_cycle_begin(void)
 {
         int i;
@@ -314,36 +319,33 @@ jack_nframes_t ja_cycle_begin(void)
         if (ja_status != JA_RUNNING)
                 return 0;
 
-        for (i = 0; i < ja_in_channels; i++)
-                ja_inputs[i] = jack_port_get_buffer(input_ports[i], frames);
+        for (i = 0; i < ja_in_channels; i++) {
+                int j;
+                SAMPLE *tmp;
 
+                ja_inputs[i] = jack_port_get_buffer(input_ports[i], frames);
+                tmp = lisp_input + i;
+                for (j = 0; j < frames; j++) {
+                        *tmp = (SAMPLE) ja_inputs[i][j];
+                        tmp += ja_in_channels;
+                }
+        }
         for (i = 0; i < ja_out_channels; i++)
                 ja_outputs[i] = jack_port_get_buffer(output_ports[i], frames);
 
         return frames;
 }
 
-void ja_cycle_end(void)
+void ja_cycle_end(jack_nframes_t frames)
 {
-        jack_cycle_signal(client, 0);
-}
+        int i, j;
+        SAMPLE *output = lisp_output;
 
-/* Get a frame of the input */
-void ja_get_input(SAMPLE *inputs)
-{
-        int i;
-
-        for (i = 0; i < ja_in_channels; i++)
-                inputs[i] = (SAMPLE) *ja_inputs[i]++;
-}
-
-/* Set a frame of the output */
-void ja_set_output(SAMPLE *outputs)
-{
-        int i;
-
-        for (i = 0; i < ja_out_channels; i++) {
-                *ja_outputs[i]++ = (jack_default_audio_sample_t) outputs[i];
-                outputs[i] = (jack_default_audio_sample_t) 0.0;
+        for (i = 0; i < frames; i++) {
+                for (j = 0; j < ja_out_channels; j++) {
+                        ja_outputs[j][i] = (jack_default_audio_sample_t) *output;
+                        *output++ = (SAMPLE) 0.0;
+                }
         }
+        jack_cycle_signal(client, 0);
 }

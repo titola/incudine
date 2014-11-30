@@ -22,35 +22,59 @@
 (defvar *number-of-output-bus-channels* 2)
 (declaim (type channel-number *number-of-output-bus-channels*))
 
+(defvar *input-increment-bytes*
+  (* *number-of-input-bus-channels* +foreign-sample-size+))
+(declaim (type non-negative-fixnum *input-increment-bytes*))
+
+(defvar *output-increment-bytes*
+  (* *number-of-output-bus-channels* +foreign-sample-size+))
+(declaim (type non-negative-fixnum *output-increment-bytes*))
+
 (defvar *number-of-bus-channels* 4096)
 (declaim (type bus-number *number-of-bus-channels*))
 
 (defvar %number-of-input-bus-channels
-  ;; It is possible to use (AUDIO-IN CURRENT-CHANNEL)
-  ;; without the risk to read a different bus
+  ;; It is possible to use (AUDIO-IN CURRENT-CHANNEL) without risks.
   (max *number-of-input-bus-channels* *number-of-output-bus-channels*))
 
-(defvar *bus-channels-size* (+ *number-of-output-bus-channels*
-                               %number-of-input-bus-channels
-                               *number-of-bus-channels*))
-(declaim (type non-negative-fixnum *bus-channels-size*))
-
-(defvar *bus-channels* (foreign-alloc-sample *bus-channels-size*))
-(declaim (type foreign-pointer *bus-channels*))
+(defvar *%input-pointer*
+  (foreign-alloc-sample (* *max-buffer-size*
+                           %number-of-input-bus-channels)))
+(declaim (type foreign-pointer *%input-pointer*))
 
 (defvar *input-pointer*
-  (inc-pointer *bus-channels* (* *number-of-output-bus-channels*
-                                 +foreign-sample-size+)))
+  (cffi:foreign-alloc :pointer :initial-element *%input-pointer*))
 (declaim (type foreign-pointer *input-pointer*))
 
-(defvar *output-pointer* *bus-channels*)
+(defmacro input-pointer ()
+  `(mem-ref *input-pointer* :pointer))
+
+(defvar *%output-pointer*
+  (foreign-alloc-sample (* *max-buffer-size*
+                           *number-of-output-bus-channels*)))
+(declaim (type foreign-pointer *%output-pointer*))
+
+(defvar *output-pointer*
+  (cffi:foreign-alloc :pointer :initial-element *%output-pointer*))
 (declaim (type foreign-pointer *output-pointer*))
 
-(defvar *bus-pointer*
-  (inc-pointer *bus-channels* (* (+ %number-of-input-bus-channels
-                                    *number-of-output-bus-channels*)
-                                 +foreign-sample-size+)))
+(defmacro output-pointer ()
+  `(mem-ref *output-pointer* :pointer))
+
+(defvar *bus-pointer* (foreign-alloc-sample *number-of-bus-channels*))
 (declaim (type foreign-pointer *bus-pointer*))
+
+(defmacro reset-io-pointers ()
+  `(setf (input-pointer) *%input-pointer*
+         (output-pointer) *%output-pointer*))
+
+(defmacro inc-io-pointers (delta)
+  (with-gensyms (offset)
+    `(let ((,offset ,delta))
+       (incf-pointer (input-pointer)
+                     (the fixnum (* ,offset *input-increment-bytes*)))
+       (incf-pointer (output-pointer)
+                     (the fixnum (* ,offset *output-increment-bytes*))))))
 
 (defvar *output-peak-values*
   (foreign-alloc-sample *number-of-output-bus-channels*))
@@ -75,24 +99,24 @@
 (declaim (inline audio-in))
 (defun audio-in (channel)
   (declare (type channel-number channel))
-  (smp-ref *input-pointer* channel))
+  (smp-ref (input-pointer) channel))
 
 (declaim (inline audio-out))
 (defun audio-out (channel)
   (declare (type channel-number channel))
-  (smp-ref *output-pointer* channel))
+  (smp-ref (output-pointer) channel))
 
 (declaim (inline set-audio-out))
 (defun set-audio-out (channel value)
   (declare (type channel-number channel))
-  (setf (smp-ref *output-pointer* channel) (sample value)))
+  (setf (smp-ref (output-pointer) channel) (sample value)))
 
 (defsetf audio-out set-audio-out)
 
 (defun update-peak-values (chan)
   (declare #.*standard-optimize-settings*
            (type channel-number chan))
-  (let ((value (smp-ref incudine::*output-pointer* chan)))
+  (let ((value (mem-aref (output-pointer) 'sample chan)))
     (declare (type sample value))
     (when (> value (smp-ref *output-peak-values* chan))
       (setf (smp-ref *output-peak-values* chan) value))
@@ -131,30 +155,29 @@
   (declare (type channel-number inputs outputs))
   (unless (and (= inputs *number-of-input-bus-channels*)
                (= outputs *number-of-output-bus-channels*))
-    (let* ((rt-started-p (eq (rt-status) :started))
-           (old-outputs *number-of-output-bus-channels*)
-           (safe-inputs (max inputs outputs))
-           (channels (+ safe-inputs outputs *number-of-bus-channels*)))
+    (let ((rt-started-p (eq (rt-status) :started)))
       (rt-stop)
-      (setf *number-of-input-bus-channels* inputs
-            *number-of-output-bus-channels* outputs
-            %number-of-input-bus-channels safe-inputs)
-      (unless (= channels *bus-channels-size*)
-        (msg info "Realloc the foreign array for the bus channels")
-        (setf *bus-channels-size* channels)
-        (foreign-free *bus-channels*)
-        (setf *bus-channels* (foreign-alloc-sample *bus-channels-size*))
-        (setf *output-pointer* *bus-channels*))
-      (setf *bus-pointer*
-            (inc-pointer *bus-channels* (* (+ safe-inputs outputs)
-                                           +foreign-sample-size+)))
-      (unless (= outputs old-outputs)
-        (setf *input-pointer*
-              (inc-pointer *bus-channels* (* outputs +foreign-sample-size+)))
-        (msg info "Realloc the foreign array for the output peak values")
-        (foreign-free *output-peak-values*)
-        (setf *output-peak-values* (foreign-alloc-sample outputs))
-        (setf *out-of-range-counter* (make-array outputs :initial-element 0)))
-      (when rt-started-p
-        (msg info "Restart realtime")
-        (rt-start)))))
+      (let ((old-outputs *number-of-output-bus-channels*))
+        (setf *number-of-input-bus-channels* inputs
+              *number-of-output-bus-channels* outputs
+              %number-of-input-bus-channels (max inputs outputs))
+        (foreign-free *%input-pointer*)
+        (setf *%input-pointer* (foreign-alloc-sample
+                                 (* *max-buffer-size*
+                                    %number-of-input-bus-channels)))
+        (setf (input-pointer) *%input-pointer*)
+        (setf *input-increment-bytes*
+              (* *number-of-input-bus-channels* +foreign-sample-size+))
+        (unless (= outputs old-outputs)
+          (foreign-free *%output-pointer*)
+          (setf *%output-pointer* (foreign-alloc-sample
+                                    (* *max-buffer-size*
+                                       *number-of-output-bus-channels*)))
+          (setf (output-pointer) *%output-pointer*)
+          (setf *output-increment-bytes*
+                (* *number-of-output-bus-channels* +foreign-sample-size+))
+          (msg info "Realloc the foreign array for the output peak values")
+          (foreign-free *output-peak-values*)
+          (setf *output-peak-values* (foreign-alloc-sample outputs))
+          (setf *out-of-range-counter* (make-array outputs :initial-element 0))))
+      (and rt-started-p (rt-status)))))

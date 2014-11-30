@@ -205,7 +205,7 @@
      (when sb-kernel:*stop-for-gc-pending*
        (setf ,frames-var 0))
      ,@body
-     (rt-cycle-end #+portaudio ,frames-var)
+     (rt-cycle-end ,frames-var)
      (incudine.util::with-stop-for-gc-pending
        ;; No xruns, jack knows that lisp is busy.
        ;; The output buffer is filled with zeroes.
@@ -216,22 +216,23 @@
 (defun rt-loop (frames-per-buffer)
   (declare #.*standard-optimize-settings*
            (type non-negative-fixnum frames-per-buffer))
+  (rt-set-io-buffers *%input-pointer* *%output-pointer*)
   (setf rt-state 0)
   (reset-sample-counter)
   (let ((frames frames-per-buffer))
     (declare (type non-negative-fixnum frames))
     (with-restart-point (reset)
       (loop while (zerop rt-state) do
+           (reset-io-pointers)
            (with-rt-cycle (reset frames)
              (fifo-perform-functions *to-engine-fifo*)
              (do ((i 0 (1+ i)))
                  ((>= i frames))
                (declare (type non-negative-fixnum i))
-               (rt-get-input *input-pointer*)
                (fifo-perform-functions *fast-to-engine-fifo*)
                (incudine.edf::sched-loop)
                (compute-tick)
-               (rt-set-output *output-pointer*)
+               (inc-io-pointers 1)
                (incf-sample-counter))))
       (rt-transfer-to-c-thread)
       (nrt-funcall #'rt-stop))))
