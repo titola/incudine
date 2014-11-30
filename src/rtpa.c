@@ -92,12 +92,19 @@ int pa_get_buffer_size(void)
         return frames_per_buffer;
 }
 
+SAMPLE pa_get_sample_rate(void)
+{
+        return pa_sample_rate;
+}
+
 int pa_initialize(SAMPLE srate, unsigned int input_channels,
                   unsigned int output_channels, unsigned long nframes,
                   const char* client_name)
 {
         PaStreamParameters input_param, *iparam = NULL;
         PaStreamParameters output_param, *oparam = NULL;
+        PaStreamInfo *stream_info;
+        PaDeviceIndex count;
         PaError err;
         sigset_t sset;
 
@@ -114,7 +121,12 @@ int pa_initialize(SAMPLE srate, unsigned int input_channels,
         pa_in_channels = input_channels;
         pa_out_channels = output_channels;
 
-        input_param.device = Pa_GetDefaultInputDevice();
+        count = Pa_GetDeviceCount();
+        if (pa_input_id >= 0 && pa_input_id < count)
+                input_param.device = pa_input_id;
+        else
+                input_param.device = Pa_GetDefaultInputDevice();
+
         if (input_param.device != paNoDevice) {
                 input_param.channelCount = input_channels;
                 input_param.sampleFormat = paFloat32;
@@ -123,7 +135,11 @@ int pa_initialize(SAMPLE srate, unsigned int input_channels,
                 input_param.hostApiSpecificStreamInfo = NULL;
                 iparam = &input_param;
         }
-        output_param.device = Pa_GetDefaultOutputDevice();
+        if (pa_output_id >= 0 && pa_output_id < count)
+                output_param.device = pa_output_id;
+        else
+                output_param.device = Pa_GetDefaultOutputDevice();
+
         if (output_param.device != paNoDevice) {
                 output_param.channelCount = output_channels;
                 output_param.sampleFormat = paFloat32;
@@ -139,7 +155,6 @@ int pa_initialize(SAMPLE srate, unsigned int input_channels,
                 Pa_Terminate();
                 return 1;
         }
-        frames_per_buffer = nframes;
         /* Unblock signals */
         sigemptyset(&sset);
         if (sigprocmask(SIG_SETMASK, &sset, NULL) < 0) {
@@ -162,6 +177,9 @@ int pa_initialize(SAMPLE srate, unsigned int input_channels,
                 free(pa_inputs);
                 return 1;
         }
+        stream_info = (PaStreamInfo *) Pa_GetStreamInfo(stream);
+        pa_sample_rate = (SAMPLE) stream_info->sampleRate;
+        frames_per_buffer = nframes;
         pa_inputs_anchor = pa_inputs;
         pa_outputs_anchor = pa_outputs;
         pa_lisp_busy = 1;
@@ -259,4 +277,10 @@ void pa_cycle_end(unsigned long nframes)
                 *tmp++ = (SAMPLE) 0.0;
         }
         Pa_WriteStream(stream, pa_outputs_anchor, frames_per_buffer);
+}
+
+void pa_set_devices (PaDeviceIndex input, PaDeviceIndex output)
+{
+        pa_input_id = input;
+        pa_output_id = output;
 }

@@ -52,7 +52,7 @@
    #:rt-set-output
    #:rt-condition-wait #:rt-transfer-to-c-thread #:rt-cycle-begin #:rt-cycle-end
    #:rt-set-busy-state #:rt-buffer-size #:rt-sample-rate #:rt-set-io-buffers
-   #:rt-get-error-msg
+   #:rt-get-error-msg #:portaudio-device-info #:portaudio-set-device
    #:mouse-event #:mouse-init #:mouse-loop-start #:mouse-stop
    #:get-mouse-status))
 
@@ -329,7 +329,8 @@
                 #:rt-set-io-buffers
                 #:rt-condition-wait #:rt-transfer-to-c-thread
                 #:rt-set-busy-state
-                #:rt-buffer-size #:rt-sample-rate #:rt-get-error-msg)
+                #:rt-buffer-size #:rt-sample-rate #:rt-get-error-msg
+                #:portaudio-device-info #:portaudio-set-device)
   (:import-from #:incudine.edf #:at #:aat #:flush-pending)
   (:import-from #:incudine.gen #:all-random-distributions #:rand-args)
   (:export
@@ -351,6 +352,7 @@
    #:set-number-of-channels
    #:*rt-thread-start-hook* #:*rt-thread-exit-hook*
    #:rt-start #:rt-stop #:rt-status #:rt-buffer-size #:rt-sample-rate
+   #:portaudio-device-info #:portaudio-set-device
    #:at #:aat #:flush-pending #:flush-all-fifos
    #:tempo #:*tempo* #:make-tempo #:bpm #:bps #:now #:tempo-sync
    #:tempo-envelope #:make-tempo-envelope #:set-tempo-envelope

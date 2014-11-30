@@ -41,15 +41,19 @@
 
 (setq *max-buffer-size* 1024)
 
-;; Used only with PortAudio.
-(setq *frames-per-buffer* 512)
-
 (setq *sample-rate* 48000)
 (setq *client-name* "incudine")
 (setq *max-number-of-channels* 1024)
 (setq *number-of-input-bus-channels* 2)
 (setq *number-of-output-bus-channels* 2)
 (setq *number-of-bus-channels* 4096)
+
+;; Used only with PortAudio.
+(setq *frames-per-buffer* 512)
+
+;; PORTAUDIO-DEVICE-INFO prints the list of the devices (-1 = default).
+;(setq *portaudio-input-device* -1)
+;(setq *portaudio-output-device* -1)
 
 ;;;---------------------------[ Graph ]-----------------------------
 

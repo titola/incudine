@@ -29,6 +29,8 @@
                     *use-foreign-sample-p*
                     *max-buffer-size*
                     *frames-per-buffer*
+                    *portaudio-input-device*
+                    *portaudio-output-device*
                     *client-name*
                     *max-number-of-channels*
                     *number-of-input-bus-channels*

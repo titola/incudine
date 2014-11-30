@@ -57,6 +57,9 @@
 #-dummy-audio
 (defun rt-thread-callback (loop-function)
   (declare (type function loop-function))
+  #+portaudio (incudine.external::pa-set-devices
+                incudine.config::*portaudio-output-device*
+                incudine.config::*portaudio-input-device*)
   (cond ((and (zerop (rt-audio-init *sample-rate*
                                     *number-of-input-bus-channels*
                                     *number-of-output-bus-channels*
@@ -65,7 +68,7 @@
               (zerop (rt-audio-start)))
          (let ((buffer-size (rt-buffer-size)))
            (setf (rt-params-frames-per-buffer *rt-params*) buffer-size)
-           #+jack-audio (set-sample-rate (rt-sample-rate))
+           (set-sample-rate (rt-sample-rate))
            (funcall loop-function buffer-size)))
         (t (setf *rt-thread* nil)
            (msg error (rt-get-error-msg)))))

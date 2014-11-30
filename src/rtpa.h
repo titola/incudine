@@ -36,11 +36,14 @@ enum {
 #define PA_ERROR_MSG_MAX_LENGTH  (256)
 
 static unsigned int pa_in_channels, pa_out_channels;
+static SAMPLE pa_sample_rate;
 static unsigned long frames_per_buffer;
 static float *pa_inputs, *pa_outputs;
 static float *pa_inputs_anchor, *pa_outputs_anchor;
 static SAMPLE *lisp_input, *lisp_output;
 static PaStream *stream;
+static PaDeviceIndex pa_input_id = -1;
+static PaDeviceIndex pa_output_id = -1;
 static size_t pa_outbuf_bytes, pa_frame_bytes;
 static int pa_status = PA_STOPPED;
 static int pa_lisp_busy;
@@ -73,6 +76,7 @@ void pa_condition_wait(void);
 void pa_set_lisp_busy_state(int status);
 void pa_transfer_to_c_thread(void);
 int pa_get_buffer_size(void);
+SAMPLE pa_get_sample_rate(void);
 int pa_initialize(SAMPLE srate, unsigned int input_channels,
                   unsigned int output_channels, unsigned long nframes,
                   const char* client_name);
@@ -81,5 +85,6 @@ int pa_stop(void *arg);
 void pa_set_lisp_io(SAMPLE *input, SAMPLE *output);
 unsigned long pa_cycle_begin(void);
 void pa_cycle_end(unsigned long nframes);
+void pa_set_devices(PaDeviceIndex input, PaDeviceIndex output);
 
 #endif  /* __RTPA_H */
