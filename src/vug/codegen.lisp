@@ -61,7 +61,7 @@
         ((vug-function-p value)
          (mapc #'resolve-conditional-expansion (vug-function-inputs value)))))
 
-(defun expand-setter-form (obj init-time-p)
+(defun expand-setter-form (obj init-time-p initialize-body-p)
   (loop for i on (vug-function-inputs obj) by #'cddr
         for input = (first i) do
           (when (vug-variable-p input)
@@ -70,8 +70,9 @@
                    (setf (vug-variable-skip-init-set-p input) t))
                   (t (setf (vug-variable-to-set-p input) nil)
                      (recheck-variables input)))
-            (unless #1=(vug-variable-performance-time-p input)
-              (setf #1# t)))))
+            (unless (or initialize-body-p
+                        (vug-variable-performance-time-p input))
+              (setf (vug-variable-performance-time-p input) t)))))
 
 (declaim (inline vug-variable-to-set-inside-body-p))
 (defun vug-variable-to-set-inside-body-p (obj vug-body-p init-pass-p)
@@ -136,34 +137,36 @@
 
 ;;; Transform a VUG block in lisp code.
 (defun blockexpand (obj &optional param-plist vug-body-p init-pass-p
-                    (conditional-expansion-p t))
+                    (conditional-expansion-p t) initialize-body-p)
   (declare (type list param-plist) (type boolean vug-body-p))
   (cond ((consp obj)
          (cons (blockexpand (car obj) param-plist vug-body-p init-pass-p
-                            conditional-expansion-p)
+                            conditional-expansion-p initialize-body-p)
                (blockexpand (cdr obj) param-plist vug-body-p init-pass-p
-                            conditional-expansion-p)))
+                            conditional-expansion-p initialize-body-p)))
         ((vug-function-p obj)
          (when (and vug-body-p (setter-form-p (vug-object-name obj)))
-           (expand-setter-form obj init-pass-p))
+           (expand-setter-form obj init-pass-p initialize-body-p))
          (cond ((consp (vug-object-name obj))
                 (vug-object-name obj))
                ((vug-name-p obj 'initialize)
                 (if (vug-definition-p)
                     (blockexpand (vug-function-inputs obj) param-plist
-                                 vug-body-p init-pass-p conditional-expansion-p)
+                                 vug-body-p init-pass-p conditional-expansion-p t)
                     (add-initialization-code
                       `(progn ,@(blockexpand (vug-function-inputs obj)
-                                             param-plist vug-body-p t nil))))
+                                             param-plist vug-body-p t nil t))))
                 (values))
                ((vug-name-p obj 'progn)
                 (if (cdr (vug-function-inputs obj))
                     `(progn ,@(blockexpand (vug-function-inputs obj)
                                            param-plist vug-body-p
-                                           init-pass-p conditional-expansion-p))
+                                           init-pass-p conditional-expansion-p
+                                           initialize-body-p))
                     (blockexpand (car (vug-function-inputs obj))
                                  param-plist vug-body-p
-                                 init-pass-p conditional-expansion-p)))
+                                 init-pass-p conditional-expansion-p
+                                 initialize-body-p)))
                ((vug-name-p obj 'ugen-run)
                 `(ugen-run ,@(blockexpand (vug-function-inputs obj)
                                           param-plist vug-body-p
@@ -202,7 +205,8 @@
                (t (cons (vug-object-name obj)
                         (blockexpand (vug-function-inputs obj)
                                      param-plist vug-body-p
-                                     init-pass-p conditional-expansion-p)))))
+                                     init-pass-p conditional-expansion-p
+                                     initialize-body-p)))))
         ((vug-parameter-p obj)
          (assert (not vug-body-p))
          (or (getf param-plist (vug-object-name obj))
@@ -474,11 +478,10 @@
           (msg-debug-delete-variable var "init-time"))))))
 
 (defun format-vug-code (vug-block)
-  (let* ((*variables-to-preserve* nil)
-         (vug-form (cond ((vug-progn-function-p vug-block)
-                          (vug-function-inputs vug-block))
-                         ((atom vug-block) (list vug-block))
-                         (t (remove-wrapped-parens vug-block)))))
+  (let ((vug-form (cond ((vug-progn-function-p vug-block)
+                         (vug-function-inputs vug-block))
+                        ((atom vug-block) (list vug-block))
+                        (t (remove-wrapped-parens vug-block)))))
     (reorder-parameter-list)
     (find-bindings-to-cache
       (setf #1=(vug-variables-bindings *vug-variables*)
@@ -682,6 +685,7 @@
   (with-gensyms (vug-body smpvec-size f32vec-size f64vec-size i32vec-size
                  i64vec-size ptrvec-size)
     `(let* ((*vug-variables* (make-vug-variables))
+            (*variables-to-preserve* nil)
             (*initialization-code* (make-initialization-code-stack))
             (,vug-body (format-vug-code ,(dsp-vug-block arguments obj)))
             (,smpvec-size (add-sample-variables))

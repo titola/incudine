@@ -957,7 +957,7 @@
   (remhash var (vug-variables-deleted *vug-variables*)))
 
 (defun reduce-vug-variables (obj)
-  (labels ((reduce-vars (x)
+  (labels ((reduce-vars (x initialize-body-p)
              (cond
                ((vug-variable-p x)
                 (incf (vug-variable-ref-count x))
@@ -976,14 +976,15 @@
                       ((vug-variable-performance-time-p x)
                        (when (vug-variable-check-value-p x)
                          (setf (vug-variable-check-value-p x) nil)
-                         (reduce-vars value)))
+                         (reduce-vars value initialize-body-p)))
                       (t
                        (when (vug-variable-check-value-p x)
                          (setf (vug-variable-check-value-p x) nil)
-                         (reduce-vars value))
+                         (reduce-vars value initialize-body-p))
                        (when (and (not cached-p)
                                   (no-performance-time-p value)
-                                  (not (vug-variable-to-preserve-p x)))
+                                  (not (vug-variable-to-preserve-p x))
+                                  (not (vug-variable-with-init-time-setter-p x)))
                          (multiple-value-bind (cached cached-p)
                              (vug-variable-replacement value)
                            (when (not cached-p)
@@ -991,12 +992,24 @@
                            (replace-vug-variable x (if cached-p cached value) t)
                            (msg-debug-delete-variable x "init-time"))))))))
                ((vug-function-p x)
-                (reduce-vars (vug-function-inputs x)))
+                (let ((fname (vug-function-name x)))
+                  (when (and initialize-body-p (setter-form-p fname))
+                    ;; Preserve the init-time variables updated inside
+                    ;; the body of INITIALIZE
+                    (loop for binding on (vug-function-inputs x) by #'cddr
+                          for obj = (car binding)
+                          when (and (vug-variable-p obj)
+                                    (vug-variable-init-time-p obj)
+                                    (not (performance-time-p obj)))
+                          do (pushnew obj (vug-variables-init-time-setter
+                                            *vug-variables*))))
+                  (reduce-vars (vug-function-inputs x)
+                               (or initialize-body-p (eq fname 'initialize)))))
                ((consp x)
-                (reduce-vars (car x))
-                (reduce-vars (cdr x))))))
+                (reduce-vars (car x) initialize-body-p)
+                (reduce-vars (cdr x) initialize-body-p)))))
     (update-variables-init-time-setter)
-    (reduce-vars obj)
+    (reduce-vars obj nil)
     obj))
 
 (defun debug-deleted-variables ()

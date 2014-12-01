@@ -222,6 +222,7 @@ arguments to update the dependencies if it exists."
   (with-gensyms (vug-body smpvec-size f32vec-size f64vec-size i32vec-size
                  i64vec-size ptrvec-size)
     `(let* ((*vug-variables* (make-vug-variables))
+            (*variables-to-preserve* nil)
             (*ugen-return-value* nil)
             (*initialization-code* (make-initialization-code-stack))
             (,vug-body (format-vug-code ,(dsp-vug-block arguments obj)))

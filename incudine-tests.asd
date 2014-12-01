@@ -44,6 +44,7 @@
      (:file "gen-window" :depends-on ("util"))
      (:file "vug/base" :depends-on ("util"))
      (:file "vug/ugen-base" :depends-on ("vug/base"))
+     (:file "vug/initialize" :depends-on ("vug/base"))
      (:file "vug/reinit" :depends-on ("vug/base"))
      (:file "vug/ugen-reinit" :depends-on ("vug/base"))
      (:file "vug/generator/osc" :depends-on ("vug/base"))
