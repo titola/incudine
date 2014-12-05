@@ -295,7 +295,13 @@ arguments to update the dependencies if it exists."
                              (lambda (&optional (current-channel 0))
                                (declare (type channel-number current-channel)
                                         (ignorable current-channel))
-                                 ,@,vug-body))))))))))))
+                               (let ((current-frame 0)
+                                     (current-sample 0))
+                                 (declare (non-negative-fixnum current-frame
+                                                               current-sample)
+                                          (ignorable current-frame
+                                                     current-sample))
+                                 ,@,vug-body)))))))))))))
 
 (declaim (inline control-flag))
 (defun control-flag (foreign-obj-p dependencies-p)

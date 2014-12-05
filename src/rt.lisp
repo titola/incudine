@@ -102,70 +102,6 @@
           (cffi:foreign-string-alloc name :end (min (length name) max-size))))
   name)
 
-(defun rt-preamble ()
-  (nrt-start)
-  #-dummy-audio
-  (set-foreign-client-name *client-name*)
-  (values))
-
-#-dummy-audio
-(defun after-rt-stop ()
-  (unless (zerop (rt-audio-stop))
-    (msg error (rt-get-error-msg))))
-
-(defvar *after-rt-stop-function* nil)
-(declaim (type (or function null) *after-rt-stop-function*))
-
-(defun rt-start (&key (preamble-function #'rt-preamble)
-                 (thread-name "audio-rt-thread")
-                 (thread-function #'rt-thread-callback)
-                 (thread-function-args (list #-dummy-audio #'rt-loop
-                                             #+dummy-audio nil))
-                 (after-stop-function #-dummy-audio #'after-rt-stop
-                                      #+dummy-audio nil)
-                 (gc-p t))
-  (declare (type string thread-name)
-           (type (or function null) preamble-function after-stop-function)
-           (type function thread-function)
-           (type cons thread-function-args)
-           (type boolean gc-p))
-  (unless *rt-thread*
-    (init)
-    (setf *after-rt-stop-function* after-stop-function)
-    (when preamble-function (funcall preamble-function))
-    (when gc-p (tg:gc :full t))
-    (make-rt-thread thread-name thread-function thread-function-args)
-    (sleep .1)
-    (setf (rt-params-status *rt-params*)
-          (cond ((and *rt-thread* (bt:thread-alive-p *rt-thread*))
-                 :started)
-                (t (msg warn "failed to start the realtime thread")
-                   (setf *rt-thread* nil)
-                   :stopped)))))
-
-(defun rt-status ()
-  (rt-params-status *rt-params*))
-
-(defvar rt-state 1)
-(declaim (type bit rt-state))
-
-(defun rt-stop ()
-  (unless (eq (rt-status) :stopped)
-    (cond ((rt-thread-p) (nrt-funcall #'rt-stop))
-          (t (when *rt-thread*
-               (let ((thread *rt-thread*))
-                 (setf *rt-thread* nil)
-                 (setf rt-state 1)
-                 (sleep .05)
-                 (loop while (bt:thread-alive-p thread))
-                 (msg debug "realtime thread stopped")))
-             (nrt-funcall (lambda ()
-                            (when *after-rt-stop-function*
-                              (funcall *after-rt-stop-function*)
-                              (setf *after-rt-stop-function* nil)
-                              (msg debug "after realtime stop"))))
-             (setf (rt-params-status *rt-params*) :stopped)))))
-
 (defmacro compute-tick (&optional (update-peak-p t))
   (with-gensyms (funcons flist fn dummy-fn c n chan)
     `(let ((,funcons (node-funcons *node-root*)))
@@ -188,6 +124,9 @@
             `(when ,funcons
                (dochannels (,chan *number-of-output-bus-channels*)
                  (update-peak-values ,chan)))))))
+
+(defvar rt-state 1)
+(declaim (type bit rt-state))
 
 #-dummy-audio
 (defmacro with-restart-point ((label) &body body)
@@ -215,27 +154,160 @@
        (rt-transfer-to-c-thread)
        (go ,reset-label))))
 
+(defvar *block-size* (if (boundp 'incudine.config::*rt-block-size*)
+                         incudine.config::*rt-block-size*
+                         1))
+(declaim (type positive-fixnum *block-size*))
+
+(defvar *block-samples* (* *block-size* *number-of-output-bus-channels*))
+(declaim (type positive-fixnum *block-samples*))
+
+(declaim (inline block-size))
+(defun block-size () *block-size*)
+
 #-dummy-audio
-(defun rt-loop (frames-per-buffer)
+(defmacro rt-loop-form (frames-per-buffer block-size)
+  (with-gensyms (frames reset)
+    `(block nil
+       (rt-set-io-buffers *%input-pointer* *%output-pointer*)
+       ,(unless (= block-size 1)
+          `(reduce-warnings
+             (when (plusp (rem ,frames-per-buffer ,block-size))
+               (msg warn
+                    "Block size ~D is not a multiple of ~D (frames per buffer)"
+                    ,block-size ,frames-per-buffer)
+               (call-after-stop)
+               (return-from nil))))
+       (setf *block-size* ,block-size)
+       (setf *block-samples* (* *block-size* *number-of-output-bus-channels*))
+       (setf rt-state 0)
+       (reset-sample-counter)
+       (let ((,frames ,frames-per-buffer))
+         (declare (type non-negative-fixnum ,frames))
+         (with-restart-point (,reset)
+           (loop while (zerop rt-state) do
+                (reset-io-pointers)
+                (with-rt-cycle (,reset ,frames)
+                  (fifo-perform-functions *to-engine-fifo*)
+                  (do ((i 0 (+ i ,block-size)))
+                      ((>= i ,frames))
+                    (declare (type non-negative-fixnum i))
+                    (fifo-perform-functions *fast-to-engine-fifo*)
+                    (incudine.edf::sched-loop)
+                    (compute-tick)
+                    (inc-io-pointers ,block-size)
+                    (incf-sample-counter ,block-size))))
+           (rt-transfer-to-c-thread)
+           (nrt-funcall #'rt-stop))))))
+
+#-dummy-audio
+(defun rt-loop-1 (frames-per-buffer)
+  "Realtime loop callback for sample by sample computation."
   (declare #.*standard-optimize-settings*
            (type non-negative-fixnum frames-per-buffer))
-  (rt-set-io-buffers *%input-pointer* *%output-pointer*)
-  (setf rt-state 0)
-  (reset-sample-counter)
-  (let ((frames frames-per-buffer))
-    (declare (type non-negative-fixnum frames))
-    (with-restart-point (reset)
-      (loop while (zerop rt-state) do
-           (reset-io-pointers)
-           (with-rt-cycle (reset frames)
-             (fifo-perform-functions *to-engine-fifo*)
-             (do ((i 0 (1+ i)))
-                 ((>= i frames))
-               (declare (type non-negative-fixnum i))
-               (fifo-perform-functions *fast-to-engine-fifo*)
-               (incudine.edf::sched-loop)
-               (compute-tick)
-               (inc-io-pointers 1)
-               (incf-sample-counter))))
-      (rt-transfer-to-c-thread)
-      (nrt-funcall #'rt-stop))))
+  (rt-loop-form frames-per-buffer 1))
+
+#-dummy-audio
+(defun rt-loop-64 (frames-per-buffer)
+  "Realtime loop callback with a block size of 64 frames."
+  (declare #.*standard-optimize-settings*
+           (type non-negative-fixnum frames-per-buffer))
+  (rt-loop-form frames-per-buffer 64))
+
+#-dummy-audio
+(defmacro rt-loop-callback (block-size)
+  "Return a realtime loop callback with an arbitrary BLOCK-SIZE."
+  `(lambda (frames-per-buffer)
+     (declare #.*standard-optimize-settings*
+              (type non-negative-fixnum frames-per-buffer))
+     (rt-loop-form frames-per-buffer ,block-size)))
+
+(defun rt-preamble ()
+  (nrt-start)
+  #-dummy-audio
+  (set-foreign-client-name *client-name*)
+  (values))
+
+#-dummy-audio
+(defun after-rt-stop ()
+  (unless (zerop (rt-audio-stop))
+    (msg error (rt-get-error-msg))))
+
+(defvar *default-rt-loop-cb*
+  #+dummy-audio #'identity
+  #-dummy-audio
+  (if (and (boundp 'incudine.config::*rt-block-size*)
+           (> incudine.config::*rt-block-size* 1))
+      (if (= incudine.config::*rt-block-size* 64)
+          #'rt-loop-64
+          (eval `(rt-loop-callback ,incudine.config::*rt-block-size*)))
+      #'rt-loop-1))
+(declaim (type function *default-rt-loop-cb*))
+
+#-dummy-audio
+(defmacro set-rt-block-size (value)
+  "Change the block size and update the default realtime loop callback."
+  `(progn
+     (rt-stop)
+     (setf *default-rt-loop-cb*
+           ,(case value
+              ( 1 #'rt-loop-1)
+              (64 #'rt-loop-64)
+              (otherwise `(rt-loop-callback ,value))))
+     (setf *block-samples* (* ,value *number-of-output-bus-channels*))
+     (msg debug "set realtime block size to ~D" ,value)
+     (setf *block-size* ,value)))
+
+(defvar *after-rt-stop-function* nil)
+(declaim (type (or function null) *after-rt-stop-function*))
+
+(defun rt-start (&key (preamble-function #'rt-preamble)
+                 (thread-name "audio-rt-thread")
+                 (thread-function #'rt-thread-callback)
+                 (thread-function-args (list #-dummy-audio
+                                             *default-rt-loop-cb*
+                                             #+dummy-audio nil))
+                 (after-stop-function #-dummy-audio #'after-rt-stop
+                                      #+dummy-audio nil)
+                 (gc-p t))
+  (declare (type string thread-name)
+           (type (or function null) preamble-function after-stop-function)
+           (type function thread-function)
+           (type cons thread-function-args)
+           (type boolean gc-p))
+  (unless *rt-thread*
+    (init)
+    (setf *after-rt-stop-function* after-stop-function)
+    (when preamble-function (funcall preamble-function))
+    (when gc-p (tg:gc :full t))
+    (make-rt-thread thread-name thread-function thread-function-args)
+    (sleep .1)
+    (setf (rt-params-status *rt-params*)
+          (cond ((and *rt-thread* (bt:thread-alive-p *rt-thread*))
+                 :started)
+                (t (msg warn "failed to start the realtime thread")
+                   (setf *rt-thread* nil)
+                   :stopped)))))
+
+(defun rt-status ()
+  (rt-params-status *rt-params*))
+
+(defun call-after-stop ()
+  (nrt-funcall (lambda ()
+                 (when *after-rt-stop-function*
+                   (funcall *after-rt-stop-function*)
+                   (setf *after-rt-stop-function* nil)
+                   (msg debug "after realtime stop")))))
+
+(defun rt-stop ()
+  (unless (eq (rt-status) :stopped)
+    (cond ((rt-thread-p) (nrt-funcall #'rt-stop))
+          (t (when *rt-thread*
+               (let ((thread *rt-thread*))
+                 (setf *rt-thread* nil)
+                 (setf rt-state 1)
+                 (sleep .05)
+                 (loop while (bt:thread-alive-p thread))
+                 (msg debug "realtime thread stopped")))
+             (call-after-stop)
+             (setf (rt-params-status *rt-params*) :stopped)))))

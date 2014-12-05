@@ -41,6 +41,9 @@
 
 (setq *max-buffer-size* 1024)
 
+;; Realtime block size in frames.
+(setq *rt-block-size* 1)
+
 (setq *sample-rate* 48000)
 (setq *client-name* "incudine")
 (setq *max-number-of-channels* 1024)

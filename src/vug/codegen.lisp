@@ -135,6 +135,23 @@
                    (vug-object-name obj)))))
     (maybe-cached-val var)))
 
+(defun expand-set-local-pointer (obj param-plist vug-body-p init-pass-p
+                                 conditional-expansion-p initialize-body-p)
+  (let* ((inputs (vug-function-inputs obj))
+         (var (car inputs)))
+    (cond ((vug-variable-replacement var)
+           ;; Replaced with the variables of the first FOREACH-FRAME loop.
+           nil)
+          ((zerop (vug-variable-ref-count var))
+           ;; Unused variables.
+           (replace-vug-variable var nil)
+           (msg-debug-delete-variable var "performance-time"))
+          (t (setf (vug-variable-to-set-p var) nil)
+             `(setf ,@(blockexpand inputs param-plist vug-body-p
+                                   init-pass-p
+                                   conditional-expansion-p
+                                   initialize-body-p))))))
+
 ;;; Transform a VUG block in lisp code.
 (defun blockexpand (obj &optional param-plist vug-body-p init-pass-p
                     (conditional-expansion-p t) initialize-body-p)
@@ -178,6 +195,11 @@
                ((vug-name-p obj 'get-pointer)
                 `(get-pointer
                    ,(vug-object-name (car (vug-function-inputs obj)))))
+               ((or (vug-name-p obj 'set-local-io-pointer)
+                    (vug-name-p obj 'set-local-now))
+                (expand-set-local-pointer obj param-plist vug-body-p
+                                          init-pass-p conditional-expansion-p
+                                          initialize-body-p))
                ((null (vug-function-inputs obj))
                 (list (vug-object-name obj)))
                ((vug-name-p obj 'lambda)
@@ -626,9 +648,12 @@
 
 (defun initialization-code ()
   (unless (empty-initialization-code-stack-p)
-    `((let ((current-channel 0))
+    `((let ((current-channel 0)
+            (current-frame 0)
+            (current-sample 0))
         (declare (type channel-number current-channel)
-                 (ignorable current-channel))
+                 (type non-negative-fixnum current-frame current-sample)
+                 (ignorable current-channel current-frame current-sample))
         ,*initialization-code*))))
 
 (declaim (inline vug-variables-foreign-sample-names))
@@ -752,14 +777,20 @@
                                               ptrvecw ,ptrvec-size)
                              :perf-function
                                (lambda ()
-                                 (let ((current-channel 0))
+                                 (let ((current-channel 0)
+                                       (current-frame 0)
+                                       (current-sample 0))
                                    (declare (type channel-number
                                                   current-channel)
-                                            (ignorable current-channel))
+                                            (type non-negative-fixnum
+                                                  current-frame current-sample)
+                                            (ignorable current-channel
+                                                       current-frame
+                                                       current-sample))
                                    ,@,vug-body
                                    (values))))
-                         (values (dsp-init-function ,dsp)
-                                 (dsp-perf-function ,dsp)))))))))))))
+                           (values (dsp-init-function ,dsp)
+                                   (dsp-perf-function ,dsp)))))))))))))
 
 (defmacro dsp-node () '%dsp-node%)
 

@@ -19,6 +19,8 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defvar *sample-rate* 48000)
 
+  (defvar *rt-block-size* 1)
+
   ;;; Velocity of the sound at 22°C, 1 atmosfera
   (defvar *sound-velocity* 345)
 

@@ -405,7 +405,7 @@
        (member (vug-object-name obj) *constructors-for-objects-to-free*)))
 
 (declaim (inline parse-bindings))
-(defun parse-bindings (lst flist mlist)
+(defun parse-bindings (lst flist mlist floop-info)
   (mapcar (lambda (x)
             (list (car x)
                   `(make-vug-variable
@@ -415,23 +415,23 @@
                           (parse-vug-def (if (vug-parameter-p value)
                                              (vug-parameter-value value)
                                              value)
-                                         nil flist mlist))))))
+                                         nil flist mlist floop-info))))))
           lst))
 
 (declaim (inline parse-block-form))
-(defun parse-block-form (form flist mlist)
+(defun parse-block-form (form flist mlist floop-info)
   `(make-vug-function :name ',(car form)
      :inputs (list ',(cadr form)
-                   ,@(parse-vug-def (cddr form) nil flist mlist))))
+                   ,@(parse-vug-def (cddr form) nil flist mlist floop-info))))
 
-(defun parse-lambda-body (form flist mlist)
+(defun parse-lambda-body (form flist mlist floop-info)
   (multiple-value-bind (decl rest) (separate-declaration form)
     `(,@(mapcar (lambda (x)
                   `(make-vug-function :name 'declare :inputs ',(cdr x)))
                 decl)
-      ,@(parse-vug-def rest nil flist mlist))))
+      ,@(parse-vug-def rest nil flist mlist floop-info))))
 
-(defun parse-let-form (form flist mlist)
+(defun parse-let-form (form flist mlist floop-info)
   (let ((args (cadr form)))
     `(let ,(mapcar (lambda (x) `(,(car x) ',(car x))) args)
        (declare (type symbol ,@(mapcar #'car args)))
@@ -439,25 +439,28 @@
          :inputs (list (list ,@(mapcar (lambda (x)
                                          `(list ,(car x)
                                                 ,(parse-vug-def (cadr x) nil
-                                                                flist mlist)))
+                                                                flist mlist
+                                                                floop-info)))
                                        args))
-                       ,@(parse-lambda-body (cddr form) flist mlist))))))
+                       ,@(parse-lambda-body (cddr form) flist mlist
+                                            floop-info))))))
 
-(defun parse-init-bindings (form flist mlist)
+(defun parse-init-bindings (form flist mlist floop-info)
   `(,(car form)
-    ,(parse-bindings (cadr form) flist mlist)
+    ,(parse-bindings (cadr form) flist mlist floop-info)
     ,@(multiple-value-bind (decl rest) (separate-declaration (cddr form))
         `(,@(parse-vug-def decl)
           (make-vug-function :name 'progn
-            :inputs (list ,@(parse-vug-def rest nil flist mlist)))))))
+            :inputs (list ,@(parse-vug-def rest nil flist mlist
+                                           floop-info)))))))
 
-(defun parse-lambda-form (form flist mlist)
+(defun parse-lambda-form (form flist mlist floop-info)
   (let ((args (cadr form)))
     `(let ,(lambda-bindings args)
        (make-vug-function :name ',(car form)
          :inputs (list ',args
                        (list ,@(parse-lambda-body (cddr form)
-                                                  flist mlist)))))))
+                                                  flist mlist floop-info)))))))
 
 (defmacro inlined-ugen-p (ugen-name)
   `(getf *inlined-ugens* ,ugen-name))
@@ -485,7 +488,7 @@
      (declare (ignorable ,@args))
      ,@body))
 
-(defun parse-flet-form (form flist mlist)
+(defun parse-flet-form (form flist mlist floop-info)
   (declare (type list form flist mlist))
   (let (acc)
     `(make-vug-function :name ',(car form)
@@ -496,11 +499,13 @@
                                           ',(cadr def)
                                           (%with-local-args ,(cadr def)
                                             ,@(parse-vug-def (cddr def)
-                                                             nil flist mlist))))
+                                                             nil flist mlist
+                                                             floop-info))))
                                  (cadr form)))
-                 ,@(parse-vug-def (cddr form) nil (nconc acc flist) mlist)))))
+                 ,@(parse-vug-def (cddr form) nil (nconc acc flist) mlist
+                                  floop-info)))))
 
-(defun parse-labels-form (form flist mlist)
+(defun parse-labels-form (form flist mlist floop-info)
   (declare (type list form flist mlist))
   (let ((acc (copy-list flist))
         (definitions (cadr form)))
@@ -511,20 +516,21 @@
                                               ',(cadr def)
                                               (%with-local-args ,(cadr def)
                                                 ,@(parse-vug-def (cddr def) nil
-                                                                 acc mlist))))
+                                                                 acc mlist
+                                                                 floop-info))))
                                      definitions))
-                     ,@(parse-vug-def (cddr form) nil acc mlist)))))
+                     ,@(parse-vug-def (cddr form) nil acc mlist floop-info)))))
 
-(defun parse-macrolet-form (form flist mlist)
+(defun parse-macrolet-form (form flist mlist floop-info)
   (declare (type list form flist mlist))
   (let ((acc (copy-list mlist))
         (definitions (cadr form)))
     (dolist (l definitions) (push l acc))
     `(make-vug-function :name 'progn
-       :inputs (list ,@(parse-vug-def (cddr form) nil flist acc)))))
+       :inputs (list ,@(parse-vug-def (cddr form) nil flist acc floop-info)))))
 
 (declaim (inline parse-locally-form))
-(defun parse-locally-form (form flist mlist)
+(defun parse-locally-form (form flist mlist floop-info)
   `(make-vug-function :name ',(car form)
      :inputs ,(multiple-value-bind (decl rest)
                 (separate-declaration (cdr form))
@@ -532,15 +538,16 @@
                                    `(make-vug-function :name 'declare
                                                        :inputs ',(cdr x)))
                                  decl)
-                       ,@(parse-vug-def rest nil flist mlist)))))
+                       ,@(parse-vug-def rest nil flist mlist floop-info)))))
 
 (declaim (inline parse-tagbody-form))
-(defun parse-tagbody-form (form flist mlist)
+(defun parse-tagbody-form (form flist mlist floop-info)
   `(make-vug-function :name ',(car form)
      :inputs (list ,@(mapcar (lambda (x)
                                (if (atom x)
                                    (list 'quote x)
-                                   (parse-vug-def x nil flist mlist)))
+                                   (parse-vug-def x nil flist mlist
+                                                  floop-info)))
                              (cdr form)))))
 
 (declaim (inline parse-go-form))
@@ -548,12 +555,12 @@
   `(make-vug-function :name ',(car form) :inputs '(,(cadr form))))
 
 (declaim (inline parse-tick-form))
-(defun parse-tick-form (form flist mlist)
+(defun parse-tick-form (form flist mlist floop-info)
   (if (atom (cadr form))
       `(make-vug-symbol :name ',(cadr form) :block-p t)
       `(make-vug-function
          :name 'progn
-         :inputs (list ,@(parse-vug-def (cdr form) t flist mlist))
+         :inputs (list ,@(parse-vug-def (cdr form) t flist mlist floop-info))
          :block-p t)))
 
 (declaim (inline lambda-bindings))
@@ -580,7 +587,7 @@
        ,@(when (foreign-type-p type)
            (list `(return-ugen-foreign-value ,ugen ,type))))))
 
-(defun parse-ugen (def flist mlist)
+(defun parse-ugen (def flist mlist floop-info)
   (let ((type (ugen-return-type (ugen (car def)))))
     (parse-vug-def
       ;; We can use the arguments of GET-UGEN-INSTANCE during the
@@ -591,7 +598,42 @@
               (ret (ugen-run ugen ,type)))
          (declare (type ugen-instance ugen) (type ,type ret))
          ret)
-      nil flist mlist)))
+      nil flist mlist floop-info)))
+
+(defmacro foreach-frame-loop (in-ptr out-ptr now-var &body body)
+  (declare (ignore in-ptr out-ptr))
+  `(loop for current-sample of-type non-negative-fixnum
+                            below incudine::*block-samples*
+                            by *number-of-output-bus-channels*
+         for current-frame of-type non-negative-fixnum from 0
+         do (progn ,@body ,@(if now-var `((incf ,now-var))))))
+
+(defun parse-foreach-frame-form (def flist mlist)
+  (with-gensyms (in-ptr out-ptr now ch frame)
+    (parse-vug-def
+     `(with ((,in-ptr (incudine::input-pointer))
+             (,out-ptr (incudine::output-pointer))
+             (,now (smp-ref incudine::*sample-counter* 0)))
+        (declare (type pointer ,in-ptr ,out-ptr) (type sample ,now))
+        (set-local-io-pointer ,in-ptr (incudine::input-pointer))
+        (set-local-io-pointer ,out-ptr (incudine::output-pointer))
+        (set-local-now ,now (smp-ref incudine::*sample-counter* 0))
+        ;; The follow macros work outside the nested VUGs that are updated
+        ;; during the walking in UPDATE-VARIABLES-INIT-TIME-SETTER and
+        ;; REDUCE-VUG-VARIABLES.
+        (macrolet ((audio-in (,ch &optional ,frame)
+                     (declare (ignore ,frame))
+                     `(smp-ref ,',in-ptr
+                               (the non-negative-fixnum
+                                    (+ ,,ch current-sample))))
+                   (audio-out (,ch &optional ,frame)
+                     (declare (ignore ,frame))
+                     `(smp-ref ,',out-ptr
+                               (the non-negative-fixnum
+                                    (+ ,,ch current-sample))))
+                   (now () ',now))
+          (foreach-frame-loop ,in-ptr ,out-ptr ,now ,@(cdr def))))
+     nil flist mlist (list in-ptr out-ptr now))))
 
 ;;; The follow functions are only "tags":
 
@@ -611,6 +653,15 @@
 
 (defun store-ugen-return-value (form) form)
 
+(defmacro foreach-frame (&body body)
+  `(progn ,@body))
+
+(defmacro set-local-io-pointer (ptr-var value)
+  `(setf ,ptr-var ,value))
+
+(defmacro set-local-now (now-var value)
+  `(setf ,now-var ,value))
+
 ;;; End of the "tags".
 
 ;;; MAYBE-EXPAND is used inside the definition of a VUG, when the
@@ -619,18 +670,17 @@
 ;;; avoids the obscure isolated vug-variables in the body of a VUG.
 (defmacro maybe-expand (&body body) `(progn ,@body))
 
-(defun parse-vug-def (def &optional cdr-p flist mlist quote-expr-p)
-  (declare (type boolean cdr-p quote-expr-p)
-           (type list flist mlist))
+(defun parse-vug-def (def &optional cdr-p flist mlist floop-info)
+  (declare (type boolean cdr-p) (type list flist mlist))
   (cond ((null def) nil)
         ((consp def)
          (let ((name (car def)))
            (cond ((consp name)
-                  (cons (parse-vug-def name nil flist mlist)
-                        (parse-vug-def (cdr def) t flist mlist)))
+                  (cons (parse-vug-def name nil flist mlist floop-info)
+                        (parse-vug-def (cdr def) t flist mlist floop-info)))
                  ((null cdr-p)
                   (cond ((init-binding-form-p def)
-                         (parse-init-bindings def flist mlist))
+                         (parse-init-bindings def flist mlist floop-info))
                         ((declare-form-p def)
                          (let ((decl (remove-if #'null
                                                 (mapcar #'parse-declare-form
@@ -638,46 +688,67 @@
                            (when decl
                              `(make-vug-declaration (list ,@decl)))))
                         ((eq name 'locally)
-                         (parse-locally-form def flist mlist))
+                         (parse-locally-form def flist mlist floop-info))
                         ((member name flist) ; local function
                          `(make-vug-function :name ',name
                             :inputs (list ,@(parse-vug-def
-                                              (cdr def) t flist mlist))))
+                                              (cdr def) t flist mlist
+                                              floop-info))))
                         ((member name mlist :key #'car) ; local macro
-                         (destructuring-bind (lambda-list body)
+                         (destructuring-bind (lambda-list &rest body)
                              (cdr (assoc name mlist))
                            (parse-vug-def
                              (eval `(destructuring-bind ,lambda-list ',(cdr def)
-                                      ,body))
-                            nil flist mlist)))
+                                      ;; Remove a possible doc string before
+                                      ;; a declaration.
+                                      ,@(do ((l body (cdr l)))
+                                            ((not (stringp (car l))) l))))
+                            nil flist mlist floop-info)))
                         ((function-call-p def)
                          (cond ((binding-form-p def)
-                                (parse-let-form def flist mlist))
+                                (parse-let-form def flist mlist floop-info))
                                ((ugen-block-p name)
                                 (if (inlined-ugen-p name)
                                     `(ugen-inline-funcall ',name
                                        ,@(parse-vug-def
-                                           (cdr def) t flist mlist))
-                                    (parse-ugen def flist mlist)))
+                                           (cdr def) t flist mlist floop-info))
+                                    (parse-ugen def flist mlist floop-info)))
                                ((eq name 'ugen-run)
                                 `(make-vug-function :name ',name
                                    :inputs (list ,(second def) ',(third def))
                                    :block-p t))
                                ((vug-block-p name)
-                                `(vug-funcall ',name
-                                              ,@(parse-vug-def
-                                                  (cdr def) t flist mlist)))
+                                (let ((form
+                                       `(vug-funcall ',name
+                                          ,@(parse-vug-def (cdr def) t flist
+                                                           mlist floop-info))))
+                                  (if floop-info
+                                      `(make-vug-function
+                                         :name 'filter-foreach-frame-form
+                                         :inputs (list ,@floop-info ,form))
+                                      form)))
                                ((member name '(vug-funcall ugen-funcall))
                                 `(,name ,(cadr def)
                                         ,@(parse-vug-def
-                                            (cddr def) t flist mlist)))
+                                            (cddr def) t flist mlist
+                                            floop-info)))
+                               ((eq name 'foreach-frame)
+                                (if floop-info
+                                    ;; All the nested FOREACH-FRAME loops are
+                                    ;; merged with the first.
+                                    `(make-vug-function :name 'progn
+                                       :inputs (list ,@(parse-vug-def (cdr def)
+                                                         nil flist mlist
+                                                         floop-info)))
+                                    (parse-foreach-frame-form def flist mlist)))
                                ((eq name 'tick)
-                                (parse-tick-form def flist mlist))
+                                (parse-tick-form def flist mlist floop-info))
                                ((eq name 'get-pointer)
                                 ;; Inhibit the expansion of GET-POINTER macro
                                 `(make-vug-function :name 'get-pointer
                                    :inputs (list ,@(parse-vug-def
-                                                     (cdr def) t flist mlist))))
+                                                     (cdr def) t flist mlist
+                                                     floop-info))))
                                ((eq name 'external-variable)
                                 `(make-vug-symbol :name ',(cadr def)))
                                ((eq name 'without-follow)
@@ -686,15 +757,25 @@
                                                  ,@(parse-vug-def (cddr def)))))
                                ((quote-function-p def)
                                 `(make-vug-function :name 'function
-                                                    :inputs (list ',(cadr def))))
+                                   :inputs (list ',(cadr def))))
                                ((eq name 'lambda)
-                                (parse-lambda-form def flist mlist))
+                                (parse-lambda-form def flist mlist floop-info))
                                ((eq name 'flet)
-                                (parse-flet-form def flist mlist))
+                                (parse-flet-form def flist mlist floop-info))
                                ((eq name 'labels)
-                                (parse-labels-form def flist mlist))
+                                (parse-labels-form def flist mlist floop-info))
                                ((eq name 'macrolet)
-                                (parse-macrolet-form def flist mlist))
+                                (parse-macrolet-form def flist mlist
+                                                     floop-info))
+                               ((eq name 'foreach-frame-loop)
+                                `(make-vug-function :name 'foreach-frame-loop
+                                   :inputs (list ,@(parse-vug-def (cdr def) nil
+                                                                  flist mlist
+                                                                  floop-info))))
+                               ((member name '(set-local-io-pointer
+                                               set-local-now))
+                                `(make-vug-function :name ',name
+                                   :inputs (list ,(second def) ',(third def))))
                                ((and (macro-function name)
                                      ;; Avoid the expansion of the setter forms.
                                      ;; This information is used during the code
@@ -713,15 +794,17 @@
                                             def))))
                                   (if (vug name)
                                       `(mark-vug-block
-                                         ,(parse-vug-def expansion nil flist mlist))
-                                      (parse-vug-def expansion nil flist mlist))))
+                                         ,(parse-vug-def expansion nil flist
+                                                         mlist floop-info))
+                                      (parse-vug-def expansion nil flist mlist
+                                                     floop-info))))
                                ((quote-symbol-p def)
                                 `(make-vug-symbol :name '',(second def)))
                                ((member name
                                         '(block return-from the catch throw))
-                                (parse-block-form def flist mlist))
+                                (parse-block-form def flist mlist floop-info))
                                ((eq name 'tagbody)
-                                (parse-tagbody-form def flist mlist))
+                                (parse-tagbody-form def flist mlist floop-info))
                                ((eq name 'go) (parse-go-form def))
                                ((eq name 'quote)
                                 `(make-vug-function :name 'quote
@@ -734,23 +817,26 @@
                                 `(make-vug-function :name ',name
                                    :inputs (list ,(parse-vug-def
                                                     `(the limited-sample
-                                                          ,@(cdr def))))))
+                                                          ,@(cdr def))
+                                                    nil flist mlist
+                                                    floop-info))))
                                (t `(make-vug-function :name ',name
                                      :inputs (list
                                                ,@(parse-vug-def
-                                                   (cdr def) t flist mlist))))))
-                        (quote-expr-p `',def)
-                        (t (cons name (parse-vug-def (cdr def) t flist mlist)))))
-                 (t (cons (parse-vug-def name nil flist mlist)
-                          (parse-vug-def (cdr def) t flist mlist))))))
-        (quote-expr-p `',def)
+                                                   (cdr def) t flist mlist
+                                                   floop-info))))))
+                        (t (cons name (parse-vug-def (cdr def) t flist mlist
+                                                     floop-info)))))
+                 (t (cons (parse-vug-def name nil flist mlist floop-info)
+                          (parse-vug-def (cdr def) t flist mlist
+                                         floop-info))))))
         ((eq def 'pi) (sample pi))
         ((and (symbolp def) (or (boundp def) (eq def '%dsp-node%)))
          `(make-vug-symbol :name ',def))
-        ((and (symbolp def) (eq def 'current-channel))
-         `(make-vug-symbol :name 'current-channel :block-p t))
-        ((and (numberp def) (floatp def))
-         (force-sample-format def))
+        ((and (symbolp def)
+              (member def '(current-channel current-frame current-sample)))
+         `(make-vug-symbol :name ',def :block-p t))
+        ((floatp def) (force-sample-format def))
         (t def)))
 
 (defun remove-wrapped-parens (obj)
@@ -789,8 +875,9 @@
 (defun update-setter-form (obj)
   (declare (type vug-function obj))
   (loop for (var value) on (vug-function-inputs obj) by #'cddr do
-          (when (vug-variable-p var)
-            (set-variable-performance-time var))
+          (if (vug-variable-p var)
+              (set-variable-performance-time var)
+              (update-vug-variables var))
           (update-vug-variables value)))
 
 (declaim (inline force-vug-expansion-p))
@@ -818,6 +905,39 @@
          (update-variables-to-expand-multiple-times (car obj))
          (update-variables-to-expand-multiple-times (cdr obj)))))
 
+;;; Transform AUDIO-IN or AUDIO-OUT in SMP-REF used with
+;;; the pointer defined in the expansion of FOREACH-FRAME loop.
+(defun update-audio-io (obj floop-info)
+  (destructuring-bind (in-ptr out-ptr now) floop-info
+    (declare (ignore now))
+    (let ((fname (vug-function-name obj)))
+      (setf (vug-function-name obj) 'smp-ref)
+      (setf (vug-function-inputs obj)
+            (list (if (eq fname 'audio-in) in-ptr out-ptr)
+                  (make-vug-function :name 'the
+                    :inputs (list 'non-negative-fixnum
+                                  (make-vug-function :name '+
+                                    :inputs (list* 'current-sample
+                                                   (vug-function-inputs
+                                                     obj)))))))
+      obj)))
+
+;; Transform `(now)' in `(progn now-var)', where NOW-VAR is the
+;; foreign variable defined in the expansion of FOREACH-FRAME loop.
+(defun update-now-function (obj floop-info)
+  (setf (vug-function-name obj) 'progn)
+  (setf (vug-function-inputs obj) (list (third floop-info)))
+  obj)
+
+;; Transform a nested FOREACH-FRAME loop in PROGN.
+(defmacro update-foreach-frame-loop (obj update-func &rest args)
+  (with-gensyms (in-ptr out-ptr now rest)
+    `(destructuring-bind (,in-ptr ,out-ptr ,now &rest ,rest)
+         (vug-function-inputs ,obj)
+       (setf (vug-function-name ,obj) 'progn)
+       (setf (vug-function-inputs ,obj) ,rest)
+       (,update-func ,rest ,@args (list ,in-ptr ,out-ptr ,now)))))
+
 (defun update-vug-variables (obj)
   (cond ((and (vug-function-p obj)
               (not (eq (vug-object-name obj) 'initialize)))
@@ -840,23 +960,33 @@
   obj)
 
 (defun update-variables-init-time-setter ()
-  (labels ((update-setter (obj)
-             (loop for i on (vug-function-inputs obj) by #'cddr
-                   for var = (first i) do
-                     (when (and (vug-variable-p var)
-                                (not (vug-variable-performance-time-p var)))
-                       (pushnew var (vug-variables-init-time-setter
-                                      *vug-variables*)))))
-           (update (obj)
+  (labels ((update-setter (obj &optional floop-info)
+             (loop for (var value) on (vug-function-inputs obj) by #'cddr do
+                     (if (vug-variable-p var)
+                         (unless (vug-variable-performance-time-p var)
+                           (pushnew var (vug-variables-init-time-setter
+                                          *vug-variables*)))
+                         (update var floop-info))
+                     (update value floop-info)))
+           (update (obj &optional floop-info)
              (cond ((vug-function-p obj)
-                    (when (setter-form-p (vug-object-name obj))
-                      (update-setter obj))
-                    (update (vug-function-inputs obj)))
+                    (case (vug-object-name obj)
+                      ((setf setq incf decf psetf psetq)
+                       (update-setter obj floop-info)
+                       (update (vug-function-inputs obj) floop-info))
+                      (filter-foreach-frame-form
+                       (update-foreach-frame-loop obj update))
+                      ((audio-in audio-out)
+                       (update (vug-function-inputs obj) floop-info)
+                       (when floop-info (update-audio-io obj floop-info)))
+                      (now
+                       (when floop-info (update-now-function obj floop-info)))
+                      (otherwise (update (vug-function-inputs obj) floop-info))))
                    ((vug-variable-p obj)
-                    (update (vug-variable-value obj)))
+                    (update (vug-variable-value obj) floop-info))
                    ((consp obj)
-                    (update (car obj))
-                    (update (cdr obj))))))
+                    (update (car obj) floop-info)
+                    (update (cdr obj) floop-info)))))
     (loop for var in (vug-variables-bindings *vug-variables*)
           do (update (vug-variable-value var)))
     *vug-variables*))
@@ -956,61 +1086,119 @@
   (declare (type vug-variable var))
   (remhash var (vug-variables-deleted *vug-variables*)))
 
+(defmacro reduce-foreach-frame-loop (obj info replaced-vars initialize-body-p)
+  (with-gensyms (in out now old-in old-out old-now rest old-vars)
+    `(cond (,info
+            ;; Merge the nested FOREACH-FRAME loop and use the
+            ;; variables of the first loop.
+            (destructuring-bind (,in ,out ,now) ,info
+              (destructuring-bind (,old-in ,old-out ,old-now &rest ,rest)
+                  (vug-function-inputs ,obj)
+                (declare (ignore ,rest))
+                (let ((,old-vars (list ,old-in ,old-out ,old-now)))
+                  (push ,old-vars ,replaced-vars)
+                  (mapc (lambda (old new)
+                          (replace-vug-variable old new)
+                          (msg-debug-delete-variable old "performance-time"))
+                        ,old-vars (list ,in ,out ,now)))))
+            (setf (vug-function-name ,obj) 'progn)
+            (setf (vug-function-inputs ,obj)
+                  (cdddr (vug-function-inputs ,obj)))
+            (msg debug "merge nested FOREACH-FRAME loop")
+            (reduce-vars (vug-function-inputs ,obj) ,initialize-body-p ,info))
+           (t (reduce-vars
+               ;; Skip the variables of the loop (useless and it's avoid
+               ;; the increment of VUG-VARIABLE-REF-COUNT slot).
+               (cdddr (vug-function-inputs ,obj)) ,initialize-body-p ,info)))))
+
+(defun update-foreach-frame-loop-vars (replaced-vars)
+  (dolist (vars replaced-vars)
+    (mapc (lambda (var)
+            (let ((count (vug-variable-ref-count var)))
+              (when (plusp count)
+                (incf (vug-variable-ref-count (vug-variable-replacement var))
+                      count))))
+          vars)))
+
 (defun reduce-vug-variables (obj)
-  (labels ((reduce-vars (x initialize-body-p)
-             (cond
-               ((vug-variable-p x)
-                (incf (vug-variable-ref-count x))
-                (multiple-value-bind (cached cached-p)
-                    (vug-variable-replacement x)
-                  (declare (ignore cached))
-                  (let ((value (vug-variable-value x)))
-                    (cond
-                      ((and (reducible-vug-variable-p x)
-                            (constant-vug-variable-value-p value))
-                       (unless cached-p
-                         (when (vug-variable-p value)
-                           (incf (vug-variable-ref-count value)))
-                         (replace-vug-variable x value)
-                         (msg-debug-delete-variable x "init-time")))
-                      ((vug-variable-performance-time-p x)
-                       (when (vug-variable-check-value-p x)
-                         (setf (vug-variable-check-value-p x) nil)
-                         (reduce-vars value initialize-body-p)))
-                      (t
-                       (when (vug-variable-check-value-p x)
-                         (setf (vug-variable-check-value-p x) nil)
-                         (reduce-vars value initialize-body-p))
-                       (when (and (not cached-p)
-                                  (no-performance-time-p value)
-                                  (not (vug-variable-to-preserve-p x))
-                                  (not (vug-variable-with-init-time-setter-p x)))
-                         (multiple-value-bind (cached cached-p)
-                             (vug-variable-replacement value)
-                           (when (not cached-p)
+  (let ((floop-replaced-vars))
+    (labels ((reduce-vars (x initialize-body-p floop-info)
+               (cond
+                 ((vug-variable-p x)
+                  (incf (vug-variable-ref-count x))
+                  (multiple-value-bind (cached cached-p)
+                      (vug-variable-replacement x)
+                    (declare (ignore cached))
+                    (let ((value (vug-variable-value x)))
+                      (cond
+                        ((and (reducible-vug-variable-p x)
+                              (constant-vug-variable-value-p value))
+                         (unless cached-p
+                           (when (vug-variable-p value)
                              (incf (vug-variable-ref-count value)))
-                           (replace-vug-variable x (if cached-p cached value) t)
-                           (msg-debug-delete-variable x "init-time"))))))))
-               ((vug-function-p x)
-                (let ((fname (vug-function-name x)))
-                  (when (and initialize-body-p (setter-form-p fname))
-                    ;; Preserve the init-time variables updated inside
-                    ;; the body of INITIALIZE
-                    (loop for binding on (vug-function-inputs x) by #'cddr
-                          for obj = (car binding)
-                          when (and (vug-variable-p obj)
-                                    (vug-variable-init-time-p obj)
-                                    (not (performance-time-p obj)))
-                          do (pushnew obj (vug-variables-init-time-setter
-                                            *vug-variables*))))
-                  (reduce-vars (vug-function-inputs x)
-                               (or initialize-body-p (eq fname 'initialize)))))
-               ((consp x)
-                (reduce-vars (car x) initialize-body-p)
-                (reduce-vars (cdr x) initialize-body-p)))))
-    (update-variables-init-time-setter)
-    (reduce-vars obj nil)
-    obj))
+                           (replace-vug-variable x value)
+                           (msg-debug-delete-variable x "init-time")))
+                        ((vug-variable-performance-time-p x)
+                         (when (vug-variable-check-value-p x)
+                           (setf (vug-variable-check-value-p x) nil)
+                           (reduce-vars value initialize-body-p floop-info)))
+                        (t
+                         (when (vug-variable-check-value-p x)
+                           (setf (vug-variable-check-value-p x) nil)
+                           (reduce-vars value initialize-body-p floop-info))
+                         (when (and (not cached-p)
+                                    (no-performance-time-p value)
+                                    (not (vug-variable-to-preserve-p x))
+                                    (not (vug-variable-with-init-time-setter-p x)))
+                           (multiple-value-bind (cached cached-p)
+                               (vug-variable-replacement value)
+                             (when (not cached-p)
+                               (incf (vug-variable-ref-count value)))
+                             (replace-vug-variable x (if cached-p cached value) t)
+                             (msg-debug-delete-variable x "init-time"))))))))
+                 ((vug-function-p x)
+                  (let ((fname (vug-function-name x)))
+                    (cond
+                      ((eq fname 'filter-foreach-frame-form)
+                       (update-foreach-frame-loop x reduce-vars
+                                                  initialize-body-p))
+                      ((member fname '(audio-in audio-out))
+                       (when floop-info (update-audio-io x floop-info))
+                       (reduce-vars (vug-function-inputs x)
+                                    initialize-body-p floop-info))
+                      ((eq fname 'now)
+                       (when floop-info (update-now-function x floop-info))
+                       (reduce-vars (vug-function-inputs x)
+                                    initialize-body-p floop-info))
+                      ((member fname '(set-local-io-pointer set-local-now))
+                       ;; Avoid to increment VUG-VARIABLE-REF-COUNT.
+                       nil)
+                      ((eq fname 'foreach-frame-loop)
+                       (reduce-foreach-frame-loop x floop-info
+                                                  floop-replaced-vars
+                                                  initialize-body-p))
+                      (t (when (and initialize-body-p (setter-form-p fname))
+                           ;; Preserve the init-time variables updated
+                           ;; inside the body of INITIALIZE
+                           (loop for binding on (vug-function-inputs x)
+                                             by #'cddr
+                                 for obj = (car binding)
+                                 when (and (vug-variable-p obj)
+                                           (vug-variable-init-time-p obj)
+                                           (not (performance-time-p obj)))
+                                 do (pushnew obj (vug-variables-init-time-setter
+                                                   *vug-variables*))))
+                         (reduce-vars (vug-function-inputs x)
+                                      (or initialize-body-p
+                                          (eq fname 'initialize))
+                                      floop-info)))))
+                 ((consp x)
+                  (reduce-vars (car x) initialize-body-p floop-info)
+                  (reduce-vars (cdr x) initialize-body-p floop-info)))))
+      (update-variables-init-time-setter)
+      (reduce-vars obj nil nil)
+      (update-foreach-frame-loop-vars floop-replaced-vars)
+      obj)))
 
 (defun debug-deleted-variables ()
   (msg debug "deleted ~D unused variables~%~4T~A"

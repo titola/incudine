@@ -287,6 +287,7 @@
                 [USER-OPTIONS]
 
   -b, --sndfile-buffer-size <int>  Buffer size to read/write a soundfile.
+  -B, --block-size <frames>    Block size for block-by-block processing.
   -c, --channels <int>         Number of the output channels.
   --client-name <name>         Name of the client for the audio server.
   --compile-score-contents     Compile the contents of the score.
@@ -483,6 +484,10 @@ SBCL options:
   (def-toplevel-opt ("-b" . "--sndfile-buffer-size")
     (with-eval-form (bufsize "Failed to set the buffer size ~D" t)
       (setf *sndfile-buffer-size* bufsize)))
+
+  (def-toplevel-opt ("-B" . "--block-size")
+    (with-eval-form (block-size "Failed to set the block size ~D" t)
+      (eval `(set-rt-block-size ,block-size))))
 
   (def-toplevel-opt ("-c" . "--channels")
     (with-eval-form (outputs "Failed to set the number of output channels ~D" t)

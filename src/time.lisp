@@ -86,9 +86,9 @@
 (defun now ()
   (smp-ref *sample-counter* 0))
 
-(declaim (inline incf-time))
-(defun incf-sample-counter ()
-  (incf (smp-ref *sample-counter* 0) 1.0)
+(declaim (inline incf-sample-counter))
+(defun incf-sample-counter (&optional (delta 1))
+  (incf (smp-ref *sample-counter* 0) delta)
   (values))
 
 (declaim (inline reset-timer))

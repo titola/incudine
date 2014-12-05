@@ -97,21 +97,28 @@
 (defsetf bus set-bus)
 
 (declaim (inline audio-in))
-(defun audio-in (channel)
-  (declare (type channel-number channel))
-  (smp-ref (input-pointer) channel))
+(defun audio-in (channel &optional (frame 0))
+  (declare (type channel-number channel)
+           (type non-negative-fixnum frame))
+  (smp-ref (input-pointer) (the non-negative-fixnum (+ frame channel))))
 
 (declaim (inline audio-out))
-(defun audio-out (channel)
-  (declare (type channel-number channel))
-  (smp-ref (output-pointer) channel))
+(defun audio-out (channel &optional (frame 0))
+  (declare (type channel-number channel)
+           (type non-negative-fixnum frame))
+  (smp-ref (output-pointer) (the non-negative-fixnum (+ frame channel))))
 
 (declaim (inline set-audio-out))
-(defun set-audio-out (channel value)
-  (declare (type channel-number channel))
-  (setf (smp-ref (output-pointer) channel) (sample value)))
+(defun set-audio-out (channel frame value)
+  (declare (type channel-number channel)
+           (type non-negative-fixnum frame)
+           (type real value))
+  (setf (smp-ref (output-pointer) (the non-negative-fixnum
+                                       (+ frame channel)))
+        (sample value)))
 
-(defsetf audio-out set-audio-out)
+(defsetf audio-out (channel &optional (frame 0)) (value)
+  `(set-audio-out ,channel ,frame ,value))
 
 (defun update-peak-values (chan)
   (declare #.*standard-optimize-settings*

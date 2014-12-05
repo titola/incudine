@@ -165,12 +165,13 @@
    #:get-pointer
    #:dsp! #:dsp-debug #:all-dsp-names #:free-dsp-instances #:destroy-dsp
    #:*update-dsp-instances*
-   #:current-channel
+   #:current-channel #:current-frame #:current-sample
    #:make-frame #:frame-ref #:multiple-sample-bind #:samples
    #:make-int32-array #:make-uint32-array #:make-int64-array #:make-uint64-array
    #:make-f32-array #:make-f64-array
    #:maybe-make-i32-array #:maybe-make-u32-array #:maybe-i32-ref #:maybe-u32-ref
-   #:foreach-tick #:foreach-channel #:counter #:downsamp #:generic-rate
+   #:foreach-tick #:foreach-channel #:foreach-frame
+   #:counter #:downsamp #:generic-rate
    #:samphold #:interpolate
    #:tick #:external-variable #:init-only #:initialize #:without-follow
    #:maybe-expand #:update #:object-to-free
@@ -352,6 +353,7 @@
    #:set-number-of-channels
    #:*rt-thread-start-hook* #:*rt-thread-exit-hook*
    #:rt-start #:rt-stop #:rt-status #:rt-buffer-size #:rt-sample-rate
+   #:rt-loop-callback #:set-rt-block-size #:block-size
    #:portaudio-device-info #:portaudio-set-device
    #:at #:aat #:flush-pending #:flush-all-fifos
    #:tempo #:*tempo* #:make-tempo #:bpm #:bps #:now #:tempo-sync
