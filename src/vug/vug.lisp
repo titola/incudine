@@ -1187,7 +1187,11 @@
                                            (vug-variable-init-time-p obj)
                                            (not (performance-time-p obj)))
                                  do (pushnew obj (vug-variables-init-time-setter
-                                                   *vug-variables*))))
+                                                   *vug-variables*))
+                                    (when (vug-variable-deleted-p obj)
+                                      (undelete-vug-variable obj)
+                                      (msg debug "undelete ~A within setter form"
+                                           obj))))
                          (reduce-vars (vug-function-inputs x)
                                       (or initialize-body-p
                                           (eq fname 'initialize))

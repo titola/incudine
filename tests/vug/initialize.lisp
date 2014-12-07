@@ -12,6 +12,16 @@
     (initialize (setf x (sample 0.5)))
     (out x)))
 
+(dsp! initialize-test-3 ()
+  (with ((x +sample-zero+)
+         (reinit-p nil))
+    (declare (type sample x))
+    (initialize
+      (unless reinit-p
+        (setf x (sample 1))
+        (setf reinit-p t)))
+    (out x)))
+
 (with-dsp-test (initialize.1
       :md5 #(161 205 76 188 210 243 228 100 239 189 253 78 70 210 30 230))
   (initialize-test-1 .5 :id 123)
@@ -28,3 +38,7 @@
   (at #[2 sec] #'set-control 123 :input .2)
   (at #[3 sec] #'set-control 123 :input .3)
   (at #[4 sec] #'set-control 123 :input .4))
+
+(with-dsp-test (initialize.3
+      :md5 #(178 94 198 208 162 38 4 78 160 213 55 138 91 220 83 142))
+  (initialize-test-3))
