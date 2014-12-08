@@ -137,11 +137,11 @@ when the duration is undefined.")
 
 (defmacro nrt-loop (snd data bufsize count channels &optional stop-if-empty-p)
   `(progn
+     ,(when stop-if-empty-p
+        `(if (incudine.edf:heap-empty-p) (return)))
      (incudine.edf::sched-loop)
      (perform-fifos)
      (compute-tick)
-     ,(when stop-if-empty-p
-        `(if (incudine.edf:heap-empty-p) (return)))
      (write-snd-buffer ,data ,count ,channels)
      (when (= ,count ,bufsize)
        (write-sample ,snd ,data ,bufsize)
