@@ -262,73 +262,6 @@
 (defun vug-progn-function-p (obj)
   (and (vug-object-p obj) (vug-name-p obj 'progn)))
 
-(declaim (inline foreign-sample-type-p))
-(defun foreign-sample-type-p (type)
-  (member type '(sample positive-sample negative-sample
-                 non-negative-sample non-positive-sample)))
-
-(declaim (inline foreign-symbol-type-p))
-(defun foreign-symbol-type-p (foreign-type name)
-  (string= name (symbol-name (if (consp foreign-type)
-                                 (car foreign-type)
-                                 foreign-type))))
-
-(declaim (inline foreign-float-type-p))
-(defun foreign-float-type-p (type)
-  (foreign-symbol-type-p type "FOREIGN-FLOAT"))
-
-(declaim (inline foreign-double-type-p))
-(defun foreign-double-type-p (type)
-  (foreign-symbol-type-p type "FOREIGN-DOUBLE"))
-
-(declaim (inline signed-or-unsigned-byte-p))
-(defun signed-or-unsigned-byte-p (sym)
-  (and (member sym '(signed-byte unsigned-byte)) t))
-
-(declaim (inline foreign-int-p))
-(defun foreign-*-p (type symbol-names)
-  (and (atom type)
-       (member (symbol-name type) symbol-names :test #'string=)
-       t))
-
-(declaim (inline foreign-int32-type-p))
-(defun foreign-int32-type-p (type)
-  (reduce-warnings
-    (cond ((consp type)
-           (when (< incudine.util::n-fixnum-bits 32)
-             (and (signed-or-unsigned-byte-p (car type))
-                  (= (cadr type) 32))))
-          (t (or (foreign-*-p type '("INT32" "UINT32"))
-                 (when (< incudine.util::n-fixnum-bits 32)
-                   (signed-or-unsigned-byte-p type)))))))
-
-(declaim (inline foreign-int64-type-p))
-(defun foreign-int64-type-p (type)
-  (reduce-warnings
-    (cond ((consp type)
-           (and (signed-or-unsigned-byte-p (car type))
-                (= (cadr type) 64)))
-          (t (or (foreign-*-p type '("INT64" "UINT64"))
-                 (and (> incudine.util::n-fixnum-bits 32)
-                      (signed-or-unsigned-byte-p type)))))))
-
-(declaim (inline foreign-number-type-p))
-(defun foreign-number-type-p (type)
-  (or (foreign-sample-type-p type)
-      (foreign-float-type-p type)
-      (foreign-double-type-p type)
-      (foreign-int32-type-p type)
-      (foreign-int64-type-p type)))
-
-(declaim (inline foreign-pointer-type-p))
-(defun foreign-pointer-type-p (type)
-  (foreign-*-p type '("FOREIGN-POINTER" "FRAME" "POINTER")))
-
-(declaim (inline foreign-type-p))
-(defun foreign-type-p (type)
-  (or (foreign-number-type-p type)
-      (foreign-pointer-type-p type)))
-
 (declaim (inline foreign-object-p))
 (defun foreign-object-p (var)
   (foreign-type-p (vug-object-type var)))
@@ -901,12 +834,20 @@
                 (%set-vug-variable var value param-plist)))))
       (cdr (vug-parameter-vars-to-update param)))))
 
+(defun dsp-coercing-argument (arg type)
+  (cond ((foreign-float-type-p type) `(coerce ,arg 'single-float))
+        ((foreign-double-type-p type) `(coerce ,arg 'double-float))
+        ((foreign-non-sample-type-p type) arg)
+        ((subtypep type 'sample) `(force-sample-format ,arg))
+        ((compound-type-p type) `(the ,type ,arg))
+        (t `(coerce ,arg ',type))))
+
 (defun dsp-control-setter-func (param)
   (with-gensyms (value)
     `(lambda (,value)
        (declare #.*reduce-warnings*)
        (setf ,(vug-parameter-aux-varname param)
-             (coerce ,value ',(vug-object-type param)))
+             ,(dsp-coercing-argument value (vug-object-type param)))
        ,@(control-dependence param)
        (values))))
 
@@ -984,9 +925,12 @@
        ;; List of the control names
        ,(set-dsp-control "%CONTROL-NAMES%" control-table :arg-names names))))
 
-(declaim (inline coerce-vug-float))
 (defun coerce-vug-float (obj type)
-  (if (subtypep type 'float) `(coerce ,obj ',type) obj))
+  (cond ((foreign-float-type-p type) `(coerce ,obj 'single-float))
+        ((foreign-double-type-p type) `(coerce ,obj 'double-float))
+        ((foreign-non-sample-type-p type) obj)
+        ((subtypep type 'float) `(coerce ,obj ',type))
+        (t obj)))
 
 (defmacro update-lisp-array (vug-varname args)
   (with-gensyms (dimensions)
@@ -1097,10 +1041,7 @@
 (defun dsp-coercing-arguments (args)
   (mapcar (lambda (x)
             (destructuring-bind (arg type) (if (consp x) x `(,x sample))
-              `(,arg ,(cond
-                       ((compound-type-p type) `(the ,type ,arg))
-                       ((subtypep type 'sample) `(force-sample-format ,arg))
-                       (t `(coerce ,arg ',type))))))
+              `(,arg ,(dsp-coercing-argument arg type))))
           args))
 
 (defmacro update-dsp-instances (name arg-names)
@@ -1223,13 +1164,7 @@
 (defmacro %codegen-debug (name args arg-names codegen-fname rest &body body)
   (let ((doc (if (stringp (car body)) (car body))))
     `(lambda ,arg-names
-       (let ,(mapcar (lambda (x)
-                       (destructuring-bind (arg type)
-                           (if (consp x) x `(,x sample))
-                         `(,arg ,(if (subtypep type 'sample)
-                                     `(force-sample-format ,arg)
-                                     `(coerce ,arg ',type)))))
-                     args)
+       (let ,(dsp-coercing-arguments args)
          (,codegen-fname ',name ,args ,arg-names ,@rest
                          (progn ,@(if doc (cdr body) body)))))))
 

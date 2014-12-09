@@ -88,3 +88,78 @@
 
 (defmacro vug-format-symbol (control &rest args)
   `(format-symbol :incudine.vug ,control ,@args))
+
+(declaim (inline foreign-sample-type-p))
+(defun foreign-sample-type-p (type)
+  (member type '(sample positive-sample negative-sample
+                 non-negative-sample non-positive-sample)))
+
+(declaim (inline foreign-symbol-type-p))
+(defun foreign-symbol-type-p (foreign-type name)
+  (string= name (symbol-name (if (consp foreign-type)
+                                 (car foreign-type)
+                                 foreign-type))))
+
+(declaim (inline foreign-int-p))
+(defun foreign-*-p (type symbol-names)
+  (and (atom type)
+       (member (symbol-name type) symbol-names :test #'string=)
+       t))
+
+(declaim (inline foreign-float-type-p))
+(defun foreign-float-type-p (type)
+  (foreign-*-p type '("F32" "FOREIGN-FLOAT")))
+
+(declaim (inline foreign-double-type-p))
+(defun foreign-double-type-p (type)
+  (foreign-*-p type '("F64" "FOREIGN-DOUBLE")))
+
+(declaim (inline signed-or-unsigned-byte-p))
+(defun signed-or-unsigned-byte-p (sym)
+  (and (member sym '(signed-byte unsigned-byte)) t))
+
+(declaim (inline foreign-int32-type-p))
+(defun foreign-int32-type-p (type)
+  (reduce-warnings
+    (cond ((consp type)
+           (when (< incudine.util::n-fixnum-bits 32)
+             (and (signed-or-unsigned-byte-p (car type))
+                  (= (cadr type) 32))))
+          (t (or (foreign-*-p type '("I32" "INT32" "U32" "UINT32"))
+                 (when (< incudine.util::n-fixnum-bits 32)
+                   (signed-or-unsigned-byte-p type)))))))
+
+(declaim (inline foreign-int64-type-p))
+(defun foreign-int64-type-p (type)
+  (reduce-warnings
+    (cond ((consp type)
+           (and (signed-or-unsigned-byte-p (car type))
+                (= (cadr type) 64)))
+          (t (or (foreign-*-p type '("I64" "INT64" "U64" "UINT64"))
+                 (and (> incudine.util::n-fixnum-bits 32)
+                      (signed-or-unsigned-byte-p type)))))))
+
+(declaim (inline foreign-number-type-p))
+(defun foreign-number-type-p (type)
+  (or (foreign-sample-type-p type)
+      (foreign-float-type-p type)
+      (foreign-double-type-p type)
+      (foreign-int32-type-p type)
+      (foreign-int64-type-p type)))
+
+(declaim (inline foreign-pointer-type-p))
+(defun foreign-pointer-type-p (type)
+  (foreign-*-p type '("FOREIGN-POINTER" "FRAME" "POINTER" "PTR")))
+
+(declaim (inline foreign-type-p))
+(defun foreign-type-p (type)
+  (or (foreign-number-type-p type)
+      (foreign-pointer-type-p type)))
+
+(declaim (inline foreign-non-sample-type-p))
+(defun foreign-non-sample-type-p (type)
+  (or (foreign-float-type-p type)
+      (foreign-double-type-p type)
+      (foreign-int32-type-p type)
+      (foreign-int64-type-p type)
+      (foreign-pointer-type-p type)))

@@ -336,6 +336,32 @@
   (and (boundp '*variables-to-preserve*)
        (member var *variables-to-preserve*)))
 
+(defun preserve-vug-variable (obj)
+  (declare (type vug-variable obj))
+  (when (boundp '*variables-to-preserve*)
+    (pushnew obj *variables-to-preserve*)))
+
+(defun coerce-number (obj output-type-spec)
+  (if (and (numberp obj)
+           (not (or (foreign-int32-type-p output-type-spec)
+                    (foreign-int64-type-p output-type-spec))))
+      (cond ((foreign-float-type-p output-type-spec)
+             (coerce obj 'single-float))
+            ((foreign-double-type-p output-type-spec)
+             (coerce obj 'double-float))
+            ((subtypep output-type-spec 'sample)
+             (force-sample-format obj))
+            (t (coerce obj output-type-spec)))
+      obj))
+
+(defun maybe-coerce-value (obj type)
+  (when (vug-variable-p obj)
+    (let ((value (vug-variable-value obj)))
+      (when (numberp value)
+        (let ((new (coerce-number value type)))
+          (unless (eq (type-of value) (type-of new))
+            (setf (vug-variable-value obj) new)))))))
+
 (defun make-vug-declaration (spec)
   (declare (type list spec))
   (let ((obj (%make-vug-declaration :name (car spec) :spec spec)))
@@ -345,14 +371,14 @@
                 (dolist (i (cddr decl))
                   (when (vug-object-p i)
                     (setf (vug-object-type i) type)
+                    (maybe-coerce-value i type)
                     (when (and (ugen-variable-p i)
                                (not (vug-variable-init-time-p i)))
                       (resolve-variable-to-update (vug-variable-value i) i))))))
         (preserve
          (dolist (i (cdr decl))
-           (when (and (vug-variable-p i)
-                      (boundp '*variables-to-preserve*))
-             (pushnew i *variables-to-preserve*))))
+           (when (vug-variable-p i)
+             (preserve-vug-variable i))))
         (performance-time
          (dolist (i (cdr decl))
            (if (vug-variable-p i)
@@ -836,7 +862,6 @@
         ((and (symbolp def)
               (member def '(current-channel current-frame current-sample)))
          `(make-vug-symbol :name ',def :block-p t))
-        ((floatp def) (force-sample-format def))
         (t def)))
 
 (defun remove-wrapped-parens (obj)
@@ -959,6 +984,14 @@
          (update-vug-variables (cdr obj))))
   obj)
 
+(defun preserve-pointer-to-foreign-variable (obj)
+  (cond ((vug-variable-p obj)
+         (when (vug-variable-deleted-p obj)
+           (undelete-vug-variable obj)
+           (msg debug "undelete ~A (pointer required)" obj))
+         (preserve-vug-variable obj))
+        (t (msg error "cannot get the pointer to ~A" obj))))
+
 (defun update-variables-init-time-setter ()
   (labels ((update-setter (obj &optional floop-info)
              (loop for (var value) on (vug-function-inputs obj) by #'cddr do
@@ -981,6 +1014,9 @@
                        (when floop-info (update-audio-io obj floop-info)))
                       (now
                        (when floop-info (update-now-function obj floop-info)))
+                      (get-pointer
+                       (let ((obj (car (vug-function-inputs obj))))
+                         (preserve-pointer-to-foreign-variable obj)))
                       (otherwise (update (vug-function-inputs obj) floop-info))))
                    ((vug-variable-p obj)
                     (update (vug-variable-value obj) floop-info))
@@ -1177,6 +1213,9 @@
                        (reduce-foreach-frame-loop x floop-info
                                                   floop-replaced-vars
                                                   initialize-body-p))
+                      ((eq fname 'get-pointer)
+                       (let ((obj (car (vug-function-inputs x))))
+                         (preserve-pointer-to-foreign-variable obj)))
                       (t (when (and initialize-body-p (setter-form-p fname))
                            ;; Preserve the init-time variables updated
                            ;; inside the body of INITIALIZE
@@ -1231,14 +1270,6 @@
   (when obj
     (setf (vug-object-block-p obj) t)
     obj))
-
-(declaim (inline coerce-number))
-(defun coerce-number (obj output-type-spec)
-  (if (numberp obj)
-      (if (subtypep output-type-spec 'sample)
-          (force-sample-format obj)
-          (coerce obj output-type-spec))
-      obj))
 
 (defmacro with-coerce-arguments (bindings &body body)
   `(let ,(mapcar (lambda (x)
