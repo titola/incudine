@@ -38,5 +38,7 @@
      (:file "lilv")))
    (:module "src"
     :depends-on ("contrib/cl-lilv")
+    :serial t
     :components
-    ((:file "vug/lv2")))))
+    ((:file "vug/foreign-plugin")
+     (:file "vug/lv2")))))

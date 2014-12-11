@@ -18,192 +18,139 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (export 'ladspa->vug (find-package :incudine.vug))
-  (object-to-free ladspa-plugin-instantiate update-ladspa-instance))
+  (object-to-free incudine.vug-ext::ladspa-plugin-instantiate
+                  incudine.vug-ext::update-ladspa-instance))
 
-(deftype ladspa-sample () 'single-float)
+(in-package :incudine.vug-ext)
 
-;;; Auxiliary structure for a foreign descriptor pointer
-(defstruct (ladspa-descriptor (:constructor %make-ladspa-descriptor))
-  (pointer (cffi:null-pointer) :type cffi:foreign-pointer)
-  (filename (error "missing filename") :type string)
-  (label (error "missing label") :type string))
+(defstruct (ladspa-plugin (:include foreign-plugin)
+                          (:constructor %make-ladspa-plugin)))
 
-(defun make-ladspa-descriptor (filename label)
-  (%make-ladspa-descriptor
-   :pointer (ladspa:plugin-descriptor filename label)
-   :filename filename
-   :label label))
+(defun make-ladspa-plugin (filename label)
+  (update-io-number
+    (let* ((descr (ladspa:plugin-descriptor filename label)))
+      (%make-ladspa-plugin
+        :name (ladspa:name descr)
+        :path filename
+        :pointer descr
+        :label label
+        :id (ladspa:unique-id descr)
+        :author (ladspa:maker descr)
+        :license (ladspa:copyright descr)
+        :realtime-p (ladspa:realtime-p (ladspa:properties descr))
+        :ports (make-ladspa-ports descr)
+        :sample-type 'foreign-float
+        :instantiate-cb (ladspa:descriptor-slot-value descr 'instantiate)
+        :connect-port-cb (ladspa:descriptor-slot-value descr 'connect-port)
+        :activate-cb (ladspa:descriptor-slot-value descr 'activate)
+        :run-cb (ladspa:descriptor-slot-value descr 'run)
+        :deactivate-cb (ladspa:descriptor-slot-value descr 'deactivate)
+        :cleanup-cb (ladspa:descriptor-slot-value descr 'cleanup)))))
 
-(defmethod make-load-form ((obj ladspa-descriptor) &optional environment)
+(defun make-ladspa-ports (descriptor)
+  (let ((names (ladspa:descriptor-slot-value descriptor 'port-names)))
+    (coerce
+      (loop for i below (ladspa:port-count descriptor)
+            collect (make-port
+                      :name (cffi:mem-aref names :string i)
+                      :id i
+                      :type (ladspa-port-type descriptor i)
+                      :value-type 'foreign-float))
+      'simple-vector)))
+
+(defmethod make-load-form ((obj ladspa-plugin) &optional environment)
   (declare (ignore environment))
-  `(make-ladspa-descriptor ,(ladspa-descriptor-filename obj)
-                           ,(ladspa-descriptor-label obj)))
+  `(make-ladspa-plugin ,(ladspa-plugin-path obj) ,(ladspa-plugin-label obj)))
 
-(defmethod print-object ((obj ladspa-descriptor) stream)
-  (format stream "#<~S ~S ~S #X~8,'0X>"
-          (type-of obj) (ladspa-descriptor-filename obj)
-          (ladspa-descriptor-label obj)
-          (cffi:pointer-address (ladspa-descriptor-pointer obj))))
-
-;;; Auxiliary structure for a foreign callback pointer
-(defstruct (ladspa-callback (:constructor %make-ladspa-callback))
-  (pointer (cffi:null-pointer) :type cffi:foreign-pointer)
-  (name (error "missing slot-name") :type symbol)
-  (descriptor (error "missing ladspa descriptor pointer")
-              :type ladspa-descriptor))
-
-(defun make-ladspa-callback (name descriptor)
-  (%make-ladspa-callback
-   :pointer (ladspa:descriptor-slot-value (ladspa-descriptor-pointer descriptor)
-                                          name)
-   :name name
-   :descriptor descriptor))
-
-(defmethod make-load-form ((obj ladspa-callback) &optional environment)
-  (declare (ignore environment))
-  `(make-ladspa-callback ',(ladspa-callback-name obj)
-                         ,(ladspa-callback-descriptor obj)))
-
-(defmethod print-object ((obj ladspa-callback) stream)
-  (format stream "#<~S ~A #X~8,'0X>"
-          (type-of obj) (ladspa-callback-name obj)
-          (cffi:pointer-address (ladspa-callback-pointer obj))))
-
-(defmacro with-ladspa-callbacks (callbacks descriptor &body body)
-  `(let ,(mapcar (lambda (x)
-                   `(,(car x) (make-ladspa-callback ',(cadr x) ,descriptor)))
-                 callbacks)
-     ,@body))
-
-;;; Defined as macro to reduce the inlined functions inside the
-;;; definition of a DSP
-(defmacro ladspa-sample (number)
-  `(coerce ,number 'ladspa-sample))
+(defun ladspa-port-type (descriptor index)
+  (let ((n (cffi:mem-aref (ladspa:descriptor-slot-value descriptor
+                                                        'port-descriptors)
+                          :int index)))
+    (logior (if (ladspa:port-input-p n) +input-port+ 0)
+            (if (ladspa:port-output-p n) +output-port+ 0)
+            (if (ladspa:port-control-p n) +control-port+ 0)
+            (if (ladspa:port-audio-p n) +audio-port+ 0))))
 
 (declaim (inline ladspa-plugin-instantiate))
-(defun ladspa-plugin-instantiate (callback descriptor)
-  (ladspa:instantiate (ladspa-callback-pointer callback)
-                      (ladspa-descriptor-pointer descriptor)
+(defun ladspa-plugin-instantiate (plugin &optional arg)
+  (declare (ignore arg))
+  (ladspa:instantiate (ladspa-plugin-instantiate-cb plugin)
+                      (ladspa-plugin-pointer plugin)
                       (sample->fixnum *sample-rate*)))
 
 (defmacro update-ladspa-instance (vug-varname args)
-  (declare (ignore args))
-  `(progn (ladspa:activate ,vug-varname) ,vug-varname))
+  (declare (ignore vug-varname))
+  ;; ARGS are the arguments passed to LADSPA-PLUGIN-INSTANTIATE, so
+  ;; the second argument is REINIT-P. When REINIT-P is NIL, the ports
+  ;; are connected and the plugin-instance is activated.
+  `(setf ,(second args) t))
 
 (defmethod incudine:free ((obj ladspa:handle))
   (msg debug "Cleanup LADSPA plugin")
   (ladspa:cleanup obj))
 
-;;; Lispify the names of the ports
-(defun ladspa-port-name-to-symbol (name)
-  (loop for c across name
-        with acc = nil and skip-p = nil do
-       (case c
-         ((#\space #\tab #\( #\[ #\{ #\< #\: #\. #\; #\,
-           #\- #\_ #\# #\@ #\' #\" #\`)
-          ;; Replace multiple characters with '-'
-          (unless skip-p
-            (setf skip-p t)
-            (push #\- acc)))
-         ((#\) #\] #\} #\>) nil)
-         (otherwise (push c acc)
-                    (when skip-p
-                      (setf skip-p nil))))
-        finally (let ((acc (if (and acc (char= (car acc) #\-))
-                               (cdr acc)
-                               acc)))
-                  (return (intern (string-upcase
-                                   (coerce (nreverse acc) 'string)))))))
+(declaim (inline ladspa-connect-port))
+(defun ladspa-connect-port (plugin instance-ptr index data-location)
+  (cffi:foreign-funcall-pointer (ladspa-plugin-connect-port-cb plugin) ()
+                                :pointer instance-ptr :unsigned-long index
+                                :pointer data-location :void))
 
-(defun ladspa-port-symbol-names (descriptor)
-  (let ((input-ports nil)
-        (output-ports nil)
-        (descr-ptr (ladspa-descriptor-pointer descriptor)))
-    (loop for port-descr in (ladspa:port-descriptors descr-ptr)
-          for name in (mapcar #'ladspa-port-name-to-symbol
-                              (ladspa:port-names descr-ptr))
-          for i from 0
-          for port = (cons i name) do
-         (if (ladspa:port-input-p port-descr)
-             (push port input-ports)
-             (push port output-ports)))
-    (values (nreverse input-ports) (nreverse output-ports))))
+(defun ladspa-connect-port-form (plugin instance-ptr block-size)
+  `(progn
+     ,@(port-loop (p i plugin)
+         for name = (arg-symbol p)
+         collect `(ladspa-connect-port ,plugin ,instance-ptr ,i
+                                       ,(if (and (> block-size 1)
+                                                 (audio-port-p p))
+                                            name
+                                            `(get-pointer ,name))))))
 
-(defun ladspa-connect-port-form (instance callback input-ports
-                                 output-ports)
-  (loop for (index . name) in (append input-ports output-ports)
-        collect `(ladspa:connect-port (ladspa-callback-pointer ,callback)
-                                      ,instance ,index
-                                      (get-pointer ,name))))
+(defmacro ladspa-?activate (plugin instance instance-ptr activate-p)
+  (with-gensyms (cb)
+    `(let ((,cb (,(if activate-p
+                      'ladspa-plugin-activate-cb
+                      'ladspa-plugin-deactivate-cb)
+                 ,plugin)))
+       (unless (cffi:null-pointer-p ,cb)
+         (cffi:foreign-funcall-pointer ,cb () :pointer ,instance-ptr :void)
+         (setf (ladspa::flag-value (ladspa::handle-activated ,instance))
+               ,(not activate-p))))))
 
-(defun ladspa-get-output (output-names frame-p frame)
-  (if frame-p
-      ;; Multiple outputs in a frame
-      `(,@(loop for out in output-names
-                for index from 0
-                collect `(setf (frame-ref ,frame ,index) (sample ,out)))
-        ,frame)
-      ;; Single output
-      `((sample ,(car output-names)))))
+(declaim (inline ladspa-activate))
+(defun ladspa-activate (plugin instance instance-ptr)
+  (ladspa-?activate plugin instance instance-ptr t))
 
-;;; A simple doc-string for the generated VUG.
-(defun ladspa-doc-string (descriptor)
-  (let ((descr-ptr (ladspa-descriptor-pointer descriptor)))
-    (format nil "~A.~%LADSPA plugin (~A/~D) by ~A."
-            (ladspa:name descr-ptr) (ladspa:label descr-ptr)
-            (ladspa:unique-id descr-ptr) (ladspa:maker descr-ptr))))
+(declaim (inline ladspa-deactivate))
+(defun ladspa-deactivate (plugin instance instance-ptr)
+  (ladspa-?activate plugin instance instance-ptr nil))
 
-(defun %ladspa->vug (filename label vug-name)
-  (flet ((make-names (params)
-           (mapcar (lambda (x) (gensym (symbol-name (cdr x)))) params))
-         (new-param (new-names param)
-           (mapcar (lambda (n p) (cons (car p) n)) new-names param))
-         (input-variables (names values)
-           (mapcar (lambda (in par) `(,in (ladspa-sample ,par)))
-                   names values))
-         (output-variables (names)
-           (mapcar (lambda (out) `(,out (ladspa-sample 0.0))) names)))
-    (let ((descriptor (make-ladspa-descriptor filename label)))
-      (multiple-value-bind (input-param output-param)
-          (ladspa-port-symbol-names descriptor)
-        (let* ((input-names (make-names input-param))
-               (output-names (make-names output-param))
-               (arg-names (mapcar #'cdr input-param))
-               (input-param (new-param input-names input-param))
-               (output-param (new-param output-names output-param))
-               (frame-p (and (cdr output-param) t)))
-          (with-ladspa-callbacks ((instantiate-cb ladspa:instantiate)
-                                  (connect-port-cb ladspa:connect-port)
-                                  (run-cb ladspa:run))
-              descriptor
-            (with-gensyms (frame instance reinit-p)
-              `(define-vug ,vug-name ,arg-names
-                 ,(ladspa-doc-string descriptor)
-                 (with (,@(input-variables input-names arg-names)
-                        ,@(output-variables output-names)
-                        ,@(when frame-p
-                            `((,frame (make-frame ,(length output-param)))))
-                        (,instance (ladspa-plugin-instantiate ,instantiate-cb
-                                                              ,descriptor))
-                        (,reinit-p nil))
-                   (declare (type foreign-float ,@input-names ,@output-names))
-                   (initialize
-                     (unless ,reinit-p
-                       ;; Initialize only after the allocation of the instance
-                       (reduce-warnings
-                         ,@(ladspa-connect-port-form instance connect-port-cb
-                                                     input-param output-param)
-                         (ladspa:activate ,instance)
-                         (setf ,reinit-p t))))
-                   ;; Expand the inputs if they are performance-time
-                   (maybe-expand ,@input-names)
-                   ;; Process one sample
-                   (ladspa:run (ladspa-callback-pointer ,run-cb) ,instance 1)
-                   ;; Retrieve the output(s)
-                   ,@(ladspa-get-output output-names frame-p frame))))))))))
+(declaim (inline ladspa-run))
+(defun ladspa-run (plugin instance-ptr sample-count)
+  (cffi:foreign-funcall-pointer (ladspa-plugin-run-cb plugin) ()
+                                :pointer instance-ptr
+                                :unsigned-long sample-count :void))
 
-(defmacro ladspa->vug (filename label vug-name &optional debug-p)
+(defun %ladspa->vug (filename label vug-name block-size)
+  (let ((plugin (make-ladspa-plugin filename label)))
+    `(with-vug-plugin (,vug-name ,plugin ,block-size)
+       (with ((reinit-p nil)
+              (ladspa-obj (ladspa-plugin-instantiate ,plugin reinit-p))
+              (ladspa-ptr (ladspa::handle-ptr ladspa-obj)))
+         (declare (type foreign-pointer ladspa-ptr)
+                  (type boolean reinit-p)
+                  (preserve reinit-p))
+         (initialize
+           ;; REINIT-P is NIL only the first time. It becomes T in
+           ;; UPDATE-LADSPA-INSTANCE
+           (if reinit-p
+               (ladspa-deactivate ,plugin ladspa-obj ladspa-ptr)
+               ,(ladspa-connect-port-form plugin 'ladspa-ptr block-size))
+           (ladspa-activate ,plugin ladspa-obj ladspa-ptr))
+         (ladspa-run ,plugin ladspa-ptr ,block-size)))))
+
+(defmacro vug:ladspa->vug (filename label vug-name
+                           &optional (block-size (block-size)) debug-p)
   (if debug-p
-      `(%ladspa->vug ,filename ,label ',vug-name)
-      `(macrolet ((generate (f l n) (%ladspa->vug f l n)))
-         (generate ,filename ,label ,vug-name))))
+      `(%ladspa->vug ,filename ,label ',vug-name ,block-size)
+      `(macrolet ((generate (f l n bs) (%ladspa->vug f l n bs)))
+         (generate ,filename ,label ,vug-name ,block-size))))

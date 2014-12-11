@@ -38,5 +38,7 @@
      (:file "ladspa")))
    (:module "src"
     :depends-on ("contrib/cl-ladspa")
+    :serial t
     :components
-    ((:file "vug/ladspa")))))
+    ((:file "vug/foreign-plugin")
+     (:file "vug/ladspa")))))

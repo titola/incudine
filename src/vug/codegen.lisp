@@ -510,9 +510,10 @@
       ;; can use the list (mem-aref ptr type count) to get the needed
       ;; informations about the pointer.
       (cdr (macroexpand-1 foreign-variable env))
-    `(inc-pointer ,ptr (* ,count
-                          (the non-negative-fixnum
-                               (cffi:foreign-type-size ,type))))))
+    `(inc-pointer ,ptr (the non-negative-fixnum
+                            (* ,count
+                               (the non-negative-fixnum
+                                    (cffi:foreign-type-size ,type)))))))
 
 (defmacro %with-sample-variables ((variables &rest unused) &body body)
   (declare (ignore unused))

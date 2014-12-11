@@ -129,4 +129,6 @@
 
 (declaim (inline descriptor-slot-value))
 (defun descriptor-slot-value (descriptor slot-name)
-  (cffi:foreign-slot-value descriptor '(:struct descriptor) slot-name))
+  (cffi:foreign-slot-value descriptor '(:struct descriptor)
+                           (alexandria:ensure-symbol (symbol-name slot-name)
+                                                     "LADSPA")))

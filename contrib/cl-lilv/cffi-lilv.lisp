@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -63,7 +63,7 @@
 (defmethod cffi:translate-from-foreign (ptr (type instance-type))
   (let ((obj (make-lilv-instance :pointer ptr)))
     (tg:finalize obj (lambda ()
-                       (instance-deactivate ptr)
+                       (instance-impl-deactivate ptr)
                        (instance-free ptr)))
     obj))
 
@@ -591,54 +591,6 @@
 (cffi:defcfun ("lilv_instance_free" instance-free) :void
   (instance :pointer))
 
-(declaim (inline instance-get-descriptor))
-(defun instance-get-descriptor (instance)
-  (cffi:foreign-slot-value (instance-pointer instance)
-                           '(:struct instance-impl)
-                           'lv2:descriptor))
-
-(declaim (inline instance-get-handle))
-(defun instance-get-handle (instance)
-  (cffi:foreign-slot-value (instance-pointer instance)
-                           '(:struct instance-impl)
-                           'lv2:handle))
-
-(declaim (inline descriptor-slot-value))
-(defun descriptor-slot-value (pointer slot-name)
-  (cffi:foreign-slot-value pointer '(:struct lv2:descriptor)
-                           slot-name))
-
-(declaim (inline instance-get-uri))
-(defun instance-get-uri (instance)
-  (descriptor-slot-value (instance-get-descriptor instance) 'lv2::uri))
-
-(declaim (inline instance-connect-port))
-(defun instance-connect-port (instance port-index data-location)
-  (let ((cb (descriptor-slot-value (instance-get-descriptor instance)
-                                   'lv2::connect-port)))
-    (unless (cffi:null-pointer-p cb)
-      (cffi:foreign-funcall-pointer cb ()
-        :pointer (instance-get-handle instance)
-        :uint32 port-index :pointer data-location :void))))
-
-(declaim (inline instance-activate))
-(defun instance-activate (instance)
-  (let ((cb (descriptor-slot-value (instance-get-descriptor instance)
-                                   'lv2::activate)))
-    (unless (cffi:null-pointer-p cb)
-      (setf (instance-active-p instance) t)
-      (cffi:foreign-funcall-pointer cb ()
-        :pointer (instance-get-handle instance) :void))))
-
-(declaim (inline instance-deactivate))
-(defun instance-deactivate (instance)
-  (let ((cb (descriptor-slot-value (instance-get-descriptor instance)
-                                   'lv2::deactivate)))
-    (unless (cffi:null-pointer-p cb)
-      (setf (instance-active-p instance) nil)
-      (cffi:foreign-funcall-pointer cb ()
-        :pointer (instance-get-handle instance) :void))))
-
 (cffi:defcfun ("lilv_plugin_get_uis" plugin-get-uis) :pointer
   (plugin :pointer))
 
@@ -663,3 +615,64 @@
 
 (cffi:defcfun ("lilv_ui_get_binary_uri" ui-get-binary-uri) node-ptr
   (ui :pointer))
+
+(defmacro instance-impl-slot-value (instance-ptr slot-name)
+  `(cffi:foreign-slot-value ,instance-ptr '(:struct instance-impl) ,slot-name))
+
+(defmacro instance-slot-value (instance slot-name)
+  `(instance-impl-slot-value (instance-pointer ,instance) ,slot-name))
+
+(declaim (inline instance-get-descriptor))
+(defun instance-get-descriptor (instance)
+  (instance-slot-value instance 'lv2:descriptor))
+
+(declaim (inline instance-get-handle))
+(defun instance-get-handle (instance)
+  (instance-slot-value instance 'lv2:handle))
+
+(defmacro descriptor-slot-value (pointer slot-name)
+  `(cffi:foreign-slot-value ,pointer '(:struct lv2:descriptor) ,slot-name))
+
+(declaim (inline instance-get-uri))
+(defun instance-get-uri (instance)
+  (descriptor-slot-value (instance-get-descriptor instance) 'lv2::uri))
+
+(declaim (inline connect-port))
+(defun connect-port (callback handle index data-location)
+  (cffi:foreign-funcall-pointer callback () :pointer handle :uint32 index
+                                :pointer data-location :void))
+
+(declaim (inline instance-connect-port))
+(defun instance-connect-port (instance port-index data-location)
+  (let ((cb (descriptor-slot-value (instance-get-descriptor instance)
+                                   'lv2::connect-port)))
+    (unless (cffi:null-pointer-p cb)
+      (connect-port cb (instance-get-handle instance) port-index
+                    data-location))))
+
+(defun instance-impl-deactivate (instance-ptr)
+  (let ((cb (descriptor-slot-value
+              (cffi:foreign-slot-value instance-ptr '(:struct instance-impl)
+                                       'lv2:descriptor)
+              'lv2::deactivate)))
+    (unless (cffi:null-pointer-p cb)
+      (cffi:foreign-funcall-pointer cb ()
+        :pointer (cffi:foreign-slot-value instance-ptr '(:struct instance-impl)
+                                          'lv2:handle) :void))))
+
+(defmacro instance-?activate (instance activate-p)
+  (let ((cb (gensym)))
+    `(let ((,cb (descriptor-slot-value (instance-get-descriptor ,instance)
+                  ',(if activate-p 'lv2::activate 'lv2::deactivate))))
+       (unless (cffi:null-pointer-p ,cb)
+         (setf (instance-active-p ,instance) ,activate-p)
+         (cffi:foreign-funcall-pointer ,cb ()
+           :pointer (instance-get-handle ,instance) :void)))))
+
+(declaim (inline instance-activate))
+(defun instance-activate (instance)
+  (instance-?activate instance t))
+
+(declaim (inline instance-deactivate))
+(defun instance-deactivate (instance)
+  (instance-?activate instance nil))

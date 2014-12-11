@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2014 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -30,6 +30,12 @@
   (:use #:cl)
   (:export
    #:*world*
+   #:*uri-audio-port*
+   #:*uri-control-port*
+   #:*uri-input-port*
+   #:*uri-output-port*
+   #:*uri-event-port*
+   #:*uri-midi-port*
    ;; types
    #:instance-impl
    #:world
@@ -37,6 +43,8 @@
    ;; functions
    #:free-p
    #:free
+   #:lv2-init
+   #:plugin-pointer
    #:uri-to-path
    #:new-uri
    #:new-string
@@ -175,6 +183,9 @@
    #:instance-connect-port
    #:instance-activate
    #:instance-deactivate
+   #:instance-impl-slot-value
+   #:instance-slot-value
+   #:connect-port
    #:descriptor-slot-value
    #:plugin-get-uis
    #:ui-get-uri

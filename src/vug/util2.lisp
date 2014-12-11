@@ -50,6 +50,9 @@
   (make-*-array make-f32-array :float)
   (make-*-array make-f64-array :double))
 
+(defmacro make-pointer-array (size)
+  `(%make-foreign-array ,size :pointer))
+
 (defmacro maybe-make-i32-array (&whole whole size &key zero-p initial-element
                                 initial-contents)
   (if (< incudine.util::n-fixnum-bits 32)
