@@ -597,13 +597,12 @@
 
 (defmacro return-ugen-foreign-value (ugen-name type)
   `(cffi:mem-ref (ugen-instance-return-pointer ,ugen-name)
-                   ',(case type
-                       (sample 'sample)
-                       (int32 :int32)
-                       (int64 :int64)
-                       (foreign-float :float)
-                       (foreign-double :double)
-                       ((foreign-pointer frame pointer) :pointer))))
+                 ',(cond ((foreign-float-type-p type) :float)
+                         ((foreign-double-type-p type) :double)
+                         ((foreign-int32-type-p type) :int32)
+                         ((foreign-int64-type-p type) :int64)
+                         ((foreign-pointer-type-p type) :pointer)
+                         ((subtypep type 'sample) 'sample))))
 
 (defmacro ugen-run (ugen-var type)
   (with-gensyms (ugen)
