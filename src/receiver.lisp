@@ -104,10 +104,12 @@
            (type receiver receiver))
   (let ((stream (receiver-stream receiver)))
     (pm:with-receiver ((receiver-status receiver) stream msg)
-      (multiple-value-bind (status data1 data2)
-          (pm:decode-message msg)
-        (incudine.vug::set-midi-message status data1 data2)
-        (recv-funcall-all receiver status data1 data2)))))
+      (handler-case
+          (multiple-value-bind (status data1 data2)
+              (pm:decode-message msg)
+            (incudine.vug::set-midi-message status data1 data2)
+            (recv-funcall-all receiver status data1 data2))
+        (condition (c) (nrt-msg error "~A" c))))))
 
 ;;; RESPONDER
 
