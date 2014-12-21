@@ -117,6 +117,7 @@
      (:file "vug/mouse" :depends-on ("vug/util2" "vug/filter"))
      (:file "vug/fft" :depends-on ("gen/window" "analysis/fft" "vug/codegen"))
      (:file "vug/spectral" :depends-on ("vug/fft"))
+     (:file "vug/foreign-plugin" :depends-on ("vug/vug"))
      (:file "deprecated" :depends-on ("vug/in-out"))))
    (:file "src/save-core" :depends-on ("src"))
    (:static-file "COPYING")

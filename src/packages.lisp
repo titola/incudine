@@ -424,6 +424,34 @@
            #:keynum->cps #:velocity->amp #:set-midi-freq-function
            #:set-midi-amp-function))
 
+(defpackage :incudine.vug-foreign
+  (:use :cl :incudine.util :incudine.vug)
+  (:import-from #:alexandria #:define-constant #:make-keyword
+                #:format-symbol #:ensure-symbol #:with-gensyms
+                #:non-negative-fixnum)
+  (:import-from #:incudine #:block-size)
+  (:export
+   #:+input-port+
+   #:+output-port+
+   #:+control-port+
+   #:+audio-port+
+   #:+event-port+
+   #:+midi-port+
+   #:port
+   #:make-port
+   #:port-loop
+   #:plugin
+   #:make-plugin
+   #:update-io-number
+   #:input-port-p
+   #:output-port-p
+   #:control-port-p
+   #:audio-port-p
+   #:event-port-p
+   #:midi-port-p
+   #:doc-string
+   #:with-vug-plugin))
+
 (defpackage :incudine.scratch
   (:use :cl :incudine :incudine.vug :incudine.util :incudine.analysis)
   (:import-from #:alexandria #:positive-fixnum #:negative-fixnum

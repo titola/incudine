@@ -14,14 +14,7 @@
 ;;; along with this program; if not, write to the Free Software
 ;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-(defpackage :incudine.vug-ext
-  (:use :cl :incudine.util :incudine.vug)
-  (:import-from #:alexandria #:define-constant #:make-keyword
-                #:format-symbol #:ensure-symbol #:with-gensyms
-                #:non-negative-fixnum)
-  (:import-from #:incudine #:block-size))
-
-(in-package :incudine.vug-ext)
+(in-package :incudine.vug-foreign)
 
 (defstruct (port (:constructor %make-port))
   (name "" :type string :read-only t)
@@ -38,7 +31,7 @@
 (defmethod print-object ((obj port) stream)
   (format stream "#<PLUGIN-PORT ~D ~A>" (port-id obj) (port-lisp-name obj)))
 
-(defstruct (foreign-plugin (:constructor %make-foreign-plugin))
+(defstruct (plugin (:constructor %make-plugin))
   (name "" :type string :read-only t)
   (path "" :type string :read-only t)
   (pointer (cffi:null-pointer) :type foreign-pointer :read-only t)
@@ -59,18 +52,18 @@
   (cleanup-cb (cffi:null-pointer) :type foreign-pointer))
 
 (defun update-io-number (plugin)
-  (declare (type foreign-plugin plugin))
-  (setf (foreign-plugin-inputs plugin) (port-inputs plugin))
-  (setf (foreign-plugin-outputs plugin) (port-outputs plugin))
+  (declare (type plugin plugin))
+  (setf (plugin-inputs plugin) (port-inputs plugin))
+  (setf (plugin-outputs plugin) (port-outputs plugin))
   plugin)
 
-(defun make-foreign-plugin (&rest args)
-  (update-io-number (apply #'%make-foreign-plugin args)))
+(defun make-plugin (&rest args)
+  (update-io-number (apply #'%make-plugin args)))
 
-(defmethod print-object ((obj foreign-plugin) stream)
+(defmethod print-object ((obj plugin) stream)
   (format stream "#<~S ~S #X~8,'0X>" (type-of obj)
-          (foreign-plugin-label obj)
-          (cffi:pointer-address (foreign-plugin-pointer obj))))
+          (plugin-label obj)
+          (cffi:pointer-address (plugin-pointer obj))))
 
 (define-constant +input-port+     1)
 (define-constant +output-port+    2)
@@ -114,11 +107,10 @@
 (defgeneric doc-string (plugin)
   (:documentation "Documentation string for VUG."))
 
-(defmethod doc-string ((p foreign-plugin))
+(defmethod doc-string ((p plugin))
   (format nil "~A.~%~A (~A/~D) by ~A."
-          (foreign-plugin-name p) (type-of p)
-          (foreign-plugin-label p) (foreign-plugin-id p)
-          (foreign-plugin-author p)))
+          (plugin-name p) (type-of p) (plugin-label p) (plugin-id p)
+          (plugin-author p)))
 
 (declaim (inline arg-symbol))
 (defun arg-symbol (port)
@@ -126,7 +118,7 @@
 
 (defmacro port-loop ((port-var index-var plugin) &body body)
   (with-gensyms (ports)
-    `(let ((,ports (foreign-plugin-ports ,plugin)))
+    `(let ((,ports (plugin-ports ,plugin)))
        (loop for ,index-var below (length ,ports)
              for ,port-var = (svref ,ports ,index-var)
              ,@body))))
@@ -204,7 +196,7 @@
                             (vug::coerce-number 0 (port-value-type p))))))))
 
 (defun vug-frame-binding (plugin block-size)
-  (let ((outs (foreign-plugin-outputs plugin)))
+  (let ((outs (plugin-outputs plugin)))
     (when (> outs 1)
       `((outputs ,(if (= block-size 1)
                       `(make-frame ,outs)
@@ -218,7 +210,7 @@
 
 (defun get-output (plugin block-size)
   (let ((names (port-output-names plugin)))
-    (if (> (foreign-plugin-outputs plugin) 1)
+    (if (> (plugin-outputs plugin) 1)
         (if (= block-size 1)
             ;; Array of samples (frame).
             `(,@(loop for out in names for index from 0
@@ -243,7 +235,7 @@
                 ,@out-bindings
                 ,@(vug-frame-binding plugin block-size))
            (declare ,@in-decl ,@out-decl)
-           ,@(when (and (> (foreign-plugin-outputs plugin) 1)
+           ,@(when (and (> (plugin-outputs plugin) 1)
                         (> block-size 1))
                ;; Set the pointer to the foreign arrays.
                `((initialize

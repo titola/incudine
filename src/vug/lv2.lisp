@@ -18,12 +18,12 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (export 'lv2->vug (find-package :incudine.vug))
-  (object-to-free incudine.vug-ext::lv2-plugin-instantiate
-                  incudine.vug-ext::update-lv2-instance))
+  (object-to-free incudine.vug-foreign::lv2-plugin-instantiate
+                  incudine.vug-foreign::update-lv2-instance))
 
-(in-package :incudine.vug-ext)
+(in-package :incudine.vug-foreign)
 
-(defstruct (lv2-plugin (:include foreign-plugin)
+(defstruct (lv2-plugin (:include plugin)
                        (:constructor %make-lv2-plugin)))
 
 ;;; MEMO: don't use a temporary lilv instance to retrieve the pointers

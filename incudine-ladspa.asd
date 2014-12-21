@@ -40,5 +40,4 @@
     :depends-on ("contrib/cl-ladspa")
     :serial t
     :components
-    ((:file "vug/foreign-plugin")
-     (:file "vug/ladspa")))))
+    ((:file "vug/ladspa")))))

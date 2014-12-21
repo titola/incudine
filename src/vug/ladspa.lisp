@@ -18,12 +18,12 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (export 'ladspa->vug (find-package :incudine.vug))
-  (object-to-free incudine.vug-ext::ladspa-plugin-instantiate
-                  incudine.vug-ext::update-ladspa-instance))
+  (object-to-free incudine.vug-foreign::ladspa-plugin-instantiate
+                  incudine.vug-foreign::update-ladspa-instance))
 
-(in-package :incudine.vug-ext)
+(in-package :incudine.vug-foreign)
 
-(defstruct (ladspa-plugin (:include foreign-plugin)
+(defstruct (ladspa-plugin (:include plugin)
                           (:constructor %make-ladspa-plugin)))
 
 (defun make-ladspa-plugin (filename label)
