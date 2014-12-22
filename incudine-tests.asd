@@ -46,6 +46,7 @@
      (:file "vug/ugen-base" :depends-on ("vug/base"))
      (:file "vug/types" :depends-on ("vug/base"))
      (:file "vug/initialize" :depends-on ("vug/base"))
+     (:file "vug/with-or-without-follow" :depends-on ("vug/base"))
      (:file "vug/reinit" :depends-on ("vug/base"))
      (:file "vug/ugen-reinit" :depends-on ("vug/base"))
      (:file "vug/generator/osc" :depends-on ("vug/base"))

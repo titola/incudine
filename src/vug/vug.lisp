@@ -124,6 +124,7 @@
   (ref-count 0 :type non-negative-fixnum)
   (check-value-p t :type boolean)
   (to-set-p t :type boolean)
+  (temporary-p nil :type boolean)
   (skip-init-set-p nil :type boolean)
   (conditional-expansion nil :type symbol)
   (input-p nil :type boolean)
@@ -253,6 +254,17 @@
 (defun store-ugen-return-varname (name)
   (setf *ugen-return-value* name))
 
+(declaim (inline with-follow-form-p))
+(defun with-follow-form-p (obj)
+  (and (vug-function-p obj)
+       (eq (vug-function-name obj) '%with-follow)))
+
+(defun rename-vug-variable (var name)
+  (let ((name (symbol-name name)))
+    (setf (vug-variable-name var)
+          (gensym (subseq name 0 (1+ (position-if #'alpha-char-p name
+                                                  :from-end t)))))))
+
 (defun make-vug-variable (name value &optional type)
   (multiple-value-bind (input-p value ref-count)
       (cond ((vug-input-p value)
@@ -261,13 +273,26 @@
              (store-ugen-return-varname name)
              (values nil (car (vug-function-inputs value)) 1))
             (t (values nil value 0)))
+    (when (vug-progn-function-p value)
+      (let ((inputs (vug-function-inputs value)))
+        (when (null (cdr inputs))
+          ;; `(PROGN FORM)' becomes FORM.
+          (setf value (car inputs)))))
+    (when (and (vug-variable-p value)
+               (vug-variable-temporary-p value))
+      (setf (vug-variable-temporary-p value) nil)
+      (rename-vug-variable value name))
     (let ((obj (%make-vug-variable :name name :value value :type type
                                    :ref-count ref-count :input-p input-p))
           (to-recheck-p (or input-p (get-ugen-instance-p value))))
       (when (boundp '*vug-variables*)
         (if (performance-time-code-p obj value to-recheck-p)
             (setf (vug-variable-init-time-p obj) nil)
-            (resolve-variable-to-update value obj))
+            (resolve-variable-to-update (if (with-follow-form-p value)
+                                            ;; VUG-PARAMETER list.
+                                            (car (vug-function-inputs value))
+                                            value)
+                                        obj))
         (when (object-to-free-p value)
           (pushnew obj (vug-variables-to-free *vug-variables*)))
         (push obj (vug-variables-bindings *vug-variables*)))
@@ -362,6 +387,13 @@
           (unless (eq (type-of value) (type-of new))
             (setf (vug-variable-value obj) new)))))))
 
+(defun maybe-fix-value-type (obj type)
+  (when (vug-variable-p obj)
+    (let ((value (vug-variable-value obj)))
+      (when (and (vug-variable-p value)
+                 (not (vug-variable-type value)))
+        (setf (vug-variable-type value) type)))))
+
 (defun make-vug-declaration (spec)
   (declare (type list spec))
   (let ((obj (%make-vug-declaration :name (car spec) :spec spec)))
@@ -371,6 +403,7 @@
                 (dolist (i (cddr decl))
                   (when (vug-object-p i)
                     (setf (vug-object-type i) type)
+                    (maybe-fix-value-type i type)
                     (maybe-coerce-value i type)
                     (when (and (ugen-variable-p i)
                                (not (vug-variable-init-time-p i)))
@@ -379,6 +412,10 @@
          (dolist (i (cdr decl))
            (when (vug-variable-p i)
              (preserve-vug-variable i))))
+        (temporary
+         (dolist (i (cdr decl))
+           (when (vug-variable-p i)
+             (setf (vug-variable-temporary-p i) t))))
         (performance-time
          (dolist (i (cdr decl))
            (if (vug-variable-p i)
@@ -430,6 +467,10 @@
   (and (vug-function-p obj)
        (member (vug-object-name obj) *constructors-for-objects-to-free*)))
 
+(declaim (inline vug-progn-function-p))
+(defun vug-progn-function-p (obj)
+  (and (vug-object-p obj) (vug-name-p obj 'progn)))
+
 (declaim (inline parse-bindings))
 (defun parse-bindings (lst flist mlist floop-info)
   (mapcar (lambda (x)
@@ -476,9 +517,11 @@
     ,(parse-bindings (cadr form) flist mlist floop-info)
     ,@(multiple-value-bind (decl rest) (separate-declaration (cddr form))
         `(,@(parse-vug-def decl)
-          (make-vug-function :name 'progn
-            :inputs (list ,@(parse-vug-def rest nil flist mlist
-                                           floop-info)))))))
+          ,(let ((inputs (parse-vug-def rest nil flist mlist floop-info)))
+             (if (cdr inputs)
+                 `(make-vug-function :name 'progn
+                                     :inputs (list ,@inputs))
+                 (car inputs)))))))
 
 (defun parse-lambda-form (form flist mlist floop-info)
   (let ((args (cadr form)))
@@ -490,6 +533,13 @@
 
 (defmacro inlined-ugen-p (ugen-name)
   `(getf *inlined-ugens* ,ugen-name))
+
+(defmacro parse-other-declare-form (form identifiers)
+  `(cond ,@(mapcar (lambda (x)
+                     `((string= (symbol-name (car ,form)) ,(symbol-name x))
+                       `(list ',',x ,@(cdr ,form))))
+                   identifiers)
+         (t `(list 'type ',(car ,form) ,@(cdr ,form)))))
 
 (defun parse-declare-form (form)
   (case (car form)
@@ -503,11 +553,8 @@
          `(list ',(car form) ,@(cdr funcs)))))
     ((dynamic-extent ignore optimize special ignorable)
      `(list ',(car form) ,@(cdr form)))
-    (otherwise (cond ((string= (symbol-name (car form)) "PERFORMANCE-TIME")
-                      `(list 'performance-time ,@(cdr form)))
-                     ((string= (symbol-name (car form)) "PRESERVE")
-                      `(list 'preserve ,@(cdr form)))
-                     (t `(list 'type ',(car form) ,@(cdr form)))))))
+    (otherwise (parse-other-declare-form form
+                 (performance-time preserve temporary)))))
 
 (defmacro %with-local-args (args &body body)
   `(let ,(mapcar (lambda (x) `(,x ',x)) args)
@@ -672,6 +719,8 @@
 
 (defun initialize (&rest forms) forms)
 
+(defmacro %with-follow (parameters &body body) parameters body)
+
 (defmacro without-follow (parameters &body body) parameters body)
 
 (defun vug-input (arg) arg)
@@ -776,7 +825,7 @@
                                                      floop-info))))
                                ((eq name 'external-variable)
                                 `(make-vug-symbol :name ',(cadr def)))
-                               ((eq name 'without-follow)
+                               ((member name '(%with-follow without-follow))
                                 `(make-vug-function :name ',name
                                    :inputs (list (list ,@(cadr def))
                                                  ,@(parse-vug-def (cddr def)))))
@@ -1421,3 +1470,22 @@
   `(with ,(mapcar (lambda (x) `(,(car x) (vug-input ,(cadr x))))
                   bindings)
      ,@body))
+
+(defmacro make-temporary-binding (value)
+  (with-gensyms (tmp)
+    `(with ((,tmp ,value))
+       (declare (temporary ,tmp))
+       ,tmp)))
+
+(defmacro with-follow (parameters &body body)
+  "Explicitally define the dependence on some PARAMETERS.
+
+If WITH-FOLLOW is within a INITIALIZE construct, the code is expanded
+at init-time and updated after the change of the 'followed' PARAMETERS.
+
+If WITH-FOLLOW is within the body of a VUG/UGEN/DSP, the code is
+evaluated only after the change of the 'followed' PARAMETERS.
+
+If there is a binding between a VUG-VARIABLE and WITH-FOLLOW, the
+variable is updated after the change of the 'followed' PARAMETERS."
+  `(make-temporary-binding (%with-follow ,parameters ,@body)))

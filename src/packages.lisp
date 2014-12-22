@@ -173,7 +173,8 @@
    #:foreach-tick #:foreach-channel #:foreach-frame
    #:counter #:downsamp #:generic-rate
    #:samphold #:interpolate
-   #:tick #:external-variable #:init-only #:initialize #:without-follow
+   #:tick #:external-variable #:init-only #:initialize
+   #:with-follow #:without-follow
    #:maybe-expand #:update #:object-to-free
    #:out #:frame-out #:cout #:node-out
    #:dsp-node

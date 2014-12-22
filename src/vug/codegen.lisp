@@ -152,6 +152,10 @@
                                    conditional-expansion-p
                                    initialize-body-p))))))
 
+(declaim (inline maybe-progn))
+(defun maybe-progn (forms)
+  (if (cdr forms) `(progn ,@forms) (car forms)))
+
 ;;; Transform a VUG block in lisp code.
 (defun blockexpand (obj &optional param-plist vug-body-p init-pass-p
                     (conditional-expansion-p t) initialize-body-p)
@@ -171,15 +175,15 @@
                     (blockexpand (vug-function-inputs obj) param-plist
                                  vug-body-p init-pass-p conditional-expansion-p t)
                     (add-initialization-code
-                      `(progn ,@(blockexpand (vug-function-inputs obj)
-                                             param-plist vug-body-p t nil t))))
+                      (maybe-progn (blockexpand (vug-function-inputs obj)
+                                                param-plist vug-body-p t nil t))))
                 (values))
                ((vug-name-p obj 'progn)
                 (if (cdr (vug-function-inputs obj))
-                    `(progn ,@(blockexpand (vug-function-inputs obj)
-                                           param-plist vug-body-p
-                                           init-pass-p conditional-expansion-p
-                                           initialize-body-p))
+                    (maybe-progn (blockexpand (vug-function-inputs obj)
+                                              param-plist vug-body-p
+                                              init-pass-p conditional-expansion-p
+                                              initialize-body-p))
                     (blockexpand (car (vug-function-inputs obj))
                                  param-plist vug-body-p
                                  init-pass-p conditional-expansion-p
@@ -188,10 +192,11 @@
                 `(ugen-run ,@(blockexpand (vug-function-inputs obj)
                                           param-plist vug-body-p
                                           init-pass-p conditional-expansion-p)))
-               ((vug-name-p obj 'without-follow)
-                `(progn ,@(blockexpand (cdr (vug-function-inputs obj))
-                                       param-plist vug-body-p
-                                       init-pass-p conditional-expansion-p)))
+               ((or (vug-name-p obj '%with-follow)
+                    (vug-name-p obj 'without-follow))
+                (maybe-progn (blockexpand (cdr (vug-function-inputs obj))
+                                          param-plist vug-body-p init-pass-p
+                                          conditional-expansion-p)))
                ((vug-name-p obj 'get-pointer)
                 `(get-pointer
                    ,(vug-object-name (car (vug-function-inputs obj)))))
@@ -206,9 +211,9 @@
                 (let ((inputs (vug-function-inputs obj)))
                   `(lambda ,(car inputs) ,@(blockexpand (cadr inputs)))))
                ((vug-name-p obj 'init-only)
-                `(progn ,@(blockexpand (vug-function-inputs obj)
-                                       param-plist vug-body-p
-                                       init-pass-p conditional-expansion-p)))
+                (maybe-progn (blockexpand (vug-function-inputs obj)
+                                          param-plist vug-body-p
+                                          init-pass-p conditional-expansion-p)))
                ((vug-name-p obj 'update)
                 (let ((var (car (vug-function-inputs obj))))
                   (multiple-value-bind (cached cached-p)
@@ -240,11 +245,17 @@
              (set-vug-variable-inside-body obj init-pass-p
                                            conditional-expansion-p)))
         ((vug-variable-p obj)
-         (when (and (vug-variable-variables-to-recheck obj)
-                    (vug-variable-performance-time-p obj))
-           (recheck-variables obj))
-         (maybe-cached-vug-variable-value obj param-plist vug-body-p
-                                          init-pass-p))
+         (cond ((vug-variable-temporary-p obj)
+                ;; Ignore a temporary variable outside INITIALIZE construct
+                ;; (i.e. see WITH-FOLLOW).
+                (when initialize-body-p
+                  (blockexpand (vug-variable-value obj) nil vug-body-p
+                               init-pass-p conditional-expansion-p t)))
+               (t (when (and (vug-variable-variables-to-recheck obj)
+                             (vug-variable-performance-time-p obj))
+                    (recheck-variables obj))
+                  (maybe-cached-vug-variable-value obj param-plist vug-body-p
+                                                   init-pass-p))))
         ((vug-symbol-p obj)
          (let ((name (vug-object-name obj)))
            (if (and *eval-some-specials-p* (special-var-to-eval-p name))
@@ -257,10 +268,6 @@
                    `(,name (make-vug-parameter ',name ,name ',type)))
                  args types)
      ,@body))
-
-(declaim (inline vug-progn-function-p))
-(defun vug-progn-function-p (obj)
-  (and (vug-object-p obj) (vug-name-p obj 'progn)))
 
 (declaim (inline foreign-object-p))
 (defun foreign-object-p (var)
@@ -335,6 +342,7 @@
         for var = (car vars)
         until (or (foreign-object-p var)
                   (vug-variable-value-to-cache-p var))
+        unless (vug-variable-temporary-p var)
         collect `(,(vug-object-name var)
                   ,(cond ((init-time-p var)
                           (blockexpand (remove-wrapped-parens
@@ -828,11 +836,18 @@
       (lambda (var)
         (let ((value (vug-variable-value var)))
           (unless (skip-update-variable-p param value)
-            (if (ugen-variable-p var)
-                (with-ugen-name-and-args (var name args)
-                  (set-ugen-param-deps name (vug-object-name var) args param
-                                       param-plist))
-                (%set-vug-variable var value param-plist)))))
+            (cond ((ugen-variable-p var)
+                   (with-ugen-name-and-args (var name args)
+                     (set-ugen-param-deps name (vug-object-name var) args param
+                                          param-plist)))
+                  ((vug-variable-temporary-p var)
+                   ;; The VUG-VARIABLE is unused (update only the value).
+                   (if (object-to-free-p value)
+                       (%reinit-vug-variable var value param-plist)
+                       (if (vug-variable-value-to-cache-p var)
+                           (%update-vug-variable var)
+                           (blockexpand value param-plist))))
+                  (t (%set-vug-variable var value param-plist))))))
       (cdr (vug-parameter-vars-to-update param)))))
 
 (defun dsp-coercing-argument (arg type)
@@ -997,6 +1012,7 @@
   `(progn
      ,@(loop for var in (vug-variables-bindings *vug-variables*)
              when (or (and (init-time-p var)
+                           (not (vug-variable-temporary-p var))
                            ;; Unnecessary because each element of the
                            ;; foreign memory is reinitialized to zero.
                            (not (and (foreign-object-p var)
