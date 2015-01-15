@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014 Tito Latini
+;;; Copyright (c) 2014-2015 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -55,7 +55,9 @@
                     *sndfile-buffer-size*
                     *bounce-to-disk-guard-size*
                     *default-header-type*
-                    *default-data-format*))
+                    *default-data-format*
+                    *osc-buffer-size*
+                    *osc-max-values*))
 
   (defvar *incudinerc-loaded-p* nil)
 
@@ -107,6 +109,7 @@
                  #-(or darwin cygwin) " -fPIC"
                  (if (eq incudine.util:*sample-type* 'double-float)
                      " -D__INCUDINE_USE_64_BIT_SAMPLE__")
+                 #+little-endian " -DLITTLE_ENDIAN"
                  (format nil " -D__INCUDINE_~A__" *sched-policy*)))
 
   (defvar *c-linker-flags*
@@ -147,6 +150,7 @@
                     '((:jack "rtjack.c" "rtjack.h")
                       (:portaudio "rtpa.c" "rtpa.h")
                       (:mouse "mouse.c" "mouse.h")
+                      (:osc "osc/osc.c" "osc/osc.h")
                       (:util "util.c"))))))
 
   (defvar *c-source-pathnames*
@@ -380,6 +384,8 @@
             (when (probe-c-library "X11")
               (push "X11" libs-dep)
               (add-c-object-to-link :mouse ofiles))
+            ;; Open Sound Control
+            (add-c-object-to-link :osc ofiles)
             ;; Utilities
             (add-c-object-to-link :util ofiles)
             ;; TLSF Memory Storage allocator

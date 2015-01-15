@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2015 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -25,21 +25,27 @@
   (functions nil :type list)
   (status nil :type boolean))
 
+(defgeneric valid-input-stream-p (obj))
+
 (declaim (inline make-receiver))
 (defun make-receiver (stream &optional functions status)
-  (when (valid-stream-p stream)
+  (when (valid-input-stream-p stream)
     (%make-receiver :stream stream
                     :functions functions
                     :status status)))
 
-(declaim (inline valid-stream-p))
-(defun valid-stream-p (obj)
-  ;; Currently there is only PortMidi
-  (portmidi-input-stream-p obj))
+(defmethod print-object ((obj receiver) stream)
+  (format stream "#<RECEIVER ~S ~A>"
+          (type-of (receiver-stream obj))
+          (if (receiver-status obj) :RUNNING :STOPPED)))
 
 (declaim (inline get-receiver))
 (defun get-receiver (stream)
   (values (gethash stream *receiver-hash*)))
+
+(defgeneric recv-start (stream &key priority))
+
+(defgeneric recv-stop (stream))
 
 (declaim (inline recv-status))
 (defun recv-status (stream)
@@ -52,13 +58,6 @@
 (defun recv-functions (stream)
   (let ((recv (get-receiver stream)))
     (when recv (receiver-functions recv))))
-
-(declaim (inline recv-funcall-all))
-(defun recv-funcall-all (recv status data1 data2)
-  (declare (type receiver recv)
-           (type (unsigned-byte 8) status data1 data2))
-  (dolist (fn (receiver-functions recv))
-    (funcall (the function fn) status data1 data2)))
 
 (declaim (inline recv-set-priority))
 (defun recv-set-priority (thread priority)
@@ -77,27 +76,17 @@
     (recv-stop stream)
     (remhash stream *receiver-hash*)))
 
-(defun recv-start (stream &key (priority *receiver-default-priority*))
-  (let ((recv (or (get-receiver stream)
-                  (make-receiver stream))))
-    (cond ((portmidi-stream-p stream)
-           (add-receiver stream recv start-portmidi-recv priority)))))
-
-(defun recv-stop (stream)
-  (let ((recv (get-receiver stream)))
-    (compare-and-swap (receiver-status recv) t nil)
-    recv))
-
 ;;; PORTMIDI
 
-(declaim (inline portmidi-stream-p))
-(defun portmidi-stream-p (obj)
-  (eq (type-of obj) 'portmidi:stream))
+(defmethod valid-input-stream-p ((obj portmidi:stream))
+  (eq (slot-value obj 'pm::direction) :input))
 
-(declaim (inline portmidi-input-stream-p))
-(defun portmidi-input-stream-p (obj)
-  (and (portmidi-stream-p obj)
-       (eq (slot-value obj 'pm::direction) :input)))
+(declaim (inline midi-recv-funcall-all))
+(defun midi-recv-funcall-all (recv status data1 data2)
+  (declare (type receiver recv)
+           (type (unsigned-byte 8) status data1 data2))
+  (dolist (fn (receiver-functions recv))
+    (funcall (the function fn) status data1 data2)))
 
 (defun start-portmidi-recv (receiver)
   (declare #.*standard-optimize-settings*
@@ -108,8 +97,78 @@
           (multiple-value-bind (status data1 data2)
               (pm:decode-message msg)
             (incudine.vug::set-midi-message status data1 data2)
-            (recv-funcall-all receiver status data1 data2))
+            (midi-recv-funcall-all receiver status data1 data2))
         (condition (c) (nrt-msg error "~A" c))))))
+
+(defmethod recv-start ((stream portmidi:stream)
+                       &key (priority *receiver-default-priority*))
+  (let ((recv (or (get-receiver stream) (make-receiver stream))))
+    (add-receiver stream recv start-portmidi-recv priority)))
+
+(defmethod recv-stop ((stream portmidi:stream))
+  (let ((recv (get-receiver stream)))
+    (compare-and-swap (receiver-status recv) t nil)
+    recv))
+
+;;; Open Sound Control
+
+(pushnew 'remove-receiver-and-responders incudine.osc:*before-close-hook*)
+
+(defmethod valid-input-stream-p ((obj incudine.osc:input-stream)) t)
+
+(defmethod valid-input-stream-p ((obj incudine.osc:output-stream)) nil)
+
+(defmacro make-osc-responder (stream address types function)
+  (let ((function (if (eq (car function) 'function)
+                      (cadr function)
+                      function)))
+    (if (atom function)
+        (let ((args (loop for i below (length types) collect (gensym))))
+          (setf function `(lambda ,args (,function ,@args))))
+        (assert (eq (car function) 'lambda)))
+    `(make-responder ,stream
+       (lambda ()
+         (when (incudine.osc:check-pattern ,stream ,address ,types)
+           (incudine.osc:with-values ,(cadr function) (,stream ,types)
+             ,@(cddr function)))
+         (values)))))
+
+(defun start-osc-recv (receiver)
+  (declare (type receiver receiver) #.*standard-optimize-settings*)
+  (bt:make-thread
+    (lambda ()
+      (let ((stream (receiver-stream receiver)))
+        (declare (type incudine.osc:input-stream stream))
+        (incudine.osc::close-connections stream)
+        (setf (receiver-status receiver) t)
+        (loop while (receiver-status receiver) do
+                (when (and (plusp (the fixnum (incudine.osc:receive stream)))
+                           (receiver-status receiver))
+                  (handler-case
+                      (dolist (fn (receiver-functions receiver))
+                        (funcall (the function fn)))
+                    (condition (c) (nrt-msg error "~A" c)))))))
+    :name (format nil "osc-recv ~D"
+                  (incudine.osc:port (receiver-stream receiver)))))
+
+(defmethod recv-start ((stream incudine.osc::stream)
+                       &key (priority *receiver-default-priority*))
+  (let ((recv (or (get-receiver stream) (make-receiver stream))))
+    (add-receiver stream recv start-osc-recv priority)))
+
+(defmethod recv-stop ((stream incudine.osc::stream))
+  (let ((recv (get-receiver stream)))
+    (when recv
+      (incudine.osc:with-stream (tmp :direction :output
+                                 :protocol (incudine.osc:protocol stream)
+                                 :host (incudine.osc:host stream)
+                                 :port (incudine.osc:port stream)
+                                 :buffer-size 32 :max-values 8)
+        (compare-and-swap (receiver-status recv) t nil)
+        ;; Unblock the receiver.
+        (incudine.osc:message tmp "/receiver/quit" ""))
+      (incudine.osc::close-connections stream)
+      recv)))
 
 ;;; RESPONDER
 
@@ -173,4 +232,10 @@
       (dolist (resp (get-responder-list stream))
         (remove-responder resp))
       (maphash-keys #'remove-all-responders *responder-hash*))
+  (values))
+
+(defun remove-receiver-and-responders (stream)
+  (recv-stop stream)
+  (remove-receiver stream)
+  (remove-all-responders stream)
   (values))

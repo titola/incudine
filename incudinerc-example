@@ -58,6 +58,11 @@
 ;(setq *portaudio-input-device* -1)
 ;(setq *portaudio-output-device* -1)
 
+;;;--------------------[ Open Sound Control ]-----------------------
+
+(setq *osc-buffer-size* 128)
+(setq *osc-max-values* 16)
+
 ;;;---------------------------[ Graph ]-----------------------------
 
 (setq *max-number-of-nodes* 1024)

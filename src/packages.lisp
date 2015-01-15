@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2015 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -377,8 +377,8 @@
    ;; responder
    #:get-receiver #:remove-receiver
    #:recv-start #:recv-stop #:recv-status #:recv-functions
-   #:make-responder #:add-responder #:remove-responder #:remove-all-responders
-   #:get-responder-list
+   #:make-responder #:make-osc-responder #:add-responder #:remove-responder
+   #:remove-all-responders #:get-responder-list
    ;; midi
    #:midiout #:midiout-sysex
    ;; envelope
@@ -432,26 +432,34 @@
                 #:non-negative-fixnum)
   (:import-from #:incudine #:block-size)
   (:export
-   #:+input-port+
-   #:+output-port+
-   #:+control-port+
-   #:+audio-port+
-   #:+event-port+
-   #:+midi-port+
-   #:port
-   #:make-port
-   #:port-loop
-   #:plugin
-   #:make-plugin
-   #:update-io-number
-   #:input-port-p
-   #:output-port-p
-   #:control-port-p
-   #:audio-port-p
-   #:event-port-p
-   #:midi-port-p
-   #:doc-string
-   #:with-vug-plugin))
+   #:+input-port+ #:+output-port+ #:+control-port+ #:+audio-port+
+   #:+event-port+ #:+midi-port+
+   #:port #:make-port #:port-loop #:plugin #:make-plugin
+   #:update-io-number #:input-port-p #:output-port-p #:control-port-p
+   #:audio-port-p #:event-port-p #:midi-port-p
+   #:doc-string #:with-vug-plugin))
+
+(defpackage :incudine.osc
+  (:use :cl
+        #+(and sbcl (or x86 x86-64))
+        #:sb-c
+        #+(and sbcl (or x86 x86-64))
+        #:sb-assem)
+  (:nicknames #:osc)
+  (:import-from :alexandria #:define-constant #:positive-fixnum
+                #:non-negative-fixnum #:with-gensyms)
+  (:import-from :swap-bytes #:htonl #:htonq #:ntohl #:ntohq)
+  (:shadow #:open #:close #:stream #:input-stream-p #:output-stream-p)
+  (:export
+   #:*listen-backlog* #:*buffer-size* #:*max-values* #:*before-close-hook*
+   #:stream #:input-stream #:input-stream-p #:output-stream #:output-stream-p
+   #:with-stream #:open #:open-p #:close #:block-p #:broadcast #:connect
+   #:reject #:connections #:host #:port #:protocol #:protocolp #:socket-fd
+   #:buffer-pointer #:buffer-size #:message-pointer #:message-length
+   #:message-encoding #:receive #:send #:slip-encode #:slip-decode
+   #:message #:start-message #:value #:value-pointer #:address-pattern
+   #:check-pattern #:index-values #:with-values #:required-values
+   #:buffer-to-octets #:octets-to-buffer #:fix-size #:string-size))
 
 (defpackage :incudine.scratch
   (:use :cl :incudine :incudine.vug :incudine.util :incudine.analysis)

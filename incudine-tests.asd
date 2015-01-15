@@ -38,6 +38,7 @@
      (:file "buffer" :depends-on ("util"))
      (:file "foreign-array" :depends-on ("util"))
      (:file "envelope" :depends-on ("util"))
+     (:file "osc" :depends-on ("util"))
      (:file "gen-partials" :depends-on ("util"))
      (:file "gen-polynomial" :depends-on ("util"))
      (:file "gen-random" :depends-on ("util"))

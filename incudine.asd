@@ -2,7 +2,7 @@
 ;;;
 ;;; ASDF system definition for INCUDINE.
 ;;;
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2015 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -35,11 +35,11 @@
                                       :defaults path))))))
 
 (defsystem "incudine"
-  :version "0.7.10"
+  :version "0.8.0"
   :description "Incudine is a Music/DSP programming environment."
   :licence "GPL v2"
   :author "Tito Latini"
-  :depends-on (:cffi :alexandria :bordeaux-threads :trivial-garbage)
+  :depends-on (:alexandria :bordeaux-threads :cffi :swap-bytes :trivial-garbage)
   :components
   ((:module "contrib/cl-sndfile"
     :serial t
@@ -81,8 +81,12 @@
      (:file "rt" :depends-on ("fifo" "bus" "graph"))
      (:file "nrt" :depends-on ("rt"))
      (:file "score" :depends-on ("nrt"))
-     (:file "receiver" :depends-on ("vug/midi"))
      (:file "midi" :depends-on ("edf-sched"))
+     (:file "receiver" :depends-on ("vug/midi" "osc/osc"))
+     (:file "osc/sbcl-vops" :if-feature (:and :sbcl (:or :x86 :x86-64))
+                            :depends-on ("packages"))
+     (:file "osc/cffi-osc" :depends-on ("packages"))
+     (:file "osc/osc" :depends-on ("util" "osc/cffi-osc" "osc/sbcl-vops"))
      (:file "analysis/base" :depends-on ("time" "gen/window"))
      (:file "analysis/fft" :depends-on ("analysis/base"))
      (:file "analysis/pvbuffer" :depends-on ("analysis/fft"))
