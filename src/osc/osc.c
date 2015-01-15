@@ -223,8 +223,10 @@ int index_osc_values_le(void *oscbuf, void *ibuf, char *typebuf,
                         tbuf++;
                         break;
                 case 't':    /* timetag */
-                        data[i] = htonl(data[i]);
-                        data[i+1] = htonl(data[i+1]);
+                        /*
+                         * No time tag semantics in OSC 1.1. However, the least
+                         * significant bit is reserved to mean "immediately".
+                         */
                         i += 2;
                         tbuf++;
                         break;
