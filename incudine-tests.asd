@@ -49,6 +49,7 @@
      (:file "vug/initialize" :depends-on ("vug/base"))
      (:file "vug/with-or-without-follow" :depends-on ("vug/base"))
      (:file "vug/reinit" :depends-on ("vug/base"))
+     (:file "vug/delete-var" :depends-on ("vug/base"))
      (:file "vug/ugen-reinit" :depends-on ("vug/base"))
      (:file "vug/generator/osc" :depends-on ("vug/base"))
      (:file "vug/generator/oscr" :depends-on ("vug/base"))

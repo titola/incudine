@@ -543,13 +543,14 @@
   (dolist (var (vug-parameter-vars-to-update par) par)
     (multiple-value-bind (cached cached-p)
         (vug-variable-replacement var)
-      (when cached-p
-        (cond ((vug-variable-p cached)
-               (setf (vug-variable-name var) (vug-variable-name cached)
-                     (vug-variable-value var) (vug-variable-value cached)))
-              (t (undelete-vug-variable var)
-                 (pushnew var *variables-to-preserve*)
-                 (msg debug "undelete ~A (fix dependences in ~A)" var par)))))))
+      (if cached-p
+          (cond ((vug-variable-p cached)
+                 (setf (vug-variable-name var) (vug-variable-name cached)
+                       (vug-variable-value var) (vug-variable-value cached)))
+                (t (undelete-vug-variable var)
+                   (pushnew var *variables-to-preserve*)
+                   (msg debug "undelete ~A (fix dependences in ~A)" var par)))
+          (pushnew var *variables-to-preserve*)))))
 
 (defun reorder-parameter-list ()
   (setf #1=(vug-variables-parameter-list *vug-variables*)
