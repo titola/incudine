@@ -71,6 +71,13 @@
 
   (import '(incudine.util:sample incudine.util:+foreign-sample-size+)))
 
+;;; ERRORS
+
+(cffi:defcvar "errno" :int)
+
+(defun errno-to-string (&optional (errno *errno*))
+  (cffi:foreign-funcall "strerror" :int errno :string))
+
 ;;; THREADS
 
 (cffi:defcfun "pthread_set_priority" :int

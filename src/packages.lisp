@@ -34,7 +34,7 @@
 (defpackage :incudine.external
   (:use :cl)
   (:export
-   #:pthread-set-priority #:sndfile-to-buffer
+   #:errno-to-string #:pthread-set-priority #:sndfile-to-buffer
    #:foreign-alloc-sample #:foreign-zero-sample #:foreign-set
    #:foreign-realloc-sample
    #:init-foreign-memory-pool #:destroy-foreign-memory-pool
