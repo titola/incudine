@@ -830,8 +830,12 @@
                                    :inputs (list (list ,@(cadr def))
                                                  ,@(parse-vug-def (cddr def)))))
                                ((quote-function-p def)
-                                `(make-vug-function :name 'function
-                                   :inputs (list ',(cadr def))))
+                                (let ((fn (cadr def)))
+                                  (if (consp fn)
+                                      (parse-lambda-form fn flist mlist
+                                                         floop-info)
+                                      `(make-vug-function :name 'function
+                                         :inputs (list ',fn)))))
                                ((eq name 'lambda)
                                 (parse-lambda-form def flist mlist floop-info))
                                ((eq name 'flet)
