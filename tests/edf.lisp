@@ -37,6 +37,31 @@
   #.(sample 935)
   32)
 
+(deftest edf.3
+    (progn
+      (flush-pending)
+      (incudine.edf:add-flush-pending-hook '*)
+      (incudine.edf:add-flush-pending-hook '*)
+      (incudine.edf:add-flush-pending-hook '*)
+      (flush-pending)
+      (let* ((res1 incudine.edf::*flush-pending-hook*)
+             (count 0)
+             (inc-count (lambda () (incf count))))
+        (flet ((add-hook ()
+                 (incudine.edf:add-flush-pending-hook inc-count)
+                 (incudine.edf:add-flush-pending-hook '*)
+                 (incudine.edf:add-flush-pending-hook inc-count)
+                 (incudine.edf:add-flush-pending-hook '*)))
+          (add-hook)
+          (flush-pending)
+          (let ((res2 (cons incudine.edf::*flush-pending-hook* count)))
+            (setf count 0)
+            (add-hook)
+            (incudine.edf:remove-flush-pending-hook inc-count)
+            (flush-pending)
+            (values res1 res2 incudine.edf::*flush-pending-hook* count)))))
+  NIL (NIL . 2) NIL 0)
+
 (deftest edf-sort.1
     (let ((incudine::*sample-counter* incudine::*nrt-sample-counter*)
           (stack nil))

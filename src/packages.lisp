@@ -243,7 +243,8 @@
   (:export #:+node-root+ #:*heap* #:*heap-size* #:*next-node* #:*temp-node*
            #:node #:make-node #:make-heap
            #:at #:aat #:sched-loop #:flush-pending #:heap-empty-p #:heap-count
-           #:last-time))
+           #:last-time
+           #:add-flush-pending-hook #:remove-flush-pending-hook))
 
 (defpackage :incudine.analysis
   (:use :cl)
@@ -335,7 +336,8 @@
                 #:rt-set-busy-state
                 #:rt-buffer-size #:rt-sample-rate #:rt-get-error-msg
                 #:portaudio-device-info #:portaudio-set-device)
-  (:import-from #:incudine.edf #:at #:aat #:flush-pending)
+  (:import-from #:incudine.edf #:at #:aat #:flush-pending
+                #:add-flush-pending-hook #:remove-flush-pending-hook)
   (:import-from #:incudine.gen #:all-random-distributions #:rand-args)
   (:export
    #:init #:enable-sharp-square-bracket-syntax

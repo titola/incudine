@@ -182,12 +182,43 @@
       (declare (type non-negative-fixnum start))
       (rec (1+ start) (node-time (heap-node start))))))
 
-(declaim (inline flush-pending))
+(defvar *flush-pending-hook* nil
+  "List of functions without arguments to invoke during the next call
+to FLUSH-PENDING. The functions are called in non-realtime thread.
+The list is empty after FLUSH-PENDING.")
+
+(defvar *flush-pending-spinlock* (incudine.util:make-spinlock "FLUSH-PENDING"))
+(declaim (type incudine.util:spinlock *flush-pending-spinlock*))
+
+(defun add-flush-pending-hook (function)
+  (incudine.util:with-spinlock-held (*flush-pending-spinlock*)
+    (push function *flush-pending-hook*)
+    function))
+
+(defun remove-flush-pending-hook (function)
+  (incudine.util:with-spinlock-held (*flush-pending-spinlock*)
+    (setf *flush-pending-hook*
+          (delete function *flush-pending-hook* :test #'eq))
+    (values)))
+
+(defun clear-flush-pending-hook ()
+  (incudine.util:with-spinlock-held (*flush-pending-spinlock*)
+    (setf *flush-pending-hook* nil)))
+
 (defun flush-pending ()
-  (if (or (null *rt-thread*) (rt-thread-p))
-      (setf *next-node* 1)
-      (incudine:fast-nrt-funcall (lambda ()
-                                   (incudine::fast-rt-funcall
-                                    (lambda ()
-                                      (setf *next-node* 1))))))
-  (values))
+  (flet ((rt-flush ()
+           (setf *next-node* 1))
+         (nrt-flush ()
+           (dolist (fun *flush-pending-hook*)
+             (funcall fun))
+           (clear-flush-pending-hook)))
+    (cond ((rt-thread-p)
+           (rt-flush)
+           (incudine:nrt-funcall #'nrt-flush))
+          ((null *rt-thread*)
+           (rt-flush)
+           (nrt-flush))
+          (t (incudine:fast-nrt-funcall
+              (lambda () (incudine::fast-rt-funcall #'rt-flush)))
+             (nrt-flush)))
+    (values)))
