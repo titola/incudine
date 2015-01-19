@@ -457,7 +457,7 @@
    #:reject #:connections #:host #:port #:protocol #:protocolp #:socket-fd
    #:buffer-pointer #:buffer-size #:message-pointer #:message-length
    #:message-encoding #:receive #:send #:slip-encode #:slip-decode
-   #:message #:start-message #:value #:value-pointer #:address-pattern
+   #:message #:start-message #:value #:value-pointer #:midi #:address-pattern
    #:check-pattern #:index-values #:with-values #:required-values
    #:buffer-to-octets #:octets-to-buffer #:fix-size #:string-size))
 

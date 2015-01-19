@@ -105,3 +105,11 @@
     44 105 105 98 105 0 0 0 0 0 48 57 0 0 0 192 0 0 0 8
     216 217 218 219 220 219 221 222 0 0 0 219)
   48 54)
+
+;;; OSC MIDI.
+(deftest open-sound-control.6
+    (osc:with-stream (oscout :direction :output)
+      (osc:start-message oscout "/osc/midi" "m")
+      (setf (osc:value oscout 0) (osc:midi 3 144 60 96))
+      (osc:value oscout 0))
+  3 144 60 96)

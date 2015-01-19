@@ -449,6 +449,11 @@ The argument of a function is the OSC:STREAM to close.")
        (dotimes (,i ,size ,arr)
          (setf (aref ,arr ,i)
                (cffi:mem-aref ,p :unsigned-char ,i))))))
+(defmacro get-midi (ptr)
+  `(values (cffi:mem-ref ,ptr :unsigned-char 0)
+           (cffi:mem-ref ,ptr :unsigned-char 1)
+           (cffi:mem-ref ,ptr :unsigned-char 2)
+           (cffi:mem-ref ,ptr :unsigned-char 3)))
 
 (define-constant +data-index-offset+ 2)
 
@@ -547,7 +552,7 @@ The argument of a function is the OSC:STREAM to close.")
         (#\b (get-foreign-array (cffi:inc-pointer ptr 4)
                                 (maybe-ntoh stream ntohl
                                             (cffi:mem-ref ptr :uint32))))
-        (#\m (get-foreign-array ptr 4))
+        (#\m (get-midi ptr))
         (#\c (cffi:mem-ref ptr :unsigned-char))))))
 
 (declaim (inline fix-size))
@@ -639,24 +644,18 @@ multiple of four (bytes)."
                        (aref buffer i)))))
   (values))
 
+(defun midi (port-id status data1 data2)
+  (declare (type (unsigned-byte 8) port-id status data1 data2)
+           (optimize speed (safety 0)))
+  #-little-endian
+  (logior (ash port-id 24) (ash status 16) (ash data1 8) data2)
+  #+little-endian
+  (logior (ash data2 24) (ash data1 16) (ash status 8) port-id))
+
 (defun set-midi (stream index value)
   (declare (type stream stream) (type non-negative-fixnum index)
-           (type (or (simple-array (unsigned-byte 8) (*))
-                     simple-vector
-                     (unsigned-byte 32))
-                 value))
-  (when (typep value 'simple-vector)
-    (setf value (coerce value '(simple-array (unsigned-byte 8) (*)))))
-  (let ((ptr (arg-pointer stream index)))
-    (macrolet ((set-slot (ref)
-                 `(progn
-                    ,@(loop for i below 4
-                            collect `(setf (cffi:mem-aref ptr :unsigned-char ,i)
-                                           (,ref value ,i))))))
-      (typecase value
-        ((simple-array (unsigned-byte 8) (*)) (set-slot aref))
-        (simple-vector (set-slot svref))
-        (otherwise (setf (cffi:mem-ref ptr :uint32) value)))))
+           (type (unsigned-byte 32) value))
+  (setf (cffi:mem-ref (arg-pointer stream index) :uint32) value)
   (values))
 
 (defun set-value (stream index value)
