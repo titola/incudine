@@ -36,26 +36,18 @@
                            :count incudine.util::*foreign-nrt-memory-pool-size*))
       (setf incudine.util::*initialized-foreign-memory-pools* nil)
       ;; edf
-      (setf incudine.edf::*heap-size*
+      (setf incudine.edf:*heap-size*
             (if (and (numberp *rt-edf-heap-size*)
                      (not (power-of-two-p *rt-edf-heap-size*)))
                 (next-power-of-two *rt-edf-heap-size*)
                 1024))
-      (setf incudine.edf::*heap*
-            (make-array incudine.edf::*heap-size*
-              :element-type 'incudine.edf::node
-              :initial-contents (loop repeat incudine.edf::*heap-size*
-                                   collect (incudine.edf::make-node))))
+      (setf incudine.edf:*heap* (incudine.edf:make-heap))
       (setf *nrt-edf-heap-size*
             (if (and (numberp *nrt-edf-heap-size*)
                      (not (power-of-two-p *nrt-edf-heap-size*)))
                 (next-power-of-two *nrt-edf-heap-size*)
                 65536))
-      (setf *nrt-heap*
-        (make-array *nrt-edf-heap-size*
-                    :element-type 'incudine.edf::node
-                    :initial-contents (loop repeat *nrt-edf-heap-size*
-                                            collect (incudine.edf::make-node))))
+      (setf *nrt-heap* (incudine.edf:make-heap *nrt-edf-heap-size*))
       ;; bus
       (setf *%input-pointer*
             (foreign-alloc-sample (* *max-buffer-size*

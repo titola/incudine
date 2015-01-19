@@ -69,13 +69,10 @@ when the duration is undefined.")
                                                :initial-element 0))
 (declaim (type simple-vector *nrt-out-of-range-counter*))
 
-(defvar *nrt-temp-node* (incudine.edf::make-node))
-(declaim (type incudine.edf::node *nrt-temp-node*))
+(defvar *nrt-temp-node* (incudine.edf:make-node))
+(declaim (type incudine.edf:node *nrt-temp-node*))
 
-(defvar *nrt-heap*
-  (make-array *nrt-edf-heap-size* :element-type 'incudine.edf::node
-              :initial-contents (loop repeat *nrt-edf-heap-size*
-                                      collect (incudine.edf::make-node))))
+(defvar *nrt-heap* (incudine.edf:make-heap *nrt-edf-heap-size*))
 (declaim (type simple-vector *nrt-heap*))
 
 (defvar *nrt-sample-counter*
@@ -93,7 +90,7 @@ when the duration is undefined.")
           ;; Probably *nrt-from-world-fifo* is always empty and
           ;; never performed.
           (fast-nrt-perform-functions))
-        (incudine.edf::sched-loop)))
+        (incudine.edf:sched-loop)))
 
 (defun flush-all-fifos ()
   (rt-eval ()
@@ -139,7 +136,7 @@ when the duration is undefined.")
   `(progn
      ,(when stop-if-empty-p
         `(if (incudine.edf:heap-empty-p) (return)))
-     (incudine.edf::sched-loop)
+     (incudine.edf:sched-loop)
      (perform-fifos)
      (compute-tick)
      (write-snd-buffer ,data ,count ,channels)
@@ -180,7 +177,7 @@ when the duration is undefined.")
   ;; Flush the EDF.
   (flush-pending)
   (node-free *node-root*)
-  (incudine.edf::sched-loop))
+  (incudine.edf:sched-loop))
 
 (defun write-sf-metadata-plist (sf plist)
   (macrolet ((metadata-constants ()
@@ -250,10 +247,10 @@ when the duration is undefined.")
          (*block-samples* ,channels)
          (*output-peak-values* *nrt-output-peak-values*)
          (*out-of-range-counter* *nrt-out-of-range-counter*)
-         (incudine.edf::*next-node* incudine.edf::+node-root+)
-         (incudine.edf::*temp-node* *nrt-temp-node*)
-         (incudine.edf::*heap* *nrt-heap*)
-         (incudine.edf::*heap-size* *nrt-edf-heap-size*)
+         (incudine.edf:*next-node* incudine.edf:+node-root+)
+         (incudine.edf:*temp-node* *nrt-temp-node*)
+         (incudine.edf:*heap* *nrt-heap*)
+         (incudine.edf:*heap-size* *nrt-edf-heap-size*)
          (*tempo* *nrt-tempo*)
          (*sample-counter* *nrt-sample-counter*))
      (setf (bpm *tempo*) ,bpm)
@@ -278,7 +275,7 @@ when the duration is undefined.")
          (when (plusp ,count)
            (write-sample ,snd ,data-var ,count))
          (node-free *node-root*)
-         (incudine.edf::sched-loop)
+         (incudine.edf:sched-loop)
          (perform-fifos)))))
 
 (defun %bounce-to-disk (output-filename duration channels header-type
@@ -415,7 +412,7 @@ when the duration is undefined.")
            (setf (smp-ref (input-pointer) ,ch)
                  (smp-ref ,in-data ,in-count))
            (incf ,in-count)))
-       (incudine.edf::sched-loop)
+       (incudine.edf:sched-loop)
        (perform-fifos)
        ;; Update the peak meters if MIX-P is NIL.
        (compute-tick (null ,mix-p))
@@ -476,7 +473,7 @@ when the duration is undefined.")
                                          in-channels out-channels in-size
                                          mix-p))
                 (node-free *node-root*)
-                (incudine.edf::sched-loop)
+                (incudine.edf:sched-loop)
                 (perform-fifos)))
           (condition (c) (progn (msg error "~A" c)
                                 (nrt-cleanup))))

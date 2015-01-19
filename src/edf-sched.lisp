@@ -43,9 +43,13 @@
       1024))
 (declaim (type non-negative-fixnum *heap-size*))
 
-(defvar *heap* (make-array *heap-size* :element-type 'node
-                           :initial-contents (loop repeat *heap-size*
-                                                   collect (make-node))))
+(defun make-heap (&optional (size *heap-size*))
+  (declare (type non-negative-fixnum size))
+  (let ((size (next-power-of-two size)))
+    (make-array size :element-type 'node
+                :initial-contents (loop repeat size collect (make-node)))))
+
+(defvar *heap* (make-heap))
 (declaim (type simple-vector *heap*))
 
 (declaim (inline heap-empty-p))

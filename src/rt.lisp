@@ -193,7 +193,7 @@
                       ((>= i ,frames))
                     (declare (type non-negative-fixnum i))
                     (fifo-perform-functions *fast-to-engine-fifo*)
-                    (incudine.edf::sched-loop)
+                    (incudine.edf:sched-loop)
                     (compute-tick)
                     (inc-io-pointers ,block-size)
                     (incf-sample-counter ,block-size))))
