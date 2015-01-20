@@ -80,22 +80,24 @@
 ;;; If NOTE-OFF-P is T, a note-on message (status byte 9) with velocity 0
 ;;; is interpreted as a note-off message.
 (defmacro responder-noteon-form ((voicer note-off-p keynum velocity) &body body)
-  (if note-off-p
-      `(if (plusp ,velocity)
-           (progn ,@body)
-           (unsafe-release ,voicer ,keynum))
-      `(progn ,@body)))
+  `(progn
+     ,(if note-off-p
+          `(if (plusp ,velocity)
+               (progn ,@body)
+               (unsafe-release ,voicer ,keynum))
+          `(progn ,@body))
+     (values)))
 
 (defmacro midi-bind (voicer stream &key (channel 0) (lokey 0) (hikey 127)
-                     (freq-keyword :freq) (freq-function #'keynum->cps)
-                     (amp-keyword :amp) (amp-mult 0.2)
-                     (amp-function #'velocity->amp) (gate-keyword :gate)
+                     (freq-keyword :freq) freq-function (amp-keyword :amp)
+                     (amp-mult 0.2) amp-function (gate-keyword :gate)
                      (gate-value 1) (note-off-p t))
   (with-gensyms (event status data1 data2 typ)
     `(let ((,event (make-midi-event :voicer ,voicer :channel ,channel
                      :lokey ,lokey :hikey ,hikey :freq-keyword ,freq-keyword
-                     :freq-function ,freq-function :amp-keyword ,amp-keyword
-                     :amp-mult ,amp-mult :amp-function ,amp-function
+                     :freq-function ,(or freq-function `(function keynum->cps))
+                     :amp-keyword ,amp-keyword :amp-mult ,amp-mult
+                     :amp-function ,(or amp-function `(function velocity->amp))
                      :gate-keyword ,gate-keyword :gate-value ,gate-value
                      :note-off-p ,note-off-p)))
        (update-freq-vector (update-amp-vector ,event))
@@ -129,7 +131,8 @@
                                      `(,gate-keyword ,gate-value)))
                              (unsafe-trigger ,voicer ,data1))))
                         ,@(if note-off-p
-                              `(((= ,typ 8) (release ,voicer ,data1))))))))))
+                              `(((= ,typ 8) (release ,voicer ,data1)))))))
+                  (values))))
        ,event)))
 
 (defun scale-midi-amp (midi-event mult)
