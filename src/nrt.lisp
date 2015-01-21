@@ -69,11 +69,8 @@ when the duration is undefined.")
                                                :initial-element 0))
 (declaim (type simple-vector *nrt-out-of-range-counter*))
 
-(defvar *nrt-temp-node* (incudine.edf:make-node))
-(declaim (type incudine.edf:node *nrt-temp-node*))
-
 (defvar *nrt-heap* (incudine.edf:make-heap *nrt-edf-heap-size*))
-(declaim (type simple-vector *nrt-heap*))
+(declaim (type incudine.edf:heap *nrt-heap*))
 
 (defvar *nrt-sample-counter*
   (foreign-alloc 'sample :initial-element +sample-zero+))
@@ -247,8 +244,6 @@ when the duration is undefined.")
          (*block-samples* ,channels)
          (*output-peak-values* *nrt-output-peak-values*)
          (*out-of-range-counter* *nrt-out-of-range-counter*)
-         (incudine.edf:*next-node* incudine.edf:+node-root+)
-         (incudine.edf:*temp-node* *nrt-temp-node*)
          (incudine.edf:*heap* *nrt-heap*)
          (incudine.edf:*heap-size* *nrt-edf-heap-size*)
          (*tempo* *nrt-tempo*)

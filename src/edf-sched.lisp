@@ -20,17 +20,20 @@
 
 (defstruct (node (:copier nil))
   (time +sample-zero+ :type sample)
-  (function #'identity :type function)
+  (function incudine.util::*dummy-function-without-args* :type function)
   (args nil :type list))
 
 (define-constant +node-root+    1)
 (define-constant +first-parent+ 2)
 
-(defvar *next-node* +node-root+)
-(declaim (type positive-fixnum *next-node*))
+(defstruct (heap (:constructor %make-heap))
+  (data (error "edf heap required") :type simple-vector)
+  (next-node +node-root+ :type positive-fixnum)
+  (temp-node (make-node) :type node))
 
-(defvar *temp-node* (make-node))
-(declaim (type node *temp-node*))
+(defmethod print-object ((obj heap) stream)
+  (declare (ignore obj))
+  (format stream "#<EDF:HEAP>"))
 
 (defvar *dummy-node* (make-node))
 (declaim (type node *dummy-node*))
@@ -46,27 +49,29 @@
 (defun make-heap (&optional (size *heap-size*))
   (declare (type non-negative-fixnum size))
   (let ((size (next-power-of-two size)))
-    (make-array size :element-type 'node
-                :initial-contents (loop repeat size collect (make-node)))))
+    (%make-heap
+      :data (make-array size :element-type 'node
+                        :initial-contents (loop repeat size
+                                                collect (make-node))))))
 
 (defvar *heap* (make-heap))
-(declaim (type simple-vector *heap*))
+(declaim (type heap *heap*))
 
 (declaim (inline heap-empty-p))
 (defun heap-empty-p ()
-  (= *next-node* +node-root+))
+  (= (heap-next-node *heap*) +node-root+))
 
 (declaim (inline heap-count))
 (defun heap-count ()
-  (1- *next-node*))
+  (1- (heap-next-node *heap*)))
 
 (declaim (inline heap-node))
 (defun heap-node (index)
-  (svref *heap* index))
+  (svref (heap-data *heap*) index))
 
 (declaim (inline set-heap-node))
 (defun set-heap-node (index node)
-  (setf (svref *heap* index) node))
+  (setf (svref (heap-data *heap*) index) node))
 
 (defsetf heap-node set-heap-node)
 
@@ -92,8 +97,8 @@
 (defun %at (time function args)
   (declare (type sample time) (type function function)
            (type list args))
-  (unless (>= *next-node* *heap-size*)
-    (let ((curr *next-node*)
+  (unless (>= (heap-next-node *heap*) *heap-size*)
+    (let ((curr (heap-next-node *heap*))
           (t0 (sample time)))
       (declare #.*standard-optimize-settings*
                (type positive-fixnum curr) (type sample t0))
@@ -105,7 +110,7 @@
                     (setf curr parent))
                    (t (return)))))
       (node-update (heap-node curr) t0 function args)
-      (incf *next-node*))))
+      (incf (heap-next-node *heap*)))))
 
 (declaim (inline %%at))
 (defun %%at (time function args)
@@ -136,32 +141,32 @@
 (defun get-heap ()
   (declare #.*standard-optimize-settings*
            #+(or cmu sbcl) (values node))
-  (cond ((> *next-node* +node-root+)
+  (cond ((> (heap-next-node *heap*) +node-root+)
          ;; node 0 used for the result
          (node-copy (heap-node 0) (heap-node +node-root+))
-         (decf *next-node*)
-         (node-move (heap-node +node-root+) (heap-node *next-node*))
-         (node-copy *temp-node* (heap-node +node-root+))
+         (decf (heap-next-node *heap*))
+         (node-move (heap-node +node-root+) (heap-node (heap-next-node *heap*)))
+         (node-copy (heap-temp-node *heap*) (heap-node +node-root+))
          (let ((parent +node-root+)
                (curr +first-parent+))
            (declare (type positive-fixnum parent curr))
-           (loop while (< curr *next-node*) do
+           (loop while (< curr (heap-next-node *heap*)) do
                 (let ((sister (1+ curr)))
-                  (when (and (< sister *next-node*)
+                  (when (and (< sister (heap-next-node *heap*))
                              (> (node-time (heap-node curr))
                                 (node-time (heap-node sister))))
                     (incf curr))
-                  (cond ((> (node-time *temp-node*)
+                  (cond ((> (node-time (heap-temp-node *heap*))
                             (node-time (heap-node curr)))
                          (node-copy (heap-node parent) (heap-node curr))
                          (setf parent curr curr (ash parent 1)))
                         (t (return)))))
-           (node-copy (heap-node parent) *temp-node*)
+           (node-copy (heap-node parent) (heap-temp-node *heap*))
            (heap-node 0)))
         (t *dummy-node*)))
 
 (defmacro sched-loop ()
-  `(loop while (and (> *next-node* ,+node-root+)
+  `(loop while (and (> (heap-next-node *heap*) ,+node-root+)
                     (>= (+ (incudine:now) ,(sample 0.5))
                         (node-time (heap-node ,+node-root+))))
          do (let ((curr-node (get-heap)))
@@ -172,12 +177,12 @@
   (declare #.*standard-optimize-settings* #.incudine.util:*reduce-warnings*)
   (labels ((rec (i t0)
              (declare (type non-negative-fixnum i) (type sample t0))
-             (if (= i *next-node*)
+             (if (= i (heap-next-node *heap*))
                  t0
                  (rec (1+ i) (max t0 (node-time (heap-node i)))))))
-    (let ((start (if (power-of-two-p *next-node*)
-                     (ash *next-node* -1)
-                     (let ((n (ash *next-node* -2)))
+    (let ((start (if (power-of-two-p (heap-next-node *heap*))
+                     (ash (heap-next-node *heap*) -1)
+                     (let ((n (ash (heap-next-node *heap*) -2)))
                        (if (< n 2) (+ n 1) (next-power-of-two n))))))
       (declare (type non-negative-fixnum start))
       (rec (1+ start) (node-time (heap-node start))))))
@@ -207,7 +212,7 @@ The list is empty after FLUSH-PENDING.")
 
 (defun flush-pending ()
   (flet ((rt-flush ()
-           (setf *next-node* 1))
+           (setf (heap-next-node *heap*) 1))
          (nrt-flush ()
            (dolist (fun *flush-pending-hook*)
              (funcall fun))

@@ -240,8 +240,8 @@
                 #:*rt-edf-heap-size* #:*rt-thread* #:sample #:+sample-zero+
                 #:next-power-of-two #:power-of-two-p #:with-spinlock-held
                 #:rt-thread-p)
-  (:export #:+node-root+ #:*heap* #:*heap-size* #:*next-node* #:*temp-node*
-           #:node #:make-node #:make-heap
+  (:export #:+node-root+ #:*heap* #:*heap-size*
+           #:node #:make-node #:heap #:make-heap
            #:at #:aat #:sched-loop #:flush-pending #:heap-empty-p #:heap-count
            #:last-time
            #:add-flush-pending-hook #:remove-flush-pending-hook))
