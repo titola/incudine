@@ -69,8 +69,8 @@ when the duration is undefined.")
                                                :initial-element 0))
 (declaim (type simple-vector *nrt-out-of-range-counter*))
 
-(defvar *nrt-heap* (incudine.edf:make-heap *nrt-edf-heap-size*))
-(declaim (type incudine.edf:heap *nrt-heap*))
+(defvar *nrt-edf-heap* (incudine.edf:make-heap *nrt-edf-heap-size*))
+(declaim (type incudine.edf:heap *nrt-edf-heap*))
 
 (defvar *nrt-sample-counter*
   (foreign-alloc 'sample :initial-element +sample-zero+))
@@ -78,6 +78,10 @@ when the duration is undefined.")
 
 (defvar *nrt-tempo* (make-tempo *default-bpm*))
 (declaim (type tempo *nrt-tempo*))
+
+(declaim (inline nrt-edf-heap-p))
+(defun nrt-edf-heap-p ()
+  (eq incudine.edf:*heap* *nrt-edf-heap*))
 
 (defmacro perform-fifos ()
   `(loop until (and (fifo-empty-p *nrt-fifo*)
@@ -244,7 +248,7 @@ when the duration is undefined.")
          (*block-samples* ,channels)
          (*output-peak-values* *nrt-output-peak-values*)
          (*out-of-range-counter* *nrt-out-of-range-counter*)
-         (incudine.edf:*heap* *nrt-heap*)
+         (incudine.edf:*heap* *nrt-edf-heap*)
          (incudine.edf:*heap-size* *nrt-edf-heap-size*)
          (*tempo* *nrt-tempo*)
          (*sample-counter* *nrt-sample-counter*))

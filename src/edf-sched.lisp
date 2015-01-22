@@ -20,31 +20,36 @@
 
 (defstruct (node (:copier nil))
   (time +sample-zero+ :type sample)
-  (function incudine.util::*dummy-function-without-args* :type function)
+  (function #'corrupted-heap :type function)
   (args nil :type list))
 
 (define-constant +node-root+    1)
 (define-constant +first-parent+ 2)
 
 (defstruct (heap (:constructor %make-heap))
-  (data (error "edf heap required") :type simple-vector)
+  (data (error "heap data required") :type simple-vector)
   (next-node +node-root+ :type positive-fixnum)
-  (temp-node (make-node) :type node))
+  (temp-node (make-node) :type node)
+  (time-offset +sample-zero+ :type sample))
 
 (defmethod print-object ((obj heap) stream)
   (declare (ignore obj))
   (format stream "#<EDF:HEAP>"))
 
+(defun corrupted-heap ()
+  (error "corrupted EDF heap"))
+
 (defvar *dummy-node* (make-node))
 (declaim (type node *dummy-node*))
 
-(defvar *heap-size*
-  (if (typep *rt-edf-heap-size* 'positive-fixnum)
-      (if (power-of-two-p *rt-edf-heap-size*)
-          *rt-edf-heap-size*
-          (next-power-of-two *rt-edf-heap-size*))
-      1024))
-(declaim (type non-negative-fixnum *heap-size*))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defvar *heap-size*
+    (if (typep *rt-edf-heap-size* 'positive-fixnum)
+        (if (power-of-two-p *rt-edf-heap-size*)
+            *rt-edf-heap-size*
+            (next-power-of-two *rt-edf-heap-size*))
+        1024))
+  (declaim (type non-negative-fixnum *heap-size*)))
 
 (defun make-heap (&optional (size *heap-size*))
   (declare (type non-negative-fixnum size))
@@ -83,14 +88,14 @@
   node)
 
 (declaim (inline node-copy))
-(defun node-copy (dest src)
+(defun node-copy (src dest)
   (node-update dest (node-time src) (node-function src)
                (node-args src)))
 
 (declaim (inline node-move))
-(defun node-move (dest src)
-  (node-copy dest src)
-  (node-update src +sample-zero+ #'identity nil)
+(defun node-move (src dest)
+  (node-copy src dest)
+  (node-update src +sample-zero+ #'corrupted-heap nil)
   dest)
 
 (declaim (inline %at))
@@ -106,7 +111,7 @@
            (let ((parent (ash curr -1)))
              (declare (type positive-fixnum parent))
              (cond ((< t0 (node-time (heap-node parent)))
-                    (node-copy (heap-node curr) (heap-node parent))
+                    (node-copy (heap-node parent) (heap-node curr))
                     (setf curr parent))
                    (t (return)))))
       (node-update (heap-node curr) t0 function args)
@@ -143,10 +148,10 @@
            #+(or cmu sbcl) (values node))
   (cond ((> (heap-next-node *heap*) +node-root+)
          ;; node 0 used for the result
-         (node-copy (heap-node 0) (heap-node +node-root+))
+         (node-copy (heap-node +node-root+) (heap-node 0))
          (decf (heap-next-node *heap*))
-         (node-move (heap-node +node-root+) (heap-node (heap-next-node *heap*)))
-         (node-copy (heap-temp-node *heap*) (heap-node +node-root+))
+         (node-move (heap-node (heap-next-node *heap*)) (heap-node +node-root+))
+         (node-copy (heap-node +node-root+) (heap-temp-node *heap*))
          (let ((parent +node-root+)
                (curr +first-parent+))
            (declare (type positive-fixnum parent curr))
@@ -158,10 +163,10 @@
                     (incf curr))
                   (cond ((> (node-time (heap-temp-node *heap*))
                             (node-time (heap-node curr)))
-                         (node-copy (heap-node parent) (heap-node curr))
+                         (node-copy (heap-node curr) (heap-node parent))
                          (setf parent curr curr (ash parent 1)))
                         (t (return)))))
-           (node-copy (heap-node parent) (heap-temp-node *heap*))
+           (node-copy (heap-temp-node *heap*) (heap-node parent))
            (heap-node 0)))
         (t *dummy-node*)))
 
@@ -227,3 +232,132 @@ The list is empty after FLUSH-PENDING.")
               (lambda () (incudine::fast-rt-funcall #'rt-flush)))
              (nrt-flush)))
     (values)))
+
+(define-constant +heap-pool-size+
+    (if (boundp 'incudine.config::*edf-heap-pool-size*)
+        incudine.config::*edf-heap-pool-size*
+        (max 2 (/ 4096 *heap-size*))))
+
+(define-constant +heap-pool-grow+
+    (if (boundp 'incudine.config::*edf-heap-pool-grow*)
+        incudine.config::*edf-heap-pool-grow*
+        (max 1 (ash +heap-pool-size+ -1))))
+
+(declaim (inline expand-heap-pool))
+(defun expand-heap-pool (pool &optional (delta 1))
+  (incudine.util:expand-cons-pool pool delta (make-heap *rt-edf-heap-size*)))
+
+(defvar *heap-pool*
+  (incudine.util:make-cons-pool
+    :data (loop repeat +heap-pool-size+ collect (make-heap *rt-edf-heap-size*))
+    :size +heap-pool-size+
+    :expand-func #'expand-heap-pool
+    :grow +heap-pool-grow+)
+  "Pool of EDFs.")
+(declaim (type incudine.util:cons-pool *heap-pool*))
+
+(defvar *heap-pool-spinlock* (incudine.util:make-spinlock "EDF-HEAP-POOL"))
+(declaim (type incudine.util:spinlock *heap-pool-spinlock*))
+
+(defun heap-pool-pop ()
+  (incudine.util:with-spinlock-held (*heap-pool-spinlock*)
+    (let ((cons (incudine.util:cons-pool-pop-cons *heap-pool*)))
+      (prog1 (car cons)
+        (setf (heap-next-node (car cons)) +node-root+)
+        (incudine.util:nrt-global-pool-push-cons cons)))))
+
+(defun heap-pool-push (heap)
+  (declare (type heap heap))
+  (incudine.util:with-spinlock-held (*heap-pool-spinlock*)
+    (let ((cons (incudine.util:nrt-global-pool-pop-cons)))
+      (setf (car cons) heap)
+      (incudine.util:cons-pool-push-cons *heap-pool* cons))))
+
+(defun reduce-heap-pool ()
+  (incudine.util:with-spinlock-held (*heap-pool-spinlock*)
+    (let ((len (incudine.util:cons-pool-size *heap-pool*)))
+      (when (> len +heap-pool-size+)
+        (loop for i from +heap-pool-size+ below len
+              do (incudine.util:nrt-global-pool-push-cons
+                   (incudine.util:cons-pool-pop-cons *heap-pool*))))
+      (values *heap-pool* (- len +heap-pool-size+)))))
+
+(defmacro with-rt-heap ((heap-var) &body body)
+  `(let ((*heap* ,heap-var)
+         (*rt-thread* (bt:current-thread)))
+     (declare (special *heap* *rt-thread*))
+     ,@body))
+
+(defmacro with-next-node ((node-var time-var heap) &body body)
+  `(let* ((,node-var (get-heap))
+          (,time-var (+ (node-time ,node-var) (heap-time-offset ,heap))))
+     ,@body))
+
+;;; Pour the content of the next EDF heap node on the realtime EDF heap.
+(defmacro with-rt-next-node ((node-var time-var heap rt-heap) &body body)
+  `(with-next-node (,node-var ,time-var ,heap)
+     (with-rt-heap (,rt-heap)
+       (%at ,time-var (node-function ,node-var) (node-args ,node-var))
+       ,@body)))
+
+;;; Note: %POUR-ON-RT-HEAP is invoked from the realtime thread.
+(defun %pour-on-rt-heap (heap end-action)
+  (declare (type heap heap) (type function end-action)
+           (optimize speed (safety 0)))
+  (flet ((the-end ()
+           (remove-flush-pending-hook end-action)
+           (incudine:nrt-funcall end-action)))
+    (let ((rt-heap *heap*)
+          (*heap* heap))
+      (declare (special *heap*))
+      (loop while (and (> (heap-next-node heap) +node-root+)
+                       (>= (+ (the sample (incudine:now)) (sample 0.5))
+                           (+ (node-time (heap-node +node-root+))
+                              (heap-time-offset heap)))) do
+              (let ((curr-node (get-heap)))
+                (declare (type node curr-node))
+                (with-rt-heap (rt-heap)
+                  (apply (node-function curr-node) (node-args curr-node)))))
+      (cond ((heap-empty-p)
+             (with-rt-heap (rt-heap) (the-end)))
+            ((= (heap-count) 1)
+             (with-rt-next-node (next-node time heap rt-heap)
+               (the-end)))
+            (t (with-rt-next-node (next-node time heap rt-heap)
+                 ;; Continue to pour at the next tick.
+                 (%at (1+ (the sample (incudine:now))) #'%pour-on-rt-heap
+                      (list heap end-action)))))
+      (values))))
+
+(defun pour-on-rt-heap (heap)
+  "The content of the EDF HEAP is poured on the realtime EDF heap."
+  (declare (type heap heap))
+  (at 0 (lambda (heap)
+          (let ((end-action (lambda () (heap-pool-push heap))))
+            (setf (heap-time-offset heap) (incudine:now))
+            (add-flush-pending-hook end-action)
+            (%pour-on-rt-heap heap end-action)))
+      heap))
+
+(defmacro with-schedule (&body body)
+  (alexandria:with-gensyms (tmp-heap heap)
+    `(flet ((sched ()
+              (let ((,tmp-heap *heap*)
+                    (*heap* (if (incudine::nrt-edf-heap-p)
+                                *heap*
+                                (heap-pool-pop))))
+                (declare (special *heap*))
+                ,@body
+                (unless (eq *heap* ,tmp-heap)
+                  ;; Fast way to schedule multiple events in realtime without
+                  ;; an extensive use of memory barriers and/or CAS. It fills
+                  ;; a temporary queue in non-realtime, then it pours the
+                  ;; content of the queue on the realtime EDF heap.
+                  (let ((,heap *heap*)
+                        ;; Realtime EDF heap.
+                        (*heap* ,tmp-heap))
+                    (declare (special *heap*))
+                    (pour-on-rt-heap ,heap))))))
+       (if (and (not (incudine::nrt-edf-heap-p)) (rt-thread-p))
+           (incudine:nrt-funcall #'sched)
+           (sched)))))

@@ -139,6 +139,31 @@
              (read-sequence seq f)
              (equal seq '(#\# #\Space #\F #\A #\S #\L)))))))
 
+(declaim (inline stop-rt-executable))
+(defun stop-rt-executable ()
+  (nrt-funcall (lambda () (sync-condition-signal *rt-executable-sync*))))
+
+(declaim (inline find-rt-executable-closing-time))
+(defun find-rt-executable-closing-time (pad)
+  (if (incudine.edf:heap-empty-p)
+      ;; Stop The Rock.
+      (stop-rt-executable)
+      ;; Stop PAD seconds after the last event if it is really the last.
+      (at (+ (incudine.edf:last-time) pad)
+          #'find-rt-executable-closing-time pad)))
+
+(defun rt-executable-closing-time (duration)
+  `(lambda ()
+     ,(let ((dur (* *sample-rate* duration)))
+        (if (plusp duration)
+            ;; Stop after DURATION seconds.
+            `(at (+ (now) ,dur) #'stop-rt-executable)
+            (let ((pad (if (minusp duration)
+                           (- dur)
+                           (* *sample-rate* 1/10))))
+              ;; Perhaps stop after PAD seconds.
+              `(at (+ (now) ,pad) #'find-rt-executable-closing-time ,pad))))))
+
 ;;; Complete a file obtained with REGOFILE->LISPFILE. The modified
 ;;; file is a script executable both in realtime and non-rt.
 (defun %complete-score (pathname opt fname)
@@ -156,19 +181,7 @@
                          ;; Realtime
                          (sync-condition-flush *rt-executable-sync*)
                          (,fname)
-                         (at (now)
-                             (lambda ()
-                               (at ,(let ((dur (* *sample-rate* duration)))
-                                      (if (plusp duration)
-                                          `(+ (now) ,dur)
-                                          ;; Last time + padding
-                                          `(- (incudine.edf:last-time) ,dur)))
-                                   (lambda ()
-                                     ;; Signal the condition from nrt-thread
-                                     (nrt-funcall
-                                      (lambda ()
-                                        (sync-condition-signal
-                                         *rt-executable-sync*)))))))
+                         (at 0 ,(rt-executable-closing-time duration))
                          (sync-condition-wait *rt-executable-sync*))
                         ;; Non realtime
                         (t (bounce-to-disk

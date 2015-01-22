@@ -75,6 +75,12 @@
 ;; Max number of scheduled events in non-realtime (a power of two).
 (setq *nrt-edf-heap-size* 65536)
 
+;; Pool size of the temporary EDF heaps.
+(setq *edf-heap-pool-size* 2)
+
+;; New EDF heaps to add when the pool is empty.
+(setq *edf-heap-pool-grow* 1)
+
 ;;;-------------------------[ Soundfile ]---------------------------
 
 ;; Safe upper limit when the duration of the soundfile is undefined.

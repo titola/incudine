@@ -40,6 +40,8 @@
                     *number-of-bus-channels*
                     *rt-edf-heap-size*
                     *nrt-edf-heap-size*
+                    *edf-heap-pool-size*
+                    *edf-heap-pool-grow*
                     *sched-policy*
                     *rt-priority*
                     *nrt-priority*

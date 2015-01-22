@@ -244,7 +244,8 @@
            #:node #:make-node #:heap #:make-heap
            #:at #:aat #:sched-loop #:flush-pending #:heap-empty-p #:heap-count
            #:last-time
-           #:add-flush-pending-hook #:remove-flush-pending-hook))
+           #:add-flush-pending-hook #:remove-flush-pending-hook
+           #:reduce-heap-pool))
 
 (defpackage :incudine.analysis
   (:use :cl)

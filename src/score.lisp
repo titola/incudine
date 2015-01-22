@@ -215,17 +215,18 @@
 ;;; Note: the duration of an event is known only if it uses the local
 ;;; function DUR (see REGOFILE->SEXP).
 (defmacro maybe-extend-time (now time-var dur sched-func c-array tempo-env)
-  ``(at-last-time ,,now
-      (lambda ()
-        (flet ((end-of-rego (&optional arg)
-                 (declare (ignorable arg))
-                 (free (list ,,c-array ,,tempo-env))
-                 (nrt-msg info "end of rego")))
-          (cond ((and (plusp ,,dur)
-                      (> (incf ,,time-var ,,dur) ,,now))
-                 (,,sched-func ,,time-var #'end-of-rego))
-                ((rt-thread-p) (nrt-funcall #'end-of-rego))
-                (t (end-of-rego)))))))
+  ``(when (nrt-edf-heap-p)
+      (at-last-time ,,now
+        (lambda ()
+          (flet ((end-of-rego (&optional arg)
+                   (declare (ignorable arg))
+                   (free (list ,,c-array ,,tempo-env))
+                   (nrt-msg info "end of rego")))
+            (cond ((and (plusp ,,dur)
+                        (> (incf ,,time-var ,,dur) ,,now))
+                   (,,sched-func ,,time-var #'end-of-rego))
+                  ((rt-thread-p) (nrt-funcall #'end-of-rego))
+                  (t (end-of-rego))))))))
 
 (declaim (inline default-tempo-envelope))
 (defun default-tempo-envelope ()
@@ -243,7 +244,7 @@
 (defun ensure-complex-gensym (name)
   (ensure-symbol (symbol-name (gensym (format nil "%%%~A%%%" (string name))))))
 
-(defmacro with-rego-function ((&optional fname compile-rego-p) &body body)
+(defmacro with-rego-function ((fname compile-rego-p) &body body)
   `(,@(if fname `(defun ,fname) '(lambda)) ()
       (,(if compile-rego-p 'progn 'incudine.util::cudo-eval) ,@body)))
 
@@ -257,7 +258,9 @@
               (,c-array (foreign-array-data ,foreign-array-name)))
          (symbol-macrolet ,(loop for var in var-names for i from 0
                                  collect `(,var (smp-ref ,c-array ,i)))
-           (setf ,time-var (now))
+           (setf ,time-var (if (incudine::nrt-edf-heap-p)
+                               (now)
+                               +sample-zero+))
            ,@body)))))
 
 (defun %write-regofile (path at-fname time-var dur-var sched-func c-array
@@ -309,31 +312,33 @@
         `(with-rego-function (,fname ,compile-rego-p)
            (with-rego-samples (,c-array-wrap ,time ,sched ,last-time ,last-dur)
              (let ((,tempo-env (default-tempo-envelope)))
-               (flet ((,dur (,beats)
-                        (setf ,last-time ,sched)
-                        (setf ,last-dur (sample ,beats))
-                        (time-at ,tempo-env ,beats ,sched))
-                      (,%sched (beats fn)
-                        (at (+ ,time
+               (incudine.edf::with-schedule
+                 (flet ((,dur (,beats)
+                          (setf ,last-time ,sched)
+                          (setf ,last-dur (sample ,beats))
+                          (time-at ,tempo-env ,beats ,sched))
+                        (,%sched (beats fn)
+                          (incudine.edf::%at
+                            (+ ,time
                                (* *sample-rate*
                                   (%time-at ,tempo-env
                                             (setf ,sched (sample beats)))))
-                            fn beats)))
-                 (declare (ignorable (function ,dur)))
-                 (macrolet ((,tempo (&rest args)
-                              `(set-tempo-envelope ,',tempo-env
-                                 ,@(if (cdr args)
-                                       args
-                                       ;; Constant tempo
-                                       `((list ,(car args) ,(car args)) '(0)))))
-                            (,sched (beats fn &rest args)
-                              (with-gensyms (x)
-                                `(,',%sched ,beats
-                                            (lambda (,x)
-                                              (setf ,',sched (sample ,x))
-                                              (,fn ,@args))))))
-                   ,(%write-regofile path sched last-time last-dur %sched
-                                     c-array-wrap tempo-env))))))))))
+                            fn (list beats))))
+                   (declare (ignorable (function ,dur)))
+                   (macrolet ((,tempo (&rest args)
+                                `(set-tempo-envelope ,',tempo-env
+                                   ,@(if (cdr args)
+                                         args
+                                         ;; Constant tempo
+                                         `((list ,(car args) ,(car args)) '(0)))))
+                              (,sched (beats fn &rest args)
+                                (with-gensyms (x)
+                                  `(,',%sched ,beats
+                                              (lambda (,x)
+                                                (setf ,',sched (sample ,x))
+                                                (,fn ,@args))))))
+                     ,(%write-regofile path sched last-time last-dur %sched
+                                       c-array-wrap tempo-env)))))))))))
 
 (declaim (inline regofile->function))
 (defun regofile->function (path &optional fname compile-rego-p)

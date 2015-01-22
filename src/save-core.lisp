@@ -37,17 +37,15 @@
       (setf incudine.util::*initialized-foreign-memory-pools* nil)
       ;; edf
       (setf incudine.edf:*heap-size*
-            (if (and (numberp *rt-edf-heap-size*)
-                     (not (power-of-two-p *rt-edf-heap-size*)))
-                (next-power-of-two *rt-edf-heap-size*)
-                1024))
+            (if (power-of-two-p *rt-edf-heap-size*)
+                *rt-edf-heap-size*
+                (next-power-of-two *rt-edf-heap-size*)))
       (setf incudine.edf:*heap* (incudine.edf:make-heap))
       (setf *nrt-edf-heap-size*
-            (if (and (numberp *nrt-edf-heap-size*)
-                     (not (power-of-two-p *nrt-edf-heap-size*)))
-                (next-power-of-two *nrt-edf-heap-size*)
-                65536))
-      (setf *nrt-heap* (incudine.edf:make-heap *nrt-edf-heap-size*))
+            (if (power-of-two-p *nrt-edf-heap-size*)
+                *nrt-edf-heap-size*
+                (next-power-of-two *nrt-edf-heap-size*)))
+      (setf *nrt-edf-heap* (incudine.edf:make-heap *nrt-edf-heap-size*))
       ;; bus
       (setf *%input-pointer*
             (foreign-alloc-sample (* *max-buffer-size*
