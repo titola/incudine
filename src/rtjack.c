@@ -232,7 +232,7 @@ int ja_initialize(SAMPLE srate, unsigned int input_channels,
         (void) nframes;
 
         ja_error_msg[0] = '\0';
-        client = jack_client_open(client_name, JackNullOption, NULL);
+        client = jack_client_open(client_name, JackNoStartServer, NULL);
         if (client == NULL) {
                 ja_set_error_msg("jack_client_open failure");
                 return 1;
