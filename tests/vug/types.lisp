@@ -105,3 +105,33 @@
         (free u)
         res))
   (19752000 120 960 987 1214748))
+
+(deftest pointer-test.4
+    (progn
+      (define-ugen pointer-test-4 pointer ()
+        (with ((a (make-frame 2))
+               (b (make-f32-array 4))
+               (c (make-f64-array 6))
+               (d (make-int32-array 8))
+               (e (make-uint32-array 10))
+               (f (make-int64-array 12))
+               (g (make-uint64-array 14))
+               (h (make-pointer-array 8)))
+          (declare (pointer a b c d e f g h))
+          (initialize
+           (loop for i from 0
+                 for ptr in (list a b c d e f g)
+                 do (setf (cffi:mem-aref h :pointer i) ptr)))
+          h))
+      (let ((u (funcall (pointer-test-4))))
+        (funcall (ugen-perf-function u))
+        (let* ((ptr (cffi:mem-ref (ugen-return-pointer u) :pointer))
+               (res (when (and (eq (foreign-array-type-of ptr) :pointer)
+                               (= (foreign-length ptr) 8))
+                      (loop for i below 7
+                            for vec = (cffi:mem-aref ptr :pointer i)
+                            collect (foreign-array-type-of vec)
+                            collect (foreign-length vec)))))
+          (free u)
+          res)))
+  (SAMPLE 2 :FLOAT 4 :DOUBLE 6 :INT32 8 :UINT32 10 :INT64 12 :UINT64 14))

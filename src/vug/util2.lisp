@@ -28,11 +28,62 @@
 (defmacro free-self-when-done ()
   `(when (done-self) (free-self)))
 
+;;;  +--------------------------------+
+;;;  |   Header of a foreign array    |
+;;;  +--------+-----------------------+
+;;;  | 4 bits |        24 bits        |
+;;;  +--------+-----------------------+
+;;;  |  type  |      array length     |
+;;;  +--------+-----------------------+
+
+(define-constant +foreign-header-size+ 4)
+
+(define-constant +foreign-array-length-bits+ 24)
+
+(define-constant +foreign-array-length-mask+ #xFFFFFF)
+
+(define-constant +unknown-foreign-type+ 0)
+
+(defvar *foreign-array-types*
+  #(:unknown sample :int32 :uint32 :int64 :uint64 :float :double :pointer))
+(declaim (type simple-vector *foreign-array-types*))
+
+(declaim (inline foreign-type-to-tag))
+(defun foreign-type-to-tag (type)
+  (the (unsigned-byte 28)
+       (ash (or (position type *foreign-array-types* :test #'eq)
+                +unknown-foreign-type+)
+            +foreign-array-length-bits+)))
+
+(declaim (inline make-foreign-header))
+(defun make-foreign-header (size type)
+  (logior (foreign-type-to-tag type)
+          (logand size +foreign-array-length-mask+)))
+
 (defmacro %make-foreign-array (size type &rest args)
-  (let ((arr-wrap (gensym (format nil "~A-WRAP" type))))
-    `(with ((,arr-wrap (make-foreign-array ,size ',type ,@args)))
+  (let ((arr-wrap (gensym (format nil "~A-WRAP" type)))
+        (data (gensym "DATA")))
+    `(with ((,arr-wrap (make-foreign-array (1+ ,size) ',type ,@args)))
        (declare (type foreign-array ,arr-wrap))
-       (foreign-array-data ,arr-wrap))))
+       (let ((,data (foreign-array-data ,arr-wrap)))
+         (setf (cffi:mem-ref ,data :uint32
+                             ,(- (cffi:foreign-type-size type)
+                                 +foreign-header-size+))
+               (make-foreign-header ,size ',type))
+         (cffi:inc-pointer ,data ,(cffi:foreign-type-size type))))))
+
+(declaim (inline foreign-length))
+(defun foreign-length (pointer)
+  (logand (cffi:mem-ref (cffi:inc-pointer pointer (- +foreign-header-size+))
+                        :uint32)
+          +foreign-array-length-mask+))
+
+(declaim (inline foreign-array-type-of))
+(defun foreign-array-type-of (pointer)
+  (svref *foreign-array-types*
+         (ash (cffi:mem-ref (cffi:inc-pointer pointer (- +foreign-header-size+))
+                            :uint32)
+              (- +foreign-array-length-bits+))))
 
 (macrolet ((make-*-array (name type)
              `(defmacro ,name (&whole whole size &key zero-p initial-element
