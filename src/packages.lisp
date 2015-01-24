@@ -202,7 +202,9 @@
    #:ff-comb #:fb-comb #:allpass #:vallpass
    #:delay-feedback #:delay1
    ;; filter
-   #:one-pole #:one-zero #:two-pole #:two-zero #:dcblock #:lag #:lag-ud
+   #:~ #:pole #:pole* #:zero #:zero* #:two-pole #:two-zero
+   #:one-pole #:one-zero ; (deprecated)
+   #:dcblock #:lag #:lag-ud
    #:env-follower #:maf #:median #:decay #:decay-2 #:biquad #:reson
    #:resonz #:resonr #:ringz #:ringr
    #:fofilter #:lpf #:hpf #:bpf #:notch #:apf #:peak-eq #:low-shelf #:hi-shelf
@@ -427,7 +429,7 @@
            #:unsafe-control-value #:unsafe-get-controls #:unsafe-set-controls
            #:unsafe-define-map #:unsafe-remove-map #:unsafe-mapvoicer
            #:unsafe-panic #:midi-event #:fill-freq-vector #:fill-amp-vector
-           #:midi-bind #:scale-midi-amp #:scale-midi-event-amp
+           #:midi-bind #:scale-midi-amp
            #:keynum->cps #:velocity->amp #:set-midi-freq-function
            #:set-midi-amp-function))
 

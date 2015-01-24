@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2015 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -16,68 +16,84 @@
 
 (in-package :incudine.vug)
 
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  ;;; Note: nested anaphoric VUG-MACROs are safe, because the
+  ;;; VUG-VARIABLE IT becomes a new symbol created with GENSYM.
+  ;;;
+  ;;; The symbol ~ is inspired by FAUST programming language.
+  (define-vug-macro ~ (in)
+    "Anaphoric VUG MACRO for recursive composition."
+    (let ((it (ensure-symbol 'it)))
+      `(with-samples (,it) (setf ,it ,in)))))
+
 (define-vug delay1 (in)
+  "One sample delay."
   (with-samples (sig) (prog1 sig (setf sig in))))
 
-(define-vug one-pole (in coef)
-  (with-samples (y1)
-    (setf y1 (+ in (* coef (- y1 in))))))
+(define-vug pole (in coef)
+  "One pole filter."
+  (~ (+ in (* coef it))))
 
-(define-vug one-zero (in coef)
-  (with-samples ((x1 0.0d0)
-                 (x (prog1 (if (minusp coef) (+ x1 in) (- x1 in))
-                      (setf x1 in))))
-    (+ in (* coef x))))
+(define-vug pole* (in coef)
+  "Scaled one pole filter."
+  (with-samples ((g (- 1 (abs coef))))
+    (pole (* g in) coef)))
+
+(define-vug zero (in coef)
+  "One zero filter."
+  (- in (* coef (delay1 in))))
+
+(define-vug zero* (in coef)
+  "Scaled one zero filter."
+  (with-samples ((g (- 1 (abs coef))))
+    (+ (* g in) (* coef (delay1 in)))))
 
 (define-vug two-pole (in freq radius)
-  (with-samples ((a1 (* 2 radius (cos (* freq *twopi-div-sr*))))
-                 (a2 (- (* radius radius)))
-                 (y0 0.0d0)
-                 (y1 0.0d0)
-                 (y2 0.0d0))
-    (prog1 (setf y0 (+ in (* a1 y1) (* a2 y2)))
-      (setf y2 y1 y1 y0))))
+  "Two pole filter."
+  (with-samples ((a1 (* -2 radius (cos (* freq *twopi-div-sr*))))
+                 (a2 (* radius radius)))
+    (~ (- in (* a1 it) (* a2 (delay1 it))))))
 
 (define-vug two-zero (in freq radius)
+  "Two zero filter."
   (with-samples ((b1 (* -2 radius (cos (* freq *twopi-div-sr*))))
                  (b2 (* radius radius))
-                 (x1 0.0d0)
-                 (x2 0.0d0))
-    (prog1 (+ in (* b1 x1) (* b2 x2))
-      (setf x2 x1 x1 in))))
+                 (x1 (delay1 in)))
+    (+ in (* b1 x1) (* b2 (delay1 x1)))))
 
 (define-vug dcblock (in coef)
-  (with-samples (x1 y1)
-    (prog1 (setf y1 (+ (- in x1) (* coef y1)))
-      (setf x1 in))))
+  "DC blocking filter."
+  (pole (zero in 1) coef))
 
-;;; One pole filter with the coefficient calculated from a 60 dB lag time
 (define-vug lag (in time)
-  (with-samples ((coef (t60->pole time)))
-    (one-pole in coef)))
+  "Scaled one pole filter with the coefficient calculated from
+a 60 dB lag TIME."
+  (pole* in (t60->pole time)))
 
 (define-vug lag-ud (in attack-time decay-time)
-  (with-samples ((y1 0.0d0)
-                 (coef-up (t60->pole attack-time))
-                 (coef-down (t60->pole decay-time)))
-    (setf y1 (+ in (* (if (> in y1) coef-up coef-down)
-                      (- y1 in))))))
+  "Scaled one pole filter with the coefficient calculated from
+a 60 dB lag ATTACK-TIME and DECAY-TIME."
+  (with-samples ((coef-up (t60->pole attack-time))
+                 (coef-down (t60->pole decay-time))
+                 (y1 0.0)
+                 (coef (if (> in y1) coef-up coef-down))
+                 (g (- 1 (abs coef))))
+    (setf y1 (+ (* g in) (* coef y1)))))
 
 (define-vug env-follower (in attack-time decay-time)
+  "Envelope follower."
   (lag-ud (abs in) attack-time decay-time))
 
 (define-vug decay (in decay-time)
-  (with-samples ((y1 0.0d0)
-                 (b1 (t60->pole decay-time)))
-    ;; Update the input, if it is required, to avoid the expansion
-    ;; inside the next condition
-    (maybe-expand in)
-    (setf y1 (if (zerop b1) in (+ in (* b1 y1))))))
+  "Exponential decay."
+  (pole in (t60->pole decay-time)))
 
 (define-vug decay-2 (in attack-time decay-time)
+  "Exponential decay with the attack obtained by subtracting two DECAYs."
   (- (decay in decay-time) (decay in attack-time)))
 
 (define-vug biquad (in b0 b1 b2 a0 a1 a2)
+  "Biquad filter."
   (with-samples (x1 x2 y y1 y2 (a0r (/ a0)))
     (setf y (- (+ (* b0 a0r in)
                   (* b1 a0r x1)
@@ -119,24 +135,26 @@
       (biquad in scale 0 (- scale) 1 (- (* 2 r (cos wt))) rr))))
 
 (define-vug resonr (in freq q)
-  "Two pole resonant filter with zeroes located at +/- sqrt(R)."
+  "Two pole resonant filter with zeroes located at +/- sqrt(radius)."
   (with-reson-common (wt r freq q)
     (with-samples ((scale (- 1 r)))
       (biquad in scale 0 (* scale (- r)) 1 (- (* 2 r (cos wt))) (* r r)))))
 
-;;; It is the same as RESONZ with the bandwidth specified in a 60dB
-;;; ring decay time and a constant scale factor.
 ;;; Inspired by Ringz in SuperCollider.
 (define-vug ringz (in freq decay-time)
+  "Two pole resonant filter with zeroes located at z = 1 and z = -1.
+The bandwidth is specified in a 60dB ring DECAY-TIME and a constant
+scale factor."
   (with-samples ((wt (* freq *twopi-div-sr*))
                  (r (t60->pole decay-time))
                  (rr (* r r))
                  (scale 0.5))
     (biquad in scale 0 (- scale) 1 (- (* 2 r (cos wt))) rr)))
 
-;;; It is the same as RESONR with the bandwidth specified in a 60dB
-;;; ring decay time and a constant scale factor.
 (define-vug ringr (in freq decay-time)
+  "Two pole resonant filter with zeroes located at +/- sqrt(radius).
+The bandwidth is specified in a 60dB ring DECAY-TIME and a constant
+scale factor."
   (with-samples ((wt (* freq *twopi-div-sr*))
                  (r (t60->pole decay-time))
                  (scale 0.5))
@@ -146,6 +164,7 @@
 ;;; The name is FOFILTER (used also in Csound) to avoid confusion with
 ;;; FORMLET and LET.
 (define-vug fofilter (in freq attack-time decay-time)
+  "FOF-like filter."
   (with-samples ((wt (* freq *twopi-div-sr*))
                  (cos-wt (cos wt))
                  (r0 (t60->pole attack-time))
@@ -185,35 +204,41 @@
        ,@body)))
 
 (define-vug lpf (in freq q)
+  "Second-order lowpass filter."
   (%with-biquad-common
       ((b1 (- 1.0 cos-w0))
        (b2 (* b1 0.5)))
     (biquad in b2 b1 b2 (+ 1.0 alpha) (- (* 2.0 cos-w0)) (- 1.0 alpha))))
 
 (define-vug hpf (in freq q)
+  "Second-order highpass filter."
   (%with-biquad-common
       ((b1 (- (+ 1.0 cos-w0)))
        (b2 (* (- b1) 0.5)))
     (biquad in b2 b1 b2 (+ 1.0 alpha) (- (* 2.0 cos-w0)) (- 1.0 alpha))))
 
 (define-vug bpf (in freq q)
+  "Second-order bandpass filter."
   (%with-biquad-common ()
     (biquad in alpha 0.0 (- alpha) (+ 1.0 alpha) (- (* 2.0 cos-w0))
             (- 1.0 alpha))))
 
 (define-vug notch (in freq q)
+  "Second-order notch filter."
   (%with-biquad-common
       ((b1 (- (* 2.0 cos-w0))))
     (biquad in 1.0 b1 1.0 (+ 1.0 alpha) b1 (- 1.0 alpha))))
 
 (define-vug apf (in freq q)
+  "Second-order allpass filter."
   (%with-biquad-common
       ((b0 (- 1.0 alpha))
-       (b1 (- (* 2.0 cos-w0)))
+       (b1 (* -2.0 cos-w0))
        (b2 (+ 1.0 alpha)))
     (biquad in b0 b1 b2 b2 b1 b0)))
 
 (define-vug peak-eq (in freq q db)
+  "Second-order peaking equalizer."
   (%with-biquad-common
       ((gain (expt (sample 10) (* db (sample 0.025))))
        (c1 (* alpha gain))
@@ -222,6 +247,7 @@
     (biquad in (+ 1.0 c1) b1 (- 1.0 c1) (+ 1.0 c2) b1 (- 1.0 c2))))
 
 (define-vug low-shelf (in freq s db)
+  "Second-order low shelf filter."
   (%with-biquad-shelf-common
     (biquad in (* gain (+ (- c1 c4) c5))
             (* 2 gain (- c2 c3))
@@ -231,6 +257,7 @@
             (- (+ c1 c4) c5))))
 
 (define-vug hi-shelf (in freq s db)
+  "Second-order high shelf filter."
   (%with-biquad-shelf-common
     (biquad in (* gain (+ (- c1 c4) c5))
             (* -2 gain (+ c2 c3))
@@ -250,6 +277,7 @@
            (setf ,old2 ,old1 ,old1 ,value))))))
 
 (define-vug butter-lp (in fcut)
+  "Second-order Butterworth lowpass filter."
   (with-samples ((c (/ 1.0 (tan (* fcut *pi-div-sr*))))
                  (cc (* c c))
                  (sqrt2-mult-c (* +sqrt2+ c))
@@ -260,6 +288,7 @@
     (%butter-filter in c1 c2 c1 c4 c5)))
 
 (define-vug butter-hp (in fcut)
+  "Second-order Butterworth highpass filter."
   (with-samples ((c (tan (* fcut *pi-div-sr*)))
                  (cc (* c c))
                  (sqrt2-mult-c (* +sqrt2+ c))
@@ -270,6 +299,7 @@
     (%butter-filter in c1 c2 c1 c4 c5)))
 
 (define-vug butter-bp (in fcut bandwidth)
+  "Second-order Butterworth bandpass filter."
   (with-samples ((c (/ 1.0 (tan (* bandwidth *pi-div-sr*))))
                  (d (* 2.0 (cos (* fcut *twopi-div-sr*))))
                  (c1 (/ 1.0 (+ 1.0 c)))
@@ -279,6 +309,7 @@
     (%butter-filter in c1 0.0 c3 c4 c5)))
 
 (define-vug butter-br (in fcut bandwidth)
+  "Second-order Butterworth bandreject filter."
   (with-samples ((c (tan (* bandwidth *pi-div-sr*)))
                  (d (* 2.0 (cos (* fcut *twopi-div-sr*))))
                  (c1 (/ 1.0 (+ 1.0 c)))
@@ -286,9 +317,10 @@
                  (c5 (* (- 1.0 c) c1)))
     (%butter-filter in c1 c2 c1 c2 c5)))
 
-;;; Digital emulation of a 3 pole lowpass filter. Based on Josep
-;;; Comajuncosas' 18dB/oct resonant 3-pole LPF with tanh dist (Csound)
+;;; Based on Josep Comajuncosas' 18dB/oct resonant 3-pole LPF with
+;;; tanh dist (Csound)
 (define-vug lpf18 (in freq resonance distortion)
+  "Digital emulation of a 3 pole lowpass filter."
   (with-samples ((f (* 2.0 freq *sample-duration*))
                  (p (- (* (+ (* (+ (* -2.7528 f) 3.0429) f) 1.718) f) 0.9984))
                  (p1 (+ p 1.0))
@@ -308,7 +340,6 @@
       (setf x1 x0 y11 y1 y31 y2)
       (tanh (* out value))))
 
-;;; State Variable Filter.
 ;;; Reference: http://www.musicdsp.org/archive.php?classid=3#92
 ;;;
 ;;; This filter has five simultaneous outputs stored in a FRAME:
@@ -316,6 +347,7 @@
 ;;;
 ;;; It is stable with RESONANCE from 0 to 1 and DRIVE from 0 to 0.1
 (define-vug svf (in fcut resonance drive)
+  "State Variable Filter."
   (with ((freq (* 2.0 (sin (* pi (min 0.25 (* fcut
                                               ;; Double sampled
                                               0.5 *sample-duration*))))))
@@ -349,8 +381,8 @@
               peak (- lp hp)))
       frame)))
 
-;;; Moving Average Filter
 (define-vug maf (in (max-size positive-fixnum) (size positive-fixnum))
+  "Moving Average Filter."
   (with ((data (make-frame max-size :zero-p t))
          (sum 0.0d0)
          (old-size 0)

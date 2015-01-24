@@ -5,9 +5,14 @@
     (terpri *logger-stream*)
     (msg warn "~A is deprecated, use ~A instead." old new)))
 
-(in-package :incudine.voicer)
+(in-package :incudine.vug)
 
-;;; 20140806
-(defmacro scale-midi-event-amp (midi-event mult)
-  (incudine::deprecated-msg 'scale-midi-event-amp 'scale-midi-amp)
-  `(scale-midi-amp ,midi-event ,mult))
+;;; 20150124
+(defmacro one-pole (in coef)
+  (incudine::deprecated-msg 'one-pole 'pole*)
+  `(pole* ,in ,coef))
+
+;;; 20150124
+(defmacro one-zero (in coef)
+  (incudine::deprecated-msg 'one-zero 'zero*)
+  `(zero* ,in ,coef))
