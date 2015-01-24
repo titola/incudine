@@ -185,7 +185,7 @@ scale factor."
 
   (defmacro %with-biquad-common (bindings &body body)
     `(%%with-biquad-common
-         ((alpha (* sin-w0 (if (plusp q) (/ 0.5 q) 1000.0)))
+         ((alpha (* sin-w0 (if (plusp q) (/ 0.5 q) (sample 1000))))
           ,@bindings)
        ,@body))
 
