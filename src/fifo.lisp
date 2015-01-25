@@ -151,7 +151,7 @@
 (defun %print-condition-error (cond)
   (declare (type condition cond))
   (flet ((print-error ()
-           (format t "~A~%" cond)
+           (format *error-output* "~A~%" cond)
            (force-output)))
     (if (rt-thread-p) (nrt-funcall #'print-error) (print-error))))
 
@@ -193,9 +193,7 @@
   `(incudine:fast-nrt-funcall
     (lambda ()
       (incudine:fast-rt-funcall
-       (lambda ()
-         (handler-case (progn ,@form nil)
-           (condition (c) (nrt-msg error "~A" c))))))))
+       (lambda () ,@form nil)))))
 
 (defmacro rt-eval ((&key return-value-p) &body form)
   (with-gensyms (func)

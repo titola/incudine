@@ -147,7 +147,8 @@
      (when sb-kernel:*stop-for-gc-pending*
        (setf ,frames-var 0))
      ,@body
-     (rt-cycle-end ,frames-var)
+     (incudine.util::without-float-overflow-trap
+       (rt-cycle-end ,frames-var))
      (incudine.util::with-stop-for-gc-pending
        ;; No xruns, jack knows that lisp is busy.
        ;; The output buffer is filled with zeroes.

@@ -87,6 +87,9 @@
 (defmacro with-stop-for-gc-pending (&body body)
   `(when sb-kernel:*stop-for-gc-pending* ,@body))
 
+(defmacro without-float-overflow-trap (&body body)
+  `(sb-int:with-float-traps-masked (:underflow :overflow) ,@body))
+
 (defun add-after-gc-hook (function)
   (pushnew function sb-ext:*after-gc-hooks*))
 
