@@ -46,6 +46,7 @@
      (:file "vug/base" :depends-on ("util"))
      (:file "vug/ugen-base" :depends-on ("vug/base"))
      (:file "vug/types" :depends-on ("vug/base"))
+     (:file "vug/binding-lambda" :depends-on ("vug/base"))
      (:file "vug/initialize" :depends-on ("vug/base"))
      (:file "vug/with-or-without-follow" :depends-on ("vug/base"))
      (:file "vug/reinit" :depends-on ("vug/base"))
