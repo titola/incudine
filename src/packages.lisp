@@ -203,6 +203,7 @@
    #:delay-feedback #:delay1
    ;; filter
    #:~ #:pole #:pole* #:zero #:zero* #:two-pole #:two-zero
+   #:cs-tone #:cs-atone
    #:one-pole #:one-zero ; (deprecated)
    #:dcblock #:lag #:lag-ud
    #:env-follower #:maf #:median #:decay #:decay-2 #:biquad #:reson

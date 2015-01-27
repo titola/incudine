@@ -48,6 +48,23 @@
   (with-samples ((g (- 1 (abs coef))))
     (+ (* g in) (* coef (delay1 in)))))
 
+;;; `tone' and `atone' opcodes used in Csound.
+(define-vug cs-tone (in hp)
+  "A first-order recursive lowpass filter where HP is the response curve's
+half-power point."
+  (with-samples ((b (- 2 (cos (* hp *twopi-div-sr*))))
+                 (coef (- b (sqrt (the non-negative-sample (- (* b b) 1)))))
+                 (g (- 1 coef)))
+    (pole (* g in) coef)))
+
+(define-vug cs-atone (in hp)
+  "A first-order recursive highpass filter where HP is the response curve's
+half-power point."
+  (with-samples ((b (- 2 (cos (* hp *twopi-div-sr*))))
+                 (coef (- (sqrt (the non-negative-sample (- (* b b) 1))) b))
+                 (g (+ 1 coef)))
+    (pole (* g in) coef)))
+
 (define-vug two-pole (in freq radius)
   "Two pole filter."
   (with-samples ((a1 (* -2 radius (cos (* freq *twopi-div-sr*))))
@@ -519,7 +536,7 @@ scale factor."
 ;;;
 (define-vug nlf2 (in freq r)
   "Second order normalized digital waveguide resonator."
-  (with-samples ((th (* +twopi+ freq *sample-duration*))
+  (with-samples ((th (* freq *twopi-div-sr*))
                  (c (cos th))
                  (s (sin th))
                  (fb0 0)
