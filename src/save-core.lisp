@@ -111,7 +111,6 @@
       ;; mouse
       (setf incudine.vug::*mouse-event* (incudine.vug::alloc-mouse-event))
       ;; init
-      (setf *set-readtable-p* t)
       (funcall #'init t)
       ;; buffer
       (setf *sine-table*

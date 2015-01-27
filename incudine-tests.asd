@@ -55,7 +55,8 @@
      (:file "vug/generator/osc" :depends-on ("vug/base"))
      (:file "vug/generator/oscr" :depends-on ("vug/base"))
      (:file "vug/generator/impulse" :depends-on ("vug/base"))
-     (:file "vug/generator/sine" :depends-on ("vug/base"))))))
+     (:file "vug/generator/sine" :depends-on ("vug/base"))
+     (:file "vug/filter/sharp-t" :depends-on ("vug/base"))))))
 
 (defmethod operation-done-p ((o test-op) (c (eql (find-system :incudine-tests))))
   nil)

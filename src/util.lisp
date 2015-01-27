@@ -67,6 +67,51 @@
                  collect `(,slot-name ,to)
                  collect `(,slot-name ,from))))
 
+;;; The read macro #T is useful to apply a filter multiple times.
+;;; Example: apply a pole filter four times (4t)
+;;;
+;;;     #4t(pole in coef)
+;;;
+;;; is equivalent to
+;;;
+;;;     (pole (pole (pole (pole in coef) coef) coef) coef)
+;;;
+;;; Often the input of a filter is the first argument, but if it is
+;;; not the case, a number after sharp-t is the position of the input
+;;; in the list of the arguments starting from zero. Example:
+;;;
+;;;     #4t1(fname x in y)
+;;;
+;;; is equivalent to
+;;;
+;;;     (fname x (fname x (fname x (fname x in y) y) y) y)
+;;;
+(defun |#t-reader| (stream subchar arg)
+  (declare (type stream stream) (ignore subchar))
+  (let* ((arg-index (or (car (read-delimited-list #\( stream t))
+                        0))
+         (form (read-delimited-list #\) stream t))
+         (beg (subseq form 0 (+ arg-index 1)))
+         (end (subseq form (+ arg-index 2))))
+    (labels ((rec (i)
+               (if (= i 1)
+                   form
+                   (append beg (list* (rec (1- i)) end)))))
+      (rec (or arg 1)))))
+
+(defun set-sharp-t-syntax ()
+  (set-dispatch-macro-character #\# #\t #'|#t-reader|))
+
+(defun add-sharp-t-syntax ()
+  (setf *readtable* (copy-readtable *readtable*))
+  (set-sharp-t-syntax))
+
+(pushnew #'add-sharp-t-syntax *initialize-hook*)
+
+(defmacro enable-sharp-t-syntax ()
+  `(eval-when (:compile-toplevel :execute)
+     (add-sharp-t-syntax)))
+
 (in-package :incudine.util)
 
 ;;; TYPES

@@ -344,7 +344,7 @@
                 #:add-flush-pending-hook #:remove-flush-pending-hook)
   (:import-from #:incudine.gen #:all-random-distributions #:rand-args)
   (:export
-   #:init #:enable-sharp-square-bracket-syntax
+   #:init #:enable-sharp-t-syntax #:enable-sharp-square-bracket-syntax
    #:dsp-seq
    #:buffer #:make-buffer #:buffer-p #:size #:frames #:channels #:mask
    #:buffer-mask #:buffer-data #:fill-buffer #:smp-ref #:buffer-value

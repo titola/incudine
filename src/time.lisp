@@ -16,16 +16,6 @@
 
 (in-package :incudine)
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defvar *set-readtable-p* t)
-
-  (when *set-readtable-p*
-    (push (lambda ()
-            (setf *readtable* (copy-readtable *readtable*))
-            (set-sharp-square-bracket-syntax))
-          *initialize-hook*)
-    (setf *set-readtable-p* nil)))
-
 (defstruct (tempo (:constructor %make-tempo) (:copier nil))
   (bpm-ptr (error "Missing BPM") :type foreign-pointer))
 
@@ -391,10 +381,15 @@
                                  (if tempo (read-from-string tempo))
                                  (if beats (read-from-string beats)))))))))
 
-(defmacro enable-sharp-square-bracket-syntax ()
-  `(eval-when (:compile-toplevel :execute)
-     (setf *readtable* (copy-readtable *readtable*))
-     (set-sharp-square-bracket-syntax)))
-
 (defun set-sharp-square-bracket-syntax ()
   (set-dispatch-macro-character #\# #\[ #'parse-time-string))
+
+(defun add-sharp-square-bracket-syntax ()
+  (setf *readtable* (copy-readtable *readtable*))
+  (set-sharp-square-bracket-syntax))
+
+(pushnew #'add-sharp-square-bracket-syntax *initialize-hook*)
+
+(defmacro enable-sharp-square-bracket-syntax ()
+  `(eval-when (:compile-toplevel :execute)
+     (add-sharp-square-bracket-syntax)))
