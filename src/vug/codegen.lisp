@@ -335,6 +335,15 @@
   (and *common-code-in-local-functions-p*
        (member var (vug-variables-bindings-to-cache *vug-variables*))))
 
+(defmacro with-init-frames (&body body)
+  `(let ((current-channel 0)
+         (current-frame 0)
+         (current-sample 0))
+     (declare (type channel-number current-channel)
+              (type non-negative-fixnum current-frame current-sample)
+              (ignorable current-channel current-frame current-sample))
+     ,@body))
+
 ;;; (Re)init time: local bindings
 (defun %set-let-variables-loop (variables finally-func)
   (declare (type list variables) (type function finally-func))
@@ -425,8 +434,9 @@
     `(,fname ,@local-decl ,@rest)))
 
 (defmacro %expand-variables (&body body)
-  `(%set-variables (vug-variables-bindings *vug-variables*)
-                   (list (%expand-local-functions ,@body))))
+  ``(with-init-frames
+      ,@(%set-variables (vug-variables-bindings *vug-variables*)
+                        (list (%expand-local-functions ,@body)))))
 
 (defun update-variable-values (variables)
   (dolist (var variables variables)
@@ -591,13 +601,7 @@
 
 (defun initialization-code ()
   (unless (empty-initialization-code-stack-p)
-    `((let ((current-channel 0)
-            (current-frame 0)
-            (current-sample 0))
-        (declare (type channel-number current-channel)
-                 (type non-negative-fixnum current-frame current-sample)
-                 (ignorable current-channel current-frame current-sample))
-        ,*initialization-code*))))
+    (list *initialization-code*)))
 
 (declaim (inline vug-variables-foreign-sample-names))
 (defun vug-variables-foreign-sample-names ()
@@ -686,54 +690,46 @@
                        (,(vug-foreign-varnames int32) ,i32vec :int32)
                        (,(vug-foreign-varnames int64) ,i64vec :int64)
                        (,(vug-foreign-varnames pointer) ,ptrvec :pointer))
-                    ,@(%expand-variables
-                        (set-controls-form control-table ',arg-names)
-                        (reorder-initialization-code)
-                        `(progn
-                           (setf (dsp-name ,dsp) ,',name)
-                           (setf (node-controls %dsp-node%) ,control-table)
-                           (update-free-hook %dsp-node% ,free-hook)
-                           ,@(initialization-code)
-                           (set-dsp-object ,dsp
-                             :init-function
-                               (lambda (,node ,@',arg-names)
-                                 (declare #.*reduce-warnings*)
-                                 (reset-foreign-arrays
-                                   ,smpvec ,,smpvec-size ,+foreign-sample-size+
-                                   ,f32vec ,,f32vec-size 4
-                                   ,f64vec ,,f64vec-size 8
-                                   ,i32vec ,,i32vec-size 4
-                                   ,i64vec ,,i64vec-size 8
-                                   ,ptrvec ,,ptrvec-size ,+pointer-size+)
-                                 (setf (node-controls ,node) (dsp-controls ,dsp))
-                                 (setf %dsp-node% ,node)
-                                 ,(reinit-bindings-form)
-                                 (update-free-hook ,node ,free-hook)
-                                 ,@(initialization-code)
-                                 ,node)
-                             :free-function
-                               ,(to-free-form smpvecw ,smpvec-size
-                                              f32vecw ,f32vec-size
-                                              f64vecw ,f64vec-size
-                                              i32vecw ,i32vec-size
-                                              i64vecw ,i64vec-size
-                                              ptrvecw ,ptrvec-size)
-                             :perf-function
-                               (lambda ()
-                                 (let ((current-channel 0)
-                                       (current-frame 0)
-                                       (current-sample 0))
-                                   (declare (type channel-number
-                                                  current-channel)
-                                            (type non-negative-fixnum
-                                                  current-frame current-sample)
-                                            (ignorable current-channel
-                                                       current-frame
-                                                       current-sample))
-                                   ,@,vug-body
-                                   (values))))
-                           (values (dsp-init-function ,dsp)
-                                   (dsp-perf-function ,dsp)))))))))))))
+                    ,(%expand-variables
+                       (set-controls-form control-table ',arg-names)
+                       (reorder-initialization-code)
+                       `(progn
+                          (setf (dsp-name ,dsp) ,',name)
+                          (setf (node-controls %dsp-node%) ,control-table)
+                          (update-free-hook %dsp-node% ,free-hook)
+                          ,@(initialization-code)
+                          (set-dsp-object ,dsp
+                            :init-function
+                              (lambda (,node ,@',arg-names)
+                                (declare #.*reduce-warnings*)
+                                (reset-foreign-arrays
+                                  ,smpvec ,,smpvec-size ,+foreign-sample-size+
+                                  ,f32vec ,,f32vec-size 4
+                                  ,f64vec ,,f64vec-size 8
+                                  ,i32vec ,,i32vec-size 4
+                                  ,i64vec ,,i64vec-size 8
+                                  ,ptrvec ,,ptrvec-size ,+pointer-size+)
+                                (setf (node-controls ,node) (dsp-controls ,dsp))
+                                (setf %dsp-node% ,node)
+                                (with-init-frames
+                                  ,(reinit-bindings-form)
+                                  (update-free-hook ,node ,free-hook)
+                                  ,@(initialization-code))
+                                ,node)
+                            :free-function
+                              ,(to-free-form smpvecw ,smpvec-size
+                                             f32vecw ,f32vec-size
+                                             f64vecw ,f64vec-size
+                                             i32vecw ,i32vec-size
+                                             i64vecw ,i64vec-size
+                                             ptrvecw ,ptrvec-size)
+                            :perf-function
+                              (lambda ()
+                                (with-init-frames
+                                  ,@,vug-body
+                                  (values))))
+                          (values (dsp-init-function ,dsp)
+                                  (dsp-perf-function ,dsp)))))))))))))
 
 (defmacro dsp-node () '%dsp-node%)
 

@@ -253,55 +253,56 @@ arguments to update the dependencies if it exists."
                      (,(vug-foreign-varnames int32) ,i32vec :int32)
                      (,(vug-foreign-varnames int64) ,i64vec :int64)
                      (,(vug-foreign-varnames pointer) ,ptrvec :pointer))
-                  ,@(%expand-variables
-                      (reorder-initialization-code)
-                      `(let ((%dsp-node% ,(or ,node
-                                              ;; The UGEN is outside a DSP.
-                                              '(incudine::make-temp-node))))
-                         (declare (type incudine:node %dsp-node%))
-                         ,@(initialization-code)
-                         (make-ugen-instance
-                           :name ,',name
-                           :return-pointer ,(store-ugen-return-pointer)
-                           :controls ,(set-parameters-form ,ugen)
-                           :init-function
-                             (lambda (,@',arg-names &optional ,init-node)
-                               (declare (type (or incudine:node null) ,init-node)
-                                        #.*reduce-warnings*)
-                               (reset-foreign-arrays
-                                 ,smpvec ,,smpvec-size ,+foreign-sample-size+
-                                 ,f32vec ,,f32vec-size 4
-                                 ,f64vec ,,f64vec-size 8
-                                 ,i32vec ,,i32vec-size 4
-                                 ,i64vec ,,i64vec-size 8
-                                 ,ptrvec ,,ptrvec-size ,+pointer-size+)
-                               (if ,init-node (setf %dsp-node% ,init-node))
-                               (let* ,',bindings
-                                 ,(reinit-bindings-form)
-                                 ,@(initialization-code)
-                                 (values)))
-                           :free-function
-                             ,(to-free-form smpvecw ,smpvec-size
-                                            f32vecw ,f32vec-size
-                                            f64vecw ,f64vec-size
-                                            i32vecw ,i32vec-size
-                                            i64vecw ,i64vec-size
-                                            ptrvecw ,ptrvec-size
-                                            '%dsp-node%
-                                            ;; Free the node only if the UGEN
-                                            ;; is outside a DSP.
-                                            (if ,node 0 1))
-                           :perf-function
-                             (lambda (&optional (current-channel 0))
-                               (declare (type channel-number current-channel)
-                                        (ignorable current-channel))
-                               (let ((current-frame 0)
-                                     (current-sample 0))
-                                 (declare (non-negative-fixnum current-frame
-                                                               current-sample)
-                                          (ignorable current-frame
-                                                     current-sample))
-                                 ,@,vug-body)))))))))))))
+                  ,(%expand-variables
+                     (reorder-initialization-code)
+                     `(let ((%dsp-node% ,(or ,node
+                                             ;; The UGEN is outside a DSP.
+                                             '(incudine::make-temp-node))))
+                        (declare (type incudine:node %dsp-node%))
+                        ,@(initialization-code)
+                        (make-ugen-instance
+                          :name ,',name
+                          :return-pointer ,(store-ugen-return-pointer)
+                          :controls ,(set-parameters-form ,ugen)
+                          :init-function
+                            (lambda (,@',arg-names &optional ,init-node)
+                              (declare (type (or incudine:node null) ,init-node)
+                                       #.*reduce-warnings*)
+                              (reset-foreign-arrays
+                                ,smpvec ,,smpvec-size ,+foreign-sample-size+
+                                ,f32vec ,,f32vec-size 4
+                                ,f64vec ,,f64vec-size 8
+                                ,i32vec ,,i32vec-size 4
+                                ,i64vec ,,i64vec-size 8
+                                ,ptrvec ,,ptrvec-size ,+pointer-size+)
+                              (if ,init-node (setf %dsp-node% ,init-node))
+                              (with-init-frames
+                                (let* ,',bindings
+                                  ,(reinit-bindings-form)
+                                  ,@(initialization-code)))
+                              (values))
+                          :free-function
+                            ,(to-free-form smpvecw ,smpvec-size
+                                           f32vecw ,f32vec-size
+                                           f64vecw ,f64vec-size
+                                           i32vecw ,i32vec-size
+                                           i64vecw ,i64vec-size
+                                           ptrvecw ,ptrvec-size
+                                           '%dsp-node%
+                                           ;; Free the node only if the UGEN
+                                           ;; is outside a DSP.
+                                           (if ,node 0 1))
+                          :perf-function
+                            (lambda (&optional (current-channel 0))
+                              (declare (type channel-number current-channel)
+                                       (ignorable current-channel))
+                              (let ((current-frame 0)
+                                    (current-sample 0))
+                                (declare (non-negative-fixnum current-frame
+                                                              current-sample)
+                                         (ignorable current-frame
+                                                    current-sample))
+                                ,@,vug-body)))))))))))))
 
 (declaim (inline control-flag))
 (defun control-flag (foreign-obj-p dependencies-p)
