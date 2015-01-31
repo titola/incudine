@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2015 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -16,24 +16,29 @@
 
 (in-package :incudine.vug)
 
-;;; Delay line without interpolation
+(defmacro %delay-s (input delay-samples ringbuf mask)
+  (with-gensyms (read-head write-head)
+    `(with ((,write-head 0)
+            (,read-head (logand (- ,write-head ,delay-samples) ,mask)))
+       (declare (type non-negative-fixnum ,read-head ,write-head))
+       (setf (smp-ref ,ringbuf ,write-head) ,input)
+       (prog1 (smp-ref ,ringbuf ,read-head)
+         (setf ,read-head (logand (1+ ,read-head) ,mask))
+         (setf ,write-head (logand (1+ ,write-head) ,mask))))))
+
 (define-vug buf-delay-s ((buffer buffer) in
                          (delay-samples non-negative-fixnum))
-  (with ((size (buffer-size buffer))
-         (upper-limit (cond ((> delay-samples size) (1- size))
-                            ((> delay-samples 0) (1- delay-samples))
-                            (t 0)))
-         (data (buffer-data buffer))
-         (index 0))
-    (declare (type non-negative-fixnum size upper-limit index)
-             (type foreign-pointer data))
-    (prog1 #1=(smp-ref data index)
-      (setf #1# in)
-      (setf index (the non-negative-fixnum
-                    (if (>= index upper-limit) 0 (1+ index)))))))
+  "Buffer based delay line with delay time in samples.
+Use all the BUFFER memory if the BUFFER size is a power of two."
+  (with ((ringbuf (buffer-data buffer))
+         (mask (buffer-mask buffer)))
+    (declare (type foreign-pointer ringbuf) (type non-negative-fixnum mask))
+    (initialize (foreign-zero-sample ringbuf (1+ mask)))
+    (%delay-s in delay-samples ringbuf mask)))
 
-;;; Delay line without interpolation (time in seconds)
 (define-vug buf-delay ((buffer buffer) in delay-time)
+  "Buffer based delay line with DELAY-TIME in seconds.
+Use all the BUFFER memory if the BUFFER size is a power of two."
   (buf-delay-s buffer in (sample->fixnum (* delay-time *sample-rate*))))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
@@ -56,12 +61,13 @@
         ;; No interpolation
         (otherwise `(smp-ref ,data ,index))))))
 
-;;; Variable delay line with interpolation (time in seconds).
-;;; If WR-INDEX-VAR is the name of an existent variable, the value of the
-;;; write-index is stored in this variable. It is useful with VTAP.
 (define-vug-macro buf-vdelay (buffer in delay-time
-                              &optional (interpolation :linear) wr-index-var)
-  (with-gensyms (%buffer dsamps isamps mask dt data wr-index rd-index)
+                              &optional (interpolation :linear) write-head-var)
+  "Buffer based delay line with INTERPOLATION and DELAY-TIME in seconds.
+If WRITE-HEAD-VAR is not NIL, it is the name of the variable used as
+write head.
+Use all the BUFFER memory if the BUFFER size is a power of two."
+  (with-gensyms (%buffer dsamps isamps mask dt data write-head read-head)
     (with-coerce-arguments (in)
       `(with ((,%buffer (vug-input ,buffer))
               (,dsamps (vug-input (* ,delay-time *sample-rate*)))
@@ -69,23 +75,26 @@
               (,mask (buffer-mask ,%buffer))
               (,dt (clip ,isamps 0 ,mask))
               (,data (buffer-data ,%buffer))
-              (,wr-index 0))
+              (,write-head 0)
+              (,read-head (logand (- ,write-head ,dt) ,mask)))
          (declare (type buffer ,%buffer)
-                  (type non-negative-fixnum ,isamps ,dt ,wr-index ,mask)
+                  (type non-negative-fixnum ,isamps ,dt ,read-head ,write-head
+                        ,mask)
                   (type sample ,dsamps) (type foreign-pointer ,data))
-         (let ((,rd-index (logand (the fixnum (- ,wr-index ,dt)) ,mask)))
-           ,@(when wr-index-var `((setq (external-variable ,wr-index-var)
-                                        ,wr-index)))
-           (prog1
-             (select-delay-interp ,interpolation ,dsamps ,isamps ,data ,rd-index
-                                  ,mask)
-             (setf (smp-ref ,data ,wr-index) ,in)
-             (setf ,wr-index
-                   (the non-negative-fixnum
-                     (if (>= ,wr-index ,mask) 0 (1+ ,wr-index))))))))))
+         (initialize (foreign-zero-sample ,data (1+ ,mask)))
+         ,@(when write-head-var `((setq ,write-head-var ,write-head)))
+         (prog1 (select-delay-interp ,interpolation ,dsamps ,isamps ,data
+                                     ,read-head ,mask)
+           (setf (smp-ref ,data ,write-head) ,in)
+           (setf ,read-head (logand (1+ ,read-head) ,mask))
+           (setf ,write-head (logand (1+ ,write-head) ,mask)))))))
 
-(define-vug-macro vtap (buffer delay-time wr-index-var &optional interpolation)
-  (with-gensyms (%buffer dsamps isamps mask dt data rd-index)
+(define-vug-macro vtap (buffer delay-time write-head-var
+                        &optional interpolation)
+  "Taps a buffer based delay line with INTERPOLATION at DELAY-TIME seconds.
+WRITE-HEAD-VAR is the name of the variable used as write head.
+Use all the BUFFER memory if the BUFFER size is a power of two."
+  (with-gensyms (%buffer dsamps isamps mask dt data read-head)
     `(with ((,%buffer (vug-input ,buffer))
             (,dsamps (vug-input (* ,delay-time *sample-rate*)))
             (,isamps (sample->fixnum ,dsamps))
@@ -95,35 +104,45 @@
        (declare (type buffer ,%buffer)
                 (type non-negative-fixnum ,isamps ,dt ,mask)
                 (type sample ,dsamps) (type foreign-pointer ,data))
-       (let ((,rd-index (logand (the fixnum
-                                  (- (external-variable ,wr-index-var) ,dt))
-                                ,mask)))
-         (select-delay-interp ,interpolation ,dsamps ,isamps ,data ,rd-index
+       (let ((,read-head (logand (the fixnum (- ,write-head-var ,dt)) ,mask)))
+         (select-delay-interp ,interpolation ,dsamps ,isamps ,data ,read-head
                               ,mask)))))
 
-;;; Delay line with local ring buffer and without interpolation
-(define-vug delay-s (in (max-delay-samples non-negative-fixnum)
-                        (delay-samples non-negative-fixnum))
-  (with ((buf (make-local-buffer max-delay-samples)))
-    (declare (type buffer buf))
-    (buf-delay-s buf in delay-samples)))
+(define-vug delay-s (in (max-delay-samples positive-fixnum)
+                        (delay-samples positive-fixnum))
+  "Delay line with delay time in samples."
+  (with ((size (next-power-of-two max-delay-samples))
+         (ringbuf (make-frame size :zero-p t))
+         (mask (1- size)))
+    (declare (type frame ringbuf) (type non-negative-fixnum size mask))
+    (%delay-s in delay-samples ringbuf mask)))
 
-;;; Delay line with local ring buffer and without interpolation
-;;; (time in seconds)
 (define-vug delay (in max-delay-time delay-time)
+  "Delay line with DELAY-TIME in seconds."
   (delay-s in (sample->fixnum (* max-delay-time *sample-rate*))
            (sample->fixnum (* delay-time *sample-rate*))))
 
-;;; Variable delay line with local ring buffer and interpolation
-;;; (time in seconds)
 (define-vug-macro vdelay (in max-delay-time delay-time
                           &optional (interpolation :linear))
-  (with-gensyms (buf)
-    `(with ((,buf (make-local-buffer
-                   (next-power-of-two
-                    (sample->fixnum (* ,max-delay-time *sample-rate*))))))
-       (declare (type buffer ,buf))
-       (buf-vdelay ,buf ,in ,delay-time ,interpolation))))
+  "Delay line with INTERPOLATION and DELAY-TIME in seconds."
+  (with-gensyms (size dsamps isamps mask dt ringbuf read-head write-head)
+    `(with ((,size (next-power-of-two (sample->fixnum (* ,max-delay-time
+                                                         *sample-rate*))))
+            (,mask (1- ,size))
+            (,ringbuf (make-frame ,size :zero-p t))
+            (,dsamps (vug-input (* ,delay-time *sample-rate*)))
+            (,isamps (sample->fixnum ,dsamps))
+            (,dt (clip ,isamps 0 ,mask))
+            (,write-head 0)
+            (,read-head (logand (- ,write-head ,dt) ,mask)))
+       (declare (type frame ,ringbuf) (type sample ,dsamps)
+                (type non-negative-fixnum ,mask ,isamps ,dt ,read-head
+                      ,write-head))
+       (prog1 (select-delay-interp ,interpolation ,dsamps ,isamps ,ringbuf
+                                   ,read-head ,mask)
+         (setf (smp-ref ,ringbuf ,write-head) ,in)
+         (setf ,read-head (logand (1+ ,read-head) ,mask))
+         (setf ,write-head (logand (1+ ,write-head) ,mask))))))
 
 (declaim (inline delay-feedback))
 (defun delay-feedback (delay-time decay-time)
@@ -132,9 +151,9 @@
          (exp (/ (* +log001+ delay-time) decay-time)))
         (t (- (exp (/ (* +log001+ delay-time) (- decay-time)))))))
 
-;;; Feed Forward Comb Filter
 (define-vug-macro ff-comb (in max-delay-time delay-time b0 bM
                            &optional (interpolation :linear))
+  "Feed forward comb filter with DELAY-TIME in seconds."
   (with-gensyms (in0 in1)
     (with-coerce-arguments (b0 bM)
       `(with-vug-inputs ((,in0 ,in)
@@ -144,24 +163,23 @@
             (* ,bM (vdelay ,in0 ,max-delay-time ,delay-time
                            ,interpolation)))))))
 
-;;; Feed Back Comb Filter
 (define-vug-macro fb-comb (in max-delay-time delay-time coef
                            &optional (interpolation :linear))
-  (with-gensyms (y)
-    `(with-samples (,y)
-       (setf ,y (- ,in (* ,coef (vdelay ,y ,max-delay-time
-                                        ,delay-time ,interpolation)))))))
+  "Feed back comb filter with DELAY-TIME in seconds."
+  (let ((it (ensure-symbol 'it)))
+    `(~ (- ,in (* ,coef (vdelay ,it ,max-delay-time ,delay-time
+                                ,interpolation))))))
 
-;;; Allpass filter without interpolation of the delay line
 (define-vug allpass (in max-delay-time delay-time gain)
+  "Allpass filter without interpolation and DELAY-TIME in seconds."
   (with-samples (y dx)
     (prog1 y
       (setf y (+ (* (- gain) in) dx))
       (setf dx (delay (+ in (* gain y)) max-delay-time delay-time)))))
 
-;;; Allpass filter with interpolation of the delay line
 (define-vug-macro vallpass (in max-delay-time delay-time gain
                             &optional (interpolation :linear))
+  "Allpass filter with DELAY-TIME in seconds."
   (with-gensyms (y dx %in %gain)
     (with-coerce-arguments (gain)
       `(with-samples (,y ,dx)

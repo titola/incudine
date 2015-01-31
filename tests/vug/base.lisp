@@ -31,6 +31,10 @@
   "Buffer for the test with 5 output channels.")
 (declaim (type buffer *buffer-test-c5*))
 
+(defvar *delay-buffer-test* (make-buffer (ash 1 16))
+  "Buffer to test the delay lines.")
+(declaim (type buffer *delay-buffer-test*))
+
 (defvar *byte-vector-test* (make-array +vug-test-max-duration-bytes+
                                        :element-type '(unsigned-byte 8)
                                        :initial-element 0)

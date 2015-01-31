@@ -2,7 +2,7 @@
 ;;;
 ;;; ASDF system definition for INCUDINE unit tests.
 ;;;
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2015 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -52,11 +52,13 @@
      (:file "vug/reinit" :depends-on ("vug/base"))
      (:file "vug/delete-var" :depends-on ("vug/base"))
      (:file "vug/ugen-reinit" :depends-on ("vug/base"))
+     (:file "vug/delay/delay-1" :depends-on ("vug/base"))
+     (:file "vug/delay/delay-2" :depends-on ("vug/base"))
+     (:file "vug/filter/sharp-t" :depends-on ("vug/base"))
      (:file "vug/generator/osc" :depends-on ("vug/base"))
      (:file "vug/generator/oscr" :depends-on ("vug/base"))
      (:file "vug/generator/impulse" :depends-on ("vug/base"))
-     (:file "vug/generator/sine" :depends-on ("vug/base"))
-     (:file "vug/filter/sharp-t" :depends-on ("vug/base"))))))
+     (:file "vug/generator/sine" :depends-on ("vug/base"))))))
 
 (defmethod operation-done-p ((o test-op) (c (eql (find-system :incudine-tests))))
   nil)
