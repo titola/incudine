@@ -362,19 +362,20 @@ scale factor."
 ;;; This filter has five simultaneous outputs stored in a FRAME:
 ;;; low-pass, high-pass, band-pass, notch and peaking.
 ;;;
-;;; It is stable with RESONANCE from 0 to 1 and DRIVE from 0 to 0.1
+;;; It is stable with RESONANCE from 0 to 0.999 and DRIVE from 0 to 0.1
 (define-vug svf (in fcut resonance drive)
   "State Variable Filter."
-  (with ((freq (* 2.0 (sin (* pi (min 0.25 (* fcut
-                                              ;; Double sampled
-                                              0.5 *sample-duration*))))))
-         ;; Inferior limit for the resonance, however it is safer a
-         ;; value not greater than one.
-         (res (if (minusp resonance) +sample-zero+ resonance))
-         (damp (min (* 2.0 (- 1.0 (expt (the non-negative-sample res) 0.25)))
-                    (min 2.0 (- (/ 2.0 freq) (* freq 0.5)))))
+  (with ((ang (min (* +half-pi+ 0.5)
+                   ;; Double sampled.
+                   (* fcut +half-pi+ *sample-duration*)))
+         (freq (* 2.0 (sin ang)))
+         (res (clip resonance +sample-zero+ (sample 0.999999)))
+         (k0 (expt (the non-negative-sample res) (sample 0.25)))
+         (d0 (* 2.0 (- 1.0 k0)))
+         (d1 (- (/ 2.0 freq) (* freq 0.5)))
+         (damp (min (sample 2) d0 d1))
          (frame (make-frame 5 :zero-p t)))
-    (declare (type sample freq res damp))
+    (declare (type sample ang freq res k0 d0 d1 damp) (type frame frame))
     (with-samples (low high band notch)
       (multiple-sample-bind (lp hp bp rb peak) frame
         ;; First pass
