@@ -121,15 +121,15 @@
           (initialize
            (loop for i from 0
                  for ptr in (list a b c d e f g)
-                 do (setf (cffi:mem-aref h :pointer i) ptr)))
+                 do (setf (ptr-ref h i) ptr)))
           h))
       (let ((u (funcall (pointer-test-4))))
         (funcall (ugen-perf-function u))
-        (let* ((ptr (cffi:mem-ref (ugen-return-pointer u) :pointer))
+        (let* ((ptr (ptr-ref (ugen-return-pointer u) 0))
                (res (when (and (eq (foreign-array-type-of ptr) :pointer)
                                (= (foreign-length ptr) 8))
                       (loop for i below 7
-                            for vec = (cffi:mem-aref ptr :pointer i)
+                            for vec = (ptr-ref ptr i)
                             collect (foreign-array-type-of vec)
                             collect (foreign-length vec)))))
           (free u)

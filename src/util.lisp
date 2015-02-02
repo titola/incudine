@@ -313,7 +313,8 @@
   (define-*-ref i64-ref :int64)
   (define-*-ref u64-ref :uint64)
   (define-*-ref f32-ref :float)
-  (define-*-ref f64-ref :double))
+  (define-*-ref f64-ref :double)
+  (define-*-ref ptr-ref :pointer))
 
 (defmacro with-complex (real-and-imag-vars pointer &body body)
   `(symbol-macrolet ((,(car real-and-imag-vars) (smp-ref ,pointer 0))

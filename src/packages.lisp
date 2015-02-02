@@ -118,6 +118,7 @@
    #:rt-thread-p #:rt-eval #:rt-eval-if #:allow-rt-memory-p
    #:foreign-pointer
    #:smp-ref #:i32-ref #:u32-ref #:i64-ref #:u64-ref #:f32-ref #:f64-ref
+   #:ptr-ref
    #:with-ensure-symbol
    #:with-foreign-array #:with-samples #:with-samples*
    #:with-complex
