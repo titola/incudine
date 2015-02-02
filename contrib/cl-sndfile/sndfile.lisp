@@ -17,115 +17,227 @@
 (in-package :sndfile)
 
 (defclass info ()
-  ((frames :initform 0 :initarg :frames :type (unsigned-byte 64)
+  ((frames :initform 0
+           :initarg :frames
+           :type (unsigned-byte 64)
            :accessor frames)
-   (sample-rate :initform 48000 :initarg :sample-rate :type non-negative-fixnum
+   (sample-rate :initform 48000
+                :initarg :sample-rate
+                :type non-negative-fixnum
                 :accessor sample-rate)
-   (channels :initform 1 :initarg :channels :type non-negative-fixnum
+   (channels :initform 1
+             :initarg :channels
+             :type non-negative-fixnum
              :accessor channels)
-   (format :initform 0 :initarg :format :type non-negative-fixnum
+   (format :initform 0
+           :initarg :format
+           :type non-negative-fixnum
            :accessor format)
-   (sections :initform 1 :initarg :sections :type non-negative-fixnum
+   (sections :initform 1
+             :initarg :sections
+             :type non-negative-fixnum
              :accessor sections)
-   (seekable :initform t :initarg :seekable :type boolean
+   (seekable :initform t
+             :initarg :seekable
+             :type boolean
              :accessor seekable)))
 
 (defclass format-info ()
-  ((format :initform 0 :initarg :format :type fixnum :accessor format)
-   (name :initform "none" :initarg :name :type string :accessor name)
-   (extension :initform "" :initarg :extension :type string
+  ((format :initform 0
+           :initarg :format
+           :type fixnum
+           :accessor format)
+   (name :initform "none"
+         :initarg :name
+         :type string
+         :accessor name)
+   (extension :initform ""
+              :initarg :extension
+              :type string
               :accessor extension)))
 
 (defclass dither-info ()
-  ((type :initform 0 :initarg :type :type fixnum :accessor type)
-   (level :initform 0.0d0 :initarg :level :type double-float
+  ((type :initform 0
+         :initarg :type
+         :type fixnum
+         :accessor type)
+   (level :initform 0.0d0
+          :initarg :level
+          :type double-float
           :accessor level)
-   (name :initform "none" :initarg :name :type string :accessor name)))
+   (name :initform "none"
+         :initarg :name
+         :type string
+         :accessor name)))
 
 (defclass embed-file-info ()
-  ((offset :initform 0 :initarg :offset :type (unsigned-byte 64)
+  ((offset :initform 0
+           :initarg :offset
+           :type (unsigned-byte 64)
            :accessor offset)
-   (length :initform 0 :initarg :length :type (unsigned-byte 64)
+   (length :initform 0
+           :initarg :length
+           :type (unsigned-byte 64)
            :accessor length)))
 
 (defclass instr-loop ()
-  ((mode :initform 0 :initarg :mode :type fixnum :accessor mode)
-   (start :initform 0 :initarg :start :type unsigned-byte :accessor start)
-   (end :initform 0 :initarg :end :type unsigned-byte :accessor end)
-   (count :initform 0 :initarg :count :type unsigned-byte :accessor count)))
+  ((mode :initform 0
+         :initarg :mode
+         :type fixnum
+         :accessor mode)
+   (start :initform 0
+          :initarg :start
+          :type unsigned-byte
+          :accessor start)
+   (end :initform 0
+        :initarg :end
+        :type unsigned-byte
+        :accessor end)
+   (count :initform 0
+          :initarg :count
+          :type unsigned-byte
+          :accessor count)))
 
 (defclass instrument ()
-  ((gain :initform 0 :initarg :gain :type fixnum :accessor gain)
-   (basenote :initform 0 :initarg :basenote :type (unsigned-byte 8)
+  ((gain :initform 0
+         :initarg :gain
+         :type fixnum
+         :accessor gain)
+   (basenote :initform 0
+             :initarg :basenote
+             :type (unsigned-byte 8)
              :accessor basenote)
-   (detune :initform 0 :initarg :detune :type (unsigned-byte 8)
+   (detune :initform 0
+           :initarg :detune
+           :type (unsigned-byte 8)
            :accessor detune)
-   (velocity-lo :initform 0 :initarg :velocity-lo :type (unsigned-byte 8)
+   (velocity-lo :initform 0
+                :initarg :velocity-lo
+                :type (unsigned-byte 8)
                 :accessor velocity-lo)
-   (velocity-hi :initform 0 :initarg :velocity-hi :type (unsigned-byte 8)
+   (velocity-hi :initform 0
+                :initarg :velocity-hi
+                :type (unsigned-byte 8)
                 :accessor velocity-hi)
-   (key-lo :initform 0 :initarg :key-lo :type (unsigned-byte 8)
+   (key-lo :initform 0
+           :initarg :key-lo
+           :type (unsigned-byte 8)
            :accessor key-lo)
-   (key-hi :initform 0 :initarg :key-hi :type (unsigned-byte 8)
+   (key-hi :initform 0
+           :initarg :key-hi
+           :type (unsigned-byte 8)
            :accessor key-hi)
-   (loop-count :initform 0 :initarg :loop-count :type fixnum
+   (loop-count :initform 0
+               :initarg :loop-count
+               :type fixnum
                :accessor loop-count)
-   (loops :initform (make-array 16 :initial-contents
-                                (loop repeat 16
-                                      collect (make-instance 'instr-loop)))
+   (loops :initform (make-array 16
+                      :initial-contents (loop repeat 16
+                                              collect (make-instance
+                                                        'instr-loop)))
           :initarg :loops :type simple-vector :accessor loops)))
 
 (defclass loop-info ()
-  ((time-sig-num :initform 0 :initarg :time-sig-num :type fixnum
+  ((time-sig-num :initform 0
+                 :initarg :time-sig-num
+                 :type fixnum
                  :accessor time-sig-num)
-   (time-sig-den :initform 0 :initarg :time-sig-den :type fixnum
+   (time-sig-den :initform 0
+                 :initarg :time-sig-den
+                 :type fixnum
                  :accessor time-sig-den)
-   (loop-mode :initform 0 :initarg :loop-mode :type fixnum
+   (loop-mode :initform 0
+              :initarg :loop-mode
+              :type fixnum
               :accessor loop-mode)
-   (num-beats :initform 0 :initarg :num-beats :type fixnum
+   (num-beats :initform 0
+              :initarg :num-beats
+              :type fixnum
               :accessor num-beats)
-   (bpm :initform 60.0 :initarg :bpm :type single-float
+   (bpm :initform 60.0
+        :initarg :bpm
+        :type single-float
         :accessor bpm)
-   (root-key :initform 0 :initarg :root-key :type fixnum
+   (root-key :initform 0
+             :initarg :root-key
+             :type fixnum
              :accessor root-key)
-   (future :initform (make-array 6 :initial-element 0) :initarg :future
-           :type simple-vector :accessor future)))
+   (future :initform (make-array 6 :initial-element 0)
+           :initarg :future
+           :type simple-vector
+           :accessor future)))
 
 (defclass broadcast-info ()
-  ((description :initform "none" :initarg :description :type string
+  ((description :initform "none"
+                :initarg :description
+                :type string
                 :accessor description)
-   (originator :initform "none" :initarg :originator :type string
+   (originator :initform "none"
+               :initarg :originator
+               :type string
                :accessor originator)
-   (originator-reference :initform "none" :initarg :originator-reference
-                         :type string :accessor originator-reference)
-   (originator-date :initform "none" :initarg :originator-date
-                    :type string :accessor originator-date)
-   (originator-time :initform "none" :initarg :originator-time :type string
+   (originator-reference :initform "none"
+                         :initarg :originator-reference
+                         :type string
+                         :accessor originator-reference)
+   (originator-date :initform "none"
+                    :initarg :originator-date
+                    :type string
+                    :accessor originator-date)
+   (originator-time :initform "none"
+                    :initarg :originator-time
+                    :type string
                     :accessor originator-time)
-   (time-reference-low :initform 0 :initarg :time-reference-low
-                       :type unsigned-byte :accessor time-reference-low)
-   (time-reference-high :initform 0 :initarg :time-reference-high
-                        :type unsigned-byte :accessor time-reference-high)
-   (version :initform 0 :initarg :version :type fixnum :accessor version)
-   (umid :initform "none" :initarg :umid :type string :accessor umid)
-   (reserved :initform "none" :initarg :reserved :type string
+   (time-reference-low :initform 0
+                       :initarg :time-reference-low
+                       :type unsigned-byte
+                       :accessor time-reference-low)
+   (time-reference-high :initform 0
+                        :initarg :time-reference-high
+                        :type unsigned-byte
+                        :accessor time-reference-high)
+   (version :initform 0
+            :initarg :version
+            :type fixnum
+            :accessor version)
+   (umid :initform "none"
+         :initarg :umid
+         :type string
+         :accessor umid)
+   (reserved :initform "none"
+             :initarg :reserved
+             :type string
              :accessor reserved)
-   (coding-history-size :initform 0 :initarg :coding-history-size
-                        :type unsigned-byte :accessor coding-history-size)
-   (coding-history :initform "none" :initarg :coding-history :type string
+   (coding-history-size :initform 0
+                        :initarg :coding-history-size
+                        :type unsigned-byte
+                        :accessor coding-history-size)
+   (coding-history :initform "none"
+                   :initarg :coding-history
+                   :type string
                    :accessor coding-history)))
 
 (defclass virtual-io ()
-  ((get-filelen :initform (cffi:null-pointer) :initarg :get-filelen
-                :type cffi:foreign-pointer :accessor get-filelen)
-   (seek :initform (cffi:null-pointer) :initarg :seek
-         :type cffi:foreign-pointer :accessor virtual-io-seek)
-   (read :initform (cffi:null-pointer) :initarg :read
-         :type cffi:foreign-pointer :accessor virtual-io-read)
-   (write :initform (cffi:null-pointer) :initarg :write
-          :type cffi:foreign-pointer :accessor virtual-io-write)
-   (tell :initform (cffi:null-pointer) :initarg :tell
-         :type cffi:foreign-pointer :accessor virtual-io-tell)))
+  ((get-filelen :initform (cffi:null-pointer)
+                :initarg :get-filelen
+                :type cffi:foreign-pointer
+                :accessor get-filelen)
+   (seek :initform (cffi:null-pointer)
+         :initarg :seek
+         :type cffi:foreign-pointer
+         :accessor virtual-io-seek)
+   (read :initform (cffi:null-pointer)
+         :initarg :read
+         :type cffi:foreign-pointer
+         :accessor virtual-io-read)
+   (write :initform (cffi:null-pointer)
+          :initarg :write
+          :type cffi:foreign-pointer
+          :accessor virtual-io-write)
+   (tell :initform (cffi:null-pointer)
+         :initarg :tell
+         :type cffi:foreign-pointer
+         :accessor virtual-io-tell)))
 
 (declaim (inline make-info))
 (defun make-info (&key (frames 0) (sample-rate 48000) (channels 1)
@@ -138,13 +250,17 @@
 (defun info-to-sndinfo (info)
   (let* ((ptr (cffi:foreign-alloc '(:struct info)))
          (sinfo (make-struct-ptr ptr)))
-    (cffi:with-foreign-slots ((frames sample-rate channels format
-                              sections seekable)
+    (cffi:with-foreign-slots ((frames sample-rate channels format sections
+                               seekable)
                               ptr (:struct info))
       (with-slots ((fr frames) (sr sample-rate) (chans channels)
                    (fmt format) (sec sections) (seek-p seekable)) info
-        (setf frames fr sample-rate sr channels chans
-              format fmt sections sec seekable (if seek-p 1 0))
+        (setf frames fr
+              sample-rate sr
+              channels chans
+              format fmt
+              sections sec
+              seekable (if seek-p 1 0))
         sinfo))))
 
 (declaim (inline sndinfo-to-info))
@@ -153,10 +269,14 @@
                             sections seekable)
                             (struct-ptr-pointer sndinfo) (:struct info))
     (if info
-        (with-slots ((fr frames) (sr sample-rate) (chans channels)
-                     (fmt format) (sec sections) (seek-p seekable)) info
-          (setf fr frames sr sample-rate chans channels
-                fmt format sec sections seek-p (= seekable 1))
+        (with-slots ((fr frames) (sr sample-rate) (chans channels) (fmt format)
+                     (sec sections) (seek-p seekable)) info
+          (setf fr frames
+                sr sample-rate
+                chans channels
+                fmt format
+                sec sections
+                seek-p (= seekable 1))
           info)
         (make-info :frames frames :sample-rate sample-rate
                    :channels channels :format format
@@ -168,18 +288,23 @@
     (cffi:with-foreign-slots ((gain basenote detune velocity-lo velocity-hi
                                key-lo key-hi loop-count loops)
                               ptr (:struct instrument))
-      (with-slots ((g gain) (bn basenote) (vlo velocity-lo)
-                   (vhi velocity-hi) (klo key-lo) (khi key-hi)
-                   (lc loop-count) (l loops)) instr
-        (setf gain g basenote bn velocity-lo vlo velocity-hi vhi
-              key-lo klo key-hi khi loop-count lc)
+      (with-slots ((g gain) (bn basenote) (vlo velocity-lo) (vhi velocity-hi)
+                   (klo key-lo) (khi key-hi) (lc loop-count) (l loops)) instr
+        (setf gain g
+              basenote bn
+              velocity-lo vlo
+              velocity-hi vhi
+              key-lo klo
+              key-hi khi
+              loop-count lc)
         (dotimes (i 16)
-          (let ((iloop (cffi:foreign-slot-value ptr '(:struct instrument) 'loops)))
-            (let ((loop (svref l i)))
+          (let ((iloop (cffi:foreign-slot-value ptr '(:struct instrument)
+                                                'loops))
+                (loop (svref l i)))
               (setf (cffi:mem-aref iloop :int) (mode loop)
                     (cffi:mem-aref iloop :int 1) (start loop)
                     (cffi:mem-aref iloop :int 2) (end loop)
-                    (cffi:mem-aref iloop :int 3) (count loop)))))
+                    (cffi:mem-aref iloop :int 3) (count loop))))
         foreign-instr))))
 
 (declaim (inline duration))
@@ -188,40 +313,15 @@
   (with-slots (frames sample-rate) info
     (coerce (/ frames sample-rate) 'float)))
 
-(eval-when (:compile-toplevel :load-toplevel)
-  (declaim (inline get-sf-format-symbol))
-  (defun get-sf-format-symbol (arg)
-    (format-symbol :keyword "SF-FORMAT-~:@(~A~)" arg))
-
-  (declaim (inline get-sf-endian-symbol))
-  (defun get-sf-endian-symbol (arg)
-    (format-symbol :keyword "SF-ENDIAN-~:@(~A~)" arg))
-
-  (declaim (inline format-value))
-  (defun format-value (arg)
-    (cffi:foreign-enum-value 'format (get-sf-format-symbol arg)))
-
-  (declaim (inline endian-value))
-  (defun endian-value (arg)
-    (cffi:foreign-enum-value 'format (get-sf-endian-symbol arg))))
-
-(declaim (inline get-format))
-(defun get-format (fmt-list)
-  (destructuring-bind (major &optional sample endian) fmt-list
-    (if sample
-        (logior (format-value major)
-                (format-value sample)
-                (endian-value (or endian 'file)))
-        (format-value major))))
-
 (defvar *default-format*
-  (get-format (list #-darwin 'wav #+darwin 'aiff 'pcm-24)))
+  (get-format (list #-darwin "wav" #+darwin "aiff" "pcm-24")))
 
 (declaim (inline open))
 (defun open (path-or-fd &key (mode sfm-read) info open-fd-p close-desc-p)
   (let* ((sfinfo (if info
                      (info-to-sndinfo info)
-                     (make-sndinfo :pointer (cffi:foreign-alloc '(:struct info)))))
+                     (make-sndinfo
+                       :pointer (cffi:foreign-alloc '(:struct info)))))
          (sf (if open-fd-p
                  (open-fd path-or-fd mode sfinfo (if close-desc-p true false))
                  (%open path-or-fd mode sfinfo))))
@@ -238,7 +338,8 @@
                           `(namestring ,path-or-fd))
                      :mode ,mode :info ,(or info `(make-info))
                      ,@(when fdp
-                         `(:open-fd-p ,open-fd-p :close-desc-p ,close-desc-p)))))
+                         `(:open-fd-p ,open-fd-p
+                           :close-desc-p ,close-desc-p)))))
      (unwind-protect
           (multiple-value-prog1 ,@body)
        (when ,var (close ,var)))))
@@ -409,7 +510,8 @@
   (cffi:with-foreign-object (ef-info '(:struct embed-file-info))
     (cffi:with-foreign-slots ((offset length) ef-info (:struct embed-file-info))
       (when (zerop (command sndfile #x10b0 ef-info
-                            (cffi:foreign-type-size '(:struct embed-file-info))))
+                            (cffi:foreign-type-size
+                              '(:struct embed-file-info))))
         (make-instance 'embed-file-info :offset offset :length length)))))
 
 (defun set-clipping (sndfile bool)
@@ -418,6 +520,17 @@
 (defun get-clipping (sndfile)
   (= 1 (command sndfile #x10c1 (cffi:null-pointer) 0)))
 
+(defun instrument-loops (loops-ptr count)
+  (loop for i below 16
+        if (< i count)
+        collect (cffi:with-foreign-slots
+                    ((mode start end count)
+                     (cffi:mem-aref loops-ptr '(:struct instr-loop) i)
+                     (:struct instr-loop))
+                  (make-instance 'instr-loop :mode mode :start start :end end
+                                 :count count))
+        else collect (make-instance 'instr-loop)))
+
 (defun get-instrument (sndfile)
   (cffi:with-foreign-object (instr '(:struct instrument))
     (cffi:with-foreign-slots ((gain basenote detune velocity-lo velocity-hi
@@ -425,38 +538,29 @@
                               instr (:struct instrument))
       (when (= 1 (command sndfile #x10d0 instr
                           (cffi:foreign-type-size '(:struct instrument))))
-        (make-instance 'instrument :gain gain :basenote basenote :detune detune
-                       :velocity-lo velocity-lo :velocity-hi velocity-hi
-                       :key-lo key-lo :key-hi key-hi :loop-count loop-count
-                       :loops (make-array 16 :initial-contents
-                                          (loop for i below 16
-                                                if (< i loop-count)
-                                                collect (cffi:with-foreign-slots
-                                                            ((mode start end count)
-                                                             (cffi:mem-aref loops
-                                                                            '(:struct instr-loop)
-                                                                            i)
-                                                             (:struct instr-loop))
-                                                          (make-instance 'instr-loop
-                                                                         :mode mode :start start
-                                                                         :end end :count count))
-                                                else collect (make-instance 'instr-loop))))))))
+        (make-instance 'instrument
+          :gain gain :basenote basenote :detune detune :velocity-lo velocity-lo
+          :velocity-hi velocity-hi :key-lo key-lo :key-hi key-hi
+          :loop-count loop-count
+          :loops (make-array 16
+                   :initial-contents (instrument-loops loops loop-count)))))))
 
 (defun set-instrument (sndfile instr)
   (= 1 (command sndfile #x10d1 (struct-ptr-pointer
-                                (instrument-to-foreign-instrument instr))
+                                 (instrument-to-foreign-instrument instr))
                 (cffi:foreign-type-size '(:struct instrument)))))
 
 (defun get-loop-info (sndfile)
   (cffi:with-foreign-object (linfo '(:struct loop-info))
-    (cffi:with-foreign-slots ((time-sig-num time-sig-den loop-mode num-beats
-                               bpm root-key future)
-                              linfo (:struct loop-info))
+    (cffi:with-foreign-slots ((time-sig-num time-sig-den loop-mode num-beats bpm
+                               root-key future) linfo (:struct loop-info))
       (when (= 1 (command sndfile #x10e0 linfo
                           (cffi:foreign-type-size '(:struct loop-info))))
-        (make-instance 'loop-info :time-sig-num time-sig-num :time-sig-den time-sig-den
-                       :loop-mode loop-mode :num-beats num-beats :bpm bpm
-                       :root-key root-key
-                       :future (make-array 6 :initial-contents
-                                           (loop for i below 6
-                                                 collect (cffi:mem-aref future :int i))))))))
+        (make-instance 'loop-info
+          :time-sig-num time-sig-num :time-sig-den time-sig-den
+          :loop-mode loop-mode :num-beats num-beats :bpm bpm
+          :root-key root-key
+          :future (make-array 6
+                    :initial-contents (loop for i below 6
+                                            collect (cffi:mem-aref future :int
+                                                                   i))))))))
