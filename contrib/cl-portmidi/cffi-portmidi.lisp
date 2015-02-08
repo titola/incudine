@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2015 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -227,15 +227,18 @@
 (defun message (status data1 data2)
   (declare #.*standard-optimize-settings*
            (type (unsigned-byte 8) status data1 data2))
-  (logior (ldb (byte  8 0) status)
-          (ldb (byte 16 0) (ash data1  8))
-          (ldb (byte 24 0) (ash data2 16))))
+  #+little-endian
+  (logior (ash data2 16) (ash data1 8) status)
+  #-little-endian
+  (logior (ash status 16) (ash data1 8) data2))
 
 (declaim (inline message-status))
 (defun message-status (msg)
   (declare #.*standard-optimize-settings*
            (type (unsigned-byte 24) msg))
-  (ldb (byte 8 0) msg))
+  (ldb (byte 8 #+little-endian 0
+               #-little-endian 16)
+       msg))
 
 (declaim (inline message-data1))
 (defun message-data1 (msg)
@@ -247,16 +250,23 @@
 (defun message-data2 (msg)
   (declare #.*standard-optimize-settings*
            (type (unsigned-byte 24) msg))
-  (ldb (byte 8 16) msg))
+  (ldb (byte 8 #+little-endian 16
+               #-little-endian 0)
+       msg))
 
 (declaim (inline decode-message))
 (defun decode-message (msg)
   (declare #.*standard-optimize-settings*
            (type (unsigned-byte 24) msg))
   (let ((ash-8 (ldb (byte 16 8) msg)))
+    #+little-endian
     (values (ldb (byte 8 0) msg)       ; status
             (ldb (byte 8 0) ash-8)     ; data1
-            (ldb (byte 8 8) ash-8))))  ; data2
+            (ldb (byte 8 8) ash-8))    ; data2
+    #-little-endian
+    (values (ldb (byte 8 8) ash-8)     ; status
+            (ldb (byte 8 0) ash-8)     ; data1
+            (ldb (byte 8 0) msg))))    ; data2
 
 (declaim (inline decode-channel-message))
 (defun decode-channel-message (msg)
@@ -264,10 +274,16 @@
            (type (unsigned-byte 24) msg))
   (let* ((ash-4 (ldb (byte 20 4) msg))
          (ash-8 (ldb (byte 16 4) ash-4)))
+    #+little-endian
     (values (ldb (byte 4 0) ash-4)     ; type
             (ldb (byte 4 0) msg)       ; channel
             (ldb (byte 8 0) ash-8)     ; data1
-            (ldb (byte 8 8) ash-8))))  ; data2
+            (ldb (byte 8 8) ash-8))    ; data2
+    #-little-endian
+    (values (ldb (byte 4 12) ash-8)    ; type
+            (ldb (byte 4 8) ash-8)     ; channel
+            (ldb (byte 8 0) ash-8)     ; data1
+            (ldb (byte 8 0) msg))))    ; data2
 
 (declaim (inline before))
 (defun before (t1 t2)

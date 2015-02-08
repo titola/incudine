@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2015 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -93,6 +93,7 @@
    #:channel
    #:make-event-buffer
    #:free
+   #:stream-pointer
    ;; macros
    #:doevent
    #:with-event-buffer
