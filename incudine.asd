@@ -35,7 +35,7 @@
                                       :defaults path))))))
 
 (defsystem "incudine"
-  :version "0.8.0"
+  :version "0.8.1"
   :description "Incudine is a Music/DSP programming environment."
   :licence "GPL v2"
   :author "Tito Latini"
@@ -74,6 +74,7 @@
      (:file "int-hash" :depends-on ("util"))
      (:file "bus" :depends-on ("logger"))
      (:file "buffer" :depends-on ("gen/partials" "gen/envelope"))
+     (:file "tuning" :depends-on ("buffer"))
      (:file "foreign-array" :depends-on ("util"))
      (:file "envelope" :depends-on ("logger" "foreign-array"))
      (:file "graph" :depends-on ("time" "logger" "int-hash"))
@@ -81,7 +82,7 @@
      (:file "rt" :depends-on ("fifo" "bus" "graph"))
      (:file "nrt" :depends-on ("rt"))
      (:file "score" :depends-on ("nrt"))
-     (:file "midi" :depends-on ("edf-sched"))
+     (:file "midi" :depends-on ("edf-sched" "tuning"))
      (:file "receiver" :depends-on ("vug/midi" "osc/osc"))
      (:file "osc/sbcl-vops" :if-feature (:and :sbcl (:or :x86 :x86-64))
                             :depends-on ("packages"))
@@ -117,7 +118,7 @@
      (:file "vug/gendy" :depends-on ("vug/util2"))
      (:file "vug/pan" :depends-on ("vug/in-out"))
      (:file "vug/note-priority" :depends-on ("vug/codegen"))
-     (:file "vug/midi" :depends-on ("vug/note-priority"))
+     (:file "vug/midi" :depends-on ("tuning" "vug/note-priority"))
      (:file "vug/mouse" :depends-on ("vug/util2" "vug/filter"))
      (:file "vug/fft" :depends-on ("gen/window" "analysis/fft" "vug/codegen"))
      (:file "vug/spectral" :depends-on ("vug/fft"))

@@ -36,6 +36,7 @@
      (:file "time" :depends-on ("util"))
      (:file "bus" :depends-on ("util"))
      (:file "buffer" :depends-on ("util"))
+     (:file "tuning" :depends-on ("util"))
      (:file "foreign-array" :depends-on ("util"))
      (:file "envelope" :depends-on ("util"))
      (:file "osc" :depends-on ("util"))

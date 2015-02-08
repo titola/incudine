@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2015 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -17,10 +17,15 @@
 (in-package :incudine)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (defstruct (buffer (:constructor %make-buffer)
-                     (:copier nil))
+  (defstruct buffer-base
     (data (null-pointer) :type foreign-pointer)
     (size 0 :type non-negative-fixnum)
+    (real-time-p nil :type boolean)
+    (foreign-free #'foreign-free :type function))
+
+  (defstruct (buffer (:include buffer-base)
+                     (:constructor %make-buffer)
+                     (:copier nil))
     (mask 0 :type non-negative-fixnum)
     ;; LOBITS, LOMASK and LODIV used with the oscillators
     ;; that require power-of-two tables
@@ -31,9 +36,7 @@
     (channels 1 :type non-negative-fixnum)
     (sample-rate *sample-rate* :type sample)
     (file nil :type (or pathname null))
-    (textfile-p nil :type boolean)
-    (real-time-p nil :type boolean)
-    (foreign-free #'foreign-free :type function)))
+    (textfile-p nil :type boolean)))
 
 (declaim (inline calc-buffer-mask))
 (defun calc-buffer-mask (size)
@@ -83,19 +86,19 @@
             (buffer-channels obj)
             (buffer-sample-rate obj))))
 
-(defmethod free-p ((obj buffer))
-  (null-pointer-p (buffer-data obj)))
+(defmethod free-p ((obj buffer-base))
+  (null-pointer-p (buffer-base-data obj)))
 
 (declaim (inline buffer-value))
 (defun buffer-value (buffer index)
-  (declare (type buffer buffer) (type non-negative-fixnum index))
-  (smp-ref (buffer-data buffer) index))
+  (declare (type buffer-base buffer) (type non-negative-fixnum index))
+  (smp-ref (buffer-base-data buffer) index))
 
 (declaim (inline set-buffer-value))
 (defun set-buffer-value (buffer index value)
-  (declare (type buffer buffer) (type non-negative-fixnum index)
+  (declare (type buffer-base buffer) (type non-negative-fixnum index)
            (type real value))
-  (setf (smp-ref (buffer-data buffer) index) (sample value)))
+  (setf (smp-ref (buffer-base-data buffer) index) (sample value)))
 
 (defsetf buffer-value set-buffer-value)
 
@@ -260,11 +263,11 @@ It is possible to use line comments that begin with the `;' char."
           (writef-sample sf data frames)))
     buf))
 
-(defmethod free ((obj buffer))
+(defmethod free ((obj buffer-base))
   (unless (free-p obj)
-    (funcall (buffer-foreign-free obj) (buffer-data obj))
+    (funcall (buffer-base-foreign-free obj) (buffer-base-data obj))
     (tg:cancel-finalization obj)
-    (setf (buffer-data obj) (null-pointer))
+    (setf (buffer-base-data obj) (null-pointer))
     (values)))
 
 (defun copy-buffer (buffer)
@@ -317,16 +320,16 @@ It is possible to use line comments that begin with the `;' char."
 ;;; FUNCTION has two arguments: the index and the value of the buffer
 (defun map-buffer (function buffer)
   (declare #.*standard-optimize-settings* #.*reduce-warnings*
-           (type function function) (type buffer buffer))
-  (dotimes (i (buffer-size buffer) buffer)
+           (type function function) (type buffer-base buffer))
+  (dotimes (i (buffer-base-size buffer) buffer)
     (setf #1=(buffer-value buffer i) (funcall function i #1#))))
 
 ;;; Like MAP-INTO but for the BUFFERs
 (defun map-into-buffer (result-buffer function &rest buffers)
   (declare #.*standard-optimize-settings* #.*reduce-warnings*
-           (type function function) (type buffer result-buffer))
+           (type function function) (type buffer-base result-buffer))
   (let ((size (reduce #'min
-                      (mapcar #'buffer-size (cons result-buffer buffers)))))
+                      (mapcar #'buffer-base-size (cons result-buffer buffers)))))
     (declare (type non-negative-fixnum size))
     (flet ((compute-value (i)
              (cond ((null buffers) (funcall function))
@@ -339,16 +342,16 @@ It is possible to use line comments that begin with the `;' char."
 
 (declaim (inline scale-buffer))
 (defun scale-buffer (buffer mult)
-  (declare (type buffer buffer) (type real mult))
+  (declare (type buffer-base buffer) (type real mult))
   (map-buffer (lambda (index value)
                 (declare (ignore index))
                 (* value mult))
               buffer))
 
 (defun normalize-buffer (buffer norm-value)
-  (declare (type buffer buffer) (type real norm-value))
-  (let ((data (buffer-data buffer))
-        (size (buffer-size buffer)))
+  (declare (type buffer-base buffer) (type real norm-value))
+  (let ((data (buffer-base-data buffer))
+        (size (buffer-base-size buffer)))
     (declare (type positive-fixnum size))
     (labels ((norm (index max)
                (declare (type non-negative-fixnum index)
@@ -360,9 +363,9 @@ It is possible to use line comments that begin with the `;' char."
       (scale-buffer buffer (/ norm-value (norm 1 (smp-ref data 0)))))))
 
 (defun rescale-buffer (buffer min max)
-  (declare (type buffer buffer) (type real min max))
-  (let ((data (buffer-data buffer))
-        (size (buffer-size buffer)))
+  (declare (type buffer-base buffer) (type real min max))
+  (let ((data (buffer-base-data buffer))
+        (size (buffer-base-size buffer)))
     (declare (type positive-fixnum size))
     (labels ((resc (index old-min old-max)
                (declare (type non-negative-fixnum index)
@@ -382,8 +385,8 @@ It is possible to use line comments that begin with the `;' char."
 
 (declaim (inline buffer->list))
 (defun buffer->list (buf)
-  (declare (type buffer buf))
-  (loop for i below (buffer-size buf) collect (buffer-value buf i)))
+  (declare (type buffer-base buf))
+  (loop for i below (buffer-base-size buf) collect (buffer-value buf i)))
 
 (defun set-buffer-from-textfile (buffer path start buffer-start buffer-end)
   (declare (type (or string pathname)) (type buffer buffer)

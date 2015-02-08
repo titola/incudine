@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2015 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -36,6 +36,8 @@
      incudine:buffer-lobits
      incudine:buffer-lomask
      incudine:buffer-lodiv
+     incudine:tuning
+     incudine:tuning-data
      incudine:size
      incudine:smp-ref
      incudine:*sine-table*

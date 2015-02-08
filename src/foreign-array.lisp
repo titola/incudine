@@ -193,9 +193,10 @@
                       (incudine.util::foreign-nrt-alloc ,type :count ,count))))
        (declare (ignorable ,array-wrap))
        (unwind-protect (progn ,@body)
-         (if ,array-wrap-p
-             (incudine::free-foreign-array ,array-wrap)
-             (incudine.util::foreign-nrt-free ,var))))))
+         (reduce-warnings
+           (if ,array-wrap-p
+               (incudine::free-foreign-array ,array-wrap)
+               (incudine.util::foreign-nrt-free ,var)))))))
 
 ;;; The expansion inside a definition of a VUG is different
 ;;; (see %WITH-SAMPLES in `vug/vug.lisp')

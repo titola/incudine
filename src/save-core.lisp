@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2015 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -98,8 +98,6 @@
             (foreign-alloc :double :initial-element +sample-zero+))
       (setf *nrt-tempo* (make-tempo *default-bpm*))
       ;; midi
-      (setf incudine.vug::*midi-frequency-table*
-            (incudine.vug::make-default-midi-frequency-table))
       (setf incudine.vug::*midi-normalize-table*
             (incudine.vug::make-midi-normalize-table))
       (setf incudine.vug::*midi-normalize-pb-bipolar-table*
@@ -119,7 +117,10 @@
       (setf *cosine-table*
             (make-buffer *default-table-size*
                          :fill-function (gen:partials '((1 1 .25)))))
-      (setf *package* (find-package :incudine.scratch)))
+      (setf *package* (find-package :incudine.scratch))
+      ;; tuning
+      (setf *tuning-et12* (make-tuning))
+      (setf *default-tuning* *tuning-et12*))
     "Allocation of the foreign memory and initialization when a saved
 core image starts up.")
 

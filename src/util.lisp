@@ -308,6 +308,10 @@
                 `(mem-ref ,ptr ,',type
                           (the non-negative-fixnum
                                (* ,index ,(cffi:foreign-type-size ,type)))))))
+  (define-*-ref i8-ref :int8)
+  (define-*-ref u8-ref :uint8)
+  (define-*-ref i16-ref :int16)
+  (define-*-ref u16-ref :uint16)
   (define-*-ref i32-ref :int32)
   (define-*-ref u32-ref :uint32)
   (define-*-ref i64-ref :int64)

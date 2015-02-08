@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2015 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -75,19 +75,6 @@
                                       (+ (ash (- data2 64) 7) data1))))
             (values))))))
 
-  (defun create-equal-temperament (steps freq-base keynum-base)
-    (declare (type positive-fixnum steps)
-             (type alexandria:positive-real freq-base keynum-base))
-    (lambda (keynum)
-      (declare (type (integer 0 127) keynum))
-      (* freq-base (expt 2 (* (- keynum keynum-base) (/ 1.0 steps))))))
-
-  (defun make-default-midi-frequency-table ()
-    (cffi:foreign-alloc 'sample :count 128
-      :initial-contents (loop for i below 128
-                              with fn = (create-equal-temperament 12 440 69)
-                              collect (sample (funcall fn i)))))
-
   (defun make-midi-normalize-table ()
     (cffi:foreign-alloc 'sample :count 128
       :initial-contents (loop for i below 128
@@ -106,9 +93,6 @@
       :initial-contents (loop for i from 0 below 16384
                               with r = (/ (sample 16383))
                               collect (* i r))))
-
-  ;;; Table used to get the cycles for seconds from the value of a MIDI keynum.
-  (defvar *midi-frequency-table* (make-default-midi-frequency-table))
 
   ;;; Table used to normalize a data byte from [0, 0x7F] to [0.0, 1.0]
   (defvar *midi-normalize-table* (make-midi-normalize-table))
@@ -179,8 +163,10 @@
                           (svref *midi-table* channel))))
     (the (integer 0 127) (highest-note-priority note-prio-vec))))
 
-(define-vug midi-cps ((channel fixnum) (keynum (unsigned-byte 8)))
-  (smp-ref *midi-frequency-table* keynum))
+(define-vug midi-cps ((tun tuning) (channel fixnum) (keynum (unsigned-byte 8)))
+  (with ((data (tuning-data tun)))
+    (declare (type pointer data))
+    (smp-ref data keynum)))
 
 (define-vug midi-velocity ((channel fixnum) (keynum (unsigned-byte 8)))
   (with ((velocity-vec (midi-table-note-velocity-vec (svref *midi-table*

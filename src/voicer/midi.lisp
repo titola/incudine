@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2015 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -20,7 +20,8 @@
   (unless (fboundp 'keynum->cps)
     ;;; Function used by default to fill the table of the frequencies (12-tET).
     (setf (symbol-function 'keynum->cps)
-          (incudine.vug::create-equal-temperament 12 440 69))))
+          (lambda (k &optional (tuning incudine:*default-tuning*))
+            (coerce (incudine:tuning-cps tuning k) 'single-float)))))
 
 (defvar *default-midi-amplitude-array*
   ;; Linear map from velocity to amplitude.
@@ -55,14 +56,14 @@
   (declare (type function function) (type midi-event midi-event))
   (dotimes (i 128 midi-event)
     (setf (svref (midi-event-amp-vector midi-event) i)
-          (funcall function i))))
+          (coerce (funcall function i) 'single-float))))
 
 (declaim (inline fill-freq-vector))
 (defun fill-freq-vector (function midi-event)
   (declare (type function function) (type midi-event midi-event))
   (dotimes (i 128 midi-event)
     (setf (svref (midi-event-freq-vector midi-event) i)
-          (funcall function i))))
+          (coerce (funcall function i) 'single-float))))
 
 (declaim (inline update-freq-vector))
 (defun update-freq-vector (midi-event)

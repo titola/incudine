@@ -117,7 +117,8 @@
    #:calc-lobits
    #:rt-thread-p #:rt-eval #:rt-eval-if #:allow-rt-memory-p
    #:foreign-pointer
-   #:smp-ref #:i32-ref #:u32-ref #:i64-ref #:u64-ref #:f32-ref #:f64-ref
+   #:smp-ref #:i8-ref #:u8-ref #:i16-ref #:u16-ref #:i32-ref #:u32-ref
+   #:i64-ref #:u64-ref #:f32-ref #:f64-ref
    #:ptr-ref
    #:with-ensure-symbol
    #:with-foreign-array #:with-samples #:with-samples*
@@ -321,6 +322,7 @@
   (:use :cl :incudine.vug :incudine.util)
   (:import-from #:alexandria #:positive-fixnum #:negative-fixnum
                 #:non-negative-fixnum #:non-negative-real #:positive-real
+                #:positive-rational
                 #:with-gensyms #:define-constant #:ensure-symbol #:format-symbol
                 #:maphash-keys)
   (:import-from #:cffi #:foreign-type-size #:foreign-alloc #:foreign-free
@@ -356,6 +358,12 @@
    #:buffer->list
    #:copy-buffer #:resize-buffer
    #:scale-buffer #:rescale-buffer #:normalize-buffer
+   #:*default-tuning*
+   #:tuning #:make-tuning #:tuning-data #:set-tuning #:set-tuning-reference
+   #:tuning-notes-from-data #:tuning-cps #:tuning-cents #:tuning-ratios
+   #:tuning-description #:tuning-keynum-base #:tuning-freq-base
+   #:tuning-degree-index #:tuning-save
+   #:load-sclfile
    #:foreign-array #:make-foreign-array #:foreign-array-data
    #:foreign-array-type
    #:sample-rate #:filename #:free #:free-p #:stop
@@ -390,7 +398,7 @@
    #:make-responder #:make-osc-responder #:add-responder #:remove-responder
    #:remove-all-responders #:get-responder-list
    ;; midi
-   #:midiout #:midiout-sysex
+   #:midiout #:midiout-sysex #:midi-tuning-sysex
    ;; envelope
    #:+seg-step-func+ #:+seg-lin-func+ #:+seg-exp-func+ #:+seg-sine-func+
    #:+seg-welch-func+ #:+seg-square-func+ #:+seg-cubic-func+
