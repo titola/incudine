@@ -122,12 +122,14 @@
                                      `(,freq-keyword
                                        (the single-float
                                          (svref (midi-event-freq-vector ,event)
-                                                ,data1))))
+                                                ,data1)))
+                                     `(:keynum ,data1))
                                ,@(if amp-keyword
                                      `(,amp-keyword
                                        (the single-float
                                          (svref (midi-event-amp-vector ,event)
-                                                ,data2))))
+                                                ,data2)))
+                                     `(:velocity ,data2))
                                ,@(if gate-keyword
                                      `(,gate-keyword ,gate-value)))
                              (unsafe-trigger ,voicer ,data1))))

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014 Tito Latini
+;;; Copyright (c) 2014-2015 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -19,9 +19,9 @@
 (defstruct (event (:copier nil))
   voicer
   responder
-  (freq-keyword :freq :type keyword)
+  (freq-keyword :freq :type (or keyword null))
   (freq-function #'identity :type function)
-  (amp-keyword :amp :type keyword)
+  (amp-keyword :amp :type (or keyword null))
   (amp-mult 0.2)
   (amp-function #'identity :type function)
   (gate-keyword :gate :type keyword)
