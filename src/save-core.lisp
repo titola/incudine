@@ -104,8 +104,9 @@
             (incudine.vug::make-midi-normalize-pb-bipolar-table))
       (setf incudine.vug::*midi-normalize-pb-table*
             (incudine.vug::make-midi-normalize-pb-table))
-      (setf incudine.vug::*midi-amplitude-table*
-            (incudine.vug::make-midi-normalize-table))
+      (setf incudine.vug:*linear-midi-table*
+            (incudine:make-buffer 128
+              :initial-contents (loop for i below 128 collect (/ i 127))))
       ;; mouse
       (setf incudine.vug::*mouse-event* (incudine.vug::alloc-mouse-event))
       ;; init

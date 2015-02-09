@@ -105,9 +105,11 @@
   ;;; Table used to normalize the value of the pitch bend to [0.0, 1.0]
   (defvar *midi-normalize-pb-table* (make-midi-normalize-pb-table))
 
-  ;;; Table used to get the amplitude from the value of a MIDI velocity.
-  ;;; The default is a linear mapping from [0, 0x7F] to [0.0, 1.0]
-  (defvar *midi-amplitude-table* (make-midi-normalize-table)))
+  (defvar *linear-midi-table*
+    (incudine:make-buffer 128 :initial-contents (loop for i below 128
+                                                      collect (/ i 127)))
+    "Linear mapping from [0, 0x7F] to [0.0, 1.0]")
+  (declaim (inline *linear-midi-table*)))
 
 (declaim (inline midi-note-off-p midi-note-on-p midi-note-p
                  midi-poly-aftertouch-p midi-cc-p midi-program-p
@@ -173,8 +175,10 @@
                                                             channel))))
     (the (integer 0 127) (svref velocity-vec keynum))))
 
-(define-vug midi-amp ((channel fixnum) (keynum (unsigned-byte 8)))
-  (smp-ref *midi-amplitude-table* (midi-velocity channel keynum)))
+(define-vug midi-amp ((ampbuf buffer) (channel fixnum)
+                      (keynum (unsigned-byte 8)))
+  (with ((data (buffer-data ampbuf)))
+    (smp-ref data (midi-velocity channel keynum))))
 
 (define-vug midi-poly-aftertouch ((channel fixnum) (keynum fixnum))
   (with ((pat-table (midi-table-poly-aftertouch (svref *midi-table* channel))))

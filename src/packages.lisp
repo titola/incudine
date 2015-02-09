@@ -218,6 +218,7 @@
    ;; multi-channel
    #:mono #:stereo #:pan2 #:fpan2
    ;; midi
+   #:*linear-midi-table*
    #:midi-note #:midi-keynum #:midi-highest-keynum #:midi-lowest-keynum
    #:midi-note-on #:midi-note-off #:reset-midi-notes
    #:midi-velocity #:midi-cps #:midi-amp #:midi-poly-aftertouch #:midi-cc
