@@ -41,9 +41,9 @@
   (lokey 0 :type (integer 0 127))
   (hikey 127 :type (integer 0 127))
   ;; Table of the frequencies.
-  (freq-vector (make-array 128) :type (simple-vector 128))
+  (freq-table (make-array 128) :type (simple-vector 128))
   ;; Table of the amplitudes.
-  (amp-vector (make-array 128) :type (simple-vector 128))
+  (amp-table (make-array 128) :type (simple-vector 128))
   ;; Ignore the note-off message if NOTE-OFF-P is NIL.
   (note-off-p t :type boolean))
 
@@ -51,29 +51,43 @@
   (format stream "#<MIDI-EVENT :VOICER ~A~%~13t:RESPONDER ~A>"
           (event-voicer obj) (event-responder obj)))
 
-(declaim (inline fill-amp-vector))
-(defun fill-amp-vector (function midi-event)
-  (declare (type function function) (type midi-event midi-event))
-  (dotimes (i 128 midi-event)
-    (setf (svref (midi-event-amp-vector midi-event) i)
-          (coerce (funcall function i) 'single-float))))
+(defmacro %fill-table (table-getter obj-var ev-var)
+  (with-gensyms (i len)
+    `(let ((,len (if (functionp ,obj-var)
+                     128
+                     (min (incudine::buffer-base-size ,obj-var) 128))))
+       (declare (type positive-fixnum ,len))
+       (dotimes (,i ,len ,ev-var)
+         (setf (svref (,table-getter ,ev-var) ,i)
+               (coerce (if (functionp ,obj-var)
+                           (funcall ,obj-var ,i)
+                           (incudine:buffer-value ,obj-var ,i))
+                       'single-float))))))
 
-(declaim (inline fill-freq-vector))
-(defun fill-freq-vector (function midi-event)
-  (declare (type function function) (type midi-event midi-event))
-  (dotimes (i 128 midi-event)
-    (setf (svref (midi-event-freq-vector midi-event) i)
-          (coerce (funcall function i) 'single-float))))
+(defun fill-freq-table (obj midi-event)
+  "Fill the table of the frequencies with the content of a INCUDINE:TUNING,
+the content of a INCUDINE:BUFFER or by calling a function with the key number
+as argument."
+  (declare (type (or function incudine:tuning incudine:buffer) obj)
+           (type midi-event midi-event))
+  (%fill-table midi-event-freq-table obj midi-event))
 
-(declaim (inline update-freq-vector))
-(defun update-freq-vector (midi-event)
+(defun fill-amp-table (obj midi-event)
+  "Fill the table of the frequencies with the content of a INCUDINE:BUFFER
+or by calling a function with the key number as argument."
+  (declare (type (or function incudine:buffer) obj)
+           (type midi-event midi-event))
+  (%fill-table midi-event-amp-table obj midi-event))
+
+(declaim (inline update-freq-table))
+(defun update-freq-table (midi-event)
   (declare (type midi-event midi-event))
-  (fill-freq-vector (event-freq-function midi-event) midi-event))
+  (fill-freq-table (event-freq-function midi-event) midi-event))
 
-(declaim (inline update-amp-vector))
-(defun update-amp-vector (midi-event)
+(declaim (inline update-amp-table))
+(defun update-amp-table (midi-event)
   (declare (type midi-event midi-event))
-  (fill-amp-vector (lambda (vel)
+  (fill-amp-table (lambda (vel)
                      (* (funcall (event-amp-function midi-event) vel)
                         (event-amp-mult midi-event)))
                    midi-event))
@@ -101,7 +115,7 @@
                      :amp-function ,(or amp-function `(function velocity->amp))
                      :gate-keyword ,gate-keyword :gate-value ,gate-value
                      :note-off-p ,note-off-p)))
-       (update-freq-vector (update-amp-vector ,event))
+       (update-freq-table (update-amp-table ,event))
        (setf (event-responder ,event)
              (incudine:make-responder ,stream
                 (lambda (,status ,data1 ,data2)
@@ -121,13 +135,13 @@
                                ,@(if freq-keyword
                                      `(,freq-keyword
                                        (the single-float
-                                         (svref (midi-event-freq-vector ,event)
+                                         (svref (midi-event-freq-table ,event)
                                                 ,data1)))
                                      `(:keynum ,data1))
                                ,@(if amp-keyword
                                      `(,amp-keyword
                                        (the single-float
-                                         (svref (midi-event-amp-vector ,event)
+                                         (svref (midi-event-amp-table ,event)
                                                 ,data2)))
                                      `(:velocity ,data2))
                                ,@(if gate-keyword
@@ -141,17 +155,17 @@
 (defun scale-midi-amp (midi-event mult)
   (declare (type midi-event midi-event) (type real mult))
   (setf (event-amp-mult midi-event) mult)
-  (update-amp-vector midi-event)
+  (update-amp-table midi-event)
   mult)
 
 (defun set-midi-freq-function (midi-event function)
   (declare (type midi-event midi-event) (type function function))
   (setf (event-freq-function midi-event) function)
-  (update-freq-vector midi-event)
+  (update-freq-table midi-event)
   function)
 
 (defun set-midi-amp-function (midi-event function)
   (declare (type midi-event midi-event) (type function function))
   (setf (event-amp-function midi-event) function)
-  (update-amp-vector midi-event)
+  (update-amp-table midi-event)
   function)

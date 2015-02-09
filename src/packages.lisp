@@ -439,7 +439,8 @@
            #:unsafe-trigger #:unsafe-release #:unsafe-set-polyphony
            #:unsafe-control-value #:unsafe-get-controls #:unsafe-set-controls
            #:unsafe-define-map #:unsafe-remove-map #:unsafe-mapvoicer
-           #:unsafe-panic #:midi-event #:fill-freq-vector #:fill-amp-vector
+           #:unsafe-panic #:midi-event #:fill-freq-table #:fill-amp-table
+           #:fill-freq-vector #:fill-amp-vector ; deprecated
            #:midi-bind #:scale-midi-amp
            #:keynum->cps #:velocity->amp #:set-midi-freq-function
            #:set-midi-amp-function))
