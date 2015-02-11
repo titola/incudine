@@ -21,7 +21,8 @@
   (:nicknames #:pm)
   (:import-from #:alexandria #:non-negative-fixnum #:define-constant
                 #:with-gensyms)
-  (:shadow #:read #:write #:open #:close #:abort #:stream #:error)
+  (:shadow #:read #:write #:open #:close #:abort #:error #:stream
+           #:input-stream-p #:output-stream-p)
   (:export
    ;; constants
    #:default-sysex-buffer-size
@@ -53,6 +54,12 @@
    #:message
    #:timestamp
    #:stream
+   #:input-stream
+   #:input-stream-p
+   #:input-stream-sysex-pointer
+   #:input-stream-events-remain
+   #:output-stream
+   #:output-stream-p
    #:error
    #:device-info
    #:event-buffer
@@ -89,12 +96,14 @@
    #:message-data2
    #:decode-message
    #:decode-channel-message
+   #:sysex-message-p
    #:before
    #:channel
    #:make-event-buffer
    #:free
    #:stream-pointer
    ;; macros
+   #:with-input-sysex-event
    #:doevent
    #:with-event-buffer
    #:with-receiver))

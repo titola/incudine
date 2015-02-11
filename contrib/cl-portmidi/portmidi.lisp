@@ -115,15 +115,18 @@
            (type non-negative-fixnum length))
   (write% stream (event-buffer-pointer evbuf) length))
 
-(declaim (inline close))
 (defun close (stream)
   (declare (type stream stream))
   (let ((result (close% stream)))
     (setf (stream-pointer stream) (cffi:null-pointer)
           (stream-direction stream) :closed)
+    (when (and (input-stream-p stream)
+               (not (cffi:null-pointer-p
+                      #1=(input-stream-sysex-pointer stream))))
+      (cffi:foreign-free #1#)
+      (setf #1# (cffi:null-pointer)))
     (tg:cancel-finalization stream)
-    (setf *stream-opened*
-          (remove stream *stream-opened*))
+    (setf *stream-opened* (remove stream *stream-opened*))
     result))
 
 (declaim (inline terminate))
@@ -134,23 +137,57 @@
 (defmacro event-slot (ev slot)
   `(cffi:mem-aref ,ev :int32 ,(if (eq slot 'message) 0 1)))
 
-(defmacro doevent ((evbuf message-var &optional timestamp-var result)
+(defmacro with-input-sysex-event ((ptr-var stream) &body body)
+  `(let ((,ptr-var (cffi:mem-ref (input-stream-sysex-pointer ,stream)
+                                 :pointer)))
+     ,@body))
+
+(declaim (inline sysex-message-p))
+(defun sysex-message-p (msg)
+  (= (logand msg #xFF) #xF0))
+
+(declaim (inline sysex-eox-message-p))
+(defun sysex-eox-message-p (msg)
+  (or (= (logand msg #xFF) #xF7)
+      (= (ldb (byte 8 8) msg) #xF7)
+      (= (ldb (byte 8 16) msg) #xF7)
+      (= (ldb (byte 8 24) msg) #xF7)))
+
+(defmacro doevent ((evbuf message-var stream &optional timestamp-var result)
                    &body body)
-  (with-gensyms (ptr i)
+  (with-gensyms (ptr events remain tmp i j)
     (let ((offset (cffi:foreign-type-size '(:struct event))))
       `(do ((,i 0 (1+ ,i))
             (,ptr (event-buffer-pointer ,evbuf)
-                  (cffi:inc-pointer ,ptr ,offset)))
-           ((= ,i (the non-negative-fixnum (event-buffer-events ,evbuf)))
-            ,result)
-         (declare (type non-negative-fixnum ,i)
+                  (cffi:inc-pointer ,ptr ,offset))
+            (,events (event-buffer-events ,evbuf))
+            (,remain (event-buffer-events ,evbuf) (1- ,remain)))
+           ((>= ,i ,events) ,result)
+         (declare (type non-negative-fixnum ,i ,events ,remain)
                   (type cffi:foreign-pointer ,ptr))
          (let ((,message-var (event-slot ,ptr message))
-               ,@(if timestamp-var
-                     `((,timestamp-var (event-slot ,ptr timestamp)))))
+               ,@(when timestamp-var
+                   `((,timestamp-var (event-slot ,ptr timestamp)))))
            (declare (type unsigned-byte ,message-var
-                          ,@(if timestamp-var `(,timestamp-var))))
-           ,@body)))))
+                          ,@(when timestamp-var `(,timestamp-var))))
+           (when (sysex-message-p ,message-var)
+             (setf (cffi:mem-ref (input-stream-sysex-pointer ,stream) :pointer)
+                   ,ptr)
+             (setf (input-stream-events-remain ,stream) ,remain))
+           ,@body
+           (when (sysex-message-p ,message-var)
+             ;; Jump to the end of the SysEx.
+             (do ((,j 0 (1+ ,j))
+                  (,tmp (cffi:inc-pointer ,ptr ,offset)
+                        (cffi:inc-pointer ,tmp ,offset)))
+                 ((>= ,j (- ,events ,i)) (setf ,i ,events))
+               (declare (type non-negative-fixnum ,j)
+                        (type cffi:foreign-pointer ,tmp))
+               (when (sysex-eox-message-p (event-slot ,tmp message))
+                 (incf ,i ,j)
+                 (decf ,remain ,j)
+                 (setf ,ptr ,tmp)
+                 (return)))))))))
 
 (defmacro with-event-buffer ((var &optional (size default-sysex-buffer-size))
                              &body body)
@@ -161,8 +198,7 @@
        (free ,var))))
 
 (defmacro with-receiver ((state-var stream message-var
-                          &optional timestamp-var (sleep-time 1)
-                                    thread-name)
+                          &optional timestamp-var (sleep-time 1) thread-name)
                          &body body)
   (with-gensyms (evbuf)
     `(if ,state-var
@@ -181,7 +217,8 @@
                             while ,state-var
                             when (eq (poll ,stream) :pm-got-data) do
                               (read ,stream ,evbuf default-sysex-buffer-size)
-                              (doevent (,evbuf ,message-var ,timestamp-var)
+                              (doevent (,evbuf ,message-var ,stream
+                                        ,timestamp-var)
                                 ,@body)
                             do (pt:sleep ,sleep-time))
                    (setf ,state-var nil))))

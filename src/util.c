@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Tito Latini
+ * Copyright (c) 2013-2015 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -292,4 +292,93 @@ void pconv_multiply_partitions(SAMPLE *out_beg, SAMPLE *fdl_beg, SAMPLE *ir,
                 if (fdl >= fdl_end)
                         fdl = fdl_beg;
         }
+}
+
+/* MIDI */
+
+#define PM_TIMESTAMP_SIZE  4
+#define PM_EVENT_SIZE      8
+
+#define MIDI_BULK_TUNING_DUMP_NAME_INDEX         6
+#define MIDI_BULK_TUNING_DUMP_NAME_LENGTH       16
+#define MIDI_BULK_TUNING_DUMP_FREQ_DATA_INDEX   22
+
+#define update_tuning_freq(ftype,freqs,ev,i,x,y,z)                            \
+        do {                                                                  \
+                if ((ev[x] >> 7) | (ev[y] >> 7) | (ev[z] >> 7))               \
+                        return i;                                             \
+                freqs[i] = (ftype)                                            \
+                    (8.1758 * pow(2, (ev[x] + ((ftype) (ev[y] << 7 | ev[z])   \
+                                               / (1 << 14))) / 12));          \
+        } while (0)
+
+/*
+ * Set an array of frequencies with the data received from a MIDI bulk
+ * tuninig dump message and update the name of the scale.
+ *
+ * ev is a pointer to an array of PortMidi events (PmEvent structure).
+ */
+unsigned char set_freqs_from_midi(unsigned char *ev, SAMPLE *freqs, char *name)
+{
+        int x, y, i, j;
+
+        /* Tuning 16 ASCII characters name. */
+        i = MIDI_BULK_TUNING_DUMP_NAME_INDEX + PM_TIMESTAMP_SIZE;
+        for (j = 0; j < MIDI_BULK_TUNING_DUMP_NAME_LENGTH; i++, j++) {
+                if (j % 4 == MIDI_BULK_TUNING_DUMP_NAME_INDEX % 4)
+                        i += PM_TIMESTAMP_SIZE;
+                name[j] = ev[i];
+        }
+        name[j] = 0;
+
+        /*
+         * A loop cycle crosses three PortMidi events (24 bytes).
+         *
+         *           |loopstart      loopend|
+         *     xy____zxyz____xyzx____yzxy____
+         *
+         *
+         *     x, y, z: frequency data for one note
+         *
+         *     ____: timestamp to skip (4 bytes)
+         *
+         */
+        x = MIDI_BULK_TUNING_DUMP_FREQ_DATA_INDEX * 2
+            - (MIDI_BULK_TUNING_DUMP_FREQ_DATA_INDEX % PM_TIMESTAMP_SIZE);
+
+        i = x + 2 + PM_TIMESTAMP_SIZE;
+        for (j = 0; j < 128; i += PM_EVENT_SIZE, j++) {
+                y = x + 1;
+                update_tuning_freq(SAMPLE, freqs, ev, j++, x, y, i);
+                update_tuning_freq(SAMPLE, freqs, ev, j++, i + 1, i + 2, i + 3);
+                i += PM_EVENT_SIZE;
+                update_tuning_freq(SAMPLE, freqs, ev, j++, i, i + 1, i + 2);
+                x = i + 3;
+                i += PM_EVENT_SIZE;
+                update_tuning_freq(SAMPLE, freqs, ev, j, x, i, i + 1);
+                x = i + 2;
+        }
+        return 0;
+}
+
+unsigned char set_ffreqs_from_midi(unsigned char *ev, float *freqs)
+{
+        int x, y, i, j;
+
+        x = MIDI_BULK_TUNING_DUMP_FREQ_DATA_INDEX * 2
+            - (MIDI_BULK_TUNING_DUMP_FREQ_DATA_INDEX % PM_TIMESTAMP_SIZE);
+
+        i = x + 2 + PM_TIMESTAMP_SIZE;
+        for (j = 0; j < 128; i += PM_EVENT_SIZE, j++) {
+                y = x + 1;
+                update_tuning_freq(float, freqs, ev, j++, x, y, i);
+                update_tuning_freq(float, freqs, ev, j++, i + 1, i + 2, i + 3);
+                i += PM_EVENT_SIZE;
+                update_tuning_freq(float, freqs, ev, j++, i, i + 1, i + 2);
+                x = i + 3;
+                i += PM_EVENT_SIZE;
+                update_tuning_freq(float, freqs, ev, j, x, i, i + 1);
+                x = i + 2;
+        }
+        return 0;
 }

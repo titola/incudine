@@ -78,8 +78,9 @@
 
 ;;; PORTMIDI
 
-(defmethod valid-input-stream-p ((obj portmidi:stream))
-  (eq (slot-value obj 'pm::direction) :input))
+(defmethod valid-input-stream-p ((obj portmidi:input-stream)) t)
+
+(defmethod valid-input-stream-p ((obj portmidi:output-stream)) nil)
 
 (declaim (inline midi-recv-funcall-all))
 (defun midi-recv-funcall-all (recv status data1 data2)
@@ -95,7 +96,7 @@
     (pm:with-receiver ((receiver-status receiver) stream msg)
       (handler-case
           (multiple-value-bind (status data1 data2)
-              (pm:decode-message msg)
+              (pm:decode-message (logand msg #xFFFFFF))
             (incudine.vug::set-midi-message status data1 data2)
             (midi-recv-funcall-all receiver status data1 data2))
         (condition (c) (nrt-msg error "~A" c))))))

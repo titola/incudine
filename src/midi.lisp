@@ -208,3 +208,52 @@ useful if the manufacturer implements a different checksum."
       (midi-128-single-note-tuning tuning stream device-id program)
       (midi-bulk-tuning-dump tuning stream device-id program
                              checksum-function)))
+
+(defun valid-midi-bulk-tuning-dump-p (stream device-id)
+  (declare (type pm:input-stream stream)
+           (type (or (unsigned-byte 8) null) device-id))
+  (pm:with-input-sysex-event (ptr stream)
+    (and #+little-endian (= (logand (u32-ref ptr 0) #xFF00FFFF) #x08007EF0)
+         #-little-endian (= (logand (u32-ref ptr 0) #xFFFF00FF) #xF07E0008)
+         (or (null device-id)
+             (= (u8-ref ptr 2) device-id)
+             (= (u8-ref ptr 2) #x7F))
+         ;; sub-id 2 (bulk dump reply)
+         (= (u8-ref ptr 8) 1))))
+
+(declaim (inline midi-bulk-tuning-program))
+(defun midi-bulk-tuning-program (stream)
+  ;; First PmEvent: F0 7E DEVICE-ID 08 [timestamp (4 bytes)] 01 PROGRAM ...
+  (pm:with-input-sysex-event (ptr stream) (u8-ref ptr 9)))
+
+(defun set-tuning-from-midi (obj stream &optional device-id)
+  "If OBJ is a TUNING structure, the frequencies and the description
+of OBJ are changed with the data received from a MIDI bulk tuning dump
+message. If OBJ is a function, it is called with the program number
+contained in the MIDI bulk tuning message. The function has to return
+the TUNING structure to set or NIL to ignore the MIDI message.
+The checksum of the message is ignored."
+  (declare (type (or tuning function) obj) (type pm:input-stream stream)
+           (type (or (unsigned-byte 8) null) device-id)
+           #.*standard-optimize-settings*)
+  (when (and (>= (pm:input-stream-events-remain stream)
+                 (ash +midi-bulk-tuning-dump-buffer-size+ -2))
+             (valid-midi-bulk-tuning-dump-p stream device-id))
+    (let ((tuning (if (functionp obj)
+                      (funcall obj (midi-bulk-tuning-program stream))
+                      obj)))
+      (declare (type (or tuning null) tuning))
+      (when tuning
+        (cffi:with-foreign-object (name :char
+                                   (1+ +midi-bulk-tuning-dump-name-length+))
+          (pm:with-input-sysex-event (ptr stream)
+            (let ((ret (cffi:foreign-funcall "set_freqs_from_midi" :pointer ptr
+                                             :pointer (tuning-data tuning)
+                                             :pointer name :unsigned-char)))
+              (declare (type (unsigned-byte 8) ret))
+              (cond ((zerop ret)
+                     (setf (tuning-description tuning)
+                           (reduce-warnings (cffi:foreign-string-to-lisp name)))
+                     (msg debug "received MIDI bulk tuning dump"))
+                    (t (msg warn "MIDI bulk tuning dump failed at index ~D"
+                            ret))))))))))

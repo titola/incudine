@@ -41,9 +41,11 @@
   (lokey 0 :type (integer 0 127))
   (hikey 127 :type (integer 0 127))
   ;; Table of the frequencies.
-  (freq-table (make-array 128) :type (simple-vector 128))
+  (freq-table (make-array 128 :element-type 'single-float)
+              :type (simple-array single-float (128)))
   ;; Table of the amplitudes.
-  (amp-table (make-array 128) :type (simple-vector 128))
+  (amp-table  (make-array 128 :element-type 'single-float)
+              :type (simple-array single-float (128)))
   ;; Ignore the note-off message if NOTE-OFF-P is NIL.
   (note-off-p t :type boolean))
 
@@ -58,7 +60,7 @@
                      (min (incudine::buffer-base-size ,obj-var) 128))))
        (declare (type positive-fixnum ,len))
        (dotimes (,i ,len ,ev-var)
-         (setf (svref (,table-getter ,ev-var) ,i)
+         (setf (aref (,table-getter ,ev-var) ,i)
                (coerce (if (functionp ,obj-var)
                            (funcall ,obj-var ,i)
                            (incudine:buffer-value ,obj-var ,i))
@@ -71,6 +73,22 @@ as argument."
   (declare (type (or function incudine:tuning incudine:buffer) obj)
            (type midi-event midi-event))
   (%fill-table midi-event-freq-table obj midi-event))
+
+;;; Fill the frequency table with the data received from a MIDI bulk
+;;; tuninig dump message.
+(defun set-freq-table-from-midi (ev stream)
+  (declare (type midi-event ev) (type pm:input-stream stream))
+  (when (and (>= (pm:input-stream-events-remain stream)
+                 (ash incudine::+midi-bulk-tuning-dump-buffer-size+ -2))
+             (incudine::valid-midi-bulk-tuning-dump-p stream nil))
+    (pm:with-input-sysex-event (ptr stream)
+      (cffi:with-pointer-to-vector-data (freqs (midi-event-freq-table ev))
+        (let ((ret (cffi:foreign-funcall "set_ffreqs_from_midi" :pointer ptr
+                                         :pointer freqs :unsigned-char)))
+          (declare (type (unsigned-byte 8) ret))
+          (if (zerop ret)
+              (msg debug "received MIDI bulk tuning dump")
+              (msg warn "MIDI bulk tuning dump failed at index ~D" ret)))))))
 
 (defun fill-amp-table (obj midi-event)
   "Fill the table of the frequencies with the content of a INCUDINE:BUFFER
@@ -127,6 +145,8 @@ or by calling a function with the key number as argument."
                              (<= ,data1 ,hikey))
                     (let ((,typ (ldb (byte 4 4) ,status)))
                       (cond
+                        ((pm:sysex-message-p ,status)
+                         (set-freq-table-from-midi ,event ,stream))
                         ((= ,typ 9)
                          (with-safe-change (,voicer)
                            (responder-noteon-form (,voicer ,note-off-p ,data1
@@ -134,15 +154,13 @@ or by calling a function with the key number as argument."
                              (unsafe-set-controls ,voicer
                                ,@(if freq-keyword
                                      `(,freq-keyword
-                                       (the single-float
-                                         (svref (midi-event-freq-table ,event)
-                                                ,data1)))
+                                       (aref (midi-event-freq-table ,event)
+                                             ,data1))
                                      `(:keynum ,data1))
                                ,@(if amp-keyword
                                      `(,amp-keyword
-                                       (the single-float
-                                         (svref (midi-event-amp-table ,event)
-                                                ,data2)))
+                                       (aref (midi-event-amp-table ,event)
+                                             ,data2))
                                      `(:velocity ,data2))
                                ,@(if gate-keyword
                                      `(,gate-keyword ,gate-value)))

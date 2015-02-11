@@ -399,7 +399,7 @@
    #:make-responder #:make-osc-responder #:add-responder #:remove-responder
    #:remove-all-responders #:get-responder-list
    ;; midi
-   #:midiout #:midiout-sysex #:midi-tuning-sysex
+   #:midiout #:midiout-sysex #:midi-tuning-sysex #:set-tuning-from-midi
    ;; envelope
    #:+seg-step-func+ #:+seg-lin-func+ #:+seg-exp-func+ #:+seg-sine-func+
    #:+seg-welch-func+ #:+seg-square-func+ #:+seg-cubic-func+
@@ -431,7 +431,8 @@
                 #:nrt-global-pool-push-list #:nrt-global-pool-pop-list
                 #:make-tlist #:tlist-empty-p #:tlist-add-left
                 #:tlist-add-right #:tlist-remove-left
-                #:spinlock #:make-spinlock #:with-spinlock-held)
+                #:spinlock #:make-spinlock #:with-spinlock-held
+                #:msg)
   (:export #:voicer #:create #:update #:node #:empty-p #:full-p
            #:steal-first-voice #:steal-last-voice #:trigger #:release
            #:polyphony #:control-value #:get-controls #:set-controls

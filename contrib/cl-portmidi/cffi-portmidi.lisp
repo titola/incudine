@@ -35,26 +35,46 @@
 (defstruct (stream (:constructor %make-stream)
                    (:copier nil))
   (pointer (cffi:null-pointer) :type cffi:foreign-pointer)
-  (direction :all :type keyword)
+  (direction :closed :type (member :input :output :closed))
   (device-id 0 :type non-negative-fixnum)
   (device-interf "none" :type string)
   (device-name "none" :type string))
 
-(declaim (inline make-stream))
+(defstruct (input-stream (:include stream) (:copier nil))
+  ;; Pointer to the PmEvent that contains the received SysEx message.
+  (sysex-pointer (cffi:null-pointer) :type cffi:foreign-pointer)
+  ;; Number of the events starting from the received SysEx message.
+  (events-remain 0 :type non-negative-fixnum))
+
+(defstruct (output-stream (:include stream) (:copier nil)))
+
 (defun make-stream (ptr direction device-id device-interf device-name)
-  (declare (type cffi:foreign-pointer ptr) (type keyword direction)
+  (declare (type cffi:foreign-pointer ptr)
+           (type (member :input :output) direction)
            (type non-negative-fixnum device-id)
            (type string device-interf device-name))
-  (let ((obj (%make-stream :pointer ptr
-                           :direction direction
-                           :device-id device-id
-                           :device-interf device-interf
-                           :device-name device-name)))
-    (tg:finalize obj (lambda () (close ptr)))
-    obj))
+  (if (eq direction :input)
+      (let* ((sysex-ptr (cffi:foreign-alloc :pointer))
+             (obj (make-input-stream :pointer ptr
+                                    :direction :input
+                                    :device-id device-id
+                                    :device-interf device-interf
+                                    :device-name device-name
+                                    :sysex-pointer sysex-ptr)))
+        (tg:finalize obj (lambda ()
+                           (cffi:foreign-free sysex-ptr)
+                           (close ptr)))
+        obj)
+      (let ((obj (make-output-stream :pointer ptr
+                                     :direction :output
+                                     :device-id device-id
+                                     :device-interf device-interf
+                                     :device-name device-name)))
+        (tg:finalize obj (lambda () (close ptr)))
+        obj)))
 
 (defmethod print-object ((obj stream) stream)
-  (format stream "#<PM:STREAM ~S \"~A - ~A\">"
+  (format stream "#<PM:~A-STREAM \"~A - ~A\">"
           (stream-direction obj) (stream-device-interf obj)
           (stream-device-name obj)))
 
