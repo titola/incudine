@@ -363,7 +363,7 @@
    #:tuning #:make-tuning #:tuning-data #:set-tuning #:set-tuning-reference
    #:tuning-notes-from-data #:tuning-cps #:tuning-cents #:tuning-ratios
    #:tuning-description #:tuning-keynum-base #:tuning-freq-base
-   #:tuning-degree-index #:tuning-save
+   #:tuning-degree-index #:minimize-tuning-ratios #:tuning-save
    #:load-sclfile
    #:foreign-array #:make-foreign-array #:foreign-array-data
    #:foreign-array-type

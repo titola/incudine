@@ -179,6 +179,25 @@ to generate the TUNING frequencies."
 
 (defsetf tuning-cps set-buffer-value)
 
+(defun rationalize* (x &optional (significand-error 5.e-6))
+  "Try to minimize the rational number by introducing an error in the
+significand of the floating point number. The error is 0.0005% by default."
+  (declare (type real x) (type single-float significand-error))
+  (if (zerop significand-error)
+      (rationalize x)
+      (let ((x (coerce x 'single-float)))
+        (multiple-value-bind (m e s) (integer-decode-float x)
+          (let ((e (expt 2.0 e)))
+            (labels ((rat (i r)
+                       (declare (type fixnum i) (type rational r))
+                       (if (>= i (floor (* m (+ 1.0 significand-error))))
+                           r
+                           (rat (1+ i)
+                                (let ((n (rationalize (* i e s))))
+                                  (if (< (numerator n) (numerator r)) n r))))))
+              (rat (floor (* m (- 1.0 significand-error)))
+                   (rationalize x))))))))
+
 (defun update-tuning-data (tuning)
   (declare (type tuning tuning)
            #.*standard-optimize-settings*)
@@ -245,15 +264,17 @@ to generate the TUNING frequencies."
 (defun check-tuning-notes (notes)
   (every (lambda (x) (typep x '(or single-float positive-rational))) notes))
 
-(defun set-tuning (tuning notes-or-file)
+(defun set-tuning (tuning notes-or-file &optional description)
   "Change the notes of a TUNING structure. If NOTES-OR-FILE is the
 path of a .scl file, import the notes from this file."
   (declare (type tuning tuning)
            (type (or list string pathname) notes-or-file)
+           (type (or string null) description)
            #.*standard-optimize-settings*)
   (if (listp notes-or-file)
       (if (check-tuning-notes notes-or-file)
-          (set-tuning-notes tuning notes-or-file (length notes-or-file) "")
+          (set-tuning-notes tuning notes-or-file (length notes-or-file)
+                            (or description ""))
           (msg error "incorrect note list ~A" notes-or-file))
       (multiple-value-bind (descr len notes)
           (load-sclfile notes-or-file)
@@ -263,14 +284,17 @@ path of a .scl file, import the notes from this file."
 ;;; We can use the ears to directly set the frequencies in a TUNING
 ;;; from the keynum START to the keynum END. Then we call TUNING-NOTES-FROM-DATA
 ;;; to update the TUNING (cents, ratios and all the other frequencies).
-(defun tuning-notes-from-data (tuning start end &optional description)
-  (declare (type tuning tuning) (type (integer 0 127) start end)
-           (type (or null string) description)
-           #.*standard-optimize-settings*)
+(defun tuning-notes-from-data (tuning start end &optional description
+                               (significand-error 5.e-6))
   "Compute the notes of the scale from the frequencies stored in a
 TUNING structure, starting from the keynum START and ending to the
 keynum END. The ratio between the frequencies in START and END is the
-last TUNING ratio."
+last TUNING ratio. If SIGNIFICAND-ERROR is non-zero (default), try to
+minimize the TUNING ratios by introducing an error (default 0.0005%)
+in the significand of the floating point numbers."
+  (declare (type tuning tuning) (type (integer 0 127) start end)
+           (type (or null string) description)
+           #.*standard-optimize-settings*)
   (when (> end start)
     (let ((len (- end start)))
       (declare (type (integer 0 127) len))
@@ -283,15 +307,26 @@ last TUNING ratio."
             with data = (tuning-data tuning) do
               (setf (aref (tuning-ratios tuning) i)
                     (reduce-warnings
-                      (rationalize
+                      (rationalize*
                         ;; Integers too large with double precision.
                         (coerce (/ (smp-ref data k) (smp-ref data start))
-                                'single-float))))
+                                'single-float)
+                        (coerce significand-error 'single-float))))
               (setf (aref (tuning-cents tuning) i)
                     (* (log (aref (tuning-ratios tuning) i) 2) 1200.0)))
       (when description
         (setf (tuning-description tuning) description))
-      (update-tuning-data tuning))))
+      (update-tuning-data (tuning-update-sample-ratios tuning)))))
+
+(defun minimize-tuning-ratios (tuning &optional (significand-error 5.e-6))
+  "Try to minimize the TUNING ratios by introducing an error in the
+significand of the floating point numbers. The error is 0.0005% by default."
+  (declare (type tuning tuning))
+  (set-tuning tuning (mapcar (lambda (x)
+                               (rationalize* x (coerce significand-error
+                                                       'single-float)))
+                             (cdr (coerce (tuning-ratios tuning) 'list)))
+              (tuning-description tuning)))
 
 (declaim (inline scl-string))
 (defun scl-string (string)
