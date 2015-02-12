@@ -50,6 +50,8 @@
              (otherwise :portaudio))
            *features*)
 
+  (pushnew :incudine *features*)
+
   (deftype sample (&optional min max) `(,*sample-type* ,min ,max))
 
   (define-constant +sample-zero+ (coerce 0 'sample))

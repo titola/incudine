@@ -1,0 +1,45 @@
+(in-package :scratch)
+
+(defvar *fluid-settings* (fluidsynth:new-settings))
+
+(defvar *synth*
+  (fluidsynth:new
+    (loop for (name value)
+          in `(("synth.polyphony" 128)
+               ("synth.gain" 0.5)
+               ("synth.sample-rate" ,*sample-rate*)
+               ("audio.sample-format" "float"))
+          do (setf (fluidsynth:setting *fluid-settings* name) value)
+          finally (return *fluid-settings*))))
+
+(set-rt-block-size 64)
+
+(dsp! fluid-test ((synth fluidsynth:synth))
+  (with ((len (block-size))
+         (left (make-f32-array len))
+         (right (make-f32-array len)))
+    (fluidsynth:write-float synth len left 0 1 right 0 1)
+    (foreach-frame
+      (out (f32-ref left current-frame)
+           (f32-ref right current-frame)))))
+
+(fluidsynth:sfload *synth* "/usr/share/sounds/sf2/FluidR3_GM.sf2" 1)
+
+(rt-start)
+
+(fluid-test *synth*)
+
+(defvar *midiin* (pm:open (pm:get-default-input-device-id)))
+
+(recv-start *midiin*)
+
+(defvar *fluid-resp*
+  (make-responder *midiin*
+    (lambda (st d1 d2)
+      (let ((ch (logand st #xf)))
+        (cond ((midi-note-on-p st)
+               (fluidsynth:noteon *synth* ch d1 d2))
+              ((midi-note-off-p st)
+               (fluidsynth:noteoff *synth* ch d1))
+              ((midi-program-p st)
+               (fluidsynth:program-change *synth* ch d1)))))))
