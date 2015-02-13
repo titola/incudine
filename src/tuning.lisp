@@ -264,13 +264,24 @@ significand of the floating point number. The error is 0.0005% by default."
 (defun check-tuning-notes (notes)
   (every (lambda (x) (typep x '(or single-float positive-rational))) notes))
 
-(defun set-tuning (tuning notes-or-file &optional description)
+(defun set-tuning (tuning notes-or-file &optional description keynum-base
+                   freq-base degree-index)
   "Change the notes of a TUNING structure. If NOTES-OR-FILE is the
 path of a .scl file, import the notes from this file."
   (declare (type tuning tuning)
            (type (or list string pathname) notes-or-file)
            (type (or string null) description)
+           (type (or (integer 0 127) null) keynum-base degree-index)
+           (type (or (real 0 20000) null) freq-base)
            #.*standard-optimize-settings*)
+  (when keynum-base
+    (setf (u8-ref (tuning-aux-data tuning) 0) keynum-base))
+  (when degree-index
+    (setf (u8-ref (tuning-aux-data tuning) 1) degree-index))
+  (when freq-base
+    (reduce-warnings
+      (setf (smp-ref (tuning-aux-data tuning) +tuning-freq-base-index+)
+            (sample freq-base))))
   (if (listp notes-or-file)
       (if (check-tuning-notes notes-or-file)
           (set-tuning-notes tuning notes-or-file (length notes-or-file)
