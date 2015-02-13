@@ -106,12 +106,12 @@
            (type (integer 0 127) keynum-base degree-index)
            (type (real 0 20000) freq-base)
            (type boolean real-time-p))
-  (multiple-value-bind (description num-of-notes notes)
-      (cond (notes (values (or description "") (length notes) notes))
+  (multiple-value-bind (notes num-of-notes description)
+      (cond (notes (values notes (length notes) (or description "")))
             (file (load-sclfile file))
-            (t (values *default-tuning-description*
+            (t (values *default-tuning-notes*
                        (length *default-tuning-notes*)
-                       *default-tuning-notes*)))
+                       *default-tuning-description*)))
     (%%make-tuning notes num-of-notes keynum-base freq-base degree-index
                    description real-time-p)))
 
@@ -287,7 +287,7 @@ path of a .scl file, import the notes from this file."
           (set-tuning-notes tuning notes-or-file (length notes-or-file)
                             (or description ""))
           (msg error "incorrect note list ~A" notes-or-file))
-      (multiple-value-bind (descr len notes)
+      (multiple-value-bind (notes len descr)
           (load-sclfile notes-or-file)
         (declare (type (unsigned-byte 8) len))
         (set-tuning-notes tuning notes len descr))))
@@ -390,8 +390,8 @@ significand of the floating point numbers. The error is 0.0005% by default."
             (return (nreverse acc))))))))
 
 (defun load-sclfile (filespec)
-  "Return the description, the number of notes and the pitch values of a
-scale stored in FILESPEC in scale file format."
+  "Return the pitch values, the number of notes and the description of
+a scale stored in FILESPEC in scale file format."
   (declare (type (or string pathname) filespec))
   (with-open-file (scl filespec)
     (let ((descr (scl-description scl)))
@@ -400,7 +400,7 @@ scale stored in FILESPEC in scale file format."
           (when (and (numberp n) (plusp n))
             (let ((notes (scl-read-notes n scl)))
               (when (and notes (= (length notes) n))
-                (values descr n notes)))))))))
+                (values notes n descr)))))))))
 
 (defun scl-notes-to-cents-and-ratios (notes cents ratios)
   (declare (type list notes)
