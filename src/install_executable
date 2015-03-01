@@ -5,7 +5,7 @@
 
 PREFIX="${PREFIX:-/usr/local}"
 options="--noinform"
-systems="progn (require \"INCUDINE\")"
+modules="progn (require \"INCUDINE\")"
 
 usage()
 {
@@ -16,6 +16,7 @@ Create and install the standalone executable.
   --prefix=PREFIX       install architecture-independent files in PREFIX
                         [${PREFIX}]
   --bindir=DIR          user executables [PREFIX/bin]
+  --with-fluidsynth     support for FluidSynth SoundFont synthesizer.
   --with-ladspa         support for LADSPA plugins.
   --with-lv2            support for LV2 plugins.
   --with-module=NAME    load the module NAME before to create the executable.
@@ -32,22 +33,25 @@ add_opt()
 
 add_system()
 {
-        systems="${systems} (require \"$1\")"
+        modules="${modules} (require \"$1\")"
 }
 
 for arg in "$@"; do
         case "${arg}" in
-        --prefix=*)       PREFIX="${arg:9}" ;;
-        --bindir=*)       BINDIR="${arg:9}" ;;
-        --with-ladspa)    add_system "INCUDINE-LADSPA" ;;
-        --with-lv2)       add_system "INCUDINE-LV2" ;;
-        --with-module=*)  add_system "${arg:14}" ;;
-        --sbcl-options=*) add_opt "${arg:15}" ;;
-        *)                usage ;;
+        --prefix=*)         PREFIX="${arg:9}" ;;
+        --bindir=*)         BINDIR="${arg:9}" ;;
+        --with-fluidsynth)  add_system "INCUDINE-FLUIDSYNTH" ;;
+        --with-ladspa)      add_system "INCUDINE-LADSPA" ;;
+        --with-lv2)         add_system "INCUDINE-LV2" ;;
+        --with-module=*)    add_system "${arg:14}" ;;
+        --sbcl-options=*)   add_opt "${arg:15}" ;;
+        *)                  usage ;;
         esac
 done
 
-sbcl ${options} --eval "(${systems})" --load "executable.lisp" \
+sbcl ${options} --eval '(require "INCUDINE")' \
+     --eval "(pushnew (asdf:system-source-directory :incudine) asdf:*central-registry* :test 'equal)" \
+     --eval "(${modules})" --load "executable.lisp" \
      --eval "(save-lisp-and-die \"incudine\" :executable t :toplevel 'incudine::incudine-toplevel :save-runtime-options t)" || exit
 
 BINDIR="${BINDIR:-${PREFIX}/bin}"
