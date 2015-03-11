@@ -103,7 +103,9 @@
     (dofft-polar (i nbins ((compute-abuffer abuf)) ())
       ;; Sum of logarithms to avoid precision errors with the
       ;; floating point value of the magnitude.
-      (incf geometric-mean (the sample (log mag0)))
+      (incf geometric-mean (if (plusp mag0)
+                               (log (the positive-sample mag0))
+                               (log least-positive-sample)))
       (incf arithmetic-mean mag0))
     (with-samples ((r-nbins (/ (sample (abuffer-nbins abuf)))))
       ;; From log to linear scale
