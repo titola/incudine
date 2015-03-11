@@ -9,7 +9,7 @@
          (result +sample-zero+))
     (declare (type sample threshold result))
     (setf (fft-input fft) (buffer-play buf 1 0 t #'identity))
-    (generic-rate hop-size 0
+    (snapshot hop-size 0
       ;; Spectral flux with half-wave rectifier function
       ;; and L1-norm (Dixon DAFx-06)
       (setf result (if (> (flux abuf t t) threshold)

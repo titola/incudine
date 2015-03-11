@@ -13,7 +13,7 @@
     (setf (fft-input fft)
           (crossfade (sine 1000 .5 0) (white-noise .1)
                      (line 0 1 8 #'free)))
-    (generic-rate 1024 0
+    (snapshot 1024 0
       (prog1 (setf result (flatness abuf))
         (nrt-msg info "~D" (sample->fixnum (* 100 result)))))
     (out (tick (fft-input fft)))))

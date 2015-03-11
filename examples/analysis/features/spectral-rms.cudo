@@ -7,7 +7,7 @@
          (rms +sample-zero+))
     (declare (type sample mult rms))
     (setf (fft-input fft) (audio-in 0))
-    (generic-rate 1024 0
+    (snapshot 1024 0
       (prog1 (setf rms (* (spectral-rms abuf) mult))
         (reduce-warnings (nrt-msg info "~F" rms))))))
 

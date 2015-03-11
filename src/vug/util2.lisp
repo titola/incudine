@@ -212,22 +212,23 @@
         (setf count control-period value in)
         (progn (decf count) value))))
 
-;;; The input is valued every GATE samples, on demand or never.
-;;; If GATE is positive, the output is the input calculated every GATE samples.
-;;; If GATE is zero, the output is the old value of the input.
-;;; If GATE is negative, the output is the current value of the input and GATE
-;;; becomes zero.
-(define-vug generic-rate ((gate fixnum) (start-offset fixnum) in)
+(define-vug snapshot ((gate fixnum) (start-offset fixnum) input)
+  "INPUT is valued every GATE samples, on demand or never.
+If GATE is positive, the output is INPUT calculated every GATE samples.
+If GATE is zero, the output is the old value of INPUT.
+If GATE is negative, the output is the current value of INPUT and GATE
+becomes zero.
+START-OFFSET is the initial offset for the internal counter."
   (with ((count (init-only gate))
-         (value 0.0d0))
+         (value +sample-zero+))
     (declare (type fixnum count) (type sample value))
     (initialize (setf count (1+ start-offset)))
     (cond ((plusp gate)
            (if (= count 1)
-               (setf value (update in) count gate)
+               (setf value (update input) count gate)
                (decf count)))
           ((minusp gate)
-           (setf value (update in) gate 0)))
+           (setf value (update input) gate 0)))
     value))
 
 (define-vug samphold (in gate initial-value initial-threshold)

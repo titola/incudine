@@ -17,6 +17,11 @@
   (incudine::deprecated-msg 'one-zero 'zero*)
   `(zero* ,in ,coef))
 
+;;; 20150311
+(defmacro generic-rate (gate start-offset in)
+  (incudine::deprecated-msg 'generic-rate 'snapshot)
+  `(snapshot ,gate ,start-offset ,in))
+
 (in-package :incudine.voicer)
 
 ;;; 20150209
