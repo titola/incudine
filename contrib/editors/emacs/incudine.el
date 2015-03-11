@@ -1,6 +1,6 @@
 ;;; incudine.el --- major mode for editing Incudine sources
 
-;; Copyright (c) 2013 Tito Latini
+;; Copyright (c) 2013-2015 Tito Latini
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -31,15 +31,15 @@
   "Major mode for editing incudine code."
   :group 'languages)
 
+(defvar incudine-mode-hook nil
+  "Hook called when a buffer enters Incudine mode.")
+
 (defcustom incudine-scratch-message nil
   "Initial message displayed in *incudine-scratch* buffer.
 If this is nil, no message will be displayed."
   :type '(choice (text :tag "Message")
                  (const :tag "none" nil))
   :group 'incudine)
-
-(defvar incudine-mode-map nil
-  "Incudine keymap.")
 
 (defun incudine-buffer-name (string)
   (concat "*incudine-" string "*"))
@@ -62,7 +62,7 @@ If this is nil, no message will be displayed."
   (slime-eval-with-transcript
    `(swank:interactive-eval ,(if args
                                  (apply #'format string args)
-                               string))))
+                                 string))))
 
 (defun incudine-eval-defun ()
   (interactive)
@@ -87,7 +87,7 @@ If this is nil, no message will be displayed."
   (beginning-of-defun)
   (if n
       (loop repeat n do (beginning-of-defun))
-    (beginning-of-defun))
+      (beginning-of-defun))
   (forward-sexp))
 
 (defun incudine-next-defun (&optional n)
@@ -96,7 +96,7 @@ If this is nil, no message will be displayed."
   (end-of-defun)
   (if n
       (loop repeat n do (end-of-defun))
-     (forward-sexp))
+      (forward-sexp))
   (beginning-of-defun)
   (forward-sexp))
 
@@ -132,7 +132,7 @@ If ID is negative, it calls INCUDINE:STOP instead of INCUDINE:FREE"
   (let ((n (prefix-numeric-value0 id)))
     (incudine-eval (if (< n 0)
                        "(incudine:stop %d)"
-                     "(incudine:free %d)")
+                       "(incudine:free %d)")
                    (abs n))))
 
 (defun incudine-pause-node (&optional id)
@@ -177,68 +177,97 @@ If ID is negative, it calls INCUDINE:STOP instead of INCUDINE:FREE"
   (let ((value (prefix-numeric-value0 ch)))
     (if (minusp value)
         (incudine-eval "(incudine:reset-peak-meters)")
-      (incudine-eval "(incudine:peak-info %d)" value))))
+        (incudine-eval "(incudine:peak-info %d)" value))))
 
-(defun incudine-mode-keybindings (map)
-  "Incudine keybindings."
-  (define-key map [C-return] 'incudine-eval-and-next-fn)
-  (define-key map [C-S-return] 'incudine-eval-and-prev-fn)
-  (define-key map [M-return] 'incudine-eval-defun)
-  (define-key map [C-M-return] 'incudine-free-node)
-  (define-key map [prior] 'incudine-prev-defun)
-  (define-key map [next] 'incudine-next-defun)
-  (define-key map "\C-cv" 'incudine-show-repl)
-  (define-key map "\C-cs" 'incudine-scratch)
-  (define-key map "\C-c\M-o" 'incudine-repl-clear-buffer)
-  (define-key map "\C-crs" 'incudine-rt-start)
-  (define-key map "\C-crq" 'incudine-rt-stop)
-  (define-key map "\C-cp" 'incudine-pause-node)
-  (define-key map "\C-cu" 'incudine-unpause-node)
-  (define-key map "\C-cgc" 'incudine-gc)
-  (define-key map "\C-cgb" 'incudine-bytes-consed-in)
-  (define-key map "\C-cig" 'incudine-dump-graph)
-  (define-key map "\C-cim" 'incudine-rt-memory-free-size)
-  (define-key map "\C-cip" 'incudine-peak-info))
+(defun incudine-set-logger-level (value)
+  "Set Logger Level."
+  (incudine-eval "(setf (incudine.util:logger-level) %s)" value))
 
-(defun incudine-mode-menu (map)
-  "Incudine menu."
-  (define-key map [menu-bar incudine]
-    (cons "Incudine" (make-sparse-keymap "incudine")))
-  (define-key map [menu-bar incudine dump-graph]
-    '("Print Graph" . incudine-dump-graph))
-  (define-key map [menu-bar incudine mem-free-size]
-    '("RT Memory Free Size" . incudine-rt-memory-free-size))
-  (define-key map [menu-bar incudine gc]
-    '("Garbage Collection" . incudine-gc))
-  (define-key map [menu-bar incudine unpause-node]
-    '("Unpause" . incudine-unpause-node))
-  (define-key map [menu-bar incudine pause-node]
-    '("Pause" . incudine-pause-node))
-  (define-key map [menu-bar incudine free-node]
-    '("Stop Playing" . incudine-free-node))
-  (define-key map [menu-bar incudine rt-stop]
-    '("Realtime Stop" . incudine-rt-stop))
-  (define-key map [menu-bar incudine rt-start]
-    '("Realtime Start" . incudine-rt-start))
-  (define-key map [menu-bar incudine clear-repl]
-    '("REPL Clear Buffer" . incudine-repl-clear-buffer))
-  (define-key map [menu-bar incudine show-repl]
-    '("Show REPL" . incudine-show-repl))
-  (define-key map [menu-bar incudine scratch]
-    '("Scratch buffer" . incudine-scratch)))
+(defun incudine-logger-level-choice (c)
+  "Set Logger Level from a single character."
+  (interactive "cLogger level? (e)rror, (w)arn, (i)nfo or (d)ebug")
+  (when (member c '(?e ?w ?i ?d))
+    (incudine-set-logger-level
+      (case c
+        (?e ":ERROR")
+        (?w ":WARN")
+        (?i ":INFO")
+        (?d ":DEBUG")))))
 
-(if incudine-mode-map
-    nil
+(defun incudine-set-logger-time (value)
+  "Set Logger Time."
+  (incudine-eval "(setf (incudine.util:logger-time) %s)" value))
+
+(defun incudine-logger-time-choice (c)
+  "Set Logger Time from a single character."
+  (interactive "cLogger time? (S)amples, (s)econds or (n)il")
+  (when (member c '(?S ?s ?n))
+    (incudine-set-logger-time
+      (case c
+        (?n "NIL")
+        (?s ":SEC")
+        (?S ":SAMP")))))
+
+(defvar incudine-mode-map
   (let ((map (make-sparse-keymap "Incudine")))
-    (incudine-mode-keybindings map)
-    (incudine-mode-menu map)
-    (setq incudine-mode-map map)))
+    (define-key map [C-return] 'incudine-eval-and-next-fn)
+    (define-key map [C-S-return] 'incudine-eval-and-prev-fn)
+    (define-key map [M-return] 'incudine-eval-defun)
+    (define-key map [C-M-return] 'incudine-free-node)
+    (define-key map [prior] 'incudine-prev-defun)
+    (define-key map [next] 'incudine-next-defun)
+    (define-key map "\C-cv" 'incudine-show-repl)
+    (define-key map "\C-cs" 'incudine-scratch)
+    (define-key map "\C-c\M-o" 'incudine-repl-clear-buffer)
+    (define-key map "\C-crs" 'incudine-rt-start)
+    (define-key map "\C-crq" 'incudine-rt-stop)
+    (define-key map "\C-cp" 'incudine-pause-node)
+    (define-key map "\C-cu" 'incudine-unpause-node)
+    (define-key map "\C-cgc" 'incudine-gc)
+    (define-key map "\C-cgb" 'incudine-bytes-consed-in)
+    (define-key map "\C-cig" 'incudine-dump-graph)
+    (define-key map "\C-cim" 'incudine-rt-memory-free-size)
+    (define-key map "\C-cip" 'incudine-peak-info)
+    (define-key map "\C-cll" 'incudine-logger-level-choice)
+    (define-key map "\C-clt" 'incudine-logger-time-choice)
+    map)
+  "Keymap for Incudine mode.")
+
+(easy-menu-define incudine-mode-menu incudine-mode-map
+  "Menu used in Incudine mode."
+  (list "Incudine"
+        (list "REPL"
+              ["Show REPL" incudine-show-repl t]
+              ["REPL Clear Buffer" incudine-repl-clear-buffer t])
+        (list "Realtime"
+              ["RT Start" incudine-rt-start t]
+              ["RT Stop" incudine-rt-stop t]
+              ["Peak Info"
+               (incudine-peak-info
+                 (string-to-number (read-from-minibuffer "Channel: " "0")))
+               :keys "C-c i p"]
+              ["Reset Peak Meters" (incudine-peak-info -1) t])
+        (list "Graph"
+              ["Stop Playing" incudine-free-node t]
+              ["Pause" incudine-pause-node t]
+              ["Unpause" incudine-unpause-node t]
+              ["Print Graph" incudine-dump-graph t])
+        (list "Memory"
+              ["Garbage Collection" incudine-gc t]
+              ["RT Memory Free Size" incudine-rt-memory-free-size t])
+        (list "Logger"
+              ["Log Level" incudine-logger-level-choice t]
+              ["Log Time"  incudine-logger-time-choice t])
+        ["Scratch buffer" incudine-scratch t]))
+
+(add-to-list 'auto-mode-alist '("\\.cudo$" . incudine-mode))
 
 (define-derived-mode incudine-mode lisp-mode "Incudine"
   "Major mode for incudine.
 
-\\{incudine-mode-map}")
+\\{incudine-mode-map}"
+  (use-local-map incudine-mode-map)
+  (easy-menu-add incudine-mode-menu)
+  (run-hooks 'incudine-mode-hook))
 
-(add-to-list 'auto-mode-alist '("\\.cudo$" . incudine-mode))
-	     
 (provide 'incudine)
