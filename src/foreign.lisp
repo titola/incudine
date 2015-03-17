@@ -231,7 +231,13 @@
   (cffi:defcfun ("ja_set_lisp_busy_state" rt-set-busy-state) :void
     (status :boolean))
 
-  (cffi:defcfun ("ja_get_error_msg" rt-get-error-msg) :string))
+  (cffi:defcfun ("ja_get_error_msg" rt-get-error-msg) :string)
+
+  (cffi:defcfun ("ja_silent_errors" rt-silent-errors) :void
+    (silent-p :boolean))
+
+  (defun silent-jack-errors ()
+    (rt-silent-errors t)))
 
 ;;; PORTAUDIO DRIVER
 

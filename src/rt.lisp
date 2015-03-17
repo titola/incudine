@@ -19,7 +19,13 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defvar *after-gc-fn* (lambda () (nrt-msg debug "gc happened")))
 
-  (incudine.util::add-after-gc-hook *after-gc-fn*))
+  (incudine.util::add-after-gc-hook *after-gc-fn*)
+
+  ;;; In JACK2, `sem_timedwait' is interrupted by SIGUSR2 during the
+  ;;; gc and it is notified with a message to the standard error.
+  ;;; The default is to hide these messages.
+  #+jack-audio
+  (pushnew #'incudine.external::silent-jack-errors *initialize-hook*))
 
 (defmacro with-new-thread ((varname name priority debug-message) &body body)
   `(unless ,varname

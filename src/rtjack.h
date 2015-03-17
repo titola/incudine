@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014 Tito Latini
+ * Copyright (c) 2013-2015 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,8 +31,6 @@ enum {
         JA_SHUTDOWN
 };
 
-#define SBCL_SIG_STOP_FOR_GC  SIGUSR2
-
 #define JA_ERROR_MSG_MAX_LENGTH  (256)
 #define JA_PORT_NAME_MAX_LENGTH  (16)
 #define JA_SAMPLE_SIZE  (sizeof(jack_default_audio_sample_t))
@@ -52,7 +50,6 @@ static pthread_cond_t  ja_lisp_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t ja_c_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  ja_c_cond = PTHREAD_COND_INITIALIZER;
 static char ja_error_msg[JA_ERROR_MSG_MAX_LENGTH];
-static sigset_t sig_stop_for_gc;
 
 #define RETURN_IF_NULLPTR(v, msg)                       \
         do {                                            \
@@ -86,12 +83,15 @@ static sigset_t sig_stop_for_gc;
 
 static void ja_set_error_msg(const char *msg);
 static void ja_error(const char *msg);
+static void ja_default_error_callback(const char *msg);
+static void ja_silent_error_callback(const char *msg);
 static int ja_register_ports(void);
 static int ja_connect_client(void);
 static void* ja_process_thread(void *arg);
 static void ja_shutdown(void *arg);
 static void ja_terminate(void *arg);
 
+void ja_silent_errors(int silent);
 char *ja_get_error_msg(void);
 void ja_condition_wait(void);
 void ja_set_lisp_busy_state(int status);

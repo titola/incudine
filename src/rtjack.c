@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014 Tito Latini
+ * Copyright (c) 2013-2015 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,6 +31,23 @@ static void ja_set_error_msg(const char *msg)
 static void ja_error(const char *msg) {
         ja_set_error_msg(msg);
         ja_stop();
+}
+
+static void ja_default_error_callback(const char *msg)
+{
+        fprintf(stderr, "%s\n", msg);
+}
+
+static void ja_silent_error_callback(const char *msg)
+{
+        (void) msg;
+}
+
+void ja_silent_errors(int silent)
+{
+        jack_set_error_function(silent ?
+                                ja_silent_error_callback
+                                : ja_default_error_callback);
 }
 
 static int ja_register_ports(void)
@@ -123,7 +140,7 @@ static void* ja_process_thread(void *arg)
                                 /* Silence while lisp is busy */
                                 memset(ja_outputs[i], 0, ja_buffer_bytes);
                         }
-                        jack_cycle_signal(client, ja_status);
+                        jack_cycle_signal(client, 0);
                 } else {
                         /*
                          * Transfer the control of the client to lisp realtime
@@ -152,11 +169,6 @@ static void ja_shutdown(void *arg)
 
         ja_status = JA_SHUTDOWN;
         fprintf(stderr, "JACK Audio shutdown\n");
-        /*
-         * We are blocking SIG_STOP_FOR_GC in `ja_cycle_begin', and
-         * `jack_cycle_wait' blocks if JACK has shut down. The only
-         *  safe thing to do with the actual gc is to quit.
-         */
         kill(getpid(), SIGQUIT);
 }
 
@@ -263,9 +275,6 @@ int ja_initialize(SAMPLE srate, unsigned int input_channels,
                 ja_error("Unblock signals error\n");
                 return 1;
         }
-        sigemptyset(&sig_stop_for_gc);
-        sigaddset(&sig_stop_for_gc, SBCL_SIG_STOP_FOR_GC);
-
         ja_lisp_busy = 1;
 
         return 0;
@@ -307,14 +316,12 @@ jack_nframes_t ja_cycle_begin(void)
         if (ja_status != JA_RUNNING)
                 return 0;
         /*
-         * We are calling `ja_cycle_begin' from lisp, and the signal
-         * sent by SBCL during the gc (SIGUSR2) interrupts `sem_timedwait'
-         * used by Jack, therefore we have to temporarily block this signal.
-         * The gc is inhibited because we are inside SB-SYS:WITHOUT-GCING.
+         * In JACK2, `sem_timedwait' is interrupted by SIGUSR2 during the gc.
+         * We are within SB-SYS:WITHOUT-GCING but the inhibition of the gc is
+         * not guaranteed, therefore it is not a good idea to block this signal
+         * around `jack_cycle_wait', because it could cause the arrest of SBCL.
          */
-        pthread_sigmask(SIG_BLOCK, &sig_stop_for_gc, NULL);
         frames = jack_cycle_wait(client);
-        pthread_sigmask(SIG_UNBLOCK, &sig_stop_for_gc, NULL);
 
         if (ja_status != JA_RUNNING)
                 return 0;
