@@ -96,6 +96,7 @@
   (bps (error "Missing BPS envelope") :type envelope)
   (time-warp (null-pointer) :type foreign-pointer)
   (points 0 :type non-negative-fixnum)
+  (max-points *envelope-default-max-points* :type non-negative-fixnum)
   (constant-p t :type boolean))
 
 (defmethod print-object ((obj tempo-envelope) stream)
@@ -113,23 +114,28 @@
                                (release-node -1) restart-level real-time-p)
   (declare (ignore beats curve loop-node release-node restart-level
                    real-time-p))
-  (with-gensyms (tempo-env bps bps-env bpm points twarp-data)
+  (with-gensyms (tempo-env bps bps-env bpm points max-points twarp-data)
     `(let* ((,bps (mapcar (lambda (,bpm) (/ ,(sample 60) ,bpm)) ,bpms))
             (,bps-env (make-envelope ,bps ,@(cddr args)))
             (,points (envelope-points ,bps-env))
-            (,twarp-data (foreign-alloc 'sample :count ,points))
+            (,max-points (max ,points *envelope-default-max-points*))
+            (,twarp-data (foreign-alloc-sample ,max-points))
             (,tempo-env (%make-tempo-envelope
                           :bps ,bps-env
                           :time-warp ,twarp-data
                           :points ,points
+                          :max-points ,max-points
                           :constant-p (tenv-constant-p ,bps))))
        (tg:finalize ,tempo-env (lambda () (foreign-free ,twarp-data)))
        (fill-time-warp-data ,twarp-data ,bps-env)
        ,tempo-env)))
 
+(defmethod free-p ((obj tempo-envelope))
+  (null-pointer-p (tempo-envelope-time-warp obj)))
+
 (defmethod free ((obj tempo-envelope))
-  (unless (null-pointer-p #1=(tempo-envelope-time-warp obj))
-    (foreign-free #1#)
+  (unless (free-p obj)
+    (foreign-free #1=(tempo-envelope-time-warp obj))
     (tg:cancel-finalization obj)
     (setf #1# (null-pointer))
     (free (tempo-envelope-bps obj))
@@ -237,9 +243,12 @@
                (tenv-constant-p ,bps))
          (unless (= ,points #1=(tempo-envelope-points ,env))
            (setf #1# ,points)
-           (foreign-realloc-sample ,twarp-data ,points)
-           (tg:cancel-finalization ,env)
-           (tg:finalize ,env (lambda () (foreign-free ,twarp-data))))
+           (when (> ,points #2=(tempo-envelope-max-points ,env))
+             (setf #2# ,points)
+             (foreign-realloc-sample ,twarp-data ,points)
+             (tg:cancel-finalization ,env)
+             (tg:finalize ,env (lambda () (foreign-free ,twarp-data)))
+             (setf (tempo-envelope-time-warp ,env) ,twarp-data)))
          (fill-time-warp-data ,twarp-data ,bps-env)
          ,env))))
 

@@ -162,3 +162,28 @@
   95079315 93650525 91294848 87410994 81007600 70450189 53043962 35545044
   30586448 34199222 38238724 41950849 45815961 51333333 56850704 59568037
   60000000 60000000 60000000 60000000 60000000 60000000 60000000 60000000))
+
+(deftest tempo-envelope.2
+    (flet ((null-data-p (tenv)
+             (cffi:null-pointer-p
+               (incudine::tempo-envelope-time-warp tenv))))
+      (let* ((tenv (make-tempo-envelope '(60 60) '(0)))
+             (null-data0-p (null-data-p tenv))
+             (points0 (incudine::tempo-envelope-points tenv)))
+        (set-tempo-envelope tenv '(60 60 180 180) '(4 0 4))
+        (let ((null-data1-p (null-data-p tenv))
+              (points1 (incudine::tempo-envelope-points tenv))
+              (max-points1 (incudine::tempo-envelope-max-points tenv)))
+          (set-tempo-envelope tenv
+            (loop repeat (1+ max-points1) collect (+ 60 (random 120)))
+            (loop repeat max-points1 collect (random 9)))
+          (let* ((null-data2-p (null-data-p tenv))
+                 (points2 (incudine::tempo-envelope-points tenv))
+                 (points2-ok-p (= points2 (1+ max-points1)))
+                 (max-points2-ok-p (= (incudine::tempo-envelope-max-points tenv)
+                                      points2)))
+            (free tenv)
+            (values points0 points1 null-data0-p null-data1-p
+                    null-data2-p (null-data-p tenv) points2-ok-p
+                    max-points2-ok-p)))))
+  2 4 NIL NIL NIL T T T)
