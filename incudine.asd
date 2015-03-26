@@ -35,7 +35,7 @@
                                       :defaults path))))))
 
 (defsystem "incudine"
-  :version "0.8.1"
+  :version "0.8.2"
   :description "Incudine is a Music/DSP programming environment."
   :licence "GPL v2"
   :author "Tito Latini"

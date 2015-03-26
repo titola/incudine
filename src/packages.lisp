@@ -121,7 +121,7 @@
    #:smp-ref #:i8-ref #:u8-ref #:i16-ref #:u16-ref #:i32-ref #:u32-ref
    #:i64-ref #:u64-ref #:f32-ref #:f64-ref
    #:ptr-ref
-   #:with-ensure-symbol
+   #:with-ensure-symbols
    #:with-foreign-array #:with-samples #:with-samples*
    #:with-complex
    #:do-complex

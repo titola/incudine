@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014 Tito Latini
+;;; Copyright (c) 2014-2015 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -114,7 +114,7 @@ arguments to update the dependencies if it exists."
                        (format-symbol *package* "SET-~A-~A"
                                       ugen-name control-name))))
         (with-gensyms (ctrl)
-          (with-ensure-symbol (ugen-instance value)
+          (with-ensure-symbols (ugen-instance value)
             (let* ((type (if ptr-p
                              (if (subtypep type 'sample) type :pointer)
                              type))

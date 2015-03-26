@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2015 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -26,6 +26,11 @@
 
 (defvar *score-statements* (make-hash-table :test #'equal))
 (declaim (type hash-table *score-statements*))
+
+(declaim (special *score-objects-to-free*
+                  ;; Stack used to check recursive inclusions of rego files.
+                  *include-rego-stack*)
+         (type list *score-objects-to-free* *include-rego-stack*))
 
 ;;; Define an arbitrary score statement.
 ;;; The statement is formed by the elements of the returned list.
@@ -86,7 +91,15 @@
 
 (declaim (inline blank-char-p))
 (defun blank-char-p (c)
-  (member c '(#\space #\tab)))
+  (member c '(#\Space #\Tab)))
+
+(declaim (inline string-trim-blank))
+(defun string-trim-blank (string)
+  (string-trim '(#\Space #\Tab) string))
+
+(declaim (inline string-trim-blank-and-quotation))
+(defun string-trim-blank-and-quotation (string)
+  (string-trim '(#\Space #\Tab #\") string))
 
 (declaim (inline line-parse-skip-string))
 (defun line-parse-skip-string (str index end)
@@ -137,33 +150,65 @@
 (defmacro %at-sample (at-fname beats func-symbol &rest args)
   `(,at-fname ,beats ,func-symbol ,@args))
 
-(defun score-line->sexp (line at-fname)
-  (declare (type string line))
-  (let ((line (or (expand-score-statement line) line))
-        (*read-default-float-format* *sample-type*))
-    (declare (type string line))
-    (if (time-tagged-function-p line)
-        (macroexpand-1
-          (read-from-string
-           (format nil "(INCUDINE::%AT-SAMPLE ~A ~A)" at-fname line)))
-        ;; Tag or lisp statement
-        (read-from-string (string-left-trim '(#\space #\tab) line)))))
+(define-constant +include-strlen+ (length "include"))
 
-(declaim (inline score-lines->sexp))
-(defun score-lines->sexp (stream at-fname)
-  (declare (type stream stream))
+;;; Score statement used to include the content of another rego file:
+;;;
+;;;     include "regofile" [time]
+;;;
+(declaim (inline include-regofile-p))
+(defun include-regofile-p (line)
+  (and (>= (length line) #.(length "include \"x\""))
+       (string= line "include" :end1 7)
+       (blank-char-p (char line 7))
+       t))
+
+(defun include-rego-path-and-time (line)
+  (declare (type string line))
+  (let ((time-pos (position #\" line :from-end t)))
+    (values (string-trim-blank-and-quotation (subseq line (1+ +include-strlen+)
+                                                     time-pos))
+            (read-from-string (string-trim-blank-and-quotation
+                                (subseq line time-pos))
+                              nil))))
+
+(defun score-line->sexp (line at-fname &optional args)
+  (declare (type string line) (type list args))
+  (if (include-regofile-p line)
+      (multiple-value-bind (path time)
+          (include-rego-path-and-time line)
+        (let ((incfile (truename (merge-pathnames path (car args)))))
+          (cond ((find incfile *include-rego-stack* :test #'equal)
+                 (msg error "recursive inclusion of ~S~%  => ~A" incfile
+                      (reverse *include-rego-stack*)))
+                (t (push incfile *include-rego-stack*)
+                   (apply #'%write-regofile incfile
+                          `(,at-fname ,@(cdr args) t ,time))))))
+      (let ((line (or (expand-score-statement line) line))
+            (*read-default-float-format* *sample-type*))
+        (declare (type string line))
+        (if (time-tagged-function-p line)
+            (macroexpand-1
+              (read-from-string
+                (format nil "(INCUDINE::%AT-SAMPLE ~A ~A)" at-fname line)))
+            ;; Tag or lisp statement.
+            (read-from-string (string-left-trim '(#\Space #\Tab) line))))))
+
+(defun score-lines->sexp (stream at-fname args)
+  (declare (type stream stream) (type list args))
   (loop for line of-type (or string null)
                  = (read-score-line stream)
         while line
         unless (score-skip-line-p line)
-        collect (score-line->sexp line at-fname)))
+        collect (score-line->sexp line at-fname
+                                  (and (include-regofile-p line) args))))
 
-(defun find-score-local-bindings (stream at)
+(defun find-score-local-bindings (stream at args)
   (declare (type stream stream) (type symbol at))
   (labels ((score-bindings-p (line)
              (string-equal (subseq line 0 (min 5 (length line))) "with "))
            (format-bindings (line)
-             (concatenate 'string "((" (subseq line 5) "))"))
+             (concatenate 'string "(" (subseq line 5) ")"))
            (first-score-stmt (line)
              (declare (type (or string null) line))
              (when line
@@ -173,7 +218,7 @@
                       ;; Local bindings at the beginning of the score
                       (read-from-string (format-bindings line)))
                      (t ;; There aren't local bindings
-                      (list nil (score-line->sexp line at)))))))
+                      (list nil (score-line->sexp line at args)))))))
     (first-score-stmt (read-score-line stream))))
 
 (defun read-score-line (stream)
@@ -189,7 +234,7 @@
     (let ((line (read-line stream nil nil)))
       (declare (type (or string null) line))
       (when line
-        (let* ((s (remove-comment (string-trim '(#\space #\tab) line)))
+        (let* ((s (remove-comment (string-trim-blank line)))
                (slen (length s)))
           (declare (type non-negative-fixnum slen))
           (if (line-break-p s slen)
@@ -200,33 +245,36 @@
               s))))))
 
 (defmacro at-last-time (now function)
-  `(at (+ ,now 1e-10)
-       (lambda ()
-         (at (+ (incudine.edf:last-time)
-                ;; We use a small fractional number to schedule a new event
-                ;; after the last but possibly at the same time. If we use
-                ;; the last scheduled time without this offset, the next
-                ;; function is called before the last event and it is not
-                ;; what we want.
-                1e-10)
-             ,function))))
+  (with-gensyms (to-free)
+    `(at (+ ,now 1e-10)
+         (lambda (,to-free)
+           (at (+ (incudine.edf:last-time)
+                  ;; We use a small fractional number to schedule a new event
+                  ;; after the last but possibly at the same time. If we use
+                  ;; the last scheduled time without this offset, the next
+                  ;; function is called before the last event and it is not
+                  ;; what we want.
+                  1e-10)
+               ,function ,to-free))
+         *score-objects-to-free*)))
 
 ;;; Extend the last time if there is a pending event.
 ;;; Note: the duration of an event is known only if it uses the local
 ;;; function DUR (see REGOFILE->SEXP).
-(defmacro maybe-extend-time (now time-var dur sched-func c-array tempo-env)
-  ``(when (nrt-edf-heap-p)
-      (at-last-time ,,now
-        (lambda ()
-          (flet ((end-of-rego (&optional arg)
-                   (declare (ignorable arg))
-                   (free (list ,,c-array ,,tempo-env))
-                   (nrt-msg info "end of rego")))
-            (cond ((and (plusp ,,dur)
-                        (> (incf ,,time-var ,,dur) ,,now))
-                   (,,sched-func ,,time-var #'end-of-rego))
-                  ((rt-thread-p) (nrt-funcall #'end-of-rego))
-                  (t (end-of-rego))))))))
+(defmacro maybe-extend-time (now time-var dur sched-func)
+  (with-gensyms (to-free)
+    ``(when (nrt-edf-heap-p)
+        (at-last-time ,,now
+          (lambda (,',to-free)
+            (flet ((end-of-rego (&optional arg)
+                     (declare (ignorable arg))
+                     (free ,',to-free)
+                     (nrt-msg info "end of rego")))
+              (cond ((and (plusp ,,dur)
+                          (> (incf ,,time-var ,,dur) ,,now))
+                     (,,sched-func ,,time-var #'end-of-rego))
+                    ((rt-thread-p) (nrt-funcall #'end-of-rego))
+                    (t (end-of-rego)))))))))
 
 (declaim (inline default-tempo-envelope))
 (defun default-tempo-envelope ()
@@ -249,33 +297,104 @@
       (,(if compile-rego-p 'progn 'incudine.util::cudo-eval) ,@body)))
 
 ;;; Foreign memory to reduce consing.
-(defmacro with-rego-samples ((foreign-array-name time-var sched-var
-                              last-time-var last-dur-var) &body body)
+(defmacro with-rego-samples ((foreign-array-name t0-var t1-var time-var
+                              sched-var last-time-var last-dur-var) &body body)
   (with-complex-gensyms (c-array)
-    (let ((var-names (list time-var sched-var last-time-var last-dur-var)))
+    (let ((var-names (list t0-var t1-var time-var sched-var last-time-var
+                           last-dur-var)))
       `(let* ((,foreign-array-name (make-foreign-array ,(length var-names)
                                                        'sample :zero-p t))
               (,c-array (foreign-array-data ,foreign-array-name)))
          (symbol-macrolet ,(loop for var in var-names for i from 0
                                  collect `(,var (smp-ref ,c-array ,i)))
-           (setf ,time-var (if (incudine::nrt-edf-heap-p)
-                               (now)
-                               +sample-zero+))
+           (setf ,t0-var (if (incudine::nrt-edf-heap-p)
+                             (now)
+                             +sample-zero+))
+           (setf ,t1-var ,t0-var)
+           (setf ,time-var ,t0-var)
            ,@body)))))
 
-(defun %write-regofile (path at-fname time-var dur-var sched-func c-array
-                        tempo-env)
+;;; An included regofile doesn't change the temporal envelope and/or
+;;; the time of the parent regofile.
+(defun rego-local-tempo (local-bindings time parent-time time-offset
+                         time-offset-var tempo-env parent-tempo-env)
+  (let ((time-bind `(,parent-time ,time))
+        ;; TIME-OFFSET should be altered if it is defined with a
+        ;; parent's variable shadowed in the included rego file,
+        ;; therefore it is safe to create a new variable binding.
+        (time-os-bind `(,time-offset-var ,time-offset))
+        (tenv-bind `(,parent-tempo-env ,tempo-env))
+        (local-tempo `(progn
+                        ,(and time-offset `(incf ,time ,time-offset-var))
+                        (setf ,tempo-env (copy-tempo-envelope ,tempo-env))
+                        (push ,tempo-env *score-objects-to-free*))))
+    (if (car local-bindings)
+        ;; Update the local bindings.
+        `((,time-bind ,time-os-bind ,tenv-bind ,@local-bindings) ,local-tempo)
+        ;; Set the local bindings.
+        `((,time-bind ,time-os-bind ,tenv-bind) ,local-tempo
+          ,@(cdr local-bindings)))))
+
+(defun %write-regofile (path at-fname time-var dur-var sched-func
+                        &optional included-p time-offset)
   `(prog*
      ,@(with-open-file (score path)
-         (append
-           (find-score-local-bindings score at-fname)
-           (score-lines->sexp score at-fname)
-           (list (maybe-extend-time at-fname time-var dur-var sched-func
-                                    c-array tempo-env))))))
+         (unless included-p
+           (push (truename score) *include-rego-stack*))
+         (with-ensure-symbols (time tempo-env)
+           (with-gensyms (parent-time parent-tempo-env)
+             (let ((write-args (list (directory-namestring score) time-var
+                                     dur-var sched-func)))
+               (append
+                 (let ((vars (find-score-local-bindings score at-fname
+                                                        write-args)))
+                   (cond (included-p
+                          (with-gensyms (time-offset-var)
+                            (rego-local-tempo vars time parent-time time-offset
+                                              time-offset-var tempo-env
+                                              parent-tempo-env)))
+                         ((car vars) (list vars))
+                         ;; No local bindings.
+                         (t vars)))
+                 (score-lines->sexp score at-fname write-args)
+                 (cond (included-p
+                        ;; End of the included regofile.
+                        (pop *include-rego-stack*)
+                        `((setf ,time ,parent-time ,tempo-env ,parent-tempo-env)))
+                       (t (list (maybe-extend-time at-fname time-var dur-var
+                                                   sched-func)))))))))))
+
+(define-constant +rego-time0-index+ 0)
+(define-constant +rego-time1-index+ 1)
+(define-constant +rego-time-index+ 2)
+
+(declaim (inline rego-time))
+(defun rego-time (time-ptr tempo-env)
+  (declare (ignore tempo-env))
+  ;; Time offset in beats.
+  (* (- (smp-ref time-ptr +rego-time1-index+)
+        (smp-ref time-ptr +rego-time0-index+))
+     *sample-duration*))
+
+(defun set-rego-time (time-ptr tempo-env value)
+  (declare (type foreign-pointer time-ptr) (type tempo-envelope tempo-env)
+           (type real value))
+  (let ((value (max 0 value)))
+    ;; Time offset used in REGOFILE->SEXP. The value is converted in
+    ;; seconds before the update.
+    (setf (smp-ref time-ptr +rego-time-index+)
+          (+ (smp-ref time-ptr +rego-time0-index+)
+             (* *sample-rate* (%time-at tempo-env value))))
+    ;; Update without conversion from beats to seconds.
+    (setf (smp-ref time-ptr +rego-time1-index+)
+          (+ (smp-ref time-ptr +rego-time0-index+)
+             (* *sample-rate* value)))))
+
+(defsetf rego-time set-rego-time)
 
 ;;; Local variables usable inside the rego file:
 ;;;
-;;;     TIME          initial time in samples
+;;;     TIME          time offset in beats
 ;;;     TEMPO-ENV     temporal envelope of the events
 ;;;
 ;;; It is possible to define other local variables by inserting
@@ -303,27 +422,45 @@
 ;;;     (tempo bpms beats &key curve loop-node release-node
 ;;;                            restart-level real-time-p)
 ;;;
+;;; The syntax to include the content of an external regofile is:
+;;;
+;;;     include "regofile" [time]
+;;;
+;;; where `time' is an optional time offset in beats.
+;;; TIME and TEMPO-ENV are a parent's copy within an included regofile,
+;;; so we can locally change the temporal envelope and/or the time offset
+;;; without side effects. Moreover, all the local bindings and the labels
+;;; contained in a regofile continue to have lexical scope and dynamic
+;;; extent, therefore it is possible to include the same regofile multiple
+;;; times without name collisions.
+;;; There is not a specific limit on the depth of included rego files.
+;;;
 (defun regofile->sexp (path &optional fname compile-rego-p)
   (declare (type (or pathname string)))
-  (with-ensure-symbol (time dur tempo tempo-env)
+  (with-ensure-symbols (time dur tempo tempo-env)
     (let ((%sched (ensure-complex-gensym "AT"))
-          (sched (ensure-complex-gensym "AT")))
-      (with-complex-gensyms (beats last-time last-dur c-array-wrap)
+          (sched (ensure-complex-gensym "AT"))
+          (*include-rego-stack* nil))
+      (with-complex-gensyms (smptime0 smptime1 smptime beats last-time
+                             last-dur c-array-wrap)
         `(with-rego-function (,fname ,compile-rego-p)
-           (with-rego-samples (,c-array-wrap ,time ,sched ,last-time ,last-dur)
-             (let ((,tempo-env (default-tempo-envelope)))
+           (with-rego-samples (,c-array-wrap ,smptime0 ,smptime1 ,smptime ,sched
+                               ,last-time ,last-dur)
+             (let ((,tempo-env (default-tempo-envelope))
+                   (*score-objects-to-free* nil)
+                   (*rego-tempo-envelopes* nil))
                (incudine.edf::with-schedule
                  (flet ((,dur (,beats)
                           (setf ,last-time ,sched)
                           (setf ,last-dur (sample ,beats))
                           (time-at ,tempo-env ,beats ,sched))
-                        (,%sched (beats fn)
+                        (,%sched (at-beat fn)
                           (incudine.edf::%at
-                            (+ ,time
+                            (+ ,smptime
                                (* *sample-rate*
                                   (%time-at ,tempo-env
-                                            (setf ,sched (sample beats)))))
-                            fn (list beats))))
+                                            (setf ,sched (sample at-beat)))))
+                            fn (list at-beat))))
                    (declare (ignorable (function ,dur)))
                    (macrolet ((,tempo (&rest args)
                                 `(set-tempo-envelope ,',tempo-env
@@ -331,14 +468,19 @@
                                          args
                                          ;; Constant tempo
                                          `((list ,(car args) ,(car args)) '(0)))))
-                              (,sched (beats fn &rest args)
+                              (,sched (at-beat fn &rest args)
                                 (with-gensyms (x)
-                                  `(,',%sched ,beats
+                                  `(,',%sched ,at-beat
                                               (lambda (,x)
                                                 (setf ,',sched (sample ,x))
                                                 (,fn ,@args))))))
-                     ,(%write-regofile path sched last-time last-dur %sched
-                                       c-array-wrap tempo-env)))))))))))
+                     (symbol-macrolet
+                         ((,time (rego-time (foreign-array-data ,c-array-wrap)
+                                            ,tempo-env)))
+                       (push ,tempo-env *score-objects-to-free*)
+                       (push ,c-array-wrap *score-objects-to-free*)
+                       ,(%write-regofile
+                          path sched last-time last-dur %sched))))))))))))
 
 (declaim (inline regofile->function))
 (defun regofile->function (path &optional fname compile-rego-p)
