@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2015 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -141,6 +141,24 @@
     (free (tempo-envelope-bps obj))
     (setf (tempo-envelope-points obj) 0))
   (values))
+
+(defun copy-tempo-envelope (tenv)
+  (declare (type tempo-envelope tenv))
+  (if (free-p tenv)
+      (msg error "The temporal envelope is unusable.")
+      (let* ((points (tempo-envelope-points tenv))
+             (max-points (tempo-envelope-max-points tenv))
+             (data (foreign-alloc-sample max-points))
+             (new (%make-tempo-envelope
+                    :bps (copy-envelope (tempo-envelope-bps tenv))
+                    :time-warp data
+                    :points points
+                    :max-points max-points
+                    :constant-p (tempo-envelope-constant-p tenv))))
+        (foreign-copy data (tempo-envelope-time-warp tenv)
+                      (* points +foreign-sample-size+))
+        (tg:finalize new (lambda () (foreign-free data)))
+        new)))
 
 (declaim (inline integrate-linear-curve))
 (defun integrate-linear-curve (y0 y1 x)

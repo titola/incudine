@@ -187,3 +187,22 @@
                     null-data2-p (null-data-p tenv) points2-ok-p
                     max-points2-ok-p)))))
   2 4 NIL NIL NIL T T T)
+
+(deftest tempo-envelope.3
+    (let* ((tenv0 (make-tempo-envelope '(60 135 94) '(4 8) :curve :sine))
+           (tenv1 (copy-tempo-envelope tenv0)))
+      (macrolet ((check-slot (slot-name test)
+                   (let ((reader (format-symbol (find-package "INCUDINE")
+                                                "TEMPO-ENVELOPE-~A" slot-name)))
+                     `(,test (,reader tenv0) (,reader tenv1)))))
+        (multiple-value-prog1
+            (values (free-p tenv0) (free-p tenv1) (eq tenv0 tenv1)
+                    (check-slot bps eq)
+                    (check-slot time-warp cffi:pointer-eq)
+                    (check-slot points =)
+                    (check-slot max-points =)
+                    (check-slot constant-p eq)
+                    (every (lambda (b) (= (bpm-at tenv0 b) (bpm-at tenv1 b)))
+                           '(0 1 2 3 4 5 6 7 8)))
+          (free (list tenv0 tenv1)))))
+  NIL NIL NIL NIL NIL T T T T)

@@ -381,6 +381,7 @@
    #:at #:aat #:flush-pending #:flush-all-fifos
    #:tempo #:*tempo* #:make-tempo #:bpm #:bps #:now #:tempo-sync
    #:tempo-envelope #:make-tempo-envelope #:set-tempo-envelope
+   #:copy-tempo-envelope
    #:time-at #:bps-at #:bpm-at
    #:rt-funcall #:fast-rt-funcall #:nrt-funcall #:fast-nrt-funcall
    #:*sine-table* #:*cosine-table*
