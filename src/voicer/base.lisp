@@ -59,33 +59,6 @@
                   :grow +voicer-pool-grow+))
 (declaim (type cons-pool *voicer-pool*))
 
-(defun release-function-default (voicer tag object-free-p)
-  (declare #.*standard-optimize-settings*
-           (type voicer voicer) (type boolean object-free-p))
-  (let* ((object-entries (gethash tag (voicer-object-hash voicer)))
-         (object-tlist (car object-entries))
-         (pending-tlist (cdr object-entries))
-         (pool (voicer-generic-pool voicer)))
-    (declare (type cons object-entries object-tlist pending-tlist))
-    (cond ((and (tlist-empty-p object-tlist)
-                (tlist-empty-p pending-tlist))
-           voicer)
-          (object-free-p
-           (let ((obj (tlist-remove-left object-tlist pool)))
-             (when obj
-               (tlist-add-right pending-tlist obj pool)
-               (cond ((node-value obj)
-                      (reduce-warnings
-                        (funcall (voicer-object-free-function voicer)
-                                 (node-value obj)))
-                      (setf (node-value obj) nil))
-                     (t (setf (node-to-release obj) t))))))
-          (t (remove-node voicer
-                          (tlist-remove-left (if (tlist-empty-p pending-tlist)
-                                                 object-tlist
-                                                 pending-tlist)
-                                             pool))))))
-
 (defstruct (voicer (:constructor %make-voicer)
                    (:copier nil))
   (node-pool nil :type cons-pool)
@@ -123,6 +96,33 @@
                                    :grow 12)
                     :objects (cons-pool-pop-cons *voicer-pool*)
                     :available-nodes polyphony))))
+
+(defun release-function-default (voicer tag object-free-p)
+  (declare #.*standard-optimize-settings*
+           (type voicer voicer) (type boolean object-free-p))
+  (let* ((object-entries (gethash tag (voicer-object-hash voicer)))
+         (object-tlist (car object-entries))
+         (pending-tlist (cdr object-entries))
+         (pool (voicer-generic-pool voicer)))
+    (declare (type cons object-entries object-tlist pending-tlist))
+    (cond ((and (tlist-empty-p object-tlist)
+                (tlist-empty-p pending-tlist))
+           voicer)
+          (object-free-p
+           (let ((obj (tlist-remove-left object-tlist pool)))
+             (when obj
+               (tlist-add-right pending-tlist obj pool)
+               (cond ((node-value obj)
+                      (reduce-warnings
+                        (funcall (voicer-object-free-function voicer)
+                                 (node-value obj)))
+                      (setf (node-value obj) nil))
+                     (t (setf (node-to-release obj) t))))))
+          (t (remove-node voicer
+                          (tlist-remove-left (if (tlist-empty-p pending-tlist)
+                                                 object-tlist
+                                                 pending-tlist)
+                                             pool))))))
 
 (defun unsafe-set-polyphony (voicer value)
   (declare (type voicer voicer) (type non-negative-fixnum value))
@@ -410,7 +410,7 @@
 (defmacro %create-voicer (old-voicer obj &optional polyphony)
   (with-gensyms (voicer)
     (let* ((func-name (car obj))
-           (dsp-properties (gethash func-name incudine.vug::*dsp-hash*)))
+           (dsp-properties (gethash func-name incudine.vug::*dsps*)))
       (if dsp-properties
           `(let (,@(mapcar (lambda (arg value) `(,arg ,value))
                            #1=(incudine.vug::dsp-arguments dsp-properties)

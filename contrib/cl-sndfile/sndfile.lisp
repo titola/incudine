@@ -344,16 +344,6 @@
           (multiple-value-prog1 ,@body)
        (when ,var (close ,var)))))
 
-(declaim (inline close))
-(defun close (sfile)
-  (declare (sndfile sfile))
-  (let ((result (%close sfile)))
-    (setf (sndfile-pointer sfile) (cffi:null-pointer))
-    (tg:cancel-finalization sfile)
-    (unless (zerop result)
-      (error-generic result))
-    (values)))
-
 (declaim (inline command-to-int))
 (defun command-to-int (command-number)
   (cffi:with-foreign-object (i :int)

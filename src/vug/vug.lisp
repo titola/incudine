@@ -25,6 +25,9 @@
 (defvar *ugens* (make-hash-table))
 (declaim (type hash-table *ugens*))
 
+(defvar *dsps* (make-hash-table :test #'eq))
+(declaim (type hash-table *dsps*))
+
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defvar *constructors-for-objects-to-free* nil)
   (declaim (type list *constructors-for-objects-to-free*))
@@ -167,6 +170,15 @@
                             (:copier nil))
   (spec nil))
 
+(defstruct (ugen (:copier nil))
+  (name nil :type symbol)
+  (callback nil :type (or function null))
+  (inline-callback #'dummy-function :type function)
+  (return-type nil :type (or symbol list))
+  (args nil :type list)
+  (arg-types nil :type list)
+  (control-flags nil :type list))
+
 (defmethod print-object ((obj vug) stream)
   (format stream "#<~A ~A>"
           (if (vug-macro-p obj) 'vug-macro 'vug)
@@ -213,6 +225,15 @@
   (declare (type symbol name))
   (values (gethash name *ugens*)))
 
+(declaim (inline dsp))
+(defun dsp (name)
+  (declare (type symbol name))
+  (values (gethash name *dsps*)))
+
+(declaim (inline vug-type-p))
+(defun vug-type-p (vug type)
+  (eq (vug-object-type vug) type))
+
 (declaim (inline ugen-variable-p))
 (defun ugen-variable-p (var)
   (vug-type-p var 'ugen-instance))
@@ -234,6 +255,19 @@
 (defun vug-input-p (obj)
   (and (vug-function-p obj)
        (eq (vug-function-name obj) 'vug-input)))
+
+(declaim (inline vug-name-p))
+(defun vug-name-p (vug name)
+  (eq (vug-object-name vug) name))
+
+(declaim (inline vug-progn-function-p))
+(defun vug-progn-function-p (obj)
+  (and (vug-object-p obj) (vug-name-p obj 'progn)))
+
+(declaim (inline object-to-free-p))
+(defun object-to-free-p (obj)
+  (and (vug-function-p obj)
+       (member (vug-object-name obj) *constructors-for-objects-to-free*)))
 
 (declaim (inline get-ugen-instance-p))
 (defun get-ugen-instance-p (obj)
@@ -298,14 +332,6 @@
         (push obj (vug-variables-bindings *vug-variables*)))
       obj)))
 
-(declaim (inline vug-name-p))
-(defun vug-name-p (vug name)
-  (eq (vug-object-name vug) name))
-
-(declaim (inline vug-type-p))
-(defun vug-type-p (vug type)
-  (eq (vug-object-type vug) type))
-
 (declaim (inline init-time-vug-function-p))
 (defun init-time-vug-function-p (obj)
   (member (vug-object-name obj) '(init-only lambda)))
@@ -339,6 +365,11 @@
                     (or (ptime-p (car obj)) (ptime-p (cdr obj)))))))
     (ptime-p obj)))
 
+(declaim (inline variable-to-update))
+(defun variable-to-update (var param)
+  (push var (vug-parameter-vars-to-update param))
+  (pushnew param (vug-variables-to-update *vug-variables*)))
+
 (defun resolve-variable-to-update (obj var)
   (cond ((vug-function-p obj)
          (resolve-variable-to-update (vug-function-inputs obj) var))
@@ -350,11 +381,6 @@
         ((consp obj)
          (resolve-variable-to-update (car obj) var)
          (resolve-variable-to-update (cdr obj) var))))
-
-(declaim (inline variable-to-update))
-(defun variable-to-update (var param)
-  (push var (vug-parameter-vars-to-update param))
-  (pushnew param (vug-variables-to-update *vug-variables*)))
 
 (declaim (inline vug-variable-to-preserve-p))
 (defun vug-variable-to-preserve-p (var)
@@ -462,15 +488,6 @@
 (defun local-buffer-p (obj)
   (and (vug-function-p obj) (vug-name-p obj 'incudine:make-buffer)))
 
-(declaim (inline object-to-free-p))
-(defun object-to-free-p (obj)
-  (and (vug-function-p obj)
-       (member (vug-object-name obj) *constructors-for-objects-to-free*)))
-
-(declaim (inline vug-progn-function-p))
-(defun vug-progn-function-p (obj)
-  (and (vug-object-p obj) (vug-name-p obj 'progn)))
-
 (declaim (inline parse-bindings))
 (defun parse-bindings (lst flist mlist floop-info)
   (mapcar (lambda (x)
@@ -522,6 +539,12 @@
                  `(make-vug-function :name 'progn
                                      :inputs (list ,@inputs))
                  (car inputs)))))))
+
+(declaim (inline lambda-bindings))
+(defun lambda-bindings (args)
+  (loop for i in args
+        unless (member i '(&optional &key &rest))
+        collect `(,i ',i)))
 
 (defun parse-lambda-form (form flist mlist floop-info)
   (let ((args (cadr form)))
@@ -635,12 +658,6 @@
          :name 'progn
          :inputs (list ,@(parse-vug-def (cdr form) t flist mlist floop-info))
          :block-p t)))
-
-(declaim (inline lambda-bindings))
-(defun lambda-bindings (args)
-  (loop for i in args
-        unless (member i '(&optional &key &rest))
-        collect `(,i ',i)))
 
 (defmacro return-ugen-foreign-value (ugen-name type)
   `(cffi:mem-ref (ugen-instance-return-pointer ,ugen-name)
@@ -929,6 +946,22 @@
                 (remove-lisp-declaration (cdr obj))))
       obj))
 
+(declaim (inline vug-variable-replacement))
+(defun vug-variable-replacement (var)
+  (declare (type vug-variable var))
+  (gethash var (vug-variables-deleted *vug-variables*)))
+
+(declaim (inline vug-variable-deleted-p))
+(defun vug-variable-deleted-p (var)
+  (multiple-value-bind (cached cached-p) (vug-variable-replacement var)
+    (declare (ignore cached))
+    cached-p))
+
+(declaim (inline undelete-vug-variable))
+(defun undelete-vug-variable (var)
+  (declare (type vug-variable var))
+  (remhash var (vug-variables-deleted *vug-variables*)))
+
 (defun recheck-variables (var)
   (declare (type vug-variable var))
   (let ((vardep (pop (vug-variable-variables-to-recheck var))))
@@ -1158,22 +1191,6 @@
     (dolist (par (vug-variables-to-update *vug-variables*))
       (setf #1=(vug-parameter-vars-to-update par) (delete var #1#)))))
 
-(declaim (inline vug-variable-replacement))
-(defun vug-variable-replacement (var)
-  (declare (type vug-variable var))
-  (gethash var (vug-variables-deleted *vug-variables*)))
-
-(declaim (inline vug-variable-deleted-p))
-(defun vug-variable-deleted-p (var)
-  (multiple-value-bind (cached cached-p) (vug-variable-replacement var)
-    (declare (ignore cached))
-    cached-p))
-
-(declaim (inline undelete-vug-variable))
-(defun undelete-vug-variable (var)
-  (declare (type vug-variable var))
-  (remhash var (vug-variables-deleted *vug-variables*)))
-
 (defmacro reduce-foreach-frame-loop (obj info replaced-vars initialize-body-p)
   (with-gensyms (in out now old-in old-out old-now rest old-vars)
     `(cond (,info
@@ -1339,6 +1356,18 @@
                args types)
      ,@body))
 
+(declaim (inline extract-vug-config))
+(defun extract-vug-config (code)
+  (declare (type list code))
+  (let ((doc (when (stringp (car code))
+               (car code))))
+    (do ((l (if doc (cdr code) code) (cddr l))
+         (acc nil))
+        ((or (null l) (not (keywordp (car l))))
+         (values doc (when acc `(list ,@acc)) l))
+      (push (second l) acc)
+      (push (first l) acc))))
+
 (declaim (inline arg-names-and-types))
 (defun arg-names-and-types (lambda-list)
   (let ((names) (types))
@@ -1412,18 +1441,6 @@
                       (not (eq (vug-callback vug) (symbol-function name)))))
              (setf (symbol-function name) (vug-callback vug))
              t)))))
-
-(declaim (inline extract-vug-config))
-(defun extract-vug-config (code)
-  (declare (type list code))
-  (let ((doc (when (stringp (car code))
-               (car code))))
-    (do ((l (if doc (cdr code) code) (cddr l))
-         (acc nil))
-        ((or (null l) (not (keywordp (car l))))
-         (values doc (when acc `(list ,@acc)) l))
-      (push (second l) acc)
-      (push (first l) acc))))
 
 (declaim (inline destroy-vug))
 (defun destroy-vug (name)

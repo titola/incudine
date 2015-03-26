@@ -16,8 +16,6 @@
 
 (in-package :incudine.vug)
 
-(defvar *dsp-hash* (make-hash-table :test #'eq))
-
 (defstruct (dsp (:copier nil))
   (name nil)
   (init-function #'dummy-function :type function)
@@ -32,11 +30,6 @@
   (remove-hook nil :type list)
   (fade-time 0 :type (real 0))
   (fade-curve :lin :type (or symbol real)))
-
-(declaim (inline dsp))
-(defun dsp (name)
-  (declare (type symbol name))
-  (values (gethash name *dsp-hash*)))
 
 (declaim (inline expand-dsp-pool))
 (defun expand-dsp-pool (pool &optional (delta 1))
@@ -76,7 +69,7 @@
 (declaim (inline get-dsp-properties))
 (defun get-dsp-properties (name)
   (or (dsp name)
-      (setf (gethash name *dsp-hash*) (dsp-pool-pop))))
+      (setf (gethash name *dsps*) (dsp-pool-pop))))
 
 (declaim (inline expand-dsp-inst-pool))
 (defun expand-dsp-inst-pool (pool &optional (delta 1))
@@ -133,7 +126,7 @@
 
 (declaim (inline all-dsp-names))
 (defun all-dsp-names ()
-  (loop for dsp being the hash-keys in *dsp-hash* collect dsp))
+  (loop for dsp being the hash-keys in *dsps* collect dsp))
 
 (declaim (inline free-dsp-wrap))
 (defun free-dsp-wrap (cons)
@@ -164,7 +157,7 @@
   (if name
       (let ((dsp-prop (dsp name)))
         (when dsp-prop (free-dsp-instance dsp-prop)))
-      (maphash-values #'free-dsp-instance *dsp-hash*))
+      (maphash-values #'free-dsp-instance *dsps*))
   (values))
 
 (defun destroy-dsp (name)
@@ -175,6 +168,6 @@
       (when (eq (incudine::node-name n) name)
         (funcall (incudine::node-free-fn n))))
     (free-dsp-instances name)
-    (remhash name *dsp-hash*)
+    (remhash name *dsps*)
     (fmakunbound name)
     (values)))

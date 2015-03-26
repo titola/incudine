@@ -92,25 +92,6 @@
         (ring-buffer-size obj) 0)
   (values))
 
-(defun resize-ring-buffer (obj new-size)
-  (declare (type ring-buffer obj) (type positive-fixnum new-size))
-  (unless (= (ring-input-buffer-size obj) new-size)
-    (let ((new-data (if (ring-buffer-real-time-p obj)
-                        (foreign-rt-alloc 'sample :count new-size)
-                        (foreign-alloc-sample new-size)))
-          (new-offset 0))
-      (declare (type foreign-pointer new-data)
-               (type non-negative-fixnum new-offset))
-      (cond ((< new-size (ring-buffer-size obj))
-             (copy-from-ring-buffer new-data obj new-size))
-            (t (copy-from-ring-buffer new-data obj (ring-buffer-size obj))
-               (setf new-offset (ring-buffer-size obj))))
-      (foreign-free (ring-buffer-data obj))
-      (setf (ring-buffer-data obj) new-data
-            (ring-buffer-head obj) new-offset
-            (ring-buffer-size obj) new-size)))
-  new-size)
-
 (declaim (inline inc-ring-buffer))
 (defun inc-ring-buffer (buf delta)
   (incf (ring-buffer-head buf) delta)
@@ -143,6 +124,25 @@
   (%copy-to-ring-output-buffer (ring-output-buffer-data buf)
                                c-array (ring-output-buffer-size buf)
                                (ring-output-buffer-head buf) items))
+
+(defun resize-ring-buffer (obj new-size)
+  (declare (type ring-buffer obj) (type positive-fixnum new-size))
+  (unless (= (ring-input-buffer-size obj) new-size)
+    (let ((new-data (if (ring-buffer-real-time-p obj)
+                        (foreign-rt-alloc 'sample :count new-size)
+                        (foreign-alloc-sample new-size)))
+          (new-offset 0))
+      (declare (type foreign-pointer new-data)
+               (type non-negative-fixnum new-offset))
+      (cond ((< new-size (ring-buffer-size obj))
+             (copy-from-ring-buffer new-data obj new-size))
+            (t (copy-from-ring-buffer new-data obj (ring-buffer-size obj))
+               (setf new-offset (ring-buffer-size obj))))
+      (foreign-free (ring-buffer-data obj))
+      (setf (ring-buffer-data obj) new-data
+            (ring-buffer-head obj) new-offset
+            (ring-buffer-size obj) new-size)))
+  new-size)
 
 (declaim (inline ring-output-buffer-next))
 (defun ring-output-buffer-next (buf)
@@ -184,6 +184,42 @@
   (if (< (analysis-time obj) (now))
       (setf (analysis-time obj) (now)))
   obj)
+
+(define-constant +fftw-measure+ 0)
+(define-constant +fftw-patient+ (ash 1 5))
+(define-constant +fftw-estimate+ (ash 1 6))
+
+(define-constant +fft-plan-optimal+ +fftw-patient+
+  :documentation "Slowest computation of an optimal FFT plan.")
+
+(define-constant +fft-plan-best+ +fftw-measure+
+  :documentation "Slow computation of an accurate FFT plan.")
+
+(define-constant +fft-plan-fast+ +fftw-estimate+
+  :documentation "Fast computation of a reasonable FFT plan.")
+
+(defstruct (fft-plan (:constructor %new-fft-plan))
+  (pair (error "missing FFT plans") :type cons)
+  (size 8 :type positive-fixnum)
+  (flags +fft-plan-best+ :type fixnum))
+
+(defstruct (fft-common (:include analysis) (:copier nil))
+  (size 0 :type non-negative-fixnum)
+  (nbins 0 :type non-negative-fixnum)
+  (ring-buffer (error "missing RING-BUFFER") :type ring-buffer)
+  (window-buffer (error "missing WINDOW-BUFFER") :type foreign-pointer)
+  (window-size 0 :type non-negative-fixnum)
+  (window-function (error "missing WINDOW-FUNCTION") :type function)
+  (plan-wrap (error "missing FFT plan wrapper") :type fft-plan)
+  (plan (error "missing FFT plan") :type foreign-pointer))
+
+(defstruct (fft (:include fft-common) (:constructor %make-fft)
+                (:copier nil))
+  (output-size 0 :type non-negative-fixnum))
+
+(defstruct (ifft (:include fft-common) (:constructor %make-ifft)
+                 (:copier nil))
+  (input-size 0 :type non-negative-fixnum))
 
 (defstruct (abuffer (:constructor %make-abuffer)
                     (:copier nil))

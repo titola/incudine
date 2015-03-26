@@ -22,19 +22,6 @@
 (defvar *fft-plan* (make-hash-table :size 16))
 (declaim (type hash-table *fft-plan*))
 
-(define-constant +fftw-measure+ 0)
-(define-constant +fftw-patient+ (ash 1 5))
-(define-constant +fftw-estimate+ (ash 1 6))
-
-(define-constant +fft-plan-optimal+ +fftw-patient+
-  :documentation "Slowest computation of an optimal FFT plan.")
-
-(define-constant +fft-plan-best+ +fftw-measure+
-  :documentation "Slow computation of an accurate FFT plan.")
-
-(define-constant +fft-plan-fast+ +fftw-estimate+
-  :documentation "Fast computation of a reasonable FFT plan.")
-
 (declaim (inline get-fft-plan))
 (defun get-fft-plan (size)
   (values (gethash size *fft-plan*)))
@@ -46,11 +33,6 @@
 (declaim (inline remove-fft-plan))
 (defun remove-fft-plan (size)
   (remhash size *fft-plan*))
-
-(defstruct (fft-plan (:constructor %new-fft-plan))
-  (pair (error "missing FFT plans") :type cons)
-  (size 8 :type positive-fixnum)
-  (flags +fft-plan-best+ :type fixnum))
 
 (defmethod print-object ((obj fft-plan) stream)
   (format stream "#<FFT-PLAN :SIZE ~D :FLAGS ~D>"
@@ -119,16 +101,6 @@ is the plan for a IFFT."
                                  (or flags +fft-plan-best+))
                         realtime-p))))
 
-(defstruct (fft-common (:include analysis) (:copier nil))
-  (size 0 :type non-negative-fixnum)
-  (nbins 0 :type non-negative-fixnum)
-  (ring-buffer (error "missing RING-BUFFER") :type ring-buffer)
-  (window-buffer (error "missing WINDOW-BUFFER") :type foreign-pointer)
-  (window-size 0 :type non-negative-fixnum)
-  (window-function (error "missing WINDOW-FUNCTION") :type function)
-  (plan-wrap (error "missing FFT plan wrapper") :type fft-plan)
-  (plan (error "missing FFT plan") :type foreign-pointer))
-
 (defmethod free ((obj fft-common))
   (unless (= (fft-common-size obj) 0)
     (mapc (analysis-foreign-free obj)
@@ -144,10 +116,6 @@ is the plan for a IFFT."
     (setf (fft-common-window-size obj) 0))
   (tg:cancel-finalization obj)
   (values))
-
-(defstruct (fft (:include fft-common) (:constructor %make-fft)
-                (:copier nil))
-  (output-size 0 :type non-negative-fixnum))
 
 (defmethod print-object ((obj fft) stream)
     (format stream "#<FFT :SIZE ~D :WINDOW-SIZE ~D :NBINS ~D>"
@@ -236,10 +204,6 @@ is the plan for a IFFT."
   (ring-input-buffer-put input (fft-ring-buffer fft)))
 
 (defsetf fft-input set-fft-input)
-
-(defstruct (ifft (:include fft-common) (:constructor %make-ifft)
-                 (:copier nil))
-  (input-size 0 :type non-negative-fixnum))
 
 (defmethod print-object ((obj ifft) stream)
   (format stream "#<IFFT :SIZE ~D :WINDOW-SIZE ~D :NBINS ~D>"

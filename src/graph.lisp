@@ -120,6 +120,15 @@
   (let ((id (node-id node)))
     (and id (minusp id))))
 
+(declaim (inline null-node-p))
+(defun null-node-p (obj)
+  (null (node-id obj)))
+
+(declaim (inline group-p))
+(defun group-p (obj)
+  (declare (type node obj))
+  (when (node-last obj) t))
+
 ;;; Previous node not in pause
 (defun unpaused-node-prev (curr)
   (declare (type node curr))
@@ -245,11 +254,6 @@
                  (nrt-msg info "new group ~D" id)))
               (t (nrt-msg error "unknown add-action ~S" add-action)))))))))
 
-(declaim (inline group-p))
-(defun group-p (obj)
-  (declare (type node obj))
-  (when (node-last obj) t))
-
 (declaim (inline group))
 (defun group (obj)
   (declare (type (or node fixnum)))
@@ -257,10 +261,6 @@
 
 (defmethod print-object ((obj node) stream)
   (format stream "#<NODE :ID ~D>" (node-id obj)))
-
-(declaim (inline null-node-p))
-(defun null-node-p (obj)
-  (null (node-id obj)))
 
 (declaim (inline graph-empty-p))
 (defun graph-empty-p ()
@@ -367,6 +367,19 @@
             (node-index n1) (node-index n2)
             (node-index n2) index0)
       (values))))
+
+(declaim (inline node-fade-in))
+(defun node-fade-in (obj &optional duration curve)
+  (let ((obj (if (node-p obj) obj (node obj))))
+    (setf (node-gain obj) +sample-zero+)
+    (node-segment obj (sample 1) (or duration (node-fade-time obj))
+                  +sample-zero+ curve #'identity)))
+
+(declaim (inline node-fade-out))
+(defun node-fade-out (obj &optional duration curve)
+  (let ((obj (if (node-p obj) obj (node obj))))
+    (node-segment obj +sample-zero+ (or duration (node-fade-time obj))
+                  nil curve #'free)))
 
 (declaim (inline start-with-fade-in))
 (defun start-with-fade-in (node name fade-time fade-curve)
@@ -597,43 +610,6 @@
   (dogroup (g group-root)
     (when (and (group-p g) (eq g group))
       (return t))))
-
-(defgeneric dump (obj &optional stream))
-
-(defmethod dump ((obj node) &optional (stream *logger-stream*))
-  (declare #.*standard-optimize-settings*
-           (type stream stream))
-  (let ((indent 0)
-        (indent-incr 4)
-        (last-list nil))
-    (declare (type non-negative-fixnum indent indent-incr))
-    (flet ((inc-indent (n)
-             (unless (symbolp (node-last n))
-               (incf indent indent-incr)
-               (push (find-last-node n) last-list)))
-           (dec-indent (n)
-             (loop while (eq n (car last-list)) do
-               (pop last-list)
-               (decf indent indent-incr)))
-           (indent-line ()
-             (do ((i 0 (1+ i)))
-                 ((= i indent))
-               (declare (type non-negative-fixnum i))
-               (princ " "))))
-      (dograph (n obj)
-        (indent-line)
-        (cond ((group-p n)
-               (dec-indent n)
-               (format stream "group ~D~:[~; (pause)~]~%" (node-id n)
-                       (node-pause-p n))
-               (inc-indent n))
-              (t (format stream "node ~D~:[~; (pause)~]~%" (node-id n)
-                         (node-pause-p n))
-                 (indent-line)
-                 (format stream "  ~A ~{~A ~}~%"
-                         (node-name n) (reduce-warnings (control-list n)))
-                 (dec-indent n))))
-      (force-output stream))))
 
 (declaim (inline remove-node-from-hash))
 (defun remove-node-from-hash (obj)
@@ -1215,6 +1191,43 @@
 (defmethod pause-p ((obj integer))
   (node-pause-p (node obj)))
 
+(defgeneric dump (obj &optional stream))
+
+(defmethod dump ((obj node) &optional (stream *logger-stream*))
+  (declare #.*standard-optimize-settings*
+           (type stream stream))
+  (let ((indent 0)
+        (indent-incr 4)
+        (last-list nil))
+    (declare (type non-negative-fixnum indent indent-incr))
+    (flet ((inc-indent (n)
+             (unless (symbolp (node-last n))
+               (incf indent indent-incr)
+               (push (find-last-node n) last-list)))
+           (dec-indent (n)
+             (loop while (eq n (car last-list)) do
+               (pop last-list)
+               (decf indent indent-incr)))
+           (indent-line ()
+             (do ((i 0 (1+ i)))
+                 ((= i indent))
+               (declare (type non-negative-fixnum i))
+               (princ " "))))
+      (dograph (n obj)
+        (indent-line)
+        (cond ((group-p n)
+               (dec-indent n)
+               (format stream "group ~D~:[~; (pause)~]~%" (node-id n)
+                       (node-pause-p n))
+               (inc-indent n))
+              (t (format stream "node ~D~:[~; (pause)~]~%" (node-id n)
+                         (node-pause-p n))
+                 (indent-line)
+                 (format stream "  ~A ~{~A ~}~%"
+                         (node-name n) (reduce-warnings (control-list n)))
+                 (dec-indent n))))
+      (force-output stream))))
+
 ;;; Envelope segment of a node.
 
 (defmacro with-node-segment-symbols (node symbols &body body)
@@ -1264,16 +1277,3 @@
                        (values)))
                obj)))
           (t (funcall done-action obj)))))
-
-(declaim (inline node-fade-in))
-(defun node-fade-in (obj &optional duration curve)
-  (let ((obj (if (node-p obj) obj (node obj))))
-    (setf (node-gain obj) +sample-zero+)
-    (node-segment obj (sample 1) (or duration (node-fade-time obj))
-                  +sample-zero+ curve #'identity)))
-
-(declaim (inline node-fade-out))
-(defun node-fade-out (obj &optional duration curve)
-  (let ((obj (if (node-p obj) obj (node obj))))
-    (node-segment obj +sample-zero+ (or duration (node-fade-time obj))
-                  nil curve #'free)))

@@ -69,13 +69,6 @@
 (defmethod print-object ((obj tempo) stream)
   (format stream "#<TEMPO ~,2F>" (bpm obj)))
 
-(defvar *sample-counter* (foreign-alloc 'sample :initial-element +sample-zero+))
-(declaim (type foreign-pointer *sample-counter*))
-
-(declaim (inline now))
-(defun now ()
-  (smp-ref *sample-counter* 0))
-
 (declaim (inline incf-sample-counter))
 (defun incf-sample-counter (&optional (delta 1))
   (incf (smp-ref *sample-counter* 0) delta)

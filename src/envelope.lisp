@@ -66,6 +66,27 @@
           (envelope-max-points obj) 0))
   (values))
 
+(declaim (inline envelope-restart-level))
+(defun envelope-restart-level (instance)
+  (envelope-%restart-level instance))
+
+(declaim (inline set-envelope-restart-level))
+(defun set-envelope-restart-level (instance value)
+  (setf (envelope-%restart-level instance)
+        (if value (sample value))))
+
+(defsetf envelope-restart-level set-envelope-restart-level)
+
+(declaim (inline compute-envelope-data-size))
+(defun compute-envelope-data-size (size)
+  (declare (type non-negative-fixnum size))
+  (- (* size 3) 2))
+
+(declaim (inline compute-envelope-points))
+(defun compute-envelope-points (levels times)
+  (declare (type list levels times))
+  (max (length levels) (1+ (length times))))
+
 (defun copy-envelope (envelope)
   (declare (type envelope envelope))
   (if (free-p envelope)
@@ -93,27 +114,6 @@
                           (* data-size +foreign-sample-size+))
             (tg:finalize new (lambda () (funcall free-function data)))
             new)))))
-
-(declaim (inline envelope-restart-level))
-(defun envelope-restart-level (instance)
-  (envelope-%restart-level instance))
-
-(declaim (inline set-envelope-restart-level))
-(defun set-envelope-restart-level (instance value)
-  (setf (envelope-%restart-level instance)
-        (if value (sample value))))
-
-(defsetf envelope-restart-level set-envelope-restart-level)
-
-(declaim (inline compute-envelope-data-size))
-(defun compute-envelope-data-size (size)
-  (declare (type non-negative-fixnum size))
-  (- (* size 3) 2))
-
-(declaim (inline compute-envelope-points))
-(defun compute-envelope-points (levels times)
-  (declare (type list levels times))
-  (max (length levels) (1+ (length times))))
 
 (defun check-envelope-points (env levels times)
   (declare (type envelope env) (type list levels times))
@@ -153,6 +153,34 @@
       +exp-sample-zero+
       (sample level)))
 
+(declaim (inline seg-function-spec->sample))
+(defun seg-function-spec->sample (x)
+  (typecase x
+    (number (sample x))
+    (keyword (case x
+               (:step +seg-step-func+)
+               ((:lin :linear) +seg-lin-func+)
+               ((:exp :exponential) +seg-exp-func+)
+               ((:sin :sine) +seg-sine-func+)
+               ((:wel :welch) +seg-welch-func+)
+               ((:sqr :square) +seg-square-func+)
+               ((:cub :cubic) +seg-cubic-func+)
+               (otherwise +seg-lin-func+)))
+    (otherwise +seg-lin-func+)))
+
+(declaim (inline sample->seg-function-spec))
+(defun sample->seg-function-spec (x)
+  (declare (type sample x)
+           #+(or cmu sbcl) (values (or symbol sample)))
+  (cond ((= x +seg-step-func+) :step)
+        ((= x +seg-lin-func+) :linear)
+        ((= x +seg-exp-func+) :exponential)
+        ((= x +seg-sine-func+) :sine)
+        ((= x +seg-welch-func+) :welch)
+        ((= x +seg-square-func+) :square)
+        ((= x +seg-cubic-func+) :cubic)
+        (t x)))
+
 (defun set-envelope (env levels times &key curve
                      (loop-node -1) (release-node -1)
                      (restart-level nil restart-level-p))
@@ -183,34 +211,6 @@
       (setf (smp-ref data (incf i))
             (seg-function-spec->sample (car cur))))
     env))
-
-(declaim (inline seg-function-spec->sample))
-(defun seg-function-spec->sample (x)
-  (typecase x
-    (number (sample x))
-    (keyword (case x
-               (:step +seg-step-func+)
-               ((:lin :linear) +seg-lin-func+)
-               ((:exp :exponential) +seg-exp-func+)
-               ((:sin :sine) +seg-sine-func+)
-               ((:wel :welch) +seg-welch-func+)
-               ((:sqr :square) +seg-square-func+)
-               ((:cub :cubic) +seg-cubic-func+)
-               (otherwise +seg-lin-func+)))
-    (otherwise +seg-lin-func+)))
-
-(declaim (inline sample->seg-function-spec))
-(defun sample->seg-function-spec (x)
-  (declare (type sample x)
-           #+(or cmu sbcl) (values (or symbol sample)))
-  (cond ((= x +seg-step-func+) :step)
-        ((= x +seg-lin-func+) :linear)
-        ((= x +seg-exp-func+) :exponential)
-        ((= x +seg-sine-func+) :sine)
-        ((= x +seg-welch-func+) :welch)
-        ((= x +seg-square-func+) :square)
-        ((= x +seg-cubic-func+) :cubic)
-        (t x)))
 
 (defmacro curve-case (keyform &body cases)
   (with-gensyms (curve)
@@ -323,6 +323,12 @@
     (tg:finalize env (lambda () (funcall free-function data)))
     env))
 
+(declaim (inline check-envelope-node))
+(defun check-envelope-node (env number)
+  (declare (type non-negative-fixnum number))
+  (and (>= number 0)
+       (< number (the non-negative-fixnum (envelope-points env)))))
+
 (declaim (inline envelope-level))
 (defun envelope-level (env node-number)
   (declare #.*standard-optimize-settings* #.*reduce-warnings*
@@ -332,12 +338,6 @@
              (if (zerop node-number)
                  0
                  (the non-negative-fixnum (1- (* node-number 3)))))))
-
-(declaim (inline check-envelope-node))
-(defun check-envelope-node (env number)
-  (declare (type non-negative-fixnum number))
-  (and (>= number 0)
-       (< number (the non-negative-fixnum (envelope-points env)))))
 
 (defun set-envelope-level (env node-number level)
   (declare #.*standard-optimize-settings* #.*reduce-warnings*

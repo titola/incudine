@@ -209,3 +209,9 @@
   (with-gensyms (func)
     `(flet ((,func () (progn ,@body)))
        (if ,predicate (rt-eval () (,func)) (,func)))))
+
+(declaim (inline exit))
+(defun exit (&optional (code 0))
+  (if (eq (bt:current-thread) *rt-thread*)
+      (incudine::nrt-funcall (lambda () (%exit code)))
+      (%exit code)))

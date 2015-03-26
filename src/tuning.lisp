@@ -126,18 +126,6 @@
     (setf (tuning-sample-ratios obj) (null-pointer)))
   (call-next-method))
 
-(defun tuning-update-sample-ratios (tuning)
-  (let* ((ratios (tuning-ratios tuning))
-         (len (1- (length ratios))))
-    (dotimes (i len)
-      (setf (smp-ref (tuning-sample-ratios tuning) i)
-            (sample (aref ratios (1+ i)))))
-    ;; Reciprocal of the last ratio.
-    (setf (smp-ref (tuning-sample-ratios tuning)
-                   +last-sample-ratio-reciprocal-index+)
-          (/ (smp-ref (tuning-sample-ratios tuning) (1- len))))
-    tuning))
-
 (declaim (inline tuning-keynum-base))
 (defun tuning-keynum-base (tuning)
   (u8-ref (tuning-aux-data tuning) 0))
@@ -197,6 +185,18 @@ significand of the floating point number. The error is 0.0005% by default."
                                   (if (< (numerator n) (numerator r)) n r))))))
               (rat (floor (* m (- 1.0 significand-error)))
                    (rationalize x))))))))
+
+(defun tuning-update-sample-ratios (tuning)
+  (let* ((ratios (tuning-ratios tuning))
+         (len (1- (length ratios))))
+    (dotimes (i len)
+      (setf (smp-ref (tuning-sample-ratios tuning) i)
+            (sample (aref ratios (1+ i)))))
+    ;; Reciprocal of the last ratio.
+    (setf (smp-ref (tuning-sample-ratios tuning)
+                   +last-sample-ratio-reciprocal-index+)
+          (/ (smp-ref (tuning-sample-ratios tuning) (1- len))))
+    tuning))
 
 (defun update-tuning-data (tuning)
   (declare (type tuning tuning)

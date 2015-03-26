@@ -770,15 +770,6 @@
       `(progn (setf ,@binding) ,@body)
       `(let (,binding) ,@body)))
 
-(defstruct (ugen (:copier nil))
-  (name nil :type symbol)
-  (callback nil :type (or function null))
-  (inline-callback #'dummy-function :type function)
-  (return-type nil :type (or symbol list))
-  (args nil :type list)
-  (arg-types nil :type list)
-  (control-flags nil :type list))
-
 (defun find-vug-variable (var obj)
   (labels ((find-var (var obj)
              (cond ((vug-variable-p obj)
@@ -846,6 +837,11 @@
                            (blockexpand value param-plist))))
                   (t (%set-vug-variable var value param-plist))))))
       (cdr (vug-parameter-vars-to-update param)))))
+
+(declaim (inline compound-type-p))
+(defun compound-type-p (type)
+  (and (consp type)
+       (member (car type) '(or and member eql not satisfies))))
 
 (defun dsp-coercing-argument (arg type)
   (cond ((foreign-float-type-p type) `(coerce ,arg 'single-float))
@@ -1046,11 +1042,6 @@
   `(cond ,@(mapcar (lambda (x) `(,x (values ,(make-keyword x) ,x)))
                    keywords)
          (t (values :head incudine::*node-root*))))
-
-(declaim (inline compound-type-p))
-(defun compound-type-p (type)
-  (and (consp type)
-       (member (car type) '(or and member eql not satisfies))))
 
 (defun dsp-coercing-arguments (args)
   (mapcar (lambda (x)

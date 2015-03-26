@@ -38,6 +38,16 @@
 
 (defstruct (sndinfo (:include struct-ptr)))
 
+(declaim (inline close))
+(defun close (sfile)
+  (declare (sndfile sfile))
+  (let ((result (%close sfile)))
+    (setf (sndfile-pointer sfile) (cffi:null-pointer))
+    (tg:cancel-finalization sfile)
+    (unless (zerop result)
+      (error-generic result))
+    (values)))
+
 (declaim (inline make-sndfile))
 (defun make-sndfile (pointer)
   (let ((obj (%make-sndfile :pointer pointer)))
