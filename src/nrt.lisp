@@ -393,14 +393,15 @@ when the duration is undefined.")
 
 (defmacro bounce-to-disk ((output-filename &key input-filename
                            (channels *number-of-output-bus-channels*)
-                           duration (pad 2) (header-type *default-header-type*)
-                           (data-format *default-data-format*) metadata)
+                           duration (pad 2) header-type data-format metadata)
                           &body body)
   `(,@(if input-filename
           `(%bounce-to-disk-with-infile ,input-filename)
           '(%bounce-to-disk))
     ,output-filename ,(or duration `(- ,pad)) ,channels
-    ,header-type ,data-format ,metadata (bounce-function ,body)))
+    ,(or header-type '*default-header-type*)
+    ,(or data-format '*default-data-format*)
+    ,metadata (bounce-function ,body)))
 
 (defmacro nrt-write-buffer-loop (in-data out-data in-count out-count
                                  in-channels out-channels in-size mix-p)
