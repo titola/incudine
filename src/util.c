@@ -133,8 +133,10 @@ void map_sndfile_ch_to_buffer(SAMPLE *buf, SNDFILE *sndfile,
                         for (k = 0; k < chan_map_size; k++)
                                 p[chan_map_dest[k]] = curr[chan_map_src[k]];
                 }
-                if (remain < chunk_frames)
+                if (remain < chunk_frames) {
                         chunk_frames = remain;
+                        incr = remain * channels;
+                }
         }
         free(q);
 }
