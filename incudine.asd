@@ -94,7 +94,7 @@
      (:file "gen/envelope" :depends-on ("envelope"))
      (:file "gen/partials" :depends-on ("foreign-array"))
      (:file "gen/polynomial" :depends-on ("foreign-array"))
-     (:file "gen/window" :depends-on ("foreign-array"))
+     (:file "gen/window" :depends-on ("foreign" "foreign-array"))
      (:file "gen/random" :depends-on ("foreign"))
      (:file "voicer/base" :depends-on ("vug/dsp"))
      (:file "voicer/event" :depends-on ("voicer/base" "receiver"))

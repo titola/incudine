@@ -318,7 +318,8 @@
                 #:nrt-msg)
   (:export #:envelope
            #:partials #:gbuzz #:chebyshev-1 #:polynomial
-           #:defwindow #:hanning #:hamming #:blackman #:sine-window #:bartlett
+           #:defwindow #:symmetric-loop #:symmetric-set #:bartlett #:blackman
+           #:gaussian #:hamming #:hanning #:kaiser #:sinc #:sine-window
            #:rand #:all-random-distributions #:rand-args))
 
 (defpackage :incudine
