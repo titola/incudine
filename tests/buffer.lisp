@@ -97,3 +97,16 @@
       (unless (free-p buf)
         (mapcar #'sample->fixnum (buffer->list buf))))
   (0 142 285 428 571 714 857 999))
+
+(deftest with-buffer.1
+    (with-buffers ((buf 64 :fill-function (gen:partials '(16 0 8 0 4 0 2 0 1)))
+                   (win 64 :fill-function (gen:sine-window)))
+      (mapcar #'sample->fixnum
+              (buffer->list (map-into-buffer buf (lambda (x y) (* x y 10000))
+                                             buf win))))
+  (0 221 782 1444 1981 2314 2516 2713 2966 3233 3427 3514 3558 3668
+   3901 4207 4476 4638 4745 4933 5306 5837 6377 6793 7109 7520 8219
+   9146 9848 9613 7841 4442 0 -4432 -7803 -9542 -9750 -9031 -8095
+   -7385 -6962 -6632 -6207 -5663 -5130 -4751 -4551 -4429 -4253
+   -3977 -3665 -3423 -3295 -3224 -3110 -2895 -2612 -2339 -2107
+   -1859 -1491 -965 -392 0))

@@ -571,6 +571,19 @@ It is possible to use line comments that begin with the `;' char."
                 (fill-buffer buf value :start start :end end)))
           buf))))
 
+(defmacro with-buffer ((var frames &rest args) &body body)
+  `(let ((,var (make-buffer ,frames ,@args)))
+     (unwind-protect
+          (progn ,@body)
+       (free ,var))))
+
+(defmacro with-buffers (bindings &body body)
+  (if bindings
+      `(with-buffer ,(car bindings)
+         (with-buffers ,(cdr bindings)
+           ,@body))
+      `(progn ,@body)))
+
 ;;; Frequently used waveforms
 
 (defvar *sine-table* (make-buffer *default-table-size*

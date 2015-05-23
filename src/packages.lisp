@@ -359,7 +359,7 @@
    #:buffer-size #:buffer-frames #:buffer-channels #:buffer-sample-rate
    #:buffer-value #:buffer-mask #:buffer-lobits #:buffer-lomask #:buffer-lodiv
    #:buffer-file #:buffer-load #:buffer-save #:map-buffer #:map-into-buffer
-   #:buffer->list
+   #:buffer->list #:with-buffer #:with-buffers
    #:copy-buffer #:resize-buffer
    #:scale-buffer #:rescale-buffer #:normalize-buffer
    #:*default-tuning*
