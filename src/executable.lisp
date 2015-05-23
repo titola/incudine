@@ -406,14 +406,14 @@ SBCL options:
                     (push-fn (,error-msg) ,@form)
                     options)))
            (sf-format-list (count-fn get-fn control-string)
-             `(dotimes (i (,count-fn))
-                (with-slots (sf:name sf:format) (,get-fn i)
-                  (format t ,control-string
-                          (let ((str (symbol-name
-                                      (cffi:foreign-enum-keyword 'sf:format
-                                                                 sf:format))))
-                            (string-downcase (subseq str 10)))
-                          sf:name))))
+             `(let ((formats (loop for i below (,count-fn)
+                                   for info = (,get-fn i)
+                                   collect (cons (sf:format info) info))))
+                (maphash (lambda (k v)
+                           (let ((fmt (cdr (assoc v formats :test #'=))))
+                             (when fmt
+                               (format t ,control-string k (sf:name fmt)))))
+                         sf::*formats*)))
            (set-metadata ()
              (with-gensyms (value)
                `(progn
