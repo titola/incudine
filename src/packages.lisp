@@ -284,6 +284,7 @@
                 #:foreign-copy #:%copy-from-ring-buffer
                 #:%copy-to-ring-output-buffer)
   (:export #:analysis #:analysis-p #:analysis-time #:touch-analysis
+           #:analysis-data
            #:window-size #:window-function #:rectangular-window
            #:abuffer #:make-abuffer #:abuffer-time #:abuffer-realpart
            #:abuffer-imagpart #:abuffer-size #:abuffer-link #:abuffer-nbins
@@ -297,7 +298,8 @@
            #:+fft-plan-optimal+ #:+fft-plan-best+ #:+fft-plan-fast+
            #:fft-plan #:get-fft-plan #:new-fft-plan #:remove-fft-plan
            #:fft-plan-list #:fft-input #:ifft-output #:fft-size
-           #:compute-abuffer #:compute-fft #:compute-ifft
+           #:compute-abuffer #:update-linked-object
+           #:compute-fft #:compute-ifft
            #:dofft #:dofft-polar #:dofft-complex))
 
 (defpackage :incudine.gen

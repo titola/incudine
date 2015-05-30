@@ -156,6 +156,7 @@ is the plan for a IFFT."
            (obj (%make-fft
                  :size size
                  :input-buffer input-buffer
+                 :input-size size
                  :output-buffer output-buffer
                  :output-size complex-array-size
                  :ring-buffer (make-ring-input-buffer size real-time-p)
@@ -192,6 +193,9 @@ is the plan for a IFFT."
     (fft-execute (fft-plan obj) (fft-input-buffer obj) (fft-output-buffer obj))
     (setf (analysis-time obj) (now))
     t)))
+
+(defmethod update-linked-object ((obj fft))
+  (compute-fft obj))
 
 (declaim (inline fft-input))
 (defun fft-input (fft)
@@ -233,6 +237,7 @@ is the plan for a IFFT."
                  :input-buffer input-buffer
                  :input-size complex-array-size
                  :output-buffer output-buffer
+                 :output-size size
                  :ring-buffer (make-ring-output-buffer size real-time-p)
                  :window-buffer window-buffer
                  :window-size window-size

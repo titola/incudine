@@ -158,13 +158,22 @@
   (smp-ref (ring-output-buffer-tmp buf) 0))
 
 (defstruct (analysis (:copier nil))
+  (size 0 :type non-negative-fixnum)
   (input-buffer (error "missing INPUT-BUFFER") :type foreign-pointer)
+  (input-size 0 :type non-negative-fixnum)
   (output-buffer (error "missing OUTPUT-BUFFER") :type foreign-pointer)
+  (output-size 0 :type non-negative-fixnum)
   (output-complex-p nil :type boolean)
+  (nbins 0 :type non-negative-fixnum)
   (scale-factor (sample 1) :type sample)
   (time-ptr (error "missing TIME-PTR") :type foreign-pointer)
   (real-time-p nil :type boolean)
   (foreign-free #'foreign-free :type function))
+
+(declaim (inline analysis-data))
+(defun analysis-data (obj)
+  (declare (type analysis obj))
+  (analysis-output-buffer obj))
 
 (declaim (inline analysis-time))
 (defun analysis-time (obj)
@@ -204,8 +213,6 @@
   (flags +fft-plan-best+ :type fixnum))
 
 (defstruct (fft-common (:include analysis) (:copier nil))
-  (size 0 :type non-negative-fixnum)
-  (nbins 0 :type non-negative-fixnum)
   (ring-buffer (error "missing RING-BUFFER") :type ring-buffer)
   (window-buffer (error "missing WINDOW-BUFFER") :type foreign-pointer)
   (window-size 0 :type non-negative-fixnum)
@@ -213,13 +220,9 @@
   (plan-wrap (error "missing FFT plan wrapper") :type fft-plan)
   (plan (error "missing FFT plan") :type foreign-pointer))
 
-(defstruct (fft (:include fft-common) (:constructor %make-fft)
-                (:copier nil))
-  (output-size 0 :type non-negative-fixnum))
+(defstruct (fft (:include fft-common) (:constructor %make-fft) (:copier nil)))
 
-(defstruct (ifft (:include fft-common) (:constructor %make-ifft)
-                 (:copier nil))
-  (input-size 0 :type non-negative-fixnum))
+(defstruct (ifft (:include fft-common) (:constructor %make-ifft) (:copier nil)))
 
 (defstruct (abuffer (:constructor %make-abuffer)
                     (:copier nil))
@@ -241,31 +244,30 @@
            (if real-time-p
                (foreign-rt-alloc 'sample :count size :zero-p zero-p)
                (foreign-alloc-sample size))))
-    (multiple-value-bind (size nbins coord-complex-p)
-        (typecase analysis-object
-          (fft (values (fft-output-size analysis-object)
-                       (fft-nbins analysis-object) t))
-          (otherwise (error "Analysis object ~A doesn't work with abuffer"
-                            analysis-object)))
-      (let ((time-ptr (foreign-alloc 1 nil))
-            (data (foreign-alloc size t)))
-        (setf (smp-ref time-ptr 0) (sample -1))
-        (let ((obj (%make-abuffer :data data
-                      :size size
-                      :nbins nbins
-                      :scale-factor (analysis-scale-factor analysis-object)
-                      :time-ptr time-ptr
-                      :link analysis-object
-                      :coord-complex-p coord-complex-p
-                      :real-time-p real-time-p)))
-          (when real-time-p
-            (setf #1=(abuffer-foreign-free obj)
-                  #'safe-foreign-rt-free))
-          (let ((foreign-free #1#))
-            (tg:finalize obj (lambda ()
-                               (funcall foreign-free data)
-                               (funcall foreign-free time-ptr)))
-            obj))))))
+    (let* ((coord-complex-p (analysis-output-complex-p analysis-object))
+           (nbins (analysis-nbins analysis-object))
+           (size (if coord-complex-p
+                     (* 2 nbins)
+                     (analysis-size analysis-object)))
+           (time-ptr (foreign-alloc 1 nil))
+           (data (foreign-alloc size t)))
+      (setf (smp-ref time-ptr 0) (sample -1))
+      (let ((obj (%make-abuffer :data data
+                    :size size
+                    :nbins nbins
+                    :scale-factor (analysis-scale-factor analysis-object)
+                    :time-ptr time-ptr
+                    :link analysis-object
+                    :coord-complex-p coord-complex-p
+                    :real-time-p real-time-p)))
+        (when real-time-p
+          (setf #1=(abuffer-foreign-free obj)
+                #'safe-foreign-rt-free))
+        (let ((foreign-free #1#))
+          (tg:finalize obj (lambda ()
+                             (funcall foreign-free data)
+                             (funcall foreign-free time-ptr)))
+          obj)))))
 
 (defmethod free ((obj abuffer))
   (when (plusp (abuffer-size obj))
@@ -304,11 +306,19 @@
               (+ (the non-negative-fixnum (* ,nbin +foreign-complex-size+))
                  +foreign-sample-size+))))
 
+(defgeneric update-linked-object (obj)
+  (:documentation "Utility function used within COMPUTE-ABUFFER to update
+the linked object."))
+
+(defmethod update-linked-object ((obj t))
+  (declare (ignore obj))
+  nil)
+
 (defun compute-abuffer (abuf)
   (declare (type abuffer abuf))
   (when (< (abuffer-time abuf) (now))
     (let ((link (abuffer-link abuf)))
-      (if (fft-p link) (compute-fft link) (compute-abuffer link))
+      (update-linked-object link)
       (setf (abuffer-coord-complex-p abuf) (analysis-output-complex-p link))
       (setf (abuffer-time abuf) (now))
       (foreign-copy (abuffer-data abuf)
