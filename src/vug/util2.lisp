@@ -213,7 +213,7 @@
         (progn (decf count) value))))
 
 (define-vug snapshot ((gate fixnum) (start-offset fixnum) input)
-  "INPUT is valued every GATE samples, on demand or never.
+  "INPUT is updated every GATE samples, on demand or never.
 If GATE is positive, the output is INPUT calculated every GATE samples.
 If GATE is zero, the output is the old value of INPUT.
 If GATE is negative, the output is the current value of INPUT and GATE
@@ -230,6 +230,31 @@ START-OFFSET is the initial offset for the internal counter."
           ((minusp gate)
            (setf value (update input) gate 0)))
     value))
+
+(define-vug %with-control-period ((gate fixnum) (start-offset fixnum) (input t))
+  (with ((count (init-only gate)))
+    (declare (type fixnum count))
+    (initialize (setf count (1+ start-offset)))
+    (cond ((plusp gate)
+           (if (= count 1)
+               (progn (update input) (setf count gate))
+               (decf count)))
+          ((minusp gate)
+           (update input)
+           (setf gate 0)))
+    nil))
+
+(define-vug-macro with-control-period ((n &optional (start-offset 0))
+                                       &body body)
+  "BODY is updated every N samples, on demand or never.
+If N is positive, BODY is updated every N samples.
+If N is zero, BODY is not updated.
+If N is negative, BODY is updated and N becomes zero.
+START-OFFSET is the initial offset for the internal counter."
+  (with-gensyms (gate start)
+    `(with-vug-inputs ((,gate ,n)
+                       (,start ,start-offset))
+       (%with-control-period ,gate ,start (progn ,@body)))))
 
 (define-vug samphold (in gate initial-value initial-threshold)
   (with-samples ((threshold initial-threshold)

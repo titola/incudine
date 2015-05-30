@@ -8,13 +8,14 @@
          (result +sample-zero+))
     (declare (type sample srdiv2 result))
     (setf (fft-input fft) (audio-in 0))
-    (snapshot 1024 0
-      (prog1 (setf result (* (rolloff abuf percent) srdiv2))
-        (nrt-msg info "~D% rolloff: ~D" perc
-                 (sample->fixnum result))))))
+    (with-control-period (1024)
+      (setf result (* (rolloff abuf percent) srdiv2))
+      (nrt-msg info "~D% rolloff: ~D" perc (sample->fixnum result)))))
 
 #|
 (setf (logger-level) :info)
+(set-rt-block-size 1)
+(rt-start)
 (rolloff-test .5)
 (set-control 1 :percent .75)
 (free 0)

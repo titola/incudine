@@ -9,12 +9,10 @@
          (result +sample-zero+))
     (declare (type sample threshold result))
     (setf (fft-input fft) (buffer-play buf 1 0 t #'identity))
-    (snapshot hop-size 0
+    (with-control-period (hop-size)
       ;; Spectral flux with half-wave rectifier function
       ;; and L1-norm (Dixon DAFx-06)
-      (setf result (if (> (flux abuf t t) threshold)
-                       (sample 100)
-                       +sample-zero+)))
+      (setf result (sample (if (> (flux abuf t t) threshold) 100 0))))
     (out (tick (fft-input fft))
          (prog1 (ringz result 3000 .1)
            (unless (zerop result)
@@ -22,5 +20,7 @@
 
 #|
 (defvar loop-1 (buffer-load "/tmp/loop-1.wav"))
+(set-rt-block-size 1)
+(rt-start)
 (flux-rectified-test loop-1 0.1)
 |#

@@ -175,7 +175,7 @@
    #:maybe-make-i32-array #:maybe-make-u32-array #:maybe-i32-ref #:maybe-u32-ref
    #:foreign-length #:foreign-array-type-of
    #:foreach-tick #:foreach-channel #:foreach-frame
-   #:counter #:downsamp #:snapshot
+   #:counter #:downsamp #:snapshot #:with-control-period
    #:generic-rate ; (deprecated)
    #:samphold #:interpolate
    #:tick #:external-variable #:init-only #:initialize

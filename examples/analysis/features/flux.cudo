@@ -7,13 +7,15 @@
          (result +sample-zero+))
     (declare (type sample result))
     (setf (fft-input fft) (buffer-play buf 1 0 nil #'free))
-    (snapshot hop-size 0
-      (prog1 (setf result (flux abuf))
-        (nrt-msg info "~D" (sample->fixnum result))))
+    (with-control-period (hop-size)
+      (setf result (flux abuf))
+      (nrt-msg info "~D" (sample->fixnum result)))
     (out (tick (fft-input fft)))))
 
 #|
-(setf (logger-level) :info)
 (defvar loop-1 (buffer-load "/tmp/loop-1.wav"))
+(setf (logger-level) :info)
+(set-rt-block-size 1)
+(rt-start)
 (flux-test loop-1)
 |#

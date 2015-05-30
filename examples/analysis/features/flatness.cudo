@@ -13,12 +13,14 @@
     (setf (fft-input fft)
           (crossfade (sine 1000 .5 0) (white-noise .1)
                      (line 0 1 8 #'free)))
-    (snapshot 1024 0
-      (prog1 (setf result (flatness abuf))
-        (nrt-msg info "~D" (sample->fixnum (* 100 result)))))
+    (with-control-period (1024)
+      (setf result (flatness abuf))
+      (nrt-msg info "~D" (sample->fixnum (* 100 result))))
     (out (tick (fft-input fft)))))
 
 #|
 (setf (logger-level) :info)
+(set-rt-block-size 1)
+(rt-start)
 (flatness-test)
 |#

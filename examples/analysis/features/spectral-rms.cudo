@@ -7,12 +7,14 @@
          (rms +sample-zero+))
     (declare (type sample mult rms))
     (setf (fft-input fft) (audio-in 0))
-    (snapshot 1024 0
-      (prog1 (setf rms (* (spectral-rms abuf) mult))
-        (reduce-warnings (nrt-msg info "~F" rms))))))
+    (with-control-period (1024)
+      (setf rms (* (spectral-rms abuf) mult))
+      (reduce-warnings (nrt-msg info "~F" rms)))))
 
 #|
 (setf (logger-level) :info)
+(set-rt-block-size 1)
+(rt-start)
 (spectral-rms-test)
 (free 0)
 |#
