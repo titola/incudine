@@ -89,7 +89,7 @@ stored in a buffer."
        (incf ,pad-index-var)
        (incf ,index)))
 
-  (declaim (inline part-conv-update-output))
+  (declaim (inline pconv-update-output))
   (defun pconv-update-output (partsize channel channels
                               outbuf outbuf-half ifft-outbuf)
     (labels ((rec (i j k l)
