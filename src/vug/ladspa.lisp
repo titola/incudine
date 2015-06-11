@@ -74,9 +74,11 @@
 (declaim (inline ladspa-plugin-instantiate))
 (defun ladspa-plugin-instantiate (plugin &optional arg)
   (declare (ignore arg))
-  (ladspa:instantiate (ladspa-plugin-instantiate-cb plugin)
-                      (ladspa-plugin-pointer plugin)
-                      (sample->fixnum *sample-rate*)))
+  ;; FLOATING-POINT-INVALID-OPERATION with some plugins written in c++
+  (incudine.util::without-float-invalid-op-trap
+    (ladspa:instantiate (ladspa-plugin-instantiate-cb plugin)
+                        (ladspa-plugin-pointer plugin)
+                        (sample->fixnum *sample-rate*))))
 
 (defmacro update-ladspa-instance (vug-varname args)
   (declare (ignore vug-varname))

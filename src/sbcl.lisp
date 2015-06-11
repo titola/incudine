@@ -90,6 +90,9 @@
 (defmacro without-float-overflow-trap (&body body)
   `(sb-int:with-float-traps-masked (:underflow :overflow) ,@body))
 
+(defmacro without-float-invalid-op-trap (&body body)
+  `(sb-int:with-float-traps-masked (:invalid) ,@body))
+
 (defun add-after-gc-hook (function)
   (pushnew function sb-ext:*after-gc-hooks*))
 
