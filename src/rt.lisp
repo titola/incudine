@@ -258,8 +258,8 @@
      (rt-stop)
      (setf *default-rt-loop-cb*
            ,(case value
-              ( 1 #'rt-loop-1)
-              (64 #'rt-loop-64)
+              ( 1 '#'rt-loop-1)
+              (64 '#'rt-loop-64)
               (otherwise `(rt-loop-callback ,value))))
      (setf *block-samples* (* ,value *number-of-output-bus-channels*))
      (msg debug "set realtime block size to ~D" ,value)
