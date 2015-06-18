@@ -970,6 +970,8 @@
         (setf #1# nil)
         (when (vug-variable-deleted-p vardep)
           (undelete-vug-variable vardep)
+          ;; Note: bindings updated in FORMAT-VUG-CODE before BLOCKEXPAND
+          (pushnew vardep (vug-variables-bindings *vug-variables*) :test 'eq)
           (msg debug "undelete ~A after recheck" vardep))
         (msg debug "~A is performance-time after recheck" vardep))
       (recheck-variables var)
