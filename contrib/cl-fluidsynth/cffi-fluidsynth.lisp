@@ -77,7 +77,7 @@
 (cffi:defcfun ("delete_fluid_settings" delete-fluid-settings) :void
   (settings :pointer))
 
-(defun new-settings ()
+(defun %new-settings ()
   (let* ((ptr (new-fluid-settings))
          (obj (make-settings :ptr ptr)))
     (tg:finalize obj (lambda () (delete-fluid-settings ptr)))

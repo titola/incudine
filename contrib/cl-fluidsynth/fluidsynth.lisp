@@ -50,3 +50,9 @@
                  value))))))
 
 (defsetf setting set-setting)
+
+(defun new-settings (&optional setting-list)
+  (let ((obj (%new-settings)))
+    (loop for (name value) in setting-list
+          do (setf (setting obj name) value))
+    obj))

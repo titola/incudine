@@ -1,16 +1,11 @@
 (in-package :scratch)
 
-(defvar *fluid-settings* (fluidsynth:new-settings))
+(defvar *fluid-settings* (fluidsynth:new-settings
+                           `(("synth.polyphony" 128)
+                             ("synth.sample-rate" ,*sample-rate*)
+                             ("audio.sample-format" "float"))))
 
-(defvar *synth*
-  (fluidsynth:new
-    (loop for (name value)
-          in `(("synth.polyphony" 128)
-               ("synth.gain" 0.5)
-               ("synth.sample-rate" ,*sample-rate*)
-               ("audio.sample-format" "float"))
-          do (setf (fluidsynth:setting *fluid-settings* name) value)
-          finally (return *fluid-settings*))))
+(defvar *synth* (fluidsynth:new *fluid-settings*))
 
 (set-rt-block-size 64)
 
@@ -24,6 +19,8 @@
            (f32-ref right current-frame)))))
 
 (fluidsynth:sfload *synth* "/usr/share/sounds/sf2/FluidR3_GM.sf2" 1)
+
+(setf (fluidsynth:setting *fluid-settings* "synth.gain") 0.5)
 
 (rt-start)
 
