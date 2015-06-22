@@ -91,11 +91,8 @@ a 60 dB lag TIME."
   "Scaled one pole filter with the coefficient calculated from
 a 60 dB lag ATTACK-TIME and DECAY-TIME."
   (with-samples ((coef-up (t60->pole attack-time))
-                 (coef-down (t60->pole decay-time))
-                 (y1 0.0)
-                 (coef (if (> in y1) coef-up coef-down))
-                 (g (- 1 (abs coef))))
-    (setf y1 (+ (* g in) (* coef y1)))))
+                 (coef-down (t60->pole decay-time)))
+    (~ (pole* in (if (> in it) coef-up coef-down)))))
 
 (define-vug env-follower (in attack-time decay-time)
   "Envelope follower."
