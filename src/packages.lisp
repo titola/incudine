@@ -169,7 +169,7 @@
    #:dsp! #:dsp-debug #:all-dsp-names #:free-dsp-instances #:destroy-dsp
    #:*update-dsp-instances*
    #:current-channel #:current-frame #:current-sample
-   #:make-frame #:frame-ref #:multiple-sample-bind #:samples
+   #:make-frame #:frame-ref #:multiple-sample-bind #:samples #:samples-zero
    #:make-int32-array #:make-uint32-array #:make-int64-array #:make-uint64-array
    #:make-f32-array #:make-f64-array #:make-pointer-array
    #:maybe-make-i32-array #:maybe-make-u32-array #:maybe-i32-ref #:maybe-u32-ref
