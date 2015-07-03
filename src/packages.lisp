@@ -147,8 +147,6 @@
 (defpackage :incudine.vug
   (:use :cl :incudine.util)
   (:nicknames :vug)
-  ;; Avoid boring notes from sbcl-1.8; ASH redefined in `vug/util.lisp'
-  #+sbcl (:shadow #:ash)
   (:import-from #:alexandria #:positive-fixnum #:negative-fixnum
                 #:non-negative-fixnum #:non-positive-fixnum #:with-gensyms
                 #:define-constant #:ensure-symbol #:format-symbol #:make-keyword

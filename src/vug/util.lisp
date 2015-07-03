@@ -60,14 +60,7 @@
      incudine.external:get-mouse-status
      incudine.external:complex-to-polar
      incudine.external:polar-to-complex)
-   (find-package :incudine.vug))
-  #+sbcl
-  (progn
-    ;; Avoid the boring notes from sbcl-1.8
-    (declaim (inline ash))
-    (defun ash (integer count)
-      (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
-      (cl:ash integer count))))
+   (find-package :incudine.vug)))
 
 (defun dummy-function (&rest rest)
   (declare (ignore rest))
