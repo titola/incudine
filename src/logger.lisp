@@ -107,6 +107,7 @@
 
 (defmacro msg (type &rest rest)
   `(when (logger-active-p ,type)
+     (fresh-line *logger-stream*)
      (when *logger-time* (funcall *logger-time-function*))
      ,(unless (string= (symbol-name type) "INFO")
         `(princ ,(format nil "~A: " type) *logger-stream*))
