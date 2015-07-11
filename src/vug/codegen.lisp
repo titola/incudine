@@ -450,6 +450,14 @@
           (replace-vug-variable var (reduce-vug-function value))
           (msg-debug-delete-variable var "init-time"))))))
 
+(defun check-unused-parameters ()
+  (dolist (p (vug-variables-parameter-list *vug-variables*))
+    (let ((vars (vug-parameter-vars-to-update p)))
+      (when (and (null (cdr vars))
+                 (car vars)
+                 (zerop (vug-variable-ref-count (car vars))))
+        (msg warn "the ~A parameter is unused" (vug-parameter-name p))))))
+
 (defun format-vug-code (vug-block)
   (let ((vug-form (cond ((vug-progn-function-p vug-block)
                          (vug-function-inputs vug-block))
@@ -461,6 +469,7 @@
             (delete-if #'vug-variable-deleted-p
                        (update-variable-values (nreverse #1#)))))
     (prog1 (blockexpand vug-form nil t)
+      (check-unused-parameters)
       ;; Some variables could be deleted during the generation of the code.
       (setf #1# (delete-if #'vug-variable-deleted-p #1#)))))
 
