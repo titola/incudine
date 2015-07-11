@@ -2,7 +2,6 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defun deprecated-msg (old new)
-    (terpri *logger-stream*)
     (msg warn "~A is deprecated, use ~A instead." old new)))
 
 (in-package :incudine.vug)

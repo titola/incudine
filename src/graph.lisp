@@ -1200,6 +1200,7 @@
         (indent-incr 4)
         (last-list nil))
     (declare (type non-negative-fixnum indent indent-incr))
+    (fresh-line stream)
     (flet ((inc-indent (n)
              (unless (symbolp (node-last n))
                (incf indent indent-incr)

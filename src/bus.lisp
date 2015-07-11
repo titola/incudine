@@ -140,6 +140,7 @@
 
 (defun print-peak-info (&optional (channels *number-of-output-bus-channels*)
                         (stream *logger-stream*))
+  (fresh-line stream)
   (format stream "~11Tpeak amps:  ")
   (dochannels (ch channels)
     (format stream "~8,3,F  " (smp-ref *output-peak-values* ch)))
