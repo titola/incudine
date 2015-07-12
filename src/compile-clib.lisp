@@ -27,6 +27,7 @@
   (declaim (special *audio-driver*
                     *sample-type*
                     *c-compiler*
+                    *foreign-library-directories*
                     *tlsf-block-align*
                     *use-foreign-sample-p*
                     *max-buffer-size*
@@ -106,6 +107,26 @@
   ;; with "gcc" in CHECK-C-COMPILER
   (defvar *c-compiler* "cc")
 
+  ;;; MINI-EVAL copied from cffi/src/libraries.lisp
+  (defun cffi-mini-eval (form)
+    "Simple EVAL-like function to evaluate the elements of
+CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
+    (typecase form
+      (cons (apply (car form) (mapcar #'cffi-mini-eval (cdr form))))
+      (symbol (symbol-value form))
+      (t form)))
+
+  (defvar *foreign-library-directories* nil)
+
+  (defvar *c-library-paths*
+    (progn
+      (setf cffi:*foreign-library-directories*
+            (union cffi:*foreign-library-directories*
+                   *foreign-library-directories*
+                   :test #'equal))
+      (format nil "~{ -L\"~A\"~}"
+              (mapcar #'cffi-mini-eval cffi:*foreign-library-directories*))))
+
   (defvar *c-compiler-flags*
     (concatenate 'string "-O3 -Wall"
                  #-(or darwin cygwin) " -fPIC"
@@ -118,6 +139,7 @@
     (concatenate 'string
                  #+darwin "-dynamic -bundle -flat_namespace -undefined suppress"
                  #-darwin "-shared"
+                 *c-library-paths*
                  " -lpthread -lm"))
 
   (defvar *c-source-dir*
@@ -168,7 +190,7 @@
     #+darwin "dylib"
     #+cygwin "dll")
 
-  (defvar *c-library-path*
+  (defvar *c-library-pathname*
     (make-pathname :name *c-library-name* :type *c-library-type*
                    :defaults *c-source-dir*))
 
@@ -182,7 +204,7 @@
     (not (probe-file (get-c-object-by-key key))))
 
   (defun changed-c-files ()
-    (let ((c-library-write-date (file-write-date *c-library-path*)))
+    (let ((c-library-write-date (file-write-date *c-library-pathname*)))
       (remove-if-not (lambda (x) (< c-library-write-date x))
                      *c-source-pathnames* :key #'file-write-date)))
 
@@ -223,7 +245,7 @@
   (defun c-objects-to-compile ()
     (flet ((return-all-objects ()
              (mapcar #'car *c-source-deps-alist*)))
-      (if (not (probe-file *c-library-path*))
+      (if (not (probe-file *c-library-pathname*))
           (return-all-objects)
           (let ((changed-opts (changed-compiler-options)))
             (declare (type (or keyword list) changed-opts))
@@ -256,7 +278,7 @@
          ,exit-code)))
 
   (defvar *c-libtest-fmt*
-    (format nil "~A -o /dev/null ~S -l" *c-compiler*
+    (format nil "~A -o /dev/null~A ~S -l" *c-compiler* *c-library-paths*
             (namestring (merge-pathnames "nothing.c" *c-source-dir*))))
 
   (defun probe-c-library (name)
@@ -351,9 +373,9 @@
                             *c-compiler* cc)))))))
 
   (defun %compile-c-library (ofiles libs-dep)
-    (let ((cmd (format nil "~A ~A ~A ~{ -l~A~} -o ~S~{ ~A~}"
+    (let ((cmd (format nil "~A ~A ~A ~{ -l~A~} -o ~S~{ ~S~}"
                        *c-compiler* *c-compiler-flags* *c-linker-flags*
-                       libs-dep (namestring *c-library-path*) ofiles)))
+                       libs-dep (namestring *c-library-pathname*) ofiles)))
       (write-line cmd)
       (unless (zerop (exit-code (invoke "sh" "-c" cmd)))
         (error "compilation of C library failed"))

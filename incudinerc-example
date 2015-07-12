@@ -7,6 +7,11 @@
 
 (setq *c-compiler* "cc")
 
+;; A list, in which each element is a string, a pathname, or a simple Lisp
+;; expression. Used only if the dynamic linker fails to search a library
+;; (see CFFI:*FOREIGN-LIBRARY-DIRECTORIES*)
+(setq *foreign-library-directories* nil)
+
 ;;;--------------------[ RT and NRT priorities ]--------------------
 
 ;; Thread scheduling algorithm.
