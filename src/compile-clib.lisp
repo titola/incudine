@@ -139,8 +139,7 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
     (concatenate 'string
                  #+darwin "-dynamic -bundle -flat_namespace -undefined suppress"
                  #-darwin "-shared"
-                 *c-library-paths*
-                 " -lpthread -lm"))
+                 *c-library-paths*))
 
   (defvar *c-source-dir*
     (make-pathname :name nil :type nil
@@ -373,9 +372,9 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
                             *c-compiler* cc)))))))
 
   (defun %compile-c-library (ofiles libs-dep)
-    (let ((cmd (format nil "~A ~A ~A ~{ -l~A~} -o ~S~{ ~S~}"
+    (let ((cmd (format nil "~A ~A ~A -o ~S~{ ~S~}~{ -l~A~}"
                        *c-compiler* *c-compiler-flags* *c-linker-flags*
-                       libs-dep (namestring *c-library-pathname*) ofiles)))
+                       (namestring *c-library-pathname*) ofiles libs-dep)))
       (write-line cmd)
       (unless (zerop (exit-code (invoke "sh" "-c" cmd)))
         (error "compilation of C library failed"))
@@ -390,7 +389,7 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
         (flet ((to-compile-p (key)
                  (or (member key objs) (missing-c-object-p key))))
           (let ((ofiles nil)
-                (libs-dep nil)
+                (libs-dep '("pthread" "m"))
                 (drv (get-audio-driver)))
             (terpri)
             ;; RT Audio
