@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="incudine.css">
+    <title>Note priority in a monophonic synthesizer</title>
+  </head>
+  <body>
+    <div id="content">
+      <table class="navtutor">
+        <tr>
+          <th class="center">Note priority in a monophonic synthesizer</th>
+        </tr>
+      </table>
+      <hr>
+
+      <p>
+        We can play a monophonic synthesizer with lowest or highest note
+        priority. The related VUGs are called <code>MIDI-LOWEST-KEYNUM</code> and
+        <code>MIDI-HIGHEST-KEYNUM</code>. For example:
+      </p>
+
+      <pre class="src src-lisp">(in-package <span style="color: #b0c4de;">:scratch</span>)
+
+<span class="prompt">SCRATCH&gt;</span> (set-rt-block-size 1)
+
+(dsp! <span style="color: #87cefa;">highest-note-test</span> ((chan fixnum) a d s r)
+  <span style="color: #ffa07a;">"Highest priority monosynth (single trigger)."</span>
+  (with ((keynum (midi-highest-keynum chan)))
+    (with-samples ((glide (exp-midi-cc chan 1 0.01 1.2))
+                   (amp (midi-amp *linear-midi-table* chan keynum))
+                   (amp-prev +sample-zero+)
+                   (gate +sample-zero+))
+      (if (zerop amp)
+          (setf gate +sample-zero+ amp amp-prev)  <span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">Note off.</span>
+          (setf gate (sample 1) amp-prev amp))
+      (stereo (* (envgen (make-local-adsr a d s r) gate 1 #'identity)
+                 (gbuzz (lag (midi-cps *default-tuning* chan keynum) glide)
+                        (lag amp 0.02) 20 1 .6))))))
+
+<span class="prompt">SCRATCH&gt;</span> (rt-start)
+
+<span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">*midiin*</span> (pm:open (pm:get-default-input-device-id)))
+
+<span class="prompt">SCRATCH&gt;</span> (recv-start *midiin*)
+
+<span class="prompt">SCRATCH&gt;</span> (highest-note-test 0 .1 0.9 .7 .1 <span style="color: #b0c4de;">:id</span> 123)
+
+         <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Change attack and release times.</span>
+<span class="prompt">SCRATCH&gt;</span> (set-controls 123 <span style="color: #b0c4de;">:a</span> .01 <span style="color: #b0c4de;">:r</span> .02)
+
+<span class="prompt">SCRATCH&gt;</span> (free 123)
+
+<span class="prompt">SCRATCH&gt;</span> (recv-stop *midiin*)
+
+<span class="prompt">SCRATCH&gt;</span> (rt-stop)
+
+<span class="prompt">SCRATCH&gt;</span> (pm:terminate)</pre>
+
+      <hr>
+      <table class="navtutor">
+        <tr>
+          <td style="width: 20%" class="left">
+            <a href="tutorial_01.html">Getting Started with Incudine</a>
+          </td>
+          <td style="width: 60%" class="center"><a href="index.html">Home</a></td>
+          <td style="width: 20%" class="right"></td>
+        </tr>
+      </table>
+    </div>
+    <div id="postamble">
+      <a href="http://sourceforge.net/projects/incudine">Sourceforge project page</a>
+    </div>
+  </body>
+</html>

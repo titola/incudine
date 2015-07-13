@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="incudine.css" />
+    <title>Instantaneous retrig and gate modulation with ENVGEN</title>
+  </head>
+  <body>
+    <div id="content">
+      <table class="navtutor">
+        <tr>
+          <th class="center">Instantaneous retrig and gate modulation with ENVGEN</th>
+        </tr>
+      </table>
+      <hr>
+
+      <p>
+        The envelope is re-triggered if the difference between the gate of the
+        current audio cycle and the gate of the previous audio cycle is a
+        positive value. Example:
+      </p>
+
+      <pre class="src src-lisp">(in-package <span style="color: #b0c4de;">:scratch</span>)
+
+(dsp! <span style="color: #87cefa;">frrr</span> (amp gate)
+  (stereo (* (envgen (make-local-adsr .2 .1 .5 1) gate 1 #'identity)
+             (white-noise amp))))
+
+(defun <span style="color: #87cefa;">retrig</span> (node)
+  (incf (control-value node 'gate))
+  (values))
+
+<span class="prompt">SCRATCH&gt;</span> (set-rt-block-size 1)
+
+<span class="prompt">SCRATCH&gt;</span> (rt-start)
+
+<span class="prompt">SCRATCH&gt;</span> (frrr .3 1 <span style="color: #b0c4de;">:id</span> 42)
+
+<span class="prompt">SCRATCH&gt;</span> (set-control 42 <span style="color: #b0c4de;">:gate</span> 1)   <span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">ignored because (- gate prev-gate) is zero</span>
+
+<span class="prompt">SCRATCH&gt;</span> (retrig 42)                <span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">retrig because (- gate prev-gate) is one</span>
+
+<span class="prompt">SCRATCH&gt;</span> (retrig 42)                <span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">idem</span>
+
+<span class="prompt">SCRATCH&gt;</span> (set-control 42 <span style="color: #b0c4de;">:gate</span> 0)   <span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">close</span>
+<span class="prompt">SCRATCH&gt;</span> (retrig 42)                <span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">open</span>
+
+<span class="prompt">SCRATCH&gt;</span> (set-control 42 <span style="color: #b0c4de;">:gate</span> 0)
+<span class="prompt">SCRATCH&gt;</span> (free 42)</pre>
+
+      <p>
+        The follow example shows a simple modulation of the gate:
+      </p>
+
+      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">explosions</span> (gain gate-base gate-freq)
+  (stereo (* (tanh (* (envgen (make-local-adsr .001 3 .05 .8)
+                              (+ gate-base
+                                 (if (&lt; (phasor gate-freq 0) .5) 1 0))
+                              1 #'identity)
+                      (butter-lp (bpf (fractal-noise .5 2.3) 150 .1)
+                                 8000)))
+             (db-&gt;lin gain))))
+
+<span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">attack decay sustain (retrig) attack decay sustain (retrig) ...</span>
+<span class="prompt">SCRATCH&gt;</span> (explosions -10 1 1/6 <span style="color: #b0c4de;">:id</span> #xF35)
+
+<span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">attack decay release (retrig) attack decay release (retrig) ...</span>
+<span class="prompt">SCRATCH&gt;</span> (set-control #xF35 <span style="color: #b0c4de;">:gate-base</span> 0)
+
+<span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">attack decay (retrig) attack decay (retrig) ...</span>
+<span class="prompt">SCRATCH&gt;</span> (set-control #xF35 <span style="color: #b0c4de;">:gate-freq</span> 1/2)
+
+<span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">no attack, no decay</span>
+<span class="prompt">SCRATCH&gt;</span> (stop #xF35)</pre>
+
+      <hr>
+      <table class="navtutor">
+        <tr>
+          <td style="width: 20%" class="left">
+            <a href="tutorial_01.html">Getting Started with Incudine</a>
+          </td>
+          <td style="width: 60%" class="center"><a href="index.html">Home</a></td>
+          <td style="width: 20%" class="right"></td>
+        </tr>
+      </table>
+    </div>
+    <div id="postamble">
+      <a href="http://sourceforge.net/projects/incudine">Sourceforge project page</a>
+    </div>
+  </body>
+</html>

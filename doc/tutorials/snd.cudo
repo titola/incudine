@@ -1,0 +1,146 @@
+;;; Incudine
+;;; Interaction with the sound editor Snd
+
+(require :incudine-snd)
+
+(in-package :scratch)
+
+snd:*program-name*
+;; "snd"
+
+;; Snd command line argument list.
+snd:*program-args*
+;; NIL
+
+;; Temporary soundfile.
+snd:*tmpfile*
+;; "/tmp/incudine-snd.snd"
+
+(snd:run)
+;; #<SB-IMPL::PROCESS 1955 :RUNNING>
+
+(dsp! hello-snd (c i a o)
+  (stereo (+ (sine c i 0) (sine a o 0))))
+
+(bounce-to-snd ("/tmp/oscilla.wav")
+  (hello-snd 230 .2 255 .1))
+;; (SOUND 0)
+
+(defun snd-play ()
+  (snd:eval "(play)"))
+
+(snd-play)
+
+(bounce-to-snd-mix ("/tmp/oscilla-2.wav")
+  (hello-snd 430 .2 495 .1))
+;; ((MIX 0))
+
+(bounce-to-snd-mix ("/tmp/oscilla-3.wav" '(48000 t))
+  (hello-snd 1000 .2 1220 .1))
+;; ((MIX 1) (MIX 2))
+
+(snd:eval "(set! (cursor) 108000)")
+;; 108000
+
+(bounce-to-snd-mix ("/tmp/oscilla-4.wav" '("(cursor)" t) :duration 1)
+  (hello-snd 660 .1 888 .1))
+;; ((MIX 3) (MIX 4))
+
+(snd:eval "(set! (cursor) 0)")
+;; 0
+
+(snd-play)
+
+(defvar *mix0* (snd:mix->buffer 0))
+
+*mix0*
+;; #<BUFFER :FRAMES 96000 :CHANNELS 1 :SR 48000.0>
+
+(defvar *snd0* (snd:sound->buffer 0))
+
+*snd0*
+;; #<BUFFER :FRAMES 156000 :CHANNELS 2 :SR 48000.0>
+
+(dsp! bplay ((buf buffer) rate start-pos (loop-p boolean))
+  (foreach-channel
+    (cout (buffer-play buf rate start-pos loop-p #'free))))
+
+(set-rt-block-size 1)
+
+(rt-start)
+
+(bplay *snd0* 1 0 t)
+
+(snd:eval "(set! (selection-position) 73000)")
+;; 73000
+
+(snd:eval "(set! (selection-framples) 48000)")
+;; 48000
+
+(defvar *snd-sel* (snd:selection->buffer))
+
+*snd-sel*
+;; #<BUFFER :FRAMES 48000 :CHANNELS 2 :SR 48000.0>
+
+(set-control 1 :buf *snd-sel*)
+
+(snd:eval "(set! (selection-position) 20000)")
+;; 20000
+
+(snd:eval "(set! (selection-framples) 48000)" :output-p nil)
+;; NIL
+
+(defvar *snd-reg0* (snd:region->buffer (second (snd:eval "(make-region)"))))
+
+*snd-reg0*
+;; #<BUFFER :FRAMES 48000 :CHANNELS 2 :SR 48000.0>
+
+(set-control 1 :buf *snd-reg0*)
+
+(snd:eval "(unselect-all)")
+;; NIL
+
+(free 0)
+
+(rt-stop)
+
+(snd:eval "(close-sound)")
+;; NIL
+
+(snd:buffer->sound *snd0* "/tmp/snd0.wav")
+;; (SOUND 0)
+
+(snd:eval "(scale-to .3)")
+;; 0.3
+
+(snd:buffer->mix *snd-sel*)
+;; ((MIX 0))
+
+(snd:buffer->mix *mix0* '(108000 0 nil 0))
+;; ((MIX 1))
+
+(snd:buffer->mix *mix0* '(108000 0 nil 1))
+;; ((MIX 2))
+
+(snd:eval "(maxamp)")
+;; 0.9025847
+
+(with-open-file (f "/tmp/666.scm" :direction :output
+                 :if-exists :supersede)
+  (write-line "(reverse-sound)" f))
+
+(snd:load "/tmp/666.scm")
+;; NIL
+
+(snd:mix "/tmp/oscilla-2.wav" '(76400 t))
+;; ((MIX 3) (MIX 4))
+
+(snd-play)
+
+;; exorcize-filter
+(buffer-save *snd0* "/tmp/snd0.wav")
+(snd:open-or-update-sound "/tmp/snd0.wav")
+;;(SOUND 0)
+
+(snd:exit)
+;; T

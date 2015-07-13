@@ -1,0 +1,148 @@
+;;; Incudine
+;;; First steps with "real" UGens - part 1
+
+;; The arrangement of multiple Virtual UGens is not a true combination
+;; but a fusion, because the original evanescent VUGs are melted away.
+
+;; However, sometimes the threaded code of the classic UGen is useful,
+;; in particular to get a faster compilation of DSP, a reduced use of
+;; the memory and a minor stress for the gc.
+
+;; We can reuse a compiled Virtual UGen. The syntax of COMPILE-VUG is:
+
+;; (compile-vug name-or-vug return-type &optional force-p)
+
+;; for example:
+
+(in-package :scratch)
+
+(set-rt-block-size 1)
+(rt-start)
+
+(compile-vug 'envgen 'sample)
+
+(vug 'envgen)
+;; #<VUG ENVGEN>
+
+(ugen 'envgen)
+;; #<UGEN ENVGEN>
+
+;; Now, when we use ENVGEN inside the definition of a DSP (or UGEN
+;; because we can also use nested UGENs), for example
+
+(dsp! ugen-test (freq amp atk rel)
+  (stereo (* (envgen (make-local-perc atk rel) 1 1 #'free)
+             (osc *sine-table* freq amp))))
+
+(ugen-test 440 .3 .01 .5)
+
+;; the generated code uses the UGEN called ENVGEN and not the VUG with
+;; the same name.
+
+;; COMPILE-VUG works with VUGs but not with VUG-MACROs, because a
+;; VUG-MACRO is like many VUGs in one. Have no fear, it isn't a
+;; problem, we can define a UGEN with the macro DEFINE-UGEN. The
+;; syntax is
+
+;; (define-ugen name return-type lambda-list &body body)
+
+;; It is similar to DEFINE-VUG but with a new argument
+;; RETURN-TYPE. For example:
+
+(define-ugen oscili sample (amp cps (buf buffer))
+  "A simple oscillator with linear interpolation."
+  (osc buf cps amp 0 :linear))
+
+(dsp! ugen-test2 (freq amp atk rel)
+  (stereo (* (envgen (make-local-perc atk rel) 1 1 #'free)
+             (oscili amp freq *sine-table*))))
+
+(ugen-test2 440 .3 .01 .5)
+
+;; where UGEN-TEST2 is defined with the two UGENs ENVGEN and
+;; OSCILI. The follow example shows the use of nested UGENs:
+
+(define-ugen perc-sine sample (freq amp atk rel)
+  (* (envgen (make-local-perc atk rel) 1 1 #'free)
+     (oscili amp freq *sine-table*)))
+
+(dsp! ugen-test3 (freq amp atk rel)
+  (stereo (perc-sine freq amp atk rel)))
+
+(ugen-test3 440 .3 .01 .5)
+
+;; Ok, habemus UGens, but where are the VUGs ENVGEN and OSCILI ?
+
+;; After the creation of a UGEN, a VUG comes into play when the
+;; related UGEN is inlined. For example, we can define a UGEN called
+;; PERC-SINE* with the VUGs ENVGEN and OSCILI:
+
+(define-ugen perc-sine* sample (freq amp atk rel)
+  (declare (inline envgen oscili))
+  (* (envgen (make-local-perc atk rel) 1 1 #'free)
+     (oscili amp freq *sine-table*)))
+
+(dsp! ugen-test4 (freq amp atk rel)
+  (stereo (perc-sine* freq amp atk rel)))
+
+(ugen-test4 440 .3 .01 .5)
+
+;; It is necessary to think before to use a UGEN instead of a VUG. For
+;; example, the UGEN PAN2
+
+(compile-vug 'pan2 'sample)
+
+(dsp! pan2-ugen-bug (freq amp pos)
+  (foreach-channel
+    (cout (pan2 (oscili amp freq *sine-table*) pos))))
+
+;; Ops, the frequency is 880 instead of 440 !?
+(pan2-ugen-bug 440 .3 .5)
+
+(free 0)
+
+;; doesn't work with the current implementation of PAN2 (branching
+;; based on CURRENT-CHANNEL) because a UGEN is a rigid object and it
+;; is not ductile like a VUG. It works only when it is a VUG, because
+;; in this case the input (VUG or UGEN) is merged inside the VUG. When
+;; PAN2 is a UGEN, the input is computed for any channel before to
+;; require the output of PAN2. It appears complicated but it's
+;; genuinely logic. So, some possible alternatives to fix the prior
+;; example are:
+
+(dsp! pan-test1 (freq amp pos)
+  (declare (inline pan2))
+  (foreach-channel
+    (cout (pan2 (oscili amp freq *sine-table*) pos))))
+
+(pan-test1 440 .3 .5)
+(free 0)
+
+(define-ugen my-pan2 frame (in pos)
+  "Stereo equal power panpot."
+  (with-samples ((alpha (* +half-pi+ pos)))
+    (samples (* in (cos alpha)) (* in (sin alpha)))))
+
+(dsp! pan-test2 (freq amp pos)
+  (multiple-sample-bind (l r)
+      (my-pan2 (oscili amp freq *sine-table*) pos)
+    (out l r)))
+
+(pan-test2 440 .3 .5)
+(free 0)
+
+;; Finally, we can see all the defined UGENs with ALL-UGEN-NAMES:
+
+(all-ugen-names)
+;; (ENVGEN MY-PAN2 OSCILI PAN2 PERC-SINE PERC-SINE*)
+
+;; After the cancellation of a UGEN by using DESTROY-UGEN, the related
+;; VUG is still alive:
+
+(destroy-ugen 'envgen)
+(ugen 'envgen)
+;; NIL
+(vug 'envgen)
+;; #<VUG ENVGEN>
+(compiled-vug-p 'envgen)
+;; NIL

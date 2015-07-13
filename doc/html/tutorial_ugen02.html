@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="incudine.css" />
+    <title>First steps with "real" UGens - Part 2</title>
+  </head>
+  <body>
+    <div id="content">
+      <table class="navtutor">
+        <tr>
+          <th colspan="3" class="center">First steps with "real" UGens</th>
+        </tr>
+        <tr>
+          <td style="width: 20%" class="left"><a href="tutorial_ugen01.html">Part 1</a></td>
+          <th style="width: 60%" class="center">Part 2</th>
+          <td style="width: 20%" class="right"></td>
+        </tr>
+      </table>
+      <hr>
+
+      <p>
+        There are utilities to use a UGEN outside the definition of a DSP
+        and the next examples show them step by step.
+      </p>
+
+      <p>
+        The first example is really trivial and you can replace it with a
+        simple let-over-lambda, but I prefer to focus the attention on the
+        utilities. Under the hood, a UGEN is let-over-lambda plus vitamins
+        (VUGs, nested UGENs, C heap management, automatic inference of init-
+        and performance-time variables, etc).
+      </p>
+
+      <p>
+        We start with a new UGEN called <code>INCR-EDULA</code>:
+      </p>
+
+      <pre class="src src-lisp">(in-package <span style="color: #b0c4de;">:scratch</span>)
+
+(define-ugen <span style="color: #87cefa;">incr-edula</span> fixnum ((start fixnum) (edge fixnum))
+  (with ((n (1- start)))
+    (setf n (mod (1+ n) edge))))</pre>
+
+      <p>
+        Checking:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (ugen 'incr-edula)
+#&lt;UGEN INCR-EDULA&gt;</pre>
+
+      <p>
+        The result of the function <code>INCR-EDULA</code> is another function,
+        usable to generate UGEN-INSTANCEs.
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">*eugenia*</span> (funcall (incr-edula 0 8)))
+<span class="prompt">SCRATCH&gt;</span> *eugenia*
+#&lt;UGEN-INSTANCE INCR-EDULA&gt;</pre>
+
+      <p>
+        <code>*EUGENIA*</code> is ready for the performance (all is initialized).
+      </p>
+
+      <pre class="src src-lisp">(defun <span style="color: #87cefa;">counts</span> (toys)
+  (loop repeat toys collect (funcall (ugen-perf-function *eugenia*))))
+
+<span class="prompt">SCRATCH&gt;</span> (counts 12)
+(0 1 2 3 4 5 6 7 0 1 2 3)</pre>
+
+      <p>
+        Now we can define a setter (not a dog) to change the edge. The default
+        for the name of the setter is <code>SET-[UGEN-NAME]-[CONTROL-NAME]</code>
+      </p>
+
+      <pre class="src src-lisp">(define-ugen-control-setter incr-edula edge)
+
+<span class="prompt">SCRATCH&gt;</span> (set-incr-edula-edge *eugenia* 5)
+<span class="prompt">SCRATCH&gt;</span> (counts 12)
+(4 0 1 2 3 4 0 1 2 3 4 0)</pre>
+
+      <p>
+        The follow line defines a setter called <code>INCR-EDULA-FROM</code> to
+        change the <code>START</code> value:
+      </p>
+
+      <pre class="src src-lisp">(define-ugen-control-setter incr-edula start incr-edula-from)
+
+<span class="prompt">SCRATCH&gt;</span> (incr-edula-from *eugenia* 2)
+<span class="prompt">SCRATCH&gt;</span> (counts 12)
+(2 3 4 0 1 2 3 4 0 1 2 3)</pre>
+
+      <p>
+        Finally, the <code>*EUGENIA*</code>'s reinitialization:
+      </p>
+
+      <pre class="src src-lisp">(funcall (ugen-reinit-function *eugenia*) 0 7)
+
+<span class="prompt">SCRATCH&gt;</span> (counts 16)
+(0 1 2 3 4 5 6 0 1 2 3 4 5 6 0 1)</pre>
+
+      <p>
+        The return type of the next UGEN is SAMPLE&#x2026;
+      </p>
+
+      <pre class="src src-lisp">(define-ugen <span style="color: #87cefa;">zibaldone</span> sample (night deep (darkness fixnum))
+  (buzz night deep darkness))
+
+<span class="prompt">SCRATCH&gt;</span> (ugen 'zibaldone)
+#&lt;UGEN ZIBALDONE&gt;
+<span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">*notturno*</span> (funcall (zibaldone 100 .5 30)))
+<span class="prompt">SCRATCH&gt;</span> *notturno*
+#&lt;UGEN-INSTANCE ZIBALDONE&gt;</pre>
+
+      <p>
+        &#x2026; but the return type of the performance function is
+        <code>NIL</code>. We retrieve the result from the foreign pointer:
+      </p>
+
+      <pre class="src src-lisp">(defun <span style="color: #87cefa;">star-samples</span> (n)
+  (loop repeat n do (funcall (ugen-perf-function *notturno*))
+        collect (smp-ref (ugen-return-pointer *notturno*) 0)))
+
+<span class="prompt">SCRATCH&gt;</span> (star-samples 3)
+(0.5d0 0.486606790129606d0 0.44769321522927535d0)
+<span class="prompt">SCRATCH&gt;</span> (star-samples 3)
+(0.3869151587690795d0 0.30990888519118d0 0.22366438072673978d0)</pre>
+
+      <p>
+        The last argument of <code>DEFINE-UGEN-CONTROL-SETTER</code> is the type
+        of the value passed to the setter. For example:
+      </p>
+
+      <pre class="src src-lisp">(define-ugen-control-setter zibaldone night nil real)</pre>
+
+      <p>
+        where the expansion of the macro is
+      </p>
+
+      <pre class="src src-lisp">(PROGN
+ (DEFUN <span style="color: #87cefa;">SET-ZIBALDONE-NIGHT</span> (UGEN-INSTANCE VALUE)
+   (DECLARE (TYPE INCUDINE.VUG::UGEN-INSTANCE UGEN-INSTANCE)
+            (TYPE REAL VALUE))
+   (LET ((#<span style="color: #b0c4de;">:CTRL858</span> (INCUDINE.VUG::UGEN-INSTANCE-CONTROLS UGEN-INSTANCE)))
+     (SETF (CFFI:MEM-REF (SVREF #<span style="color: #b0c4de;">:CTRL858</span> 0) 'SAMPLE) (COERCE VALUE 'SAMPLE))
+     (FUNCALL (THE FUNCTION (SVREF #<span style="color: #b0c4de;">:CTRL858</span> 1)))
+     (VALUES))))</pre>
+
+      <p>
+        and you can notice coercing around the input value. Now we can change
+        the night by using a real number instead of a value of type SAMPLE:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (set-zibaldone-night *notturno* 1798)
+<span class="prompt">SCRATCH&gt;</span> (star-samples 3)
+(0.13575758294800522d0 -0.01625060660788103d0 -0.03490033405549335d0)</pre>
+
+      <p>
+        If the setter is defined without to specify the type of the input
+        value, it's better to add <code>`(declaim (inline set-zibaldone-night))'</code>
+        to avoid consing, because the type of the input value is SAMPLE.
+        Idem when the type is a foreign pointer.
+      </p>
+
+      <p>
+        There is also a low level utility to get the pointer to the memory
+        used to store the value of a control and the function of no arguments
+        to update the dependencies (if it exists):
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (ugen-control-pointer *notturno* 'night)
+#.(SB-SYS:INT-SAP #X0072F500)
+#&lt;CLOSURE (LAMBDA ()) {1005B7253B}&gt;</pre>
+
+      <p>
+        So, a low level way to transform the night is
+      </p>
+
+      <pre class="src src-lisp">(multiple-value-bind (ptr fn)
+    (ugen-control-pointer *notturno* 'night)
+  (setf (smp-ref ptr 0) (sample 1821))
+  (when fn (funcall fn)))</pre>
+
+      <blockquote>
+        <p>
+          Le parole notte notturno ec., le descrizioni della notte ec., sono
+          poeticissime, perché la notte confondendo gli oggetti, l'animo non ne
+          concepisce che un'immagine vaga, indistinta, incompleta, sì di essa
+          che quanto ella contiene. Così oscurità, profondo ec. ec.
+          &#x2013; Giacomo Leopardi (Zibaldone)
+        </p>
+      </blockquote>
+
+      <hr>
+      <table class="navtutor">
+        <tr>
+          <td style="width: 20%" class="left">
+            <a href="tutorial_ugen01.html">Part 1</a>
+          </td>
+          <td style="width: 60%" class="center"><a href="index.html">Home</a></td>
+          <td style="width: 20%" class="right"></td>
+        </tr>
+      </table>
+    </div>
+    <div id="postamble">
+      <a href="http://sourceforge.net/projects/incudine">Sourceforge project page</a>
+    </div>
+  </body>
+</html>

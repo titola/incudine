@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="incudine.css" />
+    <title>Getting Started with Incudine - Part 2</title>
+  </head>
+  <body>
+    <div id="content">
+      <table class="navtutor">
+        <tr>
+          <th colspan="3" class="center">Getting Started with Incudine</th>
+        </tr>
+        <tr>
+          <td style="width: 20%" class="left"><a href="tutorial_01.html">Part 1</a></td>
+          <th style="width: 60%" class="center">Part 2</th>
+          <td style="width: 20%" class="right"><a href="tutorial_03.html">Part 3</a></td>
+        </tr>
+      </table>
+      <hr>
+
+      <p>
+        The way to play back break point envelopes is inspired by the
+        <a href="http://doc.sccode.org/Classes/EnvGen.html">SuperCollider envelope generator</a>.
+        It is possible to define global or local envelopes. The function to
+        create a generic global envelope is <code>MAKE-ENVELOPE</code>
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (defparameter <span style="color: #eedd82;">env1</span> (make-envelope '(0 1 0) '(.2 .8)))
+ENV1
+<span class="prompt">SCRATCH&gt;</span> (describe env1)
+#&lt;ENVELOPE <span style="color: #b0c4de;">:POINTS</span> 3 <span style="color: #b0c4de;">:LOOP-NODE</span> -1 <span style="color: #b0c4de;">:RELEASE-NODE</span> -1&gt;
+  [structure-object]
+
+Slots with <span style="color: #b0c4de;">:INSTANCE</span> allocation:
+  DATA            = #.(SB-SYS:INT-SAP #X0072E760)
+  DURATION        = 1.0000000149011612d0
+  POINTS          = 3
+  DATA-SIZE       = 7
+  LOOP-NODE       = -1
+  RELEASE-NODE    = -1
+  %RESTART-LEVEL  = NIL
+  MAX-POINTS      = 8
+  REAL-TIME-P     = NIL
+  FOREIGN-FREE    = #&lt;FUNCTION CFFI-SYS:FOREIGN-FREE&gt;
+  <span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">No value</span></pre>
+
+      <p>
+        The first argument of <code>MAKE-ENVELOPE</code> is a list of levels and
+        the second argument is a list of times. The levels are the vertexes of
+        the segments and the times are the durations of the segments. In the
+        previous example the points of the envelope are:
+      </p>
+
+      <table>
+        <colgroup>
+          <col class="right">
+          <col class="right">
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col" class="right">time</th>
+            <th scope="col" class="right">level</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="right">0</td>
+            <td class="right">0</td>
+          </tr>
+          <tr>
+            <td class="right">0.2</td>
+            <td class="right">1</td>
+          </tr>
+          <tr>
+            <td class="right">1.0</td>
+            <td class="right">0</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>
+        We can set the shape of the segments by using the <code>:CURVE</code>
+        keyword. The default is <code>:LINEAR</code> and the possible values are
+      </p>
+
+      <ul>
+        <li>:STEP</li>
+        <li>:LIN or :LINEAR</li>
+        <li>:EXP or :EXPONENTIAL</li>
+        <li>:SIN or :SINE</li>
+        <li>:WEL or :WELCH</li>
+        <li>:SQR or :SQUARE</li>
+        <li>:CUB or :CUBIC</li>
+        <li>a number that represents the curvature value for all the segments</li>
+        <li>a list of the prior values to specify the curvature values for each segments</li>
+      </ul>
+
+      <p>
+        If the envelope is sustained, the <code>:RELEASE-NODE</code> keyword
+        specifies the point of the release (starting from 0). The default is -1
+        that means "envelope without sustain".
+      </p>
+
+      <p>
+        If the <code>:LOOP-NODE</code> keyword has a non negative value, it is
+        the starting point of the loop of the segments during the sustain phase
+        of the envelope. The ending point is the point that precedes the release
+        point.
+      </p>
+
+      <p>
+        There are useful macros to create frequently used envelope shapes:
+      </p>
+
+      <ul>
+        <li>MAKE-LINEN</li>
+        <li>MAKE-PERC</li>
+        <li>MAKE-CUTOFF</li>
+        <li>MAKE-ASR</li>
+        <li>MAKE-ADSR</li>
+        <li>MAKE-DADSR</li>
+      </ul>
+
+      <p>
+        There are also utilities to edit an existent envelope:
+      </p>
+
+      <ul>
+        <li>SET-ENVELOPE</li>
+        <li>LINEN</li>
+        <li>PERC</li>
+        <li>CUTOFF</li>
+        <li>ASR</li>
+        <li>ADSR</li>
+        <li>DADSR</li>
+      </ul>
+
+      <p>
+        and the follows are setf-able:
+      </p>
+
+      <ul>
+        <li>ENVELOPE-LEVEL</li>
+        <li>ENVELOPE-TIME</li>
+        <li>ENVELOPE-CURVE</li>
+      </ul>
+
+      <p>
+        For example:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (adsr env1 .15 .09 .85 1.5)
+#&lt;ENVELOPE <span style="color: #b0c4de;">:POINTS</span> 4 <span style="color: #b0c4de;">:LOOP-NODE</span> -1 <span style="color: #b0c4de;">:RELEASE-NODE</span> 2&gt;
+<span class="prompt">SCRATCH&gt;</span> (mapcar (lambda (point) (envelope-level env1 point)) '(0 1 2 3))
+(9.999999747378752d-6 1.0d0 0.8500000238418579d0 9.999999747378752d-6)
+<span class="prompt">SCRATCH&gt;</span> (setf (envelope-level env1 2) 0.82)
+0.8199999928474426d0</pre>
+
+      <p>
+        Here is a DSP to test a global envelope:
+      </p>
+
+      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">env-test</span> ((env envelope) gate amp dur)
+  (stereo (* (envgen env gate dur #'free)
+             (white-noise amp))))
+
+<span class="prompt">SCRATCH&gt;</span> (env-test env1 1 .3 1 <span style="color: #b0c4de;">:id</span> 1)
+<span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:gate</span> 0)
+0
+<span class="prompt">SCRATCH&gt;</span> (env-test env1 1 .3 1 <span style="color: #b0c4de;">:id</span> 1)
+<span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:gate</span> -1) <span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">immediate cutoff</span>
+-1
+<span class="prompt">SCRATCH&gt;</span> (env-test env1 1 .3 1 <span style="color: #b0c4de;">:id</span> 1)
+<span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:gate</span> -5.2) <span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">release in 4.2 seconds</span>
+-5</pre>
+
+      <p>
+        The <code>ENVGEN</code> VUG plays back the segments of an
+        <code>ENVELOPE</code>. When <code>GATE</code> is 0, it starts the
+        release phase of the envelope. If <code>GATE</code> is -1, there is an
+        immediate cutoff. If <code>GATE</code> is minor than -1, there is a
+        release stage with a custom duration <code>(- -1.0 GATE)</code>.
+      </p>
+
+      <p>
+        The fourth argument of <code>ENVGEN</code> is <code>DONE-ACTION</code>,
+        a function to call after the end of the envelope. The argument of this
+        function is the node of the DSP. In the previous example, the DSP
+        terminates after the end of the envelope, so we cannot retrig the
+        envelope after the end. A little variation:
+      </p>
+
+      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">env-test-2</span> ((env envelope) gate amp dur)
+  (stereo (* (envgen env gate dur #'identity)
+             (white-noise amp))))
+
+<span class="prompt">SCRATCH&gt;</span> (env-test-2 env1 1 .3 1 <span style="color: #b0c4de;">:id</span> 1)
+<span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:gate</span> 0)
+0
+<span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:gate</span> 1) <span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">retrig after the release</span>
+1
+<span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:gate</span> 0)
+0
+<span class="prompt">SCRATCH&gt;</span> (free 1)</pre>
+
+      <p>
+        The DSP is alive after the release because the <code>DONE-ACTION</code>
+        function is simply <code>#'IDENTITY</code>.
+      </p>
+
+      <p>
+        The <code>DSP-SEQ</code> macro is used to define a sequence of DSPs.
+        It is also possible to define recursive sequences of DSPs. The trick is
+        to exploit the <code>STOP-HOOK</code> of the node:
+      </p>
+
+      <pre class="src src-lisp">(defvar <span style="color: #eedd82;">env2</span> (make-perc .001 .4))
+
+(dsp! <span style="color: #87cefa;">env-test-3</span> (freq amp pos (env envelope) gate)
+  (foreach-channel
+    (cout (pan2 (* (envgen env gate 1 #'stop)
+                   (sine freq amp 0))
+                pos))))
+
+(defun <span style="color: #87cefa;">seq-test</span> (rep freq amp pos)
+  (when (plusp rep)
+    (dsp-seq (env-test-3 freq amp pos env2 1)
+             (env-test-3 (* freq 7/4) amp pos env2 1)
+             (env-test-3 (* freq 2) amp pos env2 1)
+             (seq-test (1- rep) freq amp pos))))
+
+(defun <span style="color: #87cefa;">phr1</span> (time)
+  (at time #'seq-test 8 200 .3 .5)
+  (at (+ time #[2 b]) #'seq-test 6 400 .3 .4)
+  (at (+ time #[4 b]) #'seq-test 4 600 .3 .6))
+
+<span class="prompt">SCRATCH&gt;</span> (setf (bpm *tempo*) 120)
+120
+<span class="prompt">SCRATCH&gt;</span> (phr1 (now))</pre>
+
+      <p>
+        In the example the <code>DONE-ACTION</code> function of the envelope is
+        <code>#'STOP</code>. In general, the last function of <code>DSP-SEQ</code>
+        is an arbitrary function without arguments; it is useful to define
+        recursive sequences. The expansion of the <code>DSP-SEQ</code> macro shows
+        the use of the <code>STOP-HOOK</code>:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (macroexpand-1
+          '(dsp-seq (env-test-3 freq amp pos env2 1)
+                    (env-test-3 (* freq 7/4) amp pos env2 1)
+                    (env-test-3 (* freq 2) amp pos env2 1)
+                    (seq-test (1- rep) freq amp pos)))
+(ENV-TEST-3 FREQ AMP POS ENV2 1 <span style="color: #b0c4de;">:STOP-HOOK</span>
+            (LIST
+             (LAMBDA (#<span style="color: #b0c4de;">:N912</span>)
+               (DECLARE (IGNORE #<span style="color: #b0c4de;">:N912</span>))
+               (ENV-TEST-3 (* FREQ 7/4) AMP POS ENV2 1 <span style="color: #b0c4de;">:STOP-HOOK</span>
+                           (LIST
+                            (LAMBDA (#<span style="color: #b0c4de;">:N912</span>)
+                              (DECLARE (IGNORE #<span style="color: #b0c4de;">:N912</span>))
+                              (ENV-TEST-3 (* FREQ 2) AMP POS ENV2 1 <span style="color: #b0c4de;">:STOP-HOOK</span>
+                                          (LIST
+                                           (LAMBDA (#<span style="color: #b0c4de;">:N912</span>)
+                                             (DECLARE (IGNORE #<span style="color: #b0c4de;">:N912</span>))
+                                             (SEQ-TEST (1- REP) FREQ AMP
+                                                       POS))))))))))
+T</pre>
+
+      <p>
+        Useful methods are <code>SCALE-ENVELOPE</code>,
+        <code>NORMALIZE-ENVELOPE</code> and <code>RESCALE-ENVELOPE</code>.
+        For example:
+      </p>
+
+      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">env-test-4</span> ((env envelope) gate amp dur)
+  (stereo (sine (envgen env gate dur #'identity) amp 0)))
+
+(defun <span style="color: #87cefa;">retrig-test</span> ()
+  (rt-eval ()
+    (let ((time (now)))
+      (at time #'set-control 1 <span style="color: #b0c4de;">:gate</span> 0)
+      (at (+ time #[1 s]) #'set-control 1 <span style="color: #b0c4de;">:gate</span> 1)
+      (at (+ time #[2.5 s]) #'set-control 1 <span style="color: #b0c4de;">:gate</span> 0)
+      (at (+ time #[6 s]) #'set-control 1 <span style="color: #b0c4de;">:gate</span> 1))))
+
+<span class="prompt">SCRATCH&gt;</span> (rescale-envelope env1 220 880)
+#&lt;ENVELOPE <span style="color: #b0c4de;">:POINTS</span> 4 <span style="color: #b0c4de;">:LOOP-NODE</span> -1 <span style="color: #b0c4de;">:RELEASE-NODE</span> 2&gt;
+<span class="prompt">SCRATCH&gt;</span> (env-test-4 env1 1 .3 8 <span style="color: #b0c4de;">:id</span> 1)
+<span class="prompt">SCRATCH&gt;</span> (retrig-test)
+<span class="prompt">SCRATCH&gt;</span> (free 1)</pre>
+
+      <p>
+        A local envelope is not so different, however it is specific for an
+        instance of a DSP. For example:
+      </p>
+
+      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">env-test-5</span> (freq amp pos gate a d s r)
+  (foreach-channel
+    (cout (pan2 (* (envgen (make-local-adsr a d s r) gate 1 #'stop)
+                   (sine freq amp 0))
+                pos))))
+
+<span class="prompt">SCRATCH&gt;</span> (env-test-5 440 .2 .1 1 0.001 .09 .9  0.02 <span style="color: #b0c4de;">:id</span> 1)
+<span class="prompt">SCRATCH&gt;</span> (env-test-5 448 .2 .9 1 1.5   .5  .7  2    <span style="color: #b0c4de;">:id</span> 2)
+<span class="prompt">SCRATCH&gt;</span> (env-test-5 111 .2 .5 1 .1    .1  .99 4    <span style="color: #b0c4de;">:id</span> 3)
+<span class="prompt">SCRATCH&gt;</span> (set-control 0 <span style="color: #b0c4de;">:gate</span> 0)</pre>
+
+      <p>
+        The structure <code>TEMPO-ENVELOPE</code> is specific for a temporal
+        envelope. The constructor is <code>MAKE-TEMPO-ENVELOPE</code>, and
+        <code>SET-TEMPO-ENVELOPE</code> is useful to change an existent instance.
+      </p>
+
+      <pre class="src src-lisp"><span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">The utilities to get the time, the bps and the bpm are:</span>
+
+(time-at tempo-env beats <span style="color: #98fb98;">&amp;optional</span> offset)
+
+(bps-at tempo-env beats)
+
+(bpm-at tempo-env beats)
+
+<span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">The syntax for the #[... b.* ...] read-macro is:</span>
+
+#[NUM-OF-BEATS b.*]   <span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">*TEMPO* by default</span>
+
+#[NUM-OF-BEATS b.* TEMPO]
+
+#[NUM-OF-BEATS b.* TEMPO-ENVELOPE OFFSET-IN-BEATS]
+
+<span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">Example:</span>
+
+<span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">After 8 beats, there is an acceleration from 60 to 120 bpm in 4 beats,</span>
+<span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">with coeff 4 for the curvature. Then, after 2 beats, there is a</span>
+<span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">deceleration from 120 to 96 bpm in 2 beats, with sinusoidal curvature.</span>
+<span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">*tenv1*</span> (make-tempo-envelope '(60 60 120 120 96) '(8 4 2 2)
+                                              <span style="color: #b0c4de;">:curve</span> '(<span style="color: #b0c4de;">:step</span> 4 <span style="color: #b0c4de;">:step</span> <span style="color: #b0c4de;">:sin</span>)))
+*TENV1*
+<span class="prompt">SCRATCH&gt;</span> (loop for beats below 20 by 0.5 collect (time-at *tenv1* beats))
+(0.0d0 0.5d0 1.0d0 1.5d0 2.0d0 2.5d0 3.0d0 3.5d0 4.0d0 4.5d0 5.0d0 5.5d0 6.0d0
+ 6.5d0 7.0d0 7.5d0 8.0d0 8.498612626829395d0 8.993299378541845d0
+ 9.481513456442876d0 9.959055899352716d0 10.419003790659431d0
+ 10.849943170489647d0 11.233055600417206d0 11.537314720727547d0
+ 11.787314720727547d0 12.037314720727547d0 12.287314720727547d0
+ 12.537314720727547d0 12.790429835847638d0 13.060025984954574d0
+ 13.352929835847638d0 13.662314720727547d0 13.974814720727547d0
+ 14.287314720727547d0 14.599814720727547d0 14.912314720727547d0
+ 15.224814720727547d0 15.537314720727547d0 15.849814720727547d0)
+<span class="prompt">SCRATCH&gt;</span> (loop for beats below 20 by 0.5 collect (bps-at *tenv1* beats))
+(1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0
+ 1.0d0 1.0d0 1.0d0 1.0d0 0.9939482867384511d0 0.9839706983599575d0
+ 0.9675204361700447d0 0.9403985389889412d0 0.8956820902047142d0
+ 0.8219571299439862d0 0.7004052197806022d0 0.5d0 0.5d0 0.5d0 0.5d0 0.5d0
+ 0.5183058261758408d0 0.5625d0 0.6066941738241592d0 0.625d0 0.625d0 0.625d0
+ 0.625d0 0.625d0 0.625d0 0.625d0 0.625d0)
+<span class="prompt">SCRATCH&gt;</span> (loop for beats below 20 by 0.5 collect (bpm-at *tenv1* beats))
+(60.0d0 60.0d0 60.0d0 60.0d0 60.0d0 60.0d0 60.0d0 60.0d0 60.0d0 60.0d0 60.0d0
+ 60.0d0 60.0d0 60.0d0 60.0d0 60.0d0 60.0d0 60.36531356866102d0
+ 60.97742554733141d0 62.01419397145924d0 63.80273629998226d0
+ 66.98805374827423d0 72.99650774254955d0 85.6646956725917d0 120.0d0 120.0d0
+ 120.0d0 120.0d0 120.0d0 115.76177030980232d0 106.66666666666667d0
+ 98.8966147833654d0 96.0d0 96.0d0 96.0d0 96.0d0 96.0d0 96.0d0 96.0d0 96.0d0)
+<span class="prompt">SCRATCH&gt;</span> *sample-rate*
+48000.0d0
+<span class="prompt">SCRATCH&gt;</span> (loop for beats below 20 by 0.5 collect #[1 beat *tenv1* beats])
+(48000.0d0 48000.0d0 48000.0d0 48000.0d0 48000.0d0 48000.0d0 48000.0d0
+ 48000.0d0 48000.0d0 48000.0d0 48000.0d0 48000.0d0 48000.0d0 48000.0d0
+ 48000.0d0 47933.40608781097d0 47678.37017000858d0 47179.23982144708d0
+ 46356.31299892179d0 44999.536042394655d0 42762.58901457268d0
+ 39074.486868373184d0 32993.834411419215d0 26604.43777489638d0 24000.0d0
+ 24000.0d0 24000.0d0 24149.525525764348d0 25090.140682897298d0 27000.0d0
+ 28909.859317102702d0 29850.474474235652d0 30000.0d0 30000.0d0 30000.0d0
+ 30000.0d0 30000.0d0 30000.0d0 30000.0d0 30000.0d0)</pre>
+
+      <p>
+        A <code>BUFFER</code> is a structure used to hold an array of values and
+        other information useful to interpret the data. The type of the values
+        is <code>SAMPLE</code>. A <code>BUFFER</code> is created with the
+        <code>MAKE-BUFFER</code> function
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">buf-test</span> (make-buffer 8192))
+BUF-TEST
+<span class="prompt">SCRATCH&gt;</span> (describe buf-test)
+#&lt;BUFFER <span style="color: #b0c4de;">:FRAMES</span> 8192 <span style="color: #b0c4de;">:CHANNELS</span> 1 <span style="color: #b0c4de;">:SR</span> 48000.0&gt;
+  [structure-object]
+
+Slots with <span style="color: #b0c4de;">:INSTANCE</span> allocation:
+  DATA          = #.(SB-SYS:INT-SAP #X0072E820)
+  SIZE          = 8192
+  MASK          = 8191
+  LOBITS        = 11
+  LOMASK        = 2047
+  LODIV         = 4.8828125d-4
+  FRAMES        = 8192
+  CHANNELS      = 1
+  SAMPLE-RATE   = 48000.0d0
+  FILE          = NIL
+  TEXTFILE-P    = NIL
+  REAL-TIME-P   = NIL
+  FOREIGN-FREE  = #&lt;FUNCTION CFFI-SYS:FOREIGN-FREE&gt;
+<span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">No value</span></pre>
+
+      <p>
+        There are some facilities to fill the data of the buffer, for example
+        by using a function which takes a C array and the size of the array. The
+        gen routines in the <code>INCUDINE.GEN</code> package return this type
+        of function.
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">waveform-1</span> (make-buffer 65536 <span style="color: #b0c4de;">:fill-function</span> (gen:partials '(1))))
+WAVEFORM-1
+<span class="prompt">SCRATCH&gt;</span> WAVEFORM-1
+#&lt;BUFFER <span style="color: #b0c4de;">:FRAMES</span> 65536 <span style="color: #b0c4de;">:CHANNELS</span> 1 <span style="color: #b0c4de;">:SR</span> 48000.0&gt;</pre>
+
+      <p>
+        The data of the <code>WAVEFORM-1</code> buffer represent one period of
+        a sinusoid created by <code>GEN:PARTIALS</code>.
+      </p>
+
+      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">wt-lookup-test</span> ((buf buffer) freq amp)
+  (stereo (osc buf freq amp 0 <span style="color: #b0c4de;">:cubic</span>)))
+
+<span class="prompt">SCRATCH&gt;</span> (wt-lookup-test waveform-1 440 .3)
+<span class="prompt">SCRATCH&gt;</span> (free 0)</pre>
+
+      <p>
+        GEN:PARTIALS generates composite waveforms made up of weighted sums of
+        simple sinusoids. The argument is a list where every element can be:
+      </p>
+
+      <ul>
+        <li>
+          value &#x2013; relative stregth of the partial. The number of the
+          partial is the position in the list plus a possible offset
+          introduced by a previous list <code>(PAR-NUMBER STRENGTH ...)</code>.
+          The follow examples generate the same waveform:
+
+          <pre class="src src-lisp">(partials '(1 0 .5 0 0 0 .2 .1))
+(partials '(1 0 .5 (7 .2) .1))</pre>
+
+          <p>
+            Partials 1, 3, 7 and 8 respectively with relative strengths 1, .5,
+            .2 and .1
+          </p>
+        </li>
+
+        <li>
+          <code>(par-number strength)</code> &#x2013; <code>STRENGTH</code> is
+          the strength of the partial <code>PAR-NUMBER</code>.
+        </li>
+
+        <li>
+          <code>(par-number strength phase)</code> &#x2013; <code>PHASE</code>
+          is the initial phase of the partial. It is a multiplier for
+          <code>+TWOPI+</code>
+        </li>
+
+        <li><code>(par-number strength phase dc)</code> &#x2013; <code>DC</code>
+          is the DC offset of the partial.
+        </li>
+      </ul>
+
+      <p>
+        Examples:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (fill-buffer waveform-1 (gen:partials '(1.0 0.0 0.5 0.0 0.25 0.0 0.125
+                                                 0.0 0.0625)))
+#&lt;BUFFER <span style="color: #b0c4de;">:FRAMES</span> 65536 <span style="color: #b0c4de;">:CHANNELS</span> 1 <span style="color: #b0c4de;">:SR</span> 48000.0&gt;
+<span class="prompt">SCRATCH&gt;</span> (wt-lookup-test waveform-1 440 .3 <span style="color: #b0c4de;">:id</span> 1)
+<span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">waveform-2</span>
+                 (make-buffer 65536 <span style="color: #b0c4de;">:fill-function</span> (gen:partials '(1 (3 .5) (7 .2 .75)))))
+WAVEFORM-2
+<span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:buf</span> waveform-2)
+#&lt;BUFFER <span style="color: #b0c4de;">:FRAMES</span> 65536 <span style="color: #b0c4de;">:CHANNELS</span> 1 <span style="color: #b0c4de;">:SR</span> 48000.0&gt;
+<span class="prompt">SCRATCH&gt;</span> (fill-buffer waveform-1 (gen:partials '(16 8 4 2 1)) <span style="color: #b0c4de;">:normalize-p</span> t)
+#&lt;BUFFER <span style="color: #b0c4de;">:FRAMES</span> 65536 <span style="color: #b0c4de;">:CHANNELS</span> 1 <span style="color: #b0c4de;">:SR</span> 48000.0&gt;
+<span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:buf</span> waveform-1)
+#&lt;BUFFER <span style="color: #b0c4de;">:FRAMES</span> 65536 <span style="color: #b0c4de;">:CHANNELS</span> 1 <span style="color: #b0c4de;">:SR</span> 48000.0&gt;
+<span class="prompt">SCRATCH&gt;</span> (free 1)
+
+(dsp! <span style="color: #87cefa;">wt-lookup-test-2</span> ((buf buffer) amp rep)
+  (stereo (osc *sine-table* (osc buf rep) amp 0 <span style="color: #b0c4de;">:cubic</span>)))
+
+<span class="prompt">SCRATCH&gt;</span> (rescale-buffer waveform-2 100 1500)
+#&lt;BUFFER <span style="color: #b0c4de;">:FRAMES</span> 65536 <span style="color: #b0c4de;">:CHANNELS</span> 1 <span style="color: #b0c4de;">:SR</span> 48000.0&gt;
+<span class="prompt">SCRATCH&gt;</span> (wt-lookup-test-2 waveform-2 .3 .2 <span style="color: #b0c4de;">:id</span> 1)
+<span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:rep</span> .5)
+0.5
+<span class="prompt">SCRATCH&gt;</span> (rt-eval () (rescale-buffer waveform-2 100 800))
+NIL
+<span class="prompt">SCRATCH&gt;</span> (fill-buffer waveform-1 (gen:partials '((1 800 .75 1000))
+                                               <span style="color: #b0c4de;">:normalize-p</span> nil))
+#&lt;BUFFER <span style="color: #b0c4de;">:FRAMES</span> 65536 <span style="color: #b0c4de;">:CHANNELS</span> 1 <span style="color: #b0c4de;">:SR</span> 48000.0&gt;
+<span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:buf</span> waveform-1)
+#&lt;BUFFER <span style="color: #b0c4de;">:FRAMES</span> 65536 <span style="color: #b0c4de;">:CHANNELS</span> 1 <span style="color: #b0c4de;">:SR</span> 48000.0&gt;
+<span class="prompt">SCRATCH&gt;</span> (free 1)</pre>
+
+      <p>
+        There are <a href="gen_collection.html">other gen routines</a>,
+        for example <code>GEN:GBUZZ</code>, <code>GEN:RAND</code>, and
+        <code>GEN:POLYNOMIAL</code>.
+      </p>
+
+      <p>
+        Useful methods to use with the buffers are <code>MAP-BUFFER</code>,
+        <code>MAP-INTO-BUFFER</code>, <code>SCALE-BUFFER</code>,
+        <code>NORMALIZE-BUFFER</code> and <code>RESCALE-BUFFER</code>.
+      </p>
+
+      <p>
+        We can use a <code>BUFFER</code> to store the data of a soundfile.
+        The format of the soundfile is one of the formats available in
+        <a href="http://www.mega-nerd.com/libsndfile">libsndfile</a>.
+      </p>
+
+      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">bplay</span> ((buf buffer) rate start-pos (loop-p boolean))
+  (foreach-channel
+    (cout (buffer-play buf rate start-pos loop-p #'stop))))
+
+<span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">loop-1</span> (buffer-load <span style="color: #ffa07a;">"/home/test/loop-1.wav"</span>))
+LOOP-1
+<span class="prompt">SCRATCH&gt;</span> (describe loop-1)
+#&lt;BUFFER <span style="color: #b0c4de;">:FRAMES</span> 398664 <span style="color: #b0c4de;">:CHANNELS</span> 2 <span style="color: #b0c4de;">:SR</span> 44100.0&gt;
+  [structure-object]
+
+Slots with <span style="color: #b0c4de;">:INSTANCE</span> allocation:
+  DATA          = #.(SB-SYS:INT-SAP #X7FFFE64BD010)
+  SIZE          = 620928
+  MASK          = 524287
+  LOBITS        = 5
+  LOMASK        = 31
+  LODIV         = 0.03125d0
+  FRAMES        = 310464
+  CHANNELS      = 2
+  SAMPLE-RATE   = 44100.0d0
+  FILE          = #P<span style="color: #ffa07a;">"/home/test/loop-1.wav"</span>
+  TEXTFILE-P    = NIL
+  REAL-TIME-P   = NIL
+  FOREIGN-FREE  = #&lt;FUNCTION CFFI-SYS:FOREIGN-FREE&gt;
+<span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">No value</span>
+<span class="prompt">SCRATCH&gt;</span> (bplay loop-1 1 0 t <span style="color: #b0c4de;">:id</span> 1)
+<span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:rate</span> .3)
+0.3
+<span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:rate</span> 2)
+2
+<span class="prompt">SCRATCH&gt;</span> (set-controls 1 <span style="color: #b0c4de;">:rate</span> 1 <span style="color: #b0c4de;">:start-pos</span> #[300 ms])
+NIL
+<span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">loop-2</span> (make-buffer 0 <span style="color: #b0c4de;">:file</span> <span style="color: #ffa07a;">"/home/test/loop-2.wav"</span>))
+LOOP-2
+<span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:buf</span> loop-2)
+#&lt;BUFFER <span style="color: #b0c4de;">:FRAMES</span> 310464 <span style="color: #b0c4de;">:CHANNELS</span> 2 <span style="color: #b0c4de;">:SR</span> 44100.0&gt;
+<span class="prompt">SCRATCH&gt;</span> (fill-buffer waveform-2 <span style="color: #ffa07a;">"/home/test/loop-3.wav"</span>)
+#&lt;BUFFER <span style="color: #b0c4de;">:FRAMES</span> 65536 <span style="color: #b0c4de;">:CHANNELS</span> 1 <span style="color: #b0c4de;">:SR</span> 48000.0&gt;
+<span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:buf</span> waveform-2)
+#&lt;BUFFER <span style="color: #b0c4de;">:FRAMES</span> 65536 <span style="color: #b0c4de;">:CHANNELS</span> 1 <span style="color: #b0c4de;">:SR</span> 48000.0&gt;
+<span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:loop-p</span> nil)
+NIL</pre>
+
+      <p>
+        Here is an example obtained from a
+        <a href="http://puredata.info">Pd</a> patch:
+      </p>
+
+      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">b09-sampler-loop-smooth</span> ((buf buffer) freq chunk-size)
+  (with-samples ((phs (phasor freq 0)))
+    (stereo (* (cos (* (- phs 0.5d0) pi))
+               (buffer-read buf (* phs 441
+                                   (samphold chunk-size phs 0 1))
+                            <span style="color: #b0c4de;">:wrap-p</span> t <span style="color: #b0c4de;">:interpolation</span> <span style="color: #b0c4de;">:cubic</span>)))))
+
+<span class="prompt">SCRATCH&gt;</span> (b09-sampler-loop-smooth loop-1 .75 50 <span style="color: #b0c4de;">:id</span> 1)
+<span class="prompt">SCRATCH&gt;</span> (set-controls 1 <span style="color: #b0c4de;">:chunk-size</span> 20 <span style="color: #b0c4de;">:freq</span> 10)
+<span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:freq</span> 30)
+<span class="prompt">SCRATCH&gt;</span> (set-controls 1 <span style="color: #b0c4de;">:chunk-size</span> 100 <span style="color: #b0c4de;">:freq</span> 1)
+<span class="prompt">SCRATCH&gt;</span> (free 1)</pre>
+
+      <p>
+        The combination of <code>BUFFER-WRITE</code> and <code>COUNTER</code>
+        VUGs makes a <code>BUFFER-RECORD</code>:
+      </p>
+
+      <pre class="src src-lisp">(define-vug <span style="color: #87cefa;">buffer-record</span> ((buf buffer) in)
+  (buffer-write buf (counter 0 (buffer-size buf) <span style="color: #b0c4de;">:loop-p</span> t) in))
+
+(dsp! <span style="color: #87cefa;">buffer-record-test</span> ((buf buffer))
+  (when (zerop current-channel)
+    (buffer-record buf (audio-in 0))))
+
+(dsp! <span style="color: #87cefa;">buffer-play-test</span> ((buf buffer))
+  (out (buffer-play buf 1 0 t #'free)))
+
+<span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">btest</span> (make-buffer 44100))
+BTEST
+<span class="prompt">SCRATCH&gt;</span> (buffer-record-test btest <span style="color: #b0c4de;">:id</span> 1)
+<span class="prompt">SCRATCH&gt;</span> (buffer-play-test btest <span style="color: #b0c4de;">:id</span> 2)
+<span class="prompt">SCRATCH&gt;</span> (free 1)
+<span class="prompt">SCRATCH&gt;</span> (buffer-record-test btest <span style="color: #b0c4de;">:id</span> 1)
+<span class="prompt">SCRATCH&gt;</span> (free 1)
+<span class="prompt">SCRATCH&gt;</span> (free 2)</pre>
+
+      <p id="fft">
+        A low pass brickwall filter is a good example to introduce the FFT
+        analysis with <a href="index.html">Incudine</a>. The DSP in the follow
+        example uses the mouse (it works only with X window system at moment)
+        to control the cutoff of the filter.
+      </p>
+
+      <pre class="src src-lisp">(define-vug <span style="color: #87cefa;">pv-lp-wall</span> ((abuf abuffer) threshold)
+  (dofft-polar (i nbins ((compute-abuffer abuf)) () <span style="color: #b0c4de;">:result</span> abuf)
+    (if (&gt;= i (sample-&gt;fixnum threshold))
+        (setf mag0 0.0d0))))
+
+(dsp! <span style="color: #87cefa;">pv-lp-wall-test</span> ((buf buffer) (size fixnum) (hop-size fixnum) amp)
+  (with ((fft (make-local-fft size))
+         (abuf (make-local-abuffer fft))
+         (ifft (make-local-ifft size))
+         (d-nbins (sample (abuffer-nbins abuf))))
+    (declare (type sample d-nbins))
+    (setf (fft-input fft) (buffer-play buf 1 0 t #'identity))
+    (with-control-period (hop-size)
+      (compute-ifft ifft (pv-lp-wall abuf (lag (lin-mouse-x 0 d-nbins) .02))))
+    <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">IFFT-OUTPUT is a normal function and it is not performance-time</span>
+    <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">by default. We can change this behavior by using TICK</span>
+    (stereo (* amp (tick (ifft-output ifft))))))
+
+<span class="prompt">SCRATCH&gt;</span> (new-fft-plan 1024)
+#&lt;FFT-PLAN :SIZE 1024 :FLAGS 0&gt;
+<span class="prompt">SCRATCH&gt;</span> (pv-lp-wall-test loop-1 1024 512 .5 <span style="color: #b0c4de;">:id</span> 1)
+<span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:hop-size</span> 800)
+800
+<span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:hop-size</span> 2048)
+2048
+<span class="prompt">SCRATCH&gt;</span> (new-fft-plan 4096)
+#&lt;FFT-PLAN :SIZE 4096 :FLAGS 0&gt;
+<span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:size</span> 4096)
+4096
+<span class="prompt">SCRATCH&gt;</span> (free 1)</pre>
+
+      <p>
+        When we use a FFT-PLAN for the first time, it is better to
+        calculate and store a new FFT-PLAN in non-realtime with the utility
+        <code>NEW-FFT-PLAN</code> as in the prior example to avoid xruns.
+        The computation of a FFT-PLAN in non-realtime is more accurate than a
+        FFT-PLAN computed in realtime.
+        <code>GET-FFT-PLAN</code> returns a FFT-PLAN related to a specific size:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (get-fft-plan 1024)
+#&lt;FFT-PLAN :SIZE 1024 :FLAGS 0&gt;
+<span class="prompt">SCRATCH&gt;</span> (get-fft-plan 4096)
+#&lt;FFT-PLAN :SIZE 4096 :FLAGS 0&gt;
+<span class="prompt">SCRATCH&gt;</span> (get-fft-plan 2048)
+NIL
+<span class="prompt">SCRATCH&gt;</span> (new-fft-plan 2048)
+#&lt;FFT-PLAN :SIZE 2048 :FLAGS 0&gt;
+<span class="prompt">SCRATCH&gt;</span> (new-fft-plan 2048)
+#&lt;FFT-PLAN :SIZE 2048 :FLAGS 0&gt;
+<span class="prompt">SCRATCH&gt;</span> (fft-plan-list)
+(#&lt;FFT-PLAN :SIZE 1024 :FLAGS 0&gt; #&lt;FFT-PLAN :SIZE 2048 :FLAGS 0&gt;
+ #&lt;FFT-PLAN :SIZE 4096 :FLAGS 0&gt;)</pre>
+
+      <p>
+        PV-LP-WALL-TEST is defined with a local FFT, a local <code>ABUFFER</code>
+        (Analysis Buffer) related to <code>FFT</code> and a local <code>IFFT</code>.
+      </p>
+
+      <p>
+        The input of <code>WITH-CONTROL-PERIOD</code> VUG-MACRO is updated every
+        <code>N</code> samples, on demand or never.
+      </p>
+
+      <ul>
+        <li>
+          If <code>N</code> is positive, the input is updated every N samples.
+        </li>
+        <li>
+          If <code>N</code> is zero, the input is not updated.
+        </li>
+        <li>
+          If <code>N</code> is negative, the input is updated and N becomes zero.
+        </li>
+      </ul>
+
+      <p>
+        In the example the output is calculated every <code>HOP-SIZE</code>
+        samples. It is interesting to notice we can change the size of the
+        <code>FFT/IFFT</code> and the <code>HOP-SIZE</code> in realtime.
+      </p>
+
+      <p>
+        <code>FFT-INPUT</code> sets the input of the local FFT.
+      </p>
+
+      <p>
+        <code>COMPUTE-ABUFFER</code> updates the <code>ABUFFER</code> with
+        a copy of the calculated fft and returns the <code>ABUFFER</code>.
+      </p>
+
+      <p>
+        The <code>DOFFT-POLAR</code> macro is an utility to change the values of
+        one or more ABUFFERs in polar coordinates. <code>MAG0</code> and
+        <code>PHASE0</code> are respectively the magnitude and the phase of the
+        nth bin in the first <code>ABUFFER</code>, <code>MAG1</code> and
+        <code>PHASE1</code> for the bin in the second <code>ABUFFER</code>, etc.
+        There is also the <code>DOFFT-COMPLEX</code> macro for the calculations
+        in complex coordinates and the more flexible <code>DOFFT</code> macro.
+      </p>
+
+      <p>
+        <code>IFFT-OUTPUT</code> returns the next sample of the last calculated
+        <code>IFFT</code>.
+      </p>
+
+      <p>
+        The next example, inspired by
+        <a href="http://doc.sccode.org/Classes/PV_LocalMax.html">PVLocalMax
+          of SuperCollider</a>, shows the <code>DOFFT-POLAR</code> macro with
+        two ABUFFERs:
+      </p>
+
+      <pre class="src src-lisp">(define-vug <span style="color: #87cefa;">pv-local-max</span> ((abuf-src abuffer) (abuf-dest abuffer) threshold)
+  (dofft-polar (i nbins ((compute-abuffer abuf-src)) (abuf-dest)
+                <span style="color: #b0c4de;">:result</span> abuf-dest <span style="color: #b0c4de;">:index-start</span> 1 <span style="color: #b0c4de;">:index-end</span> (1- nbins))
+    (if (or (&lt; mag0 threshold)
+            (&lt; (abuffer-realpart abuf-src (1- i)) threshold)
+            (&lt; (abuffer-realpart abuf-src (1+ i)) threshold))
+        (setf mag1 0.0d0 phase1 0.0d0)
+        (setf mag1 mag0 phase1 phase0))))
+
+(dsp! <span style="color: #87cefa;">pv-local-max-test</span> ((buf buffer) (size fixnum) (hop-size fixnum) amp)
+  (with ((fft (make-local-fft size))
+         (abuf0 (make-local-abuffer fft))
+         (abuf1 (make-local-abuffer fft))
+         (ifft (make-local-ifft size)))
+    (setf (fft-input fft) (buffer-play buf 1 0 t #'identity))
+    (with-control-period (hop-size)
+      (compute-ifft ifft (pv-local-max abuf0 abuf1
+                                       (lag (lin-mouse-x 0 50) .02))))
+    (stereo (* amp (tick (ifft-output ifft))))))
+
+<span class="prompt">SCRATCH&gt;</span> (pv-local-max-test loop-1 1024 512 .5)
+<span class="prompt">SCRATCH&gt;</span> (free 0)</pre>
+
+      <p>
+        <code>DOFFT-POLAR</code> takes two lists of ABUFFERs,
+        <code>ABUFFER-SRC-LIST</code> and <code>ABUFFER-DEST-LIST</code>.
+        The data of the ABUFFERs in <code>ABUFFER-SRC-LIST</code> are converted
+        from complex to polar form if it is necessary.
+      </p>
+
+      <p>
+        Here is another example about FFT, where it is possible to modulate the
+        <code>HOP-SIZE</code> using the mouse:
+      </p>
+
+      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">hop-size-mod</span> ((size fixnum) amp)
+  (with ((fft (make-local-fft size))
+         (abuf (make-local-abuffer fft))
+         (ifft (make-local-ifft size)))
+    (setf (fft-input fft) (sine 440 .5 0))
+    (with-control-period ((sample-&gt;fixnum (lag (lin-mouse-x 150 10000) .02)))
+      (compute-ifft ifft abuf))
+    (stereo (* amp (tick (ifft-output ifft))))))
+
+<span class="prompt">SCRATCH&gt;</span> (hop-size-mod 1024 .5)
+<span class="prompt">SCRATCH&gt;</span> (free 0)</pre>
+
+      <p>
+        There is a structure called <code>PVBUFFER</code>, useful to store a
+        sequence of FFTs. We can use it with <code>PART-CONVOLVE</code>, a VUG
+        to compute the partitioned convolution between a signal and a
+        multi-channel impulse response. For example:
+      </p>
+
+      <pre class="src src-lisp">(defvar <span style="color: #eedd82;">*btest*</span> (buffer-load <span style="color: #ffa07a;">"/path/to/someloop.wav"</span>))
+
+(defvar <span style="color: #eedd82;">*auditorium*</span>
+  (buffer-&gt;pvbuffer (buffer-load <span style="color: #ffa07a;">"/path/to/auditorium.wav"</span>) 8192))
+
+<span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">There are two keywords in BUFFER-&gt;PVBUFFER, START and FRAMES,</span>
+<span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">respectively the offset and the number of frames of the input</span>
+<span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">buffer. The default is to use the whole buffer.</span>
+
+(dsp! <span style="color: #87cefa;">pconv-test</span> ((inbuf buffer) (pvbuf pvbuffer) dry wet)
+  (with-samples ((in (buffer-play inbuf 1 0 t #'free)))
+    (stereo (* dry (delay-s in 65536
+                            (ash (pvbuffer-fft-size pvbuf) -1))))
+    (foreach-channel (cout (* wet (part-convolve in pvbuf))))))
+
+<span class="prompt">SCRATCH&gt;</span> (describe *auditorium*)
+#&lt;PVBUFFER <span style="color: #b0c4de;">:SIZE</span> 311334 <span style="color: #b0c4de;">:FRAMES</span> 19 <span style="color: #b0c4de;">:CHANNELS</span> 2 <span style="color: #b0c4de;">:BLOCK-SIZE</span> 16386&gt;
+  [structure-object]
+
+Slots with <span style="color: #b0c4de;">:INSTANCE</span> allocation:
+  DATA          = #.(SB-SYS:INT-SAP #X00747C20)
+  SIZE          = 311334
+  FRAMES        = 19
+  CHANNELS      = 2
+  FFT-SIZE      = 16384
+  SCALE-FACTOR  = 6.103515625d-5
+  BLOCK-SIZE    = 16386
+
+<span class="prompt">SCRATCH&gt;</span> (pconv-test *btest* *auditorium* .3 .08 <span style="color: #b0c4de;">:id</span> 1)
+
+<span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">It is possible to change the PVBUFFER on-the-fly:</span>
+
+(defvar <span style="color: #eedd82;">*grotte-frasassi*</span>
+  (buffer-&gt;pvbuffer (buffer-load <span style="color: #ffa07a;">"/path/to/grotte_frasassi.wav"</span>) 8192))
+
+<span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:pvbuf</span> *grotte-frasassi*)
+<span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:pvbuf</span> *auditorium*)
+<span class="prompt">SCRATCH&gt;</span> (free 1)</pre>
+
+      <hr>
+      <table class="navtutor">
+        <tr>
+          <td style="width: 20%" class="left"><a href="tutorial_01.html">Part 1</a></td>
+          <td style="width: 60%" class="center"><a href="index.html">Home</a></td>
+          <td style="width: 20%" class="right"><a href="tutorial_03.html">Part 3</a></td>
+        </tr>
+      </table>
+    </div>
+    <div id="postamble" class="status">
+      <a href="http://sourceforge.net/projects/incudine">Sourceforge project page</a>
+    </div>
+  </body>
+</html>

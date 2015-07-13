@@ -1,0 +1,238 @@
+;;; Incudine
+;;; Musical Tunings
+
+;; The TUNING structure is useful to manage the intervals and the
+;; frequencies of a musical scale. For example:
+
+(in-package :scratch)
+
+(defvar *tun*
+  (make-tuning :notes '(16/15 9/8 6/5 5/4 4/3 7/5 3/2 8/5 5/3 9/5 15/8 2/1)
+               :description "Basic JI with 7-limit tritone. Robert Rich: Geometry"))
+
+;; The pitch values are rational numbers and/or floating point values
+;; (cents). The first note 1/1 (or 0.0) is implicit. It is compatible
+;; with a popular scale file format.
+
+(tuning-ratios *tun*)
+;; #(1 16/15 9/8 6/5 5/4 4/3 7/5 3/2 8/5 5/3 9/5 15/8 2)
+
+(tuning-cents *tun*)
+;; #(0.0 111.731285 203.90999 315.6413 386.3137 498.045 582.5122 701.95496
+;;   813.6863 884.3587 1017.59625 1088.2687 1200.0)
+
+(tuning-description *tun*)
+;; "Basic JI with 7-limit tritone. Robert Rich: Geometry"
+
+;; We can also set the tuning of an external synthesizer by sending a
+;; MIDI bulk tuning dump message.
+
+;; The list of the PortMidi devices is
+
+(pm:print-devices-info :output)
+
+;; Create a PM:OUTPUT-STREAM
+(defvar *midiout* (pm:open YOUR-DEVICE-ID :direction :output))
+
+;; In this example the bulk tuning dump message is recorded in a MIDI
+;; file for simplicity. From a shell (or any MIDI sequencer):
+
+;; arecordmidi -p YOUR-ALSA-PORT ji_12.mid
+
+;; and from Incudine:
+
+(midi-tuning-sysex *tun* *midiout*)
+
+;; The default for device-id and program is zero.
+
+;; Alternatively, if SINGLE-NOTE-TUNING-P is non-NIL, it sends 128
+;; single note tuning change messages (Exclusive Real Time). It is
+;; also possible to set a different function to compute the checksum
+;; of the SysEx.
+
+;; Ok, we'll use this MIDI file later on.
+
+;; The reference frequency of a TUNING, the related keynum and the
+;; degree index are:
+
+(list (tuning-freq-base *tun*)
+      (tuning-keynum-base *tun*)
+      (tuning-degree-index *tun*))
+;; (440.0d0 69 9)
+
+;; and the frequencies from keynum 60 to keynum 72 are
+
+(loop for k from 60 to 72 collect (tuning-cps *tun* k))
+;; (264.0d0 281.6d0 297.0d0 316.8d0 330.0d0 352.0d0 369.59999999999997d0
+;;  396.0d0 422.40000000000003d0 440.0d0 475.2d0 495.0d0 528.0d0)
+
+;; With a different reference frequency:
+
+(set-tuning-reference *tun* 60 261.625 0)
+
+(loop for k from 60 to 72 collect (tuning-cps *tun* k))
+;; (261.625d0 279.06666666666666d0 294.328125d0 313.95d0 327.03125d0
+;;  348.8333333333333d0 366.275d0 392.4375d0 418.6d0 436.0416666666667d0
+;;  470.925d0 490.546875d0 523.25d0)
+
+;; We can use SET-TUNING to change the TUNING notes:
+
+(set-tuning *tun* '(63.8 127.6 191.4 255.2 319.0 382.8 446.6
+                    510.4 574.2 638.0 701.8 765.6 829.4
+                    893.2 957.0 1020.8 1084.6 1148.4 1212.2
+                    1276.0 1339.8 1403.6)
+            "Wendy Carlos' Beta scale with perfect fifth divided by eleven"
+            69 440 9)
+;; #<TUNING "Wendy Carlos' Beta scale with perfect fifth divided by eleven">
+
+(loop for k from 60 to 82 collect (tuning-cps *tun* k))
+;; (315.7983193277311d0 327.65332578481366d0 339.95337000168405d0
+;;  352.71512648605324d0 365.95599379894475d0 379.6938919825375d0
+;;  393.94752650215275d0 408.73624910271997d0 424.0801065278395d0
+;;  440.0d0 456.51748012974946d0 473.6550443880858d0 491.4359701061084d0
+;;  509.8844048742105d0 529.0253944812085d0 548.8848610028032d0
+;;  569.4898901817311d0 590.8683747069908d0 613.0494578503176d0
+;;  636.0632050985532d0 659.9409416603221d0 684.7149924512975d0
+;;  710.4189488799282d0)
+
+;; TUNING-SAVE is useful to save the tuning to a text file in scale
+;; file format:
+
+(tuning-save *tun* "/tmp/carlos_beta.scl")
+;; #P"/tmp/carlos_beta.scl"
+
+;; The file's contents:
+
+! carlos_beta.scl
+!
+Wendy Carlos' Beta scale with perfect fifth divided by eleven
+22
+!
+63.800
+127.600
+191.400
+255.200
+319.0
+382.800
+446.600
+510.400
+574.200
+638.0
+701.800
+765.600
+829.400
+893.200
+957.0
+1020.800
+1084.600
+1148.400
+1212.200
+1276.0
+1339.800
+1403.600
+
+;; LOAD-SCLFILE is useful to get the intervals from a scl file:
+
+(load-sclfile "/tmp/carlos_beta.scl")
+;; (63.8 127.6 191.4 255.2 319.0 382.8 446.6 510.4 574.2 638.0 701.8 765.6
+;;  829.4 893.2 957.0 1020.8 1084.6 1148.4 1212.2 1276.0 1339.8 1403.6)
+;; 22
+;; "Wendy Carlos' Beta scale with perfect fifth divided by eleven"
+
+;; We can also change the frequencies of a TUNING with the data
+;; received from a MIDI bulk tuning dump message.
+
+;; Note: the frequency-table of a VOICER:MIDI-EVENT is automatically
+;; updated if the VOICER:MIDI-EVENT responder receives a MIDI bulk
+;; tuning dump message. I omit the example for the VOICER because it
+;; is trivial.
+
+;; Now is the time to use the previously recorded MIDI file:
+
+;; Create a PM:INPUT-STREAM
+(defvar *midiin* (pm:open (pm:get-default-input-device-id)))
+
+(recv-start *midiin*)
+
+(make-responder *midiin*
+                (lambda (st d1 d2)
+                  (declare (ignore d1 d2))
+                  (when (pm:sysex-message-p st)
+                    (set-tuning-from-midi *tun* *midiin*))))
+
+;; From a shell (or any MIDI sequencer):
+
+;; aplaymidi -p YOUR-ALSA-PORT ji_12.mid
+
+;; Done.
+
+(recv-stop *midiin*)
+(remove-all-responders *midiin*)
+(pm:terminate)
+
+;; Now the frequencies are again:
+
+(loop for k from 60 to 72 collect (tuning-cps *tun* k))
+;; (264.0003435899381d0 281.60031310507037d0 296.9997429143919d0
+;;  316.79966571076d0 329.99968619907844d0 351.99959854058784d0
+;;  369.59944167764706d0 396.0000863018157d0 422.40001196906144d0
+;;  440.00005835720447d0 475.2006589983342d0 495.0007380822791d0
+;;  528.0006871798762d0)
+
+;; but the intervals…
+
+(tuning-ratios *tun*)
+;; #(1 6191/5967 3814/3543 4309/3858 7318/6315 6501/5407 4799/3847 4288/3313
+;;   1500/1117 2618/1879 3202/2215 5581/3721 6469/4157 3121/1933 16948/10117
+;;   4851/2791 7464/4139 3830/2047 9883/5091 5269/2616 2468/1181 7760/3579
+;;   8373/3722)
+
+;; … are not updated, because it's impossible to know the number of
+;; the notes of a musical scale from a MIDI bulk tuning dump message.
+;; TUNING-NOTES-FROM-DATA is useful for this work:
+
+(tuning-notes-from-data *tun* 60 72 "Basic JI with 7-limit tritone")
+;; #<TUNING "Basic JI with 7-limit tritone">
+
+(tuning-ratios *tun*)
+;; #(1 16/15 9/8 6/5 5/4 4/3 7/5 3/2 8/5 5/3 9/5 15/8 2)
+
+(tuning-cents *tun*)
+;; #(0.0 111.731285 203.90999 315.6413 386.3137 498.045 582.5122 701.95496
+;;   813.6863 884.3587 1017.59625 1088.2687 1200.0)
+
+;; Sparkling!
+
+;; Note: TUNING-NOTES-FROM-DATA uses a particular algorithm that
+;; minimizes a rational number by introducing an error in the
+;; significand of the floating point number. This error is 0.0005% by
+;; default. If you want use the original RATIONALIZE from Common Lisp,
+;; set the significand-error to zero.
+
+;; SET-TUNING also works with a scl file:
+
+(set-tuning *tun* "/tmp/carlos_beta.scl")
+;; #<TUNING "Wendy Carlos' Beta scale with perfect fifth divided by eleven">
+
+(tuning-cents *tun*)
+;; #(0.0 63.8 127.6 191.4 255.2 319.0 382.8 446.6 510.4 574.2
+;;   638.0 701.8 765.6 829.4 893.2 957.0 1020.8 1084.6 1148.4
+;;   1212.2 1276.0 1339.8 1403.6)
+
+;; Both the structures BUFFER and TUNING extend BUFFER-BASE, therefore
+;; it is possible to change the frequencies of a TUNING by using the
+;; follow utilities:
+
+;; MAP-BUFFER
+;; MAP-INTO-BUFFER
+;; SCALE-BUFFER
+;; NORMALIZE-BUFFER
+;; RESCALE-BUFFER
+
+;; also BUFFER->LIST works with a TUNING:
+
+(buffer->list *tun*)
+;; (34.6038332657699d0 35.902855233562235d0 37.2506395151566d0
+;;  38.649022046482d0 40.09989580486158d0 41.60523693859668d0
+;;  ...
+;;  3465.1280017082695d0 3595.2076701213614d0 3730.1710550898856d0)

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="incudine.css" />
+    <title>First steps with "real" UGens - Part 1</title>
+  </head>
+  <body>
+    <div id="content">
+      <table class="navtutor">
+        <tr>
+          <th colspan="3" class="center">First steps with "real" UGens</th>
+        </tr>
+        <tr>
+          <td style="width: 20%" class="left"></td>
+          <th style="width: 60%" class="center">Part 1</th>
+          <td style="width: 20%" class="right"><a href="tutorial_ugen02.html">Part 2</a></td>
+        </tr>
+      </table>
+      <hr>
+
+      <p>
+        The arrangement of multiple Virtual UGens is not a true combination
+        but a fusion, because the original evanescent VUGs are melted away.
+      </p>
+
+      <p>
+        However, sometimes the threaded code of the classic UGen is useful, in
+        particular to get a faster compilation of DSP, a reduced use of the
+        memory and a minor stress for the gc.
+      </p>
+
+      <p>
+        We can reuse a compiled Virtual UGen. The syntax of
+        <code>COMPILE-VUG</code> is:
+      </p>
+
+      <pre class="src src-lisp">(compile-vug name-or-vug return-type <span style="color: #98fb98;">&amp;optional</span> force-p)</pre>
+
+      <p>
+        for example:
+      </p>
+
+      <pre class="src src-lisp">(in-package <span style="color: #b0c4de;">:scratch</span>)
+
+<span class="prompt">SCRATCH&gt;</span> (set-rt-block-size 1)
+
+<span class="prompt">SCRATCH&gt;</span> (rt-start)
+
+<span class="prompt">SCRATCH&gt;</span> (compile-vug 'envgen 'sample)
+
+<span class="prompt">SCRATCH&gt;</span> (vug 'envgen)
+#&lt;VUG ENVGEN&gt;
+
+<span class="prompt">SCRATCH&gt;</span> (ugen 'envgen)
+#&lt;UGEN ENVGEN&gt;</pre>
+
+      <p>
+        Now, when we use <code>ENVGEN</code> inside the definition of a DSP
+        (or UGEN because we can also use nested UGENs), for example
+      </p>
+
+      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">ugen-test</span> (freq amp atk rel)
+  (stereo (* (envgen (make-local-perc atk rel) 1 1 #'free)
+             (osc *sine-table* freq amp))))
+
+<span class="prompt">SCRATCH&gt;</span> (ugen-test 440 .3 .01 .5)</pre>
+
+      <p>
+        the generated code uses the UGEN called <code>ENVGEN</code> and not the
+        VUG with the same name.
+      </p>
+
+      <p>
+        <code>COMPILE-VUG</code> works with VUGs but not with VUG-MACROs,
+        because a VUG-MACRO is like many VUGs in one. Have no fear, it isn't a
+        problem, we can define a UGEN with the macro <code>DEFINE-UGEN</code>.
+        The syntax is
+      </p>
+
+      <pre class="src src-lisp">(define-ugen name return-type lambda-list <span style="color: #98fb98;">&amp;body</span> body)</pre>
+
+      <p>
+        It is similar to <code>DEFINE-VUG</code> but with a new argument
+        <code>RETURN-TYPE</code>. For example:
+      </p>
+
+      <pre class="src src-lisp">(define-ugen <span style="color: #87cefa;">oscili</span> sample (amp cps (buf buffer))
+  <span style="color: #ffa07a;">"A simple oscillator with linear interpolation."</span>
+  (osc buf cps amp 0 <span style="color: #b0c4de;">:linear</span>))
+
+(dsp! <span style="color: #87cefa;">ugen-test2</span> (freq amp atk rel)
+  (stereo (* (envgen (make-local-perc atk rel) 1 1 #'free)
+             (oscili amp freq *sine-table*))))
+
+<span class="prompt">SCRATCH&gt;</span> (ugen-test2 440 .3 .01 .5)</pre>
+
+      <p>
+        where <code>UGEN-TEST2</code> is defined with the two UGENs
+        <code>ENVGEN</code> and <code>OSCILI</code>. The follow example shows
+        the use of nested UGENs:
+      </p>
+
+      <pre class="src src-lisp">(define-ugen <span style="color: #87cefa;">perc-sine</span> sample (freq amp atk rel)
+  (* (envgen (make-local-perc atk rel) 1 1 #'free)
+     (oscili amp freq *sine-table*)))
+
+(dsp! <span style="color: #87cefa;">ugen-test3</span> (freq amp atk rel)
+  (stereo (perc-sine freq amp atk rel)))
+
+<span class="prompt">SCRATCH&gt;</span> (ugen-test3 440 .3 .01 .5)</pre>
+
+      <p>
+        Ok, habemus UGens, but where are the VUGs <code>ENVGEN</code> and
+        <code>OSCILI</code> ?
+      </p>
+
+      <p>
+        After the creation of a UGEN, a VUG comes into play when the related
+        UGEN is inlined. For example, we can define a UGEN called
+        <code>PERC-SINE*</code> with the VUGs <code>ENVGEN</code> and
+        <code>OSCILI</code>:
+      </p>
+
+      <pre class="src src-lisp">(define-ugen <span style="color: #87cefa;">perc-sine*</span> sample (freq amp atk rel)
+  (declare (inline envgen oscili))
+  (* (envgen (make-local-perc atk rel) 1 1 #'free)
+     (oscili amp freq *sine-table*)))
+
+(dsp! <span style="color: #87cefa;">ugen-test4</span> (freq amp atk rel)
+  (stereo (perc-sine* freq amp atk rel)))
+
+<span class="prompt">SCRATCH&gt;</span> (ugen-test4 440 .3 .01 .5)</pre>
+
+      <p>
+        It is necessary to think before to use a UGEN instead of a VUG. For
+        example, the UGEN <code>PAN2</code>
+      </p>
+
+      <pre class="src src-lisp">(compile-vug 'pan2 'sample)
+
+(dsp! <span style="color: #87cefa;">pan2-ugen-bug</span> (freq amp pos)
+  (foreach-channel
+    (cout (pan2 (oscili amp freq *sine-table*) pos))))
+
+         <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Ops, the frequency is 880 instead of 440 !?</span>
+<span class="prompt">SCRATCH&gt;</span> (pan2-ugen-bug 440 .3 .5)
+
+<span class="prompt">SCRATCH&gt;</span> (free 0)</pre>
+
+      <p>
+        doesn't work with the current implementation of <code>PAN2</code>
+        (branching based on <code>CURRENT-CHANNEL</code>) because a UGEN is a
+        rigid object and it is not ductile like a VUG. It works only when it is
+        a VUG, because in this case the input (VUG or UGEN) is merged inside the
+        VUG. When <code>PAN2</code> is a UGEN, the input is computed for any
+        channel before to require the output of <code>PAN2</code>. It appears
+        complicated but it's genuinely logic. So, some possible alternatives to
+        fix the prior example are:
+      </p>
+
+      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">pan-test1</span> (freq amp pos)
+  (declare (inline pan2))
+  (foreach-channel
+    (cout (pan2 (oscili amp freq *sine-table*) pos))))
+
+<span class="prompt">SCRATCH&gt;</span> (pan-test1 440 .3 .5)
+
+<span class="prompt">SCRATCH&gt;</span> (free 0)
+
+(define-ugen <span style="color: #87cefa;">my-pan2</span> frame (in pos)
+  <span style="color: #ffa07a;">"Stereo equal power panpot."</span>
+  (with-samples ((alpha (* +half-pi+ pos)))
+    (samples (* in (cos alpha)) (* in (sin alpha)))))
+
+(dsp! <span style="color: #87cefa;">pan-test2</span> (freq amp pos)
+  (multiple-sample-bind (l r)
+      (my-pan2 (oscili amp freq *sine-table*) pos)
+    (out l r)))
+
+<span class="prompt">SCRATCH&gt;</span> (pan-test2 440 .3 .5)
+
+<span class="prompt">SCRATCH&gt;</span> (free 0)</pre>
+
+      <p>
+        Finally, we can see all the defined UGENs with
+        <code>ALL-UGEN-NAMES</code>:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (all-ugen-names)
+(ENVGEN MY-PAN2 OSCILI PAN2 PERC-SINE PERC-SINE*)</pre>
+
+      <p>
+        After the cancellation of a UGEN by using <code>DESTROY-UGEN</code>, the
+        related VUG is still alive:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (destroy-ugen 'envgen)
+<span class="prompt">SCRATCH&gt;</span> (ugen 'envgen)
+NIL
+<span class="prompt">SCRATCH&gt;</span> (vug 'envgen)
+#&lt;VUG ENVGEN&gt;
+<span class="prompt">SCRATCH&gt;</span> (compiled-vug-p 'envgen)
+NIL</pre>
+
+      <hr>
+      <table class="navtutor">
+        <tr>
+          <td style="width: 20%" class="left">
+            <a href="tutorial_01.html">Getting Started with Incudine</a>
+          </td>
+          <td style="width: 60%" class="center"><a href="index.html">Home</a></td>
+          <td style="width: 20%" class="right">
+            <a href="tutorial_ugen02.html">Part 2</a>
+          </td>
+        </tr>
+      </table>
+    </div>
+    <div id="postamble">
+      <a href="http://sourceforge.net/projects/incudine">Sourceforge project page</a>
+    </div>
+  </body>
+</html>

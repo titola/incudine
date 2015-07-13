@@ -1,0 +1,43 @@
+;;; Incudine
+;;; Note priority in a monophonic synthesizer
+
+;; We can play a monophonic synthesizer with lowest or highest note
+;; priority. The related VUGs are called MIDI-LOWEST-KEYNUM and
+;; MIDI-HIGHEST-KEYNUM. For example:
+
+(in-package :scratch)
+
+(set-rt-block-size 1)
+
+(dsp! highest-note-test ((chan fixnum) a d s r)
+  "Highest priority monosynth (single trigger)."
+  (with ((keynum (midi-highest-keynum chan)))
+    (with-samples ((glide (exp-midi-cc chan 1 0.01 1.2))
+                   (amp (midi-amp *linear-midi-table* chan keynum))
+                   (amp-prev +sample-zero+)
+                   (gate +sample-zero+))
+      (if (zerop amp)
+          (setf gate +sample-zero+ amp amp-prev)  ; Note off.
+          (setf gate (sample 1) amp-prev amp))
+      (stereo (* (envgen (make-local-adsr a d s r) gate 1 #'identity)
+                 (gbuzz (lag (midi-cps *default-tuning* chan keynum) glide)
+                        (lag amp 0.02) 20 1 .6))))))
+
+(rt-start)
+
+(defvar *midiin* (pm:open (pm:get-default-input-device-id)))
+
+(recv-start *midiin*)
+
+(highest-note-test 0 .1 0.9 .7 .1 :id 123)
+
+;; Change attack and release times.
+(set-controls 123 :a .01 :r .02)
+
+(free 123)
+
+(recv-stop *midiin*)
+
+(rt-stop)
+
+(pm:terminate)

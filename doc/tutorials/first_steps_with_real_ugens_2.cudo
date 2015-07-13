@@ -1,0 +1,139 @@
+;;; Incudine
+;;; First steps with "real" UGens - part 2
+
+;; There are utilities to use a UGEN outside the definition of a DSP
+;; and the next examples show them step by step.
+
+;; The first example is really trivial and you can replace it with a
+;; simple let-over-lambda, but I prefer to focus the attention on the
+;; utilities.  Under the hood, a UGEN is let-over-lambda plus vitamins
+;; (VUGs, nested UGENs, C heap management, automatic inference of
+;; init- and performance-time variables, etc).
+
+;; We start with a new UGEN called INCR-EDULA:
+
+(in-package :scratch)
+
+(define-ugen incr-edula fixnum ((start fixnum) (edge fixnum))
+  (with ((n (1- start)))
+    (setf n (mod (1+ n) edge))))
+
+;; Checking:
+
+(ugen 'incr-edula)
+;; #<UGEN INCR-EDULA>
+
+;; The result of the function INCR-EDULA is another function, usable
+;; to generate UGEN-INSTANCEs.
+
+(defvar *eugenia* (funcall (incr-edula 0 8)))
+*eugenia*
+;; #<UGEN-INSTANCE INCR-EDULA>
+
+;; *EUGENIA* is ready for the performance (all is initialized).
+
+(defun counts (toys)
+  (loop repeat toys collect (funcall (ugen-perf-function *eugenia*))))
+
+(counts 12)
+;; (0 1 2 3 4 5 6 7 0 1 2 3)
+
+;; Now we can define a setter (not a dog) to change the edge. The
+;; default for the name of the setter is SET-[UGEN-NAME]-[CONTROL-NAME]
+
+(define-ugen-control-setter incr-edula edge)
+
+(set-incr-edula-edge *eugenia* 5)
+(counts 12)
+;; (4 0 1 2 3 4 0 1 2 3 4 0)
+
+;; The follow line defines a setter called INCR-EDULA-FROM to change
+;; the START value:
+
+(define-ugen-control-setter incr-edula start incr-edula-from)
+
+(incr-edula-from *eugenia* 2)
+(counts 12)
+;; (2 3 4 0 1 2 3 4 0 1 2 3)
+
+;; Finally, the *EUGENIA*'s reinitialization:
+
+(funcall (ugen-reinit-function *eugenia*) 0 7)
+
+(counts 16)
+;; (0 1 2 3 4 5 6 0 1 2 3 4 5 6 0 1)
+
+;; The return type of the next UGEN is SAMPLE…
+
+(define-ugen zibaldone sample (night deep (darkness fixnum))
+  (buzz night deep darkness))
+
+(ugen 'zibaldone)
+;; #<UGEN ZIBALDONE>
+(defvar *notturno* (funcall (zibaldone 100 .5 30)))
+*notturno*
+;; #<UGEN-INSTANCE ZIBALDONE>
+
+;; … but the return type of the performance function is NIL. We
+;; retrieve the result from the foreign pointer:
+
+(defun star-samples (n)
+  (loop repeat n do (funcall (ugen-perf-function *notturno*))
+        collect (smp-ref (ugen-return-pointer *notturno*) 0)))
+
+(star-samples 3)
+;; (0.5d0 0.486606790129606d0 0.44769321522927535d0)
+(star-samples 3)
+;; (0.3869151587690795d0 0.30990888519118d0 0.22366438072673978d0)
+
+;; The last argument of DEFINE-UGEN-CONTROL-SETTER is the type of the
+;; value passed to the setter. For example:
+
+(define-ugen-control-setter zibaldone night nil real)
+
+;; where the expansion of the macro is
+
+;; (PROGN
+;;  (DEFUN SET-ZIBALDONE-NIGHT (UGEN-INSTANCE VALUE)
+;;    (DECLARE (TYPE INCUDINE.VUG::UGEN-INSTANCE UGEN-INSTANCE)
+;;             (TYPE REAL VALUE))
+;;    (LET ((#:CTRL858 (INCUDINE.VUG::UGEN-INSTANCE-CONTROLS UGEN-INSTANCE)))
+;;      (SETF (CFFI:MEM-REF (SVREF #:CTRL858 0) 'SAMPLE) (COERCE VALUE 'SAMPLE))
+;;      (FUNCALL (THE FUNCTION (SVREF #:CTRL858 1)))
+;;      (VALUES))))
+
+;; and you can notice coercing around the input
+;; value. Now we can change the night by using a
+;; real number instead of a value of type SAMPLE:
+
+(set-zibaldone-night *notturno* 1798)
+(star-samples 3)
+;; (0.13575758294800522d0 -0.01625060660788103d0 -0.03490033405549335d0)
+
+;; If the setter is defined without to specify the type of the input
+;; value, it's better to add `(declaim (inline set-zibaldone-night))'
+;; to avoid consing, because the type of the input value is SAMPLE.
+;; Idem when the type is a foreign pointer.
+
+;; There is also a low level utility to get the pointer to the memory
+;; used to store the value of a control and the function of no
+;; arguments to update the dependencies (if it exists):
+
+(ugen-control-pointer *notturno* 'night)
+;; #.(SB-SYS:INT-SAP #X0072F500)
+;; #<CLOSURE (LAMBDA ()) {1005B7253B}>
+
+;; So, a low level way to transform the night is
+
+(multiple-value-bind (ptr fn)
+    (ugen-control-pointer *notturno* 'night)
+  (setf (smp-ref ptr 0) (sample 1821))
+  (when fn (funcall fn)))
+
+    ;; Le parole notte notturno ec., le descrizioni
+    ;; della notte ec., sono poeticissime, perché la
+    ;; notte confondendo gli oggetti, l'animo non ne
+    ;; concepisce che un'immagine vaga, indistinta,
+    ;; incompleta, sì di essa che quanto ella
+    ;; contiene. Così oscurità, profondo ec. ec. –
+    ;; Giacomo Leopardi (Zibaldone)

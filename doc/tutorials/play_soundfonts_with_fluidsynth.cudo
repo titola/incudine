@@ -1,0 +1,92 @@
+;;; Incudine
+;;; Play SoundFonts with FluidSynth
+
+;; In the contrib/cl-fluidsynth directory there is a wrapper for
+;; FluidSynth SoundFont synthesizer. The follow example shows how to
+;; use it with Incudine:
+
+(in-package :scratch)
+
+(require :incudine-fluidsynth)
+
+(defvar *fluid-settings* (fluidsynth:new-settings
+                           `(("synth.polyphony" 128)
+                             ("synth.sample-rate" ,*sample-rate*)
+                             ("audio.sample-format" "float"))))
+
+(defvar *synth* (fluidsynth:new *fluid-settings*))
+
+(dsp! fluid-test ((synth fluidsynth:synth))
+  (with ((len (block-size))
+         (left (make-f32-array len))
+         (right (make-f32-array len)))
+    (fluidsynth:write-float synth len left 0 1 right 0 1)
+    (foreach-frame
+      (out (f32-ref left current-frame)
+           (f32-ref right current-frame)))))
+
+(fluidsynth:sfload *synth* "/usr/share/sounds/sf2/FluidR3_GM.sf2" 1)
+
+(setf (fluidsynth:setting *fluid-settings* "synth.gain") 0.5)
+
+(defvar *midiin* (pm:open (pm:get-default-input-device-id)))
+
+(recv-start *midiin*)
+
+(defvar *fluid-resp*
+  (make-responder *midiin*
+    (lambda (st d1 d2)
+      (let ((ch (logand st #xF)))
+        (cond ((midi-note-on-p st)
+               (fluidsynth:noteon *synth* ch d1 d2))
+              ((midi-note-off-p st)
+               (fluidsynth:noteoff *synth* ch d1))
+              ((midi-program-p st)
+               (fluidsynth:program-change *synth* ch d1)))))))
+
+(set-rt-block-size 64)
+
+(rt-start)
+
+(fluid-test *synth*)
+
+(defvar *tun*
+  (make-tuning
+    :notes '(2187/2048 9/8 32/27 81/64 4/3 729/512 3/2 6561/4096 27/16 16/9
+             243/128 2/1)
+    :description "12-tone Pythagorean scale"))
+
+;; The first argument is a INCUDINE:TUNING, a list of notes
+;; or a scl file.
+(set-fluidsynth-tuning *tun* *synth* 0 0)
+
+(fluidsynth:select-tuning *synth* 0 0 0)
+
+;;; Play with the new tuning.
+
+(set-fluidsynth-tuning
+  '(16/15 9/8 6/5 5/4 4/3 7/5 3/2 8/5 5/3 9/5 15/8 2/1) *synth* 0 0
+  :description "Basic JI with 7-limit tritone. Robert Rich: Geometry")
+
+;; Vice versa, the frequencies of a INCUDINE:TUNING structure are
+;; obtained from the FluidSynth tuning with BANK and PROG preset.
+(set-tuning-from-fluidsynth *tun* *synth* 0 0)
+;; #<TUNING "Basic JI with 7-limit tritone. Robert Rich: Geometry">
+
+;; Remember to update the intervals.
+(tuning-notes-from-data *tun* 60 72)
+
+(tuning-ratios *tun*)
+;; #(1 16/15 9/8 6/5 5/4 4/3 7/5 3/2 8/5 5/3 9/5 15/8 2)
+
+;; Another test with a scl file and...
+(set-fluidsynth-tuning "/tmp/carlos_beta.scl" *synth* 0 0)
+
+;; ... it is the end
+(remove-all-responders)
+(recv-stop *midiin*)
+(free 0)
+(free *tun*)
+(fluidsynth:delete *synth*)
+(set-rt-block-size 1)
+(pm:terminate)

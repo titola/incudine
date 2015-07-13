@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="incudine.css" />
+    <title>Play SoundFonts with FluidSynth</title>
+  </head>
+  <body>
+    <div id="content">
+      <table class="navtutor">
+        <tr>
+          <th class="center">Play SoundFonts with FluidSynth</th>
+        </tr>
+      </table>
+      <hr>
+
+      <p>
+        In the <code>contrib/cl-fluidsynth</code> directory, there is a wrapper for
+        <a href="http://www.fluidsynth.org">FluidSynth SoundFont synthesizer</a>.
+        The follow example shows how to use it with Incudine:
+      </p>
+
+      <pre class="src src-lisp">(in-package <span style="color: #b0c4de;">:scratch</span>)
+
+<span class="prompt">SCRATCH&gt;</span> (require <span style="color: #7fffd4;">:incudine-fluidsynth</span>)
+
+(defvar <span style="color: #eedd82;">*fluid-settings*</span> (fluidsynth:new-settings
+                           `((<span style="color: #ffa07a;">"synth.polyphony"</span> 128)
+                             (<span style="color: #ffa07a;">"synth.sample-rate"</span> ,*sample-rate*)
+                             (<span style="color: #ffa07a;">"audio.sample-format"</span> <span style="color: #ffa07a;">"float"</span>))))
+
+(defvar <span style="color: #eedd82;">*synth*</span> (fluidsynth:new *fluid-settings*))
+
+(dsp! <span style="color: #87cefa;">fluid-test</span> ((synth fluidsynth:synth))
+  (with ((len (block-size))
+         (left (make-f32-array len))
+         (right (make-f32-array len)))
+    (fluidsynth:write-float synth len left 0 1 right 0 1)
+    (foreach-frame
+      (out (f32-ref left current-frame)
+           (f32-ref right current-frame)))))
+
+<span class="prompt">SCRATCH&gt;</span> (fluidsynth:sfload *synth* <span style="color: #ffa07a;">"/usr/share/sounds/sf2/FluidR3_GM.sf2"</span> 1)
+
+<span class="prompt">SCRATCH&gt;</span> (setf (fluidsynth:setting *fluid-settings* <span style="color: #ffa07a;">"synth.gain"</span>) 0.5)
+
+<span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">*midiin*</span> (pm:open (pm:get-default-input-device-id)))
+
+<span class="prompt">SCRATCH&gt;</span> (recv-start *midiin*)
+
+(defvar <span style="color: #eedd82;">*fluid-resp*</span>
+  (make-responder *midiin*
+    (lambda (st d1 d2)
+      (let ((ch (logand st #xF)))
+        (cond ((midi-note-on-p st)
+               (fluidsynth:noteon *synth* ch d1 d2))
+              ((midi-note-off-p st)
+               (fluidsynth:noteoff *synth* ch d1))
+              ((midi-program-p st)
+               (fluidsynth:program-change *synth* ch d1)))))))
+
+<span class="prompt">SCRATCH&gt;</span> (set-rt-block-size 64)
+
+<span class="prompt">SCRATCH&gt;</span> (rt-start)
+
+<span class="prompt">SCRATCH&gt;</span> (fluid-test *synth*)
+
+(defvar <span style="color: #eedd82;">*tun*</span>
+  (make-tuning
+    <span style="color: #b0c4de;">:notes</span> '(2187/2048 9/8 32/27 81/64 4/3 729/512 3/2 6561/4096 27/16 16/9
+             243/128 2/1)
+    <span style="color: #b0c4de;">:description</span> <span style="color: #ffa07a;">"12-tone Pythagorean scale"</span>))
+
+         <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">The first argument is a INCUDINE:TUNING, a list of notes</span>
+         <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">or a scl file.</span>
+<span class="prompt">SCRATCH&gt;</span> (set-fluidsynth-tuning *tun* *synth* 0 0)
+
+<span class="prompt">SCRATCH&gt;</span> (fluidsynth:select-tuning *synth* 0 0 0)
+
+<span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">Play with the new tuning...</span>
+
+<span class="prompt">SCRATCH&gt;</span> (set-fluidsynth-tuning
+           '(16/15 9/8 6/5 5/4 4/3 7/5 3/2 8/5 5/3 9/5 15/8 2/1) *synth* 0 0
+           <span style="color: #b0c4de;">:description</span> <span style="color: #ffa07a;">"Basic JI with 7-limit tritone. Robert Rich: Geometry"</span>)
+
+         <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Vice versa, the frequencies of a INCUDINE:TUNING structure are</span>
+         <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">obtained from the FluidSynth tuning with BANK and PROG preset.</span>
+<span class="prompt">SCRATCH&gt;</span> (set-tuning-from-fluidsynth *tun* *synth* 0 0)
+#&lt;TUNING <span style="color: #ffa07a;">"Basic JI with 7-limit tritone. Robert Rich: Geometry"</span>&gt;
+
+         <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Remember to update the intervals.</span>
+<span class="prompt">SCRATCH&gt;</span> (tuning-notes-from-data *tun* 60 72)
+
+<span class="prompt">SCRATCH&gt;</span> (tuning-ratios *tun*)
+#(1 16/15 9/8 6/5 5/4 4/3 7/5 3/2 8/5 5/3 9/5 15/8 2)
+
+         <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Another test with a scl file and...</span>
+<span class="prompt">SCRATCH&gt;</span> (set-fluidsynth-tuning <span style="color: #ffa07a;">"/tmp/carlos_beta.scl"</span> *synth* 0 0)
+
+         <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">... it is the end</span>
+<span class="prompt">SCRATCH&gt;</span> (remove-all-responders)
+
+<span class="prompt">SCRATCH&gt;</span> (recv-stop *midiin*)
+
+<span class="prompt">SCRATCH&gt;</span> (free 0)
+
+<span class="prompt">SCRATCH&gt;</span> (free *tun*)
+
+<span class="prompt">SCRATCH&gt;</span> (fluidsynth:delete *synth*)
+
+<span class="prompt">SCRATCH&gt;</span> (set-rt-block-size 1)
+
+<span class="prompt">SCRATCH&gt;</span> (pm:terminate)</pre>
+
+      <hr>
+      <table class="navtutor">
+        <tr>
+          <td style="width: 20%" class="left">
+            <a href="tutorial_01.html">Getting Started with Incudine</a>
+          </td>
+          <td style="width: 60%" class="center"><a href="index.html">Home</a></td>
+          <td style="width: 20%" class="right"></td>
+        </tr>
+      </table>
+    </div>
+    <div id="postamble">
+      <a href="http://sourceforge.net/projects/incudine">Sourceforge project page</a>
+    </div>
+  </body>
+</html>

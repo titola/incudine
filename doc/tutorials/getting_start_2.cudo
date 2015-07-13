@@ -1,0 +1,653 @@
+;;; Incudine
+;;; Getting Start part 2
+
+;; The way to play back break point envelopes is inspired by the
+;; SuperCollider envelope generator.  It is possible to define global
+;; or local envelopes. The function to create a generic global
+;; envelope is MAKE-ENVELOPE
+
+(defparameter env1 (make-envelope '(0 1 0) '(.2 .8)))
+;; ENV1
+(describe env1)
+;; #<ENVELOPE :POINTS 3 :LOOP-NODE -1 :RELEASE-NODE -1>
+;;   [structure-object]
+
+;; Slots with :INSTANCE allocation:
+;;   DATA            = #.(SB-SYS:INT-SAP #X0072E760)
+;;   DURATION        = 1.0000000149011612d0
+;;   POINTS          = 3
+;;   DATA-SIZE       = 7
+;;   LOOP-NODE       = -1
+;;   RELEASE-NODE    = -1
+;;   %RESTART-LEVEL  = NIL
+;;   MAX-POINTS      = 8
+;;   REAL-TIME-P     = NIL
+;;   FOREIGN-FREE    = #<FUNCTION CFFI-SYS:FOREIGN-FREE>
+;;   ; No value
+
+;; The first argument of MAKE-ENVELOPE is a list of levels and the
+;; second argument is a list of times. The levels are the vertexes of
+;; the segments and the times are the durations of the segments. In
+;; the previous example the points of the envelope are:
+
+;; time level
+;; 0    0
+;; 0.2  1
+;; 1.0  0
+
+;; We can set the shape of the segments by using the :CURVE
+;; keyword. The default is :LINEAR and the possible values are
+
+;;   * :STEP
+;;   * :LIN or :LINEAR
+;;   * :EXP or :EXPONENTIAL
+;;   * :SIN or :SINE
+;;   * :WEL or :WELCH
+;;   * :SQR or :SQUARE
+;;   * :CUB or :CUBIC
+;;   * a number that represents the curvature value
+;;     for all the segments
+;;   * a list of the prior values to specify the
+;;     curvature values for each segments
+
+;; If the envelope is sustained, the :RELEASE-NODE keyword specifies
+;; the point of the release (starting from 0). The default is -1 that
+;; means "envelope without sustain".
+
+;; If the :LOOP-NODE keyword has a non negative value, it is the
+;; starting point of the loop of the segments during the sustain phase
+;; of the envelope. The ending point is the point that precedes the
+;; release point.
+
+;; There are useful macros to create frequently used envelope shapes:
+
+;;   * MAKE-LINEN
+;;   * MAKE-PERC
+;;   * MAKE-CUTOFF
+;;   * MAKE-ASR
+;;   * MAKE-ADSR
+;;   * MAKE-DADSR
+
+;; There are also utilities to edit an existent envelope:
+
+;;   * SET-ENVELOPE
+;;   * LINEN
+;;   * PERC
+;;   * CUTOFF
+;;   * ASR
+;;   * ADSR
+;;   * DADSR
+
+;; and the follows are setf-able:
+
+;;   * ENVELOPE-LEVEL
+;;   * ENVELOPE-TIME
+;;   * ENVELOPE-CURVE
+
+;; For example:
+
+(adsr env1 .15 .09 .85 1.5)
+;; #<ENVELOPE :POINTS 4 :LOOP-NODE -1 :RELEASE-NODE 2>
+(mapcar (lambda (point) (envelope-level env1 point)) '(0 1 2 3))
+;; (9.999999747378752d-6 1.0d0 0.8500000238418579d0 9.999999747378752d-6)
+(setf (envelope-level env1 2) 0.82)
+;; 0.8199999928474426d0
+
+;; Here is a DSP to test a global envelope:
+
+(dsp! env-test ((env envelope) gate amp dur)
+  (stereo (* (envgen env gate dur #'free)
+             (white-noise amp))))
+
+(env-test env1 1 .3 1 :id 1)
+(set-control 1 :gate 0)
+;; 0
+(env-test env1 1 .3 1 :id 1)
+(set-control 1 :gate -1) ; immediate cutoff
+;; -1
+(env-test env1 1 .3 1 :id 1)
+(set-control 1 :gate -5.2) ; release in 4.2 seconds
+;; -5
+
+;; The ENVGEN VUG plays back the segments of an ENVELOPE. When GATE is
+;; 0, it starts the release phase of the envelope. If GATE is -1,
+;; there is an immediate cutoff. If GATE is minor than -1, there is a
+;; release stage with a custom duration (- -1.0 GATE).
+
+;; The fourth argument of ENVGEN is DONE-ACTION, a function to call
+;; after the end of the envelope.  The argument of this function is
+;; the node of the DSP. In the previous example, the DSP terminates
+;; after the end of the envelope, so we cannot retrig the envelope
+;; after the end. A little variation:
+
+(dsp! env-test-2 ((env envelope) gate amp dur)
+  (stereo (* (envgen env gate dur #'identity)
+             (white-noise amp))))
+
+(env-test-2 env1 1 .3 1 :id 1)
+(set-control 1 :gate 0)
+;; 0
+(set-control 1 :gate 1) ; retrig after the release
+;; 1
+(set-control 1 :gate 0)
+;; 0
+(free 1)
+
+;; The DSP is alive after the release because the DONE-ACTION function
+;; is simply #'IDENTITY.
+
+;; The DSP-SEQ macro is used to define a sequence of DSPs. It is also
+;; possible to define recursive sequences of DSPs. The trick is to
+;; exploit the STOP-HOOK of the node:
+
+(defvar env2 (make-perc .001 .4))
+
+(dsp! env-test-3 (freq amp pos (env envelope) gate)
+  (foreach-channel
+    (cout (pan2 (* (envgen env gate 1 #'stop)
+                   (sine freq amp 0))
+                pos))))
+
+(defun seq-test (rep freq amp pos)
+  (when (plusp rep)
+    (dsp-seq (env-test-3 freq amp pos env2 1)
+             (env-test-3 (* freq 7/4) amp pos env2 1)
+             (env-test-3 (* freq 2) amp pos env2 1)
+             (seq-test (1- rep) freq amp pos))))
+
+(defun phr1 (time)
+  (at time #'seq-test 8 200 .3 .5)
+  (at (+ time #[2 b]) #'seq-test 6 400 .3 .4)
+  (at (+ time #[4 b]) #'seq-test 4 600 .3 .6))
+
+(setf (bpm *tempo*) 120)
+;; 120
+(phr1 (now))
+
+;; In the example the DONE-ACTION function of the envelope is #'STOP.
+;; In general, the last function of DSP-SEQ is an arbitrary function
+;; without arguments; it is useful to define recursive sequences. The
+;; expansion of the DSP-SEQ macro shows the use of the STOP-HOOK:
+(macroexpand-1
+  '(dsp-seq (env-test-3 freq amp pos env2 1)
+            (env-test-3 (* freq 7/4) amp pos env2 1)
+            (env-test-3 (* freq 2) amp pos env2 1)
+            (seq-test (1- rep) freq amp pos)))
+;; (ENV-TEST-3 FREQ AMP POS ENV2 1 :STOP-HOOK
+;;             (LIST
+;;              (LAMBDA (#:N912)
+;;                (DECLARE (IGNORE #:N912))
+;;                (ENV-TEST-3 (* FREQ 7/4) AMP POS ENV2 1 :STOP-HOOK
+;;                            (LIST
+;;                             (LAMBDA (#:N912)
+;;                               (DECLARE (IGNORE #:N912))
+;;                               (ENV-TEST-3 (* FREQ 2) AMP POS ENV2 1 :STOP-HOOK
+;;                                           (LIST
+;;                                            (LAMBDA (#:N912)
+;;                                              (DECLARE (IGNORE #:N912))
+;;                                              (SEQ-TEST (1- REP) FREQ AMP
+;;                                                        POS))))))))))
+;; T
+
+;; Useful methods are SCALE-ENVELOPE, NORMALIZE-ENVELOPE and
+;; RESCALE-ENVELOPE. For example:
+
+(dsp! env-test-4 ((env envelope) gate amp dur)
+  (stereo (sine (envgen env gate dur #'identity) amp 0)))
+
+(defun retrig-test ()
+  (rt-eval ()
+    (let ((time (now)))
+      (at time #'set-control 1 :gate 0)
+      (at (+ time #[1 s]) #'set-control 1 :gate 1)
+      (at (+ time #[2.5 s]) #'set-control 1 :gate 0)
+      (at (+ time #[6 s]) #'set-control 1 :gate 1))))
+
+(rescale-envelope env1 220 880)
+;; #<ENVELOPE :POINTS 4 :LOOP-NODE -1 :RELEASE-NODE 2>
+(env-test-4 env1 1 .3 8 :id 1)
+(retrig-test)
+(free 1)
+
+;; A local envelope is not so different, however it is specific for an
+;; instance of a DSP. For example:
+
+(dsp! env-test-5 (freq amp pos gate a d s r)
+  (foreach-channel
+    (cout (pan2 (* (envgen (make-local-adsr a d s r) gate 1 #'stop)
+                   (sine freq amp 0))
+                pos))))
+
+(env-test-5 440 .2 .1 1 0.001 .09 .9  0.02 :id 1)
+(env-test-5 448 .2 .9 1 1.5   .5  .7  2    :id 2)
+(env-test-5 111 .2 .5 1 .1    .1  .99 4    :id 3)
+(set-control 0 :gate 0)
+
+;; The structure TEMPO-ENVELOPE is specific for a temporal
+;; envelope. The constructor is MAKE-TEMPO-ENVELOPE, and
+;; SET-TEMPO-ENVELOPE is useful to change an existent instance.
+
+;;; The utilities to get the time, the bps and the bpm are:
+
+(time-at tempo-env beats &optional offset)
+
+(bps-at tempo-env beats)
+
+(bpm-at tempo-env beats)
+
+;;; The syntax for the #[... b.* ...] read-macro is:
+
+#[NUM-OF-BEATS b.*]   ; *TEMPO* by default
+
+#[NUM-OF-BEATS b.* TEMPO]
+
+#[NUM-OF-BEATS b.* TEMPO-ENVELOPE OFFSET-IN-BEATS]
+
+;;; Example:
+
+;;; After 8 beats, there is an acceleration from 60 to 120 bpm in 4 beats,
+;;; with coeff 4 for the curvature. Then, after 2 beats, there is a
+;;; deceleration from 120 to 96 bpm in 2 beats, with sinusoidal curvature.
+(defvar *tenv1* (make-tempo-envelope '(60 60 120 120 96) '(8 4 2 2)
+                                     :curve '(:step 4 :step :sin)))
+;; *TENV1*
+(loop for beats below 20 by 0.5 collect (time-at *tenv1* beats))
+;; (0.0d0 0.5d0 1.0d0 1.5d0 2.0d0 2.5d0 3.0d0 3.5d0 4.0d0 4.5d0 5.0d0 5.5d0 6.0d0
+;;  6.5d0 7.0d0 7.5d0 8.0d0 8.498612626829395d0 8.993299378541845d0
+;;  9.481513456442876d0 9.959055899352716d0 10.419003790659431d0
+;;  10.849943170489647d0 11.233055600417206d0 11.537314720727547d0
+;;  11.787314720727547d0 12.037314720727547d0 12.287314720727547d0
+;;  12.537314720727547d0 12.790429835847638d0 13.060025984954574d0
+;;  13.352929835847638d0 13.662314720727547d0 13.974814720727547d0
+;;  14.287314720727547d0 14.599814720727547d0 14.912314720727547d0
+;;  15.224814720727547d0 15.537314720727547d0 15.849814720727547d0)
+(loop for beats below 20 by 0.5 collect (bps-at *tenv1* beats))
+;; (1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0
+;;  1.0d0 1.0d0 1.0d0 1.0d0 0.9939482867384511d0 0.9839706983599575d0
+;;  0.9675204361700447d0 0.9403985389889412d0 0.8956820902047142d0
+;;  0.8219571299439862d0 0.7004052197806022d0 0.5d0 0.5d0 0.5d0 0.5d0 0.5d0
+;;  0.5183058261758408d0 0.5625d0 0.6066941738241592d0 0.625d0 0.625d0 0.625d0
+;;  0.625d0 0.625d0 0.625d0 0.625d0 0.625d0)
+(loop for beats below 20 by 0.5 collect (bpm-at *tenv1* beats))
+;; (60.0d0 60.0d0 60.0d0 60.0d0 60.0d0 60.0d0 60.0d0 60.0d0 60.0d0 60.0d0 60.0d0
+;;  60.0d0 60.0d0 60.0d0 60.0d0 60.0d0 60.0d0 60.36531356866102d0
+;;  60.97742554733141d0 62.01419397145924d0 63.80273629998226d0
+;;  66.98805374827423d0 72.99650774254955d0 85.6646956725917d0 120.0d0 120.0d0
+;;  120.0d0 120.0d0 120.0d0 115.76177030980232d0 106.66666666666667d0
+;;  98.8966147833654d0 96.0d0 96.0d0 96.0d0 96.0d0 96.0d0 96.0d0 96.0d0 96.0d0)
+*sample-rate*
+;; 48000.0d0
+(loop for beats below 20 by 0.5 collect #[1 beat *tenv1* beats])
+;; (48000.0d0 48000.0d0 48000.0d0 48000.0d0 48000.0d0 48000.0d0 48000.0d0
+;;  48000.0d0 48000.0d0 48000.0d0 48000.0d0 48000.0d0 48000.0d0 48000.0d0
+;;  48000.0d0 47933.40608781097d0 47678.37017000858d0 47179.23982144708d0
+;;  46356.31299892179d0 44999.536042394655d0 42762.58901457268d0
+;;  39074.486868373184d0 32993.834411419215d0 26604.43777489638d0 24000.0d0
+;;  24000.0d0 24000.0d0 24149.525525764348d0 25090.140682897298d0 27000.0d0
+;;  28909.859317102702d0 29850.474474235652d0 30000.0d0 30000.0d0 30000.0d0
+;;  30000.0d0 30000.0d0 30000.0d0 30000.0d0 30000.0d0)
+
+;; A BUFFER is a structure used to hold an array of values and other
+;; information useful to interpret the data. The type of the values is
+;; SAMPLE. A BUFFER is created with the MAKE-BUFFER function
+
+(defvar buf-test (make-buffer 8192))
+;; BUF-TEST
+(describe buf-test)
+;; #<BUFFER :FRAMES 8192 :CHANNELS 1 :SR 48000.0>
+;;   [structure-object]
+
+;; Slots with :INSTANCE allocation:
+;;   DATA          = #.(SB-SYS:INT-SAP #X0073D340)
+;;   SIZE          = 8192
+;;   REAL-TIME-P   = NIL
+;;   FOREIGN-FREE  = #<FUNCTION CFFI-SYS:FOREIGN-FREE>
+;;   MASK          = 8191
+;;   LOBITS        = 11
+;;   LOMASK        = 2047
+;;   LODIV         = 4.8828125d-4
+;;   FRAMES        = 8192
+;;   CHANNELS      = 1
+;;   SAMPLE-RATE   = 48000.0d0
+;;   FILE          = NIL
+;;   TEXTFILE-P    = NIL
+;; ; No value
+
+;; There are some facilities to fill the data of the buffer, for
+;; example by using a function which takes a C array and the size of
+;; the array. The gen routines in the INCUDINE.GEN package return this
+;; type of function.
+
+(defvar waveform-1 (make-buffer 65536 :fill-function (gen:partials '(1))))
+;; WAVEFORM-1
+WAVEFORM-1
+;; #<BUFFER :FRAMES 65536 :CHANNELS 1 :SR 48000.0>
+
+;; The data of the WAVEFORM-1 buffer represent one period of a
+;; sinusoid created by GEN:PARTIALS.
+
+(dsp! wt-lookup-test ((buf buffer) freq amp)
+  (stereo (osc buf freq amp 0 :cubic)))
+
+(wt-lookup-test waveform-1 440 .3)
+(free 0)
+
+;; GEN:PARTIALS generates composite waveforms made up of weighted sums
+;; of simple sinusoids. The argument is a list where every element can
+;; be:
+
+;;   * value – relative stregth of the partial. The number of the
+;;     partial is the position in the list plus a possible offset
+;;     introduced by a previous list (PAR-NUMBER STRENGTH ...). The
+;;     follow examples generate the same waveform:
+
+;;     (partials '(1 0 .5 0 0 0 .2 .1))
+;;     (partials '(1 0 .5 (7 .2) .1))
+
+;;     Partials 1, 3, 7 and 8 respectively with relative strengths 1,
+;;     .5, .2 and .1
+
+;;   * (par-number strength) – STRENGTH is the strength of the partial
+;;     PAR-NUMBER.
+
+;;   * (par-number strength phase) – PHASE is the initial phase of the
+;;     partial. It is a multiplier for +TWOPI+
+
+;;   * (par-number strength phase dc) – DC is the DC offset of the partial.
+
+;; Examples:
+
+(fill-buffer waveform-1 (gen:partials '(1.0 0.0 0.5 0.0 0.25 0.0 0.125
+                                        0.0 0.0625)))
+;; #<BUFFER :FRAMES 65536 :CHANNELS 1 :SR 48000.0>
+(wt-lookup-test waveform-1 440 .3 :id 1)
+(defvar waveform-2
+  (make-buffer 65536 :fill-function (gen:partials '(1 (3 .5) (7 .2 .75)))))
+;; WAVEFORM-2
+(set-control 1 :buf waveform-2)
+;; #<BUFFER :FRAMES 65536 :CHANNELS 1 :SR 48000.0>
+(fill-buffer waveform-1 (gen:partials '(16 8 4 2 1)) :normalize-p t)
+;; #<BUFFER :FRAMES 65536 :CHANNELS 1 :SR 48000.0>
+(set-control 1 :buf waveform-1)
+;; #<BUFFER :FRAMES 65536 :CHANNELS 1 :SR 48000.0>
+(free 1)
+
+(dsp! wt-lookup-test-2 ((buf buffer) amp rep)
+  (stereo (osc *sine-table* (osc buf rep) amp 0 :cubic)))
+
+(rescale-buffer waveform-2 100 1500)
+;; #<BUFFER :FRAMES 65536 :CHANNELS 1 :SR 48000.0>
+(wt-lookup-test-2 waveform-2 .3 .2 :id 1)
+(set-control 1 :rep .5)
+;; 0.5
+(rt-eval () (rescale-buffer waveform-2 100 800))
+;; NIL
+(fill-buffer waveform-1 (gen:partials '((1 800 .75 1000)) :normalize-p nil))
+;; #<BUFFER :FRAMES 65536 :CHANNELS 1 :SR 48000.0>
+(set-control 1 :buf waveform-1)
+;; #<BUFFER :FRAMES 65536 :CHANNELS 1 :SR 48000.0>
+(free 1)
+
+;; There are other gen routines, for example GEN:GBUZZ, GEN:RAND, and
+;; GEN:POLYNOMIAL.
+
+;; Useful methods to use with the buffers are MAP-BUFFER,
+;; MAP-INTO-BUFFER, SCALE-BUFFER, NORMALIZE-BUFFER and RESCALE-BUFFER.
+
+;; We can use a BUFFER to store the data of a soundfile. The format of
+;; the soundfile is one of the formats available in libsndfile.
+
+(dsp! bplay ((buf buffer) rate start-pos (loop-p boolean))
+  (foreach-channel
+    (cout (buffer-play buf rate start-pos loop-p #'stop))))
+
+(defvar loop-1 (buffer-load "/home/test/radiohead-1.wav"))
+;; LOOP-1
+(describe loop-1)
+;; #<BUFFER :FRAMES 354564 :CHANNELS 2 :SR 44100.0>
+;;   [structure-object]
+
+;; Slots with :INSTANCE allocation:
+;;   DATA          = #.(SB-SYS:INT-SAP #X7FFFE21D7010)
+;;   SIZE          = 709128
+;;   REAL-TIME-P   = NIL
+;;   FOREIGN-FREE  = #<FUNCTION CFFI-SYS:FOREIGN-FREE>
+;;   MASK          = 524287
+;;   LOBITS        = 5
+;;   LOMASK        = 31
+;;   LODIV         = 0.03125d0
+;;   FRAMES        = 354564
+;;   CHANNELS      = 2
+;;   SAMPLE-RATE   = 44100.0d0
+;;   FILE          = #P"/home/test/radiohead-1.wav"
+;;   TEXTFILE-P    = NIL
+;; ; No value
+
+(bplay loop-1 1 0 t :id 1)
+(set-control 1 :rate .3)
+;; 0.3
+(set-control 1 :rate 2)
+;; 2
+(set-controls 1 :rate 1 :start-pos #[300 ms])
+;; NIL
+(defvar loop-2 (make-buffer 0 :file "/home/test/radiohead-2.wav"))
+;; LOOP-2
+(set-control 1 :buf loop-2)
+;; #<BUFFER :FRAMES 310464 :CHANNELS 2 :SR 44100.0>
+(fill-buffer waveform-2 "/home/test/radiohead-4.wav")
+;; #<BUFFER :FRAMES 65536 :CHANNELS 1 :SR 48000.0>
+(set-control 1 :buf waveform-2)
+;; #<BUFFER :FRAMES 65536 :CHANNELS 1 :SR 48000.0>
+(set-control 1 :loop-p nil)
+;; NIL
+
+;; Here is an example obtained from a Pd patch:
+
+(dsp! b09-sampler-loop-smooth ((buf buffer) freq chunk-size)
+  (with-samples ((phs (phasor freq 0)))
+    (stereo (* (cos (* (- phs 0.5d0) pi))
+               (buffer-read buf (* phs 441
+                                   (samphold chunk-size phs 0 1))
+                            :wrap-p t :interpolation :cubic)))))
+
+(b09-sampler-loop-smooth loop-1 .75 50 :id 1)
+(set-controls 1 :chunk-size 20 :freq 10)
+(set-control 1 :freq 30)
+(set-controls 1 :chunk-size 100 :freq 1)
+(free 1)
+
+;; The combination of BUFFER-WRITE and COUNTER VUGs makes a
+;; BUFFER-RECORD:
+
+(define-vug buffer-record ((buf buffer) in)
+  (buffer-write buf (counter 0 (buffer-size buf) :loop-p t) in))
+
+(dsp! buffer-record-test ((buf buffer))
+  (when (zerop current-channel)
+    (buffer-record buf (audio-in 0))))
+
+(dsp! buffer-play-test ((buf buffer))
+  (out (buffer-play buf 1 0 t #'free)))
+
+(defvar btest (make-buffer 44100))
+;; BTEST
+(buffer-record-test btest :id 1)
+(buffer-play-test btest :id 2)
+(free 1)
+(buffer-record-test btest :id 1)
+(free 1)
+(free 2)
+
+;; A low pass brickwall filter is a good example to introduce the FFT
+;; analysis with Incudine. The DSP in the follow example uses the
+;; mouse (it works only with X window system at moment) to control the
+;; cutoff of the filter.
+
+(define-vug pv-lp-wall ((abuf abuffer) threshold)
+  (dofft-polar (i nbins ((compute-abuffer abuf)) () :result abuf)
+    (if (>= i (sample->fixnum threshold))
+        (setf mag0 0.0d0))))
+
+(dsp! pv-lp-wall-test ((buf buffer) (size fixnum) (hop-size fixnum) amp)
+  (with ((fft (make-local-fft size))
+         (abuf (make-local-abuffer fft))
+         (ifft (make-local-ifft size))
+         (d-nbins (sample (abuffer-nbins abuf))))
+    (declare (type sample d-nbins))
+    (setf (fft-input fft) (buffer-play buf 1 0 t #'identity))
+    (with-control-period (hop-size)
+      (compute-ifft ifft (pv-lp-wall abuf (lag (lin-mouse-x 0 d-nbins) .02))))
+    ;; IFFT-OUTPUT is a normal function and it is not performance-time
+    ;; by default. We can change this behavior by using TICK
+    (stereo (* amp (tick (ifft-output ifft))))))
+
+(new-fft-plan 1024)
+;; #<FFT-PLAN :SIZE 1024 :FLAGS 0>
+(pv-lp-wall-test loop-1 1024 512 .5 :id 1)
+(set-control 1 :hop-size 800)
+;; 800
+(set-control 1 :hop-size 2048)
+;; 2048
+(new-fft-plan 4096)
+;; #<FFT-PLAN :SIZE 4096 :FLAGS 0>
+(set-control 1 :size 4096)
+;; 4096
+(free 1)
+
+;; When we use a FFT-PLAN for the first time, it is better to
+;; calculate and store a new FFT-PLAN in non-realtime with the utility
+;; NEW-FFT-PLAN as in the prior example to avoid xruns. The computation
+;; of a FFT-PLAN in non-realtime is more accurate than a FFT-PLAN
+;; computed in realtime.  GET-FFT-PLAN returns a FFT-PLAN related to a
+;; specific size:
+
+(get-fft-plan 1024)
+;; #<FFT-PLAN :SIZE 1024 :FLAGS 0>
+(get-fft-plan 4096)
+;; #<FFT-PLAN :SIZE 4096 :FLAGS 0>
+(get-fft-plan 2048)
+;; NIL
+(new-fft-plan 2048)
+;; #<FFT-PLAN :SIZE 2048 :FLAGS 0>
+(new-fft-plan 2048)
+;; #<FFT-PLAN :SIZE 2048 :FLAGS 0>
+(fft-plan-list)
+;; (#<FFT-PLAN :SIZE 1024 :FLAGS 0> #<FFT-PLAN :SIZE 2048 :FLAGS 0>
+;;  #<FFT-PLAN :SIZE 4096 :FLAGS 0>)
+
+;; PV-LP-WALL-TEST is defined with a local FFT, a local ABUFFER
+;; (Analysis Buffer) related to FFT and a local IFFT.
+
+;; The input of WITH-CONTROL-PERIOD VUG-MACRO is updated every N samples,
+;; on demand or never.
+
+;;   * If N is positive, the input is updated every N samples.
+;;   * If N is zero, the input is not updated.
+;;   * If N is negative, the input is updated and N becomes zero.
+
+;; In the example the output is calculated every HOP-SIZE samples. It
+;; is interesting to notice we can change the size of the FFT/IFFT and
+;; the HOP-SIZE in realtime.
+
+;; FFT-INPUT sets the input of the local FFT.
+
+;; COMPUTE-ABUFFER updates the ABUFFER with a copy of the calculated fft
+;; and returns the ABUFFER.
+
+;; The DOFFT-POLAR macro is an utility to change the values of one or
+;; more ABUFFERs in polar coordinates. MAG0 and PHASE0 are
+;; respectively the magnitude and the phase of the nth bin in the
+;; first ABUFFER, MAG1 and PHASE1 for the bin in the second ABUFFER,
+;; etc. There is also the DOFFT-COMPLEX macro for the calculations in
+;; complex coordinates and the more flexible DOFFT macro.
+
+;; IFFT-OUTPUT returns the next sample of the last calculated IFFT.
+
+;; The next example, inspired by PVLocalMax of SuperCollider, shows
+;; the DOFFT-POLAR macro with two ABUFFERs:
+
+(define-vug pv-local-max ((abuf-src abuffer) (abuf-dest abuffer) threshold)
+  (dofft-polar (i nbins ((compute-abuffer abuf-src)) (abuf-dest)
+                :result abuf-dest :index-start 1 :index-end (1- nbins))
+    (if (or (< mag0 threshold)
+            (< (abuffer-realpart abuf-src (1- i)) threshold)
+            (< (abuffer-realpart abuf-src (1+ i)) threshold))
+        (setf mag1 0.0d0 phase1 0.0d0)
+        (setf mag1 mag0 phase1 phase0))))
+
+(dsp! pv-local-max-test ((buf buffer) (size fixnum) (hop-size fixnum) amp)
+  (with ((fft (make-local-fft size))
+         (abuf0 (make-local-abuffer fft))
+         (abuf1 (make-local-abuffer fft))
+         (ifft (make-local-ifft size)))
+    (setf (fft-input fft) (buffer-play buf 1 0 t #'identity))
+    (with-control-period (hop-size)
+      (compute-ifft ifft (pv-local-max abuf0 abuf1
+                                       (lag (lin-mouse-x 0 50) .02))))
+    (stereo (* amp (tick (ifft-output ifft))))))
+
+(pv-local-max-test loop-1 1024 512 .5)
+(free 0)
+
+;; DOFFT-POLAR takes two lists of ABUFFERs, ABUFFER-SRC-LIST and
+;; ABUFFER-DEST-LIST. The data of the ABUFFERs in ABUFFER-SRC-LIST are
+;; converted from complex to polar form if it is necessary.
+
+;; Here is another example about FFT, where it is possible to modulate
+;; the HOP-SIZE using the mouse:
+
+(dsp! hop-size-mod ((size fixnum) amp)
+  (with ((fft (make-local-fft size))
+         (abuf (make-local-abuffer fft))
+         (ifft (make-local-ifft size)))
+    (setf (fft-input fft) (sine 440 .5 0))
+    (with-control-period ((sample->fixnum (lag (lin-mouse-x 150 10000) .02)))
+      (compute-ifft ifft abuf))
+    (stereo (* amp (tick (ifft-output ifft))))))
+
+(hop-size-mod 1024 .5)
+(free 0)
+
+;; There is a structure called PVBUFFER, useful to store a sequence of
+;; FFTs. We can use it with PART-CONVOLVE, a VUG to compute the
+;; partitioned convolution between a signal and a multi-channel
+;; impulse response. For example:
+
+(defvar *btest* (buffer-load "/path/to/someloop.wav"))
+
+(defvar *auditorium*
+  (buffer->pvbuffer (buffer-load "/path/to/auditorium.wav") 8192))
+
+;;; There are two keywords in BUFFER->PVBUFFER, START and FRAMES,
+;;; respectively the offset and the number of frames of the input
+;;; buffer. The default is to use the whole buffer.
+
+(dsp! pconv-test ((inbuf buffer) (pvbuf pvbuffer) dry wet)
+  (with-samples ((in (buffer-play inbuf 1 0 t #'free)))
+    (stereo (* dry (delay-s in 65536
+                            (ash (pvbuffer-fft-size pvbuf) -1))))
+    (foreach-channel (cout (* wet (part-convolve in pvbuf))))))
+
+(describe *auditorium*)
+;; #<PVBUFFER :SIZE 311334 :FRAMES 19 :CHANNELS 2 :BLOCK-SIZE 16386>
+;;   [structure-object]
+
+;; Slots with :INSTANCE allocation:
+;;   DATA          = #.(SB-SYS:INT-SAP #X00747C20)
+;;   SIZE          = 311334
+;;   FRAMES        = 19
+;;   CHANNELS      = 2
+;;   FFT-SIZE      = 16384
+;;   SCALE-FACTOR  = 6.103515625d-5
+;;   BLOCK-SIZE    = 16386
+
+(pconv-test *btest* *auditorium* .3 .08 :id 1)
+
+;;; It is possible to change the PVBUFFER on-the-fly:
+
+(defvar *grotte-frasassi*
+  (buffer->pvbuffer (buffer-load "/path/to/grotte_frasassi.wav") 8192))
+
+(set-control 1 :pvbuf *grotte-frasassi*)
+(set-control 1 :pvbuf *auditorium*)
+(free 1)

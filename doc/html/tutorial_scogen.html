@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="incudine.css" />
+    <title>Incudine with a Csound score generator</title>
+  </head>
+  <body>
+    <div id="content">
+      <table class="navtutor">
+        <tr>
+          <th class="center">Incudine with a Csound score generator</th>
+        </tr>
+      </table>
+      <hr>
+
+      <p>
+        A score file (rego file) for Incudine can contain time-tagged lisp
+        functions, lisp statements, lisp tags and arbitrary score statements
+        defined with the utility <code>DEFSCORE-STATEMENT</code>.
+      </p>
+
+      <p>
+        A simple example to show the usage of <code>DEFSCORE-STATEMENT</code> is
+        a score file generated with
+        <a href="http://www.bartetzki.de/en/software.html">CMask</a>
+      </p>
+
+      <pre class="src">
+<span style="color: #ff7f24;">;;; texture1.cmask from the article "Csound Score Generation and</span>
+<span style="color: #ff7f24;">;;; Granular Synthesis with CMask" by Andre Bartetzki</span>
+{
+f1 0 8192 9 .25 1 0
+f2 0 8193 10 1
+}
+
+f 0 30
+    p1  const 1
+    p2  rnd uni
+        mask [.01 .002 ipl 0] [.1 .01 ipl 0]
+    p3  range .5 1
+    p4  rnd uni
+        mask [860 80 ipl -1.2] [940 2000 ipl 1] map 1
+        quant 100 .9 0
+    p5  mask [.4 0] [.6 1]
+
+f 31 33
+    p1  const 1
+    p2  seg [.08 .8 ipl 2]
+    p3  seg [.1 2]
+    p4  range 300 400
+    p5  seg [0 1]</pre>
+
+      <p>
+        where the Csound orchestra is
+      </p>
+
+      <pre class="src">
+<span style="color: #ff7f24;">;;; texture1.orc</span>
+sr = 48000
+ksmps = 1
+nchnls = 2
+
+instr 1
+  <span style="color: #ff7f24;">; p4 frequency</span>
+  <span style="color: #ff7f24;">; p5 pan (0 .. 1)</span>
+
+  ipanl table 1 - p5, 1, 1
+  ipanr table p5, 1, 1
+
+  k1 expon 1, p3, .01
+  a1 foscil k1 * 4200, p4, 1, 2.41, k1 * 6, 2
+
+  outs a1 * ipanl, a1 * ipanr
+endin</pre>
+
+      <p>
+        A cudo file to test the output of CMask is
+      </p>
+
+      <pre class="src src-lisp"><span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">texture.cudo</span>
+(eval-when (<span style="color: #b0c4de;">:compile-toplevel</span> <span style="color: #b0c4de;">:load-toplevel</span>)
+  (define-vug <span style="color: #87cefa;">foscil</span> (amp cps car mod ndx (buf buffer))
+    <span style="color: #ffa07a;">"A basic FM oscillator."</span>
+    (with-samples ((fcar (* cps car))
+                   (fmod (* cps mod))
+                   (amod (* ndx fmod)))
+      (osc buf (+ fcar (osc buf fmod amod 0 <span style="color: #b0c4de;">:linear</span>)) amp 0 <span style="color: #b0c4de;">:linear</span>)))
+
+  (define-vug <span style="color: #87cefa;">expon</span> (start dur end)
+    <span style="color: #ffa07a;">"Exponential curve between two points."</span>
+    (x-line start end dur #'free))
+
+  (define-vug <span style="color: #87cefa;">pan</span> (in (buf buffer) pos)
+    <span style="color: #ffa07a;">"Stereo panpot."</span>
+    (with ((tab (buffer-data buf))
+           (frames (1- (buffer-frames buf)))
+           (index (sample-&gt;fixnum (* pos frames))))
+      (with-samples ((left (smp-ref tab (- frames index)))
+                     (right (smp-ref tab index)))
+        (cond ((= current-channel 0) (* left in))
+              ((= current-channel 1) (* right in))
+              (t +sample-zero+))))))
+
+(dsp! <span style="color: #87cefa;">texture</span> (dur freq pos (pan-buf buffer) (osc-buf buffer))
+  <span style="color: #ffa07a;">"FM oscillator test."</span>
+  (with-samples ((env (expon 1 dur 0.01)))
+    (foreach-channel
+      (cout (pan (foscil (* env 0.128) freq 1 2.41 (* env 6) osc-buf)
+                 pan-buf pos)))))
+
+(declaim (special buf1 buf2))
+
+(defscore-statement f1 (time size gen pna stra phsa)
+  (declare (ignore gen))
+  `(,time (lambda ()
+            (setf buf1 (make-buffer ,size
+                         <span style="color: #b0c4de;">:fill-function</span> (gen:partials '((,pna ,stra ,phsa))))))))
+
+(defscore-statement f2 (time size gen str1)
+  (declare (ignore gen))
+  `(,time (lambda ()
+            (setf buf2 (make-buffer (logand ,size #xFFFFFE)
+                         <span style="color: #b0c4de;">:fill-function</span> (gen:partials '(,str1)))))))
+
+(defscore-statement i1 (time dur freq pan)
+  (list time 'texture `(dur ,dur) freq pan 'buf1 'buf2))</pre>
+
+      <p>
+        The commands to get the soundfile are:
+      </p>
+
+      <pre class="src src-sh">cmask texture1.cmask
+incudine texture.cudo -v -s texture1.sco</pre>
+
+      <p>
+        where <code>texture1.sco</code> is the output of CMask with about 1380
+        score statements.
+      </p>
+
+
+      <hr>
+      <table class="navtutor">
+        <tr>
+          <td style="width: 20%" class="left">
+            <a href="tutorial_01.html">Getting Started with Incudine</a>
+          </td>
+          <td style="width: 60%" class="center"><a href="index.html">Home</a></td>
+          <td style="width: 20%" class="right"></td>
+        </tr>
+      </table>
+    </div>
+    <div id="postamble">
+      <a href="http://sourceforge.net/projects/incudine">Sourceforge project page</a>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,64 @@
+;;; Incudine
+;;; Read macro sharp-t
+
+;; The read macro sharp-t is useful to apply a filter multiple times.
+
+;; The follow code shows an implementation of the Moog VCF written by
+;; Julius O. Smith in Faust (effect.lib):
+
+;; moog_vcf(res,fr) = (+ : seq(i,4,pole(p)) : *(unitygain(p))) ~ *(mk)
+;; with {
+;;      p = 1.0 - fr * 2.0 * PI / SR; // good approximation for fr << SR
+;;      unitygain(p) = pow(1.0-p,4.0); // one-pole unity-gain scaling
+;;      mk = -4.0*max(0,min(res,0.999999)); // need mk > -4 for stability
+;; };
+
+;; In particular, the sequential composition `seq (i,4,pole(p))'
+;; defines four pole filters in series. A direct translation in Lisp is
+
+;; (pole (pole (pole (pole (in p) p) p) p) p)
+
+;; but it seems an auto-incitement to get the pole position in Moto
+;; GP. With the read macro sharp-t, the composition becomes
+
+;; #4t(pole in p)
+
+;; It means: "apply the pole filter four times".  Often the input of a
+;; filter is the first argument, but if it is not the case, a number
+;; after sharp-t specifies the position of the input in the list of
+;; the arguments starting from zero. Example:
+
+(in-package :scratch)
+
+(init)
+
+'#4t1(fname x in y)
+;; (FNAME X (FNAME X (FNAME X (FNAME X IN Y) Y) Y) Y)
+
+;; A VUG to define the previous VCF is
+
+(define-vug moog-vcf (in res fr)
+  (with-samples ((wt (* fr *twopi-div-sr*))
+                 (coef (- 1 wt))
+                 (unity-gain (* wt wt wt wt))
+                 (mk (* -4 (clip res 0.0d0 0.999999d0))))
+    (~ (* #4t(pole (+ in it) coef) unity-gain mk))))
+
+;; Another example: the first-order recursive lowpass filter used in Csound
+
+(define-vug tone (in hp)
+  (with-samples ((b (- 2 (cos (* hp *twopi-div-sr*))))
+                 (coef (- b (sqrt (the non-negative-sample (- (* b b) 1)))))
+                 (g (- 1 coef)))
+    (pole (* g in) coef)))
+
+(dsp! tone2-test (amp)
+  (with-samples ((hp (x-line 50 8000 10 #'free)))
+    (stereo #2t(tone (white-noise amp) hp))))
+
+(dsp! tone4-test (amp)
+  (with-samples ((hp (x-line 50 8000 10 #'free))
+                 (b (- 2 (cos (* hp *twopi-div-sr*))))
+                 (coef (- b (sqrt (the non-negative-sample (- (* b b) 1)))))
+                 (g (expt (the non-negative-sample (- 1 coef)) 4)))
+    (stereo #4t(pole (* g (white-noise amp)) coef))))

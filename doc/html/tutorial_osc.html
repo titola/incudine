@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="incudine.css" />
+    <title>Open Sound Control messages</title>
+  </head>
+  <body>
+    <div id="content">
+      <table class="navtutor">
+        <tr>
+          <th class="center">Open Sound Control messages</th>
+        </tr>
+      </table>
+      <hr>
+
+      <p>
+        The faster way to send a OSC message is
+      </p>
+
+      <pre class="src src-lisp">(in-package <span style="color: #b0c4de;">:scratch</span>)
+
+<span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">*oscout*</span> (osc:open <span style="color: #b0c4de;">:direction</span> <span style="color: #b0c4de;">:output</span>))
+<span class="prompt">SCRATCH&gt;</span> (osc:message *oscout* <span style="color: #ffa07a;">"/osc/test"</span> <span style="color: #ffa07a;">"isf"</span> 1 <span style="color: #ffa07a;">"two"</span> 3.0)</pre>
+
+      <p>
+        where host, port and protocol are "localhost", 32126 (aka #36ROSE)
+        and <code>:UDP</code> by default. It's enlightening to show the
+        expansion of the <code>OSC:MESSAGE</code> macro:
+      </p>
+
+      <pre class="src src-lisp">(macroexpand-1 '(osc:message *oscout* <span style="color: #ffa07a;">"/osc/test"</span> <span style="color: #ffa07a;">"isf"</span> 1 <span style="color: #ffa07a;">"two"</span> 3.0))
+(PROGN
+ (INCUDINE.OSC:START-MESSAGE *OSCOUT* <span style="color: #ffa07a;">"/osc/test"</span> <span style="color: #ffa07a;">"isf"</span>)
+ (INCUDINE.OSC::SET-VALUE *OSCOUT* 0 1)
+ (INCUDINE.OSC::SET-VALUE *OSCOUT* 1 <span style="color: #ffa07a;">"two"</span>)
+ (INCUDINE.OSC::SET-VALUE *OSCOUT* 2 3.0)
+ (INCUDINE.OSC:SEND *OSCOUT*))</pre>
+
+      <p>
+        <code>OSC:START-MESSAGE</code> writes the OSC address pattern and
+        the OSC type tag on the stream buffer, then it updates the pointers
+        to the required values. These pointers allow to directly change a
+        value within the buffer to send. It's simple and fast to set a value
+        and send another message:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (setf (osc:value *oscout* 0) -123)
+<span class="prompt">SCRATCH&gt;</span> (osc:send *oscout*)</pre>
+
+      <p>
+        Done. The interface is the same with TCP and/or SLIP, besides the
+        conversion of the values to network byte order is implicit on
+        little-endian machines.
+      </p>
+
+      <p>
+        The previous example in slow motion plus other utilities:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (osc:start-message *oscout* <span style="color: #ffa07a;">"/osc/test"</span> <span style="color: #ffa07a;">"isf"</span>)
+32
+
+<span class="prompt">SCRATCH&gt;</span> (osc:address-pattern *oscout* t)
+<span style="color: #ffa07a;">"/osc/test"</span>
+<span style="color: #ffa07a;">"isf"</span>
+
+<span class="prompt">SCRATCH&gt;</span> (loop for i below (osc:required-values *oscout*)
+               collect (osc:value *oscout* i))
+(0 <span style="color: #ffa07a;">""</span> 0.0)
+
+<span class="prompt">SCRATCH&gt;</span> (setf (osc:value *oscout* 0) 1)
+<span class="prompt">SCRATCH&gt;</span> (setf (osc:value *oscout* 1) <span style="color: #ffa07a;">"two"</span>)
+<span class="prompt">SCRATCH&gt;</span> (setf (osc:value *oscout* 2) 3.0)
+<span class="prompt">SCRATCH&gt;</span> (loop for i below 3 collect (osc:value *oscout* i))
+(1 <span style="color: #ffa07a;">"two"</span> 3.0)
+
+<span class="prompt">SCRATCH&gt;</span> (osc:send *oscout*)
+32</pre>
+
+      <p>
+        Note: explicit coercing is necessary with <code>(SETF OSC:VALUE)</code>
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (setf (osc:value *oscout* 2) 3)    <span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">wrong</span>
+<span class="prompt">SCRATCH&gt;</span> (osc:value *oscout* 2)
+0.0
+
+<span class="prompt">SCRATCH&gt;</span> (setf (osc:value *oscout* 2) 3.0)  <span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">correct</span>
+3.0</pre>
+
+      <p>
+        <code>OSC:VALUE-POINTER</code> returns the pointer to a required value:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (cffi:foreign-string-to-lisp (osc:value-pointer *oscout* 1))
+<span style="color: #ffa07a;">"two"</span>
+3</pre>
+
+      <p>
+        However, on little-endian machines:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (cffi:mem-ref (osc:value-pointer *oscout* 0) <span style="color: #b0c4de;">:int32</span>)
+16777216
+
+<span class="prompt">SCRATCH&gt;</span>  (swap-bytes:ntohl (cffi:mem-ref (osc:value-pointer *oscout* 0)
+                                          <span style="color: #b0c4de;">:uint32</span>))
+1</pre>
+
+      <p>
+        <code>OSC:BUFFER-TO-OCTETS</code> returns the octets of the message:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (osc:buffer-to-octets *oscout*)
+#(47 111 115 99 47 116 101 115 116 0 0 0 44 105 115 102 0 0 0 0
+  0 0 0 1 116 119 111 0 64 64 0 0)
+32</pre>
+
+      <p>
+        We can store the message in an existent vector (with optional
+        START/END positions):
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (let ((a (make-array (osc:message-length *oscout*)
+                              <span style="color: #b0c4de;">:element-type</span> '(unsigned-byte 8))))
+           (osc:buffer-to-octets *oscout* a))
+
+         <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">We'll use it.</span>
+<span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">*msg1*</span> (osc:buffer-to-octets *oscout*))</pre>
+
+      <p>
+        The follow example shows a simple and fast way to control a parameter
+        of an external synth:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (osc:start-message *oscout* <span style="color: #ffa07a;">"/synth/test"</span> <span style="color: #ffa07a;">"f"</span>)
+20
+
+<span class="prompt">SCRATCH&gt;</span> (set-rt-block-size 1)
+
+<span class="prompt">SCRATCH&gt;</span> (rt-start)
+
+(defun <span style="color: #87cefa;">synth-test</span> (time)
+  (setf (osc:value *oscout* 0) (+ 100 (random 1000.0)))
+  (osc:send *oscout*)
+  (aat (+ time #[1/5 sec]) #'synth-test it))
+
+<span class="prompt">SCRATCH&gt;</span> (rt-eval () (synth-test (now)))
+
+         <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">game over</span>
+<span class="prompt">SCRATCH&gt;</span> (flush-pending)
+<span class="prompt">SCRATCH&gt;</span> (rt-stop)</pre>
+
+      <p>
+        We can reuse the octets stored in <code>*MSG1*</code>:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (osc:octets-to-buffer *msg1* *oscout*)
+<span class="prompt">SCRATCH&gt;</span> (osc:send *oscout*)</pre>
+
+      <p>
+        The pointers to the values are not updated after
+        <code>OSC:OCTETS-TO-BUFFER</code>:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (osc:value *oscout* 0)
+0.0   <span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">wrong</span></pre>
+
+      <p>
+        However, <code>OSC:OCTETS-TO-BUFFER</code> sets a internal flag to inform
+        <code>OSC:INDEX-VALUES</code> about the necessity to update the pointers:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (osc:index-values *oscout*)
+<span class="prompt">SCRATCH&gt;</span> (osc:value *oscout* 0)
+1     <span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">correct</span>
+
+<span class="prompt">SCRATCH&gt;</span> (setf (osc:value *oscout* 1) <span style="color: #ffa07a;">"two-fold"</span>)
+<span class="prompt">SCRATCH&gt;</span> (osc:send *oscout*)
+40</pre>
+
+      <p>
+        Broadcast in a local network:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (osc:close *oscout*)
+<span class="prompt">SCRATCH&gt;</span> (setf *oscout* (osc:open <span style="color: #b0c4de;">:host</span> <span style="color: #ffa07a;">"192.168.0.255"</span> <span style="color: #b0c4de;">:direction</span> <span style="color: #b0c4de;">:output</span>))
+<span class="prompt">SCRATCH&gt;</span> (setf (osc:broadcast *oscout*) t)
+<span class="prompt">SCRATCH&gt;</span> (osc:message *oscout* <span style="color: #ffa07a;">"/osc/test"</span> <span style="color: #ffa07a;">"iii"</span> 1 2 3)
+
+<span class="prompt">SCRATCH&gt;</span> (osc:close *oscout*)</pre>
+
+      <p>
+        The simplest way to receive a OSC message is the follow:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">*oscin*</span> (osc:open))
+
+<span class="prompt">SCRATCH&gt;</span> (recv-start *oscin*)
+#&lt;RECEIVER INCUDINE.OSC:INPUT-STREAM RUNNING&gt;
+
+<span class="prompt">SCRATCH&gt;</span> (make-osc-responder *oscin* <span style="color: #ffa07a;">"/osc/test"</span> <span style="color: #ffa07a;">"iii"</span>
+                             (lambda (a b c)
+                               (msg warn <span style="color: #ffa07a;">"~D ~D ~D"</span> a b c)))</pre>
+
+      <p>
+        and now we can send OSC messages "/osc/test" with three
+        <code>int32</code> to our server (the port is always the default
+        #36ROSE).
+      </p>
+
+      <p>
+        Again, the expansion of the <code>MAKE-OSC-RESPONDER</code> macro
+        shows useful details:
+      </p>
+
+      <pre class="src src-lisp">(macroexpand-1 '(make-osc-responder *oscin* <span style="color: #ffa07a;">"/osc/test"</span> <span style="color: #ffa07a;">"iii"</span>
+                          (lambda (a b c)
+                            (msg warn <span style="color: #ffa07a;">"~D ~D ~D"</span> a b c))))
+(MAKE-RESPONDER *OSCIN*
+                (LAMBDA ()
+                  (WHEN (INCUDINE.OSC:CHECK-PATTERN *OSCIN* <span style="color: #ffa07a;">"/osc/test"</span> <span style="color: #ffa07a;">"iii"</span>)
+                    (INCUDINE.OSC:WITH-VALUES (A B C)
+                        (*OSCIN* <span style="color: #ffa07a;">"iii"</span>)
+                      (MSG WARN <span style="color: #ffa07a;">"~D ~D ~D"</span> A B C)))
+                  (VALUES)))</pre>
+
+      <p>
+        The expansion points out two new utilities. <code>OSC:CHECK-PATTERN</code>
+        returns <code>T</code> if the OSC address pattern and the type tag are "/osc/test" and "iii"
+        respectively:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (osc:check-pattern *oscin* <span style="color: #ffa07a;">"/osc/test"</span> <span style="color: #ffa07a;">"iif"</span>)
+NIL
+<span class="prompt">SCRATCH&gt;</span> (osc:check-pattern *oscin* <span style="color: #ffa07a;">"/osc/tes"</span> <span style="color: #ffa07a;">"iii"</span>)
+NIL
+<span class="prompt">SCRATCH&gt;</span> (osc:check-pattern *oscin* <span style="color: #ffa07a;">"/osc/test"</span> <span style="color: #ffa07a;">"iii"</span>)
+T</pre>
+
+      <p>
+        If the OSC address pattern is a regexp, you could use
+        <a href="http://weitz.de/cl-ppcre">cl-ppcre</a>
+        with the strings returned by <code>OSC:ADDRESS-PATTERN</code>.
+      </p>
+
+      <p>
+        <code>OSC:WITH-VALUES</code> is really useful to get the received
+        values. Under the hood:
+      </p>
+
+      <pre class="src src-lisp">(macroexpand-1 '(incudine.osc:with-values (a b c) (*oscin* <span style="color: #ffa07a;">"iii"</span>)
+                  (msg warn <span style="color: #ffa07a;">"~d ~d ~d"</span> a b c)))
+(LET ((#<span style="color: #b0c4de;">:STREAM875</span> *OSCIN*))
+  (INCUDINE.OSC:INDEX-VALUES #<span style="color: #b0c4de;">:STREAM875</span> NIL T)
+  (SYMBOL-MACROLET ((A
+                     (CFFI:MEM-REF (INCUDINE.OSC::ARG-POINTER #<span style="color: #b0c4de;">:STREAM875</span> 2)
+                                   <span style="color: #b0c4de;">:INT32</span>))
+                    (B
+                     (CFFI:MEM-REF (INCUDINE.OSC::ARG-POINTER #<span style="color: #b0c4de;">:STREAM875</span> 3)
+                                   <span style="color: #b0c4de;">:INT32</span>))
+                    (C
+                     (CFFI:MEM-REF (INCUDINE.OSC::ARG-POINTER #<span style="color: #b0c4de;">:STREAM875</span> 4)
+                                   <span style="color: #b0c4de;">:INT32</span>)))
+    (MSG WARN <span style="color: #ffa07a;">"~d ~d ~d"</span> A B C)))</pre>
+
+      <p>
+        Excellent! It calls <code>OSC:INDEX-VALUES</code> with the option to
+        force the conversion from network byte order on little-endian machines,
+        then we get the values with automatic coercing.
+      </p>
+
+      <p>
+        If we use <code>OSC:WITH-VALUES</code> or <code>OSC:INDEX-VALUES</code>
+        in other responders, <code>OSC:INDEX-VALUES</code> is smart because it
+        updates the pointers only one time after the reception of a OSC message.
+      </p>
+
+      <p>
+        <code>(SETF BUS)</code> is faster than <code>SET-CONTROL</code> to
+        change a parameter of a DSP. For example:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (remove-all-responders *oscin*)
+
+<span class="prompt">SCRATCH&gt;</span> (setf (bus 0) (sample 1))
+
+<span class="prompt">SCRATCH&gt;</span> (make-osc-responder *oscin* <span style="color: #ffa07a;">"/bplay/rate"</span> <span style="color: #ffa07a;">"f"</span>
+                             (lambda (r)
+                               (barrier (<span style="color: #b0c4de;">:memory</span>)
+                                 (setf (bus 0) (sample r)))))
+
+(dsp! <span style="color: #87cefa;">bplay</span> ((buf buffer))
+  (foreach-channel
+    (cout (buffer-play buf (bus 0) 0 t #'free))))
+
+<span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">*loop1*</span> (buffer-load <span style="color: #ffa07a;">"loop1.wav"</span>))
+
+<span class="prompt">SCRATCH&gt;</span> (rt-start)
+
+<span class="prompt">SCRATCH&gt;</span> (bplay *loop1*)
+
+<span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">Start to send OSC messages with address "/bplay/rate".</span>
+
+<span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">THE END</span>
+<span class="prompt">SCRATCH&gt;</span> (free 0)
+<span class="prompt">SCRATCH&gt;</span> (rt-stop)
+<span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Note: REMOVE-RECEIVER-AND-RESPONDERS in OSC:*BEFORE-CLOSE-HOOK*</span>
+<span class="prompt">SCRATCH&gt;</span> (osc:close *oscin*)</pre>
+
+      <hr>
+      <table class="navtutor">
+        <tr>
+          <td style="width: 20%" class="left">
+            <a href="tutorial_01.html">Getting Started with Incudine</a>
+          </td>
+          <td style="width: 60%" class="center"><a href="index.html">Home</a></td>
+          <td style="width: 20%" class="right"></td>
+        </tr>
+      </table>
+    </div>
+    <div id="postamble">
+      <a href="http://sourceforge.net/projects/incudine">Sourceforge project page</a>
+    </div>
+  </body>
+</html>

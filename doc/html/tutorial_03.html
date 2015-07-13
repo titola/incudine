@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="incudine.css" />
+    <title>Getting Started with Incudine - Part 3</title>
+  </head>
+  <body>
+    <div id="content">
+      <table class="navtutor">
+        <tr>
+          <th colspan="3" class="center">Getting Started with Incudine</th>
+        </tr>
+        <tr>
+          <td style="width: 20%" class="left"><a href="tutorial_02.html">Part 2</a></td>
+          <th style="width: 60%" class="center">Part 3</th>
+          <td style="width: 20%" class="right"><a href="tutorial_04.html">Part 4</a></td>
+        </tr>
+      </table>
+      <hr>
+
+      <p>
+        A <code>BUS</code> is a place where to store a value of
+        <code>SAMPLE</code> type. For example:
+      </p>
+
+      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">get-bus-test</span> ()
+  (foreach-channel
+    (cout (pan2 (sine (bus 0) (bus 1) 0) (bus 2)))))
+
+(dsp! <span style="color: #87cefa;">mod-bus-test</span> (fcar fmod amod)
+  (setf (bus 0) (+ fcar (sine fmod amod 0))))
+
+(defun <span style="color: #87cefa;">set-bus-test</span> (freq amp pos)
+  (rt-eval () (setf (bus 0) freq (bus 1) amp (bus 2) pos)))
+
+(defun <span style="color: #87cefa;">bus-test-list</span> ()
+  (rt-eval (<span style="color: #b0c4de;">:return-value-p</span> t)
+    (list (bus 0) (bus 1) (bus 2))))
+
+<span class="prompt">SCRATCH&gt;</span> *number-of-bus-channels*
+4096
+<span class="prompt">SCRATCH&gt;</span> (set-bus-test 440 .3 .5)
+<span class="prompt">SCRATCH&gt;</span> (get-bus-test <span style="color: #b0c4de;">:id</span> 1)
+<span class="prompt">SCRATCH&gt;</span> (set-bus-test 110 .4 .1)
+<span class="prompt">SCRATCH&gt;</span> (set-bus-test 880 .1 .9)
+<span class="prompt">SCRATCH&gt;</span> (set-bus-test 220 .3 .5)
+<span class="prompt">SCRATCH&gt;</span> (mod-bus-test 440 8 50 <span style="color: #b0c4de;">:id</span> 2 <span style="color: #b0c4de;">:before</span> 1)
+<span class="prompt">SCRATCH&gt;</span> (bus-test-list)
+(489.87698199469247d0 0.30000001192092896d0 0.5d0)
+<span class="prompt">SCRATCH&gt;</span> (set-control 2 <span style="color: #b0c4de;">:fmod</span> 113)
+<span class="prompt">SCRATCH&gt;</span> (free 2)
+<span class="prompt">SCRATCH&gt;</span> (bus-test-list)
+(390.2414056116658d0 0.30000001192092896d0 0.5d0)
+<span class="prompt">SCRATCH&gt;</span> (free 1)
+<span class="prompt">SCRATCH&gt;</span> (set-bus-test 0 0 0)</pre>
+
+      <p>
+        Here is a minimal test to use the VUGs dedicated to MIDI messages:
+      </p>
+
+      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">midi-test</span> ()
+  (foreach-channel
+    (cout (pan2 (bpf (white-noise (lin-midi-cc 0 7 0 1))
+                     (lag (exp-midi-cc 0 8 50 5000) .02)
+                     (lag (lin-midi-cc 0 9 .1 18) .02))
+                (lin-midi-cc 0 10 0 1)))))
+
+<span class="prompt">SCRATCH&gt;</span> (pm:initialize)
+<span style="color: #b0c4de;">:PM-NO-ERROR</span>
+<span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">*midiin*</span> (pm:open (pm:get-default-input-device-id)))
+*MIDIIN*
+<span class="prompt">SCRATCH&gt;</span> (recv-start *midiin*)
+#&lt;RECEIVER PORTMIDI:INPUT-STREAM RUNNING&gt;
+<span class="prompt">SCRATCH&gt;</span> (midi-test)
+<span class="prompt">SCRATCH&gt;</span> (free 0)</pre>
+
+      <p>
+        It is possible to define one or more responders associated with a
+        <code>PM:STREAM</code>
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">resp</span>
+           (make-responder *midiin*
+                           (lambda (st d1 d2)
+                             (nrt-msg info <span style="color: #ffa07a;">"~D ~D ~D"</span> st d1 d2))))
+RESP
+<span class="prompt">SCRATCH&gt;</span> (setf (logger-level) <span style="color: #b0c4de;">:info</span>)
+<span style="color: #b0c4de;">:INFO</span>
+
+<span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">... send some MIDI message ...</span>
+
+<span class="prompt">SCRATCH&gt;</span> (get-responder-list *midiin*)
+(#S(INCUDINE::RESPONDER
+    <span style="color: #b0c4de;">:RECEIVER</span> #&lt;RECEIVER PORTMIDI:INPUT-STREAM RUNNING&gt;
+    <span style="color: #b0c4de;">:FUNCTION</span> #&lt;FUNCTION (LAMBDA (ST D1 D2)) {1009E44DEB}&gt;))
+<span class="prompt">SCRATCH&gt;</span> (remove-responder resp)
+<span class="prompt">SCRATCH&gt;</span> (setf (logger-level) <span style="color: #b0c4de;">:warn</span>)
+<span style="color: #b0c4de;">:WARN</span>
+<span class="prompt">SCRATCH&gt;</span> (recv-stop *midiin*)</pre>
+
+      <p>
+        The follow example shows the steps to use a <code>VOICER</code> in
+        <a href="index.html">Incudine</a>:
+      </p>
+
+      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">simple</span> (freq amp pos (env envelope) gate)
+  (foreach-channel
+    (cout (pan2 (* (envgen env gate 1 #'free)
+                   (sine freq amp 0))
+                pos))))
+
+<span class="prompt">SCRATCH&gt;</span> (defparameter <span style="color: #eedd82;">env1</span> (make-adsr .01 .09 .9 .2))
+ENV1
+<span class="prompt">SCRATCH&gt;</span> (defparameter <span style="color: #eedd82;">voi</span> (voicer:create 20 (simple 440 .3 .5 env1 1)))
+VOI
+<span class="prompt">SCRATCH&gt;</span> (describe voi)
+#&lt;VOICER <span style="color: #b0c4de;">:POLYPHONY</span> 20 <span style="color: #b0c4de;">:COUNT</span> 0&gt;
+  [structure-object]
+
+Slots with <span style="color: #b0c4de;">:INSTANCE</span> allocation:
+  NODE-POOL             = #&lt;CONS-POOL 20&gt;
+  GENERIC-POOL          = #&lt;CONS-POOL 60&gt;
+  OBJECTS               = (NIL)
+  OBJECT-HASH           = #&lt;HASH-TABLE <span style="color: #b0c4de;">:TEST</span> EQL <span style="color: #b0c4de;">:COUNT</span> 0 {1006AE5503}&gt;
+  POLYPHONY             = 20
+  AVAILABLE-NODES       = 20
+  COUNT                 = 0
+  SPINLOCK              = #&lt;SPINLOCK <span style="color: #ffa07a;">"Voicer"</span>&gt;
+  TRIGGER-FUNCTION      = #&lt;CLOSURE (LAMBDA (#<span style="color: #b0c4de;">:V82</span> #<span style="color: #b0c4de;">:TAG80</span> #<span style="color: #b0c4de;">:VNODE83</span>)) {1006AE60AB}&gt;
+  RELEASE-FUNCTION      = #&lt;FUNCTION INCUDINE.VOICER::RELEASE-FUNCTION-DEFAULT&gt;
+  OBJECT-FREE-FUNCTION  = #&lt;FUNCTION (LAMBDA (INCUDINE.VOICER::ID)) {100553022B}&gt;
+  STEAL-FUNCTION        = NIL
+  ARGUMENTS             = #&lt;HASH-TABLE <span style="color: #b0c4de;">:TEST</span> EQL <span style="color: #b0c4de;">:COUNT</span> 5 {1006AE5963}&gt;
+  ARGUMENT-MAPS         = #&lt;HASH-TABLE <span style="color: #b0c4de;">:TEST</span> EQL <span style="color: #b0c4de;">:COUNT</span> 0 {1006AE5DA3}&gt;
+<span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">No value</span>
+<span class="prompt">SCRATCH&gt;</span> (voicer:control-value voi 'freq)
+440
+T
+<span class="prompt">SCRATCH&gt;</span> (voicer:control-value voi 'amp)
+0.3
+T
+<span class="prompt">SCRATCH&gt;</span> (voicer:trigger voi 123)
+#&lt;VOICER-NODE 123&gt;
+<span class="prompt">SCRATCH&gt;</span> (dump (node 0))
+group 0
+    node 1
+      SIMPLE 440.0d0 0.3d0 0.5d0 ...
+NIL
+<span class="prompt">SCRATCH&gt;</span> (setf (voicer:control-value voi 'freq) 220)
+220
+<span class="prompt">SCRATCH&gt;</span> (setf (voicer:control-value voi 'amp) .2)
+0.2
+<span class="prompt">SCRATCH&gt;</span> (voicer:trigger voi 123)
+#&lt;VOICER-NODE 123&gt;
+<span class="prompt">SCRATCH&gt;</span> (voicer:set-controls voi <span style="color: #b0c4de;">:freq</span> 880 <span style="color: #b0c4de;">:amp</span> .1)
+0.1
+<span class="prompt">SCRATCH&gt;</span> (voicer:trigger voi 123)
+#&lt;VOICER-NODE 123&gt;
+<span class="prompt">SCRATCH&gt;</span> voi
+#&lt;VOICER <span style="color: #b0c4de;">:POLYPHONY</span> 20 <span style="color: #b0c4de;">:COUNT</span> 3&gt;
+<span class="prompt">SCRATCH&gt;</span> (dump (node 0))
+group 0
+    node 3
+      SIMPLE 880.0d0 0.1d0 0.5d0 ...
+    node 2
+      SIMPLE 220.0d0 0.2d0 0.5d0 ...
+    node 1
+      SIMPLE 440.0d0 0.3d0 0.5d0 ...
+NIL
+<span class="prompt">SCRATCH&gt;</span> (voicer:release voi 123)
+NIL
+<span class="prompt">SCRATCH&gt;</span> (voicer:release voi 123)
+NIL
+<span class="prompt">SCRATCH&gt;</span> (voicer:release voi 123)
+NIL
+<span class="prompt">SCRATCH&gt;</span> voi
+#&lt;VOICER <span style="color: #b0c4de;">:POLYPHONY</span> 20 <span style="color: #b0c4de;">:COUNT</span> 0&gt;
+<span class="prompt">SCRATCH&gt;</span> (dump (node 0))
+group 0
+NIL</pre>
+
+      <p>
+        The first argument of <code>VOICER:CREATE</code> is the max number of
+        voices and the second argument is a list
+      </p>
+
+      <p>
+        <code>(dsp-name dsp-arg1 dsp-arg2 ...)</code>
+      </p>
+
+      <p>
+        practically the function call to perform an instance of the DSP.
+      </p>
+
+      <p>
+        <code>VOICER:DEFINE-MAP</code> is an utility to define a mapping
+        function to call immediately after a <code>VOICER:TRIGGER</code>,
+        before the new event.
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (voicer:define-map foo voi (freq amp pos)
+           (setf freq (+ 100 (random 2000))
+                 <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Ignorable STYLE-WARNING, a defensive test is</span>
+                 <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">(when freq</span>
+                 <span style="color: #ff7f24;">;;   </span><span style="color: #ff7f24;">(setf amp (random (if (&gt; freq 800) .1 .3))))</span>
+                 amp (random (if (&gt; freq 800) .1 .3))
+                 pos (random 1.0)))
+#&lt;VOICER <span style="color: #b0c4de;">:POLYPHONY</span> 20 <span style="color: #b0c4de;">:COUNT</span> 0&gt;
+<span class="prompt">SCRATCH&gt;</span> (voicer:trigger voi 123)
+#&lt;VOICER-NODE 123&gt;
+<span class="prompt">SCRATCH&gt;</span> (voicer:trigger voi 123)
+#&lt;VOICER-NODE 123&gt;
+<span class="prompt">SCRATCH&gt;</span> (voicer:trigger voi 123)
+#&lt;VOICER-NODE 123&gt;
+<span class="prompt">SCRATCH&gt;</span> (dump (node 0))
+group 0
+    node 5
+      SIMPLE 105.0d0 0.13262039422988892d0 0.2647184133529663d0 ...
+    node 4
+      SIMPLE 2013.0d0 0.02539736032485962d0 0.9377354383468628d0 ...
+    node 3
+      SIMPLE 960.0d0 0.027095390483736992d0 0.8115837574005127d0 ...
+NIL
+<span class="prompt">SCRATCH&gt;</span> (set-controls 0 <span style="color: #b0c4de;">:gate</span> 0)
+NIL
+<span class="prompt">SCRATCH&gt;</span> voi
+#&lt;VOICER <span style="color: #b0c4de;">:POLYPHONY</span> 20 <span style="color: #b0c4de;">:COUNT</span> 0&gt;
+<span class="prompt">SCRATCH&gt;</span> (voicer:remove-map voi 'foo)
+NIL</pre>
+
+      <p>
+        And now we see how to control our <code>VOICER</code> with the MIDI
+        messages:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (recv-start *midiin*)
+#&lt;RECEIVER PORTMIDI:INPUT-STREAM RUNNING&gt;
+<span class="prompt">SCRATCH&gt;</span> (voicer:midi-bind voi *midiin*)
+#&lt;MIDI-EVENT <span style="color: #b0c4de;">:VOICER</span> #&lt;VOICER <span style="color: #b0c4de;">:POLYPHONY</span> 20 <span style="color: #b0c4de;">:COUNT</span> 0&gt;
+             <span style="color: #b0c4de;">:RESPONDER</span> #S(INCUDINE::RESPONDER
+                           <span style="color: #b0c4de;">:RECEIVER</span> #&lt;RECEIVER PORTMIDI:INPUT-STREAM RUNNING&gt;
+                           <span style="color: #b0c4de;">:FUNCTION</span> #&lt;CLOSURE (LAMBDA #) {100717A0EB}&gt;)&gt;</pre>
+
+      <p>
+        Done.
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (recv-stop *midiin*)
+#&lt;RECEIVER PORTMIDI:INPUT-STREAM RUNNING&gt;
+<span class="prompt">SCRATCH&gt;</span> (remove-all-responders *midiin*)
+<span class="prompt">SCRATCH&gt;</span> (pm:terminate)
+<span style="color: #b0c4de;">:PM-NO-ERROR</span></pre>
+
+      <p>
+        For offline rendering, there are <code>BOUNCE-TO-DISK</code> and
+        <code>BOUNCE-TO-BUFFER</code>
+      </p>
+
+      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">oscilla</span> (freq amp pos atk rel)
+  (foreach-channel
+    (cout (pan2 (* (envgen (make-local-perc atk rel) 1 1 #'free)
+                   (osc *sine-table* freq amp 0 <span style="color: #b0c4de;">:cubic</span>))
+                pos))))
+
+(defun <span style="color: #87cefa;">nrt-test-1</span> (filename)
+  <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">The bounce ends 2 seconds after the last event</span>
+  (bounce-to-disk (filename <span style="color: #b0c4de;">:pad</span> 2)
+    (at 0 #'oscilla 200 .3 (random 1.0) .5 1.8)
+    (at #[1.5 beats] #'oscilla 400 .35 (random 1.0) .001 1)
+    (at #[2.6 beats] #'oscilla 800 .8 (random 1.0) 1 .2)))
+
+(defun <span style="color: #87cefa;">oscilla-events</span> (time)
+  (oscilla (+ 100 (random 1000)) (+ .1 (random .4)) (random 1.0)
+           (+ .01 (random .5)) (+ .01 (random .5)))
+  (let ((next-time (+ time (+ #[177 ms] (random #[3/2 s])))))
+    (at next-time #'oscilla-events next-time)))
+
+(defun <span style="color: #87cefa;">nrt-test-2</span> (filename <span style="color: #98fb98;">&amp;optional</span> (duration 10))
+  (bounce-to-disk (filename <span style="color: #b0c4de;">:duration</span> duration) (oscilla-events (now))))
+
+<span class="prompt">SCRATCH&gt;</span> (init)  <span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">INIT is useless here if we called RT-START</span>
+<span class="prompt">SCRATCH&gt;</span> (nrt-test-1 <span style="color: #ffa07a;">"/tmp/nrt-test-1.wav"</span>)
+           peak amps:     0.323     0.765
+samples out of range:         0         0
+<span style="color: #ffa07a;">"/tmp/nrt-test-1.wav"</span>
+<span class="prompt">SCRATCH&gt;</span> (nrt-test-2 <span style="color: #ffa07a;">"/tmp/nrt-test-2a.wav"</span>)
+           peak amps:     0.410     0.469
+samples out of range:         0         0
+<span style="color: #ffa07a;">"/tmp/nrt-test-2a.wav"</span>
+<span class="prompt">SCRATCH&gt;</span> (nrt-test-2 <span style="color: #ffa07a;">"/tmp/nrt-test-2b.wav"</span> 60)
+           peak amps:     0.860     0.625
+samples out of range:         0         0
+<span style="color: #ffa07a;">"/tmp/nrt-test-2b.wav"</span></pre>
+
+      <p>
+        The body of <code>BOUNCE-TO-DISK</code> is the body of a function
+        without arguments or a single <code>(FUNCALL FN)</code>, where
+        <code>FN</code> is a function without arguments.
+      </p>
+
+      <p id="rego-file">
+        It is possible to import the events from a rego file, which contains
+        time-tagged lisp functions, lisp statements and lisp tags (for
+        Algol-like style).
+      </p>
+
+      <p>
+        The syntax of a time-tagged lisp function is:
+      </p>
+
+      <pre class="src src-lisp">start-time-in-beats function-name [arg1] [arg2] ...</pre>
+
+      <p>
+        Here is a rego file for the test
+      </p>
+
+      <pre class="src src-lisp"><span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">/tmp/test.rego</span>
+
+<span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Start two instances</span>
+0   simple2 440 .3 .5 <span style="color: #b0c4de;">:id</span> 1
+1.3 simple2 880 .3 .5 <span style="color: #b0c4de;">:id</span> 2
+
+<span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Change some controls</span>
+2 set-control 1 <span style="color: #b0c4de;">:freq</span> 200
+2 set-control 2 <span style="color: #b0c4de;">:freq</span> 208
+
+5.7 set-control 1 <span style="color: #b0c4de;">:freq</span> 220
+5.7 set-control 2 <span style="color: #b0c4de;">:freq</span> 231
+
+<span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Don't worry for the order of the times</span>
+4 set-controls 1 <span style="color: #b0c4de;">:freq</span> 300 <span style="color: #b0c4de;">:amp</span> .1 <span style="color: #b0c4de;">:pos</span> .1
+4 set-controls 2 <span style="color: #b0c4de;">:freq</span> 312 <span style="color: #b0c4de;">:amp</span> .1 <span style="color: #b0c4de;">:pos</span> .9
+
+<span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Game Over</span>
+8 free 0</pre>
+
+      <p>
+        and the lisp code to import it is
+      </p>
+
+      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">simple2</span> (freq amp pos)
+  (foreach-channel (cout (pan2 (sine freq amp 0) pos))))
+
+(defun <span style="color: #87cefa;">nrt-test-3</span> (outfile <span style="color: #98fb98;">&amp;optional</span> (regofile <span style="color: #ffa07a;">"/tmp/test.rego"</span>))
+  (bounce-to-disk (outfile <span style="color: #b0c4de;">:pad</span> 0)
+    (funcall (regofile-&gt;function regofile))))
+
+<span class="prompt">SCRATCH&gt;</span> (nrt-test-3 <span style="color: #ffa07a;">"/tmp/nrt-test-3.wav"</span>)
+           peak amps:     0.424     0.424
+samples out of range:         0         0
+<span style="color: #ffa07a;">"/tmp/nrt-test-3.wav"</span></pre>
+
+      <p>
+        A line comment starts with <code>`;'</code> and there is a line
+        continuation with <code>`\'</code> at the end of the line.
+      </p>
+
+      <p>
+        <code>TIME</code> and <code>TEMPO-ENV</code> are pre-defined local
+        variables usable inside a rego file. They are respectively the
+        time offset in beats and the temporal envelope of the events.
+      </p>
+
+      <p>
+        It is possible to define other local variables by inserting the bindings
+        after <code>WITH</code>, at the beginning of the score. For example:
+      </p>
+
+      <pre class="src src-lisp"><span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">/tmp/test2.rego</span>
+with (id 1) (last 4)
+
+<span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">simple oscillators</span>
+0          simple 440 .2 <span style="color: #b0c4de;">:id</span> id
+1          simple 448 .2 <span style="color: #b0c4de;">:id</span> (+ id 1)
+(1- last)  simple 661 .2 <span style="color: #b0c4de;">:id</span> (+ id 2)
+last       free 0</pre>
+
+      <p>
+        We can also add a <code>DECLARE</code> expression after the bindings.
+      </p>
+
+      <p>
+        <code>DUR</code> is a local function to convert the duration from beats
+        to seconds with respect to <code>TEMPO-ENV</code>.
+      </p>
+
+      <p>
+        <code>TEMPO</code> is a local macro to change the tempo of the score.
+        The syntax is
+      </p>
+
+      <pre class="src src-lisp">(tempo bpm)
+(tempo bpms beats <span style="color: #98fb98;">&amp;key</span> curve loop-node release-node
+                       restart-level real-time-p)</pre>
+
+      <p>
+        We can define a loop with lisp tags and <code>GO</code>:
+      </p>
+
+      <pre class="src src-lisp"><span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">/tmp/loop.rego</span>
+with (n 0.0)
+
+(seed-random-state 12345)
+
+<span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">From 60 to 180 bpm in 4 beats with sinusoidal curvature</span>
+(tempo '(60 180) '(4) <span style="color: #b0c4de;">:curve</span> <span style="color: #b0c4de;">:sin</span>)
+
+start
+n  simple3  (+ 100 (random 1000))  0.3  (dur 0.5)
+(if (&lt; (incf n 0.5) 5) (go start))</pre>
+
+      <p>
+        A simple test:
+      </p>
+
+      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">simple3</span> (freq amp dur)
+  (stereo (* (envgen (make-local-perc .1 .9) 1 dur #'free)
+             (sine freq amp 0))))
+
+<span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Off-line rendering</span>
+(bounce-to-disk (<span style="color: #ffa07a;">"/tmp/loop.wav"</span> <span style="color: #b0c4de;">:pad</span> .3)
+  (funcall (regofile-&gt;function <span style="color: #ffa07a;">"/tmp/loop.rego"</span>)))
+
+<span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">Realtime #1</span>
+(rt-start)
+(funcall (regofile-&gt;function <span style="color: #ffa07a;">"/tmp/loop.rego"</span>))
+
+<span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">Realtime #2</span>
+(regofile-&gt;function <span style="color: #ffa07a;">"/tmp/loop.rego"</span> 'loop1)
+(loop1)
+
+<span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">From rego to lisp file and compilation</span>
+(compile-file (regofile-&gt;lispfile <span style="color: #ffa07a;">"/tmp/loop.rego"</span> 'loop1))</pre>
+
+      <hr>
+      <table class="navtutor">
+        <tr>
+          <td style="width: 20%" class="left"><a href="tutorial_02.html">Part 2</a></td>
+          <td style="width: 60%" class="center"><a href="index.html">Home</a></td>
+          <td style="width: 20%" class="right"><a href="tutorial_04.html">Part 4</a></td>
+        </tr>
+      </table>
+    </div>
+    <div id="postamble" class="status">
+      <a href="http://sourceforge.net/projects/incudine">Sourceforge project page</a>
+    </div>
+  </body>
+</html>

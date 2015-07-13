@@ -1,0 +1,57 @@
+;;; Incudine
+;;; Instantaneous retrig and gate modulation with ENVGEN
+
+;; The envelope is re-triggered if the difference between the gate of
+;; the current audio cycle and the gate of the previous audio cycle is
+;; a positive value. Example:
+
+(in-package :scratch)
+
+(dsp! frrr (amp gate)
+  (stereo (* (envgen (make-local-adsr .2 .1 .5 1) gate 1 #'identity)
+             (white-noise amp))))
+
+(defun retrig (node)
+  (incf (control-value node 'gate))
+  (values))
+
+(set-rt-block-size 1)
+
+(rt-start)
+
+(frrr .3 1 :id 42)
+
+(set-control 42 :gate 1)   ; ignored because (- gate prev-gate) is zero
+
+(retrig 42)                ; retrig because (- gate prev-gate) is one
+
+(retrig 42)                ; idem
+
+(set-control 42 :gate 0)   ; close
+(retrig 42)                ; open
+
+(set-control 42 :gate 0)
+(free 42)
+
+;; The follow example shows a simple modulation of the gate:
+
+(dsp! explosions (gain gate-base gate-freq)
+  (stereo (* (tanh (* (envgen (make-local-adsr .001 3 .05 .8)
+                              (+ gate-base
+                                 (if (< (phasor gate-freq 0) .5) 1 0))
+                              1 #'identity)
+                      (butter-lp (bpf (fractal-noise .5 2.3) 150 .1)
+                                 8000)))
+             (db->lin gain))))
+
+;; attack decay sustain (retrig) attack decay sustain (retrig) ...
+(explosions -10 1 1/6 :id #xF35)
+
+;; attack decay release (retrig) attack decay release (retrig) ...
+(set-control #xF35 :gate-base 0)
+
+;; attack decay (retrig) attack decay (retrig) ...
+(set-control #xF35 :gate-freq 1/2)
+
+;; no attack, no decay
+(stop #xF35)

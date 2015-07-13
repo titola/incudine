@@ -1,0 +1,103 @@
+;;; Incudine
+;;; Block by block processing
+
+;; The loop starts with FOREACH-FRAME and all the nested loops (also
+;; within VUGs but not within UGENs) are merged in a single loop (the
+;; first).  The indexes of the loop are CURRENT-FRAME and CURRENT-SAMPLE
+;; and the sample-counter is updated when we use NOW inside a
+;; FOREACH-FRAME loop.
+
+;; Some simple examples:
+
+(in-package :scratch)
+
+(dsp! sin-test (freq amp)
+  (with-samples ((k (* +twopi+ freq *sample-duration*)))
+    (foreach-frame
+      (out (* amp (sin (* k (now))))))))
+
+(block-size)
+;; 1
+(set-rt-block-size 64)
+;; 64
+(block-size)
+;; 64
+(rt-start)
+
+(sin-test 440 .3)
+
+(free 0)
+
+(define-vug filter-in ((ch fixnum) fcut bp amp)
+  (foreach-frame
+    (* amp (butter-bp (audio-in ch) fcut bp))))
+
+(dsp! in-out-test ()
+  (foreach-frame
+    ;; There is only one loop because the nested FOREACH-FRAME loops
+    ;; are merged with the first.
+    (out (filter-in 0 2500 100 20)
+         (filter-in 1 2500 100 20))))
+
+(in-out-test)
+
+(free 0)
+
+(defvar *sintab* (make-buffer 8192 :fill-function (gen:partials '(1))))
+
+(dsp! sintonia (freq amp pos)
+  (with-samples ((x (osc *sintab* freq amp 0 :linear))
+                 (alpha (* +half-pi+ pos))
+                 (left (cos alpha))
+                 (right (sin alpha)))
+    (foreach-frame
+      (out (* left x) (* right x)))))
+
+(defun new-frequencies (max)
+  (rt-eval () (dograph (n) (set-control n :freq (+ 100 (random max))))))
+
+(loop repeat 100 do (sintonia (+ 100 (random 3000)) .01 (random 1.0)))
+
+(new-frequencies 5000)
+
+(free 0)
+
+;; A UGEN is a compiled VUG and it's impossible to merge FOREACH-FRAME
+;; with another loop compiled within a UGEN. A efficient technique is
+;; to compute an array of samples within the UGEN. For example:
+
+(define-ugen envgen* frame ((env envelope) gate time-scale
+                            (done-action function))
+  (with ((frm (make-frame (block-size))))
+    (foreach-frame
+      (setf (frame-ref frm current-frame)
+            (envgen env gate time-scale done-action)))
+    frm))
+
+(dsp! bbb-ugen-test ((env envelope) freq amp gate)
+  (with ((frm (envgen* env gate 1 #'free)))
+    (declare (type frame frm))
+    ;; Set the envelope before the next loop.
+    (maybe-expand frm)
+    (foreach-frame
+      (stereo (* (frame-ref frm current-frame)
+                 (gbuzz freq amp 10 1 .5))))))
+
+(defvar *env-test* (make-adsr 1.2 .09 .9 .5))
+
+(bbb-ugen-test *env-test* 440 .3 1 :id #xee)
+
+(set-control #xee :gate 0)
+
+(free #xee)
+(set-rt-block-size 1)
+
+;; The index of the array is CURRENT-FRAME because the output of
+;; ENVGEN is mono. With a multi-channel output, the index is
+
+;; (+ CURRENT-SAMPLE <channel>)
+
+;; where <channel> is the number of the channel starting from zero.
+
+;; Note: a FRAME is an array of samples, so SMP-REF and FRAME-REF are
+;; the same.

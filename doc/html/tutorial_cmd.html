@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="incudine.css" />
+    <title>Incudine Command</title>
+  </head>
+  <body>
+    <div id="content">
+      <table class="navtutor">
+        <tr>
+          <th class="center">Incudine Command</th>
+        </tr>
+      </table>
+      <hr>
+
+      <p>
+        Incudine is also the name of a standalone executable. Please consult the
+        <code>INSTALL</code> file if you'd like to install it.
+      </p>
+
+      <p>
+        Here is a basic tutorial to introduce the command.
+      </p>
+
+      <pre class="src src-sh">mkdir incudine_tut
+<span style="color: #b0c4de;">cd</span> !$
+
+<span style="color: #ff7f24;"># </span><span style="color: #ff7f24;">usage</span>
+incudine -h
+
+<span style="color: #ff7f24;"># </span><span style="color: #ff7f24;">Simple files for the test</span>
+cat &gt;foo.cudo &lt;&lt;'---'
+(dsp! simple (freq db (env envelope) gate)
+  (stereo (* (envgen env gate 1 #'free)
+             (sine freq (db-&gt;lin db) 0))))
+---
+
+cat &gt;quux.rego &lt;&lt;'---'
+with (env1 (make-adsr .1 .09 .9 .5))
+
+0   simple  440  -14  env1  1
+0   simple  220  -20  env1  1
+0.5 simple  225  -26  env1  1
+1   simple  448  -14  env1  1
+3   simple  450  -20  (make-adsr 1 .2 .7 1 :curve :sin)  1
+5   set-control 0 :gate 0
+---</pre>
+
+      <p>
+        Note: the package is <code>INCUDINE.SCRATCH</code>
+        (nickname <code>SCRATCH</code>) by default.
+      </p>
+
+      <pre class="src src-sh">incudine foo.cudo -s quux.rego</pre>
+
+      <p>
+        It remembers orchestra+score in Csound, however we can use multiple
+        files and a lisp file can contain what you want, not necessarily
+        specific code for Incudine. A rego file (see <a href="tutorial_03.html#rego-file">Getting Start - Part 3</a>)
+        is transformed in an intermediate lisp file containing also the code
+        to execute the score in realtime or to write a soundfile to disk.
+      </p>
+
+      <p>
+        We get a soundfile `quux.wav' and two FASL called `foo.fasl' and
+        `quux.fasl'. If we run again the previous command line&#x2026;
+      </p>
+
+      <pre class="src src-sh">incudine foo.cudo -s quux.rego</pre>
+
+      <p>
+        &#x2026; the execution is faster, because we are using the compiled files.
+        A source file is re-compiled if:
+      </p>
+
+      <ol>
+        <li>the source is modified after the compilation</li>
+        <li>the command line arguments before the name of the source file are changed</li>
+      </ol>
+
+      <p>
+        There aren't options before foo.cudo, therefore it also works without
+        re-compilation:
+      </p>
+
+      <pre class="src src-sh">incudine foo quux</pre>
+
+      <p>
+        The sound is truncated after 5 beats; we can add some padding:
+      </p>
+
+      <pre class="src src-sh">incudine foo.cudo --pad 1.2 -s quux.rego</pre>
+
+      <p>
+        and only <code>quux.rego</code> is re-compiled, because the new argument
+        <code>`&#x2013;pad 1.2'</code> doesn't precede <code>foo.cudo</code>.
+      </p>
+
+      <p>
+        Changing the name of the output file:
+      </p>
+
+      <pre class="src src-sh">incudine foo.cudo -o <span style="color: #ffa07a;">"battimenti zincati.wav"</span> -s quux.rego</pre>
+
+      <p>
+        Redirection of the audio to the standard output:
+      </p>
+
+      <pre class="src src-sh">incudine foo.cudo --pad 1.2 -o - -H ircam -F float <span style="color: #ffa07a;">\</span>
+         -s quux.rego | sox - quux.wv</pre>
+
+      <p>
+        We can also decide to use an absolute duration for the output file:
+      </p>
+
+      <pre class="src src-sh">incudine foo.cudo -d 6.5 -s quux.rego</pre>
+
+      <p>
+        For realtime, please start Jack on Linux and set the rt priorities of
+        Incudine. You can change them in <code>$HOME/.incudinerc</code> or use
+        the options
+      </p>
+
+      <pre class="example">
+    --rt-priority          prio for rt thread       (default: 68)
+    --nrt-priority         prio for nrt thread      (default: 60)
+    --receiver-priority    prio for receiver thread (default: 63)</pre>
+
+      <p>
+        In my case, jackd is run with <code>`-R -P70'</code>.
+      </p>
+
+      <pre class="src src-sh">incudine foo.cudo -d 6.5 -R -s quux.rego</pre>
+
+      <p>
+        We can use multiple files and switch from realtime (-R) to non-rt (-N)
+        and vice versa. In the follow example, quux is in realtime and bar
+        writes a soundfile to disk.
+      </p>
+
+      <pre class="src src-sh">cp quux.rego bar.rego
+incudine foo.cudo -d 6.5 -R -s quux.rego -N -s bar.rego</pre>
+
+      <p>
+        Incudine uses Erik de Castro Lopo's libsndfile to read/write a soundfile
+        from/to disk.
+      </p>
+
+      <pre class="src src-sh">incudine --header-type-list
+incudine --data-format-list</pre>
+
+      <p>
+        Header type and format of the sample are respectively `wav' (`aiff' on
+        big endian machines) and `pcm-24'.
+      </p>
+
+      <p>
+        The follow example produces a flac file <code>quux.flac</code>
+      </p>
+
+      <pre class="src src-sh">incudine foo.cudo --pad 1.2 -H flac -s quux.rego</pre>
+
+      <p>
+        and a ogg file <code>quux.ogg</code>
+      </p>
+
+      <pre class="src src-sh">incudine foo.cudo --pad 1.2 -H ogg -F vorbis -s quux.rego</pre>
+
+      <p>
+        There is the possibility to add metadata. It is important to notice the
+        comment in <code>sndfile.h</code>, the c header of libsndfile:
+      </p>
+
+      <blockquote>
+        <p>
+          &#x2026; Not all file types support this and even the file types which
+          support one, may not support all string types.
+        </p>
+      </blockquote>
+
+      <p>
+        Example:
+      </p>
+
+      <pre class="src src-sh">incudine foo.cudo --pad 1.2 --title <span style="color: #ffa07a;">"Passame n'elettrodo"</span> <span style="color: #ffa07a;">\</span>
+         --artist <span style="color: #ffa07a;">"Fabro Cadabro Band"</span> -s quux.rego
+
+sndfile-metadata-get --str-{title,artist} quux.wav</pre>
+
+      <p>
+        Often we want manipulate an input file. The next example shows how to
+        use incudine for the convolution between two soundfiles.  We put in
+        conv.cudo the code to parse the user options and the definition of the
+        DSP for the convolver.
+      </p>
+
+      <pre class="src src-sh">cat &gt; conv.cudo &lt;&lt;'---'
+(eval-when (:compile-toplevel :load-toplevel)
+  (defvar *pvbuf*
+    (let ((buf (buffer-load (read-arg 1 nil))))
+      (cond (buf (buffer-&gt;pvbuffer buf 2048))
+            (t (msg error "Failed to open the IR")
+               (exit 1)))))
+
+  (defvar *scale* (sample (or (read-arg 2) 1))))
+
+(dsp! convolve ()
+  (with-samples ((scale *scale*))
+    (foreach-channel
+      (cout (* scale (part-convolve (audio-in 0) *pvbuf*))))))
+---
+
+<span style="color: #ff7f24;"># </span><span style="color: #ff7f24;">Trivial rego file</span>
+<span style="color: #b0c4de;">echo</span> 0 convolve &gt; forge.rego</pre>
+
+      <p>
+        I use `&#x2013;' to separate toplevel and user options. reverb.wav is
+        the impulse response of a stereo reverb, sampled with sample rate
+        96 kHz, and voice.wav is an input file. The second user option is a
+        scale factor for the output.
+      </p>
+
+      <pre class="src src-sh">incudine conv.cudo -i voice.wav -r 96000 -s forge.rego -- reverb.wav 0.4</pre>
+
+      <p>
+        A function for the shell is immediate.
+      </p>
+
+      <pre class="src src-sh"><span style="color: #ff7f24;"># </span><span style="color: #ff7f24;">Usage: convolve inputfile irfile [scale] [srate] [pad]</span>
+
+<span style="color: #87cefa;">convolve</span>() { incudine conv.cudo -i <span style="color: #ffa07a;">"$1"</span> ${<span style="color: #eedd82;">4</span>:+-r $<span style="color: #eedd82;">4</span>} --pad ${<span style="color: #eedd82;">5</span>:-2} <span style="color: #ffa07a;">\</span>
+             -s forge.rego -- <span style="color: #ffa07a;">"$2"</span> <span style="color: #ffa07a;">"$3"</span> ; }
+
+convolve voice.wav reverb.wav 0.4 96000
+
+convolve voice48.wav ir48.wav 0.53 48000 2.5
+
+<span style="color: #ff7f24;"># </span><span style="color: #ff7f24;">Remove the traces</span>
+<span style="color: #b0c4de;">unset</span> -f convolve</pre>
+
+      <p>
+        If you have created the incudine command with the support for LV2, you
+        can use LV2 plugins in your scripts. A trivial example:
+      </p>
+
+      <pre class="src src-sh">cat &gt; amp.cudo &lt;&lt;'---'
+(eval-when (:compile-toplevel :load-toplevel)
+  (lv2-&gt;vug "http://plugin.org.uk/swh-plugins/amp" swh.amp))
+
+(dsp! amp-test (gain)
+  (stereo (swh.amp gain (white-noise 1))))
+---
+
+cat &gt; amp-test.rego &lt;&lt;'---'
+0 amp-test -6 :id 1
+1 set-control 1 :gain -12
+2 set-control 1 :gain -4
+3 set-control 1 :gain -20
+4 set-control 1 :gain -5
+5 free 1
+---
+
+incudine amp.cudo -s amp-test.rego</pre>
+
+      <p>
+        Another example, where a multi output plugin returns a FRAME:
+      </p>
+
+      <pre class="src src-sh">cat &gt; gverb.cudo &lt;&lt;'---'
+(eval-when (:compile-toplevel :load-toplevel)
+  (lv2-&gt;vug "http://plugin.org.uk/swh-plugins/gverb" gverb))
+
+(dsp! gverb-test (freq dt room-size rev-time damping input-bw
+                  dry early-level tail-level scale)
+  (frame-out (gverb room-size rev-time damping input-bw
+                    dry early-level tail-level (audio-in 0))
+             2 0 scale))
+---
+
+cat &gt; gverb-test.rego &lt;&lt;'---'
+0 gverb-test 1 .05 80 8 0.5 0.75 -70 0 -17 .4 :id 1
+3 set-controls 1 :freq .3 :dt .05 :dry -77 :rev-time 30 :tail-level -7
+6 set-control 1 :rev-time 1
+---
+
+incudine gverb.cudo -i voice.wav --pad 3 -r 96000 -s gverb-test.rego</pre>
+
+      <p>
+        If you have also created the incudine command with the support for
+        LADSPA, here is an example to use LADSPA plugins:
+      </p>
+
+      <pre class="src src-sh">cat &gt; zita-rev.cudo &lt;&lt;'---'
+(eval-when (:compile-toplevel :load-toplevel)
+  (ladspa-&gt;vug "zita-reverbs" "zita-reverb" zita-reverb))
+
+(dsp! zita-reverb-test (trig-freq input-decay input-scale delay xover rt-low
+                        rt-mid damping f1-freq f1-gain f2-freq f2-gain out-mix)
+  "Test of the reverb FDN developed by Fons Adriaensen."
+  (with-samples ((in (* (decay (impulse trig-freq) input-decay)
+                        (white-noise input-scale))))
+    ;; ZITA-REVERB returns a frame because there are two outputs
+    (multiple-sample-bind (l r)
+        (zita-reverb in in delay xover rt-low rt-mid damping f1-freq f1-gain
+                     f2-freq f2-gain out-mix)
+      (out l r))))
+---
+
+cat &gt; zita-rev-test.rego &lt;&lt;'---'
+0 zita-reverb-test 0.5 0.165 0.5 0.06 223.607 2.75 2.75 6000 \
+                   159.054 0 2514.87 0 0.5 :id 1
+4 set-controls 1 :trig-freq 1.5 :delay 0.03 :rt-low 1.2 :rt-mid 1
+8 free 1
+---
+
+incudine zita-rev.cudo -v -s zita-rev-test.rego
+</pre>
+
+      <hr>
+      <table class="navtutor">
+        <tr>
+          <td style="width: 20%" class="left">
+            <a href="tutorial_01.html">Getting Started with Incudine</a>
+          </td>
+          <td style="width: 60%" class="center"><a href="index.html">Home</a></td>
+          <td style="width: 20%" class="right"></td>
+        </tr>
+      </table>
+    </div>
+    <div id="postamble">
+      <a href="http://sourceforge.net/projects/incudine">Sourceforge project page</a>
+    </div>
+  </body>
+</html>

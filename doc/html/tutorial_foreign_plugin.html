@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="incudine.css" />
+    <title>Foreign plugin audio processors</title>
+  </head>
+  <body>
+    <div id="content">
+      <table class="navtutor">
+        <tr>
+          <th class="center">Foreign plugin audio processors</th>
+        </tr>
+      </table>
+      <hr>
+
+      <p>
+        In sample by sample processing, a foreign plugin returns one
+        value of SAMPLE type or a FRAME (foreign array of SAMPLE
+        type). In block by block processing, a foreign plugin returns
+        a foreign array or a foreign array of arrays and the type
+        depends on the plugin.
+      </p>
+
+      <p>
+        Here is an example with <a href="http://lv2plug.in">LV2</a> and
+        <a href="http://www.ladspa.org">LADSPA</a>:
+      </p>
+
+      <pre class="src src-lisp">(require <span style="color: #7fffd4;">:incudine-lv2</span>)
+
+(in-package <span style="color: #b0c4de;">:scratch</span>)
+
+<span class="prompt">SCRATCH&gt;</span> (set-rt-block-size 1)
+
+(lv2-&gt;vug <span style="color: #ffa07a;">"http://plugin.org.uk/swh-plugins/amp"</span> swh.amp)
+
+(dsp! <span style="color: #87cefa;">amp-test</span> (gain)
+  (stereo (swh.amp gain (white-noise 1))))
+
+<span class="prompt">SCRATCH&gt;</span> (rt-start)
+
+<span class="prompt">SCRATCH&gt;</span> (amp-test -10 <span style="color: #b0c4de;">:id</span> 8)
+
+<span class="prompt">SCRATCH&gt;</span> (set-control 8 <span style="color: #b0c4de;">:gain</span> -30)
+
+<span class="prompt">SCRATCH&gt;</span> (free 8)
+
+<span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">block by block processing</span>
+<span class="prompt">SCRATCH&gt;</span> (set-rt-block-size 64)
+
+(lv2-&gt;vug <span style="color: #ffa07a;">"http://plugin.org.uk/swh-plugins/amp"</span> swh.amp*)
+
+(dsp! <span style="color: #87cefa;">amp-test*</span> (gain)
+  (with ((in (make-f32-array (block-size)))
+         (out (cffi:null-pointer)))
+    (declare (type pointer in out))
+    <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">The sample type in LADSPA and LV2 is single precision float.</span>
+    (foreach-frame
+      (setf (f32-ref in current-frame)
+            (coerce (white-noise 1) 'single-float)))
+    <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Not within FOREACH-FRAME loop because SWH.AMP*</span>
+    <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">computes a block of samples.</span>
+    (setf out (swh.amp* gain in))
+    (foreach-frame
+      (stereo (sample (f32-ref out current-frame))))))
+
+<span class="prompt">SCRATCH&gt;</span> (rt-start)
+
+<span class="prompt">SCRATCH&gt;</span> (amp-test* -10 <span style="color: #b0c4de;">:id</span> 123)
+
+<span class="prompt">SCRATCH&gt;</span> (set-control 123 <span style="color: #b0c4de;">:gain</span> -30)
+
+<span class="prompt">SCRATCH&gt;</span> (free 123)
+
+<span class="prompt">SCRATCH&gt;</span> (require <span style="color: #7fffd4;">:incudine-ladspa</span>)
+
+<span class="prompt">SCRATCH&gt;</span> (block-size)
+64
+
+(ladspa-&gt;vug <span style="color: #ffa07a;">"zita-reverbs"</span> <span style="color: #ffa07a;">"zita-reverb"</span> zita-reverb)
+
+<span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Test with a UGEN.</span>
+(compile-vug 'zita-reverb 'pointer)
+
+(define-vug <span style="color: #87cefa;">rev-input</span> ((in pointer))
+  <span style="color: #ffa07a;">"Read a block of audio samples from the first Incudine input port."</span>
+  (foreach-frame
+    (setf (f32-ref in current-frame)
+          (coerce (audio-in 0) 'single-float))))
+
+(define-vug <span style="color: #87cefa;">rev-output</span> ((out pointer))
+  <span style="color: #ffa07a;">"Write two blocks of audio samples to two Incudine output ports."</span>
+  (foreach-frame
+    (out (f32-ref (ptr-ref out 0) current-frame)
+         (f32-ref (ptr-ref out 1) current-frame))))
+
+(dsp! <span style="color: #87cefa;">rev-test</span> (delay xover rt-low rt-mid damping f1-freq f1-gain
+                f2-freq f2-gain out-mix)
+  (with ((in (make-f32-array (block-size)))
+         (out (cffi:null-pointer)))
+    (declare (pointer out))
+    (rev-input in)
+    (setf out (zita-reverb in in delay xover rt-low rt-mid damping
+                           f1-freq f1-gain f2-freq f2-gain out-mix))
+    (rev-output out)))
+
+<span class="prompt">SCRATCH&gt;</span> (rev-test 0.06 223.607 2.75 2.75 6000 159.054 0 2514.87 0 0.5 <span style="color: #b0c4de;">:id</span> 8)
+
+<span class="prompt">SCRATCH&gt;</span> (set-controls 8 <span style="color: #b0c4de;">:trig-freq</span> 1.5 <span style="color: #b0c4de;">:delay</span> 0.03 <span style="color: #b0c4de;">:rt-low</span> 1.2 <span style="color: #b0c4de;">:rt-mid</span> 1)
+
+<span class="prompt">SCRATCH&gt;</span> (get-bytes-consed-in 5)
+0
+
+<span class="prompt">SCRATCH&gt;</span> (free 8)
+
+<span class="prompt">SCRATCH&gt;</span> (set-rt-block-size 1)</pre>
+
+      <hr>
+      <table class="navtutor">
+        <tr>
+          <td style="width: 20%" class="left">
+            <a href="tutorial_01.html">Getting Started with Incudine</a>
+          </td>
+          <td style="width: 60%" class="center"><a href="index.html">Home</a></td>
+          <td style="width: 20%" class="right"></td>
+        </tr>
+      </table>
+    </div>
+    <div id="postamble">
+      <a href="http://sourceforge.net/projects/incudine">Sourceforge project page</a>
+    </div>
+  </body>
+</html>

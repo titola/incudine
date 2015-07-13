@@ -1,0 +1,111 @@
+Incudine with a Csound score generator
+--------------------------------------
+
+A score file (rego file) for Incudine can contain time-tagged lisp
+functions, lisp statements, lisp tags and arbitrary score statements
+defined with the utility DEFSCORE-STATEMENT.
+
+A simple example to show the usage of DEFSCORE-STATEMENT is a score
+file generated with CMask
+
+;;; texture1.cmask from the article "Csound Score Generation and
+;;; Granular Synthesis with CMask" by Andre Bartetzki
+{
+f1 0 8192 9 .25 1 0
+f2 0 8193 10 1
+}
+
+f 0 30
+    p1  const 1
+    p2  rnd uni
+        mask [.01 .002 ipl 0] [.1 .01 ipl 0]
+    p3  range .5 1
+    p4  rnd uni
+        mask [860 80 ipl -1.2] [940 2000 ipl 1] map 1
+        quant 100 .9 0
+    p5  mask [.4 0] [.6 1]
+
+f 31 33
+    p1  const 1
+    p2  seg [.08 .8 ipl 2]
+    p3  seg [.1 2]
+    p4  range 300 400
+    p5  seg [0 1]
+
+where the Csound orchestra is
+
+;;; texture1.orc
+sr = 48000
+ksmps = 1
+nchnls = 2
+
+instr 1
+  ; p4 frequency
+  ; p5 pan (0 .. 1)
+
+  ipanl table 1 - p5, 1, 1
+  ipanr table p5, 1, 1
+
+  k1 expon 1, p3, .01
+  a1 foscil k1 * 4200, p4, 1, 2.41, k1 * 6, 2
+
+  outs a1 * ipanl, a1 * ipanr
+endin
+
+A cudo file to test the output of CMask is
+
+;;; texture.cudo
+(eval-when (:compile-toplevel :load-toplevel)
+  (define-vug foscil (amp cps car mod ndx (buf buffer))
+    "A basic FM oscillator."
+    (with-samples ((fcar (* cps car))
+                   (fmod (* cps mod))
+                   (amod (* ndx fmod)))
+      (osc buf (+ fcar (osc buf fmod amod 0 :linear)) amp 0 :linear)))
+
+  (define-vug expon (start dur end)
+    "Exponential curve between two points."
+    (x-line start end dur #'free))
+
+  (define-vug pan (in (buf buffer) pos)
+    "Stereo panpot."
+    (with ((tab (buffer-data buf))
+           (frames (1- (buffer-frames buf)))
+           (index (sample->fixnum (* pos frames))))
+      (with-samples ((left (smp-ref tab (- frames index)))
+                     (right (smp-ref tab index)))
+        (cond ((= current-channel 0) (* left in))
+              ((= current-channel 1) (* right in))
+              (t +sample-zero+))))))
+
+(dsp! texture (dur freq pos (pan-buf buffer) (osc-buf buffer))
+  "FM oscillator test."
+  (with-samples ((env (expon 1 dur 0.01)))
+    (foreach-channel
+      (cout (pan (foscil (* env 0.128) freq 1 2.41 (* env 6) osc-buf)
+                 pan-buf pos)))))
+
+(declaim (special buf1 buf2))
+
+(defscore-statement f1 (time size gen pna stra phsa)
+  (declare (ignore gen))
+  `(,time (lambda ()
+            (setf buf1 (make-buffer ,size
+                         :fill-function (gen:partials '((,pna ,stra ,phsa))))))))
+
+(defscore-statement f2 (time size gen str1)
+  (declare (ignore gen))
+  `(,time (lambda ()
+            (setf buf2 (make-buffer (logand ,size #xFFFFFE)
+                         :fill-function (gen:partials '(,str1)))))))
+
+(defscore-statement i1 (time dur freq pan)
+  (list time 'texture `(dur ,dur) freq pan 'buf1 'buf2))
+
+The commands to get the soundfile are:
+
+cmask texture1.cmask
+incudine texture.cudo -v -s texture1.sco
+
+where texture1.sco is the output of CMask with about 1380 score
+statements.

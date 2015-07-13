@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="incudine.css" />
+    <title>Block by block processing</title>
+  </head>
+  <body>
+    <div id="content">
+      <table class="navtutor">
+        <tr>
+          <th class="center">Block by block processing</th>
+        </tr>
+      </table>
+      <hr>
+
+      <p>
+        The loop starts with <code>FOREACH-FRAME</code> and all the nested loops
+        (also within VUGs but not within UGENs) are merged in a single loop (the
+        first). The indexes of the loop are <code>CURRENT-FRAME</code> and
+        <code>CURRENT-SAMPLE</code> and the sample-counter is updated when we use
+        <code>NOW</code> inside a <code>FOREACH-FRAME</code> loop.
+      </p>
+
+      <p>
+        Some simple examples:
+      </p>
+
+      <pre class="src src-lisp">(in-package <span style="color: #b0c4de;">:scratch</span>)
+
+(dsp! <span style="color: #87cefa;">sin-test</span> (freq amp)
+  (with-samples ((k (* +twopi+ freq *sample-duration*)))
+    (foreach-frame
+      (out (* amp (sin (* k (now))))))))
+
+<span class="prompt">SCRATCH&gt;</span> (block-size)
+1
+<span class="prompt">SCRATCH&gt;</span> (set-rt-block-size 64)
+64
+<span class="prompt">SCRATCH&gt;</span> (block-size)
+64
+<span class="prompt">SCRATCH&gt;</span> (rt-start)
+
+<span class="prompt">SCRATCH&gt;</span> (sin-test 440 .3)
+
+<span class="prompt">SCRATCH&gt;</span> (free 0)
+
+(define-vug <span style="color: #87cefa;">filter-in</span> ((ch fixnum) fcut bp amp)
+  (foreach-frame
+    (* amp (butter-bp (audio-in ch) fcut bp))))
+
+(dsp! <span style="color: #87cefa;">in-out-test</span> ()
+  (foreach-frame
+    <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">There is only one loop because the nested FOREACH-FRAME loops</span>
+    <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">are merged with the first.</span>
+    (out (filter-in 0 2500 100 20)
+         (filter-in 1 2500 100 20))))
+
+<span class="prompt">SCRATCH&gt;</span> (in-out-test)
+
+<span class="prompt">SCRATCH&gt;</span> (free 0)
+
+(defvar <span style="color: #eedd82;">*sintab*</span> (make-buffer 8192 <span style="color: #b0c4de;">:fill-function</span> (gen:partials '(1))))
+
+(dsp! <span style="color: #87cefa;">sintonia</span> (freq amp pos)
+  (with-samples ((x (osc *sintab* freq amp 0 <span style="color: #b0c4de;">:linear</span>))
+                 (alpha (* +half-pi+ pos))
+                 (left (cos alpha))
+                 (right (sin alpha)))
+    (foreach-frame
+      (out (* left x) (* right x)))))
+
+(defun <span style="color: #87cefa;">new-frequencies</span> (max)
+  (rt-eval () (dograph (n) (set-control n <span style="color: #b0c4de;">:freq</span> (+ 100 (random max))))))
+
+<span class="prompt">SCRATCH&gt;</span> (loop repeat 100 do (sintonia (+ 100 (random 3000)) .01 (random 1.0)))
+
+<span class="prompt">SCRATCH&gt;</span> (new-frequencies 5000)
+
+<span class="prompt">SCRATCH&gt;</span> (free 0)</pre>
+
+      <p>
+        A UGEN is a compiled VUG and it's impossible to merge
+        <code>FOREACH-FRAME</code> with another loop compiled within a UGEN.
+        A efficient technique is to compute an array of samples within the UGEN.
+        For example:
+      </p>
+
+      <pre class="src src-lisp">(define-ugen <span style="color: #87cefa;">envgen*</span> frame ((env envelope) gate time-scale
+                            (done-action function))
+  (with ((frm (make-frame (block-size))))
+    (foreach-frame
+      (setf (frame-ref frm current-frame)
+            (envgen env gate time-scale done-action)))
+    frm))
+
+(dsp! <span style="color: #87cefa;">bbb-ugen-test</span> ((env envelope) freq amp gate)
+  (with ((frm (envgen* env gate 1 #'free)))
+    (declare (type frame frm))
+    <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Set the envelope before the next loop.</span>
+    (maybe-expand frm)
+    (foreach-frame
+      (stereo (* (frame-ref frm current-frame)
+                 (gbuzz freq amp 10 1 .5))))))
+
+(defvar <span style="color: #eedd82;">*env-test*</span> (make-adsr 1.2 .09 .9 .5))
+
+<span class="prompt">SCRATCH&gt;</span> (bbb-ugen-test *env-test* 440 .3 1 <span style="color: #b0c4de;">:id</span> #xee)
+
+<span class="prompt">SCRATCH&gt;</span> (set-control #xee <span style="color: #b0c4de;">:gate</span> 0)
+
+<span class="prompt">SCRATCH&gt;</span> (free #xee)
+
+<span class="prompt">SCRATCH&gt;</span> (set-rt-block-size 1)</pre>
+
+      <p>
+        The index of the array is <code>CURRENT-FRAME</code> because the output
+        of <code>ENVGEN</code> is mono. With a multi-channel output, the index is
+      </p>
+
+      <pre class="src src-lisp">(+ CURRENT-SAMPLE &lt;channel&gt;)</pre>
+
+      <p>
+        where <code>&lt;channel&gt;</code> is the number of the channel
+        starting from zero.
+      </p>
+
+      <p>
+        Note: a FRAME is an array of samples, so <code>SMP-REF</code> and
+        <code>FRAME-REF</code> are the same.
+      </p>
+
+      <hr>
+      <table class="navtutor">
+        <tr>
+          <td style="width: 20%" class="left">
+            <a href="tutorial_01.html">Getting Started with Incudine</a>
+          </td>
+          <td style="width: 60%" class="center"><a href="index.html">Home</a></td>
+          <td style="width: 20%" class="right"></td>
+        </tr>
+      </table>
+    </div>
+    <div id="postamble">
+      <a href="http://sourceforge.net/projects/incudine">Sourceforge project page</a>
+    </div>
+  </body>
+</html>

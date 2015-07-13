@@ -1,0 +1,23 @@
+;;; texture1.cmask from the article "Csound Score Generation and
+;;; Granular Synthesis with CMask" by Andre Bartetzki
+{
+f1 0 8192 9 .25 1 0
+f2 0 8193 10 1
+}
+
+f 0 30
+    p1  const 1
+    p2  rnd uni
+        mask [.01 .002 ipl 0] [.1 .01 ipl 0]
+    p3  range .5 1
+    p4  rnd uni
+        mask [860 80 ipl -1.2] [940 2000 ipl 1] map 1
+        quant 100 .9 0
+    p5  mask [.4 0] [.6 1]
+
+f 31 33
+    p1  const 1
+    p2  seg [.08 .8 ipl 2]
+    p3  seg [.1 2]
+    p4  range 300 400
+    p5  seg [0 1]

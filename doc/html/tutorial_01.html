@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="incudine.css" />
+    <title>Getting Started with Incudine - Part 1</title>
+  </head>
+  <body>
+    <div id="content">
+      <table class="navtutor">
+        <tr>
+          <th colspan="3" class="center">Getting Started with Incudine</th>
+        </tr>
+        <tr>
+          <td style="width: 20%" class="left"></td>
+          <th style="width: 60%" class="center">Part 1</th>
+          <td style="width: 20%" class="right"><a href="tutorial_02.html">Part 2</a></td>
+        </tr>
+      </table>
+      <hr>
+
+      <p>
+        There are simple examples in this tutorial, without a significant
+        musical content, to highlight the main features of <a href="index.html">Incudine</a>
+        by writing few lines of code. It is not difficult to organize sounds
+        and/or music after the understanding of the environment.
+      </p>
+
+      <p>
+        The <code>INCUDINE.SCRATCH</code> package is useful for the experiments:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">CL-USER&gt;</span> (require <span style="color: #7fffd4;">:incudine</span>)
+<span class="prompt">CL-USER&gt;</span> (in-package <span style="color: #b0c4de;">:scratch</span>)
+<span class="prompt">SCRATCH&gt;</span> (rt-start)
+<span style="color: #b0c4de;">:STARTED</span></pre>
+
+      <p>
+        We start by defining a simple VUG (Virtual Unit Generator), a phasor
+        (it is built-in but we can redefine it)
+      </p>
+
+      <pre class="src src-lisp">(define-vug <span style="color: #87cefa;">phasor</span> (freq init)
+  (with-samples ((phase init)
+                 (inc (* freq *sample-duration*)))
+    (prog1 phase
+      (incf phase inc)
+      (cond ((&gt;= phase 1.0) (decf phase))
+            ((minusp phase) (incf phase))))))</pre>
+
+      <p>
+        where <code>WITH-SAMPLES</code> is a shortcut for
+      </p>
+
+      <pre class="src src-lisp">(with ((phase init)
+       (inc (* freq *sample-duration*)))
+  (declare (type sample phase inc))
+  ...</pre>
+
+      <p>
+        The <code>SAMPLE</code> type is <code>DOUBLE-FLOAT</code> by default.
+        <code>WITH</code> is like <code>LET*</code> but it will create the
+        bindings for the init function when the DSP will be defined.
+      </p>
+
+      <p>
+        Generally, an argument in <code>DEFINE-VUG</code> is a list where the
+        first element is the name of the argument and the second is the type of
+        the argument. However, we often use arguments with type <code>SAMPLE</code>,
+        so it is the default when we use directly the name of the argument instead
+        of the list (name type). For example, we can also define the <code>PHASOR</code>
+        VUG in the follow way:
+      </p>
+
+      <pre class="src src-lisp">(define-vug <span style="color: #87cefa;">phasor</span> ((freq sample) (init sample))
+  ...</pre>
+
+      <p>
+        The next example shows a VUG for a simple sinusoidal oscillator by using
+        the previous <code>PHASOR</code> VUG and a VUG to describe ten harmonics:
+      </p>
+
+      <pre class="src src-lisp">(define-vug <span style="color: #87cefa;">sine</span> (freq amp phase)
+  (* amp (sin (+ (* +twopi+ (phasor freq 0)) phase))))
+
+(define-vug <span style="color: #87cefa;">10-harm</span> (freq)
+  (macrolet ((sine-sum (n)
+               `(+ ,@(mapcar (lambda (x)
+                               `(sine (* freq ,x) ,(/ .3 n) 0))
+                             (loop for i from 1 to n collect i)))))
+    (sine-sum 10)))</pre>
+
+      <p>
+        Now we can define a DSP
+      </p>
+
+      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">simple</span> (freq amp)
+  (out (sine freq amp 0)))</pre>
+
+      <p>
+        and the stereo version is
+      </p>
+
+      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">simple</span> (freq amp)
+  (with-samples ((in (sine freq amp 0)))
+    (out in in)))</pre>
+
+      <p>
+        <code>OUT</code> is a VUG-MACRO (it is both a VUG and a macro) to write
+        a signal to the audio hardware (in realtime) or to a soundfile
+        (non-realtime) by using the <code>AUDIO-OUT</code> function.
+        The expansion of <code>OUT</code> is
+      </p>
+
+      <pre class="src src-lisp">(macroexpand-1 '(out one two three four))
+(PROGN
+ (INCF (AUDIO-OUT 0) (SAMPLE ONE))
+ (INCF (AUDIO-OUT 1) (SAMPLE TWO))
+ (INCF (AUDIO-OUT 2) (SAMPLE THREE))
+ (INCF (AUDIO-OUT 3) (SAMPLE FOUR))
+ (VALUES))</pre>
+
+      <p>
+        We can use <code>FOREACH-CHANNEL</code> to eval a chunk of code for
+        every output channel. The value of the current channel is stored in the
+        variable <code>CURRENT-CHANNEL</code>. We can rebind this variable, for
+        example:
+      </p>
+
+      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">swap-channels</span> ((buf buffer) rate start-pos (loop-p boolean))
+  (foreach-channel
+    (cout (let ((current-channel (if (zerop current-channel) 1 0)))
+            (buffer-play buf rate start-pos loop-p #'stop)))))</pre>
+
+      <p>
+        The <code>BUFFER-PLAY</code> VUG uses <code>CURRENT-CHANNEL</code> to
+        play the content of a buffer.
+      </p>
+
+      <p>
+        The <code>BUFFER-FRAME</code> VUG-MACRO, defined in
+        <code>incudine/src/vug/buffer.lisp</code>, is another useful example:
+      </p>
+
+      <pre class="src src-lisp">(define-vug-macro <span style="color: #87cefa;">buffer-frame</span> (buffer phase <span style="color: #98fb98;">&amp;key</span> wrap-p interpolation)
+  (with-gensyms (%buffer channels frame)
+    `(with ((,%buffer (vug-input ,buffer))
+            (,channels (buffer-channels ,%buffer))
+            (,frame (make-frame ,channels)))
+       (dochannels (current-channel ,channels)
+         (setf (frame-ref ,frame current-channel)
+               (buffer-read ,%buffer ,phase
+                            <span style="color: #b0c4de;">:wrap-p</span> ,wrap-p
+                            <span style="color: #b0c4de;">:interpolation</span> ,interpolation)))
+       ,frame)))</pre>
+
+      <p>
+        <code>COUT</code> is similar to <code>OUT</code> but it is useful in
+        combination with <code>FOREACH-CHANNEL</code>. With only one argument,
+        there aren't differences between <code>OUT</code> and <code>COUT</code>.
+        However, when the arguments of <code>COUT</code> are more than 1, the
+        expansion of
+      </p>
+      <pre class="src src-lisp">(cout arg1 arg2 arg3 ...)</pre>
+
+      <p>
+        is
+      </p>
+
+      <pre class="src src-lisp">(incf (audio-out current-channel)
+      (cond ((= current-channel 0) arg1)
+            ((= current-channel 1) arg2)
+            ((= current-channel 2) arg3)
+            ...
+            (t +sample-zero+)))</pre>
+
+      <p>
+        We can define a simple VUG to get a stereo output:
+      </p>
+
+      <pre class="src src-lisp">(define-vug <span style="color: #87cefa;">stereo</span> (in) (out in in))</pre>
+
+      <p>
+        and the prior example becomes
+      </p>
+
+      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">simple</span> (freq amp)
+  (stereo (sine freq amp 0)))</pre>
+
+      <p>
+        The function to read a signal from the audio hardware (in realtime) or
+        from a sound file (non-realtime) is <code>AUDIO-IN</code>.
+      </p>
+
+      <p>
+        Ok, play the DSP on the node 1
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (simple 440 .3 <span style="color: #b0c4de;">:id</span> 1)
+<span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">No value</span>
+<span class="prompt">SCRATCH&gt;</span> (describe (node 1))
+#&lt;NODE <span style="color: #b0c4de;">:ID</span> 1&gt;
+  [structure-object]
+
+Slots with <span style="color: #b0c4de;">:INSTANCE</span> allocation:
+  ID               = 1
+  HASH             = 1193941380939624026
+  INDEX            = 602
+  NAME             = SIMPLE
+  START-TIME-PTR   = #.(SB-SYS:INT-SAP #X00692E10)
+  FUNCONS          = (#&lt;CLOSURE (LAMBDA () <span style="color: #b0c4de;">:IN</span> SIMPLE) {1003E3351B}&gt;)
+  FUNCTION         = #&lt;CLOSURE (LAMBDA () <span style="color: #b0c4de;">:IN</span> SIMPLE) {1003E3351B}&gt;
+  INIT-FUNCTION    = #&lt;CLOSURE (LAMBDA (#<span style="color: #b0c4de;">:NODE64</span> FREQ AMP) <span style="color: #b0c4de;">:IN</span> SIMPLE) {1003E334CB}&gt;
+  INIT-ARGS        = (#&lt;FUNCTION (LAMBDA (FREQ AMP) <span style="color: #b0c4de;">:IN</span> SIMPLE) {1004D4015B}&gt; 440.0d0 0.3d0)
+  CONTROLS         = #&lt;HASH-TABLE <span style="color: #b0c4de;">:TEST</span> EQUAL <span style="color: #b0c4de;">:COUNT</span> 6 {10067944B3}&gt;
+  GAIN-DATA        = #.(SB-SYS:INT-SAP #X00692E30)
+  ENABLE-GAIN-P    = NIL
+  DONE-P           = NIL
+  RELEASE-PHASE-P  = NIL
+  PAUSE-P          = NIL
+  STOP-HOOK        = NIL
+  FREE-HOOK        = (#&lt;CLOSURE (LAMBDA (#<span style="color: #b0c4de;">:NODE113</span>) <span style="color: #b0c4de;">:IN</span> SIMPLE) {1003E32A5B}&gt;)
+  PARENT           = #&lt;NODE <span style="color: #b0c4de;">:ID</span> 0&gt;
+  PREV             = #&lt;NODE <span style="color: #b0c4de;">:ID</span> 0&gt;
+  NEXT             = NIL
+  LAST             = NIL
+<span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">No value</span></pre>
+
+      <p>
+        We can get and set the parameters of the DSP with <code>CONTROL-VALUE</code>
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (control-value 1 'freq)
+440.0d0
+<span class="prompt">SCRATCH&gt;</span> (setf (control-value 1 'freq) 880)
+880
+<span class="prompt">SCRATCH&gt;</span> (setf (control-value 1 'amp) .2)
+0.2
+<span class="prompt">SCRATCH&gt;</span> (control-value 1 'freq)
+880.0d0
+<span class="prompt">SCRATCH&gt;</span> (control-value 1 'amp)
+0.2d0
+<span class="prompt">SCRATCH&gt;</span> (control-list 1)
+(880.0d0 0.2d0)</pre>
+
+      <p>
+        <code>SET-CONTROL</code> and <code>SET-CONTROLS</code> are
+        another way to set the parameters of the DSP
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:freq</span> 2500)
+2500
+<span class="prompt">SCRATCH&gt;</span> (control-value 1 'freq)
+2500.0d0
+<span class="prompt">SCRATCH&gt;</span> (set-controls 1 <span style="color: #b0c4de;">:freq</span> 4000 <span style="color: #b0c4de;">:amp</span> .1)
+NIL
+<span class="prompt">SCRATCH&gt;</span> (control-list 1)
+(4000.0d0 0.1d0)
+<span class="prompt">SCRATCH&gt;</span> (set-controls 1 <span style="color: #b0c4de;">:freq</span> 100 <span style="color: #b0c4de;">:amp</span> .35)
+NIL
+<span class="prompt">SCRATCH&gt;</span> (control-list 1)
+(100.0d0 0.35d0)
+<span class="prompt">SCRATCH&gt;</span> (control-names 1)
+(FREQ AMP)</pre>
+
+      <p>
+        Here is a "classic" recursive function to control the DSP:
+      </p>
+
+      <pre class="src src-lisp">(defun <span style="color: #87cefa;">simple-test</span> (time)
+  (set-controls 1 <span style="color: #b0c4de;">:freq</span> (+ 100 (random 1000)) <span style="color: #b0c4de;">:amp</span> (+ .1 (random .3)))
+  (let ((next (+ time #[1 beat])))
+    (at next #'simple-test next)))
+
+(simple-test (now))</pre>
+
+      <p>
+        <code>AAT</code> is an anaphoric macro to simplify this type of functions:
+      </p>
+
+      <pre class="src src-lisp">(defun <span style="color: #87cefa;">simple-test</span> (time)
+  (set-controls 1 <span style="color: #b0c4de;">:freq</span> (+ 100 (random 1000)) <span style="color: #b0c4de;">:amp</span> (+ .1 (random .3)))
+  (aat (+ time #[1 beat]) #'simple-test it))</pre>
+
+      <p>
+        where <code>IT</code> is bound to the time, the first argument of
+        <code>AAT</code>.
+      </p>
+
+      <p>
+        The first argument of <code>AT</code> is the time in samples from the
+        start of the realtime (or non realtime in <code>BOUNCE-TO-DISK</code>).
+        The current time is
+      </p>
+
+      <pre class="src src-lisp">(now)
+4.2066944d7</pre>
+
+      <p>
+        The type of the time is <code>SAMPLE</code> and we can use
+        <code>NOW</code> inside the definition of a VUG, UGEN or DSP:
+      </p>
+
+      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">sin-test</span> (freq amp)
+  (with-samples ((k (* +twopi+ freq *sample-duration*)))
+    (out (* amp (sin (* k (now)))))))
+
+<span class="prompt">SCRATCH&gt;</span> (sin-test 1234 .25 <span style="color: #b0c4de;">:id</span> 2)
+<span class="prompt">SCRATCH&gt;</span> (free 2)</pre>
+
+      <p>
+        The second argument of <code>AT</code> is a function and the rest of the
+        arguments are the possible arguments of this function.
+      </p>
+
+      <p>
+        <code>TEMPO-SYNC</code> is an useful function to synchronize an event to
+        some period of time. For example
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (rt-eval (<span style="color: #b0c4de;">:return-value-p</span> t) (list (now) (tempo-sync #[1 sec])))
+(4.8462848d7 4.848d7)
+<span class="prompt">SCRATCH&gt;</span> (rt-eval (<span style="color: #b0c4de;">:return-value-p</span> t) (list (now) (tempo-sync #[1 sec])))
+(4.8859136d7 4.8864d7)</pre>
+
+      <p>
+        where <code>RT-EVAL</code> is a facility to evaluate a form in the
+        realtime thread and to return the result if <code>:RETURN-VALUE-P</code>
+        is T (<code>CONTROL-VALUE</code> and other utilities use this macro).
+      </p>
+
+      <p>
+        The read-macro <code>#[&#x2026;]</code> is useful to enter the time in
+        samples by using different units. The possible units are:
+      </p>
+
+      <table>
+        <colgroup>
+          <col class="left">
+          <col class="left">
+          <col class="left">
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col" class="left">unit</th>
+            <th scope="col" class="left">the symbol starts with</th>
+            <th scope="col" class="left">examples</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="left">sample</td>
+            <td class="left">sa</td>
+            <td class="left">sa, samp, samps, samples</td>
+          </tr>
+          <tr>
+            <td class="left">millisecond</td>
+            <td class="left">ms</td>
+            <td class="left">ms, msec</td>
+          </tr>
+          <tr>
+            <td class="left">second</td>
+            <td class="left">s</td>
+            <td class="left">s, sec, seconds</td>
+          </tr>
+          <tr>
+            <td class="left">minute</td>
+            <td class="left">mi</td>
+            <td class="left">mi, min, minutes</td>
+          </tr>
+          <tr>
+            <td class="left">hour</td>
+            <td class="left">h</td>
+            <td class="left">h, hours</td>
+          </tr>
+          <tr>
+            <td class="left">day</td>
+            <td class="left">d</td>
+            <td class="left">d, days</td>
+          </tr>
+          <tr>
+            <td class="left">week</td>
+            <td class="left">w</td>
+            <td class="left">w, weeks</td>
+          </tr>
+          <tr>
+            <td class="left">beat</td>
+            <td class="left">b</td>
+            <td class="left">b, beats</td>
+          </tr>
+          <tr>
+            <td class="left">meter</td>
+            <td class="left">m</td>
+            <td class="left">m, meters</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>
+        The number of beats depends on a <code>TEMPO</code>. The default is
+        <code>*TEMPO*</code> but we can create and use another <code>TEMPO</code>.
+        The default BPM for <code>*TEMPO*</code> is 60
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> *sample-rate*
+48000.0d0
+<span class="prompt">SCRATCH&gt;</span> #[1 beat]
+48000.0d0
+<span class="prompt">SCRATCH&gt;</span> *tempo*
+#&lt;TEMPO 60.00&gt;
+<span class="prompt">SCRATCH&gt;</span> (bpm *tempo*)
+60.0d0
+<span class="prompt">SCRATCH&gt;</span> (setf (bpm *tempo*) 135)
+135
+<span class="prompt">SCRATCH&gt;</span> (bpm *tempo*)
+135.0d0
+<span class="prompt">SCRATCH&gt;</span> (bps *tempo*)
+0.4444444444444444d0
+<span class="prompt">SCRATCH&gt;</span> #[1 beat]
+21333.333333333332d0
+<span class="prompt">SCRATCH&gt;</span> #[7/4 beat]
+37333.33333333333d0
+<span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">my-tempo</span> (make-tempo 180))
+MY-TEMPO
+<span class="prompt">SCRATCH&gt;</span> my-tempo
+#&lt;TEMPO 180.00&gt;
+<span class="prompt">SCRATCH&gt;</span> #[1 beat my-tempo]
+16000.0d0
+<span class="prompt">SCRATCH&gt;</span> #[1 beat]
+21333.333333333332d0</pre>
+
+      <p>
+        The number of meters depends on the velocity of the sound in m/s at
+        22°C, 1 atmosfera (the default is <code>*SOUND-VELOCITY*</code>)
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> *sound-velocity*
+345.0d0
+<span class="prompt">SCRATCH&gt;</span> #[1 meter]
+139.1304347826087d0
+<span class="prompt">SCRATCH&gt;</span> #[1 meter 340]
+141.1764733493328d0</pre>
+
+      <p>
+        The expansion of the read-macro <code>#[&#x2026;]</code> is the
+        operation to compute the time:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> #[1/2 sec]
+24000.0d0
+<span class="prompt">SCRATCH&gt;</span> '#[1/2 sec]
+(* 0.5d0 *SAMPLE-RATE*)
+<span class="prompt">SCRATCH&gt;</span> #[123 msec]
+5904.0002804249525d0
+<span class="prompt">SCRATCH&gt;</span> '#[123 msec]
+(* 123.0d0 (* 0.001 *SAMPLE-RATE*))
+<span class="prompt">SCRATCH&gt;</span> #[4 beats]
+85333.33333333333d0
+<span class="prompt">SCRATCH&gt;</span> '#[4 beats]
+(* 4.0d0 (* *SAMPLE-RATE* (BPS *TEMPO*)))</pre>
+
+      <p>
+        We can redefine on-the-fly the <code>SIMPLE-TEST</code> function and
+        stop it in at least two possible ways:
+      </p>
+
+      <ol>
+        <li><code>(flush-pending)</code></li>
+        <li><code>(defun simple-test (time) time)</code></li>
+      </ol>
+
+      <p>
+        <code>PEAK-INFO</code> takes a number of the channel and returns two
+        values, the peak and the number of the samples out of range.
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (flush-pending)
+<span class="prompt">SCRATCH&gt;</span> (peak-info 0)
+0.6336748916078843d0
+0
+<span class="prompt">SCRATCH&gt;</span> (peak-info 1)
+0.39901842299614415d0
+0</pre>
+
+      <p>
+        Free the node 1
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (free 1)
+<span class="prompt">SCRATCH&gt;</span> (reset-peak-meters)</pre>
+
+      <p>
+        There is a simple UGen in <a href="http://supercollider.sourceforge.net">SuperCollider</a>
+        called Crackle, a noise generator based on a chaotic function.
+        It is not difficult to define:
+      </p>
+
+      <pre class="src src-lisp">(define-vug <span style="color: #87cefa;">crackle</span> (param amp)
+  (with-samples (y0 (y1 0.3d0) y2)
+    (setf y0 (abs (- (* y1 param) y2 0.05d0))
+          y2 y1 y1 y0)
+    (* amp y0)))</pre>
+
+      <p>
+        We can use a simple one-pole filter with the <code>CRACKLE</code> VUG
+      </p>
+
+      <pre class="src src-lisp">(define-vug <span style="color: #87cefa;">pole</span> (in coef)
+  (with-samples (y1)
+    (setf y1 (+ in (* coef y1)))))</pre>
+
+      <p>
+        Note: the anaphoric VUG-MACRO <code>~</code> is useful for recursive composition
+        (the symbol <code>~</code> is inspired by <a href="http://faust.grame.fr">FAUST</a>
+        programming language). An alternative definition is
+      </p>
+
+      <pre class="src src-lisp">(define-vug <span style="color: #87cefa;">pole</span> (in coef)
+  (~ (+ in (* coef it))))</pre>
+
+      <p>
+        And here is a DSP to play
+      </p>
+
+      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">crackle-test</span> (f1 f2 amp param-fmod coef)
+  (with-samples ((thresh (* amp .1)))
+    (stereo (pole
+              (sine (if (> (crackle (+ 1.9 (sine param-fmod .07 0)) amp)
+                           thresh)
+                        f1
+                        f2)
+                    amp 0)
+              coef))))
+
+<span class="prompt">SCRATCH&gt;</span> (crackle-test 440 880 .02 .5 .96 <span style="color: #b0c4de;">:id</span> 1)</pre>
+
+      <p>
+        Is there consing during the synthesis? <code>GET-BYTES-CONSED-IN</code>
+        is a rough estimate of the bytes consed in a period of x seconds. There
+        is consing if <code>GET-BYTES-CONSED-IN</code> returns a value greater
+        than zero. For example, the next 5 seconds
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (get-bytes-consed-in 5)
+0</pre>
+
+      <p>
+        Good.
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (set-controls 1 <span style="color: #b0c4de;">:f1</span> 800 <span style="color: #b0c4de;">:f2</span> 80 <span style="color: #b0c4de;">:param-fmod</span> .2)
+<span class="prompt">SCRATCH&gt;</span> (set-controls 1 <span style="color: #b0c4de;">:f1</span> 1234 <span style="color: #b0c4de;">:f2</span> 3000 <span style="color: #b0c4de;">:param-fmod</span> .1)
+<span class="prompt">SCRATCH&gt;</span> (free 1)</pre>
+
+      <p id="block-by-block">
+        Here is a simple VUG for stereo panning, a VUG for a stereo
+        sinusoidal oscillator and a DSP for the test:
+      </p>
+
+      <pre class="src src-lisp">(define-vug <span style="color: #87cefa;">pan2</span> (input position)
+  <span style="color: #ffa07a;">"Stereo equal power panpot."</span>
+  (with-samples ((alpha (* +half-pi+ position))
+                 (left (cos alpha))
+                 (right (sin alpha)))
+    (cond ((= current-channel 0) (* left input))
+          ((= current-channel 1) (* right input))
+          (t +sample-zero+))))
+
+(defvar <span style="color: #eedd82;">*sintab*</span> (make-buffer 8192 <span style="color: #b0c4de;">:fill-function</span> (gen:partials '(1))))
+
+(define-vug <span style="color: #87cefa;">sinosc</span> (freq amp position)
+  (pan2 (osc *sintab* freq amp 0 <span style="color: #b0c4de;">:linear</span>) position))
+
+(dsp! <span style="color: #87cefa;">simple2</span> (freq amp pos)
+  (foreach-frame (foreach-channel (cout (sinosc freq amp pos)))))</pre>
+
+      <p>
+        <code>FOREACH-FRAME</code> in <code>SIMPLE2</code> VUG allows an
+        alternative block by block processing. Now we restart the realtime
+        with block size 64, play 8 DSPs and divide them between two groups:
+      </p>
+
+      <pre class="src src-lisp">
+<span class="prompt">SCRATCH&gt;</span> (block-size)
+1
+<span class="prompt">SCRATCH&gt;</span> (set-rt-block-size 64)
+64
+<span class="prompt">SCRATCH&gt;</span> (rt-status)
+<span style="color: #b0c4de;">:STOPPED</span>
+<span class="prompt">SCRATCH&gt;</span> (block-size)
+64
+<span class="prompt">SCRATCH&gt;</span> (rt-start)
+<span style="color: #b0c4de;">:STARTED</span>
+<span class="prompt">SCRATCH&gt;</span> (loop repeat 8 do (simple2 (+ 100 (random 3000)) .01 (random 1.0)))
+<span class="prompt">SCRATCH&gt;</span> (dump (node 0))
+group 0
+    node 8
+      SIMPLE2 1864.0d0 0.01d0 0.929777d0
+    node 7
+      SIMPLE2 2164.0d0 0.01d0 0.91501355d0
+    node 6
+      SIMPLE2 1673.0d0 0.01d0 0.55699635d0
+    node 5
+      SIMPLE2 2447.0d0 0.01d0 0.19508076d0
+    node 4
+      SIMPLE2 105.0d0 0.01d0 0.44206798d0
+    node 3
+      SIMPLE2 1424.0d0 0.01d0 0.93773544d0
+    node 2
+      SIMPLE2 2898.0d0 0.01d0 0.6700171d0
+    node 1
+      SIMPLE2 3008.0d0 0.01d0 0.2709539d0
+NIL
+<span class="prompt">SCRATCH&gt;</span> (make-group 100)
+NIL
+<span class="prompt">SCRATCH&gt;</span> (dograph (n)
+           (unless (group-p n)
+             (move n <span style="color: #b0c4de;">:head</span> 100)))
+NIL
+<span class="prompt">SCRATCH&gt;</span> (make-group 200 <span style="color: #b0c4de;">:after</span> 100)
+NIL
+<span class="prompt">SCRATCH&gt;</span> (dogroup (n (node 100))
+           (when (&gt; (node-id n) 4)
+             (move n <span style="color: #b0c4de;">:tail</span> 200)))
+NIL
+<span class="prompt">SCRATCH&gt;</span> (dump (node 0))
+group 0
+    group 100
+        node 1
+          SIMPLE2 3008.0d0 0.01d0 0.2709539d0
+        node 2
+          SIMPLE2 2898.0d0 0.01d0 0.6700171d0
+        node 3
+          SIMPLE2 1424.0d0 0.01d0 0.93773544d0
+        node 4
+          SIMPLE2 105.0d0 0.01d0 0.44206798d0
+    group 200
+        node 5
+          SIMPLE2 2447.0d0 0.01d0 0.19508076d0
+        node 6
+          SIMPLE2 1673.0d0 0.01d0 0.55699635d0
+        node 7
+          SIMPLE2 2164.0d0 0.01d0 0.91501355d0
+        node 8
+          SIMPLE2 1864.0d0 0.01d0 0.929777d0
+NIL
+<span class="prompt">SCRATCH&gt;</span> (move 200 <span style="color: #b0c4de;">:before</span> 100)
+NIL
+<span class="prompt">SCRATCH&gt;</span> (dump (node 0))
+group 0
+    group 200
+        node 5
+          SIMPLE2 2447.0d0 0.01d0 0.19508076d0
+        node 6
+          SIMPLE2 1673.0d0 0.01d0 0.55699635d0
+        node 7
+          SIMPLE2 2164.0d0 0.01d0 0.91501355d0
+        node 8
+          SIMPLE2 1864.0d0 0.01d0 0.929777d0
+    group 100
+        node 1
+          SIMPLE2 3008.0d0 0.01d0 0.2709539d0
+        node 2
+          SIMPLE2 2898.0d0 0.01d0 0.6700171d0
+        node 3
+          SIMPLE2 1424.0d0 0.01d0 0.93773544d0
+        node 4
+          SIMPLE2 105.0d0 0.01d0 0.44206798d0
+NIL
+<span class="prompt">SCRATCH&gt;</span> (pause 100)
+#&lt;NODE <span style="color: #b0c4de;">:ID</span> 100&gt;
+<span class="prompt">SCRATCH&gt;</span> (unpause 100)
+#&lt;NODE <span style="color: #b0c4de;">:ID</span> 100&gt;
+<span class="prompt">SCRATCH&gt;</span> (free 100)
+<span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">No value</span>
+<span class="prompt">SCRATCH&gt;</span> (free 200)
+<span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">No value</span>
+<span class="prompt">SCRATCH&gt;</span> (set-rt-block-size 1)
+<span class="prompt">SCRATCH&gt;</span> (rt-start)</pre>
+
+      <p>
+        <code>ALL-VUG-NAMES</code> returns the
+        <a href="vug_collection.html">list of the defined VUGs</a>.
+      </p>
+
+      <p>
+        The definitions of the VUGs are in <code>incudine/src/vug/</code>.
+        Some of them appear complexes because they are flexible VUG-MACROs.
+        For example, <code>OSC</code> is an unique VUG for a wavetable lookup
+        oscillator with modulable amplitude, frequency and/or phase and
+        selectionable interpolation (none, linear or cubic).
+      </p>
+
+      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">osc-cubic-test</span> (freq amp pos)
+  (foreach-channel
+    (cout (pan2 (osc *sine-table* freq amp 0 <span style="color: #b0c4de;">:cubic</span>) pos))))</pre>
+
+      <p>
+        <code>BUZZ</code> and <code>GBUZZ</code> can use wavetable lookup
+        oscillators with selectionable interpolation or sin/cos functions and it
+        is possible to change the lag-time for the crossfade when the number of
+        the harmonics changes.
+      </p>
+
+      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">buzz-test-1</span> (freq amp (nh fixnum))
+  (stereo (buzz freq amp nh)))
+
+(dsp! <span style="color: #87cefa;">buzz-test-2</span> (freq amp (nh fixnum))
+  (stereo (buzz freq amp nh <span style="color: #b0c4de;">:interpolation</span> <span style="color: #b0c4de;">:cubic</span>)))
+
+(dsp! <span style="color: #87cefa;">buzz-test-3</span> (freq amp (nh fixnum))
+  (stereo (buzz freq amp nh <span style="color: #b0c4de;">:table-lookup-p</span> nil)))
+
+(dsp! <span style="color: #87cefa;">gbuzz-test-1</span> (freq amp (nh fixnum) (lh fixnum) mul)
+  (stereo (gbuzz freq amp nh lh mul)))
+
+(dsp! <span style="color: #87cefa;">gbuzz-test-2</span> (freq amp mul)
+  (stereo (gbuzz freq amp (sample-&gt;fixnum (lag (lin-mouse-x 1 50) .02))
+                 (sample-&gt;fixnum (lin-mouse-y 1 20))
+                 mul <span style="color: #b0c4de;">:table-lookup-p</span> nil <span style="color: #b0c4de;">:harm-change-lag</span> .05)))
+
+(dsp! <span style="color: #87cefa;">gbuzz-test-3</span> (freq amp (nh fixnum) (lh fixnum) fmod amod)
+  (stereo (gbuzz freq amp nh lh (sine fmod amod 0)
+                 <span style="color: #b0c4de;">:interpolation</span> <span style="color: #b0c4de;">:cubic</span>)))</pre>
+
+      <p>
+        The <code>RAND</code> VUG-MACRO is a random number generator that can
+        use all the distributions provided by
+        <a href="http://www.gnu.org/software/gsl">GNU Scientific Library (GSL)</a>.
+        <code>ALL-RANDOM-DISTRIBUTIONS</code> returns the list of these distr
+        (the names in the sub-lists are alias):
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (all-random-distributions)
+((<span style="color: #b0c4de;">:LINEAR</span> <span style="color: #b0c4de;">:LOW</span> <span style="color: #b0c4de;">:LOW-PASS</span> <span style="color: #b0c4de;">:LP</span>) (<span style="color: #b0c4de;">:HIGH</span> <span style="color: #b0c4de;">:HIGH-PASS</span> <span style="color: #b0c4de;">:HP</span>)
+ (<span style="color: #b0c4de;">:TRIANGULAR</span> <span style="color: #b0c4de;">:TRI</span> <span style="color: #b0c4de;">:TRIANG</span> <span style="color: #b0c4de;">:MEAN</span>) (<span style="color: #b0c4de;">:GAUSS</span> <span style="color: #b0c4de;">:GAUSSIAN</span>)
+ (<span style="color: #b0c4de;">:GAUSS-TAIL</span> <span style="color: #b0c4de;">:GAUSSIAN-TAIL</span>) (<span style="color: #b0c4de;">:EXP</span> <span style="color: #b0c4de;">:EXPON</span> <span style="color: #b0c4de;">:EXPONENTIAL</span>)
+ (<span style="color: #b0c4de;">:LAPLACE</span> <span style="color: #b0c4de;">:BIEXP</span> <span style="color: #b0c4de;">:BIEXPON</span> <span style="color: #b0c4de;">:BIEXPONENTIAL</span>) (<span style="color: #b0c4de;">:EXPPOW</span> <span style="color: #b0c4de;">:EXPONENTIAL-POWER</span>)
+ (<span style="color: #b0c4de;">:CAUCHY</span>) (<span style="color: #b0c4de;">:RAYLEIGH</span>) (<span style="color: #b0c4de;">:RAYLEIGH-TAIL</span>) (<span style="color: #b0c4de;">:LANDAU</span>) (<span style="color: #b0c4de;">:LEVY</span>) (<span style="color: #b0c4de;">:LEVY-SKEW</span>) (<span style="color: #b0c4de;">:GAMMA</span>)
+ (<span style="color: #b0c4de;">:UNI</span> <span style="color: #b0c4de;">:UNIFORM</span> <span style="color: #b0c4de;">:FLAT</span>) (<span style="color: #b0c4de;">:LOGNORMAL</span>) (<span style="color: #b0c4de;">:CHISQ</span> <span style="color: #b0c4de;">:CHI-SQUARED</span>) (<span style="color: #b0c4de;">:F</span> <span style="color: #b0c4de;">:FDIST</span>)
+ (<span style="color: #b0c4de;">:T</span> <span style="color: #b0c4de;">:TDIST</span>) (<span style="color: #b0c4de;">:BETA</span>) (<span style="color: #b0c4de;">:LOGISTIC</span>) (<span style="color: #b0c4de;">:PARETO</span>) (<span style="color: #b0c4de;">:WEIBULL</span>) (<span style="color: #b0c4de;">:GUMBEL1</span>) (<span style="color: #b0c4de;">:GUMBEL2</span>)
+ (<span style="color: #b0c4de;">:POISSON</span>) (<span style="color: #b0c4de;">:BERNOULLI</span>) (<span style="color: #b0c4de;">:BINOMIAL</span>) (<span style="color: #b0c4de;">:NEGATIVE-BINOMIAL</span>) (<span style="color: #b0c4de;">:PASCAL</span>)
+ (<span style="color: #b0c4de;">:GEOM</span> <span style="color: #b0c4de;">:GEOMETRIC</span>) (<span style="color: #b0c4de;">:HYPERGEOM</span> <span style="color: #b0c4de;">:HYPERGEOMETRIC</span>) (<span style="color: #b0c4de;">:LOG</span> <span style="color: #b0c4de;">:LOGARITHMIC</span>))</pre>
+
+      <p>
+        Two simple tests for <code>:GAUSS</code> and <code>:CAUCHY</code> are
+      </p>
+
+      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">gauss-test</span> (sigma)
+  (stereo (rand <span style="color: #b0c4de;">:gauss</span> <span style="color: #b0c4de;">:sigma</span> sigma)))
+
+(dsp! <span style="color: #87cefa;">cauchy-test</span> (freq amp pos)
+  (foreach-channel
+    (cout (pan2 (sine (+ freq (rand <span style="color: #b0c4de;">:cauchy</span> <span style="color: #b0c4de;">:a</span> (lag (lin-mouse-x 1 50) .02)))
+                      amp 0)
+                pos))))
+
+<span class="prompt">SCRATCH&gt;</span> (gauss-test .15 <span style="color: #b0c4de;">:id</span> 1)
+<span class="prompt">SCRATCH&gt;</span> (cauchy-test 300 .5 .5 <span style="color: #b0c4de;">:replace</span> 1)
+<span class="prompt">SCRATCH&gt;</span> (free 1)</pre>
+
+      <p>
+        It is really simple to add the interpolated version of any generator:
+      </p>
+
+      <pre class="src src-lisp"><span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">Csound opcode in only two lines</span>
+(define-vug <span style="color: #87cefa;">randi</span> (amp freq)
+  (* amp (interpolate (white-noise 1) freq)))
+
+<span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">SC3 ugen in two lines</span>
+(define-vug <span style="color: #87cefa;">lfdnoise3</span> (amp freq)
+  (* amp (interpolate (white-noise 1) freq <span style="color: #b0c4de;">:cubic</span>)))
+
+<span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">Gaussian distribution random generator with cubic interpolation</span>
+(define-vug <span style="color: #87cefa;">gauss-cubic</span> (sigma freq)
+  (interpolate (rand <span style="color: #b0c4de;">:gauss</span> <span style="color: #b0c4de;">:sigma</span> sigma) freq <span style="color: #b0c4de;">:cubic</span>))
+
+<span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">Selectionable interpolation with a chaotic ugen</span>
+(define-vug <span style="color: #87cefa;">henon-cubic</span> (freq a b x0 x1)
+  (henon freq a b x0 x1 <span style="color: #b0c4de;">:cubic</span>))</pre>
+
+      <hr>
+      <table class="navtutor">
+        <tr>
+          <td style="width: 20%" class="left"></td>
+          <td style="width: 60%" class="center"><a href="index.html">Home</a></td>
+          <td style="width: 20%" class="right"><a href="tutorial_02.html">Part 2</a></td>
+        </tr>
+      </table>
+    </div>
+    <div id="postamble">
+      <a href="http://sourceforge.net/projects/incudine">Sourceforge project page</a>
+    </div>
+  </body>
+</html>

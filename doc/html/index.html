@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="incudine.css">
+    <title>Incudine</title>
+  </head>
+  <body>
+    <div id="content">
+      <h1 class="title">Incudine</h1>
+      <div id="subtitle">
+        Music/DSP programming environment for Common Lisp
+      </div>
+
+      <h2>Abstract</h2>
+
+      <p>
+        Incudine is useful to design software synthesizers or sound plugins from
+        scratch, exploiting the expressive power of Common Lisp, without the
+        constraint to use pre-built unit generators. It is also a compositional
+        tool that allows to produce high quality sounds controllable at the
+        sample level, defining and redefining the digital signal processors and
+        the musical structures on-the-fly.
+      </p>
+
+      <p>
+        Incudine introduces the Virtual UGen (VUG), a new mechanism for defining
+        primitive unit generators by writing concise and reusable code. The
+        definition of a VUG contains lisp code and/or other nested VUGs (or
+        "real" UGens), and it is re-arranged and compiled efficiently during the
+        creation of a DSP.
+      </p>
+
+      <h2>Features</h2>
+
+      <ul>
+        <li>
+          Realtime synthesis with sample-by-sample or block-by-block
+          processing (without a realtime garbage collector but it's
+          simple to define cons-free DSP)
+        </li>
+        <li>Sample accurate callbacks</li>
+        <li>Non-realtime bounce to disk and bounce to buffer</li>
+        <li>The format of the sample is double float</li>
+        <li>Optional standalone executable</li>
+        <li>
+          Optional score (rego) files with time-tagged lisp functions,
+          lisp statements, lisp tags and arbitrary score statements
+        </li>
+        <li>Graph of DSPs</li>
+        <li><a href="vug_collection.html">Collection of useful re-definable VUGs</a></li>
+        <li><a href="gen_collection.html">Collection of GEN routines</a></li>
+        <li>MIDI support</li>
+        <li>Open Sound Control support</li>
+        <li>Tempo change with arbitrary curves</li>
+        <li>Import/Export a musical scale from/to scale file format</li>
+        <li>
+          MIDI tuning by sending a bulk tuning dump message with arbitrary checksum
+          function or 128 single note tuning change messages (Exclusive Real Time)</li>
+        <li>
+          Frequencies of a TUNING structure changed with the data received from
+          a MIDI bulk tuning dump message</li>
+        <li>Flexible voicer</li>
+        <li>
+          Optional interface to interact with the sound editor
+          <a href="http://ccrma.stanford.edu/software/snd/">Snd</a>
+        </li>
+        <li>
+          Optional interface to use a <a href="http://www.ladspa.org">LADSPA
+          audio plugin</a> in a Virtual UGen
+        </li>
+        <li>
+          Optional interface to use a <a href="http://lv2plug.in">LV2 audio plugin</a>
+          in a Virtual UGen
+        </li>
+        <li>
+          Optional <a href="http://www.fluidsynth.org/">FluidSynth</a> SoundFont
+          synthesizer support
+        </li>
+        <li>Incudine is released under the GNU General Public License (GPL) version 2 or later</li>
+      </ul>
+
+      <h2>Requirements</h2>
+
+      <p>
+        Incudine works with <a href="http://www.sbcl.org">SBCL</a>, an implementation
+        of ANSI Common Lisp with a high-performance native compiler.
+      </p>
+
+      <p>
+        Common Lisp packages:
+      </p>
+
+      <ul>
+        <li><a href="http://common-lisp.net/project/alexandria">ALEXANDRIA</a></li>
+        <li><a href="http://common-lisp.net/project/bordeaux-threads">BORDEAUX-THREADS</a></li>
+        <li><a href="http://common-lisp.net/project/cffi">CFFI</a></li>
+        <li><a href="https://github.com/sionescu/swap-bytes">SWAP-BYTES</a></li>
+        <li><a href="https://github.com/trivial-garbage/trivial-garbage">TRIVIAL-GARBAGE</a></li>
+      </ul>
+
+      <p>
+        Foreign libraries:
+      </p>
+
+      <ul>
+        <li>Pthread</li>
+        <li><a href="http://jackaudio.org">JACK</a> or
+          <a href="http://www.portaudio.com">PortAudio &gt;= 1.9</a>
+        </li>
+        <li><a href="http://portmedia.sourceforge.net/portmidi">PortMidi</a></li>
+        <li><a href="http://www.mega-nerd.com/libsndfile">libsndfile &gt;= 1.0.19</a></li>
+        <li><a href="http://www.fftw.org">FFTW &gt;= 3.0</a></li>
+        <li><a href="http://www.gnu.org/software/gsl">GNU Scientific Library (GSL)</a></li>
+        <li>[Optional] <a href="http://www.fluidsynth.org/">FluidSynth</a></li>
+        <li>[Optional] <a href="http://drobilla.net/software/lilv">LILV</a></li>
+      </ul>
+
+      <h2>Download</h2>
+
+      <p>
+        The latest source code can be obtained via Git:
+      </p>
+
+      <pre class="src">git clone git://git.code.sf.net/p/incudine/incudine</pre>
+
+      <h2>Tutorials</h2>
+
+      <p><a href="tutorial_01.html">Getting Start - Part 1</a></p>
+      <p><a href="tutorial_02.html">Getting Start - Part 2</a></p>
+      <p><a href="tutorial_03.html">Getting Start - Part 3</a></p>
+      <p><a href="tutorial_04.html">Getting Start - Part 4</a></p>
+      <p><a href="tutorial_ugen01.html">First steps with "real" UGens - Part 1</a></p>
+      <p><a href="tutorial_ugen02.html">First steps with "real" UGens - Part 2</a></p>
+      <p><a href="tutorial_block_by_block.html">Block by block processing</a></p>
+      <p><a href="tutorial_sharp_t.html">Read macro sharp-t</a></p>
+      <p><a href="tutorial_tuning.html">Musical Tunings</a></p>
+      <p><a href="tutorial_foreign_plugin.html">Foreign plugin audio processors</a></p>
+      <p><a href="tutorial_snd.html">Interaction with the sound editor Snd</a></p>
+      <p><a href="tutorial_fluidsynth.html">Play SoundFonts with FluidSynth</a></p>
+      <p><a href="tutorial_env_gatemod.html">
+        Instantaneous retrig and gate modulation with ENVGEN</a></p>
+      <p><a href="tutorial_note_priority.html">
+        Note priority in a monophonic synthesizer</a></p>
+      <p><a href="tutorial_cmd.html">Incudine Command</a></p>
+      <p><a href="tutorial_osc.html">Open Sound Control messages</a></p>
+      <p><a href="tutorial_scogen.html">Incudine with a Csound score generator</a></p>
+
+      <hr>
+    </div>
+    <div id="postamble">
+      <p>Author: Tito Latini</p>
+      <a href="http://sourceforge.net/projects/incudine">Sourceforge project page</a>
+    </div>
+  </body>
+</html>

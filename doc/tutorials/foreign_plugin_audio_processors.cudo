@@ -1,0 +1,98 @@
+;;; Incudine
+;;; Foreign plugin audio processors
+
+;; In sample by sample processing, a foreign plugin returns one value
+;; of SAMPLE type or a FRAME (foreign array of SAMPLE type). In block
+;; by block processing, a foreign plugin returns a foreign array or a
+;; foreign array of arrays and the type depends on the plugin.
+
+;; Here is an example with LV2 and LADSPA:
+
+(require :incudine-lv2)
+
+(in-package :scratch)
+
+(set-rt-block-size 1)
+
+(lv2->vug "http://plugin.org.uk/swh-plugins/amp" swh.amp)
+
+(dsp! amp-test (gain)
+  (stereo (swh.amp gain (white-noise 1))))
+
+(rt-start)
+
+(amp-test -10 :id 8)
+
+(set-control 8 :gain -30)
+
+(free 8)
+
+;; block by block processing
+(set-rt-block-size 64)
+
+(lv2->vug "http://plugin.org.uk/swh-plugins/amp" swh.amp*)
+
+(dsp! amp-test* (gain)
+  (with ((in (make-f32-array (block-size)))
+         (out (cffi:null-pointer)))
+    (declare (type pointer in out))
+    ;; The sample type in LADSPA and LV2 is single precision float.
+    (foreach-frame
+      (setf (f32-ref in current-frame)
+            (coerce (white-noise 1) 'single-float)))
+    ;; Not within FOREACH-FRAME loop because SWH.AMP*
+    ;; computes a block of samples.
+    (setf out (swh.amp* gain in))
+    (foreach-frame
+      (stereo (sample (f32-ref out current-frame))))))
+
+(rt-start)
+
+(amp-test* -10 :id 123)
+
+(set-control 123 :gain -30)
+
+(free 123)
+
+(require :incudine-ladspa)
+
+(block-size)
+;; 64
+
+(ladspa->vug "zita-reverbs" "zita-reverb" zita-reverb)
+
+;; Test with a UGEN.
+(compile-vug 'zita-reverb 'pointer)
+
+(define-vug rev-input ((in pointer))
+  "Read a block of audio samples from the first Incudine input port."
+  (foreach-frame
+    (setf (f32-ref in current-frame)
+          (coerce (audio-in 0) 'single-float))))
+
+(define-vug rev-output ((out pointer))
+  "Write two blocks of audio samples to two Incudine output ports."
+  (foreach-frame
+    (out (f32-ref (ptr-ref out 0) current-frame)
+         (f32-ref (ptr-ref out 1) current-frame))))
+
+(dsp! rev-test (delay xover rt-low rt-mid damping f1-freq f1-gain
+                f2-freq f2-gain out-mix)
+  (with ((in (make-f32-array (block-size)))
+         (out (cffi:null-pointer)))
+    (declare (pointer out))
+    (rev-input in)
+    (setf out (zita-reverb in in delay xover rt-low rt-mid damping
+                           f1-freq f1-gain f2-freq f2-gain out-mix))
+    (rev-output out)))
+
+(rev-test 0.06 223.607 2.75 2.75 6000 159.054 0 2514.87 0 0.5 :id 8)
+
+(set-controls 8 :trig-freq 1.5 :delay 0.03 :rt-low 1.2 :rt-mid 1)
+
+(get-bytes-consed-in 5)
+;; 0
+
+(free 8)
+
+(set-rt-block-size 1)

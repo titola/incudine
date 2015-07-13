@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="incudine.css" />
+    <title>Interaction with the sound editor Snd</title>
+  </head>
+  <body>
+    <div id="content">
+      <table class="navtutor">
+        <tr>
+          <th class="center">Interaction with the sound editor Snd</th>
+        </tr>
+      </table>
+      <hr>
+
+      <pre class="src src-lisp">(require <span style="color: #7fffd4;">:incudine-snd</span>)
+
+(in-package <span style="color: #b0c4de;">:scratch</span>)
+
+<span class="prompt">SCRATCH&gt;</span> snd:*program-name*
+<span style="color: #ffa07a;">"snd"</span>
+         <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Snd command line argument list.</span>
+<span class="prompt">SCRATCH&gt;</span> snd:*program-args*
+NIL
+         <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Temporary soundfile.</span>
+<span class="prompt">SCRATCH&gt;</span> snd:*tmpfile*
+<span style="color: #ffa07a;">"/tmp/incudine-snd.snd"</span>
+
+<span class="prompt">SCRATCH&gt;</span> (snd:run)
+#&lt;SB-IMPL::PROCESS 1955 <span style="color: #b0c4de;">:RUNNING&gt;</span>
+
+<span class="prompt">SCRATCH&gt;</span> (dsp! <span style="color: #87cefa;">hello-snd</span> (c i a o)
+           (stereo (+ (sine c i 0) (sine a o 0))))
+
+<span class="prompt">SCRATCH&gt;</span> (bounce-to-snd (<span style="color: #ffa07a;">"/tmp/oscilla.wav"</span>)
+           (hello-snd 230 .2 255 .1))
+(SOUND 0)
+
+<span class="prompt">SCRATCH&gt;</span> (defun <span style="color: #87cefa;">snd-play</span> ()
+           (snd:eval <span style="color: #ffa07a;">"(play)"</span>))
+
+<span class="prompt">SCRATCH&gt;</span> (snd-play)
+
+<span class="prompt">SCRATCH&gt;</span> (bounce-to-snd-mix (<span style="color: #ffa07a;">"/tmp/oscilla-2.wav"</span>)
+           (hello-snd 430 .2 495 .1))
+((MIX 0))
+
+<span class="prompt">SCRATCH&gt;</span> (bounce-to-snd-mix (<span style="color: #ffa07a;">"/tmp/oscilla-3.wav"</span> '(48000 t))
+           (hello-snd 1000 .2 1220 .1))
+((MIX 1) (MIX 2))
+
+<span class="prompt">SCRATCH&gt;</span> (snd:eval <span style="color: #ffa07a;">"(set! (cursor) 108000)"</span>)
+108000
+
+<span class="prompt">SCRATCH&gt;</span> (bounce-to-snd-mix (<span style="color: #ffa07a;">"/tmp/oscilla-4.wav"</span> '(<span style="color: #ffa07a;">"(cursor)"</span> t) <span style="color: #b0c4de;">:duration</span> 1)
+           (hello-snd 660 .1 888 .1))
+((MIX 3) (MIX 4))
+
+<span class="prompt">SCRATCH&gt;</span> (snd:eval <span style="color: #ffa07a;">"(set! (cursor) 0)"</span>)
+0
+
+<span class="prompt">SCRATCH&gt;</span> (snd-play)
+
+<span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">*mix0*</span> (snd:mix-&gt;buffer 0))
+
+<span class="prompt">SCRATCH&gt;</span> *mix0*
+#&lt;BUFFER <span style="color: #b0c4de;">:FRAMES</span> 96000 <span style="color: #b0c4de;">:CHANNELS</span> 1 <span style="color: #b0c4de;">:SR</span> 48000.0&gt;
+
+<span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">*snd0*</span> (snd:sound-&gt;buffer 0))
+
+<span class="prompt">SCRATCH&gt;</span> *snd0*
+#&lt;BUFFER <span style="color: #b0c4de;">:FRAMES</span> 156000 <span style="color: #b0c4de;">:CHANNELS</span> 2 <span style="color: #b0c4de;">:SR</span> 48000.0&gt;
+
+<span class="prompt">SCRATCH&gt;</span> (dsp! <span style="color: #87cefa;">bplay</span> ((buf buffer) rate start-pos (loop-p boolean))
+           (foreach-channel
+             (cout (buffer-play buf rate start-pos loop-p #'free))))
+
+<span class="prompt">SCRATCH&gt;</span> (set-rt-block-size 1)
+
+<span class="prompt">SCRATCH&gt;</span> (rt-start)
+
+<span class="prompt">SCRATCH&gt;</span> (bplay *snd0* 1 0 t)
+
+<span class="prompt">SCRATCH&gt;</span> (snd:eval <span style="color: #ffa07a;">"(set! (selection-position) 73000)"</span>)
+73000
+
+<span class="prompt">SCRATCH&gt;</span> (snd:eval <span style="color: #ffa07a;">"(set! (selection-framples) 48000)"</span>)
+48000
+
+<span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">*snd-sel*</span> (snd:selection-&gt;buffer))
+
+<span class="prompt">SCRATCH&gt;</span> *snd-sel*
+#&lt;BUFFER <span style="color: #b0c4de;">:FRAMES</span> 48000 <span style="color: #b0c4de;">:CHANNELS</span> 2 <span style="color: #b0c4de;">:SR</span> 48000.0&gt;
+
+<span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:buf</span> *snd-sel*)
+
+<span class="prompt">SCRATCH&gt;</span> (snd:eval <span style="color: #ffa07a;">"(set! (selection-position) 20000)"</span>)
+20000
+
+<span class="prompt">SCRATCH&gt;</span> (snd:eval <span style="color: #ffa07a;">"(set! (selection-framples) 48000)"</span> <span style="color: #b0c4de;">:output-p</span> nil)
+NIL
+
+<span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">*snd-reg0*</span>
+           (snd:region-&gt;buffer (second (snd:eval <span style="color: #ffa07a;">"(make-region)"</span>))))
+
+<span class="prompt">SCRATCH&gt;</span> *snd-reg0*
+#&lt;BUFFER <span style="color: #b0c4de;">:FRAMES</span> 48000 <span style="color: #b0c4de;">:CHANNELS</span> 2 <span style="color: #b0c4de;">:SR</span> 48000.0&gt;
+
+<span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:buf</span> *snd-reg0*)
+
+<span class="prompt">SCRATCH&gt;</span> (snd:eval <span style="color: #ffa07a;">"(unselect-all)"</span>)
+NIL
+
+<span class="prompt">SCRATCH&gt;</span> (free 0)
+
+<span class="prompt">SCRATCH&gt;</span> (rt-stop)
+
+<span class="prompt">SCRATCH&gt;</span> (snd:eval <span style="color: #ffa07a;">"(close-sound)"</span>)
+NIL
+
+<span class="prompt">SCRATCH&gt;</span> (snd:buffer-&gt;sound *snd0* <span style="color: #ffa07a;">"/tmp/snd0.wav"</span>)
+(SOUND 0)
+
+<span class="prompt">SCRATCH&gt;</span> (snd:eval <span style="color: #ffa07a;">"(scale-to .3)"</span>)
+0.3
+
+<span class="prompt">SCRATCH&gt;</span> (snd:buffer-&gt;mix *snd-sel*)
+((MIX 0))
+
+<span class="prompt">SCRATCH&gt;</span> (snd:buffer-&gt;mix *mix0* '(108000 0 nil 0))
+((MIX 1))
+
+<span class="prompt">SCRATCH&gt;</span> (snd:buffer-&gt;mix *mix0* '(108000 0 nil 1))
+((MIX 2))
+
+<span class="prompt">SCRATCH&gt;</span> (snd:eval <span style="color: #ffa07a;">"(maxamp)"</span>)
+0.9025847
+
+<span class="prompt">SCRATCH&gt;</span> (with-open-file (f <span style="color: #ffa07a;">"/tmp/666.scm"</span> <span style="color: #b0c4de;">:direction</span> <span style="color: #b0c4de;">:output</span>
+                          <span style="color: #b0c4de;">:if-exists</span> <span style="color: #b0c4de;">:supersede</span>)
+           (write-line <span style="color: #ffa07a;">"(reverse-sound)"</span> f))
+
+<span class="prompt">SCRATCH&gt;</span> (snd:load <span style="color: #ffa07a;">"/tmp/666.scm"</span>)
+NIL
+
+<span class="prompt">SCRATCH&gt;</span> (snd:mix <span style="color: #ffa07a;">"/tmp/oscilla-2.wav"</span> '(76400 t))
+((MIX 3) (MIX 4))
+
+<span class="prompt">SCRATCH&gt;</span> (snd-play)
+
+         <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">exorcize-filter</span>
+<span class="prompt">SCRATCH&gt;</span> (buffer-save *snd0* <span style="color: #ffa07a;">"/tmp/snd0.wav"</span>)
+<span class="prompt">SCRATCH&gt;</span> (snd:open-or-update-sound <span style="color: #ffa07a;">"/tmp/snd0.wav"</span>)
+(SOUND 0)
+
+<span class="prompt">SCRATCH&gt;</span> (snd:exit)
+T</pre>
+
+      <hr>
+      <table class="navtutor">
+        <tr>
+          <td style="width: 20%" class="left">
+            <a href="tutorial_01.html">Getting Started with Incudine</a>
+          </td>
+          <td style="width: 60%" class="center"><a href="index.html">Home</a></td>
+          <td style="width: 20%" class="right"></td>
+        </tr>
+      </table>
+    </div>
+    <div id="postamble">
+      <a href="http://sourceforge.net/projects/incudine">Sourceforge project page</a>
+    </div>
+  </body>
+</html>
