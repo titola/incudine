@@ -18,22 +18,6 @@
 ;;; along with this program; if not, write to the Free Software
 ;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-(defpackage :incudine-system (:use :cl :asdf))
-(in-package :incudine-system)
-
-;;; It is T after the (re)compilation of the C utils (see compile-clib.lisp).
-(defvar *incudine-force-compile-p* nil)
-
-(defvar *fasl-file-type* (pathname-type (compile-file-pathname "V")))
-
-(defmethod perform :before ((o load-op) (c cl-source-file))
-  (when *incudine-force-compile-p*
-    (let ((path (component-pathname c)))
-      (compile-file path
-        :output-file (asdf:apply-output-translations
-                       (make-pathname :type *fasl-file-type*
-                                      :defaults path))))))
-
 (defsystem "incudine"
   :version "0.8.2"
   :description "Incudine is a Music/DSP programming environment."
@@ -60,9 +44,30 @@
     :components
     ((:file "packages")
      (:file "compile-clib" :depends-on ("packages"))
+     (:module "clib" :depends-on ("compile-clib")
+      :pathname ""
+      :components ((:static-file "common.h") (:static-file "util.c")
+                   (:static-file "mouse.c") (:static-file "mouse.h")
+                   (:static-file "nothing.c")
+                   (:static-file "rtjack.c") (:static-file "rtjack.h")
+                   (:static-file "rtpa.c") (:static-file "rtpa.h")
+                   (:static-file "osc/osc.c") (:static-file  "osc/osc.h")
+                   (:static-file "cache.lisp"))
+      :output-files
+      (compile-op (o c)
+        (let ((name #-cygwin "libincudine" #+cygwin "cygincudine-0")
+              (type (asdf/bundle:bundle-pathname-type :shared-library)))
+          (values (list (system-relative-pathname "incudine" (strcat "src/" name)
+                                                  :type type))
+                  t)))
+      :perform (compile-op (o c)
+                 (symbol-call :incudine.config '#:compile-c-library))
+      :perform (load-op (o c)
+                 (symbol-call :cffi '#:load-foreign-library
+                              (output-file 'compile-op c))))
      (:file "config" :depends-on ("compile-clib"))
      (:file "logger" :depends-on ("edf-sched"))
-     (:file "foreign" :depends-on ("config"))
+     (:file "foreign" :depends-on ("config" "clib"))
      (:file "sbcl" :depends-on ("foreign"))
      (:file "spinlock" :depends-on ("sbcl"))
      (:file "pool" :depends-on ("spinlock"))
@@ -127,4 +132,5 @@
    (:file "src/save-core" :depends-on ("src"))
    (:static-file "COPYING")
    (:static-file "README")
+   (:static-file "INSTALL")
    (:static-file "incudinerc-example")))

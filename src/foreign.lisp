@@ -17,15 +17,6 @@
 (in-package :incudine.external)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (cffi:define-foreign-library (incudine
-                                :search-path #.(load-time-value
-                                                (or *compile-file-pathname*
-                                                    *load-pathname*)))
-    (:darwin "libincudine.dylib")
-    (:unix "libincudine.so")
-    (:cygwin "cygincudine-0.dll")
-    (t (:default "libincudine")))
-
   (cffi:define-foreign-library fftw
     (:darwin #+double-samples "libfftw3.dylib" #-double-samples "libfftw3f.dylib")
     (:unix #+double-samples "libfftw3.so" #-double-samples "libfftw3f.so")
@@ -59,13 +50,8 @@
            ,return-type
          ,@body)))
 
-  (defun load-incudine-library ()
-    (cffi:use-foreign-library incudine))
-
   (defun load-fftw-library ()
     (cffi:use-foreign-library fftw))
-
-  (unless (cffi:foreign-library-loaded-p 'incudine) (load-incudine-library))
 
   (unless (cffi:foreign-library-loaded-p 'fftw) (load-fftw-library))
 

@@ -340,10 +340,6 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
            #-linux ((probe-c-library "jack") :jack)
                    (t (no-jack-or-pa))))))))
 
-  (defmacro force-compile-system ()
-    (when (find-package "INCUDINE-SYSTEM")
-      `(setf ,(find-symbol "*INCUDINE-FORCE-COMPILE-P*" "INCUDINE-SYSTEM") t)))
-
   (defmacro add-c-object-to-link (key objlist &optional to-compile-p cflags)
     (let ((to-compile-form `(compile-c-object ,key ,cflags)))
       `(push ,(if to-compile-p
@@ -379,7 +375,6 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
       (unless (zerop (exit-code (invoke "sh" "-c" cmd)))
         (error "compilation of C library failed"))
       (store-compiler-options)
-      (force-compile-system)
       (values)))
 
   (defun compile-c-library ()
@@ -416,6 +411,4 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
               (format nil "~:[~;-DTLSF_STATISTIC=1 ~]-DBLOCK_ALIGN=~D"
                       *tlsf-statistic* *tlsf-block-align*))
             ;; Linking
-            (%compile-c-library ofiles libs-dep))))))
-
-    (compile-c-library))
+            (%compile-c-library ofiles libs-dep)))))))
