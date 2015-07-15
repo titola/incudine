@@ -16,15 +16,24 @@
 
 (in-package :incudine.vug)
 
+(defmacro with-ringbuffer-heads ((read-head write-head delay-samples mask)
+                                 &body body)
+  `(with ((,write-head 0)
+          (,read-head (logand (- ,write-head ,delay-samples) ,mask)))
+     (declare (type non-negative-fixnum ,read-head ,write-head))
+     ,@body))
+
+(defmacro update-ringbuffer (buffer input read-head write-head mask)
+  `(progn
+     (setf (smp-ref ,buffer ,write-head) ,input)
+     (setf ,read-head (logand (1+ ,read-head) ,mask))
+     (setf ,write-head (logand (1+ ,write-head) ,mask))))
+
 (defmacro %delay-s (input delay-samples ringbuf mask)
   (with-gensyms (read-head write-head)
-    `(with ((,write-head 0)
-            (,read-head (logand (- ,write-head ,delay-samples) ,mask)))
-       (declare (type non-negative-fixnum ,read-head ,write-head))
-       (setf (smp-ref ,ringbuf ,write-head) ,input)
+    `(with-ringbuffer-heads (,read-head ,write-head ,delay-samples ,mask)
        (prog1 (smp-ref ,ringbuf ,read-head)
-         (setf ,read-head (logand (1+ ,read-head) ,mask))
-         (setf ,write-head (logand (1+ ,write-head) ,mask))))))
+         (update-ringbuffer ,ringbuf ,input ,read-head ,write-head ,mask)))))
 
 (define-vug buf-delay-s ((buffer buffer) in
                          (delay-samples non-negative-fixnum))
@@ -74,20 +83,16 @@ Use all the BUFFER memory if the BUFFER size is a power of two."
               (,isamps (sample->fixnum ,dsamps))
               (,mask (buffer-mask ,%buffer))
               (,dt (clip ,isamps 0 ,mask))
-              (,data (buffer-data ,%buffer))
-              (,write-head 0)
-              (,read-head (logand (- ,write-head ,dt) ,mask)))
+              (,data (buffer-data ,%buffer)))
          (declare (type buffer ,%buffer)
-                  (type non-negative-fixnum ,isamps ,dt ,read-head ,write-head
-                        ,mask)
+                  (type non-negative-fixnum ,isamps ,dt ,mask)
                   (type sample ,dsamps) (type foreign-pointer ,data))
-         (initialize (foreign-zero-sample ,data (1+ ,mask)))
-         ,@(when write-head-var `((setq ,write-head-var ,write-head)))
-         (prog1 (select-delay-interp ,interpolation ,dsamps ,isamps ,data
-                                     ,read-head ,mask)
-           (setf (smp-ref ,data ,write-head) ,in)
-           (setf ,read-head (logand (1+ ,read-head) ,mask))
-           (setf ,write-head (logand (1+ ,write-head) ,mask)))))))
+         (with-ringbuffer-heads (,read-head ,write-head ,dt ,mask)
+           (initialize (foreign-zero-sample ,data (1+ ,mask)))
+           ,@(when write-head-var `((setq ,write-head-var ,write-head)))
+           (prog1 (select-delay-interp ,interpolation ,dsamps ,isamps ,data
+                                       ,read-head ,mask)
+             (update-ringbuffer ,data ,in ,read-head ,write-head ,mask)))))))
 
 (define-vug-macro vtap (buffer delay-time write-head-var
                         &optional interpolation)
@@ -132,17 +137,13 @@ Use all the BUFFER memory if the BUFFER size is a power of two."
             (,ringbuf (make-frame ,size :zero-p t))
             (,dsamps (vug-input (* ,delay-time *sample-rate*)))
             (,isamps (sample->fixnum ,dsamps))
-            (,dt (clip ,isamps 0 ,mask))
-            (,write-head 0)
-            (,read-head (logand (- ,write-head ,dt) ,mask)))
+            (,dt (clip ,isamps 0 ,mask)))
        (declare (type frame ,ringbuf) (type sample ,dsamps)
-                (type non-negative-fixnum ,mask ,isamps ,dt ,read-head
-                      ,write-head))
-       (prog1 (select-delay-interp ,interpolation ,dsamps ,isamps ,ringbuf
-                                   ,read-head ,mask)
-         (setf (smp-ref ,ringbuf ,write-head) ,in)
-         (setf ,read-head (logand (1+ ,read-head) ,mask))
-         (setf ,write-head (logand (1+ ,write-head) ,mask))))))
+                (type non-negative-fixnum ,mask ,isamps ,dt))
+       (with-ringbuffer-heads (,read-head ,write-head ,dt ,mask)
+         (prog1 (select-delay-interp ,interpolation ,dsamps ,isamps ,ringbuf
+                                     ,read-head ,mask)
+           (update-ringbuffer ,ringbuf ,in ,read-head ,write-head ,mask))))))
 
 (declaim (inline delay-feedback))
 (defun delay-feedback (delay-time decay-time)
