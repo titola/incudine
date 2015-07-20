@@ -167,10 +167,7 @@
                                            (* partial +half-pi+))))))
             (dotimes (i size)
               (incf (smp-ref c-array i)
-                    (+ (* scale (cos (the limited-sample
-                                       (* partial (the limited-sample
-                                                    (acos phase))))))
-                       offset))
+                    (+ (* scale (cheb partial phase)) offset))
               (incf phase phase-inc)))))
       (setf max-value +sample-zero+)
       (dotimes (i size)

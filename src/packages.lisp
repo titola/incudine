@@ -100,6 +100,7 @@
    #:lin->db #:db->lin
    #:linear-interp #:cos-interp #:cubic-interp
    #:t60->pole
+   #:cheb
    #:set-sample-rate #:set-sample-duration #:set-sound-velocity
    #:sample-rate-hook #:sample-duration-hook #:sound-velocity-hook
    #:non-negative-fixnum64 #:most-positive-fixnum64
@@ -307,7 +308,7 @@
                 #:non-negative-fixnum #:with-gensyms #:make-keyword)
   (:import-from #:cffi #:mem-ref #:mem-aref #:foreign-funcall)
   (:import-from :incudine.util #:*standard-optimize-settings*
-                #:*reduce-warnings*
+                #:*reduce-warnings* #:reduce-warnings
                 #:*sample-rate* #:+twopi+ #:+half-pi+
                 #:+foreign-sample-size+
                 #:foreign-pointer #:with-foreign-array
@@ -315,11 +316,12 @@
                 #:smp-ref
                 #:non-negative-sample
                 #:+sample-zero+ #:limited-sample #:sample->fixnum #:sample->int
-                #:nrt-msg)
+                #:nrt-msg #:cheb)
   (:export #:envelope
            #:partials #:gbuzz #:chebyshev-1 #:polynomial
            #:defwindow #:symmetric-loop #:symmetric-set #:bartlett #:blackman
-           #:gaussian #:hamming #:hanning #:kaiser #:sinc #:sine-window
+           #:dolph-chebyshev #:gaussian #:hamming #:hanning #:kaiser #:sinc
+           #:sine-window
            #:rand #:all-random-distributions #:rand-args))
 
 (defpackage :incudine

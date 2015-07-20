@@ -237,6 +237,16 @@
       (exp (* *sample-duration* (/ +log001+ time)))
       +sample-zero+))
 
+(declaim (inline cheb))
+(defun cheb (order x)
+  "Return the ORDER Chebyshev polynomial calculated at the point x."
+  (declare (type fixnum order) (type sample x))
+  (if (<= -1 x 1)
+      (cos (the limited-sample
+             (* order (the limited-sample (acos x)))))
+      (cosh (the limited-sample
+              (* order (the limited-sample (acosh x)))))))
+
 (declaim (inline set-sample-rate))
 (defun set-sample-rate (value)
   (setf *sample-rate* (sample value)
