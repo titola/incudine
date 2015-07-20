@@ -181,9 +181,9 @@ is the plan for a IFFT."
                                  (list input-buffer output-buffer
                                        window-buffer time-ptr))))))))
 
-(defun compute-fft (obj)
-  (declare (type fft obj))
-  (when (< (analysis-time obj) (now))
+(defun compute-fft (obj &optional force-p)
+  (declare (type fft obj) (type boolean force-p))
+  (when (or force-p (< (analysis-time obj) (now)))
     (let ((fftsize (fft-size obj))
           (winsize (fft-window-size obj)))
     (copy-from-ring-buffer (fft-input-buffer obj) (fft-ring-buffer obj) fftsize)
@@ -194,8 +194,8 @@ is the plan for a IFFT."
     (setf (analysis-time obj) (now))
     t)))
 
-(defmethod update-linked-object ((obj fft))
-  (compute-fft obj))
+(defmethod update-linked-object ((obj fft) force-p)
+  (compute-fft obj force-p))
 
 (declaim (inline fft-input))
 (defun fft-input (fft)
@@ -273,10 +273,12 @@ is the plan for a IFFT."
                                 (ifft-window-size obj)
                                 (abuffer-scale-factor abuf)))))
 
-(defun compute-ifft (obj arg)
-  (declare (type ifft obj) (type (or fft abuffer) arg))
-  (when (< (analysis-time obj) (now))
-    (if (fft-p arg) (compute-fft arg) (compute-abuffer arg))
+(defun compute-ifft (obj arg &optional force-p)
+  (declare (type ifft obj) (type (or fft abuffer) arg) (type boolean force-p))
+  (when (or force-p (< (analysis-time obj) (now)))
+    (if (fft-p arg)
+        (compute-fft arg force-p)
+        (compute-abuffer arg force-p))
     (unless (abuffer-coord-complex-p arg)
       (polar-to-complex (abuffer-data arg) (abuffer-nbins arg)))
     (foreign-copy (ifft-input-buffer obj) (abuffer-data arg)

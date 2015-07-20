@@ -282,12 +282,12 @@
                 #:foreign-copy #:%copy-from-ring-buffer
                 #:%copy-to-ring-output-buffer)
   (:export #:analysis #:analysis-p #:analysis-time #:touch-analysis
-           #:analysis-data
+           #:forget-analysis #:analysis-data
            #:window-size #:window-function #:rectangular-window
            #:abuffer #:make-abuffer #:abuffer-time #:abuffer-realpart
            #:abuffer-imagpart #:abuffer-size #:abuffer-link #:abuffer-nbins
            #:abuffer-normalized-p #:abuffer-polar #:abuffer-complex
-           #:resize-abuffer #:touch-abuffer
+           #:resize-abuffer #:touch-abuffer #:forget-abuffer
            #:pvbuffer #:buffer->pvbuffer #:pvbuffer-data #:pvbuffer-size
            #:pvbuffer-frames #:pvbuffer-channels #:pvbuffer-fft-size
            #:pvbuffer-block-size #:pvbuffer-scale-factor

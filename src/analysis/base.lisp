@@ -194,6 +194,12 @@
       (setf (analysis-time obj) (now)))
   obj)
 
+(declaim (inline forget-analysis))
+(defun forget-analysis (obj)
+  (declare (type analysis obj))
+  (setf (analysis-time obj) (1- (now)))
+  obj)
+
 (define-constant +fftw-measure+ 0)
 (define-constant +fftw-patient+ (ash 1 5))
 (define-constant +fftw-estimate+ (ash 1 6))
@@ -306,19 +312,19 @@
               (+ (the non-negative-fixnum (* ,nbin +foreign-complex-size+))
                  +foreign-sample-size+))))
 
-(defgeneric update-linked-object (obj)
+(defgeneric update-linked-object (obj force-p)
   (:documentation "Utility function used within COMPUTE-ABUFFER to update
 the linked object."))
 
-(defmethod update-linked-object ((obj t))
-  (declare (ignore obj))
+(defmethod update-linked-object ((obj t) force-p)
+  (declare (ignore obj force-p))
   nil)
 
-(defun compute-abuffer (abuf)
-  (declare (type abuffer abuf))
-  (when (< (abuffer-time abuf) (now))
+(defun compute-abuffer (abuf &optional force-p)
+  (declare (type abuffer abuf) (type boolean force-p))
+  (when (or force-p (< (abuffer-time abuf) (now)))
     (let ((link (abuffer-link abuf)))
-      (update-linked-object link)
+      (update-linked-object link force-p)
       (setf (abuffer-coord-complex-p abuf) (analysis-output-complex-p link))
       (setf (abuffer-time abuf) (now))
       (foreign-copy (abuffer-data abuf)
@@ -332,6 +338,12 @@ the linked object."))
   (declare (type abuffer obj))
   (if (< (abuffer-time obj) (now))
       (setf (abuffer-time obj) (now)))
+  obj)
+
+(declaim (inline forget-abuffer))
+(defun forget-abuffer (obj)
+  (declare (type abuffer obj))
+  (setf (abuffer-time obj) (1- (now)))
   obj)
 
 ;;; Iterate over the values of one or more ABUFFERs.
