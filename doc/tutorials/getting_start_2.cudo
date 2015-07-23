@@ -1,6 +1,8 @@
 ;;; Incudine
 ;;; Getting Start part 2
 
+(in-package :scratch)
+
 ;; The way to play back break point envelopes is inspired by the
 ;; SuperCollider envelope generator.  It is possible to define global
 ;; or local envelopes. The function to create a generic global
@@ -401,7 +403,7 @@ WAVEFORM-1
   (foreach-channel
     (cout (buffer-play buf rate start-pos loop-p #'stop))))
 
-(defvar loop-1 (buffer-load "/home/test/radiohead-1.wav"))
+(defvar loop-1 (buffer-load "/home/test/loop-1.wav"))
 ;; LOOP-1
 (describe loop-1)
 ;; #<BUFFER :FRAMES 354564 :CHANNELS 2 :SR 44100.0>
@@ -419,7 +421,7 @@ WAVEFORM-1
 ;;   FRAMES        = 354564
 ;;   CHANNELS      = 2
 ;;   SAMPLE-RATE   = 44100.0d0
-;;   FILE          = #P"/home/test/radiohead-1.wav"
+;;   FILE          = #P"/home/test/loop-1.wav"
 ;;   TEXTFILE-P    = NIL
 ;; ; No value
 
@@ -430,11 +432,11 @@ WAVEFORM-1
 ;; 2
 (set-controls 1 :rate 1 :start-pos #[300 ms])
 ;; NIL
-(defvar loop-2 (make-buffer 0 :file "/home/test/radiohead-2.wav"))
+(defvar loop-2 (make-buffer 0 :file "/home/test/loop-2.wav"))
 ;; LOOP-2
 (set-control 1 :buf loop-2)
 ;; #<BUFFER :FRAMES 310464 :CHANNELS 2 :SR 44100.0>
-(fill-buffer waveform-2 "/home/test/radiohead-4.wav")
+(fill-buffer waveform-2 "/home/test/loop-3.wav")
 ;; #<BUFFER :FRAMES 65536 :CHANNELS 1 :SR 48000.0>
 (set-control 1 :buf waveform-2)
 ;; #<BUFFER :FRAMES 65536 :CHANNELS 1 :SR 48000.0>

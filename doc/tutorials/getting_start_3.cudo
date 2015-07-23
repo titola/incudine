@@ -1,6 +1,8 @@
 ;;; Incudine
 ;;; Getting Start part 3
 
+(in-package :scratch)
+
 ;; A BUS is a place where to store a value of SAMPLE type.
 ;; For example:
 

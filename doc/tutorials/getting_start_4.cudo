@@ -1,6 +1,8 @@
 ;;; Incudine
 ;;; Getting Start part 4
 
+(in-package :scratch)
+
 ;; DSP-DEBUG is an utility to debug a definition of a DSP. The syntax
 ;; is the same of DSP! but DSP-DEBUG returns a function to call with
 ;; the arguments of the DSP. The result of the evaluation of that
