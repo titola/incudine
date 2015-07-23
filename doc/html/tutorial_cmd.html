@@ -272,15 +272,15 @@ incudine amp.cudo -s amp-test.rego</pre>
 (eval-when (:compile-toplevel :load-toplevel)
   (lv2-&gt;vug "http://plugin.org.uk/swh-plugins/gverb" gverb))
 
-(dsp! gverb-test (freq dt room-size rev-time damping input-bw
-                  dry early-level tail-level scale)
+(dsp! gverb-test (room-size rev-time damping input-bw dry early-level
+                  tail-level scale)
   (frame-out (gverb room-size rev-time damping input-bw
                     dry early-level tail-level (audio-in 0))
              2 0 scale))
 ---
 
 cat &gt; gverb-test.rego &lt;&lt;'---'
-0 gverb-test 1 .05 80 8 0.5 0.75 -70 0 -17 .4 :id 1
+0 gverb-test 80 8 0.5 0.75 -70 0 -17 .4 :id 1
 3 set-controls 1 :freq .3 :dt .05 :dry -77 :rev-time 30 :tail-level -7
 6 set-control 1 :rev-time 1
 ---
