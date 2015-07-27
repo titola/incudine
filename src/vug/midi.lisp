@@ -165,7 +165,7 @@
                           (svref *midi-table* channel))))
     (the (integer 0 127) (highest-note-priority note-prio-vec))))
 
-(define-vug midi-cps ((tun tuning) (channel fixnum) (keynum (unsigned-byte 8)))
+(define-vug midi-cps ((tun tuning) (keynum (unsigned-byte 8)))
   (with ((data (tuning-data tun)))
     (declare (type pointer data))
     (smp-ref data keynum)))
