@@ -175,7 +175,6 @@
    #:foreign-length #:foreign-array-type-of
    #:foreach-tick #:foreach-channel #:foreach-frame
    #:counter #:downsamp #:snapshot #:with-control-period
-   #:generic-rate ; (deprecated)
    #:samphold #:interpolate
    #:tick #:external-variable #:init-only #:initialize
    #:with-follow #:without-follow
@@ -207,7 +206,6 @@
    ;; filter
    #:~ #:pole #:pole* #:zero #:zero* #:two-pole #:two-zero
    #:cs-tone #:cs-atone
-   #:one-pole #:one-zero ; (deprecated)
    #:dcblock #:lag #:lag-ud
    #:env-follower #:maf #:median #:decay #:decay-2 #:biquad #:reson
    #:resonz #:resonr #:ringz #:ringr
@@ -448,7 +446,6 @@
            #:unsafe-control-value #:unsafe-get-controls #:unsafe-set-controls
            #:unsafe-define-map #:unsafe-remove-map #:unsafe-mapvoicer
            #:unsafe-panic #:midi-event #:fill-freq-table #:fill-amp-table
-           #:fill-freq-vector #:fill-amp-vector ; deprecated
            #:midi-bind #:scale-midi-amp
            #:keynum->cps #:velocity->amp #:set-midi-freq-function
            #:set-midi-amp-function))
