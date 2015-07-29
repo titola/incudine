@@ -110,8 +110,7 @@
                        :%restart-level (envelope-%restart-level envelope)
                        :real-time-p (rt-thread-p)
                        :foreign-free free-function)))
-            (foreign-copy data (envelope-data envelope)
-                          (* data-size +foreign-sample-size+))
+            (foreign-copy-samples data (envelope-data envelope) data-size)
             (tg:finalize new (lambda () (funcall free-function data)))
             new)))))
 

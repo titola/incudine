@@ -281,10 +281,8 @@ is the plan for a IFFT."
         (compute-abuffer arg force-p))
     (unless (abuffer-coord-complex-p arg)
       (polar-to-complex (abuffer-data arg) (abuffer-nbins arg)))
-    (foreign-copy (ifft-input-buffer obj) (abuffer-data arg)
-                  (the non-negative-fixnum
-                    (* (the non-negative-fixnum (ifft-input-size obj))
-                       +foreign-sample-size+)))
+    (foreign-copy-samples (ifft-input-buffer obj) (abuffer-data arg)
+                          (ifft-input-size obj))
     (ifft-execute (ifft-plan obj) (ifft-input-buffer obj)
                   (ifft-output-buffer obj))
     (ifft-apply-window obj arg)

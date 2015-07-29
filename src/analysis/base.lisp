@@ -327,10 +327,8 @@ the linked object."))
       (update-linked-object link force-p)
       (setf (abuffer-coord-complex-p abuf) (analysis-output-complex-p link))
       (setf (abuffer-time abuf) (now))
-      (foreign-copy (abuffer-data abuf)
-                    (analysis-output-buffer link)
-                    (the non-negative-fixnum
-                         (* (abuffer-size abuf) +foreign-sample-size+)))))
+      (foreign-copy-samples (abuffer-data abuf) (analysis-output-buffer link)
+                            (abuffer-size abuf))))
   abuf)
 
 (declaim (inline touch-abuffer))

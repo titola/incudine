@@ -52,7 +52,6 @@
      incudine.util::force-sample-format
      incudine.external:foreign-alloc-sample
      incudine.external:foreign-zero-sample
-     incudine.external:foreign-copy
      incudine.external:mouse-event
      incudine.external:mouse-init
      incudine.external:mouse-loop-start

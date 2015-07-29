@@ -47,7 +47,8 @@
    #:apply-window #:apply-scaled-window #:apply-scaled-rectwin
    #:apply-zero-padding
    #:pconv-multiply-partitions
-   #:foreign-copy #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
+   #:foreign-copy #:foreign-copy-samples
+   #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
    #:rt-audio-init #:rt-audio-start #:rt-audio-stop #:rt-get-input
    #:rt-set-output
    #:rt-condition-wait #:rt-transfer-to-c-thread #:rt-cycle-begin #:rt-cycle-end
@@ -278,7 +279,7 @@
                 #:fft-execute #:ifft-execute
                 #:apply-window #:apply-scaled-window #:apply-scaled-rectwin
                 #:apply-zero-padding
-                #:foreign-copy #:%copy-from-ring-buffer
+                #:foreign-copy #:foreign-copy-samples #:%copy-from-ring-buffer
                 #:%copy-to-ring-output-buffer)
   (:export #:analysis #:analysis-p #:analysis-time #:touch-analysis
            #:forget-analysis #:analysis-data
@@ -339,7 +340,7 @@
                 #:complex-to-polar #:polar-to-complex
                 #:fft-execute #:ifft-execute
                 #:apply-window #:apply-scaled-window #:apply-zero-padding
-                #:foreign-copy
+                #:foreign-copy #:foreign-copy-samples
                 #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
                 #:rt-audio-init #:rt-audio-start #:rt-audio-stop
                 #:rt-get-input #:rt-set-output #:rt-cycle-begin #:rt-cycle-end

@@ -142,6 +142,13 @@
   (src :pointer)
   (bytes :unsigned-int))
 
+(declaim (inline foreign-copy-samples))
+(defun foreign-copy-samples (dest src size)
+  (declare (type cffi:foreign-pointer dest src)
+           (type alexandria:non-negative-fixnum size))
+  (foreign-copy dest src (the alexandria:non-negative-fixnum
+                           (* size +foreign-sample-size+))))
+
 (cffi:defcfun ("init_memory_pool" init-foreign-memory-pool) :unsigned-int
   (size :unsigned-int)
   (ptr :pointer))

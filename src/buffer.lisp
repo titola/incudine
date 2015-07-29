@@ -278,8 +278,8 @@ It is possible to use line comments that begin with the `;' char."
                               :channels (buffer-channels buffer)
                               :sample-rate (buffer-sample-rate buffer)
                               :real-time-p (rt-thread-p))))
-        (foreign-copy (buffer-data new) (buffer-data buffer)
-                      (* (buffer-size buffer) +foreign-sample-size+))
+        (foreign-copy-samples (buffer-data new) (buffer-data buffer)
+                              (buffer-size buffer))
         (copy-struct-slots buffer (file textfile-p) buffer new)
         new)))
 

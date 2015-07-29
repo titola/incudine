@@ -148,8 +148,7 @@
                     :points points
                     :max-points max-points
                     :constant-p (tempo-envelope-constant-p tenv))))
-        (foreign-copy data (tempo-envelope-time-warp tenv)
-                      (* points +foreign-sample-size+))
+        (foreign-copy-samples data (tempo-envelope-time-warp tenv) points)
         (tg:finalize new (lambda () (foreign-free data)))
         new)))
 
