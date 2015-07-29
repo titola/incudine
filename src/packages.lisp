@@ -284,9 +284,10 @@
   (:export #:analysis #:analysis-p #:analysis-time #:touch-analysis
            #:forget-analysis #:analysis-data
            #:window-size #:window-function #:rectangular-window
-           #:abuffer #:make-abuffer #:abuffer-time #:abuffer-realpart
-           #:abuffer-imagpart #:abuffer-size #:abuffer-link #:abuffer-nbins
-           #:abuffer-normalized-p #:abuffer-polar #:abuffer-complex
+           #:abuffer #:make-abuffer #:abuffer-p #:abuffer-data #:abuffer-time
+           #:abuffer-realpart #:abuffer-imagpart #:abuffer-size #:abuffer-link
+           #:abuffer-nbins #:abuffer-normalized-p
+           #:abuffer-polar #:abuffer-complex
            #:resize-abuffer #:touch-abuffer #:forget-abuffer
            #:pvbuffer #:buffer->pvbuffer #:pvbuffer-data #:pvbuffer-size
            #:pvbuffer-frames #:pvbuffer-channels #:pvbuffer-fft-size
@@ -316,7 +317,7 @@
                 #:non-negative-sample
                 #:+sample-zero+ #:limited-sample #:sample->fixnum #:sample->int
                 #:nrt-msg #:cheb)
-  (:export #:envelope
+  (:export #:analysis #:envelope
            #:partials #:gbuzz #:chebyshev-1 #:polynomial
            #:defwindow #:symmetric-loop #:symmetric-set #:bartlett #:blackman
            #:dolph-chebyshev #:gaussian #:hamming #:hanning #:kaiser #:sinc
