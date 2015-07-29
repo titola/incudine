@@ -22,6 +22,7 @@
   (import
    '(incudine:smp-ref
      incudine:free
+     incudine:free-p
      incudine:now)))
 
 (defstruct (ring-buffer (:copier nil))
@@ -275,8 +276,11 @@
                              (funcall foreign-free time-ptr)))
           obj)))))
 
+(defmethod free-p ((obj abuffer))
+  (zerop (abuffer-size obj)))
+
 (defmethod free ((obj abuffer))
-  (when (plusp (abuffer-size obj))
+  (unless (free-p obj)
     (mapc (abuffer-foreign-free obj)
           (list (abuffer-data obj) (abuffer-time-ptr obj)))
     (setf (abuffer-data obj) (null-pointer)

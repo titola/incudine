@@ -101,8 +101,11 @@ is the plan for a IFFT."
                                  (or flags +fft-plan-best+))
                         realtime-p))))
 
+(defmethod free-p ((obj fft-common))
+  (zerop (fft-common-size obj)))
+
 (defmethod free ((obj fft-common))
-  (unless (= (fft-common-size obj) 0)
+  (unless (free-p obj)
     (mapc (analysis-foreign-free obj)
           (list #1=(analysis-input-buffer obj)
                 #2=(analysis-output-buffer obj)
