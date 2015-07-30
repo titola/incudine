@@ -282,56 +282,35 @@ scale factor."
             (* 2.0 (- c2 c3))
             (- c1 c4 c5))))
 
-;;; Second order Butterworth filters.
-;;; Formulas from Charles Dodge, "Computer music: synthesis,
-;;; composition, and performance"
-(defmacro %butter-filter (in c1 c2 c3 c4 c5)
-  (with-gensyms (value old1 old2)
-    `(with-samples (,old1 ,old2)
-       (let ((,value (- ,in (* ,c4 ,old1) (* ,c5 ,old2))))
-         (prog1 (+ (* ,value ,c1) (* ,c2 ,old1) (* ,c3 ,old2))
-           (setf ,old2 ,old1 ,old1 ,value))))))
-
+;;; Second order Butterworth filters obtained from the analog prototypes after
+;;; the application of the bilinear transform: s = c * (1 - z^-1) / (1 + z^-1)
 (define-vug butter-lp (in fcut)
   "Second-order Butterworth lowpass filter."
   (with-samples ((c (/ 1.0 (tan (* fcut *pi-div-sr*))))
                  (cc (* c c))
-                 (sqrt2-mult-c (* +sqrt2+ c))
-                 (c1 (/ 1.0 (+ 1.0 sqrt2-mult-c cc)))
-                 (c2 (+ c1 c1))
-                 (c4 (* 2.0 (- 1.0 cc) c1))
-                 (c5 (* (+ (- 1.0 sqrt2-mult-c) cc) c1)))
-    (%butter-filter in c1 c2 c1 c4 c5)))
+                 (sqrt2-mult-c (* +sqrt2+ c)))
+    (biquad in 1 2 1 (+ cc sqrt2-mult-c 1) (* 2 (- 1 cc))
+            (- (+ cc 1) sqrt2-mult-c))))
 
 (define-vug butter-hp (in fcut)
   "Second-order Butterworth highpass filter."
   (with-samples ((c (tan (* fcut *pi-div-sr*)))
                  (cc (* c c))
-                 (sqrt2-mult-c (* +sqrt2+ c))
-                 (c1 (/ 1.0 (+ 1.0 sqrt2-mult-c cc)))
-                 (c2 (- (+ c1 c1)))
-                 (c4 (* 2.0 (- cc 1.0) c1))
-                 (c5 (* (+ (- 1.0 sqrt2-mult-c) cc) c1)))
-    (%butter-filter in c1 c2 c1 c4 c5)))
+                 (sqrt2-mult-c (* +sqrt2+ c)))
+    (biquad in 1 -2 1 (+ cc sqrt2-mult-c 1) (* 2 (- cc 1))
+            (- (+ cc 1) sqrt2-mult-c))))
 
 (define-vug butter-bp (in fcut bandwidth)
   "Second-order Butterworth bandpass filter."
   (with-samples ((c (/ 1.0 (tan (* bandwidth *pi-div-sr*))))
-                 (d (* 2.0 (cos (* fcut *twopi-div-sr*))))
-                 (c1 (/ 1.0 (+ 1.0 c)))
-                 (c3 (- c1))
-                 (c4 (* (- c) d c1))
-                 (c5 (* (- c 1.0) c1)))
-    (%butter-filter in c1 0.0 c3 c4 c5)))
+                 (d (* -2.0 (cos (* fcut *twopi-div-sr*)))))
+    (biquad in 1 0 -1 (+ c 1) (* c d) (- c 1))))
 
 (define-vug butter-br (in fcut bandwidth)
   "Second-order Butterworth bandreject filter."
   (with-samples ((c (tan (* bandwidth *pi-div-sr*)))
-                 (d (* 2.0 (cos (* fcut *twopi-div-sr*))))
-                 (c1 (/ 1.0 (+ 1.0 c)))
-                 (c2 (- (* d c1)))
-                 (c5 (* (- 1.0 c) c1)))
-    (%butter-filter in c1 c2 c1 c2 c5)))
+                 (d (* -2.0 (cos (* fcut *twopi-div-sr*)))))
+    (biquad in 1 d 1 (+ c 1) d (- 1 c))))
 
 ;;; Based on Josep Comajuncosas' 18dB/oct resonant 3-pole LPF with
 ;;; tanh dist (Csound)
