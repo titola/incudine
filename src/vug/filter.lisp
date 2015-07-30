@@ -108,14 +108,16 @@ a 60 dB lag ATTACK-TIME and DECAY-TIME."
 
 (define-vug biquad (in b0 b1 b2 a0 a1 a2)
   "Biquad filter."
-  (with-samples (x1 x2 y y1 y2 (a0r (/ a0)))
-    (setf y (- (+ (* b0 a0r in)
-                  (* b1 a0r x1)
-                  (* b2 a0r x2))
-               (* a1 a0r y1)
-               (* a2 a0r y2))
-          x2 x1 x1 in y2 y1 y1 y)
-    y))
+  (with-samples (x1 x2 y y1 y2)
+    (with-samples ((a0r (/ a0))
+                   (n0 (* b0 a0r))
+                   (n1 (* b1 a0r))
+                   (n2 (* b2 a0r))
+                   (d1 (* a1 a0r))
+                   (d2 (* a2 a0r)))
+      (setf y (- (+ (* n0 in) (* n1 x1) (* n2 x2)) (* d1 y1) (* d2 y2))
+            x2 x1 x1 in y2 y1 y1 y)
+      y)))
 
 ;;; Two pole resonant filters.
 ;;;
