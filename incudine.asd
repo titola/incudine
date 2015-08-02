@@ -19,7 +19,7 @@
 ;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 (defsystem "incudine"
-  :version "0.8.2"
+  :version "0.8.3"
   :description "Incudine is a Music/DSP programming environment."
   :licence "GPL v2"
   :author "Tito Latini"

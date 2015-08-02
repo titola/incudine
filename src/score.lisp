@@ -24,15 +24,67 @@
 ;;;     start-time-in-beats   function-name   [arg1]   [arg2]   ...
 ;;;
 
-(defvar *score-statements* (make-hash-table :test #'equal))
-(declaim (type hash-table *score-statements*))
-
 (declaim (special *score-objects-to-free*
                   ;; Stack used to check recursive inclusions of rego files.
                   *include-rego-stack*)
          (type list *score-objects-to-free* *include-rego-stack*))
 
+(defvar *score-statements* (make-hash-table :test #'equal))
+(declaim (type hash-table *score-statements*))
+
+(defun ignore-score-statements (name-list)
+  "Ignore the score statements in NAME-LIST. The name of a statement is
+a symbol, a string or a list of two score statements which delimit a
+score block to ignore."
+  (flet ((string-or-symbol-p (x)
+           (or (stringp x) (symbolp x)))
+         (statement-name (x)
+           (if (stringp x) x (symbol-name x))))
+    (assert (every (lambda (x)
+                     (or (string-or-symbol-p x)
+                         (and (consp x)
+                              (= (length x) 2)
+                              (string-or-symbol-p (first x))
+                              (string-or-symbol-p (second x)))))
+                   name-list))
+    (dolist (i name-list name-list)
+      (let ((name (typecase i
+                    (symbol (symbol-name i))
+                    (cons (statement-name (car i)))
+                    (otherwise i))))
+        (setf (gethash name *score-statements*)
+              (if (consp i)
+                  (cons :ignore (second i))
+                  :ignore))))))
+
+(defun score-statement-to-ignore-p (name)
+  (declare (type string name))
+  (let ((res (gethash name *score-statements*)))
+    (unless (null res)
+      (if (consp res)
+          (values (eq (car res) :ignore) (cdr res))
+          (values (eq res :ignore) nil)))))
+
+(when (zerop (hash-table-count *score-statements*))
+  ;; Score statements ignored by default, useful to edit a regofile
+  ;; with Emacs in org-mode.
+  ;;
+  ;; Note: if a line starts with #+... and the word after sharp-plus
+  ;; is not a feature in *FEATURES*, the score statement is ignored if
+  ;; it is undefined. That rule is useful to ignore all the #+KEYWORDS
+  ;; used in org-mode.
+  (ignore-score-statements
+    (append '("*" "**" "***" "****" "*****" "+" "-" "/" "!" "^" "$" "$$"
+              "#" "DEADLINE:" "SCHEDULED:" ("#+BEGIN:" "#+END:"))
+            (mapcar (lambda (name)
+                      (list (format nil "#+BEGIN_~A" name)
+                            (format nil "#+END_~A" name)))
+                    '("VERSE" "QUOTE" "CENTER" "COMMENT" "EXAMPLE" "SRC"
+                      "LATEX" "ABSTRACT" "PROOF" "ASCII" "BEAMER" "HTML"
+                      "VIDEO" "ODT" "TEXINFO")))))
+
 ;;; Define an arbitrary score statement.
+;;; The name of the score statement is a symbol or a string.
 ;;; The statement is formed by the elements of the returned list.
 ;;;
 ;;; Example:
@@ -52,7 +104,8 @@
   (multiple-value-bind (decl rest)
       (incudine.util::separate-declaration body)
     `(progn
-       (setf (gethash (symbol-name ',name) *score-statements*)
+       (setf (gethash ,(if (stringp name) name `(symbol-name ',name))
+                      *score-statements*)
              (lambda ,args ,@decl
                (let* ((*print-pretty* nil)
                       (str (format nil "~S" (progn ,@rest)))
@@ -64,12 +117,17 @@
 
 (declaim (inline delete-score-statement))
 (defun delete-score-statement (name)
-  "Delete the score statement defined by DEFSCORE-STATEMENT."
+  "Delete the score statement defined by DEFSCORE-STATEMENT
+or IGNORE-SCORE-STATEMENTS."
   (remhash (symbol-name name) *score-statements*))
+
+(declaim (inline next-blank-position))
+(defun next-blank-position (string)
+  (position-if #'blank-char-p string))
 
 (declaim (inline score-statement-name))
 (defun score-statement-name (str)
-  (let ((name-endpos (position-if #'blank-char-p str)))
+  (let ((name-endpos (next-blank-position str)))
     (values (string-upcase (subseq str 0 name-endpos))
             name-endpos)))
 
@@ -84,8 +142,8 @@
       (score-statement-name str)
     (when name
       (let ((fn (gethash name *score-statements*)))
-        (declare (type (or function null) fn))
-        (when fn
+        (declare (type (or function symbol cons) fn))
+        (when (functionp fn)
           (apply fn (when name-endpos
                       (score-statement-args str name-endpos))))))))
 
@@ -136,16 +194,54 @@
   (declare (type string string))
   (if (char= (char string 0) #\()
       (%time-tagged-function-p string)
-      (let ((space-pos (position-if #'blank-char-p string)))
+      (let ((space-pos (next-blank-position string)))
         (declare (type (or non-negative-fixnum null) space-pos))
         (when space-pos
           (find-if-not #'blank-char-p string :start space-pos)))))
 
-(declaim (inline score-skip-line-p))
-(defun score-skip-line-p (line)
-  (declare (type string line))
-  (let ((non-blank (find-if-not #'blank-char-p line)))
-    (or (null non-blank) (char= non-blank #\;))))
+(defun org-table-separator-p (line)
+  (and (char= (char line 0) #\|)
+       (every (lambda (c) (member c '(#\+ #\- #\|))) line)))
+
+(defun sharp-plus-to-skip (line)
+  (and (char= (char line 0) #\#)
+       (> (length line) 2)
+       (char= (char line 1) #\+)
+       (char/= (char line 2) #\()
+       (let ((name (string-upcase
+                     (subseq line 2 (next-blank-position line)))))
+         (and (null (gethash name  *score-statements*))
+              (null (find name *features* :key #'symbol-name
+                          :test #'string=))))))
+
+(declaim (inline ignore-score-statement-with-colon-p))
+(defun ignore-score-statement-with-colon-p (name)
+  (declare (type string name))
+  ;; A keyword is not ignored because it could be a label.
+  (find #\: name :start 1))
+
+(defun ignore-score-statement (name stream)
+  (declare (type string name) (type stream stream))
+  (or (multiple-value-bind (ignore-p block-end)
+          (score-statement-to-ignore-p name)
+        (when ignore-p
+          (when block-end
+            (do ((line (read-line stream) (read-line stream)))
+                ((string= (score-statement-name (string-trim-blank line))
+                          block-end))))
+          t))
+      (ignore-score-statement-with-colon-p name)))
+
+(defun score-skip-line-p (line stream)
+  (declare (type string line) (type stream stream))
+  (let ((str (string-trim-blank line)))
+    (or (zerop (length str))
+        (let ((c (char str 0)))
+          (and (char/= c #\()
+               (or (char= c #\;)
+                   (ignore-score-statement (score-statement-name str) stream)
+                   (org-table-separator-p str)
+                   (sharp-plus-to-skip str)))))))
 
 (defmacro %at-sample (at-fname beats func-symbol &rest args)
   `(,at-fname ,beats ,func-symbol ,@args))
@@ -172,6 +268,27 @@
                                 (subseq line time-pos))
                               nil))))
 
+;;; Ignore a vertical line followed by a white space or a closed parenthesis.
+;;; Note: also "#+TBLFM:" is ignored by default; it means that we can edit a
+;;; spreadsheet in a rego file with Emacs in org-mode (or orgtbl-mode).
+(defun vertical-line-reader (stream char)
+  (declare (ignore char))
+  (let ((c (peek-char nil stream t nil nil)))
+    (if (member c '(#\Space #\Tab #\)))
+        (values)
+        (let (chars)
+          (do ((c (read-char stream) (read-char stream)))
+              ((char= c #\|)
+               (intern (coerce (nreverse chars) 'string)))
+            (push c chars))))))
+
+(defvar *score-readtable*
+  (let ((*readtable* (copy-readtable nil)))
+    (add-sharp-square-bracket-syntax)
+    (set-macro-character #\| #'vertical-line-reader)
+    *readtable*)
+  "Readtable for Snd output.")
+
 (defun score-line->sexp (line at-fname &optional args)
   (declare (type string line) (type list args))
   (if (include-regofile-p line)
@@ -185,6 +302,7 @@
                    (apply #'%write-regofile incfile
                           `(,at-fname ,@(cdr args) t ,time))))))
       (let ((line (or (expand-score-statement line) line))
+            (*readtable* *score-readtable*)
             (*read-default-float-format* *sample-type*))
         (declare (type string line))
         (if (time-tagged-function-p line)
@@ -199,7 +317,7 @@
   (loop for line of-type (or string null)
                  = (read-score-line stream)
         while line
-        unless (score-skip-line-p line)
+        unless (score-skip-line-p line stream)
         collect (score-line->sexp line at-fname
                                   (and (include-regofile-p line) args))))
 
@@ -212,7 +330,7 @@
            (first-score-stmt (line)
              (declare (type (or string null) line))
              (when line
-               (cond ((score-skip-line-p line)
+               (cond ((score-skip-line-p line stream)
                       (first-score-stmt (read-score-line stream)))
                      ((score-bindings-p line)
                       ;; Local bindings at the beginning of the score

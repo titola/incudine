@@ -38,3 +38,7 @@
       :md5 #(215 28 243 91 9 95 147 192 203 232 199 70 157 178 29 32))
   ;; Lisp tag shadowed in the included rego file.
   (test-regofile "include-3.rego"))
+
+(with-dsp-test (org-mode.1
+      :md5 #(216 196 146 164 88 88 197 20 138 165 207 215 200 7 22 251))
+  (test-regofile "org-mode.rego"))

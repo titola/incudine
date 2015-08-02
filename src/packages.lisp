@@ -421,8 +421,9 @@
    #:make-linen #:make-perc #:make-cutoff #:make-asr #:make-adsr #:make-dadsr
    ;; nrt
    #:with-nrt #:bounce-to-disk #:bounce-to-buffer
+   #:*score-readtable*
    #:regofile->sexp #:regofile->function #:regofile->lispfile
-   #:defscore-statement #:delete-score-statement))
+   #:defscore-statement #:ignore-score-statements #:delete-score-statement))
 
 (defpackage :incudine.voicer
   (:use :cl)
