@@ -45,6 +45,35 @@
         (push ch acc)))
   (0 1 2 3 4 5 6 7))
 
+(define-constant +rt-block-size+ 64)
+
+(defvar *rt-block-size* 1)
+
+(deftest set-rt-block-size
+    (let ((incudine::*default-rt-loop-cb* #'incudine::rt-loop-1)
+          (incudine::*block-samples* *number-of-output-bus-channels*)
+          (incudine::*block-size* 1)
+          (new-block-size 32)
+          (*rt-block-size* 1)
+          (tests nil))
+      (macrolet ((add-test (block-size cb)
+                   `(progn
+                      (set-rt-block-size ,block-size)
+                      (push (list (= (block-size) ,block-size)
+                                  (eq incudine::*default-rt-loop-cb* ,cb))
+                            tests)))
+                 (test-result ()
+                   `(nreverse tests)))
+        (add-test new-block-size #'incudine::rt-loop-1)
+        (add-test *rt-block-size* #'incudine::rt-loop-1)
+        (setf *rt-block-size* 128)
+        (add-test *rt-block-size* #'incudine::rt-loop-1)
+        (add-test +rt-block-size+ #'incudine::rt-loop-64)
+        (add-test 1 #'incudine::rt-loop-1)
+        (add-test 64 #'incudine::rt-loop-64)
+        (test-result)))
+  ((T NIL) (T T) (T NIL) (T T) (T T) (T T)))
+
 ;;;; Interpolation
 
 (deftest linear-interp

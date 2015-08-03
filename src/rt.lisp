@@ -177,14 +177,14 @@
   (with-gensyms (frames reset)
     `(block nil
        (rt-set-io-buffers *%input-pointer* *%output-pointer*)
-       ,(unless (= block-size 1)
-          `(reduce-warnings
-             (when (plusp (rem ,frames-per-buffer ,block-size))
-               (msg warn
-                    "Block size ~D is not a multiple of ~D (frames per buffer)"
-                    ,block-size ,frames-per-buffer)
-               (call-after-stop)
-               (return-from nil))))
+       (unless (= ,block-size 1)
+         (reduce-warnings
+           (when (plusp (rem ,frames-per-buffer ,block-size))
+             (msg warn
+                  "Block size ~D is not a multiple of ~D (frames per buffer)"
+                  ,block-size ,frames-per-buffer)
+             (call-after-stop)
+             (return-from nil))))
        (setf *block-size* ,block-size)
        (setf *block-samples* (* *block-size* *number-of-output-bus-channels*))
        (setf rt-state 0)
@@ -224,10 +224,13 @@
 #-dummy-audio
 (defmacro rt-loop-callback (block-size)
   "Return a realtime loop callback with an arbitrary BLOCK-SIZE."
-  `(lambda (frames-per-buffer)
-     (declare #.*standard-optimize-settings*
-              (type non-negative-fixnum frames-per-buffer))
-     (rt-loop-form frames-per-buffer ,block-size)))
+  (with-gensyms (%block-size)
+    `(lambda (frames-per-buffer)
+       (declare #.*standard-optimize-settings*
+                (type non-negative-fixnum frames-per-buffer))
+       (let ((,%block-size ,block-size))
+         (declare (type non-negative-fixnum ,%block-size))
+         (rt-loop-form frames-per-buffer ,%block-size)))))
 
 (defun rt-preamble ()
   (nrt-start)
@@ -257,10 +260,10 @@
   `(progn
      (rt-stop)
      (setf *default-rt-loop-cb*
-           ,(case value
-              ( 1 '#'rt-loop-1)
-              (64 '#'rt-loop-64)
-              (otherwise `(rt-loop-callback ,value))))
+           (case ,value
+             ( 1 #'rt-loop-1)
+             (64 #'rt-loop-64)
+             (otherwise (rt-loop-callback ,value))))
      (setf *block-samples* (* ,value *number-of-output-bus-channels*))
      (msg debug "set realtime block size to ~D" ,value)
      (setf *block-size* ,value)))
