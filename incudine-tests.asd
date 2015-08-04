@@ -52,6 +52,7 @@
      (:file "vug/with-or-without-follow" :depends-on ("vug/base"))
      (:file "vug/reinit" :depends-on ("vug/base"))
      (:file "vug/delete-var" :depends-on ("vug/base"))
+     (:file "vug/let-over-vug" :depends-on ("vug/base"))
      (:file "vug/ugen-reinit" :depends-on ("vug/base"))
      (:file "vug/delay/delay-1" :depends-on ("vug/base"))
      (:file "vug/delay/delay-2" :depends-on ("vug/base"))

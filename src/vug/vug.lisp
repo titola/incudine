@@ -131,6 +131,7 @@
   (skip-init-set-p nil :type boolean)
   (conditional-expansion nil :type symbol)
   (input-p nil :type boolean)
+  (local-p nil :type boolean)
   (init-time-p t :type boolean)
   (performance-time-p nil :type boolean)
   (variables-to-recheck nil :type list))
@@ -299,6 +300,11 @@
           (gensym (subseq name 0 (1+ (position-if #'alpha-char-p name
                                                   :from-end t)))))))
 
+(declaim (inline make-local-vug-variable))
+(defun make-local-vug-variable (name)
+  (%make-vug-variable :name name :value name :local-p t :to-set-p nil
+                      :skip-init-set-p t))
+
 (defun make-vug-variable (name value &optional type)
   (multiple-value-bind (input-p value ref-count)
       (cond ((vug-input-p value)
@@ -384,8 +390,9 @@
 
 (declaim (inline vug-variable-to-preserve-p))
 (defun vug-variable-to-preserve-p (var)
-  (and (boundp '*variables-to-preserve*)
-       (member var *variables-to-preserve*)))
+  (or (vug-variable-local-p var)
+      (and (boundp '*variables-to-preserve*)
+           (member var *variables-to-preserve*))))
 
 (defun preserve-vug-variable (obj)
   (declare (type vug-variable obj))
@@ -517,8 +524,8 @@
 
 (defun parse-let-form (form flist mlist floop-info)
   (let ((args (cadr form)))
-    `(let ,(mapcar (lambda (x) `(,(car x) ',(car x))) args)
-       (declare (type symbol ,@(mapcar #'car args)))
+    `(let ,(mapcar (lambda (x) `(,(car x) (make-local-vug-variable ',(car x))))
+                   args)
        (make-vug-function :name ',(car form)
          :inputs (list (list ,@(mapcar (lambda (x)
                                          `(list ,(car x)

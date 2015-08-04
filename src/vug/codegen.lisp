@@ -152,6 +152,15 @@
                                    conditional-expansion-p
                                    initialize-body-p))))))
 
+;;; We cannot move LET out of the performance function, therefore, if
+;;; LET is within the body of a VUG, the related bound variables are
+;;; performance-time.
+(defun update-local-vug-variables (obj vug-body-p)
+  (when (and vug-body-p
+             (member (vug-object-name obj) '("LET" "LET*") :test #'string=))
+    (dolist (bind (car (vug-function-inputs obj)))
+      (setf (vug-variable-performance-time-p (car bind)) t))))
+
 (declaim (inline maybe-progn))
 (defun maybe-progn (forms)
   (if (cdr forms) `(progn ,@forms) (car forms)))
@@ -229,7 +238,8 @@
                                                     conditional-expansion-p))))
                           (t (blockexpand cached param-plist t
                                           init-pass-p))))))
-               (t (cons (vug-object-name obj)
+               (t (update-local-vug-variables obj vug-body-p)
+                  (cons (vug-object-name obj)
                         (blockexpand (vug-function-inputs obj)
                                      param-plist vug-body-p
                                      init-pass-p conditional-expansion-p
