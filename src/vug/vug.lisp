@@ -166,6 +166,14 @@
                          (:copier nil))
   (inputs nil :type list))
 
+(defstruct (local-vug-functions (:include vug-function)
+                                (:copier nil))
+  ;; List of the local variables bound to the used local functions.
+  ;; If the local functions are in the body of a VUG, that variables
+  ;; (and recursively all the dependences) become performance-time
+  ;; during the compilation of a DSP/UGEN.
+  (vars nil :type list))
+
 (defstruct (vug-declaration (:include vug-object)
                             (:constructor %make-vug-declaration)
                             (:copier nil))
@@ -301,8 +309,8 @@
                                                   :from-end t)))))))
 
 (declaim (inline make-local-vug-variable))
-(defun make-local-vug-variable (name)
-  (%make-vug-variable :name name :value name :local-p t :to-set-p nil
+(defun make-local-vug-variable (name &optional (value name))
+  (%make-vug-variable :name name :value value :local-p t :to-set-p nil
                       :skip-init-set-p t))
 
 (defun make-vug-variable (name value &optional type)
@@ -587,42 +595,74 @@
                  (performance-time preserve temporary)))))
 
 (defmacro %with-local-args (args &body body)
-  `(let ,(mapcar (lambda (x) `(,x ',x)) args)
+  `(let ,(mapcar (lambda (x) `(,x (make-local-vug-variable ',x))) args)
      (declare (ignorable ,@args))
+     ,@body))
+
+(defvar *local-vug-functions* nil
+  "Association list describing all the used local functions.
+The CAR positions are the names of the local functions.
+The CDR positions are the local variables bound to the local functions.
+
+It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
+(declaim (type list *local-vug-functions*))
+
+(defun add-local-vug-function-var (var function-name)
+  (push var (cdr (assoc function-name *local-vug-functions*)))
+  var)
+
+(defun get-local-vug-function-vars (function-list)
+  (loop for i in function-list
+        append (cdr (assoc i *local-vug-functions*))))
+
+(defmacro make-local-vug-function (name value)
+  (let ((var (gensym (string name))))
+    `(let ((,var (make-local-vug-variable ',var
+                   (make-vug-function :name ',name :inputs ,value))))
+       (replace-vug-variable ,var (vug-variable-value ,var))
+       (add-local-vug-function-var ,var ',name))))
+
+(defmacro with-local-vug-functions ((function-list) &body body)
+  `(let ((*local-vug-functions* (append ',(mapcar #'list function-list)
+                                        *local-vug-functions*)))
      ,@body))
 
 (defun parse-flet-form (form flist mlist floop-info)
   (declare (type list form flist mlist))
-  (let (acc)
-    `(make-vug-function :name ',(car form)
-       :inputs (list
-                 (list ,@(mapcar (lambda (def)
-                                   (push (car def) acc)
-                                   `(list ',(car def)
-                                          ',(cadr def)
-                                          (%with-local-args ,(cadr def)
-                                            ,@(parse-vug-def (cddr def)
-                                                             nil flist mlist
-                                                             floop-info))))
-                                 (cadr form)))
-                 ,@(parse-vug-def (cddr form) nil (nconc acc flist) mlist
-                                  floop-info)))))
+  (let* ((acc nil)
+         (flist (mapcar (lambda (def)
+                          (push (car def) acc)
+                          `(%with-local-args ,(cadr def)
+                             (list ',(car def)
+                                   (list ,@(cadr def))
+                                   ,@(parse-vug-def (cddr def)
+                                                    nil flist mlist
+                                                    floop-info))))
+                        (cadr form))))
+    `(with-local-vug-functions (,acc)
+       (make-local-vug-functions :name ',(car form)
+         :inputs (list (list ,@flist)
+                       ,@(parse-vug-def (cddr form) nil (nconc acc flist) mlist
+                                        floop-info))
+         :vars (get-local-vug-function-vars ',acc)))))
 
 (defun parse-labels-form (form flist mlist floop-info)
   (declare (type list form flist mlist))
   (let ((acc (copy-list flist))
         (definitions (cadr form)))
     (dolist (l definitions) (push (car l) acc))
-    `(make-vug-function :name ',(car form)
-       :inputs (list (list ,@(mapcar (lambda (def)
-                                       `(list ',(car def)
-                                              ',(cadr def)
-                                              (%with-local-args ,(cadr def)
-                                                ,@(parse-vug-def (cddr def) nil
-                                                                 acc mlist
-                                                                 floop-info))))
-                                     definitions))
-                     ,@(parse-vug-def (cddr form) nil acc mlist floop-info)))))
+    `(with-local-vug-functions (,acc)
+       (make-local-vug-functions :name ',(car form)
+         :inputs (list (list ,@(mapcar (lambda (def)
+                                         `(%with-local-args ,(cadr def)
+                                            (list ',(car def)
+                                                  (list ,@(cadr def))
+                                                  ,@(parse-vug-def (cddr def) nil
+                                                                   acc mlist
+                                                                   floop-info))))
+                                       definitions))
+                       ,@(parse-vug-def (cddr form) nil acc mlist floop-info))
+         :vars (get-local-vug-function-vars ',acc)))))
 
 (defun parse-macrolet-form (form flist mlist floop-info)
   (declare (type list form flist mlist))
@@ -788,10 +828,9 @@
                         ((eq name 'locally)
                          (parse-locally-form def flist mlist floop-info))
                         ((member name flist) ; local function
-                         `(make-vug-function :name ',name
-                            :inputs (list ,@(parse-vug-def
-                                              (cdr def) t flist mlist
-                                              floop-info))))
+                         `(make-local-vug-function ,name
+                            (list ,@(parse-vug-def (cdr def) t flist mlist
+                                                   floop-info))))
                         ((member name mlist :key #'car) ; local macro
                          (destructuring-bind (lambda-list &rest body)
                              (cdr (assoc name mlist))

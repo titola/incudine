@@ -161,6 +161,18 @@
     (dolist (bind (car (vug-function-inputs obj)))
       (setf (vug-variable-performance-time-p (car bind)) t))))
 
+;;; The local functions defined with FLET or LABELS within the body of
+;;; a VUG are performance-time.
+(defun update-local-vug-functions (obj vug-body-p)
+  (when (and vug-body-p (local-vug-functions-p obj))
+    (dolist (var (local-vug-functions-vars obj))
+      (setf (vug-variable-performance-time-p var) t)
+      (recheck-variables var))
+    (dolist (fbind (car (vug-function-inputs obj)))
+      (dolist (arg (cadr fbind))
+        (setf (vug-variable-performance-time-p arg) t)
+        (recheck-variables arg)))))
+
 (declaim (inline maybe-progn))
 (defun maybe-progn (forms)
   (if (cdr forms) `(progn ,@forms) (car forms)))
@@ -239,6 +251,7 @@
                           (t (blockexpand cached param-plist t
                                           init-pass-p))))))
                (t (update-local-vug-variables obj vug-body-p)
+                  (update-local-vug-functions obj vug-body-p)
                   (cons (vug-object-name obj)
                         (blockexpand (vug-function-inputs obj)
                                      param-plist vug-body-p
@@ -854,7 +867,8 @@
                        (if (vug-variable-value-to-cache-p var)
                            (%update-vug-variable var)
                            (blockexpand value param-plist))))
-                  (t (%set-vug-variable var value param-plist))))))
+                  ((vug-variable-init-time-p var)
+                   (%set-vug-variable var value param-plist))))))
       (cdr (vug-parameter-vars-to-update param)))))
 
 (declaim (inline compound-type-p))
