@@ -154,12 +154,15 @@
 
 ;;; We cannot move LET out of the performance function, therefore, if
 ;;; LET is within the body of a VUG, the related bound variables are
-;;; performance-time.
+;;; performance-time. Idem for MULTIPLE-VALUE-BIND and the bound symbols
+;;; in SYMBOL-MACROLET.
 (defun update-local-vug-variables (obj vug-body-p)
-  (when (and vug-body-p
-             (member (vug-object-name obj) '("LET" "LET*") :test #'string=))
-    (dolist (bind (car (vug-function-inputs obj)))
-      (setf (vug-variable-performance-time-p (car bind)) t))))
+  (let ((name (vug-object-name obj)))
+    (when (and vug-body-p (binding-operator-p name))
+      (dolist (bind (car (vug-function-inputs obj)))
+        (let ((var (if (eq name 'multiple-value-bind) bind (car bind))))
+          (setf (vug-variable-performance-time-p var) t)
+          (recheck-variables var))))))
 
 ;;; The local functions defined with FLET or LABELS within the body of
 ;;; a VUG are performance-time.

@@ -483,9 +483,13 @@
 (defun init-binding-form-p (lst)
   (eq (car lst) 'with))
 
+(declaim (inline binding-operator-p))
+(defun binding-operator-p (name)
+  (member name '(let let* multiple-value-bind symbol-macrolet)))
+
 (declaim (inline binding-form-p))
 (defun binding-form-p (lst)
-  (member (car lst) '(let let* symbol-macrolet compiler-let)))
+  (binding-operator-p (car lst)))
 
 (declaim (inline setter-form-p))
 (defun setter-form-p (obj)
@@ -530,19 +534,78 @@
                 decl)
       ,@(parse-vug-def rest nil flist mlist floop-info))))
 
+(declaim (inline make-local-bindings))
+(defun make-local-bindings (vars)
+  (mapcar (lambda (x) `(,x (make-local-vug-variable ',x))) vars))
+
+(defmacro with-local-bindings (vars &body body)
+  `(let ,(make-local-bindings vars) ,@body))
+
 (defun parse-let-form (form flist mlist floop-info)
-  (let ((args (cadr form)))
-    `(let ,(mapcar (lambda (x) `(,(car x) (make-local-vug-variable ',(car x))))
-                   args)
-       (make-vug-function :name ',(car form)
+  (let* ((bindings (cadr form))
+         (vars (mapcar #'car bindings)))
+    (with-gensyms (init-forms)
+      `(let ((,init-forms (list ,@(mapcar (lambda (x)
+                                            (parse-vug-def (cadr x) nil flist
+                                                           mlist floop-info))
+                                          bindings))))
+         (with-local-bindings ,vars
+           (make-vug-function :name 'let
+             :inputs (list (mapcar #'list (list ,@vars) ,init-forms)
+                           ,@(parse-lambda-body (cddr form) flist mlist
+                                                floop-info))))))))
+
+(defun parse-let*-form (form flist mlist floop-info)
+  (with-gensyms (init-forms init)
+    (labels ((expand-let* (bindings body)
+               (if bindings
+                   (let ((var (caar bindings)))
+                     `(let ((,init ,@(parse-vug-def (cdar bindings) nil
+                                                    flist mlist floop-info))
+                            (,var (make-local-vug-variable ',var)))
+                        (push (list ,var ,init) ,init-forms)
+                        ,(expand-let* (cdr bindings) body)))
+                   body)))
+      `(let (,init-forms)
+         ,(expand-let* (cadr form)
+            `(make-vug-function :name 'let*
+               :inputs (list (nreverse ,init-forms)
+                             ,@(parse-lambda-body (cddr form) flist mlist
+                                                  floop-info))))))))
+
+(defun parse-multiple-value-bind (form flist mlist floop-info)
+  (let ((vars (cadr form)))
+    (with-gensyms (values-form)
+      `(let ((,values-form ,(parse-vug-def (caddr form) nil flist mlist
+                                           floop-info)))
+         (with-local-bindings ,vars
+           (make-vug-function :name 'multiple-value-bind
+             :inputs (list (list ,@vars)
+                           ,values-form
+                           ,@(parse-lambda-body (cdddr form) flist mlist
+                                                floop-info))))))))
+
+(defun parse-symbol-macrolet-form (form flist mlist floop-info)
+  (let ((bindings (cadr form)))
+    `(with-local-bindings ,(mapcar #'car bindings)
+       (make-vug-function :name 'symbol-macrolet
          :inputs (list (list ,@(mapcar (lambda (x)
                                          `(list ,(car x)
                                                 ,(parse-vug-def (cadr x) nil
                                                                 flist mlist
                                                                 floop-info)))
-                                       args))
+                                       bindings))
                        ,@(parse-lambda-body (cddr form) flist mlist
                                             floop-info))))))
+
+(declaim (inline parse-binding-form))
+(defun parse-binding-form (form flist mlist floop-info)
+  (funcall (case (car form)
+             (let #'parse-let-form)
+             (let* #'parse-let*-form)
+             (multiple-value-bind #'parse-multiple-value-bind)
+             (otherwise #'parse-symbol-macrolet-form))
+           form flist mlist floop-info))
 
 (defun parse-init-bindings (form flist mlist floop-info)
   `(,(car form)
@@ -594,11 +657,6 @@
     (otherwise (parse-other-declare-form form
                  (performance-time preserve temporary)))))
 
-(defmacro %with-local-args (args &body body)
-  `(let ,(mapcar (lambda (x) `(,x (make-local-vug-variable ',x))) args)
-     (declare (ignorable ,@args))
-     ,@body))
-
 (defvar *local-vug-functions* nil
   "Association list describing all the used local functions.
 The CAR positions are the names of the local functions.
@@ -632,7 +690,7 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
   (let* ((acc nil)
          (flist (mapcar (lambda (def)
                           (push (car def) acc)
-                          `(%with-local-args ,(cadr def)
+                          `(with-local-bindings ,(cadr def)
                              (list ',(car def)
                                    (list ,@(cadr def))
                                    ,@(parse-vug-def (cddr def)
@@ -654,7 +712,7 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
     `(with-local-vug-functions (,acc)
        (make-local-vug-functions :name ',(car form)
          :inputs (list (list ,@(mapcar (lambda (def)
-                                         `(%with-local-args ,(cadr def)
+                                         `(with-local-bindings ,(cadr def)
                                             (list ',(car def)
                                                   (list ,@(cadr def))
                                                   ,@(parse-vug-def (cddr def) nil
@@ -843,7 +901,7 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
                             nil flist mlist floop-info)))
                         ((function-call-p def)
                          (cond ((binding-form-p def)
-                                (parse-let-form def flist mlist floop-info))
+                                (parse-binding-form def flist mlist floop-info))
                                ((ugen-block-p name)
                                 (if (inlined-ugen-p name)
                                     `(ugen-inline-funcall ',name
