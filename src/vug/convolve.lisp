@@ -16,35 +16,27 @@
 
 (in-package :incudine.vug)
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defmacro direct-conv-loop (data kernel kernel-pos-var sum-var
-                              &key (start 0) end)
-    (with-gensyms (index)
-      `(do ((,index ,start (1+ ,index)))
-           ((>= ,index ,end))
-         (declare (type non-negative-fixnum ,index))
-         (incf ,sum-var (* (smp-ref ,data ,index)
-                           (smp-ref ,kernel ,kernel-pos-var)))
-         (incf ,kernel-pos-var)))))
-
 (define-vug direct-convolve (in (buf buffer))
   "Direct convolution of an input with a finite impulse response
 stored in a buffer."
   (with ((kernel (buffer-data buf))
          (size (buffer-size buf))
-         (array-wrap (make-foreign-array size 'sample :zero-p t))
-         (data (foreign-array-data array-wrap))
+         (data (make-frame size :zero-p t))
          (pos 0)
-         (kernel-pos 0)
          (sum +sample-zero+))
-    (declare (type fixnum pos kernel-pos) (type sample sum))
-    (setf (smp-ref data pos) in)
-    (setf sum (* in (smp-ref kernel 0)))
-    (setf kernel-pos 1)
-    (direct-conv-loop data kernel kernel-pos sum :start (1+ pos) :end size)
-    (direct-conv-loop data kernel kernel-pos sum :end pos)
-    (setf pos (1- (if (zerop pos) size pos)))
-    sum))
+    (declare (type fixnum pos) (type sample sum))
+    (labels ((conv (index kernel-pos end)
+               (declare (type fixnum index kernel-pos end))
+               (cond ((< index end)
+                      (incf sum (* (smp-ref data index)
+                                   (smp-ref kernel kernel-pos)))
+                      (conv (1+ index) (1+ kernel-pos) end))
+                     (t kernel-pos))))
+      (setf (smp-ref data pos) in)
+      (setf sum (* in (smp-ref kernel 0)))
+      (conv 0 (conv (1+ pos) 1 size) pos)
+      (setf pos (1- (if (zerop pos) size pos)))
+      sum)))
 
 ;;;
 ;;; Partitioned convolution.

@@ -35,6 +35,19 @@
   "Buffer to test the delay lines.")
 (declaim (type buffer *delay-buffer-test*))
 
+(defun make-fir-filter-buffer-test (size sinc-beta kaiser-beta)
+  (let ((b (make-buffer size :fill-function (gen:sinc sinc-beta))))
+    (with-buffer (w size :fill-function (gen:kaiser kaiser-beta))
+      (map-into-buffer b #'* b w))))
+
+(defvar *filter-buffer-test-1* (make-fir-filter-buffer-test 103 17 12)
+  "Buffer for FIR filter test.")
+(declaim (type buffer *filter-buffer-test-1*))
+
+(defvar *filter-buffer-test-2* (make-fir-filter-buffer-test 102 11 22)
+  "Buffer for FIR filter test.")
+(declaim (type buffer *filter-buffer-test-2*))
+
 (defvar *byte-vector-test* (make-array +vug-test-max-duration-bytes+
                                        :element-type '(unsigned-byte 8)
                                        :initial-element 0)
