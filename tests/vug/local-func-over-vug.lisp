@@ -8,6 +8,7 @@
                        (scaler f-percent)))
                  (m1 (* a-percent 0.01)))
     (flet ((prova (fscale ascale)
+             (declare (type sample fscale ascale))
              (sine (* fscale freq) (* ascale amp) 0)))
       (out (prova m0 m1)))))
 
@@ -20,6 +21,7 @@
                (+ (prova (* fscale 3/2) (* ascale .8))
                   (sine (* fscale freq) (* ascale amp) 0)))
              (prova (fscale ascale)
+               (declare (type sample fscale ascale))
                (sine (* fscale freq) (* ascale amp) 0)))
       (out (prove m0 m1)))))
 
