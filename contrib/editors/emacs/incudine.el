@@ -112,18 +112,24 @@ If this is nil, no message will be displayed."
   (slime-eval-defun)
   (incudine-prev-defun))
 
-(defun incudine-rt-start ()
-  "Realtime start."
-  (interactive)
-  (incudine-eval "(incudine:rt-start)"))
-
-(defun incudine-rt-stop ()
-  "Realtime start."
-  (interactive)
-  (incudine-eval "(incudine:rt-stop)"))
-
 (defun prefix-numeric-value0 (n)
   (if n (prefix-numeric-value n) 0))
+
+(defun incudine-rt-start (&optional block-size)
+  "Realtime start.
+If BLOCK-SIZE is positive, set the new block size before starting."
+  (interactive "P")
+  (let ((n (prefix-numeric-value0 block-size)))
+    (if (> n 0)
+        (incudine-eval
+          "(progn (set-rt-block-size %d) (values (incudine:rt-start) (block-size)))"
+          n)
+        (incudine-eval "(incudine:rt-start)"))))
+
+(defun incudine-rt-stop ()
+  "Realtime stop."
+  (interactive)
+  (incudine-eval "(incudine:rt-stop)"))
 
 (defun incudine-free-node (&optional id)
   "Stop to play a node of the graph.
