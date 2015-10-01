@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2015 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -98,7 +98,7 @@ is the plan for a IFFT."
                   (%%new-fft-plan size flags nil))))
         (%%new-fft-plan size (if realtime-p
                                  +fft-plan-fast+
-                                 (or flags +fft-plan-best+))
+                                 (or flags +fft-plan-fast+))
                         realtime-p))))
 
 (defmethod free-p ((obj fft-common))

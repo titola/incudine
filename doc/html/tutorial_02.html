@@ -627,7 +627,7 @@ BTEST
     <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">by default. We can change this behavior by using TICK</span>
     (stereo (* amp (tick (ifft-output ifft))))))
 
-<span class="prompt">SCRATCH&gt;</span> (new-fft-plan 1024)
+<span class="prompt">SCRATCH&gt;</span> (new-fft-plan 1024 +fft-plan-best+)
 #&lt;FFT-PLAN :SIZE 1024 :FLAGS 0&gt;
 <span class="prompt">SCRATCH&gt;</span> (pv-lp-wall-test loop-1 1024 512 .5 <span style="color: #b0c4de;">:id</span> 1)
 <span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:hop-size</span> 800)
@@ -635,7 +635,7 @@ BTEST
 <span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:hop-size</span> 2048)
 2048
 <span class="prompt">SCRATCH&gt;</span> (new-fft-plan 4096)
-#&lt;FFT-PLAN :SIZE 4096 :FLAGS 0&gt;
+#&lt;FFT-PLAN :SIZE 4096 :FLAGS 64&gt;
 <span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:size</span> 4096)
 4096
 <span class="prompt">SCRATCH&gt;</span> (free 1)</pre>
@@ -644,24 +644,25 @@ BTEST
         When we use a FFT-PLAN for the first time, it is better to
         calculate and store a new FFT-PLAN in non-realtime with the utility
         <code>NEW-FFT-PLAN</code> as in the prior example to avoid xruns.
-        The computation of a FFT-PLAN in non-realtime is more accurate than a
-        FFT-PLAN computed in realtime.
+        The possible values for the argument <code>FLAGS</code> are
+        <code>+FFT-PLAN-OPTIMAL+</code>, <code>+FFT-PLAN-BEST+</code> and
+        <code>+FFT-PLAN-FAST+</code> (default).
         <code>GET-FFT-PLAN</code> returns a FFT-PLAN related to a specific size:
       </p>
 
       <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (get-fft-plan 1024)
 #&lt;FFT-PLAN :SIZE 1024 :FLAGS 0&gt;
 <span class="prompt">SCRATCH&gt;</span> (get-fft-plan 4096)
-#&lt;FFT-PLAN :SIZE 4096 :FLAGS 0&gt;
+#&lt;FFT-PLAN :SIZE 4096 :FLAGS 64&gt;
 <span class="prompt">SCRATCH&gt;</span> (get-fft-plan 2048)
 NIL
+<span class="prompt">SCRATCH&gt;</span> (new-fft-plan 2048 +fft-plan-optimal+)
+#&lt;FFT-PLAN :SIZE 2048 :FLAGS 32&gt;
 <span class="prompt">SCRATCH&gt;</span> (new-fft-plan 2048)
-#&lt;FFT-PLAN :SIZE 2048 :FLAGS 0&gt;
-<span class="prompt">SCRATCH&gt;</span> (new-fft-plan 2048)
-#&lt;FFT-PLAN :SIZE 2048 :FLAGS 0&gt;
+#&lt;FFT-PLAN :SIZE 2048 :FLAGS 32&gt;
 <span class="prompt">SCRATCH&gt;</span> (fft-plan-list)
-(#&lt;FFT-PLAN :SIZE 1024 :FLAGS 0&gt; #&lt;FFT-PLAN :SIZE 2048 :FLAGS 0&gt;
- #&lt;FFT-PLAN :SIZE 4096 :FLAGS 0&gt;)</pre>
+(#&lt;FFT-PLAN :SIZE 1024 :FLAGS 0&gt; #&lt;FFT-PLAN :SIZE 2048 :FLAGS 32&gt;
+ #&lt;FFT-PLAN :SIZE 4096 :FLAGS 64&gt;)</pre>
 
       <p>
         PV-LP-WALL-TEST is defined with a local FFT, a local <code>ABUFFER</code>

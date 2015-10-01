@@ -503,7 +503,7 @@ WAVEFORM-1
     ;; by default. We can change this behavior by using TICK
     (stereo (* amp (tick (ifft-output ifft))))))
 
-(new-fft-plan 1024)
+(new-fft-plan 1024 +fft-plan-best+)
 ;; #<FFT-PLAN :SIZE 1024 :FLAGS 0>
 (pv-lp-wall-test loop-1 1024 512 .5 :id 1)
 (set-control 1 :hop-size 800)
@@ -511,31 +511,31 @@ WAVEFORM-1
 (set-control 1 :hop-size 2048)
 ;; 2048
 (new-fft-plan 4096)
-;; #<FFT-PLAN :SIZE 4096 :FLAGS 0>
+;; #<FFT-PLAN :SIZE 4096 :FLAGS 64>
 (set-control 1 :size 4096)
 ;; 4096
 (free 1)
 
 ;; When we use a FFT-PLAN for the first time, it is better to
 ;; calculate and store a new FFT-PLAN in non-realtime with the utility
-;; NEW-FFT-PLAN as in the prior example to avoid xruns. The computation
-;; of a FFT-PLAN in non-realtime is more accurate than a FFT-PLAN
-;; computed in realtime.  GET-FFT-PLAN returns a FFT-PLAN related to a
-;; specific size:
+;; NEW-FFT-PLAN as in the prior example to avoid xruns.  The possible
+;; values for the argument FLAGS are +FFT-PLAN-OPTIMAL+, +FFT-PLAN-BEST+
+;; and +FFT-PLAN-FAST+ (default).
+;; GET-FFT-PLAN returns a FFT-PLAN related to a specific size:
 
 (get-fft-plan 1024)
 ;; #<FFT-PLAN :SIZE 1024 :FLAGS 0>
 (get-fft-plan 4096)
-;; #<FFT-PLAN :SIZE 4096 :FLAGS 0>
+;; #<FFT-PLAN :SIZE 4096 :FLAGS 64>
 (get-fft-plan 2048)
 ;; NIL
+(new-fft-plan 2048 +fft-plan-optimal+)
+;; #<FFT-PLAN :SIZE 2048 :FLAGS 32>
 (new-fft-plan 2048)
-;; #<FFT-PLAN :SIZE 2048 :FLAGS 0>
-(new-fft-plan 2048)
-;; #<FFT-PLAN :SIZE 2048 :FLAGS 0>
+;; #<FFT-PLAN :SIZE 2048 :FLAGS 32>
 (fft-plan-list)
-;; (#<FFT-PLAN :SIZE 1024 :FLAGS 0> #<FFT-PLAN :SIZE 2048 :FLAGS 0>
-;;  #<FFT-PLAN :SIZE 4096 :FLAGS 0>)
+;; (#<FFT-PLAN :SIZE 1024 :FLAGS 0> #<FFT-PLAN :SIZE 2048 :FLAGS 32>
+;;  #<FFT-PLAN :SIZE 4096 :FLAGS 64>)
 
 ;; PV-LP-WALL-TEST is defined with a local FFT, a local ABUFFER
 ;; (Analysis Buffer) related to FFT and a local IFFT.
