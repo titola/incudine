@@ -172,6 +172,32 @@
   (real-time-p nil :type boolean)
   (foreign-free #'foreign-free :type function))
 
+(declaim (inline analysis-input))
+(defun analysis-input (obj &optional bytes offset)
+  "Return the input buffer of OBJ after OFFSET bytes (zero by default)."
+  (declare (type analysis obj) (ignore bytes)
+           (type (or non-negative-fixnum null) offset))
+  (let ((in (analysis-input-buffer obj)))
+    (if offset (cffi:inc-pointer in offset) in)))
+
+(declaim (inline set-analysis-input))
+(defun set-analysis-input (obj data &optional bytes offset)
+  "Copy BYTES bytes from DATA to the input buffer of OBJ starting
+after OFFSET bytes (zero by default).  If BYTES is NIL, copy
+ANALYSIS-INPUT-SIZE samples."
+  (declare (type analysis obj) (type foreign-pointer data)
+           (type (or non-negative-fixnum null) bytes offset))
+  (let ((in (analysis-input-buffer obj)))
+    (foreign-copy (if offset (cffi:inc-pointer in offset) in)
+                  data (or bytes (the non-negative-fixnum
+                                   (* (analysis-input-size obj)
+                                      +foreign-sample-size+))))
+    (setf (analysis-input-changed-p obj) t)
+    data))
+
+(defsetf analysis-input (obj &optional bytes offset) (data)
+  `(set-analysis-input ,obj ,data ,bytes ,offset))
+
 (declaim (inline analysis-data))
 (defun analysis-data (obj)
   (declare (type analysis obj))

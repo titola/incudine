@@ -282,7 +282,7 @@
                 #:foreign-copy #:foreign-copy-samples #:%copy-from-ring-buffer
                 #:%copy-to-ring-output-buffer)
   (:export #:analysis #:analysis-p #:analysis-time #:touch-analysis
-           #:forget-analysis #:analysis-data
+           #:forget-analysis #:analysis-input #:analysis-data
            #:window-size #:window-function #:rectangular-window
            #:abuffer #:make-abuffer #:abuffer-p #:abuffer-data #:abuffer-time
            #:abuffer-realpart #:abuffer-imagpart #:abuffer-size #:abuffer-link
