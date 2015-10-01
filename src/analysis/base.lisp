@@ -162,6 +162,7 @@
   (size 0 :type non-negative-fixnum)
   (input-buffer (error "missing INPUT-BUFFER") :type foreign-pointer)
   (input-size 0 :type non-negative-fixnum)
+  (input-changed-p nil :type boolean)
   (output-buffer (error "missing OUTPUT-BUFFER") :type foreign-pointer)
   (output-size 0 :type non-negative-fixnum)
   (output-complex-p nil :type boolean)
@@ -193,12 +194,14 @@
   (declare (type analysis obj))
   (if (< (analysis-time obj) (now))
       (setf (analysis-time obj) (now)))
+  (setf (analysis-input-changed-p obj) t)
   obj)
 
 (declaim (inline forget-analysis))
 (defun forget-analysis (obj)
   (declare (type analysis obj))
   (setf (analysis-time obj) (1- (now)))
+  (setf (analysis-input-changed-p obj) nil)
   obj)
 
 (define-constant +fftw-measure+ 0)
