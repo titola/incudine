@@ -108,23 +108,21 @@
 
 (defmacro maybe-make-i32-array (&whole whole size &key zero-p initial-element
                                 initial-contents)
-  (if (< incudine.util::n-fixnum-bits 32)
-      `(make-int32-array ,size ,@(cddr whole))
-      `(make-array ,size ,@(if zero-p `(:initial-element 0))
-                   ,@(if initial-element
-                         `(:initial-element ,initial-element))
-                   ,@(if initial-contents
-                         `(:initial-contents ,initial-contents)))))
+  (declare (ignore initial-element initial-contents))
+  (let ((key-args (copy-list (cddr whole))))
+    (if (< incudine.util::n-fixnum-bits 32)
+        `(make-int32-array ,size ,@key-args)
+        `(make-array ,size ,@(if zero-p `(:initial-element 0))
+                     ,@(progn (remf key-args :zero-p) key-args)))))
 
 (defmacro maybe-make-u32-array (&whole whole size &key zero-p initial-element
                                 initial-contents)
-  (if (< incudine.util::n-fixnum-bits 32)
-      `(make-uint32-array ,size ,@(cddr whole))
-      `(make-array ,size ,@(if zero-p `(:initial-element 0))
-                   ,@(if initial-element
-                         `(:initial-element ,initial-element))
-                   ,@(if initial-contents
-                         `(:initial-contents ,initial-contents)))))
+  (declare (ignore initial-element initial-contents))
+  (let ((key-args (copy-list (cddr whole))))
+    (if (< incudine.util::n-fixnum-bits 32)
+        `(make-uint32-array ,size ,@key-args)
+        `(make-array ,size ,@(if zero-p `(:initial-element 0))
+                     ,@(progn (remf key-args :zero-p) key-args)))))
 
 (defmacro maybe-i32-ref (array index)
   (if (< incudine.util::n-fixnum-bits 32)
