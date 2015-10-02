@@ -384,3 +384,35 @@ unsigned char set_ffreqs_from_midi(unsigned char *ev, float *freqs)
         }
         return 0;
 }
+
+/* MISC */
+
+/* Circular shift to right. */
+void circular_rshift(void *buf, void *tmp, size_t bytes, size_t size)
+{
+        char *rptr = (char*) buf + size;
+        char *lptr = rptr - bytes;
+        int i;
+
+        memcpy(tmp, lptr, bytes);
+
+        for (i = size; i > bytes; i--)
+                *--rptr = *--lptr;
+
+        memcpy(buf, tmp, bytes);
+}
+
+/* Circular shift to left. */
+void circular_lshift(void *buf, void *tmp, size_t bytes, size_t size)
+{
+        char *lptr = (char*) buf;
+        char *rptr = lptr + bytes;
+        int i;
+
+        memcpy(tmp, buf, bytes);
+
+        for (i = 0; i < size - bytes; i++)
+                *lptr++ = *rptr++;
+
+        memcpy(lptr, tmp, bytes);
+}

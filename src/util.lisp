@@ -60,12 +60,44 @@
                        (car functions)))))
       (%dsp-seq functions))))
 
+(defgeneric circular-shift (obj n))
+
 (defgeneric free (obj))
 
 (defgeneric free-p (obj))
 
 (defmethod free ((obj cons))
   (mapc #'free obj))
+
+(defun foreign-circular-shift (ptr type size n)
+  (declare (type positive-fixnum size) (type fixnum n))
+  (let ((m (abs n)))
+    (declare (type fixnum m))
+    (when (> m size)
+      (setf n (mod n size) m (abs n)))
+    (unless (zerop m)
+      (when (> m (ash size -1))
+        ;; Change direction to reduce the space for the temporary buffer.
+        (if (plusp n)
+            (setf n (- n size) m (- n))
+            (setf n (+ n size) m n)))
+      (let* ((tsize (cffi:foreign-type-size type))
+             (bytes (* m tsize))
+             (len (* size tsize)))
+        (declare (type fixnum tsize bytes len))
+        (flet ((circshift (ptr tmp bytes len n)
+                 (if (> n 0)
+                     (cffi:foreign-funcall "circular_rshift" :pointer ptr
+                       :pointer tmp :unsigned-int bytes :unsigned-int len :void)
+                     (cffi:foreign-funcall "circular_lshift" :pointer ptr
+                       :pointer tmp :unsigned-int bytes :unsigned-int len :void))))
+          (if (rt-thread-p)
+              (let ((tmp (incudine.external:foreign-rt-alloc-ex bytes
+                           incudine.util::*foreign-rt-memory-pool*)))
+                (unwind-protect (circshift ptr tmp bytes len n)
+                  (foreign-rt-free tmp)))
+              (cffi:with-foreign-pointer (tmp bytes)
+                (circshift ptr tmp bytes len n))))))))
 
 (defmacro copy-struct-slots (struct-name slot-names from to)
   `(setf ,@(loop for name in slot-names

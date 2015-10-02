@@ -21,6 +21,7 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (import
    '(incudine:smp-ref
+     incudine:circular-shift
      incudine:free
      incudine:free-p
      incudine:now)))

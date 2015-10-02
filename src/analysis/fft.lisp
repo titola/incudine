@@ -302,3 +302,9 @@ is the plan for a IFFT."
 (declaim (inline ifft-output))
 (defun ifft-output (ifft)
   (ring-output-buffer-next (ifft-ring-buffer ifft)))
+
+(defmethod circular-shift ((obj ifft) n)
+  ;; Shifting the ring buffer head is also faster but GEN:ANALYSIS
+  ;; does a copy of the output buffer.
+  (incudine::foreign-circular-shift (ifft-output-buffer obj) 'sample
+                                    (ifft-output-size obj) n))

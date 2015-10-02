@@ -372,7 +372,7 @@
    #:load-sclfile
    #:foreign-array #:make-foreign-array #:foreign-array-data
    #:foreign-array-type
-   #:sample-rate #:filename #:free #:free-p #:stop
+   #:sample-rate #:filename #:free #:free-p #:stop #:circular-shift
    #:bus #:audio-in #:audio-out
    #:peak-info #:print-peak-info #:reset-peak-meters
    #:set-number-of-channels

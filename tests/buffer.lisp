@@ -110,3 +110,17 @@
    -7385 -6962 -6632 -6207 -5663 -5130 -4751 -4551 -4429 -4253
    -3977 -3665 -3423 -3295 -3224 -3110 -2895 -2612 -2339 -2107
    -1859 -1491 -965 -392 0))
+
+(deftest buffer-circular-shift.1
+    (with-buffer (buf 8 :initial-contents '(1 2 3 4 5 6 7 8))
+      (flet ((circ-test (n)
+               (circular-shift buf n)
+               (mapcar #'sample->fixnum (buffer->list buf))))
+        (values (circ-test -3) (circ-test 3) (circ-test 0) (circ-test 8)
+                (circ-test 126) (circ-test -126))))
+  (4 5 6 7 8 1 2 3)
+  (1 2 3 4 5 6 7 8)
+  (1 2 3 4 5 6 7 8)
+  (1 2 3 4 5 6 7 8)
+  (3 4 5 6 7 8 1 2)
+  (1 2 3 4 5 6 7 8))
