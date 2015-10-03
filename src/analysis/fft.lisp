@@ -130,13 +130,6 @@ is the plan for a IFFT."
   (dotimes (i size c-array)
     (setf (smp-ref c-array i) #.(sample 1))))
 
-(declaim (inline fill-window-buffer))
-(defun fill-window-buffer (buffer function size)
-  (if (eq function #'rectangular-window)
-      ;; Skip to fill the buffer
-      buffer
-      (funcall function buffer size)))
-
 (defun make-fft (size &key (window-size 0)
                  (window-function *fft-default-window-function*)
                  flags real-time-p)

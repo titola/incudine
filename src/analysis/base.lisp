@@ -261,6 +261,53 @@ ANALYSIS-INPUT-SIZE samples."
 
 (defstruct (ifft (:include fft-common) (:constructor %make-ifft) (:copier nil)))
 
+(defgeneric window-function (obj))
+
+(defgeneric (setf window-function) (fn obj))
+
+(defgeneric window-size (obj))
+
+(defgeneric (setf window-size) (size obj))
+
+(defmethod window-function ((obj fft-common))
+  (fft-common-window-function obj))
+
+(declaim (inline fill-window-buffer))
+(defun fill-window-buffer (buffer function size)
+  (if (eq function #'rectangular-window)
+      buffer
+      (funcall function buffer size)))
+
+(defmethod (setf window-function) ((fn function) (obj fft-common))
+  (fill-window-buffer (fft-common-window-buffer obj) fn
+                      (fft-common-window-size obj))
+  (setf (fft-common-window-function obj) fn))
+
+(defmethod window-size ((obj fft-common))
+  (fft-common-window-size obj))
+
+(defmethod (setf window-size) (size (obj fft-common))
+  (declare (type positive-fixnum size))
+  (unless (= size (fft-common-window-size obj))
+    (let* ((input-buffer (fft-common-input-buffer obj))
+           (output-buffer (fft-common-output-buffer obj))
+           (time-ptr (fft-common-time-ptr obj))
+           (foreign-free (fft-common-foreign-free obj))
+           (window-buffer (if (fft-common-real-time-p obj)
+                              (foreign-rt-alloc 'sample :count size)
+                              (foreign-alloc-sample size)))
+           (cleanup-fn (lambda ()
+                         (mapc foreign-free
+                               (list input-buffer output-buffer
+                                     window-buffer time-ptr)))))
+      (tg:cancel-finalization obj)
+      (tg:finalize obj cleanup-fn)
+      (funcall foreign-free (fft-common-window-buffer obj))
+      (setf (fft-common-window-buffer obj) window-buffer)
+      (fill-window-buffer window-buffer (fft-common-window-function obj) size)
+      (setf (fft-common-window-size obj) size)))
+  size)
+
 (defstruct (abuffer (:constructor %make-abuffer)
                     (:copier nil))
   (data (error "missing data for the abuffer") :type foreign-pointer)
