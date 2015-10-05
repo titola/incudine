@@ -133,12 +133,13 @@ If BLOCK-SIZE is positive, set the new block size before starting."
 
 (defun incudine-free-node (&optional id)
   "Stop to play a node of the graph.
-If ID is negative, it calls INCUDINE:STOP instead of INCUDINE:FREE"
+If ID is negative, call INCUDINE:STOP instead of INCUDINE:FREE.
+If ID is zero, call INCUDINE:FLUSH-PENDING before INCUDINE:FREE."
   (interactive "P")
   (let ((n (prefix-numeric-value0 id)))
-    (incudine-eval (if (< n 0)
-                       "(incudine:stop %d)"
-                       "(incudine:free %d)")
+    (incudine-eval (cond ((= n 0) "(progn (incudine:flush-pending) (incudine:free 0))")
+                         ((< n 0) "(incudine:stop %d)")
+                         (t "(incudine:free %d)"))
                    (abs n))))
 
 (defun incudine-pause-node (&optional id)
