@@ -34,6 +34,9 @@
 (defvar incudine-mode-hook nil
   "Hook called when a buffer enters Incudine mode.")
 
+(defvar incudine-rego-mode-hook nil
+  "Hook called when a buffer enters Incudine Rego mode.")
+
 (defcustom incudine-scratch-message nil
   "Initial message displayed in *incudine-scratch* buffer.
 If this is nil, no message will be displayed."
@@ -41,10 +44,21 @@ If this is nil, no message will be displayed."
                  (const :tag "none" nil))
   :group 'incudine)
 
+(defcustom incudine-save-buffer-before-play t
+  "Save the modified rego file before playback."
+  :type 'boolean
+  :group 'incudine)
+
 (defun incudine-buffer-name (string)
   (concat "*incudine-" string "*"))
 
 (defvar incudine-scratch-buffer (incudine-buffer-name "scratch"))
+
+(defvar incudine-rego-files-walk nil
+  "Association list where the CAR of each element is the buffer related
+to an included rego file and CDR is the buffer of the parent.
+Used during meta-dotting from a rego file to an included rego file and
+vice versa.")
 
 (defun incudine-scratch ()
   "Switch to Incudine scratch buffer."
@@ -215,33 +229,93 @@ If ID is zero, call INCUDINE:FLUSH-PENDING before INCUDINE:FREE."
         (?s ":SEC")
         (?S ":SAMP")))))
 
+(defun incudine-play-regofile ()
+  "Eval the edited rego file in realtime."
+  (interactive)
+  (when (and incudine-save-buffer-before-play (buffer-modified-p))
+    (save-buffer))
+  (incudine-eval "(progn (rt-start) (funcall (regofile->function %S)))"
+                 (buffer-file-name)))
+
+(defun incudine-fix-rego-files-walk ()
+  "Remove the killed buffers from incudine-rego-files-walk."
+  (setq incudine-rego-files-walk
+        (delete-if-not (lambda (x)
+                         (and (buffer-live-p (car x))
+                              (buffer-live-p (cdr x))))
+                       incudine-rego-files-walk)))
+
+(defun incudine-find-name (&optional name where)
+  "If the current line is an `include' statement, edit the included
+file name, otherwise edit a lisp definition or call find-tag."
+  (interactive (list (and (not current-prefix-arg) (slime-symbol-at-point))))
+  (unless (save-excursion
+            (beginning-of-line)
+            (when (re-search-forward "^[; \t]*include +\"\\(.*\\)\""
+                                     (point-at-eol) t)
+              (let ((parent (current-buffer)))
+                (incudine-fix-rego-files-walk)
+                (find-file (match-string-no-properties 1))
+                (pushnew (cons (current-buffer) parent)
+                         incudine-rego-files-walk :key 'car))))
+    (let ((name (or name (slime-read-symbol-name "Edit Definition of: "))))
+      (if (and (slime-connected-p) (slime-find-definitions name))
+          (slime-edit-definition name where)
+          (find-tag name)))))
+
+(defun incudine-find-name-retract ()
+  "If we are editing a rego file, goto the location of the parent
+rego file or call tags-loop-continue."
+  (interactive)
+  (let* ((from (current-buffer))
+         (entry (assoc from incudine-rego-files-walk)))
+    (if entry
+        (let ((to (cdr entry)))
+          (incudine-fix-rego-files-walk)
+          (when (buffer-live-p to)
+            (setq incudine-rego-files-walk
+                  (delete entry incudine-rego-files-walk))
+            (switch-to-buffer to)))
+        (tags-loop-continue))))
+
+(defun incudine-mode-common-map (map)
+  (define-key map [C-M-return] 'incudine-free-node)
+  (define-key map "\C-cv" 'incudine-show-repl)
+  (define-key map "\C-cs" 'incudine-scratch)
+  (define-key map "\C-c\M-o" 'incudine-repl-clear-buffer)
+  (define-key map "\C-crs" 'incudine-rt-start)
+  (define-key map "\C-crq" 'incudine-rt-stop)
+  (define-key map "\C-cp" 'incudine-pause-node)
+  (define-key map "\C-cu" 'incudine-unpause-node)
+  (define-key map "\C-cgc" 'incudine-gc)
+  (define-key map "\C-cgb" 'incudine-bytes-consed-in)
+  (define-key map "\C-cig" 'incudine-dump-graph)
+  (define-key map "\C-cim" 'incudine-rt-memory-free-size)
+  (define-key map "\C-cip" 'incudine-peak-info)
+  (define-key map "\C-cll" 'incudine-logger-level-choice)
+  (define-key map "\C-clt" 'incudine-logger-time-choice))
+
 (defvar incudine-mode-map
   (let ((map (make-sparse-keymap "Incudine")))
+    (incudine-mode-common-map map)
     (define-key map [C-return] 'incudine-eval-and-next-fn)
     (define-key map [C-S-return] 'incudine-eval-and-prev-fn)
     (define-key map [M-return] 'incudine-eval-defun)
-    (define-key map [C-M-return] 'incudine-free-node)
     (define-key map [prior] 'incudine-prev-defun)
     (define-key map [next] 'incudine-next-defun)
-    (define-key map "\C-cv" 'incudine-show-repl)
-    (define-key map "\C-cs" 'incudine-scratch)
-    (define-key map "\C-c\M-o" 'incudine-repl-clear-buffer)
-    (define-key map "\C-crs" 'incudine-rt-start)
-    (define-key map "\C-crq" 'incudine-rt-stop)
-    (define-key map "\C-cp" 'incudine-pause-node)
-    (define-key map "\C-cu" 'incudine-unpause-node)
-    (define-key map "\C-cgc" 'incudine-gc)
-    (define-key map "\C-cgb" 'incudine-bytes-consed-in)
-    (define-key map "\C-cig" 'incudine-dump-graph)
-    (define-key map "\C-cim" 'incudine-rt-memory-free-size)
-    (define-key map "\C-cip" 'incudine-peak-info)
-    (define-key map "\C-cll" 'incudine-logger-level-choice)
-    (define-key map "\C-clt" 'incudine-logger-time-choice)
     map)
   "Keymap for Incudine mode.")
 
-(easy-menu-define incudine-mode-menu incudine-mode-map
-  "Menu used in Incudine mode."
+(defvar incudine-rego-mode-map
+  (let ((map (make-sparse-keymap "Incudine Rego")))
+    (incudine-mode-common-map map)
+    (define-key map [f9] 'incudine-play-regofile)
+    (define-key map "\M-." 'incudine-find-name)
+    (define-key map "\M-," 'incudine-find-name-retract)
+    map)
+  "Keymap for Incudine Rego mode.")
+
+(defvar incudine-mode-menu-list
   (list "Incudine"
         (list "REPL"
               ["Show REPL" incudine-show-repl t]
@@ -267,7 +341,24 @@ If ID is zero, call INCUDINE:FLUSH-PENDING before INCUDINE:FREE."
               ["Log Time"  incudine-logger-time-choice t])
         ["Scratch buffer" incudine-scratch t]))
 
-(add-to-list 'auto-mode-alist '("\\.cudo$" . incudine-mode))
+(easy-menu-define incudine-mode-menu incudine-mode-map
+  "Menu used in Incudine mode."
+  incudine-mode-menu-list)
+
+(easy-menu-define incudine-rego-mode-menu incudine-rego-mode-map
+  "Menu used in Incudine Rego mode."
+  (let* ((l (copy-sequence incudine-mode-menu-list))
+         (entry (assoc "Realtime" (cdr l))))
+    (setf (nthcdr 3 entry)
+          (cons ["Play Rego File" incudine-play-regofile t]
+                (nthcdr 3 entry)))
+    l))
+
+(defvar incudine-rego-font-lock-keywords
+  '(("^;.*$" . font-lock-comment-face)))
+
+(add-to-list 'auto-mode-alist '("\\.\\(cudo\\|rexi\\)$" . incudine-mode))
+(add-to-list 'auto-mode-alist '("\\.rego$" . incudine-rego-mode))
 
 (define-derived-mode incudine-mode lisp-mode "Incudine"
   "Major mode for incudine.
@@ -276,5 +367,21 @@ If ID is zero, call INCUDINE:FLUSH-PENDING before INCUDINE:FREE."
   (use-local-map incudine-mode-map)
   (easy-menu-add incudine-mode-menu)
   (run-hooks 'incudine-mode-hook))
+
+(define-derived-mode incudine-rego-mode org-mode "Incudine Rego"
+    "Major mode for incudine rego.
+
+\\{incudine-rego-mode-map}"
+  (use-local-map incudine-rego-mode-map)
+  (easy-menu-add incudine-rego-mode-menu)
+  (push '(";.*$" . font-lock-comment-face) org-font-lock-keywords)
+  (setq-local comment-start ";")
+  (setq-local comment-end "")
+  (setq-local comment-start-skip ";+ *")
+  (setq-local comment-add 1)
+  (setq-local comment-column 40)
+  (setq-local comment-region-function 'comment-region-default)
+  (setq-local uncomment-region-function 'uncomment-region-default)
+  (run-hooks 'incudine-rego-mode-hook))
 
 (provide 'incudine)
