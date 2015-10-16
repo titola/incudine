@@ -38,13 +38,13 @@ add_system()
 
 for arg in "$@"; do
         case "${arg}" in
-        --prefix=*)         PREFIX="${arg:9}" ;;
-        --bindir=*)         BINDIR="${arg:9}" ;;
+        --prefix=*)         PREFIX="${arg#*=}" ;;
+        --bindir=*)         BINDIR="${arg#*=}" ;;
         --with-fluidsynth)  add_system "INCUDINE-FLUIDSYNTH" ;;
         --with-ladspa)      add_system "INCUDINE-LADSPA" ;;
         --with-lv2)         add_system "INCUDINE-LV2" ;;
-        --with-module=*)    add_system "${arg:14}" ;;
-        --sbcl-options=*)   add_opt "${arg:15}" ;;
+        --with-module=*)    add_system "${arg#*=}" ;;
+        --sbcl-options=*)   add_opt "${arg#*=}" ;;
         *)                  usage ;;
         esac
 done
