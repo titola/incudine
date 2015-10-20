@@ -370,6 +370,7 @@
    #:tuning-description #:tuning-keynum-base #:tuning-freq-base
    #:tuning-degree-index #:minimize-tuning-ratios #:tuning-save
    #:load-sclfile
+   #:pch->cps #:cps->pch #:pch->keynum #:keynum->pch
    #:foreign-array #:make-foreign-array #:foreign-array-data
    #:foreign-array-type
    #:sample-rate #:filename #:free #:free-p #:stop #:circular-shift

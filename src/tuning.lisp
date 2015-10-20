@@ -462,3 +462,214 @@ a scale stored in FILESPEC in scale file format."
 
 (defvar *default-tuning* *tuning-et12*)
 (declaim (type tuning *default-tuning*))
+
+(declaim (inline tuning-keynum-base-range))
+(defun tuning-keynum-base-range (tuning)
+  (values (the (integer 0 127)
+            (- (tuning-keynum-base tuning)
+               (tuning-degree-index tuning)))
+          (the non-negative-fixnum
+            (1- (length (tuning-cents tuning))))))
+
+(defun tuning-start-index (tuning octave)
+  "Return the keynum related to the first degree of TUNING after the
+start of OCTAVE.  For convention, octave zero starts with one cycle
+for second.  Example: octave 8 starts with 256 Hz (about middle C)."
+  (declare (type (integer 0 14) octave))
+  (let ((cps (ash 1 octave)))
+    (declare (type fixnum cps))
+    (labels ((tuncps (index)
+               (sample->fixnum (tuning-cps tuning index)))
+             (get-start (index steps)
+               (declare (type fixnum index steps))
+               (let ((prev (prev-start index steps)))
+                 (if (< prev index)
+                     prev
+                     (next-start index steps))))
+             (prev-start (curr steps)
+               (declare (type fixnum curr steps))
+               (let ((prev (- curr steps)))
+                 (declare (type fixnum prev))
+                 (if (or (< prev 0) (< (tuncps prev) cps))
+                     curr
+                     (prev-start prev steps))))
+             (next-start (curr steps)
+               (declare (type fixnum curr steps))
+               (cond ((>= curr 127) 127)
+                     ((>= (tuncps curr) cps) curr)
+                     (t (next-start (+ curr steps) steps)))))
+      (if (<= (tuncps 127) cps)
+          127
+          (multiple-value-call #'get-start
+            (tuning-keynum-base-range tuning))))))
+
+(defun decode-pitch-class (pch)
+  (declare (type (single-float 0.0 15.0) pch))
+  (multiple-value-bind (oct pch) (truncate pch)
+    (declare (type (integer 0 14) oct))
+    (multiple-value-bind (index frac) (truncate (* pch 100))
+      (declare (type (integer 0 99) index))
+      (values oct index frac))))
+
+(defun pch->keynum (pitch-class &optional (tuning *default-tuning*))
+  "Convert from PITCH-CLASS value to keynum.  The second returned value is
+the fractional part.  PITCH-CLASS is a floating point number xx.yy[z]* where
+
+    xx  = octave number from 0 to 14
+    yy  = scale degree from 0 to 99
+    z*  = fractional part 0.z* to interpolate between yy and (+ yy 1)
+
+Note: if the returned keynum is used without the fractional part, it is
+necessary to avoid round off problems by adding 1e-6 to PITCH-CLASS before
+the conversion.
+
+Example with ET12 scale:
+
+         pch   | keynum |  frac
+     ----------+--------+--------
+      8.00     |   60   |  0.000
+      8.09     |   69   |  0.000
+      8.10     |   70   |  0.000
+      8.095    |   69   |  0.500
+      8.12     |   71   |  0.999
+      8.120001 |   72   |  0.000
+      9.00     |   72   |  0.000
+"
+  (declare (type (single-float 0.0 15.0) pitch-class))
+  (multiple-value-bind (min-oct degree0) (%keynum->pch 0 tuning)
+    (declare (type fixnum min-oct degree0))
+    (multiple-value-bind (oct index frac) (decode-pitch-class pitch-class)
+      (declare (type fixnum oct index) (type single-float frac))
+      (when (and (= oct min-oct) (plusp degree0))
+        (decf index (1- (length (tuning-cents tuning)))))
+      (when (>= oct min-oct)
+        (incf index (the fixnum (tuning-start-index tuning oct)))
+        (when (minusp index)
+          (setf index 0 frac 0.0)))
+      (values (min index 127) frac))))
+
+(defconstant +cs-cpspch-table-size+ 8192)
+(defconstant +cs-cpspch-a440-tuning-factor+ 1.02197486)
+
+(defvar *cs-cpspch-table*
+  (let ((size +cs-cpspch-table-size+))
+    (make-array size
+      :initial-contents (loop for i below size
+                              collect (* (expt 2.0 (/ i size))
+                                         +cs-cpspch-a440-tuning-factor+)))))
+
+;;; Table lookup used by Csound's cpspch opcode.
+(defun cs-cpspch (oct frac)
+  (declare (type (integer 0 14) oct) (type single-float frac))
+  (let ((frac (* frac 25/3))
+        (size +cs-cpspch-table-size+))
+    (flet ((cpsoctl (n)
+             (declare (type fixnum n))
+             (* (the fixnum (ash 1 (ash n -13)))
+                (the single-float
+                  (svref *cs-cpspch-table* (logand n (1- size)))))))
+      (cpsoctl (truncate (the (single-float 0.0 262144.0)
+                           (* (+ oct frac) size)))))))
+
+;;; Compatible with Csound's cpspch opcode if TUNING is NIL or a TUNING
+;;; struct that represents a 12-tone equally-tempered scale.
+(defun pch->cps (pitch-class &optional (tuning *default-tuning*))
+  "Convert from PITCH-CLASS value to cycles-per-second.  If TUNING is NIL,
+the table lookup is the same used by Csound's cpspch opcode.  If TUNING is
+a TUNING struct, PITCH-CLASS is a floating point number xx.yy[z]* where
+
+    xx  = octave number from 0 to 14
+    yy  = scale degree from 0 to 99
+    z*  = fractional part 0.z* to interpolate between yy and (+ yy 1)
+
+Example with ET12 scale:
+
+       pch  |  cps
+     -------+-------
+      8.00  |  261
+      8.09  |  440
+      8.095 |  453
+      8.10  |  466
+      8.12  |  523
+      9.00  |  523
+"
+  (declare (type (single-float 0.0 15.0) pitch-class)
+           (type (or tuning null) tuning))
+  (if tuning
+      (multiple-value-bind (keynum frac) (pch->keynum pitch-class tuning)
+        (declare (type (integer 0 127) keynum) (type single-float frac))
+        (if (= keynum 127)
+            (tuning-cps tuning 127)
+            (+ (* (tuning-cps tuning keynum) (- 1.0 frac))
+               (* (tuning-cps tuning (1+ keynum)) frac))))
+      (multiple-value-call #'cs-cpspch (floor pitch-class))))
+
+(defun %keynum->pch (keynum &optional (tuning *default-tuning*))
+  (declare (type (integer 0 127) keynum) (type tuning tuning))
+  (multiple-value-bind (start length) (tuning-keynum-base-range tuning)
+    (let ((delta (- keynum start)))
+      (declare (type fixnum delta))
+      (let* ((degree (mod delta length))
+             (keynum0 (+ (- start degree) delta))
+             (oct-offset -1))
+        (declare (type fixnum degree keynum0 oct-offset))
+        (when (minusp keynum0)
+          (incf keynum0 length)
+          (decf oct-offset 1))
+        (values (+ (integer-length (sample->fixnum (tuning-cps tuning keynum0)))
+                   oct-offset)
+                degree)))))
+
+(declaim (inline keynum->pch))
+(defun keynum->pch (keynum &optional (tuning *default-tuning*))
+  "Convert from KEYNUM to pitch class value."
+  (declare (type (integer 0 127) keynum) (type tuning tuning))
+  (multiple-value-bind (oct degree) (%keynum->pch keynum tuning)
+    (+ oct (* degree .01))))
+
+(defun tuning-nearest-keynum (freq &optional (tuning *default-tuning*))
+  (declare (type real freq) (type tuning tuning))
+  (let ((freq (reduce-warnings (floor freq))))
+    (declare (type fixnum freq))
+    (labels ((tquantize (i delta)
+               (declare (type (integer 0 127) i delta))
+               (if (or (= i 0) (= i 127))
+                   i
+                   (let* ((prev (tuncps (1- i)))
+                          (next (tuncps (1+ i)))
+                          (%curr-delta (- freq (tuncps i)))
+                          (curr-delta (abs %curr-delta)))
+                     (if (and (< prev freq) (<= freq next))
+                         (cond ((< (- freq prev) curr-delta) (values (1- i) nil))
+                               ((< (- next freq) curr-delta) (values (1+ i) t))
+                               (t (values i (minusp %curr-delta))))
+                         (tquantize
+                           (if (>= (sample->fixnum (tuning-cps tuning i)) freq)
+                               (- i delta)
+                               (+ i delta))
+                           (ash delta -1))))))
+             (tuncps (index)
+               (sample->fixnum (tuning-cps tuning index))))
+      (cond ((<= freq (sample->fixnum (tuning-cps tuning 0))) (values 0 nil))
+            ((>= freq (sample->fixnum (tuning-cps tuning 127))) (values 127 nil))
+            (t (tquantize 64 32))))))
+
+(defun cps->pch (freq &optional (tuning *default-tuning*))
+  "Convert from FREQ cycles-per-second to pitch class value."
+  (declare (type real freq) (type tuning tuning))
+  (multiple-value-bind (keynum round-up-p) (tuning-nearest-keynum freq tuning)
+    (declare (type (integer 0 127) keynum) (type boolean round-up-p))
+    (when round-up-p
+      (decf keynum))
+    (multiple-value-bind (oct degree) (%keynum->pch keynum tuning)
+      (declare (type fixnum oct degree))
+      (+ oct (* degree .01)
+         (if (and (< keynum 127)
+                  (< (tuning-cps tuning keynum)
+                     (tuning-cps tuning (1+ keynum))))
+             (coerce (* (/ (- freq (tuning-cps tuning keynum))
+                           (- (tuning-cps tuning (1+ keynum))
+                              (tuning-cps tuning keynum)))
+                        .01)
+                     'single-float)
+             0.0)))))
