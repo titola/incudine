@@ -124,3 +124,9 @@
   (1 2 3 4 5 6 7 8)
   (3 4 5 6 7 8 1 2)
   (1 2 3 4 5 6 7 8))
+
+(deftest sort-buffer.1
+    (with-buffer (buf 16 :initial-contents '(860 758 750 889 300 991 5 993 954
+                                             299 99 549 196 282 351 16))
+      (mapcar #'sample->fixnum (buffer->list (sort-buffer buf))))
+  (5 16 99 196 282 299 300 351 549 750 758 860 889 954 991 993))

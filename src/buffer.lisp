@@ -385,7 +385,8 @@ It is possible to use line comments that begin with the `;' char."
 
 (declaim (inline sort-buffer))
 (defun sort-buffer (buffer)
-  (sort-samples (buffer-data buffer) (buffer-size buffer)))
+  (sort-samples (buffer-data buffer) (buffer-size buffer))
+  buffer)
 
 (defmethod circular-shift ((obj buffer) n)
   (foreign-circular-shift (buffer-data obj) 'sample (buffer-size obj) n))
