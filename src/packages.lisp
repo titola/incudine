@@ -369,7 +369,7 @@
    #:tuning #:make-tuning #:tuning-data #:set-tuning #:set-tuning-reference
    #:tuning-notes-from-data #:tuning-cps #:tuning-cents #:tuning-ratios
    #:tuning-description #:tuning-keynum-base #:tuning-freq-base
-   #:tuning-degree-index #:minimize-tuning-ratios #:tuning-save
+   #:tuning-degree-index #:minimize-tuning-ratios #:tuning-save #:copy-tuning
    #:load-sclfile
    #:pch->cps #:cps->pch #:pch->keynum #:keynum->pch
    #:foreign-array #:make-foreign-array #:foreign-array-data

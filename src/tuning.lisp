@@ -457,6 +457,23 @@ a scale stored in FILESPEC in scale file format."
                            scl))
       (pathname path))))
 
+(defun copy-tuning (tuning)
+  "Return a copy of TUNING structure."
+  (declare (type tuning tuning))
+  (if (free-p tuning)
+      (msg error "Unusable tuning.")
+      (let ((new (make-tuning
+                   :notes (coerce (tuning-ratios tuning) 'list)
+                   :description (copy-seq (tuning-description tuning))
+                   :keynum-base (tuning-keynum-base tuning)
+                   :freq-base (tuning-freq-base tuning)
+                   :degree-index (tuning-degree-index tuning)
+                   :real-time-p (tuning-real-time-p tuning))))
+        (foreign-copy-samples (tuning-data new) (tuning-data tuning)
+                              (tuning-size tuning))
+        (setf (tuning-%cents new) (copy-seq (tuning-%cents tuning)))
+        new)))
+
 (defvar *tuning-et12* (make-tuning))
 (declaim (type tuning *tuning-et12*))
 
