@@ -49,6 +49,7 @@
    #:pconv-multiply-partitions
    #:foreign-copy #:foreign-copy-samples
    #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
+   #:qsort
    #:rt-audio-init #:rt-audio-start #:rt-audio-stop #:rt-get-input
    #:rt-set-output
    #:rt-condition-wait #:rt-transfer-to-c-thread #:rt-cycle-begin #:rt-cycle-end
@@ -363,7 +364,7 @@
    #:buffer-file #:buffer-load #:buffer-save #:map-buffer #:map-into-buffer
    #:buffer->list #:with-buffer #:with-buffers
    #:copy-buffer #:resize-buffer
-   #:scale-buffer #:rescale-buffer #:normalize-buffer
+   #:scale-buffer #:rescale-buffer #:normalize-buffer #:sort-buffer
    #:*default-tuning*
    #:tuning #:make-tuning #:tuning-data #:set-tuning #:set-tuning-reference
    #:tuning-notes-from-data #:tuning-cps #:tuning-cents #:tuning-ratios
@@ -374,6 +375,7 @@
    #:foreign-array #:make-foreign-array #:foreign-array-data
    #:foreign-array-type
    #:sample-rate #:filename #:free #:free-p #:stop #:circular-shift
+   #:sort-samples
    #:bus #:audio-in #:audio-out
    #:peak-info #:print-peak-info #:reset-peak-meters
    #:set-number-of-channels

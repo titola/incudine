@@ -453,3 +453,19 @@
   (declare (type unsigned-byte seed))
   (cffi:foreign-funcall "gsl_rng_set" :pointer (gsl-random-generator)
                         :unsigned-long seed :pointer))
+
+;;; MISC
+
+(declaim (inline qsort))
+(cffi:defcfun "qsort" :void
+  (base :pointer)
+  (nmemb :unsigned-int)
+  (size :unsigned-int)
+  (compar :pointer))
+
+(cffi:defcallback sample-cmp :int ((a :pointer) (b :pointer))
+  (let ((x (cffi:mem-ref a 'sample))
+        (y (cffi:mem-ref b 'sample)))
+    (cond ((> x y) 1)
+          ((< x y) -1)
+          (t 0))))

@@ -383,6 +383,10 @@ It is possible to use line comments that begin with the `;' char."
                       (+ min (* (- max min) old-delta (- value old-min))))
                     buffer)))))
 
+(declaim (inline sort-buffer))
+(defun sort-buffer (buffer)
+  (sort-samples (buffer-data buffer) (buffer-size buffer)))
+
 (defmethod circular-shift ((obj buffer) n)
   (foreign-circular-shift (buffer-data obj) 'sample (buffer-size obj) n))
 

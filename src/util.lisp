@@ -99,6 +99,11 @@
               (cffi:with-foreign-pointer (tmp bytes)
                 (circshift ptr tmp bytes len n))))))))
 
+(declaim (inline sort-samples))
+(defun sort-samples (pointer size)
+  (incudine.external:qsort pointer size +foreign-sample-size+
+                           (cffi:callback incudine.external::sample-cmp)))
+
 (defmacro copy-struct-slots (struct-name slot-names from to)
   `(setf ,@(loop for name in slot-names
                  for slot-name = (format-symbol *package* "~A-~A"
