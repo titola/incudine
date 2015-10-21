@@ -104,12 +104,37 @@
   (incudine.external:qsort pointer size +foreign-sample-size+
                            (cffi:callback incudine.external::sample-cmp)))
 
+;;; If a item in SLOT-NAMES list is a list, the format of that item is
+;;;
+;;;     (copy-func slot-name [optional-args-for-copy-func])
+;;;
+;;; where copy-func is the function name used to create a copy of the
+;;; content referred to SLOT-NAME.  For example:
+;;;
+;;;    (copy-struct-slots name (x y (copy-seq list-of-things) z) src dest)
+;;;
+;;; after macroexpansion:
+;;;
+;;;    (progn
+;;;      (setf (name-x dest) (name-x src))
+;;;      (setf (name-y dest) (name-y src))
+;;;      (setf (name-list-of-things dest) (copy-seq (name-list-of-things src)))
+;;;      (setf (name-z dest) (name-z src)))
+;;;
 (defmacro copy-struct-slots (struct-name slot-names from to)
-  `(setf ,@(loop for name in slot-names
-                 for slot-name = (format-symbol *package* "~A-~A"
-                                                struct-name name)
-                 collect `(,slot-name ,to)
-                 collect `(,slot-name ,from))))
+  `(progn
+     ,@(flet ((format-name (name)
+                (format-symbol *package* "~A-~A" struct-name name)))
+         (mapcar (lambda (slot-name)
+                   (multiple-value-bind (name src)
+                       (if (listp slot-name)
+                           (let ((name (format-name (cadr slot-name))))
+                             (values name `(,(car slot-name) (,name ,from)
+                                            ,@(cddr slot-name))))
+                           (let ((name (format-name slot-name)))
+                             (values name `(,name ,from))))
+                     `(setf (,name ,to) ,src)))
+                 slot-names))))
 
 ;;; The read macro #T is useful to apply a filter multiple times.
 ;;; Example: apply a pole filter four times (4t)
