@@ -392,6 +392,38 @@ It is possible to use line comments that begin with the `;' char."
   (foreign-circular-shift (buffer-base-data obj) 'sample
                           (buffer-base-size obj) n))
 
+(defmethod quantize ((obj real) (from buffer-base) &key)
+  (quantize-from-vector obj from smp-ref buffer-base-size
+                        (buffer-base-data from)))
+
+(defmethod quantize ((obj buffer-base) (from real)
+                     &key (start 0) end filter-function)
+  (quantize-vector obj from start end filter-function smp-ref
+                   buffer-base-size (buffer-base-data obj) sample))
+
+(defmethod quantize ((obj buffer-base) (from buffer-base)
+                     &key (start 0) end filter-function)
+  (quantize-vector obj from start end filter-function smp-ref
+                   buffer-base-size (buffer-base-data obj) sample))
+
+(defmethod quantize ((obj buffer-base) (from simple-vector)
+                     &key (start 0) end filter-function)
+  (quantize-vector obj from start end filter-function smp-ref
+                   buffer-base-size (buffer-base-data obj) sample))
+
+(defmethod quantize ((obj buffer-base) (from simple-array)
+                     &key (start 0) end filter-function)
+  (quantize-vector obj from start end filter-function smp-ref
+                   buffer-base-size (buffer-base-data obj) sample))
+
+(defmethod quantize ((obj simple-vector) (from buffer-base)
+                     &key (start 0) end filter-function)
+  (quantize-vector obj from start end filter-function svref length obj))
+
+(defmethod quantize ((obj simple-array) (from buffer-base)
+                     &key (start 0) end filter-function)
+  (quantize-vector obj from start end filter-function aref length obj))
+
 (declaim (inline buffer->list))
 (defun buffer->list (buf)
   (declare (type buffer-base buf))

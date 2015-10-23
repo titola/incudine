@@ -566,7 +566,7 @@ Example with ET12 scale:
       (values (min index 127) frac))))
 
 (defconstant +cs-cpspch-table-size+ 8192)
-(defconstant +cs-cpspch-a440-tuning-factor+ 1.02197486)
+(defconstant +cs-cpspch-a440-tuning-factor+ 1.02197486) ; 440 / 2^(8 + 9/12)
 
 (defvar *cs-cpspch-table*
   (let ((size +cs-cpspch-table-size+))
@@ -689,3 +689,24 @@ Example with ET12 scale:
                         .01)
                      'single-float)
              0.0)))))
+
+(defmethod quantize ((obj real) (from tuning) &key)
+  (let* ((keynum (tuning-nearest-keynum obj from))
+         (value (tuning-cps from keynum)))
+    (values value keynum)))
+
+(defmethod quantize ((obj buffer-base) (from tuning)
+                     &key (start 0) end filter-function)
+  (let ((size (buffer-base-size obj))
+        (end (or end (buffer-base-size obj))))
+    (if (or (>= start size) (> end size))
+        (error "Cannot quantize from ~D to ~D because buffer size is ~D"
+               start end size)
+        (do ((i start (1+ i)))
+            ((>= i end) obj)
+          (declare (fixnum i))
+          (let ((value (quantize (smp-ref (buffer-base-data obj) i) from)))
+            (setf (smp-ref (buffer-base-data obj) i)
+                  (if filter-function
+                      (funcall filter-function i value)
+                      value)))))))

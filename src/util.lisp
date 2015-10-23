@@ -60,11 +60,20 @@
                        (car functions)))))
       (%dsp-seq functions))))
 
-(defgeneric circular-shift (obj n))
+(defgeneric circular-shift (obj n)
+  (:documentation "Perform a circular shift of length N."))
 
 (defgeneric free (obj))
 
 (defgeneric free-p (obj))
+
+(defgeneric quantize (obj from &key)
+  (:documentation "Quantize OBJ with respect to a real number, a vector
+or a BUFFER-BASE structure (i.e. BUFFER or TUNING) in sorted order.
+If OBJ is a vector or a BUFFER-BASE structure, the keywords START and END
+are the bounding index designators, and the keyword FILTER-FUNCTION is
+usable to apply a function to the quantized value.  The arguments of that
+function are the vector index and the quantized value."))
 
 (defmethod free ((obj cons))
   (mapc #'free obj))
@@ -103,6 +112,87 @@
 (defun sort-samples (pointer size)
   (incudine.external:qsort pointer size +foreign-sample-size+
                            (cffi:callback incudine.external::sample-cmp)))
+
+(defmacro quantize-vector (vec from start end filter-function fget flen data
+                           &optional type)
+  (with-gensyms (len i value maybe-coerce)
+    `(let ((,len (,flen ,vec))
+           (,end (or ,end (,flen ,vec))))
+       (if (or (>= ,start ,len) (> ,end ,len))
+           (error "Cannot quantize from ~D to ~D because data size is ~D"
+                  ,start ,end ,len)
+           (do ((,i start (1+ ,i)))
+               ((>= ,i ,end) ,vec)
+             (declare (fixnum ,i))
+             (let ((,value (quantize (,fget ,data ,i) ,from)))
+               (flet ((,maybe-coerce (,value)
+                        ,(if type `(coerce ,value ',type) value)))
+                 (setf (,fget ,data ,i)
+                       (,maybe-coerce
+                         (if ,filter-function
+                             (funcall ,filter-function ,i ,value)
+                             ,value))))))))))
+
+;; Quantization with respect to a vector in sorted order.
+(defmacro quantize-from-vector (value vec fget flen data)
+  (with-gensyms (start end i prev curr next %curr-delta curr-delta)
+    `(labels ((rec (,start ,end)
+                (declare (fixnum ,start ,end))
+                (let ((,i (+ ,start (ash (- ,end ,start) -1))))
+                  (declare (fixnum ,i))
+                  (cond ((= ,i ,start) ,i)
+                        ((= ,i (1- ,end))
+                         (if (< (abs (- ,value (,fget ,data (1- ,i))))
+                                (abs (- ,value (,fget ,data ,i))))
+                             (1- ,i)
+                             ,i))
+                        (t
+                         (let* ((,prev (,fget ,data (1- ,i)))
+                                (,curr (,fget ,data ,i))
+                                (,next (,fget ,data (1+ ,i)))
+                                (,%curr-delta (- ,value ,curr))
+                                (,curr-delta (abs ,%curr-delta)))
+                           (if (and (< ,prev ,value) (/= ,prev ,curr) (<= ,value ,next))
+                               (cond ((< (- ,value ,prev) ,curr-delta) (1- ,i))
+                                     ((< (- ,next ,value) ,curr-delta) (1+ ,i))
+                                     (t ,i))
+                               (if (>= ,curr ,value)
+                                   (rec ,start ,i)
+                                   (rec ,i ,end)))))))))
+       (,fget ,data (rec 0 (,flen ,vec))))))
+
+(defmethod quantize ((obj real) (from real) &key)
+  (* from (round (/ obj from))))
+
+(defmethod quantize ((obj real) (from simple-vector) &key)
+  (quantize-from-vector obj from svref length from))
+
+(defmethod quantize ((obj real) (from simple-array) &key)
+  (quantize-from-vector obj from aref length from))
+
+(defmethod quantize ((obj simple-vector) (from real)
+                     &key (start 0) end filter-function)
+  (quantize-vector obj from start end filter-function svref length obj))
+
+(defmethod quantize ((obj simple-vector) (from simple-vector)
+                     &key (start 0) end filter-function)
+  (quantize-vector obj from start end filter-function svref length obj))
+
+(defmethod quantize ((obj simple-vector) (from simple-array)
+                     &key (start 0) end filter-function)
+  (quantize-vector obj from start end filter-function svref length obj))
+
+(defmethod quantize ((obj simple-array) (from real)
+                     &key (start 0) end filter-function)
+  (quantize-vector obj from start end filter-function aref length obj))
+
+(defmethod quantize ((obj simple-array) (from simple-vector)
+                     &key (start 0) end filter-function)
+  (quantize-vector obj from start end filter-function aref length obj))
+
+(defmethod quantize ((obj simple-array) (from simple-array)
+                     &key (start 0) end filter-function)
+  (quantize-vector obj from start end filter-function aref length obj))
 
 ;;; If a item in SLOT-NAMES list is a list, the format of that item is
 ;;;
