@@ -4,13 +4,18 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="incudine.css" />
-    <title>Musical Tunings</title>
+    <title>Musical Tunings - Part 1</title>
   </head>
   <body>
     <div id="content">
       <table class="navtutor">
         <tr>
-          <th class="center">Musical Tunings</th>
+          <th colspan="3" class="center">Musical Tunings</th>
+        </tr>
+        <tr>
+          <td style="width: 20%" class="left"></td>
+          <th style="width: 60%" class="center">Part 1</th>
+          <td style="width: 20%" class="right"><a href="tutorial_tuning02.html">Part 2</a></td>
         </tr>
       </table>
       <hr>
@@ -297,7 +302,11 @@ Wendy Carlos' Beta scale with perfect fifth divided by eleven
 MAP-INTO-BUFFER
 SCALE-BUFFER
 NORMALIZE-BUFFER
-RESCALE-BUFFER</pre>
+RESCALE-BUFFER
+SORT-BUFFER
+CIRCULAR-SHIFT
+QUANTIZE
+</pre>
 
       <p>
         also <code>BUFFER-&gt;LIST</code> works with a <code>TUNING</code>:
@@ -316,7 +325,9 @@ RESCALE-BUFFER</pre>
             <a href="tutorial_01.html">Getting Started with Incudine</a>
           </td>
           <td style="width: 60%" class="center"><a href="index.html">Home</a></td>
-          <td style="width: 20%" class="right"></td>
+          <td style="width: 20%" class="right">
+            <a href="tutorial_tuning02.html">Part 2</a>
+          </td>
         </tr>
       </table>
     </div>

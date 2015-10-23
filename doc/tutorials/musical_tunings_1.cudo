@@ -1,5 +1,5 @@
 ;;; Incudine
-;;; Musical Tunings
+;;; Musical Tunings - part 1
 
 ;; The TUNING structure is useful to manage the intervals and the
 ;; frequencies of a musical scale. For example:
@@ -228,6 +228,9 @@ Wendy Carlos' Beta scale with perfect fifth divided by eleven
 ;; SCALE-BUFFER
 ;; NORMALIZE-BUFFER
 ;; RESCALE-BUFFER
+;; SORT-BUFFER
+;; CIRCULAR-SHIFT
+;; QUANTIZE
 
 ;; also BUFFER->LIST works with a TUNING:
 

@@ -1,0 +1,148 @@
+;;; Incudine
+;;; Musical Tunings - part 2
+
+;; PCH->CPS is useful to convert from pitch class to cycles per
+;; second. The syntax is
+;;
+;;   (pch->cps pitch-class &optional (tuning *default-tuning*))
+;;
+;; PCH->CPS is compatible with Csound's cpspch opcode if TUNING is
+;; NIL (same uninterpolated table lookup) or a TUNING struct that
+;; represents a 12-tone equally-tempered scale. If TUNING is a TUNING
+;; struct, PITCH-CLASS is a floating point number xx.yy[z]* where
+;;
+;;   xx  = octave number from 0 to 14
+;;   yy  = scale degree from 0 to 99
+;;   z*  = fractional part 0.z* to interpolate between yy and (+ yy 1)
+;;
+;; For example:
+
+(in-package :scratch)
+
+(pch->cps 8.0)
+;; 261.6255586823373d0
+
+(mapcar #'pch->cps '(8.0 8.03 8.07 8.10))
+;; (261.6255586823373d0 311.12649215095877d0 391.9947633490325d0
+;;  466.1648230673975d0)
+
+(mapcar #'pch->cps '(8.09 8.092 8.094 8.096 8.098 8.10))
+;; (440.0003992273812d0 445.2327730918074d0 450.46514695623375d0
+;;  455.69752082066003d0 460.9298946850863d0 466.1648230673975d0)
+
+(mapcar (lambda (pch) (pch->cps pch nil)) '(8.0 8.03 8.07 8.10))
+;; (261.62555 311.10065 391.9733 466.13742)
+
+(defvar *carlos-beta-tuning*
+  (make-tuning
+    :notes '(63.8 127.6 191.4 255.2 319.0 382.8 446.6 510.4 574.2 638.0 701.8
+             765.6 829.4 893.2 957.0 1020.8 1084.6 1148.4 1212.2 1276.0 1339.8
+             1403.6)
+    :description "Wendy Carlos' Beta scale with perfect fifth divided by eleven"
+    :keynum-base 69
+    :freq-base 440
+    :degree-index 9))
+
+(mapcar (lambda (pch) (pch->cps pch *carlos-beta-tuning*))
+        '(8.0 8.04 8.09 8.13 8.18 8.21 8.22 9.0))
+;; (315.7983193277311d0 365.9559432890444d0 440.00025203674517d0
+;;  509.8846239254526d0 613.0501601741471d0 684.7150905041098d0
+;;  710.4196610187067d0 710.4189488799282d0)
+
+;; We can quantize a list of frequencies with respect to a TUNING
+;; structure. The QUANTIZE method also works with real numbers,
+;; SIMPLE-VECTOR, SIMPLE-ARRAY and BUFFER-BASE in sorted order.
+;; If the object to quantize is a vector or a BUFFER-BASE structure,
+;; the keywords START and END are the bounding index designators, and
+;; the keyword FILTER-FUNCTION is usable to apply a function to the
+;; quantized value.  The arguments of that function are the vector
+;; index and the quantized value.
+
+(defvar *phr1*
+  (make-buffer 15
+    :initial-contents (loop repeat 3
+                            with l = (mapcar #'pch->cps
+                                             '(8.0 8.03 8.07 8.11 8.14))
+                            append l)))
+
+(buffer->list *phr1*)
+;; (261.6255586823373d0 311.12649215095877d0 391.9947633490325d0
+;;  493.8823191422988d0 587.3307285056402d0 261.6255586823373d0
+;;  311.12649215095877d0 391.9947633490325d0 493.8823191422988d0
+;;  587.3307285056402d0 261.6255586823373d0 311.12649215095877d0
+;;  391.9947633490325d0 493.8823191422988d0 587.3307285056402d0)
+
+(quantize *phr1* *carlos-beta-tuning* :start 4
+  :filter-function (lambda (i x) (if (> i 7) (* x 2) x)))
+
+(buffer->list *phr1*)
+;; (261.6255586823373d0 311.12649215095877d0 391.9947633490325d0
+;;  493.8823191422988d0 590.8683747069908d0 262.6552120696787d0
+;;  315.7983193277311d0 393.94752650215275d0 982.8719402122168d0
+;;  1181.7367494139817d0 525.3104241393575d0 631.5966386554622d0
+;;  787.8950530043055d0 982.8719402122168d0 1181.7367494139817d0)
+
+;; CPS->PCH converts from Hz to pitch class value:
+
+(loop for i from 100 to 1000 by 100
+      collect (list (cps->pch i)
+                    (cps->pch i *carlos-beta-tuning*)))
+;; ((6.0734344 5.1279316) (7.0734344 7.0960054) (8.023628 7.2060294)
+;;  (8.073434 8.064093) (8.1120825 8.124642) (9.023628 8.174117)
+;;  (9.050372 8.215946) (9.073434 9.032193) (9.0938225 9.064141)
+;;  (9.1120825 9.092739))
+
+;; PCH->KEYNUM and KEYNUM->PCH convert from pitch class to keynum and
+;; vice versa. The syntax is
+;;
+;; (pch->keynum pitch-class &optional (tuning *default-tuning*))
+;; (keynum->pch keynum &optional (tuning *default-tuning*))
+;;
+;; Example:
+
+;; The second returned value is the fractional part.
+(pch->keynum 8.00)
+;; 60
+;; 0.0
+
+;; Note: if the returned keynum is used without the fractional part,
+;; it is necessary to avoid round off problems by adding 1e-6 to the
+;; pitch class value before the conversion.
+
+(pch->keynum 8.03)
+;; 62
+;; 0.9999733
+
+(butlast (mapcar #'pch->keynum
+                 (loop for oct from 3 to 14
+                       append (loop for i to .11 by .01
+                                    collect (+ oct i 1e-6))))
+         16)
+;; (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 ...
+;;  ... 124 125 126 127)
+
+(subseq (mapcar (lambda (x) (pch->keynum x *carlos-beta-tuning*))
+                (loop for oct from 4 to 11
+                      unless (= oct 6) ; jump from 5.21 to 7.00
+                        append (loop for i to .211 by .01
+                                     collect (+ oct i 1e-6))))
+        6 134)
+;; (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 ...
+;;  ... 124 125 126 127)
+
+(loop for k below 128 collect (keynum->pch k))
+;; (3.0 3.01 3.02 3.03 3.04 3.05 3.06 3.07 3.08 3.09 3.1 3.11
+;;  4.0 4.01 4.02 4.03 4.04 4.05 4.06 4.07 4.08 4.09 4.1 4.11
+;;  ...
+;;  13.0 13.01 13.02 13.03 13.04 13.05 13.06 13.07)
+
+(loop for k below 128
+      collect (keynum->pch k *carlos-beta-tuning*))
+;; (4.06 4.07 4.08 4.09 4.1 4.11 4.12 4.13 4.14 4.15 4.16 4.17
+;;  4.18 4.19 4.2 4.21 5.0 5.01 5.02 5.03 5.04 5.05 5.06 5.07
+;;  5.08 5.09 5.1 5.11 5.12 5.13 5.14 5.15 5.16 5.17 5.18 5.19
+;;  5.2 5.21 7.0 7.01 7.02 7.03 7.04 7.05 7.06 7.07 7.08 7.09
+;;  7.1 7.11 7.12 7.13 7.14 7.15 7.16 7.17 7.18 7.19 7.2 7.21
+;;  8.0 8.01 8.02 8.03 8.04 8.05 8.06 8.07 8.08 8.09 8.1 8.11
+;;  ....
+;;  10.19 10.2 10.21 11.0 11.01)
