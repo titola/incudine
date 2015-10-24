@@ -229,6 +229,21 @@ If ID is zero, call INCUDINE:FLUSH-PENDING before INCUDINE:FREE."
         (?s ":SEC")
         (?S ":SAMP")))))
 
+(defun incudine-dsp/ugen-expand ()
+  "If the form at point starts with DSP! or DEFINE-UGEN, prompt the
+arguments and display the generated code."
+  (interactive)
+  (let ((string (slime-sexp-at-point)))
+    (when (string-match "^[ \t]*(\\(dsp!\\|define-ugen\\) " string)
+      (let* ((type (if (char-equal (aref string (1+ (match-beginning 1))) ?s)
+                       "dsp"
+                       "ugen"))
+             (args (read-from-minibuffer (concat type " args: ")))
+             (form (format "(funcall (%s-debug %s %s)"
+                           type (subseq string (match-end 0)) args)))
+        (slime-eval-async `(swank:interactive-eval ,form)
+          #'slime-initialize-macroexpansion-buffer)))))
+
 (defun incudine-play-regofile ()
   "Eval the edited rego file in realtime."
   (interactive)
@@ -289,6 +304,7 @@ rego file or call tags-loop-continue."
   (define-key map "\C-cu" 'incudine-unpause-node)
   (define-key map "\C-cgc" 'incudine-gc)
   (define-key map "\C-cgb" 'incudine-bytes-consed-in)
+  (define-key map "\C-cid" 'incudine-dsp/ugen-expand)
   (define-key map "\C-cig" 'incudine-dump-graph)
   (define-key map "\C-cim" 'incudine-rt-memory-free-size)
   (define-key map "\C-cip" 'incudine-peak-info)
@@ -336,6 +352,8 @@ rego file or call tags-loop-continue."
         (list "Memory"
               ["Garbage Collection" incudine-gc t]
               ["RT Memory Free Size" incudine-rt-memory-free-size t])
+        (list "Debugging"
+              ["DSP/UGEN Generated Code" incudine-dsp/ugen-expand t])
         (list "Logger"
               ["Log Level" incudine-logger-level-choice t]
               ["Log Time"  incudine-logger-time-choice t])
