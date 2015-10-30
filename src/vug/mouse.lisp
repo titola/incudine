@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2015 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -75,20 +75,20 @@
     (cffi:foreign-slot-value *mouse-event* '(:struct mouse-event) 'y))
 
   (defun get-mouse-button ()
-    (cffi:foreign-slot-value *mouse-event* '(:struct mouse-event) 'button)))
+    (cffi:foreign-slot-value *mouse-event* '(:struct mouse-event) 'button))
 
-(define-vug mouse-x ()
-  :pre-hook #'mouse-start
-  ;; :PRE-HOOK makes sense only during the compilation. A check during
-  ;; the initialization is safe, especially if we use a DSP compiled
-  ;; in a fasl file.
-  (initialize (mouse-start))
-  (get-mouse-x))
+  (define-vug mouse-x ()
+    :pre-hook #'mouse-start
+    ;; :PRE-HOOK makes sense only during the compilation. A check during
+    ;; the initialization is safe, especially if we use a DSP compiled
+    ;; in a fasl file.
+    (initialize (mouse-start))
+    (get-mouse-x))
 
-(define-vug mouse-y ()
-  :pre-hook #'mouse-start
-  (initialize (mouse-start))
-  (get-mouse-y))
+  (define-vug mouse-y ()
+    :pre-hook #'mouse-start
+    (initialize (mouse-start))
+    (get-mouse-y)))
 
 (define-vug mouse-button ()
   :pre-hook #'mouse-start

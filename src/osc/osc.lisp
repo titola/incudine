@@ -644,9 +644,9 @@ multiple of four (bytes)."
                        (aref buffer i)))))
   (values))
 
+(declaim (inline midi))
 (defun midi (port-id status data1 data2)
-  (declare (type (unsigned-byte 8) port-id status data1 data2)
-           (optimize speed (safety 0)))
+  (declare (type (unsigned-byte 8) port-id status data1 data2))
   #-little-endian
   (logior (ash port-id 24) (ash status 16) (ash data1 8) data2)
   #+little-endian

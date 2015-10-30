@@ -16,41 +16,55 @@
 
 (in-package :incudine.vug)
 
-(defmacro with-ringbuffer-heads ((read-head write-head delay-samples mask)
-                                 &body body)
-  `(with ((,write-head 0)
-          (,read-head (logand (- ,write-head ,delay-samples) ,mask)))
-     (declare (type non-negative-fixnum ,read-head ,write-head))
-     ,@body))
-
-(defmacro update-ringbuffer (buffer input read-head write-head mask)
-  `(progn
-     (setf (smp-ref ,buffer ,write-head) ,input)
-     (setf ,read-head (logand (1+ ,read-head) ,mask))
-     (setf ,write-head (logand (1+ ,write-head) ,mask))))
-
-(defmacro %delay-s (input delay-samples ringbuf mask)
-  (with-gensyms (read-head write-head)
-    `(with-ringbuffer-heads (,read-head ,write-head ,delay-samples ,mask)
-       (prog1 (smp-ref ,ringbuf ,read-head)
-         (update-ringbuffer ,ringbuf ,input ,read-head ,write-head ,mask)))))
-
-(define-vug buf-delay-s ((buffer buffer) in
-                         (delay-samples non-negative-fixnum))
-  "Buffer based delay line with delay time in samples.
-Use all the BUFFER memory if the BUFFER size is a power of two."
-  (with ((ringbuf (buffer-data buffer))
-         (mask (buffer-mask buffer)))
-    (declare (type foreign-pointer ringbuf) (type non-negative-fixnum mask))
-    (initialize (foreign-zero-sample ringbuf (1+ mask)))
-    (%delay-s in delay-samples ringbuf mask)))
-
-(define-vug buf-delay ((buffer buffer) in delay-time)
-  "Buffer based delay line with DELAY-TIME in seconds.
-Use all the BUFFER memory if the BUFFER size is a power of two."
-  (buf-delay-s buffer in (sample->fixnum (* delay-time *sample-rate*))))
-
 (eval-when (:compile-toplevel :load-toplevel :execute)
+  (defmacro with-ringbuffer-heads ((read-head write-head delay-samples mask)
+                                   &body body)
+    `(with ((,write-head 0)
+            (,read-head (logand (- ,write-head ,delay-samples) ,mask)))
+       (declare (type non-negative-fixnum ,read-head ,write-head))
+       ,@body))
+
+  (defmacro update-ringbuffer (buffer input read-head write-head mask)
+    `(progn
+       (setf (smp-ref ,buffer ,write-head) ,input)
+       (setf ,read-head (logand (1+ ,read-head) ,mask))
+       (setf ,write-head (logand (1+ ,write-head) ,mask))))
+
+  (defmacro %delay-s (input delay-samples ringbuf mask)
+    (with-gensyms (read-head write-head)
+      `(with-ringbuffer-heads (,read-head ,write-head ,delay-samples ,mask)
+         (prog1 (smp-ref ,ringbuf ,read-head)
+           (update-ringbuffer ,ringbuf ,input ,read-head ,write-head ,mask)))))
+
+  (define-vug buf-delay-s ((buffer buffer) in
+                           (delay-samples non-negative-fixnum))
+    "Buffer based delay line with delay time in samples.
+Use all the BUFFER memory if the BUFFER size is a power of two."
+    (with ((ringbuf (buffer-data buffer))
+           (mask (buffer-mask buffer)))
+      (declare (type foreign-pointer ringbuf) (type non-negative-fixnum mask))
+      (initialize (foreign-zero-sample ringbuf (1+ mask)))
+      (%delay-s in delay-samples ringbuf mask)))
+
+  (define-vug buf-delay ((buffer buffer) in delay-time)
+    "Buffer based delay line with DELAY-TIME in seconds.
+Use all the BUFFER memory if the BUFFER size is a power of two."
+    (buf-delay-s buffer in (sample->fixnum (* delay-time *sample-rate*))))
+
+  (define-vug delay-s (in (max-delay-samples positive-fixnum)
+                       (delay-samples positive-fixnum))
+    "Delay line with delay time in samples."
+    (with ((size (next-power-of-two max-delay-samples))
+           (ringbuf (make-frame size :zero-p t))
+           (mask (1- size)))
+      (declare (type frame ringbuf) (type non-negative-fixnum size mask))
+      (%delay-s in delay-samples ringbuf mask)))
+
+  (define-vug delay (in max-delay-time delay-time)
+    "Delay line with DELAY-TIME in seconds."
+    (delay-s in (sample->fixnum (* max-delay-time *sample-rate*))
+             (sample->fixnum (* delay-time *sample-rate*))))
+
   (defmacro select-delay-interp (interp dsamps isamps data index mask)
     (with-gensyms (frac)
       (case interp
@@ -68,7 +82,25 @@ Use all the BUFFER memory if the BUFFER size is a power of two."
                                      (smp-ref ,data ,index2)
                                      (smp-ref ,data ,index3))))))
         ;; No interpolation
-        (otherwise `(smp-ref ,data ,index))))))
+        (otherwise `(smp-ref ,data ,index)))))
+
+  (define-vug-macro vdelay (in max-delay-time delay-time
+                            &optional (interpolation :linear))
+    "Delay line with INTERPOLATION and DELAY-TIME in seconds."
+    (with-gensyms (size dsamps isamps mask dt ringbuf read-head write-head)
+      `(with ((,size (next-power-of-two (sample->fixnum (* ,max-delay-time
+                                                           *sample-rate*))))
+              (,mask (1- ,size))
+              (,ringbuf (make-frame ,size :zero-p t))
+              (,dsamps (vug-input (* ,delay-time *sample-rate*)))
+              (,isamps (sample->fixnum ,dsamps))
+              (,dt (clip ,isamps 0 ,mask)))
+         (declare (type frame ,ringbuf) (type sample ,dsamps)
+                  (type non-negative-fixnum ,mask ,isamps ,dt))
+         (with-ringbuffer-heads (,read-head ,write-head ,dt ,mask)
+           (prog1 (select-delay-interp ,interpolation ,dsamps ,isamps ,ringbuf
+                                       ,read-head ,mask)
+             (update-ringbuffer ,ringbuf ,in ,read-head ,write-head ,mask)))))))
 
 (define-vug-macro buf-vdelay (buffer in delay-time
                               &optional (interpolation :linear) write-head-var)
@@ -112,38 +144,6 @@ Use all the BUFFER memory if the BUFFER size is a power of two."
        (let ((,read-head (logand (the fixnum (- ,write-head-var ,dt)) ,mask)))
          (select-delay-interp ,interpolation ,dsamps ,isamps ,data ,read-head
                               ,mask)))))
-
-(define-vug delay-s (in (max-delay-samples positive-fixnum)
-                        (delay-samples positive-fixnum))
-  "Delay line with delay time in samples."
-  (with ((size (next-power-of-two max-delay-samples))
-         (ringbuf (make-frame size :zero-p t))
-         (mask (1- size)))
-    (declare (type frame ringbuf) (type non-negative-fixnum size mask))
-    (%delay-s in delay-samples ringbuf mask)))
-
-(define-vug delay (in max-delay-time delay-time)
-  "Delay line with DELAY-TIME in seconds."
-  (delay-s in (sample->fixnum (* max-delay-time *sample-rate*))
-           (sample->fixnum (* delay-time *sample-rate*))))
-
-(define-vug-macro vdelay (in max-delay-time delay-time
-                          &optional (interpolation :linear))
-  "Delay line with INTERPOLATION and DELAY-TIME in seconds."
-  (with-gensyms (size dsamps isamps mask dt ringbuf read-head write-head)
-    `(with ((,size (next-power-of-two (sample->fixnum (* ,max-delay-time
-                                                         *sample-rate*))))
-            (,mask (1- ,size))
-            (,ringbuf (make-frame ,size :zero-p t))
-            (,dsamps (vug-input (* ,delay-time *sample-rate*)))
-            (,isamps (sample->fixnum ,dsamps))
-            (,dt (clip ,isamps 0 ,mask)))
-       (declare (type frame ,ringbuf) (type sample ,dsamps)
-                (type non-negative-fixnum ,mask ,isamps ,dt))
-       (with-ringbuffer-heads (,read-head ,write-head ,dt ,mask)
-         (prog1 (select-delay-interp ,interpolation ,dsamps ,isamps ,ringbuf
-                                     ,read-head ,mask)
-           (update-ringbuffer ,ringbuf ,in ,read-head ,write-head ,mask))))))
 
 (declaim (inline delay-feedback))
 (defun delay-feedback (delay-time decay-time)

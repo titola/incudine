@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2015 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -135,6 +135,15 @@
                      (incf ,phs (- ,phase ,phase-old))
                      (setf ,phase-old ,phase)))))
            (incf ,phs ,freq-inc)))))
+
+  (define-vug single-impulse () (- 1 (delay1 1)))
+
+  ;;; Another single impulse
+  ;; (define-vug single-impulse ()
+  ;;   (with-samples ((x 1))
+  ;;     (initialize (reduce-warnings
+  ;;                   (at (1+ (now)) (lambda () (setf x +sample-zero+)))))
+  ;;     x))
 
   (defmacro %buzz-numerator (buffer data phs two-nh-plus-one minus-lobits mask
                              interpolation)
@@ -597,15 +606,6 @@
 (define-vug pulse (freq amp width)
   (if (< (phasor freq 0) width) amp (- amp)))
 
-(define-vug single-impulse () (- 1 (delay1 1)))
-
-;;; Another single impulse
-;; (define-vug single-impulse ()
-;;   (with-samples ((x 1))
-;;     (initialize (reduce-warnings
-;;                   (at (1+ (now)) (lambda () (setf x +sample-zero+)))))
-;;     x))
-
 (define-vug-macro impulse (&optional (freq 0 freq-p) (amp 1) (phase 0))
   (if freq-p
       ;; Impulse oscillator
@@ -627,13 +627,14 @@
 ;;;
 ;;;   [2] https://ccrma.stanford.edu/~jos/pasp/Normalized_Scattering_Junctions.html
 ;;;
-(define-vug oscrq (freq)
-  "Sinusoidal oscillator based on 2D vector rotation (sine and cosine outputs)."
-  (nlf2 (impulse) freq 1))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (define-vug oscrq (freq)
+    "Sinusoidal oscillator based on 2D vector rotation (sine and cosine outputs)."
+    (nlf2 (impulse) freq 1))
 
-(define-vug oscrs (freq amp)
-  "Sinusoidal oscillator based on 2D vector rotation (sine output)."
-  (* amp (frame-ref (oscrq freq) 0)))
+  (define-vug oscrs (freq amp)
+    "Sinusoidal oscillator based on 2D vector rotation (sine output)."
+    (* amp (frame-ref (oscrq freq) 0))))
 
 (define-vug oscrc (freq amp)
   "Sinusoidal oscillator based on 2D vector rotation (cosine output)."

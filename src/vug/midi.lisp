@@ -109,35 +109,68 @@
     (incudine:make-buffer 128 :initial-contents (loop for i below 128
                                                       collect (/ i 127)))
     "Linear mapping from [0, 0x7F] to [0.0, 1.0]")
-  (declaim (inline *linear-midi-table*)))
+  (declaim (inline *linear-midi-table*))
 
-(declaim (inline midi-note-off-p midi-note-on-p midi-note-p
-                 midi-poly-aftertouch-p midi-cc-p midi-program-p
-                 midi-global-aftertouch-p midi-pitch-bend-p))
+  (declaim (inline midi-note-off-p midi-note-on-p midi-note-p
+                   midi-poly-aftertouch-p midi-cc-p midi-program-p
+                   midi-global-aftertouch-p midi-pitch-bend-p))
 
-(macrolet ((define-midi-*-p (spec)
-             `(progn
-                ,@(mapcar (lambda (cons)
-                            `(defun ,(vug-format-symbol "MIDI-~A-P" (car cons))
-                                 (status)
-                               (declare (type (unsigned-byte 8) status))
-                               (= (ldb (byte 4 4) status) ,(cdr cons))))
-                          spec)))
-           (define-vug-midi (names)
-             `(progn
-                ,@(mapcar (lambda (name)
-                            `(define-vug ,(vug-format-symbol "MIDI-~A" name)
-                                 ((channel fixnum))
-                               (with ((table (svref *midi-table* channel)))
-                                 (declare (type midi-table table))
-                                 (the fixnum
-                                   (,(vug-format-symbol "MIDI-TABLE-~A" name)
-                                    table)))))
-                          names))))
-  (define-midi-*-p
-      ((note-off . #x8) (note-on . #x9) (poly-aftertouch . #xa) (cc . #xb)
-       (program . #xc) (global-aftertouch . #xd) (pitch-bend . #xe)))
-  (define-vug-midi (program global-aftertouch)))
+  (macrolet ((define-midi-*-p (spec)
+               `(progn
+                  ,@(mapcar (lambda (cons)
+                              `(defun ,(vug-format-symbol "MIDI-~A-P" (car cons))
+                                   (status)
+                                 (declare (type (unsigned-byte 8) status))
+                                 (= (ldb (byte 4 4) status) ,(cdr cons))))
+                            spec)))
+             (define-vug-midi (names)
+               `(progn
+                  ,@(mapcar (lambda (name)
+                              `(define-vug ,(vug-format-symbol "MIDI-~A" name)
+                                   ((channel fixnum))
+                                 (with ((table (svref *midi-table* channel)))
+                                   (declare (type midi-table table))
+                                   (the fixnum
+                                     (,(vug-format-symbol "MIDI-TABLE-~A" name)
+                                       table)))))
+                            names))))
+    (define-midi-*-p
+        ((note-off . #x8) (note-on . #x9) (poly-aftertouch . #xa) (cc . #xb)
+         (program . #xc) (global-aftertouch . #xd) (pitch-bend . #xe)))
+    (define-vug-midi (program global-aftertouch)))
+
+  (define-vug midi-velocity ((channel fixnum) (keynum (unsigned-byte 8)))
+    (with ((velocity-vec (midi-table-note-velocity-vec (svref *midi-table*
+                                                              channel))))
+      (the (integer 0 127) (svref velocity-vec keynum))))
+
+  (define-vug midi-poly-aftertouch ((channel fixnum) (keynum fixnum))
+    (with ((pat-table (midi-table-poly-aftertouch (svref *midi-table* channel))))
+      (declare (type simple-vector pat-table))
+      (the fixnum (svref pat-table keynum))))
+
+  (define-vug midi-cc ((channel fixnum) (number fixnum))
+    (with ((cc-table (midi-table-cc (svref *midi-table* channel))))
+      (declare (type simple-vector cc-table))
+      (the fixnum (svref cc-table number))))
+
+  (define-vug midi-pitch-bend ((channel fixnum))
+    (with ((table (svref *midi-table* channel)))
+      (declare (type midi-table table))
+      (midi-table-pitch-bend table)))
+
+  (defmacro midi-linear-map (in min max &optional norm-table)
+    (with-gensyms (delta)
+      `(with-samples ((,delta (- ,max ,min)))
+         (+ ,min (* ,delta (smp-ref ,(or norm-table '*midi-normalize-table*)
+                                    ,in))))))
+
+  (defmacro midi-exponential-map (in min max &optional norm-table)
+    (with-gensyms (ratio)
+      `(with-samples ((,ratio (/ ,max ,min)))
+         (* ,min (expt (the non-negative-sample ,ratio)
+                       (smp-ref ,(or norm-table '*midi-normalize-table*)
+                                ,in)))))))
 
 (defun midi-note-p (status)
   (declare (type (unsigned-byte 8) status))
@@ -146,23 +179,23 @@
 (define-vug midi-note-on ((channel fixnum))
   "Keynum of the last MIDI note-on message for the channel CHANNEL."
   (with ((note-prio-vec (midi-table-note-priority-vec
-                          (svref *midi-table* channel))))
+                         (svref *midi-table* channel))))
     (the (integer 0 127) (%last-note-on note-prio-vec))))
 
 (define-vug midi-note-off ((channel fixnum))
   "Keynum of the last MIDI note-off message for the channel CHANNEL."
   (with ((note-prio-vec (midi-table-note-priority-vec
-                          (svref *midi-table* channel))))
+                         (svref *midi-table* channel))))
     (the (integer 0 127) (%last-note-off note-prio-vec))))
 
 (define-vug midi-lowest-keynum ((channel fixnum))
   (with ((note-prio-vec (midi-table-note-priority-vec
-                          (svref *midi-table* channel))))
+                         (svref *midi-table* channel))))
     (the (integer 0 127) (lowest-note-priority note-prio-vec))))
 
 (define-vug midi-highest-keynum ((channel fixnum))
   (with ((note-prio-vec (midi-table-note-priority-vec
-                          (svref *midi-table* channel))))
+                         (svref *midi-table* channel))))
     (the (integer 0 127) (highest-note-priority note-prio-vec))))
 
 (define-vug midi-cps ((tun tuning) (keynum (unsigned-byte 8)))
@@ -170,43 +203,10 @@
     (declare (type pointer data))
     (smp-ref data keynum)))
 
-(define-vug midi-velocity ((channel fixnum) (keynum (unsigned-byte 8)))
-  (with ((velocity-vec (midi-table-note-velocity-vec (svref *midi-table*
-                                                            channel))))
-    (the (integer 0 127) (svref velocity-vec keynum))))
-
 (define-vug midi-amp ((ampbuf buffer) (channel fixnum)
                       (keynum (unsigned-byte 8)))
   (with ((data (buffer-data ampbuf)))
     (smp-ref data (midi-velocity channel keynum))))
-
-(define-vug midi-poly-aftertouch ((channel fixnum) (keynum fixnum))
-  (with ((pat-table (midi-table-poly-aftertouch (svref *midi-table* channel))))
-    (declare (type simple-vector pat-table))
-    (the fixnum (svref pat-table keynum))))
-
-(define-vug midi-cc ((channel fixnum) (number fixnum))
-  (with ((cc-table (midi-table-cc (svref *midi-table* channel))))
-    (declare (type simple-vector cc-table))
-    (the fixnum (svref cc-table number))))
-
-(define-vug midi-pitch-bend ((channel fixnum))
-  (with ((table (svref *midi-table* channel)))
-    (declare (type midi-table table))
-    (midi-table-pitch-bend table)))
-
-(defmacro midi-linear-map (in min max &optional norm-table)
-  (with-gensyms (delta)
-    `(with-samples ((,delta (- ,max ,min)))
-       (+ ,min (* ,delta (smp-ref ,(or norm-table '*midi-normalize-table*)
-                                  ,in))))))
-
-(defmacro midi-exponential-map (in min max &optional norm-table)
-  (with-gensyms (ratio)
-    `(with-samples ((,ratio (/ ,max ,min)))
-       (* ,min (expt (the non-negative-sample ,ratio)
-                     (smp-ref ,(or norm-table '*midi-normalize-table*)
-                              ,in))))))
 
 (define-vug lin-midi-poly-aftertouch ((channel fixnum) (keynum fixnum) min max)
   (midi-linear-map (midi-poly-aftertouch channel keynum) min max))

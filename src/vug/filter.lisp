@@ -24,29 +24,64 @@
   (define-vug-macro ~ (in)
     "Anaphoric VUG MACRO for recursive composition."
     (let ((it (ensure-symbol 'it)))
-      `(with-samples (,it) (setf ,it ,in)))))
+      `(with-samples (,it) (setf ,it ,in))))
 
-(define-vug delay1 (in)
-  "One sample delay."
-  (with-samples (sig) (prog1 sig (setf sig in))))
+  (define-vug delay1 (in)
+    "One sample delay."
+    (with-samples (sig) (prog1 sig (setf sig in))))
 
-(define-vug pole (in coef)
-  "One pole filter."
-  (~ (+ in (* coef it))))
+  (define-vug pole (in coef)
+    "One pole filter."
+    (~ (+ in (* coef it))))
 
-(define-vug pole* (in coef)
-  "Scaled one pole filter."
-  (with-samples ((g (- 1 (abs coef))))
-    (pole (* g in) coef)))
+  (define-vug pole* (in coef)
+    "Scaled one pole filter."
+    (with-samples ((g (- 1 (abs coef))))
+      (pole (* g in) coef)))
 
-(define-vug zero (in coef)
-  "One zero filter."
-  (- in (* coef (delay1 in))))
+  (define-vug zero (in coef)
+    "One zero filter."
+    (- in (* coef (delay1 in))))
 
-(define-vug zero* (in coef)
-  "Scaled one zero filter."
-  (with-samples ((g (- 1 (abs coef))))
-    (+ (* g in) (* coef (delay1 in)))))
+  (define-vug zero* (in coef)
+    "Scaled one zero filter."
+    (with-samples ((g (- 1 (abs coef))))
+      (+ (* g in) (* coef (delay1 in)))))
+
+  (define-vug lag (in time)
+    "Scaled one pole filter with the coefficient calculated from
+a 60 dB lag TIME."
+    (pole* in (t60->pole time)))
+
+  (define-vug lag-ud (in attack-time decay-time)
+  "Scaled one pole filter with the coefficient calculated from
+a 60 dB lag ATTACK-TIME and DECAY-TIME."
+  (with-samples ((coef-up (t60->pole attack-time))
+                 (coef-down (t60->pole decay-time)))
+    (~ (pole* in (if (> in it) coef-up coef-down)))))
+
+  (define-vug decay (in decay-time)
+    "Exponential decay."
+    (pole in (t60->pole decay-time)))
+
+  (define-vug biquad (in b0 b1 b2 a0 a1 a2)
+    "Biquad filter."
+    (with-samples (x1 x2 y y1 y2)
+      (with-samples ((a0r (/ a0))
+                     (n0 (* b0 a0r))
+                     (n1 (* b1 a0r))
+                     (n2 (* b2 a0r))
+                     (d1 (* a1 a0r))
+                     (d2 (* a2 a0r)))
+        (setf y (- (+ (* n0 in) (* n1 x1) (* n2 x2)) (* d1 y1) (* d2 y2))
+              x2 x1 x1 in y2 y1 y1 y)
+        y)))
+
+  (defmacro with-reson-common ((wt-var radius-var freq q) &body body)
+    `(with-samples ((,wt-var (* ,freq *twopi-div-sr*))
+                    (,radius-var (exp (* (/ ,freq ,q)
+                                         *minus-pi-div-sr*))))
+       ,@body)))
 
 ;;; `tone' and `atone' opcodes used in Csound.
 (define-vug cs-tone (in hp)
@@ -82,42 +117,13 @@ half-power point."
   "DC blocking filter."
   (pole (zero in 1) coef))
 
-(define-vug lag (in time)
-  "Scaled one pole filter with the coefficient calculated from
-a 60 dB lag TIME."
-  (pole* in (t60->pole time)))
-
-(define-vug lag-ud (in attack-time decay-time)
-  "Scaled one pole filter with the coefficient calculated from
-a 60 dB lag ATTACK-TIME and DECAY-TIME."
-  (with-samples ((coef-up (t60->pole attack-time))
-                 (coef-down (t60->pole decay-time)))
-    (~ (pole* in (if (> in it) coef-up coef-down)))))
-
 (define-vug env-follower (in attack-time decay-time)
   "Envelope follower."
   (lag-ud (abs in) attack-time decay-time))
 
-(define-vug decay (in decay-time)
-  "Exponential decay."
-  (pole in (t60->pole decay-time)))
-
 (define-vug decay-2 (in attack-time decay-time)
   "Exponential decay with the attack obtained by subtracting two DECAYs."
   (- (decay in decay-time) (decay in attack-time)))
-
-(define-vug biquad (in b0 b1 b2 a0 a1 a2)
-  "Biquad filter."
-  (with-samples (x1 x2 y y1 y2)
-    (with-samples ((a0r (/ a0))
-                   (n0 (* b0 a0r))
-                   (n1 (* b1 a0r))
-                   (n2 (* b2 a0r))
-                   (d1 (* a1 a0r))
-                   (d2 (* a2 a0r)))
-      (setf y (- (+ (* n0 in) (* n1 x1) (* n2 x2)) (* d1 y1) (* d2 y2))
-            x2 x1 x1 in y2 y1 y1 y)
-      y)))
 
 ;;; Two pole resonant filters.
 ;;;
@@ -130,13 +136,6 @@ a 60 dB lag ATTACK-TIME and DECAY-TIME."
 ;;;   [2] Ken Steiglitz, "A Note on Constant-Gain Digital Resonators,"
 ;;;   Computer Music Journal, vol. 18, no. 4, pp. 8-10, Winter 1982.
 ;;;
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defmacro with-reson-common ((wt-var radius-var freq q) &body body)
-    `(with-samples ((,wt-var (* ,freq *twopi-div-sr*))
-                    (,radius-var (exp (* (/ ,freq ,q)
-                                         *minus-pi-div-sr*))))
-       ,@body)))
-
 (define-vug reson (in freq q)
   "Two pole resonant filter."
   (with-reson-common (wt r freq q)
