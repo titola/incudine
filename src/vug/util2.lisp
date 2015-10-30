@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2015 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -90,39 +90,58 @@
 (macrolet ((make-*-array (name type)
              `(defmacro ,name (&whole whole size &key zero-p initial-element
                                initial-contents)
-                (declare (ignore zero-p initial-element initial-contents))
-                `(%make-foreign-array ,size ,,type ,@(cddr whole)))))
+                (declare (ignore zero-p initial-element))
+                (let ((key-args (copy-list (cddr whole)))
+                      (vals (gensym)))
+                  (when initial-contents
+                    (remf key-args :initial-contents))
+                  (multiple-value-bind (binding init-key-value)
+                      (and initial-contents
+                           (values `((,vals ,initial-contents))
+                                   `(:initial-contents
+                                     ;; Dummy value for the header.
+                                     (cons (car ,vals) ,vals))))
+                    `(let ,binding
+                       (%make-foreign-array ,size ,,type ,@key-args
+                                            ,@init-key-value)))))))
   ;; A FRAME is a foreign array of SAMPLE type, useful to efficiently
   ;; store and return multiple values from a VUG
   (make-*-array make-frame 'sample)
   ;; Other utilities to create foreign arrays.
-  (make-*-array make-int32-array :int32)
-  (make-*-array make-uint32-array :uint32)
-  (make-*-array make-int64-array :int64)
-  (make-*-array make-uint64-array :uint64)
+  (make-*-array make-i32-array :int32)
+  (make-*-array make-u32-array :uint32)
+  (make-*-array make-i64-array :int64)
+  (make-*-array make-u64-array :uint64)
   (make-*-array make-f32-array :float)
   (make-*-array make-f64-array :double))
 
 (defmacro make-pointer-array (size)
   `(%make-foreign-array ,size :pointer))
 
+(declaim (inline %make-vec))
+(defun %make-vec (size &key zero-p initial-element initial-contents)
+  (cond ((or zero-p initial-element)
+         (make-array size :initial-element (or initial-element 0)))
+        (initial-contents
+         (make-array size :initial-contents initial-contents))
+        (t
+         (make-array size))))
+
+(defmacro maybe-make-x32-array-fname (name)
+  `(reduce-warnings
+     (if (< incudine.util::n-fixnum-bits 32) ',name '%make-vec)))
+
 (defmacro maybe-make-i32-array (&whole whole size &key zero-p initial-element
                                 initial-contents)
-  (declare (ignore initial-element initial-contents))
-  (let ((key-args (copy-list (cddr whole))))
-    (if (< incudine.util::n-fixnum-bits 32)
-        `(make-int32-array ,size ,@key-args)
-        `(make-array ,size ,@(if zero-p `(:initial-element 0))
-                     ,@(progn (remf key-args :zero-p) key-args)))))
+  (declare (ignore zero-p initial-element initial-contents))
+  (let ((fname (maybe-make-x32-array-fname make-i32-array)))
+    `(,fname ,size ,@(cddr whole))))
 
 (defmacro maybe-make-u32-array (&whole whole size &key zero-p initial-element
                                 initial-contents)
-  (declare (ignore initial-element initial-contents))
-  (let ((key-args (copy-list (cddr whole))))
-    (if (< incudine.util::n-fixnum-bits 32)
-        `(make-uint32-array ,size ,@key-args)
-        `(make-array ,size ,@(if zero-p `(:initial-element 0))
-                     ,@(progn (remf key-args :zero-p) key-args)))))
+  (declare (ignore zero-p initial-element initial-contents))
+  (let ((fname (maybe-make-x32-array-fname make-u32-array)))
+    `(,fname ,size ,@(cddr whole))))
 
 (defmacro maybe-i32-ref (array index)
   (if (< incudine.util::n-fixnum-bits 32)

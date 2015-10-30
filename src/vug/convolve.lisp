@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2015 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@ stored in a buffer."
          (data (make-frame size :zero-p t))
          (pos 0)
          (sum +sample-zero+))
-    (declare (type fixnum pos) (type sample sum))
+    (declare (type fixnum pos) (type sample sum) (type frame data))
     (labels ((conv (index kernel-pos end)
                (declare (type fixnum index kernel-pos end))
                (cond ((< index end)
