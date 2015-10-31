@@ -1187,6 +1187,7 @@
                                     stop-hook free-hook action fade-time
                                     fade-curve)
                   (values))
+                (compile ',name)
                 (maybe-update-dsp-instances ,name ,arg-names)
                 #',name))))))
 

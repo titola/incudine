@@ -411,8 +411,14 @@ or IGNORE-SCORE-STATEMENTS."
   (ensure-symbol (symbol-name (gensym (format nil "%%%~A%%%" (string name))))))
 
 (defmacro with-rego-function ((fname compile-rego-p) &body body)
-  `(,@(if fname `(defun ,fname) '(lambda)) ()
-      (,(if compile-rego-p 'progn 'incudine.util::cudo-eval) ,@body)))
+  (let ((maybe-compile (if compile-rego-p
+                           `(compile ,@(unless fname '(nil)))
+                           '(progn)))
+        (expr `(progn ,@body)))
+    (unless compile-rego-p
+      (setf expr `(incudine.util::cudo-eval (quote ,expr))))
+    `(,@maybe-compile
+       (,@(if fname `(defun ,fname) '(lambda)) () ,expr))))
 
 ;;; Foreign memory to reduce consing.
 (defmacro with-rego-samples ((foreign-array-name t0-var t1-var time-var
@@ -565,8 +571,7 @@ or IGNORE-SCORE-STATEMENTS."
            (with-rego-samples (,c-array-wrap ,smptime0 ,smptime1 ,smptime ,sched
                                ,last-time ,last-dur)
              (let ((,tempo-env (default-tempo-envelope))
-                   (*score-objects-to-free* nil)
-                   (*rego-tempo-envelopes* nil))
+                   (*score-objects-to-free* nil))
                (incudine.edf::with-schedule
                  (flet ((,dur (,beats)
                           (setf ,last-time ,sched)

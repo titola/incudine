@@ -96,9 +96,15 @@
 (defun add-after-gc-hook (function)
   (pushnew function sb-ext:*after-gc-hooks*))
 
-(defmacro cudo-eval (&body body)
-  `(let ((sb-ext:*evaluator-mode* :interpret))
-     (eval '(progn ,@body))))
+(defmacro %cudo-eval (mode expr)
+  `(let ((sb-ext:*evaluator-mode* ,mode))
+     (eval ,expr)))
+
+(defmacro cudo-eval (expr)
+  `(%cudo-eval :interpret ,expr))
+
+(defmacro cudo-compile (expr)
+  `(%cudo-eval :compile ,expr))
 
 (defmacro %exit (&optional (code 0))
   `(sb-ext:exit :code ,code))

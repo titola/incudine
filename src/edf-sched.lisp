@@ -129,12 +129,7 @@
 
 (declaim (inline at))
 (defun at (time function &rest args)
-  (%%at time function args))
-
-(define-compiler-macro at (&whole form &environment env time &rest rest)
-  (if (and (constantp time env) (not (typep time 'sample)))
-      `(at ,(sample time) ,@rest)
-      form))
+  (%%at (sample time) function args))
 
 ;;; Anaphoric macro for AT.
 ;;; The variable IT is bound to the time, the first argument of AT.

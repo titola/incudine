@@ -135,7 +135,8 @@ arguments to update the dependencies if it exists."
                      ,@(if (ctrl-update-function-p flag)
                            `((funcall (the function (svref ,ctrl ,(1+ id)))
                                       ,@(unless ptr-p `(,new-value)))))
-                     (values)))))))))))
+                     (values)))
+                 (values (compile ',name))))))))))
 
 (defmacro ugen-funcall (name &rest arguments)
   `(funcall (ugen-callback (ugen ,name)) ,@arguments))
@@ -391,8 +392,9 @@ arguments to update the dependencies if it exists."
                                     :args arg-names
                                     :arg-types types
                                     :inline-callback fn)))
-               (eval `(%compile-vug ,name ,arg-bindings ,return-type
-                                    ,args ,arg-names ,ugen))))))))
+               (incudine.util::cudo-compile
+                 `(%compile-vug ,name ,arg-bindings ,return-type
+                                ,args ,arg-names ,ugen))))))))
 
 (defmacro define-ugen (name return-type lambda-list &body body)
   `(compile-vug (define-vug ,name ,lambda-list ,@body) ',return-type))
