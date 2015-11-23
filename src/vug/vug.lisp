@@ -325,7 +325,10 @@
       (let ((inputs (vug-function-inputs value)))
         (when (null (cdr inputs))
           ;; `(PROGN FORM)' becomes FORM.
-          (setf value (car inputs)))))
+          (let ((block-p (vug-function-block-p value)))
+            (setf value (car inputs))
+            (when (and block-p (vug-object-p value))
+              (setf (vug-object-block-p value) t))))))
     (when (and (vug-variable-p value)
                (vug-variable-temporary-p value))
       (setf (vug-variable-temporary-p value) nil)
