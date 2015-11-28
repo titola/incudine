@@ -199,10 +199,6 @@ or IGNORE-SCORE-STATEMENTS."
         (when space-pos
           (find-if-not #'blank-char-p string :start space-pos)))))
 
-(defun org-table-separator-p (line)
-  (and (char= (char line 0) #\|)
-       (every (lambda (c) (member c '(#\+ #\- #\|))) line)))
-
 (defun sharp-plus-to-skip (line)
   (and (char= (char line 0) #\#)
        (> (length line) 2)
@@ -219,6 +215,33 @@ or IGNORE-SCORE-STATEMENTS."
   (declare (type string name))
   ;; A keyword is not ignored because it could be a label.
   (find #\: name :start 1))
+
+(declaim (inline org-table-line-p))
+(defun org-table-line-p (string)
+  (char= (char string 0) #\|))
+
+(defun org-table-mark (line)
+  (let ((pos (position #\| (subseq line 1))))
+    (when pos
+      (let ((str (string-trim-blank (subseq line 1 pos))))
+        (and (= (length str) 1) (char str 0))))))
+
+(defun org-table-line-to-skip-p (line)
+  (when (org-table-line-p line)
+    (or ;; Horizontal separator.
+        (every (lambda (c) (member c '(#\+ #\- #\|))) line)
+        ;; Empty.
+        (every (lambda (c) (member c '(#\| #\Space #\Tab))) line)
+        ;; Marking characters to ignore.
+        (member (org-table-mark line) '(#\! #\^ #\_ #\$ #\/)))))
+
+(defun org-table-filter (line)
+  (if (org-table-line-p line)
+      (let ((c (car (member (org-table-mark line) '(#\# #\*)))))
+        (if c
+            (subseq line (1+ (position c line)))  ; Ignore org-table-mark
+            line))
+      line))
 
 (defun ignore-score-statement (name stream)
   (declare (type string name) (type stream stream))
@@ -240,7 +263,7 @@ or IGNORE-SCORE-STATEMENTS."
           (and (char/= c #\()
                (or (char= c #\;)
                    (ignore-score-statement (score-statement-name str) stream)
-                   (org-table-separator-p str)
+                   (org-table-line-to-skip-p str)
                    (sharp-plus-to-skip str)))))))
 
 (defmacro %at-sample (at-fname beats func-symbol &rest args)
@@ -301,7 +324,7 @@ or IGNORE-SCORE-STATEMENTS."
                 (t (push incfile *include-rego-stack*)
                    (apply #'%write-regofile incfile
                           `(,at-fname ,@(cdr args) t ,time))))))
-      (let ((line (or (expand-score-statement line) line))
+      (let ((line (or (expand-score-statement line) (org-table-filter line)))
             (*readtable* *score-readtable*)
             (*read-default-float-format* *sample-type*))
         (declare (type string line))
