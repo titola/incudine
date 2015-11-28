@@ -136,7 +136,7 @@ If BLOCK-SIZE is positive, set the new block size before starting."
   (let ((n (prefix-numeric-value0 block-size)))
     (if (> n 0)
         (incudine-eval
-          "(progn (set-rt-block-size %d) (values (incudine:rt-start) (block-size)))"
+          "(progn (incudine:set-rt-block-size %d) (values (incudine:rt-start) (incudine:block-size)))"
           n)
         (incudine-eval "(incudine:rt-start)"))))
 
@@ -171,7 +171,7 @@ If ID is zero, call INCUDINE:FLUSH-PENDING before INCUDINE:FREE."
 (defun incudine-dump-graph (&optional node)
   "Print informations about the graph of nodes."
   (interactive "P")
-  (incudine-eval "(incudine:dump (node %d))"
+  (incudine-eval "(incudine:dump (incudine:node %d))"
                  (prefix-numeric-value0 node)))
 
 (defun incudine-gc ()
@@ -234,12 +234,12 @@ If ID is zero, call INCUDINE:FLUSH-PENDING before INCUDINE:FREE."
 arguments and display the generated code."
   (interactive)
   (let ((string (slime-sexp-at-point)))
-    (when (string-match "^[ \t]*(\\(dsp!\\|define-ugen\\) " string)
-      (let* ((type (if (char-equal (aref string (1+ (match-beginning 1))) ?s)
+    (when (string-match "^[ \t]*(\\([^ \t:]+:\\)?\\(dsp!\\|define-ugen\\) " string)
+      (let* ((type (if (char-equal (aref string (1+ (match-beginning 2))) ?s)
                        "dsp"
                        "ugen"))
              (args (read-from-minibuffer (concat type " args: ")))
-             (form (format "(funcall (%s-debug %s %s)"
+             (form (format "(funcall (incudine.vug:%s-debug %s %s)"
                            type (subseq string (match-end 0)) args)))
         (slime-eval-async `(swank:interactive-eval ,form)
           #'slime-initialize-macroexpansion-buffer)))))
@@ -249,8 +249,9 @@ arguments and display the generated code."
   (interactive)
   (when (and incudine-save-buffer-before-play (buffer-modified-p))
     (save-buffer))
-  (incudine-eval "(progn (rt-start) (funcall (regofile->function %S)))"
-                 (buffer-file-name)))
+  (incudine-eval
+    "(progn (incudine:rt-start) (funcall (incudine:regofile->function %S)))"
+    (buffer-file-name)))
 
 (defun incudine-fix-rego-files-walk ()
   "Remove the killed buffers from incudine-rego-files-walk."
