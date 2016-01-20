@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2015 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -39,8 +39,8 @@
           (type-of (receiver-stream obj))
           (if (receiver-status obj) :RUNNING :STOPPED)))
 
-(declaim (inline get-receiver))
-(defun get-receiver (stream)
+(declaim (inline receiver))
+(defun receiver (stream)
   (values (gethash stream *receiver-hash*)))
 
 (defgeneric recv-start (stream &key priority))
@@ -49,26 +49,25 @@
 
 (declaim (inline recv-status))
 (defun recv-status (stream)
-  (let ((recv (get-receiver stream)))
+  (let ((recv (receiver stream)))
     (if recv
         (if (receiver-status recv) :RUNNING :STOPPED)
         :UNKNOWN)))
 
 (declaim (inline recv-functions))
 (defun recv-functions (stream)
-  (let ((recv (get-receiver stream)))
+  (let ((recv (receiver stream)))
     (when recv (receiver-functions recv))))
 
 (declaim (inline recv-set-priority))
 (defun recv-set-priority (thread priority)
   (when (bt:threadp thread) (thread-set-priority thread priority)))
 
-(defmacro add-receiver (stream recv start-function priority)
-  (with-gensyms (result)
-    `(let ((,result (,start-function recv)))
-       (when ,result
-         (recv-set-priority ,result ,priority)
-         (setf (gethash ,stream *receiver-hash*) ,recv)))))
+(defun add-receiver (stream recv start-function priority)
+  (let ((result (funcall start-function recv)))
+    (when result
+      (recv-set-priority result priority)
+      (setf (gethash stream *receiver-hash*) recv))))
 
 (declaim (inline remove-receiver))
 (defun remove-receiver (stream)
@@ -103,11 +102,11 @@
 
 (defmethod recv-start ((stream portmidi:stream)
                        &key (priority *receiver-default-priority*))
-  (let ((recv (or (get-receiver stream) (make-receiver stream))))
-    (add-receiver stream recv start-portmidi-recv priority)))
+  (add-receiver stream (or (receiver stream) (make-receiver stream))
+                #'start-portmidi-recv priority))
 
 (defmethod recv-stop ((stream portmidi:stream))
-  (let ((recv (get-receiver stream)))
+  (let ((recv (receiver stream)))
     (compare-and-swap (receiver-status recv) t nil)
     recv))
 
@@ -154,11 +153,11 @@
 
 (defmethod recv-start ((stream incudine.osc::stream)
                        &key (priority *receiver-default-priority*))
-  (let ((recv (or (get-receiver stream) (make-receiver stream))))
-    (add-receiver stream recv start-osc-recv priority)))
+  (add-receiver stream (or (receiver stream) (make-receiver stream))
+                #'start-osc-recv priority))
 
 (defmethod recv-stop ((stream incudine.osc::stream))
-  (let ((recv (get-receiver stream)))
+  (let ((recv (receiver stream)))
     (when recv
       (incudine.osc:with-stream (tmp :direction :output
                                  :protocol (incudine.osc:protocol stream)
@@ -180,8 +179,8 @@
   (receiver nil :type (or receiver null))
   (function nil :type (or function null)))
 
-(declaim (inline get-responder-list))
-(defun get-responder-list (stream)
+(declaim (inline all-responders))
+(defun all-responders (stream)
   (values (gethash stream *responder-hash*)))
 
 (defun %add-responder (resp stream)
@@ -203,10 +202,11 @@
       (unless (find resp resp-list :test #'eq)
         (%add-responder resp (receiver-stream recv))))))
 
-(declaim (inline make-responder))
 (defun make-responder (stream function)
   (declare (type function function))
-  (let ((recv (get-receiver stream)))
+  (let ((recv (or (receiver stream)
+                  (add-receiver stream (make-receiver stream) #'identity
+                                *receiver-default-priority*))))
     (when recv
       (let ((resp (%make-responder :receiver recv :function function)))
         (%add-responder resp stream)))))
@@ -230,7 +230,7 @@
 
 (defun remove-all-responders (&optional stream)
   (if stream
-      (dolist (resp (get-responder-list stream))
+      (dolist (resp (all-responders stream))
         (remove-responder resp))
       (maphash-keys #'remove-all-responders *responder-hash*))
   (values))

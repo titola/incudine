@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2015 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -405,10 +405,10 @@
    #:control-setter #:control-list #:control-names
    #:reinit
    ;; responder
-   #:get-receiver #:remove-receiver
+   #:receiver #:remove-receiver
    #:recv-start #:recv-stop #:recv-status #:recv-functions
    #:make-responder #:make-osc-responder #:add-responder #:remove-responder
-   #:remove-all-responders #:get-responder-list
+   #:remove-all-responders #:all-responders
    ;; midi
    #:midiout #:midiout-sysex #:midi-tuning-sysex #:set-tuning-from-midi
    ;; envelope

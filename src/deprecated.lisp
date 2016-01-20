@@ -1,8 +1,20 @@
 (in-package :incudine)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
+  (export
+   ;; 20160120
+   '(get-receiver get-responder-list))
+
   (defun deprecated-msg (old new)
     (msg warn "~A is deprecated, use ~A instead." old new)))
+
+(defun get-receiver (stream)
+  (deprecated-msg 'get-receiver 'receiver)
+  (receiver stream))
+
+(defun get-responder-list (stream)
+  (deprecated-msg 'get-responder-list 'all-responders)
+  (all-responders stream))
 
 (in-package :incudine.vug)
 

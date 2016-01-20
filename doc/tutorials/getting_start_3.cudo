@@ -69,7 +69,7 @@
 
 ;;; ... send some MIDI message ...
 
-(get-responder-list *midiin*)
+(all-responders *midiin*)
 ;; (#S(INCUDINE::RESPONDER
 ;;     :RECEIVER #<RECEIVER PORTMIDI:INPUT-STREAM RUNNING>
 ;;     :FUNCTION #<FUNCTION (LAMBDA (ST D1 D2)) {1009E44DEB}>))
