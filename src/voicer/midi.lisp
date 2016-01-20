@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2015 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -136,6 +136,7 @@ or by calling a function with the key number as argument."
        (update-freq-table (update-amp-table ,event))
        (setf (event-responder ,event)
              (incudine:make-responder ,stream
+              (compile nil
                 (lambda (,status ,data1 ,data2)
                   (declare #.*standard-optimize-settings*
                            (type (integer 0 255) ,status)
@@ -167,7 +168,7 @@ or by calling a function with the key number as argument."
                              (unsafe-trigger ,voicer ,data1))))
                         ,@(if note-off-p
                               `(((= ,typ 8) (release ,voicer ,data1)))))))
-                  (values))))
+                  (values)))))
        ,event)))
 
 (defun scale-midi-amp (midi-event mult)
