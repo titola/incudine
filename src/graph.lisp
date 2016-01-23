@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -18,13 +18,16 @@
 
 ;;; Graph of nodes inspired by James McCartney's SuperCollider3
 
+(define-constant +max-node-id+ (logand most-positive-fixnum #x7fffffff))
+(define-constant +default-large-node-id+ (ash 1 24))
+
 (defvar *max-number-of-nodes* 1024)
 (declaim (type non-negative-fixnum *max-number-of-nodes*))
 
 (defvar *last-node-id* 1)
 (declaim (type non-negative-fixnum *last-node-id*))
 
-(defvar *last-large-node-id* 16777216)
+(defvar *last-large-node-id* +default-large-node-id+)
 (declaim (type non-negative-fixnum *last-large-node-id*))
 
 (defvar *node-enable-gain-p* nil)
@@ -334,19 +337,23 @@
 
 (defsetf node-current-function set-node-current-function)
 
+(defmacro %next-node-id (default limit init)
+  (with-gensyms (next id countdown)
+    `(labels ((,next (,id ,countdown)
+                (declare (type non-negative-fixnum ,id ,countdown))
+                (let ((,id (if (>= ,id ,limit) ,default ,id)))
+                  (cond ((null-node-p (node ,id)) ,id)
+                        ((zerop ,countdown) (error "There aren't free nodes"))
+                        (t (,next (1+ ,id) (1- ,countdown)))))))
+       (,next ,init 65535))))
+
 (declaim (inline next-node-id))
 (defun next-node-id ()
-  (labels ((next (id)
-             (let ((id (if (> id 65535) 1 id)))
-               (if (null-node-p (node id)) id (next (1+ id))))))
-    (next *last-node-id*)))
+  (%next-node-id 1 65535 *last-node-id*))
 
 (declaim (inline next-large-node-id))
 (defun next-large-node-id ()
-  (labels ((next (id)
-             (let ((id (if (> id 1073741823) 16777216 id)))
-               (if (null-node-p (node id)) id (next (1+ id))))))
-    (next *last-large-node-id*)))
+  (%next-node-id +default-large-node-id+ +max-node-id+ *last-large-node-id*))
 
 (defun swap-nodes (n1 n2)
   (declare (type node n1 n2))

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -1176,7 +1176,7 @@
                 (set-dsp-arg-names ',name ',arg-names)
                 (defun ,name (,@arg-names &key id head tail before after replace
                               action stop-hook free-hook fade-time fade-curve)
-                  (declare (type (or fixnum null) id)
+                  (declare (type (or non-negative-fixnum null) id)
                            (type (or incudine:node fixnum null) head tail before
                                  after replace)
                            (type (or function null) action)
@@ -1193,6 +1193,7 @@
 
 (declaim (inline get-node-id))
 (defun get-node-id (id add-action)
+  (declare (type (or non-negative-fixnum null) id))
   (cond (id id)
         ((eq add-action :replace) (incudine::next-large-node-id))
         (t (incudine:next-node-id))))
