@@ -64,7 +64,7 @@
   (200 200 200 300 300 300 400 400 500 500 500 500 500 500))
 
 (deftest quantize-sv-real.1
-    (let ((sv #(11 23 19 123.456 31 49 999.999)))
+    (let ((sv (vector 11 23 19 123.456 31 49 999.999)))
       (flet ((test (from)
                (coerce (quantize sv from) 'list)))
         (values (test .75) (test .5) (test 3) (test 7))))
@@ -74,7 +74,7 @@
   (14 21 21 126 28 49 1001))
 
 (deftest quantize-sv-real.2
-    (let ((sv #(11 23 19 123.456 31 49 999.999)))
+    (let ((sv (vector 11 23 19 123.456 31 49 999.999)))
       (flet ((test (from)
                (coerce (quantize sv from :start 2 :end 5
                                  :filter-function (lambda (i x)
