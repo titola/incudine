@@ -43,7 +43,7 @@
 (defun receiver (stream)
   (values (gethash stream *receiver-hash*)))
 
-(defgeneric recv-start (stream &key priority))
+(defgeneric recv-start (stream &key))
 
 (defgeneric recv-stop (stream))
 
@@ -88,24 +88,35 @@
   (dolist (fn (receiver-functions recv))
     (funcall (the function fn) status data1 data2)))
 
-(defun start-portmidi-recv (receiver)
+(defun start-portmidi-recv (receiver update-midi-table-p)
   (declare #.*standard-optimize-settings*
-           (type receiver receiver))
+           (type receiver receiver) (type boolean update-midi-table-p))
   (let ((stream (receiver-stream receiver)))
     (pm:with-receiver ((receiver-status receiver) stream msg)
       (handler-case
           (multiple-value-bind (status data1 data2)
               (pm:decode-message (logand msg #xFFFFFF))
-            (incudine.vug::set-midi-message status data1 data2)
+            (when update-midi-table-p
+              (incudine.vug::set-midi-message status data1 data2))
             (midi-recv-funcall-all receiver status data1 data2))
         (condition (c) (nrt-msg error "~A" c))))))
 
-(defmethod recv-start ((stream portmidi:stream)
-                       &key (priority *receiver-default-priority*))
-  (add-receiver stream (or (receiver stream) (make-receiver stream))
-                #'start-portmidi-recv priority))
+(defun start-portmidi-recv-update-mtab (receiver)
+  (start-portmidi-recv receiver t))
 
-(defmethod recv-stop ((stream portmidi:stream))
+(defun start-portmidi-recv-no-mtab (receiver)
+  (start-portmidi-recv receiver nil))
+
+(defmethod recv-start ((stream portmidi:input-stream)
+                       &key (priority *receiver-default-priority*)
+                       (update-midi-table-p t))
+  (add-receiver stream (or (receiver stream) (make-receiver stream))
+                (if update-midi-table-p
+                    #'start-portmidi-recv-update-mtab
+                    #'start-portmidi-recv-no-mtab)
+                priority))
+
+(defmethod recv-stop ((stream portmidi:input-stream))
   (let ((recv (receiver stream)))
     (compare-and-swap (receiver-status recv) t nil)
     recv))
