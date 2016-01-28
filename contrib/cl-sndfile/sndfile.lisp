@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -249,7 +249,7 @@
 (declaim (inline info-to-sndinfo))
 (defun info-to-sndinfo (info)
   (let* ((ptr (cffi:foreign-alloc '(:struct info)))
-         (sinfo (make-struct-ptr ptr)))
+         (sinfo (make-pointer-wrapper ptr)))
     (cffi:with-foreign-slots ((frames sample-rate channels format sections
                                seekable)
                               ptr (:struct info))
@@ -267,7 +267,7 @@
 (defun sndinfo-to-info (sndinfo &optional info)
   (cffi:with-foreign-slots ((frames sample-rate channels format
                             sections seekable)
-                            (struct-ptr-pointer sndinfo) (:struct info))
+                            (pointer sndinfo) (:struct info))
     (if info
         (with-slots ((fr frames) (sr sample-rate) (chans channels) (fmt format)
                      (sec sections) (seek-p seekable)) info
@@ -284,7 +284,7 @@
 
 (defun instrument-to-foreign-instrument (instr)
   (let* ((ptr (cffi:foreign-alloc '(:struct instrument)))
-         (foreign-instr (make-struct-ptr ptr)))
+         (foreign-instr (make-pointer-wrapper ptr)))
     (cffi:with-foreign-slots ((gain basenote detune velocity-lo velocity-hi
                                key-lo key-hi loop-count loops)
                               ptr (:struct instrument))
@@ -316,7 +316,6 @@
 (defvar *default-format*
   (get-format (list #-darwin "wav" #+darwin "aiff" "pcm-24")))
 
-(declaim (inline open))
 (defun open (path-or-fd &key (mode sfm-read) info open-fd-p close-desc-p)
   (let* ((sfinfo (if info
                      (info-to-sndinfo info)
@@ -327,6 +326,7 @@
                  (%open path-or-fd mode sfinfo))))
     (when info
       (sndinfo-to-info sfinfo info))
+    (free sfinfo)
     sf))
 
 (defmacro with-open ((var path-or-fd &key info (mode sfm-read)
@@ -393,10 +393,11 @@
 
 (declaim (inline get-current-info))
 (defun get-current-info (sndfile)
-  (let ((sfinfo (make-struct-ptr (cffi:foreign-alloc '(:struct info)))))
-    (command sndfile #x1002 (struct-ptr-pointer sfinfo)
+  (let ((sfinfo (make-pointer-wrapper (cffi:foreign-alloc '(:struct info)))))
+    (command sndfile #x1002 (pointer sfinfo)
              (cffi:foreign-type-size '(:struct info)))
-    (sndinfo-to-info sfinfo)))
+    (prog1 (sndinfo-to-info sfinfo)
+      (free sfinfo))))
 
 (defun info (sndfile)
   (if (sndfile-p sndfile)
@@ -536,9 +537,10 @@
                    :initial-contents (instrument-loops loops loop-count)))))))
 
 (defun set-instrument (sndfile instr)
-  (= 1 (command sndfile #x10d1 (struct-ptr-pointer
-                                 (instrument-to-foreign-instrument instr))
-                (cffi:foreign-type-size '(:struct instrument)))))
+  (let ((i (instrument-to-foreign-instrument instr)))
+    (prog1 (= 1 (command sndfile #x10d1 (pointer i)
+                         (cffi:foreign-type-size '(:struct instrument))))
+      (free i))))
 
 (defun get-loop-info (sndfile)
   (cffi:with-foreign-object (linfo '(:struct loop-info))

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -33,15 +33,19 @@
                     (:copier nil))
   (pointer (cffi:null-pointer) :type cffi:foreign-pointer))
 
-(defstruct (struct-ptr (:constructor %make-struct-ptr))
+(defstruct (pointer-wrapper (:constructor %make-pointer-wrapper))
   (pointer (cffi:null-pointer) :type cffi:foreign-pointer))
 
-(defstruct (sndinfo (:include struct-ptr)))
+(defstruct (sndinfo (:include pointer-wrapper)))
+
+(declaim (inline pointer))
+(defun pointer (obj)
+  (pointer-wrapper-pointer obj))
 
 (declaim (inline close))
 (defun close (sfile)
   (declare (sndfile sfile))
-  (let ((result (%close sfile)))
+  (let ((result (%close (sndfile-pointer sfile))))
     (setf (sndfile-pointer sfile) (cffi:null-pointer))
     (tg:cancel-finalization sfile)
     (unless (zerop result)
@@ -51,14 +55,22 @@
 (declaim (inline make-sndfile))
 (defun make-sndfile (pointer)
   (let ((obj (%make-sndfile :pointer pointer)))
-    (tg:finalize obj (lambda () (close pointer)))
+    (tg:finalize obj (lambda () (%close pointer)))
     obj))
 
-(declaim (inline make-struct-ptr))
-(defun make-struct-ptr (pointer)
-  (let ((obj (%make-struct-ptr :pointer pointer)))
+(declaim (inline make-pointer-wrapper))
+(defun make-pointer-wrapper (pointer)
+  (let ((obj (%make-pointer-wrapper :pointer pointer)))
     (tg:finalize obj (lambda () (cffi:foreign-free pointer)))
     obj))
+
+(defun free (obj)
+  (let ((ptr (pointer obj)))
+    (unless (cffi:null-pointer-p ptr)
+      (cffi:foreign-free ptr)
+      (setf (pointer-wrapper-pointer obj) (cffi:null-pointer))
+      (tg:cancel-finalization obj))
+    (values)))
 
 (defun sndfile-null-p (sndfile)
   (declare (sndfile sndfile))
@@ -69,12 +81,12 @@
   (:actual-type :pointer)
   (:simple-parser sndfile))
 
-(cffi:define-foreign-type struct-ptr-type ()
+(cffi:define-foreign-type pointer-wrapper-type ()
   ()
   (:actual-type :pointer)
-  (:simple-parser struct-ptr))
+  (:simple-parser pointer-wrapper))
 
-(cffi:define-foreign-type sndinfo-type (struct-ptr-type)
+(cffi:define-foreign-type sndinfo-type (pointer-wrapper-type)
   ()
   (:simple-parser sndinfo))
 
@@ -82,7 +94,7 @@
   (make-sndfile ptr))
 
 (defmethod cffi:translate-from-foreign (ptr (type sndinfo-type))
-  (make-struct-ptr ptr))
+  (make-pointer-wrapper ptr))
 
 (defmethod cffi:translate-to-foreign (handle (type sndfile-type))
   (slot-value handle 'pointer))
@@ -455,7 +467,7 @@
   (items sf-count))
 
 (cffi:defcfun ("sf_close" %close) :int
-  (sndfile sndfile))
+  (sndfile :pointer))
 
 (cffi:defcfun ("sf_write_sync" write-sync) :void
   (sndfile sndfile))
