@@ -2,7 +2,7 @@
 ;;;
 ;;; ASDF system definition for INCUDINE unit tests.
 ;;;
-;;; Copyright (c) 2013-2015 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@
      (:file "quantize" :depends-on ("util"))
      (:file "foreign-array" :depends-on ("util"))
      (:file "envelope" :depends-on ("util"))
+     (:file "midi" :depends-on ("util"))
      (:file "osc" :depends-on ("util"))
      (:file "gen-partials" :depends-on ("util"))
      (:file "gen-polynomial" :depends-on ("util"))
