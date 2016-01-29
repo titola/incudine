@@ -234,6 +234,53 @@
   (midi-exponential-map (+ (midi-pitch-bend channel) 8192) min max
                         *midi-normalize-pb-table*))
 
+(defun played-midi-note (note-number channel)
+  "Return three values: the played MIDI NOTE-NUMBER starting from zero,
+the related MIDI velocity and T if the note is played. This is useful
+to create MIDI arpeggiators.
+
+CHANNEL is the MIDI channel from 0 to 15.
+
+Examples:
+
+  ;; F7 chord [65 69 72 75] played on the first channel.
+  (played-midi-note 1 0) ; => 69, 96, T
+  (played-midi-note 3 0) ; => 75, 89, T
+  (played-midi-note 6 0) ; =>  0,  0, NIL
+"
+  (declare (type (unsigned-byte 8) note-number)
+           (type (unsigned-byte 4) channel)
+           #.*standard-optimize-settings*)
+  (labels ((played (x i offset veloc-vec)
+             (declare (type non-negative-fixnum x)
+                      (type (unsigned-byte 8) i offset)
+                      (type simple-vector veloc-vec))
+             (let* ((y (integer-length (logand (lognot x) (1- x))))
+                    (knum (+ y offset)))
+               (declare (type (unsigned-byte 8) y knum))
+               (if (zerop i)
+                   (let ((vel (svref veloc-vec knum)))
+                     (declare (type (unsigned-byte 8) vel))
+                     (values knum vel (plusp vel)))
+                   (played (logxor (ash 1 y) x) (1- i) offset veloc-vec))))
+           (find-note (i n prio-vec veloc-vec)
+             (declare (type (unsigned-byte 4) i)
+                      (type (unsigned-byte 8) n)
+                      (type simple-vector prio-vec veloc-vec))
+             (if (>= i +note-priority-integers+)
+                 (values 0 0 nil)
+                 (let* ((x (svref prio-vec i))
+                        (size (logcount x)))
+                   (declare (type non-negative-fixnum x)
+                            (type (unsigned-byte 8) size))
+                   (if (> size n)
+                       (played x n (svref +note-priority-offset-vector+ i)
+                               veloc-vec)
+                       (find-note (1+ i) (- n size) prio-vec veloc-vec))))))
+    (let ((mtab (svref *midi-table* channel)))
+      (find-note 0 note-number (midi-table-note-priority-vec mtab)
+                 (midi-table-note-velocity-vec mtab)))))
+
 (defun reset-midi-notes (&optional channel)
   (declare (type (or (unsigned-byte 4) null) channel))
   (if channel

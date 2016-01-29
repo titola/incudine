@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2015 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -17,8 +17,8 @@
 (in-package :incudine.config)
 
 (define-constant +incudine-major+ 0)
-(define-constant +incudine-minor+ 8)
-(define-constant +incudine-patch+ 3)
+(define-constant +incudine-minor+ 9)
+(define-constant +incudine-patch+ 0)
 
 (in-package :incudine.util)
 

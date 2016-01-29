@@ -222,7 +222,7 @@
    ;; midi
    #:*linear-midi-table*
    #:midi-note #:midi-keynum #:midi-highest-keynum #:midi-lowest-keynum
-   #:midi-note-on #:midi-note-off #:reset-midi-notes
+   #:midi-note-on #:midi-note-off #:played-midi-note #:reset-midi-notes
    #:midi-velocity #:midi-cps #:midi-amp #:midi-poly-aftertouch #:midi-cc
    #:midi-program #:midi-global-aftertouch #:midi-pitch-bend
    #:midi-note-on-p #:midi-note-off-p #:midi-note-p #:midi-poly-aftertouch-p
