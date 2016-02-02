@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2015 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -76,23 +76,27 @@
             (values))))))
 
   (defun make-midi-normalize-table ()
-    (cffi:foreign-alloc 'sample :count 128
-      :initial-contents (loop for i below 128
-                              with r-midi-data2-max = (/ (sample #x7f))
-                              collect (* i r-midi-data2-max))))
+    (let ((ptr (foreign-alloc-sample 128)))
+      (declare #.*standard-optimize-settings*)
+      (dotimes (i 128 ptr)
+        (setf (smp-ref ptr i) (* i #.(/ (sample #x7f)))))))
 
   (defun make-midi-normalize-pb-bipolar-table ()
-    (cffi:foreign-alloc 'sample :count 16384
-      :initial-contents (loop for i from -8192 to 8191
-                              with r1 = (/ (sample 8192))
-                              with r2 = (/ (sample 8191))
-                              collect (* i (if (plusp i) r2 r1)))))
+    (let ((ptr (foreign-alloc-sample 16384)))
+      (declare #.*standard-optimize-settings*)
+      (do ((i 0 (1+ i))
+           (j -8192 (1+ j)))
+          ((= i 16384) ptr)
+        (declare (type fixnum i j))
+        (setf (smp-ref ptr i) (* j (if (plusp j)
+                                       #.(/ (sample 8191))
+                                       #.(/ (sample 8192))))))))
 
   (defun make-midi-normalize-pb-table ()
-    (cffi:foreign-alloc 'sample :count 16384
-      :initial-contents (loop for i from 0 below 16384
-                              with r = (/ (sample 16383))
-                              collect (* i r))))
+    (let ((ptr (foreign-alloc-sample 16384)))
+      (declare #.*standard-optimize-settings*)
+      (dotimes (i 16384 ptr)
+        (setf (smp-ref ptr i) (* i #.(/ (sample 16383)))))))
 
   ;;; Table used to normalize a data byte from [0, 0x7F] to [0.0, 1.0]
   (defvar *midi-normalize-table* (make-midi-normalize-table))

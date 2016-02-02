@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2015 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -51,12 +51,12 @@
             (foreign-alloc-sample (* *max-buffer-size*
                                      %number-of-input-bus-channels)))
       (setf *input-pointer*
-            (cffi:foreign-alloc :pointer :initial-element *%input-pointer*))
+            (foreign-alloc :pointer :initial-element *%input-pointer*))
       (setf *%output-pointer*
             (foreign-alloc-sample (* *max-buffer-size*
                                      *number-of-output-bus-channels*)))
       (setf *output-pointer*
-            (cffi:foreign-alloc :pointer :initial-element *%output-pointer*))
+            (foreign-alloc :pointer :initial-element *%output-pointer*))
       (setf *bus-pointer* (foreign-alloc-sample *number-of-bus-channels*))
       (setf *output-peak-values*
             (foreign-alloc-sample *number-of-output-bus-channels*))
@@ -85,12 +85,12 @@
             (foreign-alloc-sample (* *max-buffer-size*
                                      %number-of-input-bus-channels)))
       (setf *nrt-input-pointer*
-            (cffi:foreign-alloc :pointer :initial-element *%nrt-input-pointer*))
+            (foreign-alloc :pointer :initial-element *%nrt-input-pointer*))
       (setf *%nrt-output-pointer*
             (foreign-alloc-sample (* *max-buffer-size*
                                      *number-of-output-bus-channels*)))
       (setf *nrt-output-pointer*
-            (cffi:foreign-alloc :pointer :initial-element *%nrt-output-pointer*))
+            (foreign-alloc :pointer :initial-element *%nrt-output-pointer*))
       (setf *nrt-bus-pointer* (foreign-alloc-sample *number-of-bus-channels*))
       (setf *nrt-output-peak-values*
             (foreign-alloc-sample *max-number-of-channels*))
