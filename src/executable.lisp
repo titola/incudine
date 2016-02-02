@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -23,7 +23,29 @@
   (setf sb-ext:*init-hooks*
         (delete *core-config-and-init-function* sb-ext:*init-hooks*))
   ;; Load "$HOME/.incudinerc" before the toplevel
-  (pushnew 'incudine.config:load-incudinerc sb-ext:*init-hooks*))
+  (pushnew 'incudine.config:load-incudinerc sb-ext:*init-hooks*)
+
+  #+linedit
+  (let ((repl-prompt-fun sb-int:*repl-prompt-fun*))
+    (defun clear-screen (chord editor)
+      (declare (ignore chord editor))
+        (ti:tputs ti:clear-screen)
+        (funcall repl-prompt-fun *terminal-io*)
+        (force-output *terminal-io*))
+
+    ;; Disable beep, otherwise there is an unwanted character and
+    ;; it's difficult to edit the line.
+    (defmethod linedit::beep ((b linedit::terminal))
+      (declare (ignore b))
+      nil)
+
+    ;; Quit without asking.
+    (defun linedit::eof-handler (lisp-name quit-fn)
+      (declare (ignore lisp-name quit-fn))
+      (fresh-line)
+      (sb-ext:exit))
+
+    (linedit::defcommand "C-L" 'clear-screen)))
 
 (defun set-default-logger-time (&optional (format :sec))
   (unless (logger-time)
@@ -54,6 +76,7 @@
   (sysinit-p t :type boolean)
   (userinit nil :type (or string null))
   (userinit-p t :type boolean)
+  (inform-p t :type boolean)
   (print-p t :type boolean)
   (disable-debugger-p nil :type boolean)
   (quit-p nil :type boolean)
@@ -361,6 +384,7 @@ SBCL options:
   --no-sysinit                 Inhibit processing of any system-wide init-file.
   --no-userinit                Inhibit processing of any per-user init-file.
   --disable-debugger           Invoke sb-ext:disable-debugger.
+  --noinform                   Suppress the printing of the banner at startup.
   --noprint                    Run a Read-Eval Loop without printing results.
   --script [<filename>]        Skip #! line, disable debugger, avoid verbosity.
   --quit                       Exit with code 0 after option processing.
@@ -481,6 +505,14 @@ SBCL options:
 
   (def-toplevel-opt "--disable-debugger"
     (setf (toplevel-options-disable-debugger-p opt) t)
+    options)
+
+  (def-toplevel-opt "--noinform"
+    (setf (toplevel-options-inform-p opt) nil)
+    options)
+
+  (def-toplevel-opt "--noprint"
+    (setf (toplevel-options-print-p opt) nil)
     options)
 
   (def-toplevel-opt "--quit"
@@ -689,6 +721,14 @@ the argument is parsed with READ-FROM-STRING."
         (parse-p nil)
         (t "")))
 
+(defun banner ()
+  (format t "Welcome to Incudine ~A~%~A ~A on ~A ~A"
+          (incudine-version) (lisp-implementation-type)
+          (lisp-implementation-version) (software-type)
+          (machine-type))
+  #+sb-aclrepl (format t "~%Type `:help' for the list of commands.")
+  #-linedit (terpri))
+
 ;;; Adapted to SB-IMPL::TOPLEVEL-INIT in `sbcl/src/code/toplevel.lisp'.
 (defun incudine-toplevel ()
   (let ((options (cdr sb-ext:*posix-argv*))
@@ -751,4 +791,13 @@ the argument is parsed with READ-FROM-STRING."
           :test (lambda (c) (declare (ignore c)) (not #1#))
           (sb-ext:exit :code 1))))
     (sb-impl::flush-standard-output-streams)
+    (when (toplevel-options-inform-p opt) (banner))
+    #+linedit
+    (if (and (interactive-stream-p *standard-input*)
+             (toplevel-options-inform-p opt)
+             (toplevel-options-print-p opt))
+        (linedit::install-repl :wrap-current t :eof-quits t
+                               :history (merge-pathnames ".incudine_history"
+                                                         (user-homedir-pathname)))
+        #+sb-aclrepl (when (toplevel-options-inform-p opt) (terpri)))
     (sb-impl::toplevel-repl (not (toplevel-options-print-p opt)))))

@@ -5,7 +5,9 @@
 
 PREFIX="${PREFIX:-/usr/local}"
 options="--noinform"
-modules="progn (require \"INCUDINE\")"
+modules="(require \"INCUDINE\")"
+aclrepl_p="yes"
+linedit_p="no"
 
 usage()
 {
@@ -16,9 +18,12 @@ Create and install the standalone executable.
   --prefix=PREFIX       install architecture-independent files in PREFIX
                         [${PREFIX}]
   --bindir=DIR          user executables [PREFIX/bin]
+  --without-aclrepl     do not use Allegro CL-style Read-Eval-Print Loop.
+  --with-linedit        support for Linedit, readline-style library in CL.
   --with-fluidsynth     support for FluidSynth SoundFont synthesizer.
   --with-ladspa         support for LADSPA plugins.
   --with-lv2            support for LV2 plugins.
+  --with-snd            support for the sound editor Snd.
   --with-module=NAME    load the module NAME before to create the executable.
   --sbcl-options=OPTS   options for SBCL.
 
@@ -40,18 +45,30 @@ for arg in "$@"; do
         case "${arg}" in
         --prefix=*)         PREFIX="${arg#*=}" ;;
         --bindir=*)         BINDIR="${arg#*=}" ;;
+        --without-aclrepl)  aclrepl_p="no" ;;
+        --with-linedit)     linedit_p="yes" ;;
         --with-fluidsynth)  add_system "INCUDINE-FLUIDSYNTH" ;;
         --with-ladspa)      add_system "INCUDINE-LADSPA" ;;
         --with-lv2)         add_system "INCUDINE-LV2" ;;
+        --with-snd)         add_system "INCUDINE-SND" ;;
         --with-module=*)    add_system "${arg#*=}" ;;
         --sbcl-options=*)   add_opt "${arg#*=}" ;;
         *)                  usage ;;
         esac
 done
 
-sbcl ${options} --eval '(require "INCUDINE")' \
+if [ ${linedit_p} = "yes" ]; then
+        modules="(require :linedit) (pushnew :linedit *features*) ${modules}"
+fi
+
+if [ ${aclrepl_p} = "yes" ]; then
+        modules="(require :sb-aclrepl) (pushnew :sb-aclrepl *features*) ${modules}"
+fi
+
+sbcl ${options} \
      --eval "(pushnew (asdf:system-source-directory :incudine) asdf:*central-registry* :test 'equal)" \
-     --eval "(${modules})" --load "executable.lisp" \
+     --eval "(progn ${modules})" \
+     --eval '(load (asdf:compile-file* "executable.lisp"))' \
      --eval "(save-lisp-and-die \"incudine\" :executable t :toplevel 'incudine::incudine-toplevel :save-runtime-options t)" || exit
 
 BINDIR="${BINDIR:-${PREFIX}/bin}"

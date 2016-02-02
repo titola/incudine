@@ -2,13 +2,13 @@ Installation Instructions
 *************************
 
     cd /path/to/your/registry/
-    ln -s /path/where/you/put/incudine/incudine.asd
+    ln -s /path/to/incudine/incudine.asd
 
 Edit and copy the configuration file, with particular attention to the
 priorities *RT-PRIORITY*, *NRT-PRIORITY* and *RECEIVER-DEFAULT-PRIORITY*
 
-    cd /path/where/you/put/incudine
-    cp incudinerc-example $HOME/.incudinerc
+    cd /path/to/incudine
+    cp incudinerc-example ${HOME}/.incudinerc
 
 If you want to create and install the incudine command:
 
@@ -19,21 +19,24 @@ The options for the script `install_executable' are:
   --prefix=PREFIX       install architecture-independent files in PREFIX
                         [/usr/local]
   --bindir=DIR          user executables [PREFIX/bin]
+  --without-aclrepl     do not use Allegro CL-style Read-Eval-Print Loop.
+  --with-linedit        support for Linedit, readline-style library in CL.
   --with-fluidsynth     support for FluidSynth SoundFont synthesizer.
   --with-ladspa         support for LADSPA plugins.
   --with-lv2            support for LV2 plugins.
+  --with-snd            support for the sound editor Snd.
   --with-module=NAME    load the module NAME before to create the executable.
   --sbcl-options=OPTS   options for SBCL.
 
 For example:
 
-    sh install_executable --with-ladspa --with-lv2 \
-                          --with-module=ltk \
+    sh install_executable --with-linedit --with-ladspa --with-snd  \
+                          --with-module=sb-posix --with-module=ltk \
                           --with-module=dsp-collection
 
 Note: the support for LV2 plugins requires Lilv, a LV2 host library.
 
-If you use SLIME, add these lines to $HOME/.swank.lisp
+If you use SLIME, add these lines to ${HOME}/.swank.lisp
 
 ;; Avoid problems in realtime because the default value is :SPAWN (each
 ;; request in a separate thread)
