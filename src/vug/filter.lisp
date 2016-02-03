@@ -21,10 +21,12 @@
   ;;; VUG-VARIABLE IT becomes a new symbol created with GENSYM.
   ;;;
   ;;; The symbol ~ is inspired by FAUST programming language.
-  (define-vug-macro ~ (in)
+  (define-vug-macro ~ (in &key (type 'sample) (initial-value 0))
     "Anaphoric VUG MACRO for recursive composition."
     (let ((it (ensure-symbol 'it)))
-      `(with-samples (,it) (setf ,it ,in))))
+      `(with ((,it ,(coerce initial-value type)))
+         (declare (type ,type ,it))
+         (setf ,it ,in))))
 
   (define-vug delay1 (in)
     "One sample delay."
