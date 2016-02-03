@@ -2,8 +2,6 @@
 
 (define-constant +sample-rate-test+ (sample 48000))
 
-(define-constant +sample-duration-test+ (/ +sample-rate-test+))
-
 ;;; The duration of the test is 5 seconds.
 (define-constant +vug-test-duration-sec+ 5)
 
@@ -99,13 +97,7 @@
            (with-local-logger (*standard-output*
                                (if (eq (logger-level) :debug) :debug :info)
                                :sec)
-             (let ((*sample-rate* +sample-rate-test+)
-                   (*sample-duration* +sample-duration-test+)
-                   (*cps2inc* (* +table-maxlen+ *sample-duration*))
-                   (*pi-div-sr* (coerce (* pi *sample-duration*) 'sample))
-                   (*minus-pi-div-sr* (- *pi-div-sr*))
-                   (*twopi-div-sr* (* 2 *pi-div-sr*))
-                    ,@bindings)
+             (let ,bindings
                (dsp-test-header ',name)
                (md5sum-buffer-test
                  ;; Scale and round the values before the MD5 checksums because
@@ -117,11 +109,17 @@
                  (scale-and-round-buffer
                    (bounce-to-buffer (,output-buffer
                                       ,@(and input-buffer
-                                             `(:input-buffer ,input-buffer)))
+                                             `(:input-buffer ,input-buffer))
+                                      :sample-rate +sample-rate-test+)
                      ,@body)
                    ,mult)
                  ,byte-order)))
            ,md5))))
+
+(defmacro with-ugen-test ((name) form &body body)
+  `(deftest ,name
+       (incudine.util::with-local-sample-rate (+sample-rate-test+) ,form)
+     ,@body))
 
 (define-vug vug-test-1 (freq amp phase)
   (sine freq amp phase))

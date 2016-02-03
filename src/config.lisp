@@ -143,6 +143,15 @@
 
   (sample-rate-deps-update-to-hook)
 
+  (defmacro with-local-sample-rate ((sample-rate) &body body)
+    `(let* ((*sample-rate* (coerce ,sample-rate 'sample))
+            (*sample-duration* (/ 1.0 *sample-rate*))
+            (*cps2inc* (* +table-maxlen+ *sample-duration*))
+            (*pi-div-sr* (coerce (* pi *sample-duration*) 'sample))
+            (*minus-pi-div-sr* (- *pi-div-sr*))
+            (*twopi-div-sr* (* 2 *pi-div-sr*)))
+       ,@body))
+
   (declaim (inline next-power-of-two))
   (defun next-power-of-two (n)
     (declare (type positive-fixnum n))

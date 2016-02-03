@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -230,30 +230,31 @@ when the duration is undefined.")
                  (setf ,max-frames (sf:frames ,info)))
                ,@body)))))))
 
-(defmacro with-nrt ((channels &key (bpm *default-bpm*)) &body body)
-  `(let ((*to-engine-fifo* *nrt-fifo*)
-         (*from-engine-fifo* *nrt-fifo*)
-         (*from-world-fifo* *nrt-from-world-fifo*)
-         (*fast-from-engine-fifo* *nrt-fifo*)
-         (*fast-to-engine-fifo* *nrt-fifo*)
-         (*rt-thread* (bt:current-thread))
-         (*allow-rt-memory-pool-p* nil)
-         (*node-hash* *nrt-node-hash*)
-         (*node-root* *nrt-node-root*)
-         (*bus-pointer* *nrt-bus-pointer*)
-         (*output-pointer* *nrt-output-pointer*)
-         (*input-pointer* *nrt-input-pointer*)
-         (*number-of-output-bus-channels* ,channels)
-         (*block-size* 1)
-         (*block-samples* ,channels)
-         (*output-peak-values* *nrt-output-peak-values*)
-         (*out-of-range-counter* *nrt-out-of-range-counter*)
-         (incudine.edf:*heap* *nrt-edf-heap*)
-         (incudine.edf:*heap-size* *nrt-edf-heap-size*)
-         (*tempo* *nrt-tempo*)
-         (*sample-counter* *nrt-sample-counter*))
-     (setf (bpm *tempo*) ,bpm)
-     ,@body))
+(defmacro with-nrt ((channels sample-rate &key (bpm *default-bpm*)) &body body)
+  `(incudine.util::with-local-sample-rate (,sample-rate)
+     (let ((*to-engine-fifo* *nrt-fifo*)
+           (*from-engine-fifo* *nrt-fifo*)
+           (*from-world-fifo* *nrt-from-world-fifo*)
+           (*fast-from-engine-fifo* *nrt-fifo*)
+           (*fast-to-engine-fifo* *nrt-fifo*)
+           (*rt-thread* (bt:current-thread))
+           (*allow-rt-memory-pool-p* nil)
+           (*node-hash* *nrt-node-hash*)
+           (*node-root* *nrt-node-root*)
+           (*bus-pointer* *nrt-bus-pointer*)
+           (*output-pointer* *nrt-output-pointer*)
+           (*input-pointer* *nrt-input-pointer*)
+           (*number-of-output-bus-channels* ,channels)
+           (*block-size* 1)
+           (*block-samples* ,channels)
+           (*output-peak-values* *nrt-output-peak-values*)
+           (*out-of-range-counter* *nrt-out-of-range-counter*)
+           (incudine.edf:*heap* *nrt-edf-heap*)
+           (incudine.edf:*heap-size* *nrt-edf-heap-size*)
+           (*tempo* *nrt-tempo*)
+           (*sample-counter* *nrt-sample-counter*))
+       (setf (bpm *tempo*) ,bpm)
+       ,@body)))
 
 (defmacro write-to-disk-loop ((index limit) &body body)
   `(loop while (< ,index ,limit) do ,@body (incf ,index)))
@@ -277,11 +278,11 @@ when the duration is undefined.")
          (incudine.edf:sched-loop)
          (perform-fifos)))))
 
-(defun %bounce-to-disk (output-filename duration channels header-type
-                        data-format metadata function)
+(defun %bounce-to-disk (output-filename duration channels sample-rate
+                        header-type data-format metadata function)
   (declare (type (or string pathname) output-filename) (type function function)
            (type channel-number channels) (type real duration))
-  (with-nrt (channels)
+  (with-nrt (channels sample-rate)
     (let* (;; If DURATION is negative or zero, the rendering terminates
            ;; -DURATION seconds after the last event.
            (pad-at-the-end-p (<= duration 0))
@@ -327,12 +328,12 @@ when the duration is undefined.")
       output-filename)))
 
 (defun %bounce-to-disk-with-infile (input-filename output-filename duration
-                                    channels header-type data-format metadata
-                                    function)
+                                    channels sample-rate header-type data-format
+                                    metadata function)
   (declare (type (or string pathname) input-filename output-filename)
            (type real duration) (type function function)
            (type channel-number channels))
-  (with-nrt (channels)
+  (with-nrt (channels sample-rate)
     (let* (;; If DURATION is negative or zero, the rendering terminates
            ;; -DURATION seconds after the last event.
            (pad-at-the-end-p (<= duration 0))
@@ -393,12 +394,13 @@ when the duration is undefined.")
 
 (defmacro bounce-to-disk ((output-filename &key input-filename
                            (channels *number-of-output-bus-channels*)
-                           duration (pad 2) header-type data-format metadata)
+                           duration (pad 2) (sample-rate *sample-rate*)
+                           header-type data-format metadata)
                           &body body)
   `(,@(if input-filename
           `(%bounce-to-disk-with-infile ,input-filename)
           '(%bounce-to-disk))
-    ,output-filename ,(or duration `(- ,pad)) ,channels
+    ,output-filename ,(or duration `(- ,pad)) ,channels ,sample-rate
     ,(or header-type '*default-header-type*)
     ,(or data-format '*default-data-format*)
     ,metadata (bounce-function ,body)))
@@ -435,8 +437,8 @@ when the duration is undefined.")
        (clear-outputs)
        (incf-sample-counter))))
 
-(defun %bounce-to-buffer (output-buffer input-buffer start frames mix-p
-                          function)
+(defun %bounce-to-buffer (output-buffer input-buffer start frames sample-rate
+                          mix-p function)
   (declare (type buffer output-buffer) (type (or buffer null) input-buffer)
            (type function function) (type non-negative-real start)
            (type (or non-negative-real null) frames) (type boolean mix-p))
@@ -453,7 +455,7 @@ when the duration is undefined.")
             (values (buffer-channels input-buffer) (buffer-size input-buffer)
                     (buffer-data input-buffer)))
       (declare (type (or non-negative-fixnum null) in-channels in-size))
-      (with-nrt (out-channels)
+      (with-nrt (out-channels sample-rate)
         (nrt-cleanup)
         (zeroes-nrt-bus-channels)
         (reset-sample-counter)
@@ -483,6 +485,6 @@ when the duration is undefined.")
         output-buffer))))
 
 (defmacro bounce-to-buffer ((output-buffer &key input-buffer (start 0) frames
-                            mix-p) &body body)
-  `(%bounce-to-buffer ,output-buffer ,input-buffer ,start ,frames ,mix-p
-                      (bounce-function ,body)))
+                            (sample-rate *sample-rate*) mix-p) &body body)
+  `(%bounce-to-buffer ,output-buffer ,input-buffer ,start ,frames ,sample-rate
+                      ,mix-p (bounce-function ,body)))

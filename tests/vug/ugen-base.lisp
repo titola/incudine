@@ -3,7 +3,7 @@
 (compile-vug 'vug-test-1 'sample)
 
 ;;; Test name, return-type, arguments, types and control-flags.
-(deftest ugen.1
+(with-ugen-test (ugen.1)
     (let ((u (ugen 'vug-test-1)))
       (if u
           (values t (incudine.vug::ugen-name u)
@@ -16,7 +16,7 @@
 (compile-vug 'vug-test-2 'sample)
 
 ;;; Test arguments and types.
-(deftest ugen.2
+(with-ugen-test (ugen.2)
     (let ((u (ugen 'vug-test-2)))
       (if u
           (values t (incudine.vug::ugen-args u)
@@ -25,7 +25,7 @@
   (buffer sample sample boolean function))
 
 ;;; Test RENAME-UGEN and DESTROY-UGEN.
-(deftest ugen.3
+(with-ugen-test (ugen.3)
     (progn
       (define-ugen ugen-tmp sample (amp) (white-noise amp))
       (let ((n1 (incudine.vug::ugen-name (ugen 'ugen-tmp))))
@@ -37,7 +37,7 @@
   ugen-tmp tmp-ugen t t nil t)
 
 ;;; Test FIX-UGEN
-(deftest ugen.4
+(with-ugen-test (ugen.4)
     (flet ((check-cb ()
              (eq (vug::ugen-callback (ugen 'vug-test-1)) #'vug-test-1)))
       (let ((p1 (check-cb)))
@@ -55,7 +55,7 @@
   (define-ugen-control-setter ugen-test-1 freq set-ugen-test-1-freq* sample)
   (define-ugen-control-setter ugen-test-1 nh))
 
-(deftest ugen.5
+(with-ugen-test (ugen.5)
     (let* ((u (funcall (ugen-test-1 100 123456 30)))
            (res (loop repeat 32
                       do (funcall (ugen-perf-function u))
@@ -68,7 +68,7 @@
    -29204 -28203 -23560 -16439 -8154 -2 6889 11689 13937 13571 10899 6523
    1234 -4114 -8727 -11979 -13490 -13160 -11167 -7919 -3987))
 
-(deftest ugen.6
+(with-ugen-test (ugen.6)
     (let ((u (funcall (ugen-test-1 100 123456 30))))
       (flet ((vals (freq-setter)
                (loop for i below 32
@@ -92,7 +92,7 @@
    11973 -5919 -5167 3868 -6989 -350 -406 1051 -3246 -4440 -1074 -21 -2951
    -3946 -1188 -2763 -4047 -4353 -3300 -932 2352))
 
-(deftest ugen.7
+(with-ugen-test (ugen.7)
     (let ((u (funcall (ugen-test-1 100 123456 30))))
       (multiple-value-bind (ptr fn)
           (ugen-control-pointer u 'freq)
