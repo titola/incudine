@@ -463,7 +463,8 @@
         (performance-time
          (dolist (i (cdr decl))
            (if (vug-variable-p i)
-               (setf (vug-variable-performance-time-p i) t)
+               (setf (vug-variable-performance-time-p i) t
+                     (vug-variable-init-time-p i) nil)
                (msg error
                     "performance-time declaration, ~A is not a VUG variable"
                     i))))))
