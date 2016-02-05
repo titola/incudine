@@ -92,7 +92,8 @@
   (declare #.*standard-optimize-settings*
            (type receiver receiver) (type boolean update-midi-table-p))
   (let ((stream (receiver-stream receiver)))
-    (pm:with-receiver ((receiver-status receiver) stream msg)
+    (pm:with-receiver ((receiver-status receiver) stream msg nil
+                       *midi-input-timeout*)
       (handler-case
           (multiple-value-bind (status data1 data2)
               (pm:decode-message (logand msg #xFFFFFF))

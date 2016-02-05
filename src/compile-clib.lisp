@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014-2015 Tito Latini
+;;; Copyright (c) 2014-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
   (defvar *sample-rate* 48000)
 
   (defvar *rt-block-size* 1)
+
+  (defvar *midi-input-timeout* 1)
+  (declaim (type alexandria:positive-fixnum *midi-input-timeout*))
 
   ;;; Velocity of the sound at 22°C, 1 atmosfera
   (defvar *sound-velocity* 345)

@@ -63,6 +63,14 @@
 ;(setq *portaudio-input-device* -1)
 ;(setq *portaudio-output-device* -1)
 
+;;;-----------------------[ MIDI settings ]-------------------------
+
+;; Number of milliseconds before to test whether MIDI input is
+;; available (useful with PortMidi because it does not support a
+;; blocking read).
+;; low value = low latency but minor CPU time for the system
+(setq *midi-input-timeout* 1)
+
 ;;;--------------------[ Open Sound Control ]-----------------------
 
 (setq *osc-buffer-size* 128)

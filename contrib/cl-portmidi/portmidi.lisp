@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2015 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -200,7 +200,7 @@
 (defmacro with-receiver ((state-var stream message-var
                           &optional timestamp-var (sleep-time 1) thread-name)
                          &body body)
-  (with-gensyms (evbuf)
+  (with-gensyms (evbuf timeout)
     `(if ,state-var
          (warn "PortMidi receiver already started.")
          (case (stream-direction ,stream)
@@ -214,13 +214,15 @@
                  (unwind-protect
                       (loop initially (read ,stream ,evbuf
                                             default-sysex-buffer-size) ; flush
-                            while ,state-var
-                            when (eq (poll ,stream) :pm-got-data) do
-                              (read ,stream ,evbuf default-sysex-buffer-size)
-                              (doevent (,evbuf ,message-var ,stream
-                                        ,timestamp-var)
-                                ,@body)
-                            do (pt:sleep ,sleep-time))
+                            with ,timeout = ,sleep-time
+                            while ,state-var do
+                              (cond ((eq (poll ,stream) :pm-got-data)
+                                     (read ,stream ,evbuf
+                                           default-sysex-buffer-size)
+                                     (doevent (,evbuf ,message-var ,stream
+                                                      ,timestamp-var)
+                                              ,@body))
+                                    (t (pt:sleep ,timeout))))
                    (setf ,state-var nil))))
              :name ,(or thread-name
                         `(format nil "pm-recv ~A"
