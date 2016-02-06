@@ -484,6 +484,48 @@
                  (zerop (vug-variable-ref-count (car vars))))
         (msg warn "the ~A parameter is unused" (vug-parameter-name p))))))
 
+(defun vug-variable-type-inference (var)
+  (declare (type vug-variable var))
+  (labels ((get-type (obj)
+             (cond ((vug-variable-p obj)
+                    (multiple-value-bind (cached cached-p)
+                        (vug-variable-replacement obj)
+                      (if cached-p
+                          (get-type cached)
+                          (vug-variable-type obj))))
+                   ((numberp obj) (maybe-sample-type obj))
+                   ((vug-constant-p obj)
+                    (maybe-sample-type (vug-symbol-name obj)))
+                   ((vug-function-p obj)
+                    (let ((name (vug-function-name obj)))
+                      (cond ((has-progn-form-p name)
+                             (get-type (first (last (progn-form obj)))))
+                            ((foreign-pointer-p name) 'foreign-pointer)
+                            ((eq name 'unwind-protect)
+                             (get-type (first (vug-function-inputs obj)))))))))
+           (maybe-sample-type (name)
+             (and (typep (incudine.util::constant-form-value name) 'sample)
+                  'sample))
+           (foreign-pointer-p (name)
+             (member name
+               '#.(append '(cffi-sys:null-pointer cffi-sys:inc-pointer
+                            cffi-sys:make-pointer cffi-sys:%foreign-alloc)
+                          #+sbcl
+                          '(sb-sys:sap-int sb-sys:sap+ sb-alien:alien-sap))))
+           (has-progn-form-p (name)
+             (member name '(progn let let* multiple-value-bind)))
+           (progn-form (vug-fn)
+             (let ((inputs (vug-function-inputs vug-fn)))
+               (case (vug-function-name vug-fn)
+                 ((let let*) (cdr inputs))
+                 ((multiple-value-bind) (cddr inputs))
+                 (otherwise inputs)))))
+    (unless (vug-variable-type var)
+      (let ((type (get-type (vug-variable-value var))))
+        (when type
+          (setf (vug-variable-type var) type)
+          (msg debug "derived type of ~A is ~A" var type))))))
+
 (defun format-vug-code (vug-block)
   (let ((vug-form (cond ((vug-progn-function-p vug-block)
                          (vug-function-inputs vug-block))
@@ -497,7 +539,8 @@
     (prog1 (blockexpand vug-form nil t)
       (check-unused-parameters)
       ;; Some variables could be deleted during the generation of the code.
-      (setf #1# (delete-if #'vug-variable-deleted-p #1#)))))
+      (setf #1# (delete-if #'vug-variable-deleted-p #1#))
+      (mapc #'vug-variable-type-inference #1#))))
 
 (macrolet (;; Add and count the variables with the foreign TYPE
            (define-add-*-variables (type)
