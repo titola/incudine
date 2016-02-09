@@ -71,7 +71,7 @@
 <span style="color: #b0c4de;">:PM-NO-ERROR</span>
 <span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">*midiin*</span> (pm:open (pm:get-default-input-device-id)))
 *MIDIIN*
-<span class="prompt">SCRATCH&gt;</span> (recv-start *midiin*)
+<span class="prompt">SCRATCH&gt;</span> (recv-start *midiin* :timeout 64)
 #&lt;RECEIVER PORTMIDI:INPUT-STREAM RUNNING&gt;
 <span class="prompt">SCRATCH&gt;</span> (midi-test)
 <span class="prompt">SCRATCH&gt;</span> (free 0)</pre>

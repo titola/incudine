@@ -51,7 +51,7 @@
 ;; :PM-NO-ERROR
 (defvar *midiin* (pm:open (pm:get-default-input-device-id)))
 ;; *MIDIIN*
-(recv-start *midiin*)
+(recv-start *midiin* :timeout 64)
 ;; #<RECEIVER PORTMIDI:INPUT-STREAM RUNNING>
 (midi-test)
 (free 0)

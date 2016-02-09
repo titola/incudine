@@ -91,16 +91,21 @@
 (defun start-portmidi-recv (receiver update-midi-table-p)
   (declare #.*standard-optimize-settings*
            (type receiver receiver) (type boolean update-midi-table-p))
-  (let ((stream (receiver-stream receiver)))
-    (pm:with-receiver ((receiver-status receiver) stream msg nil
-                       *midi-input-timeout*)
-      (handler-case
-          (multiple-value-bind (status data1 data2)
-              (pm:decode-message (logand msg #xFFFFFF))
-            (when update-midi-table-p
-              (incudine.vug::set-midi-message status data1 data2))
-            (midi-recv-funcall-all receiver status data1 data2))
-        (condition (c) (nrt-msg error "~A" c))))))
+  (if (receiver-status receiver)
+      (msg warn "PortMidi receiver already started.")
+      (let ((stream (receiver-stream receiver)))
+        (msg debug "PortMidi receiver for ~S with polling timeout ~D"
+             (portmidi::input-stream-device-name stream)
+             *midi-input-timeout*)
+        (pm:with-receiver ((receiver-status receiver) stream msg nil
+                           *midi-input-timeout*)
+          (handler-case
+              (multiple-value-bind (status data1 data2)
+                  (pm:decode-message (logand msg #xFFFFFF))
+                (when update-midi-table-p
+                  (incudine.vug::set-midi-message status data1 data2))
+                (midi-recv-funcall-all receiver status data1 data2))
+            (condition (c) (nrt-msg error "~A" c)))))))
 
 (defun start-portmidi-recv-update-mtab (receiver)
   (start-portmidi-recv receiver t))
@@ -110,16 +115,20 @@
 
 (defmethod recv-start ((stream portmidi:input-stream)
                        &key (priority *receiver-default-priority*)
-                       (update-midi-table-p t))
-  (add-receiver stream (or (receiver stream) (make-receiver stream))
-                (if update-midi-table-p
-                    #'start-portmidi-recv-update-mtab
-                    #'start-portmidi-recv-no-mtab)
-                priority))
+                       (update-midi-table-p t)
+                       (timeout *midi-input-timeout*))
+  (let ((*midi-input-timeout* (max 1 timeout)))
+    (add-receiver stream (or (receiver stream) (make-receiver stream))
+                  (if update-midi-table-p
+                      #'start-portmidi-recv-update-mtab
+                      #'start-portmidi-recv-no-mtab)
+                  priority)))
 
 (defmethod recv-stop ((stream portmidi:input-stream))
   (let ((recv (receiver stream)))
     (compare-and-swap (receiver-status recv) t nil)
+    (msg debug "PortMidi receiver for ~S stopped"
+         (portmidi::input-stream-device-name stream))
     recv))
 
 ;;; Open Sound Control
