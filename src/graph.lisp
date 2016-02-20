@@ -1220,7 +1220,7 @@
              (do ((i 0 (1+ i)))
                  ((= i indent))
                (declare (type non-negative-fixnum i))
-               (princ " "))))
+               (princ " " stream))))
       (dograph (n obj)
         (indent-line)
         (cond ((group-p n)
