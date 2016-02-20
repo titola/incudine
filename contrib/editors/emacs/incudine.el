@@ -171,8 +171,13 @@ If ID is zero, call INCUDINE:FLUSH-PENDING before INCUDINE:FREE."
 (defun incudine-dump-graph (&optional node)
   "Print informations about the graph of nodes."
   (interactive "P")
-  (incudine-eval "(incudine:dump (incudine:node %d))"
-                 (prefix-numeric-value0 node)))
+  (let ((form (format "(incudine:dump (incudine:node %d) *standard-output*)"
+                      (prefix-numeric-value0 node))))
+    (slime-eval-async `(swank:pprint-eval ,form)
+      (lambda (result)
+        (slime-with-popup-buffer ("*incudine-node-tree*")
+          (insert result)
+          (kill-line -1))))))
 
 (defun incudine-gc ()
   "Initiate a garbage collection."
