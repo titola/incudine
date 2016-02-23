@@ -24,7 +24,7 @@
   (define-vug-macro ~ (in &key (type 'sample) (initial-value 0))
     "Anaphoric VUG MACRO for recursive composition."
     (let ((it (ensure-symbol 'it)))
-      `(with ((,it ,(coerce initial-value type)))
+      `(with ((,it ,(coerce-number initial-value type)))
          (declare (type ,type ,it))
          (setf ,it ,in))))
 
