@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014-2015 Tito Latini
+;;; Copyright (c) 2014-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -340,7 +340,7 @@ arguments to update the dependencies if it exists."
 (defmacro maybe-store-return-value (return-type &body body)
   (if (foreign-type-p return-type)
       `(with ((ret (store-ugen-return-value (progn ,@body))))
-         (declare (type ,return-type ret))
+         (declare (preserve ret) (type ,return-type ret))
          ret
          (values))
       `(progn ,@body)))
