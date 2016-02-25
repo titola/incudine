@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -832,6 +832,14 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
           (foreach-frame-loop ,in-ptr ,out-ptr ,now ,@(cdr def))))
      nil flist mlist (list in-ptr out-ptr now))))
 
+(defun vug-funcall-form (name def flist mlist floop-info)
+  (let* ((fname (if (ugen-block-p name) 'ugen-inline-funcall 'vug-funcall))
+         (form `(,fname ',name ,@(parse-vug-def def t flist mlist floop-info))))
+    (if floop-info
+        `(make-vug-function :name 'filter-foreach-frame-form
+                            :inputs (list ,@floop-info ,form))
+        form)))
+
 ;;; The follow functions are only "tags":
 
 (defun tick (&rest forms) forms)
@@ -905,26 +913,17 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
                         ((function-call-p def)
                          (cond ((binding-form-p def)
                                 (parse-binding-form def flist mlist floop-info))
-                               ((ugen-block-p name)
-                                (if (inlined-ugen-p name)
-                                    `(ugen-inline-funcall ',name
-                                       ,@(parse-vug-def
-                                           (cdr def) t flist mlist floop-info))
-                                    (parse-ugen def flist mlist floop-info)))
+                               ((and (ugen-block-p name)
+                                     (not (inlined-ugen-p name)))
+                                (parse-ugen def flist mlist floop-info))
                                ((eq name 'ugen-run)
                                 `(make-vug-function :name ',name
                                    :inputs (list ,(second def) ',(third def))
                                    :block-p t))
-                               ((vug-block-p name)
-                                (let ((form
-                                       `(vug-funcall ',name
-                                          ,@(parse-vug-def (cdr def) t flist
-                                                           mlist floop-info))))
-                                  (if floop-info
-                                      `(make-vug-function
-                                         :name 'filter-foreach-frame-form
-                                         :inputs (list ,@floop-info ,form))
-                                      form)))
+                               ((or (vug-block-p name) (ugen-block-p name))
+                                ;; VUG or inlined UGEN
+                                (vug-funcall-form name (cdr def) flist mlist
+                                                  floop-info))
                                ((member name '(vug-funcall ugen-funcall))
                                 `(,name ,(cadr def)
                                         ,@(parse-vug-def
