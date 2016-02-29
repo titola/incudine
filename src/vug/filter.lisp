@@ -99,7 +99,7 @@ half-power point."
 half-power point."
   (with-samples ((b (- 2 (cos (* hp *twopi-div-sr*))))
                  (coef (- b (sqrt (the non-negative-sample (- (* b b) 1))))))
-    (~ (* coef (+ (- in (delay1 in)) it)))))
+    (pole (* coef (zero in 1)) coef)))
 
 (define-vug two-pole (in freq radius)
   "Two pole filter."
