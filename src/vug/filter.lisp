@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2015 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -98,9 +98,8 @@ half-power point."
   "A first-order recursive highpass filter where HP is the response curve's
 half-power point."
   (with-samples ((b (- 2 (cos (* hp *twopi-div-sr*))))
-                 (coef (- (sqrt (the non-negative-sample (- (* b b) 1))) b))
-                 (g (+ 1 coef)))
-    (pole (* g in) coef)))
+                 (coef (- b (sqrt (the non-negative-sample (- (* b b) 1))))))
+    (~ (* coef (+ (- in (delay1 in)) it)))))
 
 (define-vug two-pole (in freq radius)
   "Two pole filter."
