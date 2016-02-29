@@ -877,160 +877,134 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
 ;;; avoids the obscure isolated vug-variables in the body of a VUG.
 (defmacro maybe-expand (&body body) `(progn ,@body))
 
+(defun parse-vug-function (def name flist mlist floop-info)
+  (cond ((binding-form-p def)
+         (parse-binding-form def flist mlist floop-info))
+        ((and (ugen-block-p name) (not (inlined-ugen-p name)))
+         (parse-ugen def flist mlist floop-info))
+        ((eq name 'ugen-run)
+         ;; UGEN-RUN is performance-time.
+         `(make-vug-function :name ',name
+            :inputs (list ,(second def) ',(third def)) :block-p t))
+        ((or (vug-block-p name) (ugen-block-p name))
+         ;; VUG or inlined UGEN
+         (vug-funcall-form name (cdr def) flist mlist floop-info))
+        ((member name '(vug-funcall ugen-funcall))
+         `(,name ,(cadr def)
+                 ,@(parse-vug-def (cddr def) t flist mlist floop-info)))
+        ((eq name 'foreach-frame)
+         (if floop-info
+             ;; All the nested FOREACH-FRAME loops are merged with the first.
+             `(make-vug-function :name 'progn
+                :inputs (list ,@(parse-vug-def (cdr def) nil flist mlist
+                                               floop-info)))
+             (parse-foreach-frame-form def flist mlist)))
+        ((eq name 'tick)
+         (parse-tick-form def flist mlist floop-info))
+        ((eq name 'get-pointer)
+         ;; Inhibit the expansion of GET-POINTER macro.
+         `(make-vug-function :name 'get-pointer
+            :inputs (list ,@(parse-vug-def (cdr def) t flist mlist
+                                           floop-info))))
+        ((eq name 'external-variable)
+         `(make-vug-symbol :name ',(cadr def)))
+        ((member name '(%with-follow without-follow))
+         `(make-vug-function :name ',name
+            :inputs (list (list ,@(cadr def)) ,@(parse-vug-def (cddr def)))))
+        ((quote-function-p def)
+         (let ((fn (cadr def)))
+           (if (consp fn)
+               (parse-lambda-form fn flist mlist floop-info)
+               `(make-vug-function :name 'function :inputs (list ',fn)))))
+        ((eq name 'lambda)
+         (parse-lambda-form def flist mlist floop-info))
+        ((eq name 'flet)
+         (parse-flet-form def flist mlist floop-info))
+        ((eq name 'labels)
+         (parse-labels-form def flist mlist floop-info))
+        ((eq name 'macrolet)
+         (parse-macrolet-form def flist mlist floop-info))
+        ((eq name 'foreach-frame-loop)
+         `(make-vug-function :name 'foreach-frame-loop
+            :inputs (list ,@(parse-vug-def (cdr def) nil flist mlist
+                                           floop-info))))
+        ((member name '(set-local-io-pointer set-local-now))
+         `(make-vug-function :name ',name
+            :inputs (list ,(second def) ',(third def))))
+        ((and (macro-function name)
+              ;; Avoid the expansion of the setter forms.
+              ;; This information is used during the code generation.
+              (not (setter-form-p name)))
+         (let ((expansion (macroexpand-1
+                            (if (member name '(with-samples
+                                               with-samples*))
+                                ;; The bindings of the initialization are
+                                ;; sequential, so there is not difference
+                                ;; between WITH-SAMPLES and WITH-SAMPLES*
+                                ;; within a definition of a VUG
+                                `(%with-samples ,@(cdr def))
+                                def))))
+           (if (vug name)
+               `(mark-vug-block
+                  ,(parse-vug-def expansion nil flist mlist floop-info))
+               (parse-vug-def expansion nil flist mlist floop-info))))
+        ((quote-symbol-p def)
+         `(make-vug-symbol :name '',(second def)))
+        ((member name '(block return-from the catch throw))
+         (parse-block-form def flist mlist floop-info))
+        ((eq name 'tagbody)
+         (parse-tagbody-form def flist mlist floop-info))
+        ((eq name 'go)
+         (parse-go-form def))
+        ((eq name 'quote)
+         `(make-vug-function :name 'quote :inputs ',(cdr def)))
+        #+(and sbcl x86)
+        ((and (member name '(sin cos tan))
+              (not (and (consp (cadr def)) (eq (caadr def) 'the))))
+         ;; X86 uses FSIN, FCOS and FPTAN
+         `(make-vug-function :name ',name
+            :inputs (list ,(parse-vug-def `(the limited-sample ,@(cdr def))
+                                          nil flist mlist floop-info))))
+        (t
+         `(make-vug-function :name ',name
+            :inputs (list ,@(parse-vug-def (cdr def) t flist mlist
+                                           floop-info))))))
+
+(defun parse-vug-form (def flist mlist floop-info)
+  (let ((name (car def)))
+    (cond ((init-binding-form-p def)
+           (parse-init-bindings def flist mlist floop-info))
+          ((declare-form-p def)
+           (let ((decl (remove-if #'null
+                                  (mapcar #'parse-declare-form (cdr def)))))
+             (when decl
+               `(make-vug-declaration (list ,@decl)))))
+          ((eq name 'locally)
+           (parse-locally-form def flist mlist floop-info))
+          ((member name flist) ; local function
+           `(make-local-vug-function ,name
+              (list ,@(parse-vug-def (cdr def) t flist mlist floop-info))))
+          ((member name mlist :key #'car) ; local macro
+           (destructuring-bind (lambda-list &rest body) (cdr (assoc name mlist))
+             (parse-vug-def
+               (eval `(destructuring-bind ,lambda-list ',(cdr def)
+                        ;; Remove a possible doc string before a declaration.
+                        ,@(do ((l body (cdr l)))
+                              ((not (stringp (car l))) l))))
+               nil flist mlist floop-info)))
+          ((function-call-p def)
+           (parse-vug-function def name flist mlist floop-info))
+          (t
+           (cons name (parse-vug-def (cdr def) t flist mlist floop-info))))))
+
 (defun parse-vug-def (def &optional cdr-p flist mlist floop-info)
   (declare (type boolean cdr-p) (type list flist mlist))
   (cond ((null def) nil)
         ((consp def)
-         (let ((name (car def)))
-           (cond ((consp name)
-                  (cons (parse-vug-def name nil flist mlist floop-info)
-                        (parse-vug-def (cdr def) t flist mlist floop-info)))
-                 ((null cdr-p)
-                  (cond ((init-binding-form-p def)
-                         (parse-init-bindings def flist mlist floop-info))
-                        ((declare-form-p def)
-                         (let ((decl (remove-if #'null
-                                                (mapcar #'parse-declare-form
-                                                        (cdr def)))))
-                           (when decl
-                             `(make-vug-declaration (list ,@decl)))))
-                        ((eq name 'locally)
-                         (parse-locally-form def flist mlist floop-info))
-                        ((member name flist) ; local function
-                         `(make-local-vug-function ,name
-                            (list ,@(parse-vug-def (cdr def) t flist mlist
-                                                   floop-info))))
-                        ((member name mlist :key #'car) ; local macro
-                         (destructuring-bind (lambda-list &rest body)
-                             (cdr (assoc name mlist))
-                           (parse-vug-def
-                             (eval `(destructuring-bind ,lambda-list ',(cdr def)
-                                      ;; Remove a possible doc string before
-                                      ;; a declaration.
-                                      ,@(do ((l body (cdr l)))
-                                            ((not (stringp (car l))) l))))
-                            nil flist mlist floop-info)))
-                        ((function-call-p def)
-                         (cond ((binding-form-p def)
-                                (parse-binding-form def flist mlist floop-info))
-                               ((and (ugen-block-p name)
-                                     (not (inlined-ugen-p name)))
-                                (parse-ugen def flist mlist floop-info))
-                               ((eq name 'ugen-run)
-                                `(make-vug-function :name ',name
-                                   :inputs (list ,(second def) ',(third def))
-                                   :block-p t))
-                               ((or (vug-block-p name) (ugen-block-p name))
-                                ;; VUG or inlined UGEN
-                                (vug-funcall-form name (cdr def) flist mlist
-                                                  floop-info))
-                               ((member name '(vug-funcall ugen-funcall))
-                                `(,name ,(cadr def)
-                                        ,@(parse-vug-def
-                                            (cddr def) t flist mlist
-                                            floop-info)))
-                               ((eq name 'foreach-frame)
-                                (if floop-info
-                                    ;; All the nested FOREACH-FRAME loops are
-                                    ;; merged with the first.
-                                    `(make-vug-function :name 'progn
-                                       :inputs (list ,@(parse-vug-def (cdr def)
-                                                         nil flist mlist
-                                                         floop-info)))
-                                    (parse-foreach-frame-form def flist mlist)))
-                               ((eq name 'tick)
-                                (parse-tick-form def flist mlist floop-info))
-                               ((eq name 'get-pointer)
-                                ;; Inhibit the expansion of GET-POINTER macro
-                                `(make-vug-function :name 'get-pointer
-                                   :inputs (list ,@(parse-vug-def
-                                                     (cdr def) t flist mlist
-                                                     floop-info))))
-                               ((eq name 'external-variable)
-                                `(make-vug-symbol :name ',(cadr def)))
-                               ((member name '(%with-follow without-follow))
-                                `(make-vug-function :name ',name
-                                   :inputs (list (list ,@(cadr def))
-                                                 ,@(parse-vug-def (cddr def)))))
-                               ((quote-function-p def)
-                                (let ((fn (cadr def)))
-                                  (if (consp fn)
-                                      (parse-lambda-form fn flist mlist
-                                                         floop-info)
-                                      `(make-vug-function :name 'function
-                                         :inputs (list ',fn)))))
-                               ((eq name 'lambda)
-                                (parse-lambda-form def flist mlist floop-info))
-                               ((eq name 'flet)
-                                (parse-flet-form def flist mlist floop-info))
-                               ((eq name 'labels)
-                                (parse-labels-form def flist mlist floop-info))
-                               ((eq name 'macrolet)
-                                (parse-macrolet-form def flist mlist
-                                                     floop-info))
-                               ((eq name 'foreach-frame-loop)
-                                `(make-vug-function :name 'foreach-frame-loop
-                                   :inputs (list ,@(parse-vug-def (cdr def) nil
-                                                                  flist mlist
-                                                                  floop-info))))
-                               ((member name '(set-local-io-pointer
-                                               set-local-now))
-                                `(make-vug-function :name ',name
-                                   :inputs (list ,(second def) ',(third def))))
-                               ((and (macro-function name)
-                                     ;; Avoid the expansion of the setter forms.
-                                     ;; This information is used during the code
-                                     ;; generation.
-                                     (not (setter-form-p name)))
-                                (let ((expansion
-                                       (macroexpand-1
-                                        (if (member name '(with-samples
-                                                           with-samples*))
-                                            ;; The bindings of the initialization
-                                            ;; are sequential, so there is not
-                                            ;; difference between WITH-SAMPLES
-                                            ;; and WITH-SAMPLES* inside a
-                                            ;; definition of a VUG
-                                            `(%with-samples ,@(cdr def))
-                                            def))))
-                                  (if (vug name)
-                                      `(mark-vug-block
-                                         ,(parse-vug-def expansion nil flist
-                                                         mlist floop-info))
-                                      (parse-vug-def expansion nil flist mlist
-                                                     floop-info))))
-                               ((quote-symbol-p def)
-                                `(make-vug-symbol :name '',(second def)))
-                               ((member name
-                                        '(block return-from the catch throw))
-                                (parse-block-form def flist mlist floop-info))
-                               ((eq name 'tagbody)
-                                (parse-tagbody-form def flist mlist floop-info))
-                               ((eq name 'go) (parse-go-form def))
-                               ((eq name 'quote)
-                                `(make-vug-function :name 'quote
-                                                    :inputs ',(cdr def)))
-                               #+(and sbcl x86)
-                               ((and (member name '(sin cos tan))
-                                     (not (and (consp (cadr def))
-                                               (eq (caadr def) 'the))))
-                                ;; X86 uses FSIN, FCOS and FPTAN
-                                `(make-vug-function :name ',name
-                                   :inputs (list ,(parse-vug-def
-                                                    `(the limited-sample
-                                                          ,@(cdr def))
-                                                    nil flist mlist
-                                                    floop-info))))
-                               (t `(make-vug-function :name ',name
-                                     :inputs (list
-                                               ,@(parse-vug-def
-                                                   (cdr def) t flist mlist
-                                                   floop-info))))))
-                        (t (cons name (parse-vug-def (cdr def) t flist mlist
-                                                     floop-info)))))
-                 (t (cons (parse-vug-def name nil flist mlist floop-info)
-                          (parse-vug-def (cdr def) t flist mlist
-                                         floop-info))))))
+         (if (or cdr-p (consp (car def)))
+             (cons (parse-vug-def (car def) nil flist mlist floop-info)
+                   (parse-vug-def (cdr def) t flist mlist floop-info))
+             (parse-vug-form def flist mlist floop-info)))
         ((eq def 'pi) (sample pi))
         ((and (symbolp def) (or (boundp def) (eq def '%dsp-node%)))
          `(make-vug-symbol :name ',def))
