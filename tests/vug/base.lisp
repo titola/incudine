@@ -46,6 +46,14 @@
   "Buffer for FIR filter test.")
 (declaim (type buffer *filter-buffer-test-2*))
 
+(defvar *filter-pvbuffer-test-1*
+  (with-buffers ((b 1024 :fill-function (gen:sinc 23))
+                 (w 1024 :fill-function (gen:kaiser 12)))
+    (map-into-buffer b #'* b w)
+    (buffer->pvbuffer b 64))
+  "Buffer for FIR filter test with partitioned convolution.")
+(declaim (type pvbuffer *filter-pvbuffer-test-1*))
+
 (defvar *byte-vector-test* (make-array +vug-test-max-duration-bytes+
                                        :element-type '(unsigned-byte 8)
                                        :initial-element 0)
@@ -120,6 +128,11 @@
   `(deftest ,name
        (incudine.util::with-local-sample-rate (+sample-rate-test+) ,form)
      ,@body))
+
+(define-vug noise-test (amp)
+  (with-samples ((mult (* amp #.(/ (sample #x7fffff)))))
+    (* (- (~ (logand (+ 17711 (* it 9227465)) #xffffff) :type fixnum) #x7fffff)
+       mult)))
 
 (define-vug vug-test-1 (freq amp phase)
   (sine freq amp phase))
