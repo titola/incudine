@@ -4,3 +4,4 @@
 *.o
 src/cache.lisp
 src/incudine
+src/analysis/maybe-fftw-no-simd.lisp

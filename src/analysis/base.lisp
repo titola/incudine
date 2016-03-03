@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2015 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -24,7 +24,9 @@
      incudine:circular-shift
      incudine:free
      incudine:free-p
-     incudine:now)))
+     incudine:now))
+  #+fftw-no-simd
+  (format *error-output* "~%WARNING: using planner flag FFTW_NO_SIMD~%"))
 
 (defstruct (ring-buffer (:copier nil))
   (data (error "missing data for the ring buffer") :type foreign-pointer)
@@ -231,9 +233,11 @@ ANALYSIS-INPUT-SIZE samples."
   (setf (analysis-input-changed-p obj) nil)
   obj)
 
-(define-constant +fftw-measure+ 0)
-(define-constant +fftw-patient+ (ash 1 5))
-(define-constant +fftw-estimate+ (ash 1 6))
+#-(and sbcl x86 (not darwin))
+(progn
+  (define-constant +fftw-measure+ 0)
+  (define-constant +fftw-patient+ (ash 1 5))
+  (define-constant +fftw-estimate+ (ash 1 6)))
 
 (define-constant +fft-plan-optimal+ +fftw-patient+
   :documentation "Slowest computation of an optimal FFT plan.")

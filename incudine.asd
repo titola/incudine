@@ -61,7 +61,9 @@
                                                   :type type))
                   t)))
       :perform (compile-op (o c)
-                 (symbol-call :incudine.config '#:compile-c-library))
+                 (symbol-call :incudine.config '#:compile-c-library)
+                 #+(and sbcl x86 (not darwin))
+                 (symbol-call :incudine.config '#:fftw-stack-align-test))
       :perform (load-op (o c)
                  (symbol-call :cffi '#:load-foreign-library
                               (output-file 'compile-op c))))
@@ -93,7 +95,12 @@
                             :depends-on ("packages"))
      (:file "osc/cffi-osc" :depends-on ("packages"))
      (:file "osc/osc" :depends-on ("util" "osc/cffi-osc" "osc/sbcl-vops"))
-     (:file "analysis/base" :depends-on ("time" "gen/window"))
+     (:file "analysis/maybe-fftw-no-simd"
+            :if-feature (:and :sbcl :x86 (:not :darwin))
+            :depends-on ("packages"))
+     (:file "analysis/base" :depends-on ("time" "gen/window"
+                                         #+(and sbcl x86 (not darwin))
+                                         "analysis/maybe-fftw-no-simd"))
      (:file "analysis/fft" :depends-on ("analysis/base"))
      (:file "analysis/pvbuffer" :depends-on ("analysis/fft"))
      (:file "gen/envelope" :depends-on ("envelope"))

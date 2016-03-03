@@ -370,6 +370,29 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
                   (t (error "no ~S or ~S in the search path"
                             *c-compiler* cc)))))))
 
+  ;;; Test for FFTW and unaligned stack pointer with SBCL on x86.
+  ;;;
+  ;;;     https://bugs.launchpad.net/sbcl/+bug/539632
+  ;;;     https://bugs.launchpad.net/sbcl/+bug/1294906
+  ;;;
+  ;;; If SBCL crashes, use the planner flag FFTW_NO_SIMD and add :FFTW-NO-SIMD
+  ;;; to *FEATURES*.
+  ;;;
+  ;;; If you want to repeat the test, delete the automatically generated file
+  ;;; src/analysis/maybe-fftw-no-simd.lisp
+  #+(and sbcl x86 (not darwin))
+  (defun fftw-stack-align-test ()
+    (let ((path (namestring
+                  (merge-pathnames "analysis/maybe-fftw-no-simd.lisp"
+                                   *c-source-dir*))))
+      (unless (probe-file path)
+        (let ((testfile (namestring
+                          (merge-pathnames "fftw-stack-align-test.lisp"
+                                           path))))
+          (sb-ext:run-program (first sb-ext:*posix-argv*)
+                              (list "--load" testfile path)
+                              :search t)))))
+
   (defun %compile-c-library (ofiles libs-dep)
     (let ((cmd (format nil "~A ~A ~A -o ~S~{ ~S~}~{ -l~A~}"
                        *c-compiler* *c-compiler-flags* *c-linker-flags*
