@@ -301,21 +301,28 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
           obj
           (error "compile C library failed"))))
 
+  (defmacro info (datum &rest arguments)
+    `(progn
+       (fresh-line *error-output*)
+       (princ "INFO: " *error-output*)
+       (format *error-output* ,datum ,@arguments)
+       (terpri *error-output*)))
+
   (defun get-audio-driver ()
     (flet ((no-jack-or-pa ()
-             (warn "Jack or PortAudio not installed; using dummy audio driver")
+             (info "Jack or PortAudio not installed; using dummy audio driver")
              (setf incudine.util:*audio-driver* :dummy)))
       (case incudine.util:*audio-driver*
         (:jack
          (cond ((probe-c-library "jack") :jack)
                ((probe-c-library "portaudio")
-                (warn "Jack not installed; audio driver changed to PortAudio.")
+                (info "Jack not installed; audio driver changed to PortAudio.")
                 (setf incudine.util:*audio-driver* :portaudio))
                (t (no-jack-or-pa))))
         (:portaudio
          (cond ((probe-c-library "portaudio") :portaudio)
                ((probe-c-library "jack")
-                (warn "PortAudio not installed; audio driver changed to Jack")
+                (info "PortAudio not installed; audio driver changed to Jack")
                 (setf incudine.util:*audio-driver* :jack))
                (t (no-jack-or-pa))))
         (:portaudio-jack
@@ -323,16 +330,16 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
                 (if (probe-c-library "jack")
                     :portaudio-jack
                     (progn
-                      (warn "Jack not installed; ~
+                      (info "Jack not installed; ~
                              no JACK-specific extensions for PortAudio.")
                       (setf incudine.util:*audio-driver* :portaudio))))
                ((probe-c-library "jack")
-                (warn "PortAudio not installed; audio driver changed to Jack")
+                (info "PortAudio not installed; audio driver changed to Jack")
                 (setf incudine.util:*audio-driver* :jack))
                (t (no-jack-or-pa))))
         (:dummy :dummy)
         (t (unless (null incudine.util:*audio-driver*)
-             (warn "~S is unknown; *AUDIO-DRIVER* must be ~
+             (info "~S is unknown; *AUDIO-DRIVER* must be ~
                     :JACK, :PORTAUDIO, :PORTAUDIO-JACK or :DUMMY"
                    incudine.util:*audio-driver*))
            ;; The default is Jack for Linux and PortAudio for the other OS.
@@ -357,13 +364,13 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
     (flet ((check (cc)
              (zerop (exit-code (invoke "which" cc)))))
       (unless (stringp *c-compiler*)
-        (warn "*C-COMPILER* is ~S but it should be a string" *c-compiler*)
+        (info "*C-COMPILER* is ~S but it should be a string" *c-compiler*)
         (setf *c-compiler* "cc"))
       (or (check *c-compiler*)
           ;; Try an alternative.
           (let ((cc (if (string= *c-compiler* "cc") "gcc" "cc")))
             (cond ((check cc)
-                   (warn "no ~S in the search path; C compiler changed to ~S"
+                   (info "no ~S in the search path; C compiler changed to ~S"
                          *c-compiler* cc)
                    (setf *c-compiler* cc)
                    t)
