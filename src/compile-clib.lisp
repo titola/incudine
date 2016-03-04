@@ -397,7 +397,7 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
                           (merge-pathnames "fftw-stack-align-test.lisp"
                                            path))))
           (sb-ext:run-program (first sb-ext:*posix-argv*)
-                              (list "--load" testfile path)
+                              (list "--non-interactive" "--load" testfile path)
                               :search t)))))
 
   (defun %compile-c-library (ofiles libs-dep)
