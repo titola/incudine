@@ -68,6 +68,7 @@
   (ichans 0 :type channel-number)
   (duration 0 :type real)
   (rego-files nil :type list)
+  (swank-server-port -1 :type fixnum)
   (compile-rego-contents-p nil :type boolean)
   (sf-metadata nil :type list)
   (debug-p nil :type boolean)
@@ -360,6 +361,7 @@
   -s <filename>                Process a score.
   --sample-pool-size <bytes>   Size of the pool for the C arrays defined in DSP!
   --sound-velocity <real>      Velocity of the sound at 22°C, 1 atmosfera.
+  --swank-server <port>        Start Swank server.
   -T, --tempo <bpm>            Initial tempo in beats per minute.
   -v, --verbose                More verbose.
   --version                    Print version information and exit.
@@ -684,6 +686,11 @@ SBCL options:
   (def-toplevel-opt "--sound-velocity"
     (set-option incudine.config::*sound-velocity* t))
 
+  (def-toplevel-opt "--swank-server"
+    (with-eval-form (port "Failed to start Swank server at port ~D" t)
+      (assert (typep port '(unsigned-byte 16)))
+      (setf (toplevel-options-swank-server-port opt) port)))
+
   (def-toplevel-opt ("-T" . "--tempo")
     (with-eval-form (bpm "Failed to set the BPM ~A" t)
       (setf *default-bpm* bpm)))
@@ -728,6 +735,14 @@ the argument is parsed with READ-FROM-STRING."
           (machine-type))
   #+sb-aclrepl (format t "~%Type `:help' for the list of commands.")
   #-linedit (terpri))
+
+(defun start-swank-server (port)
+  (format t "~&~A"
+    (string-trim '(#\; #\Space #\Tab #\Newline)
+      (flet ((q (s) (read-from-string s)))
+        (with-output-to-string (s)
+          (progv (list (q "swank:*log-output*")) (list s)
+            (funcall (q "swank:create-server") :port port :dont-close t)))))))
 
 ;;; Adapted to SB-IMPL::TOPLEVEL-INIT in `sbcl/src/code/toplevel.lisp'.
 (defun incudine-toplevel ()
@@ -800,4 +815,8 @@ the argument is parsed with READ-FROM-STRING."
                                :history (merge-pathnames ".incudine_history"
                                                          (user-homedir-pathname)))
         #+sb-aclrepl (when (toplevel-options-inform-p opt) (terpri)))
+    (when (plusp (toplevel-options-swank-server-port opt))
+      (let ((sb-ext:*muffled-warnings* 'style-warning))
+        (funcall (read-from-string "swank-loader:init"))
+        (start-swank-server (toplevel-options-swank-server-port opt))))
     (sb-impl::toplevel-repl (not (toplevel-options-print-p opt)))))

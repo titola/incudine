@@ -4,6 +4,7 @@
 #
 
 PREFIX="${PREFIX:-/usr/local}"
+SWANK_LOADER_PATH=""
 options="--noinform"
 modules="(require \"INCUDINE\")"
 aclrepl_p="yes"
@@ -18,6 +19,7 @@ Create and install the standalone executable.
   --prefix=PREFIX       install architecture-independent files in PREFIX
                         [${PREFIX}]
   --bindir=DIR          user executables [PREFIX/bin]
+  --swank-loader=PATH   support for Swank server with path to swank-loader.lisp
   --without-aclrepl     do not use Allegro CL-style Read-Eval-Print Loop.
   --with-linedit        support for Linedit, readline-style library in CL.
   --with-fluidsynth     support for FluidSynth SoundFont synthesizer.
@@ -45,6 +47,7 @@ for arg in "$@"; do
         case "${arg}" in
         --prefix=*)         PREFIX="${arg#*=}" ;;
         --bindir=*)         BINDIR="${arg#*=}" ;;
+        --swank-loader=*)   SWANK_LOADER_PATH="${arg#*=}" ;;
         --without-aclrepl)  aclrepl_p="no" ;;
         --with-linedit)     linedit_p="yes" ;;
         --with-fluidsynth)  add_system "INCUDINE-FLUIDSYNTH" ;;
@@ -56,6 +59,13 @@ for arg in "$@"; do
         *)                  usage ;;
         esac
 done
+
+if [ -f "${SWANK_LOADER_PATH}" ]; then
+          for m in "BSD-SOCKETS" "POSIX" "INTROSPECT" "CLTL2"; do
+                  add_system "SB-${m}"
+          done
+          options="${options} --load ${SWANK_LOADER_PATH}"
+fi
 
 if [ ${linedit_p} = "yes" ]; then
         modules="(require :linedit) (pushnew :linedit *features*) ${modules}"

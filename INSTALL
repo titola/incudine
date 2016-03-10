@@ -19,6 +19,7 @@ The options for the script `install_executable' are:
   --prefix=PREFIX       install architecture-independent files in PREFIX
                         [/usr/local]
   --bindir=DIR          user executables [PREFIX/bin]
+  --swank-loader=PATH   support for Swank server with path to swank-loader.lisp
   --without-aclrepl     do not use Allegro CL-style Read-Eval-Print Loop.
   --with-linedit        support for Linedit, readline-style library in CL.
   --with-fluidsynth     support for FluidSynth SoundFont synthesizer.
@@ -33,6 +34,13 @@ For example:
     sh install_executable --with-linedit --with-ladspa --with-snd  \
                           --with-module=sb-posix --with-module=ltk \
                           --with-module=dsp-collection
+
+or with Swank server and other options:
+
+    sh install_executable --with-linedit --with-fluidsynth \
+                          --with-ladspa --with-lv2 --with-snd \
+                          --swank-loader=/path/to/slime/swank-loader.lisp
+
 
 Note: the support for LV2 plugins requires Lilv, a LV2 host library.
 
