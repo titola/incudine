@@ -72,6 +72,7 @@
   (compile-rego-contents-p nil :type boolean)
   (sf-metadata nil :type list)
   (debug-p nil :type boolean)
+  (logtime-p nil :type boolean)
   (script nil :type (or string null))
   (sysinit nil :type (or string null))
   (sysinit-p t :type boolean)
@@ -619,10 +620,12 @@ SBCL options:
 
   (def-toplevel-opt "--logtime"
     (setf (toplevel-options-disable-debugger-p opt) t)
+    (setf (toplevel-options-logtime-p opt) t)
     (with-eval-form (value "Failed to set logtime ~S")
       (let ((time-fmt (subseq value 0 3)))
         (setf (logger-time)
-              (if (string-equal time-fmt "sam") :samp :sec)))))
+              (cond ((string-equal time-fmt "sam") :samp)
+                    ((string-equal time-fmt "sec") :sec))))))
 
   (def-toplevel-opt "--max-number-of-channels"
     (set-option *max-number-of-channels* t))
@@ -736,13 +739,14 @@ the argument is parsed with READ-FROM-STRING."
   #+sb-aclrepl (format t "~%Type `:help' for the list of commands.")
   #-linedit (terpri))
 
-(defun start-swank-server (port)
-  (format t "~&~A"
-    (string-trim '(#\; #\Space #\Tab #\Newline)
-      (flet ((q (s) (read-from-string s)))
-        (with-output-to-string (s)
-          (progv (list (q "swank:*log-output*")) (list s)
-            (funcall (q "swank:create-server") :port port :dont-close t)))))))
+(defun start-swank-server (port log-p)
+  (flet ((q (s) (read-from-string s)))
+    (let ((res (string-trim '(#\; #\Space #\Tab #\Newline)
+                 (with-output-to-string (s)
+                   (progv (list (q "swank:*log-output*")) (list s)
+                     (funcall (q "swank:create-server") :port port
+                              :dont-close t))))))
+      (when log-p (format t "~&~A" res)))))
 
 ;;; Adapted to SB-IMPL::TOPLEVEL-INIT in `sbcl/src/code/toplevel.lisp'.
 (defun incudine-toplevel ()
@@ -818,5 +822,8 @@ the argument is parsed with READ-FROM-STRING."
     (when (plusp (toplevel-options-swank-server-port opt))
       (let ((sb-ext:*muffled-warnings* 'style-warning))
         (funcall (read-from-string "swank-loader:init"))
-        (start-swank-server (toplevel-options-swank-server-port opt))))
+        (start-swank-server (toplevel-options-swank-server-port opt)
+                            (toplevel-options-inform-p opt))))
+    (unless (toplevel-options-logtime-p opt)
+      (setf (logger-time) nil))
     (sb-impl::toplevel-repl (not (toplevel-options-print-p opt)))))
