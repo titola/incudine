@@ -591,11 +591,11 @@ or IGNORE-SCORE-STATEMENTS."
       (with-complex-gensyms (smptime0 smptime1 smptime beats last-time
                              last-dur c-array-wrap)
         `(with-rego-function (,fname ,compile-rego-p)
-           (with-rego-samples (,c-array-wrap ,smptime0 ,smptime1 ,smptime ,sched
-                               ,last-time ,last-dur)
-             (let ((,tempo-env (default-tempo-envelope))
-                   (*score-objects-to-free* nil))
-               (incudine.edf::with-schedule
+           (incudine.edf::with-schedule
+             (with-rego-samples (,c-array-wrap ,smptime0 ,smptime1 ,smptime ,sched
+                                 ,last-time ,last-dur)
+               (let ((,tempo-env (default-tempo-envelope))
+                     (*score-objects-to-free* nil))
                  (flet ((,dur (,beats)
                           (setf ,last-time ,sched)
                           (setf ,last-dur (sample ,beats))
