@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2015 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -385,37 +385,30 @@ or IGNORE-SCORE-STATEMENTS."
                            (read-score-line stream))
               s))))))
 
-(defmacro at-last-time (now function)
-  (with-gensyms (to-free)
-    `(at (+ ,now 1e-10)
-         (lambda (,to-free)
-           (at (+ (incudine.edf:last-time)
-                  ;; We use a small fractional number to schedule a new event
-                  ;; after the last but possibly at the same time. If we use
-                  ;; the last scheduled time without this offset, the next
-                  ;; function is called before the last event and it is not
-                  ;; what we want.
-                  1e-10)
-               ,function ,to-free))
-         *score-objects-to-free*)))
-
 ;;; Extend the last time if there is a pending event.
 ;;; Note: the duration of an event is known only if it uses the local
 ;;; function DUR (see REGOFILE->SEXP).
-(defmacro maybe-extend-time (now time-var dur sched-func)
+(defmacro maybe-extend-time (now max-time tempo-env)
   (with-gensyms (to-free)
-    ``(when (nrt-edf-heap-p)
-        (at-last-time ,,now
+    ``(progn
+        ;; Check if there is a pending event after the last event.
+        (setf ,,now (* (+ (now) (incudine.edf:last-time)) *sample-duration*))
+        (at (+ (* ,,now  *sample-rate*) 0.5)
           (lambda (,',to-free)
             (flet ((end-of-rego (&optional arg)
                      (declare (ignorable arg))
                      (free ,',to-free)
                      (nrt-msg info "end of rego")))
-              (cond ((and (plusp ,,dur)
-                          (> (incf ,,time-var ,,dur) ,,now))
-                     (,,sched-func ,,time-var #'end-of-rego))
+              (cond ((and (plusp ,,max-time)
+                          (plusp (setf ,,max-time
+                                       (- (time-at ,,tempo-env ,,max-time)
+                                          (time-at ,,tempo-env ,,now)))))
+                     ;; End after the pending event.
+                     (at (+ (now) (* ,,max-time *sample-rate*))
+                         #'end-of-rego))
                     ((rt-thread-p) (nrt-funcall #'end-of-rego))
-                    (t (end-of-rego)))))))))
+                    (t (end-of-rego)))))
+          *score-objects-to-free*))))
 
 (declaim (inline default-tempo-envelope))
 (defun default-tempo-envelope ()
@@ -445,10 +438,11 @@ or IGNORE-SCORE-STATEMENTS."
 
 ;;; Foreign memory to reduce consing.
 (defmacro with-rego-samples ((foreign-array-name t0-var t1-var time-var
-                              sched-var last-time-var last-dur-var) &body body)
+                              sched-var last-time-var last-dur-var max-time-var)
+                             &body body)
   (with-complex-gensyms (c-array)
     (let ((var-names (list t0-var t1-var time-var sched-var last-time-var
-                           last-dur-var)))
+                           last-dur-var max-time-var)))
       `(let* ((,foreign-array-name (make-foreign-array ,(length var-names)
                                                        'sample :zero-p t))
               (,c-array (foreign-array-data ,foreign-array-name)))
@@ -482,7 +476,7 @@ or IGNORE-SCORE-STATEMENTS."
         `((,time-bind ,time-os-bind ,tenv-bind) ,local-tempo
           ,@(cdr local-bindings)))))
 
-(defun %write-regofile (path at-fname time-var dur-var sched-func
+(defun %write-regofile (path at-fname time-var dur-var max-time tenv
                         &optional included-p time-offset)
   `(prog*
      ,@(with-open-file (score path)
@@ -491,7 +485,7 @@ or IGNORE-SCORE-STATEMENTS."
          (with-ensure-symbols (time tempo-env)
            (with-gensyms (parent-time parent-tempo-env)
              (let ((write-args (list (directory-namestring score) time-var
-                                     dur-var sched-func)))
+                                     dur-var max-time tenv)))
                (append
                  (let ((vars (find-score-local-bindings score at-fname
                                                         write-args)))
@@ -508,8 +502,8 @@ or IGNORE-SCORE-STATEMENTS."
                         ;; End of the included regofile.
                         (pop *include-rego-stack*)
                         `((setf ,time ,parent-time ,tempo-env ,parent-tempo-env)))
-                       (t (list (maybe-extend-time at-fname time-var dur-var
-                                                   sched-func)))))))))))
+                       (t (list (maybe-extend-time at-fname max-time
+                                                   tenv)))))))))))
 
 (define-constant +rego-time0-index+ 0)
 (define-constant +rego-time1-index+ 1)
@@ -582,6 +576,23 @@ or IGNORE-SCORE-STATEMENTS."
 ;;; times without name collisions.
 ;;; There is not a specific limit on the depth of included rego files.
 ;;;
+;;; Note: we can use TEMPO-ENV within an event only if the event terminates
+;;; before the end of the regofile.  A regofile ends after the last event
+;;; or after a long pending event if the duration is known (defined with
+;;; the local function DUR). For example:
+;;;
+;;;     0    ...
+;;;     1.5  ...
+;;;     3    ...
+;;;
+;;; ends after 3 beats but
+;;;
+;;;     0    ...
+;;;     1.5  ... (dur 5) ...
+;;;     3    ...
+;;;
+;;; ends after 6.5 beats.
+;;;
 (defun regofile->sexp (path &optional fname compile-rego-p)
   (declare (type (or pathname string)))
   (with-ensure-symbols (time dur tempo tempo-env)
@@ -589,16 +600,18 @@ or IGNORE-SCORE-STATEMENTS."
           (sched (ensure-complex-gensym "AT"))
           (*include-rego-stack* nil))
       (with-complex-gensyms (smptime0 smptime1 smptime beats last-time
-                             last-dur c-array-wrap)
+                             last-dur max-time c-array-wrap)
         `(with-rego-function (,fname ,compile-rego-p)
            (incudine.edf::with-schedule
              (with-rego-samples (,c-array-wrap ,smptime0 ,smptime1 ,smptime ,sched
-                                 ,last-time ,last-dur)
+                                 ,last-time ,last-dur ,max-time)
                (let ((,tempo-env (default-tempo-envelope))
                      (*score-objects-to-free* nil))
                  (flet ((,dur (,beats)
                           (setf ,last-time ,sched)
                           (setf ,last-dur (sample ,beats))
+                          (setf ,max-time
+                                (max ,max-time (+ ,last-time ,last-dur)))
                           (time-at ,tempo-env ,beats ,sched))
                         (,%sched (at-beat fn)
                           (incudine.edf::%at
@@ -625,8 +638,8 @@ or IGNORE-SCORE-STATEMENTS."
                                             ,tempo-env)))
                        (push ,tempo-env *score-objects-to-free*)
                        (push ,c-array-wrap *score-objects-to-free*)
-                       ,(%write-regofile
-                          path sched last-time last-dur %sched))))))))))))
+                       ,(%write-regofile path sched last-time last-dur max-time
+                                         tempo-env))))))))))))
 
 (declaim (inline regofile->function))
 (defun regofile->function (path &optional fname compile-rego-p)
