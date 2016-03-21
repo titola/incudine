@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -320,35 +320,35 @@
       ;; Expand if GATE is modulated.
       (maybe-expand level)
       (cond ((or done-p sustain) last-level)
-            (t (cond ((<= remain 1)
-                      ;; End of segment.
-                      (cond ((envgen-end-of-data-p (incf index) data-size)
-                             (done-action done-action)
-                             (setf done-p t last-level end))
-                            (t (incf curr-node)
-                               (cond
-                                 ((jump-to-loop-node-p gate curr-node loop-node
-                                                       release-node)
-                                  (envgen-jump-node loop-node curr-node index))
-                                 ((envgen-to-sustain-p gate curr-node
-                                                       release-node)
-                                  (envgen-sustain sustain)))
-                               ;; Compute the parameters for the next segment.
-                               (setf dur (envgen-next-dur env-data index
-                                                          time-scale 0)
-                                     remain (1- dur)
-                                     index (1+ index)
-                                     ;; The first value of the segment is the
-                                     ;; last value of the previous segment.
-                                     level end
-                                     end (smp-ref env-data index)
-                                     index (1+ index)
-                                     curve (smp-ref env-data index)
-                                     prev-index curr-index)
-                               (%segment-init level end dur curve grow a2 b1
-                                              y1 y2)
-                               (setf last-level level))))
-                     (t (decf remain)
-                        ;; Compute the next point.
-                        (%segment-update-level level curve grow a2 b1 y1 y2)
-                        (setf last-level level))))))))
+            ((<= remain 1)
+             ;; End of segment.
+             (cond ((envgen-end-of-data-p (incf index) data-size)
+                    (done-action done-action)
+                    (setf done-p t last-level end))
+                   (t (incf curr-node)
+                      (cond
+                        ((jump-to-loop-node-p gate curr-node loop-node
+                                              release-node)
+                         (envgen-jump-node loop-node curr-node index))
+                        ((envgen-to-sustain-p gate curr-node release-node)
+                         (envgen-sustain sustain)))
+                      ;; Compute the parameters for the next segment.
+                      (setf dur (envgen-next-dur env-data index time-scale 0)
+                            remain dur
+                            index (1+ index)
+                            ;; The first value of the segment is the
+                            ;; last value of the previous segment.
+                            level end
+                            end (smp-ref env-data index)
+                            index (1+ index)
+                            curve (smp-ref env-data index)
+                            prev-index curr-index)
+                      (%segment-init level end dur curve grow a2 b1 y1 y2)
+                      (setf last-level level))))
+            (t (if (and (= remain 3)
+                        (envgen-end-of-data-p (1+ index) data-size))
+                   (setf remain 1)
+                   (decf remain))
+               ;; Compute the next point.
+               (%segment-update-level level curve grow a2 b1 y1 y2)
+               (setf last-level level))))))

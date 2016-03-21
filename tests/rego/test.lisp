@@ -13,11 +13,11 @@
   (test-regofile "loop-1.rego"))
 
 (with-dsp-test (rego.4 :channels 2
-      :md5 #(148 166 170 150 45 178 81 164 159 42 67 247 148 180 200 115))
+      :md5 #(193 32 71 149 211 96 68 209 150 170 210 249 231 75 179 112))
   (test-regofile "jump-1.rego"))
 
 (with-dsp-test (sco.1 :channels 2
-      :md5 #(71 193 179 146 156 78 122 250 116 201 235 154 167 101 159 248))
+      :md5 #(250 199 97 144 27 34 63 91 8 171 162 207 206 79 147 224))
   (test-regofile "test-1.sco"))
 
 (with-dsp-test (include-rego-loop-error :channels 2
@@ -26,7 +26,7 @@
   (test-regofile "include-loop-1.rego"))
 
 (with-dsp-test (include-rego.1 :channels 2
-      :md5 #(102 13 193 63 76 150 80 124 6 231 184 161 255 29 142 147))
+      :md5 #(27 162 219 116 104 206 115 33 162 240 2 110 95 12 177 84))
   (test-regofile "include-1.rego"))
 
 (with-dsp-test (include-rego.2
@@ -35,7 +35,7 @@
   (test-regofile "include-2.rego"))
 
 (with-dsp-test (include-rego.3 :channels 2
-      :md5 #(215 28 243 91 9 95 147 192 203 232 199 70 157 178 29 32))
+      :md5 #(54 197 232 30 39 69 182 30 66 29 33 106 203 142 205 132))
   ;; Lisp tag shadowed in the included rego file.
   (test-regofile "include-3.rego"))
 
