@@ -32,6 +32,27 @@
 (defvar *score-statements* (make-hash-table :test #'equal))
 (declaim (type hash-table *score-statements*))
 
+;;; Ignore a vertical line followed by a white space or a closed parenthesis.
+;;; Note: also "#+TBLFM:" is ignored by default; it means that we can edit a
+;;; spreadsheet in a rego file with Emacs in org-mode (or orgtbl-mode).
+(defun vertical-line-reader (stream char)
+  (declare (ignore char))
+  (let ((c (peek-char nil stream t nil nil)))
+    (if (member c '(#\Space #\Tab #\)))
+        (values)
+        (let (chars)
+          (do ((c (read-char stream) (read-char stream)))
+              ((char= c #\|)
+               (intern (coerce (nreverse chars) 'string)))
+            (push c chars))))))
+
+(defvar *score-readtable*
+  (let ((*readtable* (copy-readtable nil)))
+    (add-sharp-square-bracket-syntax)
+    (set-macro-character #\| #'vertical-line-reader)
+    *readtable*)
+  "Readtable to read a rego file.")
+
 (defun ignore-score-statements (name-list)
   "Ignore the score statements in NAME-LIST. The name of a statement is
 a symbol, a string or a list of two score statements which delimit a
@@ -136,16 +157,35 @@ or IGNORE-SCORE-STATEMENTS."
   (read-from-string
     (concatenate 'string "(" (subseq str name-endpos) ")")))
 
+(declaim (inline score-statement-args-string))
+(defun score-statement-args-string (str name-endpos)
+  (string-left-trim '(#\Space #\Tab) (subseq str name-endpos)))
+
+(defun skip-org-table-char (str)
+  (multiple-value-bind (name name-endpos)
+      (score-statement-name str)
+    (if (and name-endpos
+             (member name '("#" "*") :test #'string=))
+        ;; Skip special marking character.
+        (score-statement-args-string str name-endpos)
+        str)))
+
 (defun expand-score-statement (str)
   (declare (type string str))
   (multiple-value-bind (name name-endpos)
       (score-statement-name str)
     (when name
-      (let ((fn (gethash name *score-statements*)))
-        (declare (type (or function symbol cons) fn))
-        (when (functionp fn)
-          (apply fn (when name-endpos
-                      (score-statement-args str name-endpos))))))))
+      (if (string= name "|")
+          (when name-endpos
+            (expand-score-statement
+              (skip-org-table-char
+                (score-statement-args-string str name-endpos))))
+          (let ((fn (gethash name *score-statements*)))
+            (declare (type (or function symbol cons) fn))
+            (when (functionp fn)
+              (apply fn (when name-endpos
+                          (let ((*readtable* *score-readtable*))
+                            (score-statement-args str name-endpos))))))))))
 
 (declaim (inline blank-char-p))
 (defun blank-char-p (c)
@@ -290,27 +330,6 @@ or IGNORE-SCORE-STATEMENTS."
             (read-from-string (string-trim-blank-and-quotation
                                 (subseq line time-pos))
                               nil))))
-
-;;; Ignore a vertical line followed by a white space or a closed parenthesis.
-;;; Note: also "#+TBLFM:" is ignored by default; it means that we can edit a
-;;; spreadsheet in a rego file with Emacs in org-mode (or orgtbl-mode).
-(defun vertical-line-reader (stream char)
-  (declare (ignore char))
-  (let ((c (peek-char nil stream t nil nil)))
-    (if (member c '(#\Space #\Tab #\)))
-        (values)
-        (let (chars)
-          (do ((c (read-char stream) (read-char stream)))
-              ((char= c #\|)
-               (intern (coerce (nreverse chars) 'string)))
-            (push c chars))))))
-
-(defvar *score-readtable*
-  (let ((*readtable* (copy-readtable nil)))
-    (add-sharp-square-bracket-syntax)
-    (set-macro-character #\| #'vertical-line-reader)
-    *readtable*)
-  "Readtable for Snd output.")
 
 (defun score-line->sexp (line at-fname &optional args)
   (declare (type string line) (type list args))

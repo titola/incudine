@@ -20,6 +20,10 @@
       :md5 #(250 199 97 144 27 34 63 91 8 171 162 207 206 79 147 224))
   (test-regofile "test-1.sco"))
 
+(with-dsp-test (sco.2 :channels 2
+      :md5 #(250 199 97 144 27 34 63 91 8 171 162 207 206 79 147 224))
+  (test-regofile "test-2.sco"))
+
 (with-dsp-test (include-rego-loop-error :channels 2
       :md5 #(224 78 104 237 105 222 73 188 82 233 83 242 152 133 181 19))
   ;; Error caused by a recursive inclusion.
