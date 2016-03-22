@@ -1,0 +1,258 @@
+.TH INCUDINE 1 "21 March 2016" "" ""
+.SH NAME
+incudine - Music/DSP programming environment for Common Lisp.
+.SH SYNOPSIS
+\fBincudine\fR [\fIOPTIONS\fR] [\fIFILE1\fR [\fIFILE2\fR ...]]
+         [\fIOPTIONS\fR] [\fIFILE1\fR [\fIFILE2\fR ...]] ...
+         [\fIUSER-OPTIONS\fR]
+.SH DESCRIPTION
+Standalone executable for Incudine, a Music/DSP programming
+environment for Common Lisp.
+
+Incudine is useful to design software synthesizers or sound plugins
+from scratch, exploiting the expressive power of Common Lisp, without
+the constraint to use pre-built unit generators. It is also a
+compositional tool that allows to produce high quality sounds
+controllable at the sample level, defining and redefining the digital
+signal processors and the musical structures on-the-fly.
+
+Incudine introduces the Virtual UGen (VUG), a new mechanism for
+defining primitive unit generators by writing concise and reusable
+code. The definition of a VUG contains lisp code and/or other nested
+VUGs (or "real" UGens), and it is re-arranged and compiled efficiently
+during the creation of a DSP.
+
+Incudine works with SBCL, an implementation of ANSI Common Lisp with a
+high-performance native compiler.
+.SH OPTIONS
+.TP
+\fB\-b\fR, \fB\-\-sndfile\-buffer\-size\fR <\fIint\fR>
+Buffer size to read/write a soundfile.
+.TP
+\fB\-B\fR, \fB\-\-block\-size\fR <\fIframes\fR>
+Block size for block\-by\-block processing.
+.TP
+\fB\-c\fR, \fB\-\-channels\fR <\fIint\fR>
+Number of the output channels.
+.TP
+\fB\-\-client\-name\fR <\fIname\fR>
+Name of the client for the audio server.
+.TP
+\fB\-\-compile\-score\-contents\fR
+Compile the contents of the score.
+.TP
+\fB\-F\fR, \fB\-\-data\-format\fR <\fItype\fR>
+Format of the sample for the output file.
+.TP
+\fB\-\-data\-format\-list\fR
+Available audio formats.
+.TP
+\fB\-\-default\-table\-size\fR <\fIint\fR>
+Default size of a table for an oscillator.
+.TP
+\fB\-d\fR, \fB\-\-duration\fR <\fIseconds\fR>
+Duration of the output file.
+.TP
+\fB\-\-debug\fR
+Print debug info.
+.TP
+\fB\-\-disk\-guard\-size\fR <\fIseconds\fR>
+Size of the output file with undefined duration.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print a summary of the available options on the standard output.
+.TP
+\fB\-H\fR, \fB\-\-header\-type\fR <\fItype\fR>
+Type of the header for the output file.
+.TP
+\fB\-\-header\-type\-list\fR
+Available header types.
+.TP
+\fB\-i\fR, \fB\-\-infile\fR <\fIfilename\fR>
+Sound input filename or `\-' for standard input.
+.TP
+\fB\-\-input\-channels\fR <\fIint\fR>
+Number of the input channels.
+.TP
+\fB\-\-interpret\-score\-contents\fR
+Interpret the contents of the score (default).
+.TP
+\fB\-L\fR, \fB\-\-logfile\fR <\fIfilename\fR>
+Logging file.
+.TP
+\fB\-\-lisp\-version\fR
+Print version information of SBCL and exit.
+.TP
+\fB\-\-logtime\fR (\fBsec\fR|\fBsamp\fR)
+Log message with time in seconds or in samples.
+.TP
+\fB\-\-max\-number\-of\-channels\fR <\fIint\fR>
+Max number of the channels.
+.TP
+\fB\-\-max\-number\-of\-nodes\fR <\fIint\fR>
+Max number of the nodes.
+.TP
+\fB\-N\fR, \fB\-\-no\-realtime\fR
+Stop realtime.
+.TP
+\fB\-\-nrt\-edf\-heap\-size\fR <\fIint\fR>
+Max number of the events in non realtime.
+.TP
+\fB\-\-nrt\-pool\-size\fR <\fIbytes\fR>
+Size of the pool for temporary C malloc in nrt.
+.TP
+\fB\-\-nrt\-priority\fR <\fIint\fR>
+Priority of the non\-realtime thread.
+.TP
+\fB\-o\fR, \fB\-\-outfile\fR <\fIfilename\fR>
+Sound output filename or `\-' for standard output.
+.TP
+\fB\-p\fR, \fB\-\-period\fR <\fIint\fR>
+Frames per buffer (used only with PortAudio).
+.TP
+\fB\-\-pad\fR <\fIseconds\fR>
+Extend the duration of the output file.
+.TP
+\fB\-r\fR, \fB\-\-rate\fR <\fIint\fR>
+Sample rate.
+.TP
+\fB\-R\fR, \fB\-\-realtime\fR
+Start realtime.
+.TP
+\fB\-\-receiver\-priority\fR <\fIint\fR>
+Priority of the thread for a receiver.
+.TP
+\fB\-\-rt\-edf\-heap\-size\fR <\fIint\fR>
+Heap size for realtime scheduling.
+.TP
+\fB\-\-rt\-pool\-size\fR <\fIbytes\fR>
+Size of the pool for the C heap used in realtime.
+.TP
+\fB\-\-rt\-priority\fR <\fIint\fR>
+Priority of the realtime thread.
+.TP
+\fB\-s\fR <\fIfilename\fR>
+Process a score.
+.TP
+\fB\-\-sample\-pool\-size\fR <\fIbytes\fR>
+Size of the pool for the C arrays defined in DSP!
+.TP
+\fB\-\-sound\-velocity\fR <\fIreal\fR>
+Velocity of the sound at 22°C, 1 atmosfera.
+.TP
+\fB\-\-swank\-server\fR <\fIport\fR>
+Start Swank server.
+.TP
+\fB\-T\fR, \fB\-\-tempo\fR <\fIbpm\fR>
+Initial tempo in beats per minute.
+.TP
+\fB\-v\fR, \fB\-\-verbose\fR
+More verbose.
+.TP
+\fB\-\-version\fR
+Print version information and exit.
+.SS Metadata
+.HP
+\fB\-\-title\fR <\fItitle\fR>
+.HP
+\fB\-\-copyright\fR <\fIcopyright\fR>
+.HP
+\fB\-\-software\fR <\fIsoftware\fR>
+.HP
+\fB\-\-artist\fR <\fIartist\fR>
+.HP
+\fB\-\-comment\fR <\fIcomment\fR>
+.HP
+\fB\-\-date\fR <\fIdate\fR>
+.HP
+\fB\-\-album\fR <\fIalbum\fR>
+.HP
+\fB\-\-license\fR <\fIlicense\fR>
+.HP
+\fB\-\-tracknumber\fR <\fItrack\fR>
+.HP
+\fB\-\-genre\fR <\fIgenre\fR>
+.SS SBCL options
+.TP
+\fB\-\-sysinit\fR <\fIfilename\fR>
+System\-wide init\-file to use instead of default.
+.TP
+\fB\-\-userinit\fR <\fIfilename\fR>
+Per\-user init\-file to use instead of default.
+.TP
+\fB\-\-no\-sysinit\fR
+Inhibit processing of any system\-wide init\-file.
+.TP
+\fB\-\-no\-userinit\fR
+Inhibit processing of any per\-user init\-file.
+.TP
+\fB\-\-disable\-debugger\fR
+Invoke sb\-ext:disable\-debugger.
+.TP
+\fB\-\-noinform\fR
+Suppress the printing of the banner at startup.
+.TP
+\fB\-\-noprint\fR
+Run a Read\-Eval Loop without printing results.
+.TP
+\fB\-\-script\fR [<\fIfilename\fR>]
+Skip #! line, disable debugger, avoid verbosity.
+.TP
+\fB\-\-quit\fR
+Exit with code 0 after option processing.
+.TP
+\fB\-\-non\-interactive\fR
+Sets both \fB\-\-quit\fR and \fB\-\-disable\-debugger\fR.
+.TP
+\fB\-\-eval\fR <\fIform\fR>
+Form to eval when processing this option.
+.TP
+\fB\-\-load\fR <\fIfilename\fR>
+File to load when processing this option.
+.SH EXAMPLES
+.nf
+cat >foo.cudo <<'---'
+(dsp! simple (freq db (env envelope) gate)
+  (stereo (* (envgen env gate 1 #'free)
+             (sine freq (db->lin db) 0))))
+---
+
+cat >quux.rego <<'---'
+with (env1 (make-adsr .1 .09 .9 .5))
+
+0   simple  440  -14  env1  1
+0   simple  220  -20  env1  1
+0.5 simple  225  -26  env1  1
+1   simple  448  -14  env1  1
+3   simple  450  -20  (make-adsr 1 .2 .7 1 :curve :sin)  1
+5   set-control 0 :gate 0
+---
+
+incudine foo.cudo -v -s quux.rego
+
+incudine foo.cudo --pad 1.2 -s quux.rego
+
+incudine foo.cudo -o "battimenti zincati.wav" -s quux.rego
+
+incudine foo.cudo --pad 1.2 -o - -H ircam -F float \\
+         -s quux.rego | sox - quux.wv
+
+incudine foo.cudo -d 6.5 -s quux.rego
+
+incudine foo.cudo --pad 1.2 -H flac -s quux.rego
+
+incudine foo.cudo --pad 1.2 -H ogg -F vorbis -s quux.rego
+
+incudine foo.cudo --pad 1.2 --title "Passame n'elettrodo" \\
+         --artist "Fabro Cadabro Band" -s quux.rego
+
+.SH FILES
+~/.incudinerc is the configuration file.
+.SH SEE ALSO
+Tutorials in HTML and text formats in incudine/doc/ directory.
+
+Incudine home page at http://incudine.sourceforge.net
+.SH BUGS
+Report bugs at incudine-devel@lists.sourceforge.net
+.SH AUTHORS
+Incudine was written by Tito Latini.
