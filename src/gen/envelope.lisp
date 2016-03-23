@@ -24,7 +24,7 @@
      incudine::%segment-init
      incudine::%segment-update-level)))
 
-(defun envelope (env &optional (periodic-p t) normalize-p)
+(defun envelope (env &key (periodic-p t) normalize-p)
   (declare (type incudine:envelope env) (type boolean periodic-p normalize-p))
   (lambda (c-array size)
     (declare (type foreign-pointer c-array) (type non-negative-fixnum size)

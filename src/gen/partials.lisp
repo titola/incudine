@@ -45,7 +45,7 @@
           (t (decf i)))))
 
 ;;; Inspired by GEN09, GEN10 and GEN19 of Csound
-(defun partials (lst &optional (periodic-p t) (normalize-p t))
+(defun partials (lst &key (periodic-p t) (normalize-p t))
   (declare #.*standard-optimize-settings* #.*reduce-warnings*
            (type list lst) (type boolean periodic-p normalize-p))
   (let ((pl (complete-partial-list lst)))
