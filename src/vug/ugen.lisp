@@ -259,7 +259,7 @@ arguments to update the dependencies if it exists."
                      `(let ((%dsp-node% ,(or ,node
                                              ;; The UGEN is outside a DSP.
                                              '(incudine::make-temp-node))))
-                        (declare (type incudine:node %dsp-node%))
+                        (declare (type (or incudine:node null) %dsp-node%))
                         ,@(initialization-code)
                         (make-ugen-instance
                           :name ,',name
