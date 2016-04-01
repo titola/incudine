@@ -740,12 +740,11 @@ the argument is parsed with READ-FROM-STRING."
   #-linedit (terpri))
 
 (defun start-swank-server (port log-p)
-  (flet ((q (s) (read-from-string s)))
+  (flet ((q (s) (find-symbol s "SWANK")))
     (let ((res (string-trim '(#\; #\Space #\Tab #\Newline)
                  (with-output-to-string (s)
-                   (progv (list (q "swank:*log-output*")) (list s)
-                     (funcall (q "swank:create-server") :port port
-                              :dont-close t))))))
+                   (progv (list (q "*LOG-OUTPUT*")) (list s)
+                     (funcall (q "CREATE-SERVER") :port port :dont-close t))))))
       (when log-p (format t "~&~A" res)))))
 
 ;;; Adapted to SB-IMPL::TOPLEVEL-INIT in `sbcl/src/code/toplevel.lisp'.
