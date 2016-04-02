@@ -105,6 +105,15 @@ with (env1 (make-adsr .1 .09 .9 .5))
       <pre class="src src-sh">incudine foo.cudo -o <span style="color: #ffa07a;">"battimenti zincati.wav"</span> -s quux.rego</pre>
 
       <p>
+        Score from standard input:
+      </p>
+
+      <pre class="src src-sh">echo '0 simple 1000 -6 (make-perc .1 1.5) 1' \
+     | incudine foo.cudo -d 2 -s - > rego-from-stdin-1.wav
+
+cat quux.rego | incudine foo.cudo -o rego-from-stdin-2.wav -s -</pre>
+
+      <p>
         Redirection of the audio to the standard output:
       </p>
 

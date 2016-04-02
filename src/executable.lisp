@@ -189,44 +189,55 @@
               ;; Perhaps stop after PAD seconds.
               `(at (+ (now) ,pad) #'find-rt-executable-closing-time ,pad))))))
 
+(defun rego-render-function-body (opt fname &optional pathname)
+  (let ((infile (toplevel-options-infile opt))
+        (outfile (or (toplevel-options-outfile opt)
+                     ;; stdout by default if rego from stdin
+                     (and (null pathname) "-")))
+        (duration (toplevel-options-duration opt)))
+    `(cond (*rt-thread*
+            ;; Realtime
+            (sync-condition-flush *rt-executable-sync*)
+            (,fname)
+            (at 0 ,(rt-executable-closing-time duration))
+            (sync-condition-wait *rt-executable-sync*))
+           (t
+            ;; Non realtime
+            (bounce-to-disk
+                (,(cond (outfile
+                         (prog1 outfile
+                           ;; Output file valid only for this rego file
+                           (setf (toplevel-options-outfile opt) nil)))
+                        (t (make-pathname :name (pathname-name pathname)
+                                          :type *default-header-type*)))
+                 ,@(when infile `(:input-filename ,infile))
+                 :duration ,duration
+                 :metadata ',(toplevel-options-sf-metadata opt))
+              (,fname))))))
+
+(defun rego-render-form (opt fname pathname)
+  (let ((name (format-symbol *package* "~A-RENDER" fname)))
+    `(progn
+       (defun ,name () ,(rego-render-function-body opt fname pathname))
+       (,name))))
+
+(defun rego-from-stdin-form (opt)
+  (let ((fname (gensym)))
+    `(progn
+       (funcall ,(rego-stream->sexp *standard-input* fname
+                   (toplevel-options-compile-rego-contents-p opt)))
+       (funcall (lambda () ,(rego-render-function-body opt fname))))))
+
 ;;; Complete a file obtained with REGOFILE->LISPFILE. The modified
 ;;; file is a script executable both in realtime and non-rt.
 (defun %complete-score (pathname opt fname)
   (declare (type pathname pathname) (type toplevel-options opt)
            (type symbol fname))
   (with-open-file (f pathname :direction :output :if-exists :append)
-    (let ((infile (toplevel-options-infile opt))
-          (outfile (toplevel-options-outfile opt))
-          (duration (toplevel-options-duration opt))
-          (name (format-symbol *package* "~A-RENDER" fname)))
-      (terpri f)
-      (write `(progn
-                (defun ,name ()
-                  (cond (*rt-thread*
-                         ;; Realtime
-                         (sync-condition-flush *rt-executable-sync*)
-                         (,fname)
-                         (at 0 ,(rt-executable-closing-time duration))
-                         (sync-condition-wait *rt-executable-sync*))
-                        ;; Non realtime
-                        (t (bounce-to-disk
-                               (,(cond (outfile
-                                        (prog1 outfile
-                                          ;; Output file valid only for this
-                                          ;; rego file
-                                          (setf (toplevel-options-outfile opt)
-                                                nil)))
-                                       (t (make-pathname
-                                           :name (pathname-name pathname)
-                                           :type *default-header-type*)))
-                                ,@(when infile `(:input-filename ,infile))
-                                :duration ,duration
-                                :metadata ',(toplevel-options-sf-metadata opt))
-                             (,fname)))))
-                (,name))
-             :stream f)
-      (terpri f)
-      pathname)))
+    (terpri f)
+    (write (rego-render-form opt fname pathname) :stream f)
+    (terpri f)
+    pathname))
 
 (defun load-compiled-cudo-file (pathname opt &optional rego-file-p)
   (declare (type string pathname) (type toplevel-options opt)
@@ -253,8 +264,10 @@
          (score-function-name ()
            (format-symbol *package* "SCORE-~:@(~A~)" (pathname-name pathname))))
     (let* ((type (pathname-type pathname))
+           (stdin-p (string= pathname "-"))
            (lisp-pathname
             (cond ((and (not rego-file-p)
+                        (not stdin-p)
                         (or (null type)
                             (string= type sb-fasl:*fasl-file-type*)))
                    (or (try-with-type "cudo")
@@ -271,7 +284,8 @@
                   (t pathname)))
            (rego-pathname (if rego-file-p pathname))
            (src-pathname (if rego-file-p rego-pathname lisp-pathname))
-           (fasl-pathname (try-with-type sb-fasl:*fasl-file-type*))
+           (fasl-pathname (and (not stdin-p)
+                               (try-with-type sb-fasl:*fasl-file-type*)))
            (consumed-options (copy-list (consumed-options opt))))
       (if (fasl-updated-p fasl-pathname src-pathname consumed-options)
           (lambda (opt options)
@@ -285,35 +299,39 @@
             (lambda (opt options)
               (set-quit-and-disable-debugger opt)
               (add-toplevel-function
-               (lambda ()
-                 (let ((fasl-pathname (or fasl-pathname
-                                          (try-with-type
-                                           sb-fasl:*fasl-file-type*))))
-                   (cond ((fasl-updated-p fasl-pathname src-pathname
-                                          consumed-options)
-                          (load-fasl fasl-pathname))
-                         (t (when rego-file-p
-                              (let ((fname (score-function-name)))
-                                ;; Generate the intermediate file of the rego file
-                                (regofile->lispfile rego-pathname fname
-                                  lisp-pathname
-                                  (toplevel-options-compile-rego-contents-p opt))
-                                ;; The produced file becomes a script usable
-                                ;; both in realtime and non-realtime.
-                                (%complete-score lisp-pathname opt fname)))
-                            (let ((sb-ext:*runtime-pathname*
-                                   ;; The consumed options are stored in the
-                                   ;; header of the FASL, between `#!' and
-                                   ;; `--script\n#'
-                                   (format nil "~{~A~^ ~}" consumed-options))
-                                  (*standard-output* *logger-stream*))
-                              (load (compile-file lisp-pathname)))
-                            (when (and rego-file-p
-                                       ;; Preserve the intermediate file of the
-                                       ;; score in debug mode.
-                                       (not (toplevel-options-debug-p opt)))
-                              (delete-file lisp-pathname))))))
-               opt)
+                (lambda ()
+                  (let ((fasl-pathname (and (not stdin-p)
+                                            (or fasl-pathname
+                                                (try-with-type
+                                                   sb-fasl:*fasl-file-type*)))))
+                    (cond ((fasl-updated-p fasl-pathname src-pathname
+                                           consumed-options)
+                           (load-fasl fasl-pathname))
+                          (t
+                           (when rego-file-p
+                             (let ((fname (score-function-name)))
+                               ;; Generate the intermediate file of the rego file
+                               (regofile->lispfile rego-pathname fname
+                                 lisp-pathname
+                                 (toplevel-options-compile-rego-contents-p opt))
+                               ;; The produced file becomes a script usable
+                               ;; both in realtime and non-realtime.
+                               (%complete-score lisp-pathname opt fname)))
+                           (let ((sb-ext:*runtime-pathname*
+                                  ;; The consumed options are stored in the
+                                  ;; header of the FASL, between `#!' and
+                                  ;; `--script\n#'
+                                  (format nil "~{~A~^ ~}" consumed-options))
+                                 (*standard-output* *logger-stream*))
+                             (if stdin-p
+                                 (eval (rego-from-stdin-form opt))
+                                 (load (compile-file lisp-pathname))))
+                           (when (and rego-file-p
+                                      ;; Preserve the intermediate file of the
+                                      ;; score in debug mode.
+                                      (not (toplevel-options-debug-p opt)))
+                             (delete-file lisp-pathname))))))
+                opt)
               options))))))
 
 (defmacro maybe-read-from-string (value read-p)
@@ -359,7 +377,7 @@
   --rt-edf-heap-size <int>     Heap size for realtime scheduling.
   --rt-pool-size <bytes>       Size of the pool for the C heap used in realtime.
   --rt-priority <int>          Priority of the realtime thread.
-  -s <filename>                Process a score.
+  -s <filename>                Process a score file or `-' for standard input.
   --sample-pool-size <bytes>   Size of the pool for the C arrays defined in DSP!
   --sound-velocity <real>      Velocity of the sound at 22°C, 1 atmosfera.
   --swank-server <port>        Start Swank server.
@@ -758,7 +776,8 @@ the argument is parsed with READ-FROM-STRING."
                         (cond ((char= (char option 1) #\s)
                                ;; rego file
                                (shift-toplevel-option opt options)
-                               (load-compiled-cudo-file (car options) opt t))
+                               (load-compiled-cudo-file (car options) opt
+                                 (not (string= (car options) "-"))))
                               (t (find-toplevel-option option)))
                         (load-compiled-cudo-file option opt))))
            (declare (type (or function null) fn))

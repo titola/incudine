@@ -132,7 +132,11 @@ Size of the pool for the C heap used in realtime.
 Priority of the realtime thread.
 .TP
 \fB\-s\fR <\fIfilename\fR>
-Process a score.
+Process a score file or `\-' for standard input.
+
+In non-realtime, without the option \fB\-o\fR or \fB\-\-outfile\fR, the
+name of the produced sound file is derived from the name of the score file
+(if standard input, the output will be sent to standard output).
 .TP
 \fB\-\-sample\-pool\-size\fR <\fIbytes\fR>
 Size of the pool for the C arrays defined in DSP!
@@ -233,6 +237,11 @@ incudine foo.cudo -v -s quux.rego
 incudine foo.cudo --pad 1.2 -s quux.rego
 
 incudine foo.cudo -o "battimenti zincati.wav" -s quux.rego
+
+echo '0 simple 1000 -6 (make-perc .1 1.5) 1' \\
+     | incudine foo.cudo -d 2 -s - > rego-from-stdin-1.wav
+
+cat quux.rego | incudine foo.cudo -o rego-from-stdin-2.wav -s -
 
 incudine foo.cudo --pad 1.2 -o - -H ircam -F float \\
          -s quux.rego | sox - quux.wv

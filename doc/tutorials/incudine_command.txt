@@ -68,6 +68,13 @@ Changing the name of the output file:
 
 incudine foo.cudo -o "battimenti zincati.wav" -s quux.rego
 
+Score from standard input:
+
+echo '0 simple 1000 -6 (make-perc .1 1.5) 1' \
+     | incudine foo.cudo -d 2 -s - > rego-from-stdin-1.wav
+
+cat quux.rego | incudine foo.cudo -o rego-from-stdin-2.wav -s -
+
 Redirection of the audio to the standard output:
 
 incudine foo.cudo --pad 1.2 -o - -H ircam -F float \
