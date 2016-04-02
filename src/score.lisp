@@ -341,8 +341,9 @@ or IGNORE-SCORE-STATEMENTS."
                  (msg error "recursive inclusion of ~S~%  => ~A" incfile
                       (reverse *include-rego-stack*)))
                 (t (push incfile *include-rego-stack*)
-                   (apply #'%write-regofile incfile
-                          `(,at-fname ,@(cdr args) t ,time))))))
+                   (with-open-file (score incfile)
+                     (apply #'%write-regofile score
+                            `(,at-fname ,@(cdr args) t ,time)))))))
       (let ((line (or (expand-score-statement line) (org-table-filter line)))
             (*readtable* *score-readtable*)
             (*read-default-float-format* *sample-type*))
@@ -495,15 +496,18 @@ or IGNORE-SCORE-STATEMENTS."
         `((,time-bind ,time-os-bind ,tenv-bind) ,local-tempo
           ,@(cdr local-bindings)))))
 
-(defun %write-regofile (path at-fname time-var dur-var max-time tenv
+(defun %write-regofile (score at-fname time-var dur-var max-time tenv
                         &optional included-p time-offset)
   `(prog*
-     ,@(with-open-file (score path)
+     ,@(progn
          (unless included-p
-           (push (truename score) *include-rego-stack*))
+           (push (if (file-name score) (truename score) score)
+                 *include-rego-stack*))
          (with-ensure-symbols (time tempo-env)
            (with-gensyms (parent-time parent-tempo-env)
-             (let ((write-args (list (directory-namestring score) time-var
+             (let ((write-args (list (and (file-name score)
+                                          (directory-namestring score))
+                                     time-var
                                      dur-var max-time tenv)))
                (append
                  (let ((vars (find-score-local-bindings score at-fname
@@ -612,18 +616,18 @@ or IGNORE-SCORE-STATEMENTS."
 ;;;
 ;;; ends after 6.5 beats.
 ;;;
-(defun regofile->sexp (path &optional fname compile-rego-p)
-  (declare (type (or pathname string)))
+(defun rego-stream->sexp (stream &optional function-name compile-rego-p)
+  (declare (type stream stream))
   (with-ensure-symbols (time dur tempo tempo-env)
     (let ((%sched (ensure-complex-gensym "AT"))
           (sched (ensure-complex-gensym "AT"))
           (*include-rego-stack* nil))
       (with-complex-gensyms (smptime0 smptime1 smptime beats last-time
                              last-dur max-time c-array-wrap)
-        `(with-rego-function (,fname ,compile-rego-p)
+        `(with-rego-function (,function-name ,compile-rego-p)
            (incudine.edf::with-schedule
-             (with-rego-samples (,c-array-wrap ,smptime0 ,smptime1 ,smptime ,sched
-                                 ,last-time ,last-dur ,max-time)
+             (with-rego-samples (,c-array-wrap ,smptime0 ,smptime1 ,smptime
+                                 ,sched ,last-time ,last-dur ,max-time)
                (let ((,tempo-env (default-tempo-envelope))
                      (*score-objects-to-free* nil))
                  (flet ((,dur (,beats)
@@ -657,8 +661,12 @@ or IGNORE-SCORE-STATEMENTS."
                                             ,tempo-env)))
                        (push ,tempo-env *score-objects-to-free*)
                        (push ,c-array-wrap *score-objects-to-free*)
-                       ,(%write-regofile path sched last-time last-dur max-time
+                       ,(%write-regofile stream sched last-time last-dur max-time
                                          tempo-env))))))))))))
+
+(defun regofile->sexp (path &optional function-name compile-rego-p)
+  (with-open-file (score path)
+    (rego-stream->sexp score function-name compile-rego-p)))
 
 (declaim (inline regofile->function))
 (defun regofile->function (path &optional fname compile-rego-p)

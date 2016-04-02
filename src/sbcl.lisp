@@ -57,6 +57,12 @@
   (declare (type fixnum x))
   (sxhash x))
 
+(declaim (inline incudine::file-name))
+(defun incudine::file-name (stream)
+  ;; WARN: symbol SB-INT:FILE-NAME exported but with a FIXME-note in
+  ;; sbcl/src/code/fd-stream.lisp
+  (sb-int:file-name stream))
+
 (defmacro compare-and-swap (place old new)
   `(sb-ext:compare-and-swap ,place ,old ,new))
 
