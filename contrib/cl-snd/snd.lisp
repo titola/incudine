@@ -55,6 +55,19 @@
     rtab)
   "Readtable for Snd output.")
 
+(define-condition eval (error)
+  ((text :initarg :text :reader text))
+  (:report (lambda (condition stream)
+             (let ((str (text condition)))
+               (format stream "SND:EVAL ~A"
+                       (subseq str 0 (position #\Return str)))))))
+
+(defun error-p (str)
+  (let* ((s0 (string-right-trim " \t\n\r" str))
+         (s1 "#<unspecified>")
+         (d (- (length s0) (length s1))))
+    (and (plusp d) (string= s0 s1 :start1 d))))
+
 (defun default-parser (str)
   (declare (type string str))
   (let ((*readtable* *snd-readtable*))
@@ -66,14 +79,15 @@
                    (string= (string-trim '(#\Space) (subseq str (1+ pos)))
                             "")))))
       (cond ((string= str "#t") t)
-            ((member str '("" "#f" "#<unspecified>") :test #'string=) nil)
-            ((find #\: str) str)
+            ((member str '("" "#f") :test #'string=) nil)
             ((and (eq (string< "#<" str) 2) (no-more-words-after-p #\>))
              (values (read-from-string str nil)))
             ((first-char= #\#) str)
             ((or (first-char= #\() (no-more-words-after-p #\Space))
              (values (read-from-string str nil)))
-            (t str)))))
+            ((error-p str)
+             (format *error-output* "Snd error:~%  ~A" (remove #\Return str))
+             (error 'eval :text str))))))
 
 (defun to-process (string)
   (flush-stream)
