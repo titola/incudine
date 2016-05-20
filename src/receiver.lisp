@@ -161,6 +161,9 @@
       (let ((stream (receiver-stream receiver)))
         (declare (type incudine.osc:input-stream stream))
         (incudine.osc::close-connections stream)
+        ;; Flush pending writes.
+        (osc:without-block (in stream)
+          (loop while (plusp (the fixnum (osc:receive in)))))
         (setf (receiver-status receiver) t)
         (loop while (receiver-status receiver) do
                 (when (and (plusp (the fixnum (incudine.osc:receive stream)))

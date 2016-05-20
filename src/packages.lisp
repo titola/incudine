@@ -486,8 +486,9 @@
   (:export
    #:*listen-backlog* #:*buffer-size* #:*max-values* #:*before-close-hook*
    #:stream #:input-stream #:input-stream-p #:output-stream #:output-stream-p
-   #:with-stream #:open #:open-p #:close #:block-p #:broadcast #:connect
-   #:reject #:connections #:host #:port #:protocol #:protocolp #:socket-fd
+   #:with-stream #:open #:open-p #:close #:block-p #:without-block #:broadcast
+   #:connect #:reject
+   #:connections #:host #:port #:protocol #:protocolp #:socket-fd
    #:buffer-pointer #:buffer-size #:message-pointer #:message-length
    #:message-encoding #:receive #:send #:slip-encode #:slip-decode
    #:message #:start-message #:value #:value-pointer #:midi #:address-pattern

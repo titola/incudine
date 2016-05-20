@@ -334,6 +334,16 @@ The argument of a function is the OSC:STREAM to close.")
 
 (defsetf block-p set-block)
 
+(defmacro without-block ((var input-stream) &body body)
+  (with-gensyms (without-block-body)
+    `(let ((,var ,input-stream))
+       (flet ((,without-block-body () ,@body))
+         (if (block-p ,var)
+             (unwind-protect
+                  (progn (setf (block-p ,var) nil) (,without-block-body))
+               (setf (block-p ,var) t))
+             (,without-block-body))))))
+
 (defun connections (stream)
   (declare (type input-stream stream))
   (if (and (protocolp stream :tcp)
