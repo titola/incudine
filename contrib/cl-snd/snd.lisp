@@ -55,7 +55,7 @@
     rtab)
   "Readtable for Snd output.")
 
-(define-condition eval (error)
+(define-condition snd-error (error)
   ((text :initarg :text :reader text))
   (:report (lambda (condition stream)
              (let ((str (text condition)))
@@ -87,7 +87,7 @@
              (values (read-from-string str nil)))
             ((error-p str)
              (format *error-output* "Snd error:~%  ~A" (remove #\Return str))
-             (error 'eval :text str))))))
+             (error 'snd-error :text str))))))
 
 (defun to-process (string)
   (flush-stream)

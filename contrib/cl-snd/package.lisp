@@ -1,7 +1,7 @@
 (defpackage :snd
   (:use :cl)
   (:shadow #:eval #:load)
-  (:export #:*program-name* #:*program-args*
+  (:export #:*program-name* #:*program-args* #:snd-error
            #:run #:eval #:load #:exit #:flush-stream #:close-stream))
 
 (in-package :snd)
