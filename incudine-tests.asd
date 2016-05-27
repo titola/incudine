@@ -57,6 +57,7 @@
      (:file "vug/let-over-vug-1" :depends-on ("vug/base"))
      (:file "vug/let-over-vug-2" :depends-on ("vug/base"))
      (:file "vug/local-func-over-vug" :depends-on ("vug/base"))
+     (:file "vug/shadow-local-functions" :depends-on ("vug/base"))
      (:file "vug/ugen-reinit" :depends-on ("vug/base"))
      (:file "vug/delay/delay-1" :depends-on ("vug/base"))
      (:file "vug/delay/delay-2" :depends-on ("vug/base"))

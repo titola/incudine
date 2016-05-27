@@ -710,8 +710,13 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
     `(with-local-vug-functions (,acc)
        (make-local-vug-functions :name ',(car form)
          :inputs (list (list ,@flist)
-                       ,@(parse-vug-def (cddr form) nil (nconc acc flist) mlist
-                                        floop-info))
+                       ,@(parse-vug-def (cddr form) nil
+                           (progn (rplacd (last acc) flist) acc)
+                           ;; It's unnecessary to update the list of the visible
+                           ;; local macros because the local functions are
+                           ;; checked before the local macros in PARSE-VUG-FORM.
+                           mlist
+                           floop-info))
          :vars (get-local-vug-function-vars ',acc)))))
 
 (defun parse-labels-form (form flist mlist floop-info)
@@ -725,7 +730,11 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
                                          (parse-local-function def acc mlist
                                                                floop-info))
                                        definitions))
-                       ,@(parse-vug-def (cddr form) nil acc mlist floop-info))
+                       ,@(parse-vug-def (cddr form) nil acc
+                           ;; Not updated (FLIST checked before MLIST in
+                           ;; PARSE-VUG-FORM).
+                           mlist
+                           floop-info))
          :vars (get-local-vug-function-vars ',acc)))))
 
 (defun parse-macrolet-form (form flist mlist floop-info)
@@ -734,7 +743,12 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
         (definitions (cadr form)))
     (dolist (l definitions) (push l acc))
     `(make-vug-function :name 'progn
-       :inputs (list ,@(parse-vug-def (cddr form) nil flist acc floop-info)))))
+       :inputs (list ,@(parse-vug-def (cddr form) nil
+                         ;; Update the visible local functions.
+                         (remove-if (lambda (x)
+                                      (member x definitions :key #'car))
+                                    flist)
+                         acc floop-info)))))
 
 (declaim (inline parse-locally-form))
 (defun parse-locally-form (form flist mlist floop-info)
