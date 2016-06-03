@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015 Tito Latini
+ * Copyright (c) 2013-2016 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -190,6 +190,10 @@ static void ja_terminate(void *arg)
                 ja_free(ja_outputs);
                 ja_free(input_ports);
                 ja_free(output_ports);
+                ja_free(jm_inputs);
+                ja_free(jm_outputs);
+                ja_free(jm_invec_tmp.data);
+                ja_free(jm_outvec_tmp.data);
 
                 for (i = 0; i < ja_in_channels; i++)
                         free(input_port_names[i]);
@@ -198,6 +202,7 @@ static void ja_terminate(void *arg)
                 for (i = 0; i < ja_out_channels; i++)
                         free(output_port_names[i]);
                 ja_free(output_port_names);
+                ja_cycle_start_time = (SAMPLE) 0.0;
         }
 }
 
@@ -237,7 +242,7 @@ SAMPLE ja_get_sample_rate(void)
 
 int ja_initialize(SAMPLE srate, unsigned int input_channels,
                   unsigned int output_channels, unsigned int nframes,
-                  const char* client_name)
+                  const char* client_name, SAMPLE *sample_counter)
 {
         sigset_t sset;
         (void) srate;
@@ -254,6 +259,8 @@ int ja_initialize(SAMPLE srate, unsigned int input_channels,
         ja_in_channels = input_channels;
         ja_out_channels = output_channels;
         ja_buffer_bytes = ja_frames * JA_SAMPLE_SIZE;
+        ja_cycle_start_time = (SAMPLE) 0.0;
+        ja_sample_counter = sample_counter;
 
         ja_inputs = (jack_default_audio_sample_t **)
                 malloc(sizeof(jack_default_audio_sample_t *) * input_channels);
@@ -262,6 +269,30 @@ int ja_initialize(SAMPLE srate, unsigned int input_channels,
         ja_outputs = (jack_default_audio_sample_t **)
                 malloc(sizeof(jack_default_audio_sample_t *) * output_channels);
         RETURN_IF_NULLPTR(ja_outputs, "malloc failure");
+
+        jm_inputs = (struct jm_data **)
+                malloc(JM_INITIAL_MAX_PORTS * sizeof(struct jm_data *));
+        RETURN_IF_NULLPTR(jm_inputs, "malloc failure");
+        memset(jm_inputs, 0, JM_INITIAL_MAX_PORTS * sizeof(struct jm_data *));
+
+        jm_outputs = (struct jm_data **)
+                malloc(JM_INITIAL_MAX_PORTS * sizeof(struct jm_data *));
+        RETURN_IF_NULLPTR(jm_outputs, "malloc failure");
+        memset(jm_outputs, 0, JM_INITIAL_MAX_PORTS * sizeof(struct jm_data *));
+
+        jm_invec_tmp.data = (struct jm_data **)
+                malloc(JM_INITIAL_MAX_PORTS * sizeof(struct jm_data *));
+        RETURN_IF_NULLPTR(jm_invec_tmp.data, "malloc failure");
+        memset(jm_invec_tmp.data, 0, JM_INITIAL_MAX_PORTS * sizeof(struct jm_data *));
+        jm_invec_tmp.count = 0;
+        jm_invec_tmp.size = JM_INITIAL_MAX_PORTS;
+
+        jm_outvec_tmp.data = (struct jm_data **)
+                malloc(JM_INITIAL_MAX_PORTS * sizeof(struct jm_data *));
+        RETURN_IF_NULLPTR(jm_outvec_tmp.data, "malloc failure");
+        memset(jm_outvec_tmp.data, 0, JM_INITIAL_MAX_PORTS * sizeof(struct jm_data *));
+        jm_outvec_tmp.count = 0;
+        jm_outvec_tmp.size = JM_INITIAL_MAX_PORTS;
 
         if (ja_register_ports() != 0)
                 return 1;
@@ -340,6 +371,8 @@ jack_nframes_t ja_cycle_begin(void)
         for (i = 0; i < ja_out_channels; i++)
                 ja_outputs[i] = jack_port_get_buffer(output_ports[i], frames);
 
+        ja_cycle_start_time = *ja_sample_counter;
+
         return frames;
 }
 
@@ -355,4 +388,189 @@ void ja_cycle_end(jack_nframes_t frames)
                 }
         }
         jack_cycle_signal(client, 0);
+}
+
+SAMPLE ja_get_cycle_start_time(void)
+{
+        return ja_cycle_start_time;
+}
+
+jack_client_t *ja_client(void)
+{
+        return client;
+}
+
+
+/* Jack MIDI */
+
+jack_port_t *jm_port_register(const char *port_name, int is_input)
+{
+        return jack_port_register(client, port_name, JACK_DEFAULT_MIDI_TYPE,
+                                  is_input ? JackPortIsInput : JackPortIsOutput,
+                                  0);
+}
+
+struct jm_data *jm_alloc_data(void)
+{
+        struct jm_data *p;
+
+        p = (struct jm_data *) malloc(sizeof(struct jm_data));
+        if (p != NULL) {
+                memset(p, 0, sizeof(struct jm_data));
+                if ((pthread_mutex_init(&p->lock, NULL) != 0) ||
+                    (pthread_cond_init(&p->cond, NULL) != 0)) {
+                        free(p);
+                        return NULL;
+                }
+        }
+        return p;
+}
+
+void jm_free_data(struct jm_data *p)
+{
+        if (p != NULL) {
+                pthread_mutex_destroy(&p->lock);
+                pthread_cond_destroy(&p->cond);
+                free(p);
+        }
+}
+
+struct jm_data_vec *jm_copy_data_vec(int is_input)
+{
+        struct jm_data_vec *vec, *tmp;
+
+        vec = (struct jm_data_vec *) malloc(sizeof(struct jm_data_vec));
+        if (vec == NULL)
+                return NULL;
+
+        tmp = (is_input == 0 ? &jm_outvec_tmp : &jm_invec_tmp);
+
+        vec->data = (struct jm_data **)
+                malloc(tmp->size * sizeof(struct jm_data *));
+        if (vec->data == NULL) {
+                free(vec);
+                return NULL;
+        }
+        memcpy(vec->data, tmp->data, tmp->size * sizeof(struct jm_data *));
+        vec->count = tmp->count;
+        vec->size = tmp->size;
+        return vec;
+}
+
+void jm_free_data_vec(struct jm_data_vec *p)
+{
+        if (p != NULL) {
+                if (p->data != NULL)
+                        free(p->data);
+                free(p);
+        }
+}
+
+int jm_append_pending_data(struct jm_data *p, int is_input)
+{
+        struct jm_data **q;
+        struct jm_data_vec *vec;
+
+        vec = (is_input == 0 ? &jm_outvec_tmp : &jm_invec_tmp);
+
+        if (vec->count >= (vec->size - 1)) {
+                vec->size += JM_NUMBER_OF_PORTS_INCREMENT;
+                vec->data = (struct jm_data **)
+                        realloc(vec->data,
+                                vec->size * sizeof(struct jm_data *));
+                if (vec->data == NULL)
+                        return JM_MEMORY_ERROR;
+        }
+        for (q = vec->data; *q != NULL; q++)
+                ;
+        q[0] = p;
+        q[1] = NULL;
+        vec->count++;
+        return 0;
+}
+
+void jm_delete_from_pending_data(struct jm_data *p, int is_input)
+{
+        struct jm_data **q;
+        struct jm_data_vec *vec;
+        int found = 0;
+
+        vec = (is_input == 0 ? &jm_outvec_tmp : &jm_invec_tmp);
+
+        for (q = vec->data; *q != NULL; q++) {
+                if (found) {
+                        *q = *(q + 1);
+                        if (*q == NULL)
+                                return;
+                } else if (*q == p) {
+                        (*q)->port_buffer = NULL;
+                        *q = *(q + 1);
+                        found = 1;
+                }
+        }
+}
+
+/* Swap new data with old data in realtime thread. */
+void jm_update_data(struct jm_data_vec *vec, int is_input)
+{
+        struct jm_data **p;
+
+        if (is_input == 0) {
+                p = jm_outputs;
+                jm_outputs = vec->data;
+        } else {
+                p = jm_inputs;
+                jm_inputs = vec->data;
+        }
+        vec->data = p;
+}
+
+void jm_process(jack_nframes_t frames)
+{
+        struct jm_data **in, **out;
+
+        for (out = jm_outputs; *out != NULL; out++) {
+                (*out)->port_buffer = jack_port_get_buffer((*out)->port, frames);
+                jack_midi_clear_buffer((*out)->port_buffer);
+        }
+        for (in = jm_inputs; *in != NULL; in++)
+                (*in)->port_buffer = jack_port_get_buffer((*in)->port, frames);
+}
+
+/* Write data_size bytes of a MIDI message encoded into four bytes. */
+int jm_write_short(struct jm_data *p, uint32_t msg, unsigned int data_size)
+{
+        jack_midi_data_t *buf;
+        jack_nframes_t time;
+
+        if (p == NULL)
+                return JM_WRITE_ERROR;
+        if (data_size > 4)
+                return JM_DATASIZE_ERROR;
+
+        time = (jack_nframes_t) (*ja_sample_counter - ja_cycle_start_time);
+        buf = jack_midi_event_reserve(p->port_buffer, time, data_size);
+        if (buf != NULL) {
+                memcpy(buf, &msg, data_size);
+                return 0;
+        }
+        return JM_WRITE_ERROR;
+}
+
+/* Write data_size bytes of a MIDI message stored into a buffer. */
+int jm_write(struct jm_data *p, unsigned char *buffer, unsigned int data_size)
+{
+        jack_midi_data_t *jbuf;
+        jack_nframes_t time;
+
+        if (p == NULL)
+                return JM_WRITE_ERROR;
+
+        time = (jack_nframes_t) (*ja_sample_counter - ja_cycle_start_time);
+        jbuf = jack_midi_event_reserve(p->port_buffer, time, data_size);
+        if (jbuf != NULL) {
+                memcpy(jbuf, buffer, data_size);
+                return 0;
+        }
+        return JM_WRITE_ERROR;
 }

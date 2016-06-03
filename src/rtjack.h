@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015 Tito Latini
+ * Copyright (c) 2013-2016 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include <signal.h>
 #include <pthread.h>
 #include <jack/jack.h>
+#include <jack/midiport.h>
 #include "common.h"
 
 enum {
@@ -31,12 +32,14 @@ enum {
         JA_SHUTDOWN
 };
 
-#define JA_ERROR_MSG_MAX_LENGTH  (256)
-#define JA_PORT_NAME_MAX_LENGTH  (16)
+#define JA_ERROR_MSG_MAX_LENGTH  256
+#define JA_PORT_NAME_MAX_LENGTH  16
 #define JA_SAMPLE_SIZE  (sizeof(jack_default_audio_sample_t))
 
 static jack_client_t *client = NULL;
 static SAMPLE ja_sample_rate;
+static SAMPLE *ja_sample_counter;
+static SAMPLE ja_cycle_start_time; /* Cycle start time in samples. */
 static unsigned int ja_in_channels, ja_out_channels, ja_frames;
 static size_t ja_buffer_bytes;
 static int ja_status = JA_STOPPED;
@@ -100,11 +103,51 @@ int ja_get_buffer_size(void);
 SAMPLE ja_get_sample_rate(void);
 int ja_initialize(SAMPLE srate, unsigned int input_channels,
                   unsigned int output_channels, unsigned int nframes,
-                  const char* client_name);
+                  const char* client_name, SAMPLE *sample_counter);
 int ja_start(void);
 int ja_stop(void);
 void ja_set_lisp_io(SAMPLE *input, SAMPLE *output);
 jack_nframes_t ja_cycle_begin(void);
 void ja_cycle_end(jack_nframes_t frames);
+SAMPLE ja_get_cycle_start_time(void);
+jack_client_t *ja_client(void);
+
+/* Jack MIDI */
+
+#define JM_INITIAL_MAX_PORTS  18
+#define JM_NUMBER_OF_PORTS_INCREMENT  8
+
+#define JM_MEMORY_ERROR    -1
+#define JM_WRITE_ERROR     -2
+#define JM_DATASIZE_ERROR  -3
+
+struct jm_data {
+        jack_port_t *port;
+        void *port_buffer;
+        void *ringbuffer;
+        pthread_mutex_t lock;
+        pthread_cond_t cond;
+};
+
+struct jm_data_vec {
+        struct jm_data **data;
+        unsigned int count;
+        unsigned int size;
+};
+
+static struct jm_data **jm_inputs, **jm_outputs;
+static struct jm_data_vec jm_invec_tmp, jm_outvec_tmp;
+
+jack_port_t *jm_port_register(const char *port_name, int is_input);
+struct jm_data *jm_alloc_data(void);
+void jm_free_data(struct jm_data *p);
+struct jm_data_vec *jm_copy_data_vec(int is_input);
+void jm_free_data_vec(struct jm_data_vec *p);
+int jm_append_pending_data(struct jm_data *p, int is_input);
+void jm_delete_from_pending_data(struct jm_data *p, int is_input);
+void jm_update_data(struct jm_data_vec *vec, int is_input);
+void jm_process(jack_nframes_t frames);
+int jm_write_short(struct jm_data *p, uint32_t msg, unsigned int data_size);
+int jm_write(struct jm_data *p, unsigned char *buffer, unsigned int data_size);
 
 #endif  /* __RTJACK_H */

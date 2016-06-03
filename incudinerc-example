@@ -65,6 +65,8 @@
 
 ;;;-----------------------[ MIDI settings ]-------------------------
 
+(setq *enable-jack-midi* nil)
+
 ;; Number of milliseconds before to test whether MIDI input is
 ;; available (useful with PortMidi because it does not support a
 ;; blocking read).

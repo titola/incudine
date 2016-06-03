@@ -28,6 +28,7 @@
   (defvar *sound-velocity* 345)
 
   (declaim (special *audio-driver*
+                    *enable-jack-midi-p*
                     *sample-type*
                     *c-compiler*
                     *foreign-library-directories*

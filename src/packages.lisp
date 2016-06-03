@@ -50,8 +50,8 @@
    #:foreign-copy #:foreign-copy-samples
    #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
    #:qsort
-   #:rt-audio-init #:rt-audio-start #:rt-audio-stop #:rt-get-input
-   #:rt-set-output
+   #:rt-audio-init #:rt-audio-start #:rt-audio-stop #:rt-get-input #:rt-client
+   #:rt-set-output #:rt-cycle-start-time
    #:rt-condition-wait #:rt-transfer-to-c-thread #:rt-cycle-begin #:rt-cycle-end
    #:rt-set-busy-state #:rt-buffer-size #:rt-sample-rate #:rt-set-io-buffers
    #:rt-get-error-msg #:portaudio-device-info #:portaudio-set-device

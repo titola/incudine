@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -70,11 +70,13 @@
                                     *number-of-input-bus-channels*
                                     *number-of-output-bus-channels*
                                     (rt-params-frames-per-buffer *rt-params*)
-                                    *foreign-client-name*))
+                                    *foreign-client-name*
+                                    #+jack-audio *sample-counter*))
               (zerop (rt-audio-start)))
          (let ((buffer-size (rt-buffer-size)))
            (setf (rt-params-frames-per-buffer *rt-params*) buffer-size)
            (set-sample-rate (rt-sample-rate))
+           #+jack-midi (nrt-funcall #'jackmidi::update-streams)
            (funcall loop-function buffer-size)))
         (t (setf *rt-thread* nil)
            (msg error (rt-get-error-msg)))))
@@ -195,6 +197,7 @@
            (loop while (zerop rt-state) do
                 (reset-io-pointers)
                 (with-rt-cycle (,reset ,frames)
+                  #+jack-midi (jackmidi::process ,frames)
                   (fifo-perform-functions *to-engine-fifo*)
                   (do ((i 0 (+ i ,block-size)))
                       ((>= i ,frames))
@@ -241,7 +244,9 @@
 #-dummy-audio
 (defun after-rt-stop ()
   (unless (zerop (rt-audio-stop))
-    (msg error (rt-get-error-msg))))
+    (msg error (rt-get-error-msg)))
+  #+jack-midi (jackmidi::reset)
+  (values))
 
 (defvar *default-rt-loop-cb*
   #+dummy-audio #'identity

@@ -18,8 +18,13 @@
 ;;; along with this program; if not, write to the Free Software
 ;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (load #.(load-time-value
+            (merge-pathnames "src/features.lisp"
+                             (or *compile-file-pathname* *load-pathname*)))))
+
 (defsystem "incudine"
-  :version "0.9.2"
+  :version "0.9.3"
   :description "Incudine is a Music/DSP programming environment."
   :licence "GPL v2"
   :author "Tito Latini"
@@ -86,10 +91,16 @@
      (:file "envelope" :depends-on ("logger" "foreign-array"))
      (:file "graph" :depends-on ("time" "logger" "int-hash"))
      (:file "node-pool" :depends-on ("graph"))
-     (:file "rt" :depends-on ("fifo" "bus" "graph"))
+     (:file "rt" :depends-on ("fifo" "bus" "graph"
+                                     #+jack-audio "jack"
+                                     #+jack-midi "jackmidi"
+                                     #+portaudio "portaudio"))
      (:file "nrt" :depends-on ("rt"))
      (:file "score" :depends-on ("nrt"))
      (:file "midi" :depends-on ("edf-sched" "tuning"))
+     (:file "jack" :if-feature :jack-audio :depends-on ("foreign"))
+     (:file "jackmidi" :if-feature :jack-midi :depends-on ("fifo"))
+     (:file "portaudio" :if-feature :portaudio :depends-on ("foreign"))
      (:file "receiver" :depends-on ("vug/midi" "osc/osc"))
      (:file "osc/sbcl-vops" :if-feature (:and :sbcl (:or :x86 :x86-64))
                             :depends-on ("packages"))
@@ -141,4 +152,5 @@
    (:static-file "COPYING")
    (:static-file "README")
    (:static-file "INSTALL")
-   (:static-file "incudinerc-example")))
+   (:static-file "incudinerc-example")
+   (:static-file "src/features.lisp")))
