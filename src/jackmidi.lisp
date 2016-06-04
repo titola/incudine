@@ -17,7 +17,8 @@
 (defpackage :jackmidi
   (:use :cl)
   (:shadow #:open #:close #:write #:stream #:input-stream-p #:output-stream-p)
-  (:import-from #:alexandria #:define-constant #:with-gensyms)
+  (:import-from #:alexandria #:define-constant #:with-gensyms #:positive-fixnum
+                #:non-negative-fixnum)
   (:import-from #:incudine.external #:rt-client)
   (:import-from #:incudine.util #:rt-eval #:msg)
   (:export #:data #:open #:close #:stream #:input-stream-p #:output-stream-p
@@ -376,13 +377,16 @@ port-name of the stream to close."
   "Write a MIDI message stored into the octets DATA."
   (declare (type output-stream stream)
            (type data data)
-           (type (or alexandria:positive-fixnum null) end)
-           (type alexandria:non-negative-fixnum start))
-  (let ((m (subseq data start end)))
-    (rt-eval () (sb-sys:with-pinned-objects (data)
-                  (cffi:with-pointer-to-vector-data (ptr m)
-                    (%write (stream-pointer stream) ptr
-                            (length m)))))))
+           (type (or positive-fixnum null) end)
+           (type non-negative-fixnum start))
+  (let ((end (or end (length data))))
+    (declare (type non-negative-fixnum end))
+    (unless (or (>= start end) (> end (length data)))
+      (rt-eval () (sb-sys:with-pinned-objects (data)
+                    (cffi:with-pointer-to-vector-data (ptr data)
+                      (%write (stream-pointer stream)
+                              (cffi:inc-pointer ptr start)
+                              (- end start))))))))
 
 (defun all-streams (&optional direction)
   "Return a new list with the opened Jack MIDI streams."
