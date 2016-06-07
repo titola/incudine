@@ -24,6 +24,7 @@
 #include <pthread.h>
 #include <jack/jack.h>
 #include <jack/midiport.h>
+#include <jack/ringbuffer.h>
 #include "common.h"
 
 enum {
@@ -116,6 +117,8 @@ jack_client_t *ja_client(void);
 
 #define JM_INITIAL_MAX_PORTS  18
 #define JM_NUMBER_OF_PORTS_INCREMENT  8
+#define JM_RINGBUFFER_SIZE  65536
+#define JM_HEADER_SIZE  (sizeof(double) + sizeof(uint32_t))
 
 #define JM_MEMORY_ERROR    -1
 #define JM_WRITE_ERROR     -2
@@ -124,7 +127,14 @@ jack_client_t *ja_client(void);
 struct jm_data {
         jack_port_t *port;
         void *port_buffer;
-        void *ringbuffer;
+        jack_ringbuffer_t *rb;
+};
+
+struct jm_input_data {
+        jack_port_t *port;
+        void *port_buffer;
+        jack_ringbuffer_t *rb;
+        int to_signal;
         pthread_mutex_t lock;
         pthread_cond_t cond;
 };
@@ -137,10 +147,11 @@ struct jm_data_vec {
 
 static struct jm_data **jm_inputs, **jm_outputs;
 static struct jm_data_vec jm_invec_tmp, jm_outvec_tmp;
+static char *jm_pad_buffer;
 
 jack_port_t *jm_port_register(const char *port_name, int is_input);
-struct jm_data *jm_alloc_data(void);
-void jm_free_data(struct jm_data *p);
+struct jm_data *jm_alloc_data(int is_input);
+void jm_free_data(struct jm_data *p, int is_input);
 struct jm_data_vec *jm_copy_data_vec(int is_input);
 void jm_free_data_vec(struct jm_data_vec *p);
 int jm_append_pending_data(struct jm_data *p, int is_input);
@@ -148,6 +159,10 @@ void jm_delete_from_pending_data(struct jm_data *p, int is_input);
 void jm_update_data(struct jm_data_vec *vec, int is_input);
 void jm_process(jack_nframes_t frames);
 int jm_write_short(struct jm_data *p, uint32_t msg, unsigned int data_size);
-int jm_write(struct jm_data *p, unsigned char *buffer, unsigned int data_size);
+int jm_write(struct jm_data *p, char *buffer, unsigned int data_size);
+int jm_read(struct jm_input_data *p, char *buffer, unsigned int bufsize);
+void jm_flush_pending(struct jm_data *p);
+void jm_waiting_for(struct jm_input_data *p);
+void jm_force_cond_signal(struct jm_input_data *p);
 
 #endif  /* __RTJACK_H */

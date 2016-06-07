@@ -190,6 +190,7 @@ static void ja_terminate(void *arg)
                 ja_free(ja_outputs);
                 ja_free(input_ports);
                 ja_free(output_ports);
+                ja_free(jm_pad_buffer);
                 ja_free(jm_inputs);
                 ja_free(jm_outputs);
                 ja_free(jm_invec_tmp.data);
@@ -269,6 +270,9 @@ int ja_initialize(SAMPLE srate, unsigned int input_channels,
         ja_outputs = (jack_default_audio_sample_t **)
                 malloc(sizeof(jack_default_audio_sample_t *) * output_channels);
         RETURN_IF_NULLPTR(ja_outputs, "malloc failure");
+
+        jm_pad_buffer = (char *) malloc(JM_RINGBUFFER_SIZE);
+        RETURN_IF_NULLPTR(jm_pad_buffer, "malloc failure");
 
         jm_inputs = (struct jm_data **)
                 malloc(JM_INITIAL_MAX_PORTS * sizeof(struct jm_data *));
@@ -410,28 +414,56 @@ jack_port_t *jm_port_register(const char *port_name, int is_input)
                                   0);
 }
 
-struct jm_data *jm_alloc_data(void)
+struct jm_data *jm_alloc_data(int is_input)
 {
         struct jm_data *p;
+        size_t size;
 
-        p = (struct jm_data *) malloc(sizeof(struct jm_data));
+        size = (is_input == 0 ? sizeof(struct jm_data)
+                              : sizeof(struct jm_input_data));
+        p = (struct jm_data *) malloc(size);
         if (p != NULL) {
-                memset(p, 0, sizeof(struct jm_data));
-                if ((pthread_mutex_init(&p->lock, NULL) != 0) ||
-                    (pthread_cond_init(&p->cond, NULL) != 0)) {
-                        free(p);
-                        return NULL;
+                memset(p, 0, size);
+                p->rb = jack_ringbuffer_create(JM_RINGBUFFER_SIZE);
+                if (is_input == 0) {
+                        if (p->rb == NULL) {
+                                free(p);
+                                return NULL;
+                        }
+                } else {
+                        struct jm_input_data *q;
+                        q = (struct jm_input_data *) p;
+                        if (p->rb == NULL) {
+                                free(q);
+                                return NULL;
+                        }
+                        if ((pthread_mutex_init(&q->lock, NULL) != 0) ||
+                            (pthread_cond_init(&q->cond, NULL) != 0)) {
+                                jack_ringbuffer_free(q->rb);
+                                free(q);
+                                return NULL;
+                        }
                 }
         }
         return p;
 }
 
-void jm_free_data(struct jm_data *p)
+void jm_free_data(struct jm_data *p, int is_input)
 {
         if (p != NULL) {
-                pthread_mutex_destroy(&p->lock);
-                pthread_cond_destroy(&p->cond);
-                free(p);
+                if (p->rb != NULL) {
+                        jack_ringbuffer_free(p->rb);
+                        p->rb = NULL;
+                }
+                if (is_input == 0) {
+                        free(p);
+                } else {
+                        struct jm_input_data *q = (struct jm_input_data *) p;
+                        pthread_mutex_destroy(&q->lock);
+                        pthread_cond_destroy(&q->cond);
+                        q->to_signal = 0;
+                        free(q);
+                }
         }
 }
 
@@ -533,8 +565,44 @@ void jm_process(jack_nframes_t frames)
                 (*out)->port_buffer = jack_port_get_buffer((*out)->port, frames);
                 jack_midi_clear_buffer((*out)->port_buffer);
         }
-        for (in = jm_inputs; *in != NULL; in++)
-                (*in)->port_buffer = jack_port_get_buffer((*in)->port, frames);
+        for (in = jm_inputs; *in != NULL; in++) {
+                struct jm_input_data *p;
+                int i, n;
+                p = (struct jm_input_data *) *in;
+                p->port_buffer = jack_port_get_buffer(p->port, frames);
+                if (p->port_buffer == NULL)
+                        continue;
+
+                n = jack_midi_get_event_count(p->port_buffer);
+                for (i = 0; i < n; i++) {
+                        jack_midi_event_t ev;
+                        size_t size;
+                        int ret;
+                        ret = jack_midi_event_get(&ev, p->port_buffer, i);
+                        if (ret != 0)
+                                continue;
+                        size = ev.size + JM_HEADER_SIZE;
+                        if (jack_ringbuffer_write_space(p->rb) >= size) {
+                                double *time;
+                                uint32_t *len;
+                                time = (double *) jm_pad_buffer;
+                                *time = (double) (ja_cycle_start_time + ev.time);
+                                len = (uint32_t *) (time + 1);
+                                *len = ev.size;
+                                memcpy(len + 1, ev.buffer, ev.size);
+                                jack_ringbuffer_write(p->rb, jm_pad_buffer, size);
+                        }
+                }
+                if (n > 0 || p->to_signal) {
+                        if (pthread_mutex_trylock(&p->lock) == 0) {
+                                pthread_cond_signal(&p->cond);
+                                pthread_mutex_unlock(&p->lock);
+                                p->to_signal = 0;
+                        } else {
+                                p->to_signal = 1;
+                        }
+                }
+        }
 }
 
 /* Write data_size bytes of a MIDI message encoded into four bytes. */
@@ -558,7 +626,7 @@ int jm_write_short(struct jm_data *p, uint32_t msg, unsigned int data_size)
 }
 
 /* Write data_size bytes of a MIDI message stored into a buffer. */
-int jm_write(struct jm_data *p, unsigned char *buffer, unsigned int data_size)
+int jm_write(struct jm_data *p, char *buffer, unsigned int data_size)
 {
         jack_midi_data_t *jbuf;
         jack_nframes_t time;
@@ -573,4 +641,81 @@ int jm_write(struct jm_data *p, unsigned char *buffer, unsigned int data_size)
                 return 0;
         }
         return JM_WRITE_ERROR;
+}
+
+/* Fill a buffer with the events received from a MIDI input port. */
+int jm_read(struct jm_input_data *p, char *buffer, unsigned int bufsize)
+{
+        char *b;
+        size_t n;
+        int count, remain, ret;
+        uint32_t ev_size, len, pad;
+
+        if (p == NULL)
+                return 0;
+
+        b = buffer;
+        count = 0;
+        remain = bufsize;
+        n = jack_ringbuffer_read_space(p->rb);
+        if (n > 0)
+                memset(b, 0, bufsize);
+        while (n > 0 && remain > JM_HEADER_SIZE) {
+                ret = jack_ringbuffer_peek(p->rb, (char *) b, JM_HEADER_SIZE);
+                /* Message length. */
+                len = ((uint32_t *) b)[2];
+                if (ret != JM_HEADER_SIZE || len == 0) {
+                        /* Corrupted data. */
+                        jm_flush_pending((struct jm_data *) p);
+                        break;
+                }
+                /* Alignment to four bytes. */
+                pad = ((int) (-len) & 3);
+                ev_size = len + JM_HEADER_SIZE;
+                if (ev_size < remain) {
+                        ret = jack_ringbuffer_read(p->rb, b, ev_size);
+                        ev_size += pad;
+                        b += ev_size;
+                        remain -= ev_size;
+                        count++;
+                } else if (ev_size > bufsize) {
+                        /* Ignore the event. */
+                        jack_ringbuffer_read_advance(p->rb, ev_size);
+                } else {
+                        /* The buffer is full. */
+                        break;
+                }
+                n = jack_ringbuffer_read_space(p->rb);
+        }
+        return count;
+}
+
+void jm_flush_pending(struct jm_data *p)
+{
+        if (p != NULL) {
+                size_t n;
+                n = jack_ringbuffer_read_space(p->rb);
+                if (n > 0)
+                        jack_ringbuffer_read_advance(p->rb, n);
+        }
+}
+
+void jm_waiting_for(struct jm_input_data *p)
+{
+        if (p != NULL) {
+                pthread_mutex_lock(&p->lock);
+                pthread_cond_wait(&p->cond, &p->lock);
+                pthread_mutex_unlock(&p->lock);
+        }
+}
+
+/* Used in lisp during RECV-STOP. */
+void jm_force_cond_signal(struct jm_input_data *p)
+{
+        if (p != NULL) {
+                pthread_mutex_lock(&p->lock);
+                pthread_cond_signal(&p->cond);
+                pthread_mutex_unlock(&p->lock);
+                p->to_signal = 0;
+        }
 }

@@ -99,7 +99,7 @@
      (:file "score" :depends-on ("nrt"))
      (:file "midi" :depends-on ("edf-sched" "tuning"))
      (:file "jack" :if-feature :jack-audio :depends-on ("foreign"))
-     (:file "jackmidi" :if-feature :jack-midi :depends-on ("fifo"))
+     (:file "jackmidi" :if-feature :jack-midi :depends-on ("fifo" "receiver"))
      (:file "portaudio" :if-feature :portaudio :depends-on ("foreign"))
      (:file "receiver" :depends-on ("vug/midi" "osc/osc"))
      (:file "osc/sbcl-vops" :if-feature (:and :sbcl (:or :x86 :x86-64))
