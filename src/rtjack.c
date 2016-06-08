@@ -513,8 +513,10 @@ int jm_append_pending_data(struct jm_data *p, int is_input)
                 if (vec->data == NULL)
                         return JM_MEMORY_ERROR;
         }
-        for (q = vec->data; *q != NULL; q++)
-                ;
+        for (q = vec->data; *q != NULL; q++) {
+                if (*q == p)
+                        return 0;
+        }
         q[0] = p;
         q[1] = NULL;
         vec->count++;
@@ -538,6 +540,11 @@ void jm_delete_from_pending_data(struct jm_data *p, int is_input)
                         (*q)->port_buffer = NULL;
                         *q = *(q + 1);
                         found = 1;
+                        if (vec->count != 0)
+                                vec->count--;
+                        else
+                                fprintf(stderr,
+                                        "Error: inconsistent Jack MIDI data\n");
                 }
         }
 }

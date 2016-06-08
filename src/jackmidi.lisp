@@ -239,7 +239,8 @@
 (defmacro rt-update-data (data-vec-var streams new-streams input-p)
   ;; Use a copy of the pending data to avoid side effects in rt-thread.
   `(let ((,data-vec-var (new-foreign-data-vector ,input-p)))
-     (rt-eval ()
+     ;; Return after the update in rt-thread (waiting for the return value).
+     (rt-eval (:return-value-p t)
        (jm-update-data ,data-vec-var ,input-p)
        (setf ,streams ,new-streams)
        (incudine:nrt-funcall
