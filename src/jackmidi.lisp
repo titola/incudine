@@ -690,7 +690,7 @@ The MIDI messages are aligned to four bytes."
 
 (defmethod recv-stop ((stream jackmidi:input-stream))
   (let ((recv (receiver stream)))
-    (when (receiver-status recv)
+    (when (and recv (receiver-status recv))
       (compare-and-swap (receiver-status recv) t nil)
       (sleep .1)
       (jackmidi::force-cond-signal (jackmidi::stream-pointer stream))
