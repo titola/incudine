@@ -611,7 +611,7 @@ int jm_write_short(struct jm_data *p, uint32_t msg, unsigned int data_size)
         jack_midi_data_t *buf;
         jack_nframes_t time;
 
-        if (p == NULL)
+        if (p == NULL || p->port_buffer == NULL)
                 return JM_WRITE_ERROR;
         if (data_size > 4)
                 return JM_DATASIZE_ERROR;
@@ -631,7 +631,7 @@ int jm_write(struct jm_data *p, char *buffer, unsigned int data_size)
         jack_midi_data_t *jbuf;
         jack_nframes_t time;
 
-        if (p == NULL)
+        if (p == NULL || p->port_buffer == NULL)
                 return JM_WRITE_ERROR;
 
         time = (jack_nframes_t) (*ja_sample_counter - ja_cycle_start_time);
