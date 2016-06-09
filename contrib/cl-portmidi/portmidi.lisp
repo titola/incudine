@@ -92,7 +92,7 @@
           (event-buffer-size obj)))
 
 (defun free (evbuf)
-  (declare (type event-buffer))
+  (declare (type event-buffer evbuf))
   (setf (event-buffer-size evbuf) 0)
   (let ((ptr (event-buffer-pointer evbuf)))
     (unless (cffi:null-pointer-p ptr)
