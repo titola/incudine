@@ -40,12 +40,12 @@
 (declaim (inline set-bpm))
 (defun set-bpm (tempo bpm)
   (declare (type tempo tempo))
-  (rt-eval (:return-value-p t)
+  (rt-eval ()
     (setf #1=(smp-ref (tempo-bpm-ptr tempo) 0)
           (sample bpm))
     (setf (smp-ref (tempo-bpm-ptr tempo) 1)
-          (/ (sample 60) #1#))
-    bpm))
+          (/ (sample 60) #1#)))
+  bpm)
 
 (defsetf bpm set-bpm)
 
@@ -57,12 +57,12 @@
 (declaim (inline set-bps))
 (defun set-bps (tempo bps)
   (declare (type tempo tempo))
-  (rt-eval (:return-value-p t)
+  (rt-eval ()
     (setf #1=(smp-ref (tempo-bpm-ptr tempo) 1)
           (sample bps))
     (setf (smp-ref (tempo-bpm-ptr tempo) 0)
-          (/ (sample 60) #1#))
-    bps))
+          (/ (sample 60) #1#)))
+  bps)
 
 (defsetf bps set-bps)
 

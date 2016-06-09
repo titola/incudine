@@ -421,7 +421,7 @@
                                :test #'string-equal)
                        (lambda (id)
                          (when id
-                           (incudine.util:rt-eval (:return-value-p nil)
+                           (incudine.util:rt-eval ()
                              (incudine:set-control id :gate 0))))
                        (lambda (id) (when id (incudine:free id)))))
              (init-voicer-arguments

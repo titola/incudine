@@ -294,9 +294,10 @@
 
 (defun set-node-gain (obj value)
   (declare (type (or node fixnum) obj) (type real value))
-  (rt-eval (:return-value-p t)
+  (rt-eval ()
     (setf (smp-ref (node-gain-data (if (node-p obj) obj (node obj))) 0)
-          (sample value))))
+          (sample value)))
+  value)
 
 (defsetf node-gain set-node-gain)
 
@@ -307,9 +308,10 @@
 
 (defun set-node-fade-time (obj value)
   (declare (type (or node fixnum) obj) (type real value))
-  (rt-eval (:return-value-p t)
+  (rt-eval ()
     (setf (smp-ref (node-gain-data (if (node-p obj) obj (node obj))) 9)
-          (sample value))))
+          (sample value)))
+  value)
 
 (defsetf node-fade-time set-node-fade-time)
 
@@ -321,9 +323,10 @@
 
 (defun set-node-fade-curve (obj value)
   (declare (type (or node fixnum) obj))
-  (rt-eval (:return-value-p t)
+  (rt-eval ()
     (setf (smp-ref (node-gain-data (if (node-p obj) obj (node obj))) 3)
-          (seg-function-spec->sample value))))
+          (seg-function-spec->sample value)))
+  value)
 
 (defsetf node-fade-curve set-node-fade-curve)
 
@@ -1052,7 +1055,7 @@
 (declaim (inline set-control))
 (defun set-control (obj control-name value)
   (declare (type (or non-negative-fixnum node) obj) (type symbol control-name))
-  (rt-eval (:return-value-p t)
+  (rt-eval ()
     (locally (declare #.*standard-optimize-settings*)
       (let ((fn (control-setter obj control-name)))
         (declare (type (or function null) fn))
@@ -1060,14 +1063,14 @@
           (funcall fn value)
           (nrt-msg info "set node ~D ~A ~A"
                    (if (numberp obj) obj (node-id obj))
-                   control-name value)
-          value)))))
+                   control-name value)))))
+  value)
 
 (defsetf control-value set-control)
 
 (defun set-controls (obj &rest plist)
   (declare (type (or non-negative-fixnum node) obj))
-  (rt-eval (:return-value-p nil)
+  (rt-eval ()
     (locally (declare #.*standard-optimize-settings*)
       (let ((node (if (numberp obj) (node obj) obj)))
         (declare (type node node))
