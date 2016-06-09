@@ -27,44 +27,7 @@
   ;;; Velocity of the sound at 22°C, 1 atmosfera
   (defvar *sound-velocity* 345)
 
-  (declaim (special *audio-driver*
-                    *enable-jack-midi-p*
-                    *sample-type*
-                    *c-compiler*
-                    *foreign-library-directories*
-                    *tlsf-block-align*
-                    *use-foreign-sample-p*
-                    *max-buffer-size*
-                    *frames-per-buffer*
-                    *portaudio-input-device*
-                    *portaudio-output-device*
-                    *client-name*
-                    *max-number-of-channels*
-                    *number-of-input-bus-channels*
-                    *number-of-output-bus-channels*
-                    *number-of-bus-channels*
-                    *rt-edf-heap-size*
-                    *nrt-edf-heap-size*
-                    *edf-heap-pool-size*
-                    *edf-heap-pool-grow*
-                    *sched-policy*
-                    *rt-priority*
-                    *nrt-priority*
-                    *receiver-default-priority*
-                    *max-number-of-nodes*
-                    *default-table-size*
-                    *default-bpm*
-                    *fade-curve*
-                    *standard-optimize-settings*
-                    *foreign-sample-pool-size*
-                    *foreign-rt-memory-pool-size*
-                    *foreign-nrt-memory-pool-size*
-                    *sndfile-buffer-size*
-                    *bounce-to-disk-guard-size*
-                    *default-header-type*
-                    *default-data-format*
-                    *osc-buffer-size*
-                    *osc-max-values*))
+  (load (asdf:system-relative-pathname "incudine" "src/config-specials.lisp"))
 
   (defvar *incudinerc-loaded-p* nil)
 
@@ -97,7 +60,7 @@
   ;;; it is possible to set the Jack client name.
   ;;;
   (defvar *audio-driver*
-    #+linux :jack
+    #+(or linux jack-audio) :jack
     #-linux :portaudio)
 
   (defvar incudine.util:*audio-driver* *audio-driver*)
@@ -226,7 +189,8 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
        (cons *sample-type* :all)
        (cons *tlsf-block-align* :tlsf)
        (cons *sched-policy* :util)
-       (cons *audio-driver* drv))))
+       (cons *audio-driver* drv)
+       (cons :jack-midi (and *enable-jack-midi* :jack)))))
 
   (defun store-compiler-options ()
     (with-open-file (f *cache-pathname* :direction :output
@@ -237,9 +201,13 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
   (defun changed-compiler-options ()
     (if (not (probe-file *cache-pathname*))
         :all
-        (with-open-file (f *cache-pathname*)
-          (loop for old in (read f)
-                for new in (get-compiler-options)
+        (let* ((cached (with-open-file (f *cache-pathname*) (read f)))
+               (opts (get-compiler-options))
+               (diff (- (length opts) (length cached))))
+          (when (plusp diff)
+            (setf cached (append cached (make-list diff))))
+          (loop for old in cached
+                for new in opts
                 unless (equal old new)
                 do (if (eq (cdr new) :all)
                        (return-from changed-compiler-options :all))

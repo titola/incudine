@@ -23,6 +23,14 @@
             (merge-pathnames "src/features.lisp"
                              (or *compile-file-pathname* *load-pathname*)))))
 
+(in-package :asdf-user)
+
+(defvar *incudine-force-compile-p* nil)
+
+(defmethod perform :before ((o load-op) (c cl-source-file))
+  (when *incudine-force-compile-p*
+    (compile-file* (component-pathname c))))
+
 (defsystem "incudine"
   :version "0.9.3"
   :description "Incudine is a Music/DSP programming environment."
@@ -70,6 +78,9 @@
                  #+(and sbcl x86 (not darwin))
                  (symbol-call :incudine.config '#:fftw-stack-align-test))
       :perform (load-op (o c)
+                 (when (symbol-call :incudine.config '#:changed-compiler-options)
+                   (setf *incudine-force-compile-p* t)
+                   (symbol-call :incudine.config '#:compile-c-library))
                  (symbol-call :cffi '#:load-foreign-library
                               (output-file 'compile-op c))))
      (:file "config" :depends-on ("compile-clib"))
