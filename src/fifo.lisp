@@ -186,7 +186,7 @@
         (lambda ()
           (incudine::fast-rt-funcall
            (lambda () (setf ,fn (rt-return-func ,value ,form))))))
-       (loop until ,fn)
+       (loop until ,fn do (sleep 1e-7))
        (funcall ,fn))))
 
 (defmacro rt-eval-without-return (&body form)
