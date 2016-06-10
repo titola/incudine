@@ -24,6 +24,8 @@
   (:import-from #:incudine.util #:rt-eval #:msg)
   (:export #:data #:event-buffer #:open #:close #:stream
            #:input-stream #:input-stream-p #:output-stream #:output-stream-p
+           #:input-stream-sysex-timestamp #:input-stream-sysex-size
+           #:input-stream-sysex-pointer #:input-stream-sysex-octets
            #:port-name #:get-stream-by-name #:all-streams
            #:message #:decode-message #:read #:write-short #:write
            #:sysex-message-p #:make-event-buffer #:with-event-buffer
@@ -38,11 +40,47 @@
   (direction :closed :type (member :input :output :closed))
   (port-name "" :type string))
 
-(defstruct (input-stream (:include stream) (:copier nil))
+(defstruct (input-stream (:include stream) (:copier nil)
+                         (:constructor %make-input-stream))
   ;; Pointer to the event that contains the received SysEx message.
-  (sysex-pointer (cffi:null-pointer) :type cffi:foreign-pointer))
+  (sysex-pointer* (cffi:null-pointer) :type cffi:foreign-pointer))
 
-(defstruct (output-stream (:include stream) (:copier nil)))
+(defun make-input-stream (port-name)
+  (declare (type string port-name))
+  (let ((ptr (new-stream-pointer t)))
+    (when (cffi:null-pointer-p ptr)
+      (error "Jack MIDI pointer allocation"))
+    (let* ((sysex-ptr (cffi:foreign-alloc :pointer))
+           (obj (handler-case
+                    (%make-input-stream :pointer ptr :direction :input
+                      :port-name port-name :sysex-pointer* sysex-ptr)
+                  (condition (c)
+                    (cffi:foreign-free ptr)
+                    (cffi:foreign-free sysex-ptr)
+                    (error c)))))
+      (when (input-stream-p obj)
+        (tg:finalize obj (lambda ()
+                           (cffi:foreign-free ptr)
+                           (cffi:foreign-free sysex-ptr)))
+        obj))))
+
+(defstruct (output-stream (:include stream) (:copier nil)
+                          (:constructor %make-output-stream)))
+
+(defun make-output-stream (port-name)
+  (declare (type string port-name))
+  (let ((ptr (new-stream-pointer t)))
+    (when (cffi:null-pointer-p ptr)
+      (error "Jack MIDI pointer allocation"))
+    (let ((obj (handler-case
+                   (%make-output-stream :pointer ptr :direction :output
+                                        :port-name port-name)
+                 (condition (c)
+                   (cffi:foreign-free ptr)
+                   (error c)))))
+      (when (output-stream-p obj)
+        (tg:finalize obj (lambda () (cffi:foreign-free ptr)))
+        obj))))
 
 (defmethod print-object ((obj stream) stream)
   (let ((port-name (stream-port-name obj)))
@@ -158,16 +196,16 @@
   (%jm-update-data (foreign-data-vector-pointer obj) input-p))
 
 (declaim (inline %write-short))
-(cffi:defcfun ("jm_write_short" %write-short) :int
-  (stream-pointer :pointer)
-  (msg :uint32)
-  (size :unsigned-int))
+(defun %write-short (stream-pointer msg size)
+  (logand (cffi:foreign-funcall "jm_write_short" :pointer stream-pointer
+                                :uint32 msg :unsigned-int size :int)
+          #xffffff))
 
 (declaim (inline %write))
-(cffi:defcfun ("jm_write" %write) :int
-  (stream-pointer :pointer)
-  (msg :pointer)
-  (size :unsigned-int))
+(defun %write (stream-pointer msg size)
+  (logand (cffi:foreign-funcall "jm_write" :pointer stream-pointer
+                                :pointer msg :unsigned-int size :int)
+          #xffffff))
 
 (declaim (inline %read))
 (defun %read (stream-pointer buffer buffer-size)
@@ -309,26 +347,20 @@
          (port-name (or port-name (default-port-name input-p))))
     (if (get-stream-by-name port-name)
         (error "Jack MIDI port name ~S is used" port-name)
-        (let ((ptr (new-stream-pointer input-p)))
-          (when (cffi:null-pointer-p ptr)
-            (error "Jack MIDI pointer allocation"))
-          (let ((s (funcall (if input-p
-                                #'make-input-stream
-                                #'make-output-stream)
-                            :pointer ptr
-                            :direction direction
-                            :port-name port-name)))
-            (tg:finalize s (lambda () (free-stream-pointer ptr input-p)))
-            (unless (jack-stopped-p)
-              (setf (stream-port-pointer s)
-                    (port-register input-p port-name)))
-            (let ((l (list s)))
-              (setf *streams* (if *streams* (nconc *streams* l) l))
-              (unless (null-port-pointer-p s)
-                (if input-p
-                    (append-to-input-streams s)
-                    (append-to-output-streams s)))
-              s))))))
+        (let ((s (funcall (if input-p
+                              #'make-input-stream
+                              #'make-output-stream)
+                          port-name)))
+          (unless (jack-stopped-p)
+            (setf (stream-port-pointer s)
+                  (port-register input-p port-name)))
+          (let ((l (list s)))
+            (setf *streams* (if *streams* (nconc *streams* l) l))
+            (unless (null-port-pointer-p s)
+              (if input-p
+                  (append-to-input-streams s)
+                  (append-to-output-streams s)))
+            s)))))
 
 (defun close (obj)
   "Close a JACKMIDI:STREAM. OBJ is a JACKMIDI:STREAM or the
@@ -351,6 +383,10 @@ port-name of the stream to close."
           (setf (stream-port-pointer stream) (cffi:null-pointer)))
         (free-stream-pointer (stream-pointer stream) (input-stream-p stream))
         (setf (stream-pointer stream) (cffi:null-pointer))
+        (when (and (input-stream-p obj)
+                   (not (cffi:null-pointer-p (input-stream-sysex-pointer* obj))))
+          (cffi:foreign-free (input-stream-sysex-pointer* obj))
+          (setf (input-stream-sysex-pointer* obj) (cffi:null-pointer)))
         (tg:cancel-finalization stream))
       (setf (stream-direction stream) :closed)
       (setf (stream-port-name stream) "")
@@ -367,26 +403,22 @@ port-name of the stream to close."
     (logior (ash status 24) (ash data1 16) (ash data2 8))))
 
 (declaim (inline decode-message))
-#+little-endian
-(defun decode-message (msg)
-  "Decode a MIDI message encoded into a (UNSIGNED-BYTE 32)."
-  (declare #.incudine.util:*standard-optimize-settings*
-           (type (unsigned-byte 24) msg))
-  (let ((ash-8 (ldb (byte 16 8) msg)))
-    (values (ldb (byte 8 0) msg)       ; status
-            (ldb (byte 8 0) ash-8)     ; data1
-            (ldb (byte 8 8) ash-8))))  ; data2
-
-#-little-endian
 (defun decode-message (msg)
   "Decode a MIDI message encoded into a (UNSIGNED-BYTE 32)."
   (declare #.incudine.util:*standard-optimize-settings*
            (type (unsigned-byte 32) msg))
+  #+little-endian
+  (let* ((msg (logand msg #xFFFFFF))
+         (ash-8 (ldb (byte 16 8) msg)))
+    (values (ldb (byte 8 0) msg)       ; status
+            (ldb (byte 8 0) ash-8)     ; data1
+            (ldb (byte 8 8) ash-8)))   ; data2
+  #-little-endian
   (let* ((m (ash msg -8))
          (m2 (ash m -8)))
-    (values (ldb (byte 8 8) m2)        ; status
-            (ldb (byte 8 0) m2)        ; data1
-            (ldb (byte 8 0) m))))      ; data2
+    (values (ldb (byte 8 8) m2)
+            (ldb (byte 8 0) m2)
+            (ldb (byte 8 0) m))))
 
 (declaim (inline sysex-message-p))
 (defun sysex-message-p (msg)
@@ -559,10 +591,10 @@ The MIDI messages are aligned to four bytes."
   (size 0 :type non-negative-fixnum)
   (events 0 :type non-negative-fixnum))
 
-(define-constant +event-buffer-size+ 1024)
+(define-constant +sysex-max-size+ 1024)
 
 (declaim (inline make-event-buffer))
-(defun make-event-buffer (&optional (size #.+event-buffer-size+))
+(defun make-event-buffer (&optional (size #.+sysex-max-size+))
   (declare (type positive-fixnum size))
   (let* ((ptr (cffi:foreign-alloc :char :count size))
          (obj (%make-event-buffer :pointer ptr :size size)))
@@ -572,6 +604,48 @@ The MIDI messages are aligned to four bytes."
 (defmethod print-object ((obj event-buffer) stream)
   (format stream "#<JACKMIDI:EVENT-BUFFER :SIZE ~D>"
           (event-buffer-size obj)))
+
+(declaim (inline input-stream-sysex-timestamp))
+(defun input-stream-sysex-timestamp (stream)
+  (let ((ptr (input-stream-sysex-pointer* stream)))
+    (if (cffi:null-pointer-p ptr)
+        0d0
+        (event-slot (cffi:mem-ref ptr :pointer) timestamp))))
+
+(declaim (inline input-stream-sysex-size))
+(defun input-stream-sysex-size (stream)
+  (let ((ptr (input-stream-sysex-pointer* stream)))
+    (if (cffi:null-pointer-p ptr)
+        0
+        (event-slot (cffi:mem-ref ptr :pointer) message-length))))
+
+(declaim (inline input-stream-sysex-pointer))
+(defun input-stream-sysex-pointer (stream)
+  (let ((ptr (input-stream-sysex-pointer* stream)))
+    (if (cffi:null-pointer-p ptr)
+        ptr
+        (cffi:mem-aptr (cffi:mem-ref ptr :pointer) :uint32 3))))
+
+(defun input-stream-sysex-octets (stream &optional octets (start 0))
+  (declare (type input-stream stream) (type (or data null) octets)
+           (type non-negative-fixnum start)
+           #.incudine.util:*standard-optimize-settings*)
+  (let ((size (input-stream-sysex-size stream)))
+    (declare (type non-negative-fixnum size))
+    (when (and (plusp size) (<= size +sysex-max-size+))
+      (let ((ptr (input-stream-sysex-pointer stream)))
+        (unless (cffi:null-pointer-p ptr)
+          (multiple-value-bind (buf start size)
+              (if octets
+                  (values octets start (min (length octets) size))
+                  (values (make-array size :element-type '(unsigned-byte 8))
+                          0 size))
+            (declare (type non-negative-fixnum size start))
+            (do ((i 0 (1+ i))
+                 (j start (1+ j)))
+                ((>= i size) (values buf size))
+              (declare (type non-negative-fixnum i j))
+              (setf (aref buf j) (incudine.util:u8-ref ptr i)))))))))
 
 (defmethod incudine:free ((obj event-buffer))
   (setf (event-buffer-size obj) 0)
@@ -600,7 +674,7 @@ The MIDI messages are aligned to four bytes."
              (declare (type unsigned-byte ,message-var
                             ,@(when timestamp-var `(,timestamp-var))))
              (when (sysex-message-p ,message-var)
-               (setf (cffi:mem-ref (input-stream-sysex-pointer ,stream) :pointer)
+               (setf (cffi:mem-ref (input-stream-sysex-pointer* ,stream) :pointer)
                      ,ptr))
              ,@body
              (when (sysex-message-p ,message-var)
@@ -615,7 +689,7 @@ The MIDI messages are aligned to four bytes."
                    (setf ,ptr ,tmp)
                    (return))))))))))
 
-(defmacro with-event-buffer ((var &optional (size #.+event-buffer-size+))
+(defmacro with-event-buffer ((var &optional (size #.+sysex-max-size+))
                              &body body)
   `(let ((,var (make-event-buffer ,size)))
      (declare (type event-buffer ,var))
@@ -668,7 +742,7 @@ The MIDI messages are aligned to four bytes."
         (jackmidi:with-receiver ((receiver-status receiver) stream msg nil)
           (handler-case
               (multiple-value-bind (status data1 data2)
-                  (jackmidi:decode-message (logand msg #xFFFFFFFF))
+                  (jackmidi:decode-message msg)
                 (when update-midi-table-p
                   (incudine.vug::set-midi-message status data1 data2))
                 (midi-recv-funcall-all receiver status data1 data2))
