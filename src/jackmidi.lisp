@@ -28,6 +28,7 @@
            #:input-stream-sysex-pointer #:input-stream-sysex-octets
            #:port-name #:get-stream-by-name #:all-streams
            #:message #:decode-message #:read #:write-short #:write
+           #:foreign-read #:foreign-write
            #:sysex-message-p #:make-event-buffer #:with-event-buffer
            #:doevent #:with-receiver))
 
@@ -195,23 +196,28 @@
 (defun jm-update-data (obj input-p)
   (%jm-update-data (foreign-data-vector-pointer obj) input-p))
 
-(declaim (inline %write-short))
-(defun %write-short (stream-pointer msg size)
-  (logand (cffi:foreign-funcall "jm_write_short" :pointer stream-pointer
+(declaim (inline foreign-write-short))
+(defun foreign-write-short (stream msg size)
+  (logand (cffi:foreign-funcall "jm_write_short" :pointer (stream-pointer stream)
                                 :uint32 msg :unsigned-int size :int)
           #xffffff))
 
-(declaim (inline %write))
-(defun %write (stream-pointer msg size)
-  (logand (cffi:foreign-funcall "jm_write" :pointer stream-pointer
-                                :pointer msg :unsigned-int size :int)
+(declaim (inline foreign-write))
+(defun foreign-write (stream buffer-pointer buffer-size)
+  "Write a MIDI message stored into a foreign buffer."
+  (logand (cffi:foreign-funcall "jm_write" :pointer (stream-pointer stream)
+            :pointer buffer-pointer :unsigned-int buffer-size :int)
           #xffffff))
 
-(declaim (inline %read))
-(defun %read (stream-pointer buffer buffer-size)
-  (logand (cffi:foreign-funcall "jm_read" :pointer stream-pointer
-                                :pointer buffer :unsigned-int buffer-size
-                                :int)
+(declaim (inline foreign-read))
+(defun foreign-read (stream buffer-pointer buffer-size)
+    "A foreign buffer is filled with BUFFER-SIZE events received from a INPUT-STREAM.
+Return the number of the events read.
+The header of the event is 12 bytes long: a timestamp (foreign double float)
+and the length of the MIDI message (foreign uint32).
+The MIDI messages are aligned to four bytes."
+  (logand (cffi:foreign-funcall "jm_read" :pointer (stream-pointer stream)
+            :pointer buffer-pointer :unsigned-int buffer-size :int)
           #xffffff))
 
 (declaim (inline %waiting-for))
@@ -449,7 +455,7 @@ port-name of the stream to close."
   "Write SIZE bytes of a MIDI message encoded into four bytes."
   (declare (type output-stream stream) (type (unsigned-byte 32) message)
            (type positive-fixnum size))
-  (rt-eval () (%write-short (stream-pointer stream) message size)))
+  (rt-eval () (foreign-write-short stream message size)))
 
 ;;; WRITE
 ;;;
@@ -481,9 +487,8 @@ port-name of the stream to close."
     (unless (or (>= start end) (> end (length data)))
       (rt-eval () (sb-sys:with-pinned-objects (data)
                     (cffi:with-pointer-to-vector-data (ptr data)
-                      (%write (stream-pointer stream)
-                              (cffi:inc-pointer ptr start)
-                              (- end start))))))))
+                      (foreign-write stream (cffi:inc-pointer ptr start)
+                                     (- end start))))))))
 
 ;;; READ
 ;;;
@@ -498,14 +503,14 @@ port-name of the stream to close."
 (declaim (inline read))
 (defun read (stream octets)
   "The buffer OCTETS is filled with the events received from a INPUT-STREAM.
-Return the number of the event read.
+Return the number of the events read.
 The header of the event is 12 bytes long: a timestamp (foreign double float)
 and the length of the MIDI message (foreign uint32).
 The MIDI messages are aligned to four bytes."
   (declare (type input-stream stream) (type data octets))
   (sb-sys:with-pinned-objects (octets)
     (cffi:with-pointer-to-vector-data (ptr octets)
-      (%read (stream-pointer stream) ptr (length octets)))))
+      (foreign-read stream ptr (length octets)))))
 
 (declaim (inline waiting-for))
 (defun waiting-for (stream)
@@ -714,9 +719,9 @@ The MIDI messages are aligned to four bytes."
                        (loop initially (%flush-pending (stream-pointer ,stream))
                              while ,state-var do
                                (doevent (,evbuf ,message-var ,stream
-                                          (%read (stream-pointer ,stream)
-                                                 (event-buffer-pointer ,evbuf)
-                                                 (event-buffer-size ,evbuf))
+                                          (foreign-read ,stream
+                                            (event-buffer-pointer ,evbuf)
+                                            (event-buffer-size ,evbuf))
                                           ,timestamp-var)
                                  ,@body)
                                (when ,state-var
