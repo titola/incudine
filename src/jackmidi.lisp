@@ -21,7 +21,7 @@
   (:import-from #:alexandria #:define-constant #:with-gensyms #:positive-fixnum
                 #:non-negative-fixnum)
   (:import-from #:incudine.external #:rt-client)
-  (:import-from #:incudine.util #:rt-eval #:msg)
+  (:import-from #:incudine.util #:rt-eval #:msg #:u8-ref)
   (:export #:data #:event-buffer #:open #:close #:stream
            #:input-stream #:input-stream-p #:output-stream #:output-stream-p
            #:input-stream-sysex-timestamp #:input-stream-sysex-size
@@ -63,6 +63,8 @@
         (tg:finalize obj (lambda ()
                            (cffi:foreign-free ptr)
                            (cffi:foreign-free sysex-ptr)))
+        (setf (cffi:mem-ref (input-stream-sysex-pointer* obj) :pointer)
+              (cffi:null-pointer))
         obj))))
 
 (defstruct (output-stream (:include stream) (:copier nil)
@@ -231,6 +233,12 @@ The MIDI messages are aligned to four bytes."
 (declaim (inline %flush-pending))
 (cffi:defcfun ("jm_flush_pending" %flush-pending) :void
   (stream-pointer :pointer))
+
+(declaim (inline set-freqs-from-midi-data-format))
+(cffi:defcfun "set_freqs_from_midi_data_format" :int
+  (freq-buffer :pointer)
+  (midi-freq-buffer :pointer)
+  (size :unsigned-int))
 
 (defstruct (foreign-data-vector (:copier nil))
   (pointer (cffi:null-pointer) :type cffi:foreign-pointer)
@@ -517,6 +525,7 @@ The MIDI messages are aligned to four bytes."
   (declare (type input-stream stream))
   (%waiting-for (stream-pointer stream)))
 
+(declaim (inline flush-pending))
 (defun flush-pending (stream)
   (declare (type input-stream stream))
   (%flush-pending (stream-pointer stream)))
@@ -610,48 +619,6 @@ The MIDI messages are aligned to four bytes."
   (format stream "#<JACKMIDI:EVENT-BUFFER :SIZE ~D>"
           (event-buffer-size obj)))
 
-(declaim (inline input-stream-sysex-timestamp))
-(defun input-stream-sysex-timestamp (stream)
-  (let ((ptr (input-stream-sysex-pointer* stream)))
-    (if (cffi:null-pointer-p ptr)
-        0d0
-        (event-slot (cffi:mem-ref ptr :pointer) timestamp))))
-
-(declaim (inline input-stream-sysex-size))
-(defun input-stream-sysex-size (stream)
-  (let ((ptr (input-stream-sysex-pointer* stream)))
-    (if (cffi:null-pointer-p ptr)
-        0
-        (event-slot (cffi:mem-ref ptr :pointer) message-length))))
-
-(declaim (inline input-stream-sysex-pointer))
-(defun input-stream-sysex-pointer (stream)
-  (let ((ptr (input-stream-sysex-pointer* stream)))
-    (if (cffi:null-pointer-p ptr)
-        ptr
-        (cffi:mem-aptr (cffi:mem-ref ptr :pointer) :uint32 3))))
-
-(defun input-stream-sysex-octets (stream &optional octets (start 0))
-  (declare (type input-stream stream) (type (or data null) octets)
-           (type non-negative-fixnum start)
-           #.incudine.util:*standard-optimize-settings*)
-  (let ((size (input-stream-sysex-size stream)))
-    (declare (type non-negative-fixnum size))
-    (when (and (plusp size) (<= size +sysex-max-size+))
-      (let ((ptr (input-stream-sysex-pointer stream)))
-        (unless (cffi:null-pointer-p ptr)
-          (multiple-value-bind (buf start size)
-              (if octets
-                  (values octets start (min (length octets) size))
-                  (values (make-array size :element-type '(unsigned-byte 8))
-                          0 size))
-            (declare (type non-negative-fixnum size start))
-            (do ((i 0 (1+ i))
-                 (j start (1+ j)))
-                ((>= i size) (values buf size))
-              (declare (type non-negative-fixnum i j))
-              (setf (aref buf j) (incudine.util:u8-ref ptr i)))))))))
-
 (defmethod incudine:free ((obj event-buffer))
   (setf (event-buffer-size obj) 0)
   (let ((ptr (event-buffer-pointer obj)))
@@ -659,6 +626,66 @@ The MIDI messages are aligned to four bytes."
       (cffi:foreign-free ptr)))
   (tg:cancel-finalization obj)
   (values))
+
+(declaim (inline input-stream-sysex-event))
+(defun input-stream-sysex-event (stream)
+  (cffi:mem-ref (input-stream-sysex-pointer* stream) :pointer))
+
+(declaim (inline set-input-stream-sysex-event))
+(defun set-input-stream-sysex-event (stream ptr)
+  (setf (cffi:mem-ref (input-stream-sysex-pointer* stream) :pointer) ptr))
+
+(defsetf input-stream-sysex-event set-input-stream-sysex-event)
+
+(declaim (inline input-stream-sysex-timestamp))
+(defun input-stream-sysex-timestamp (stream)
+  (let ((ptr (input-stream-sysex-event stream)))
+    (if (cffi:null-pointer-p ptr)
+        0d0
+        (event-slot ptr timestamp))))
+
+(declaim (inline event-sysex-size))
+(defun event-sysex-size (ptr)
+  (let ((size (event-slot ptr message-length)))
+    (declare (type non-negative-fixnum))
+    (if (and (plusp size) (= (u8-ref ptr 12) #xf0))
+        size
+        0)))
+
+(declaim (inline input-stream-sysex-size))
+(defun input-stream-sysex-size (stream)
+  (let ((ptr (input-stream-sysex-event stream)))
+    (if (cffi:null-pointer-p ptr)
+        0
+        (event-sysex-size ptr))))
+
+(declaim (inline input-stream-sysex-pointer))
+(defun input-stream-sysex-pointer (stream)
+  (let ((ptr (input-stream-sysex-event stream)))
+    (if (cffi:null-pointer-p ptr)
+        (values ptr 0)
+        (values (cffi:mem-aptr ptr :uint32 3)
+                (event-sysex-size ptr)))))
+
+(defun input-stream-sysex-octets (stream &optional octets (start 0))
+  (declare (type input-stream stream) (type (or data null) octets)
+           (type non-negative-fixnum start)
+           #.incudine.util:*standard-optimize-settings*)
+  (multiple-value-bind (ptr size)
+      (input-stream-sysex-pointer stream)
+    (declare (type cffi:foreign-pointer ptr) (type non-negative-fixnum size))
+    (when (and (plusp size) (<= size +sysex-max-size+))
+      (multiple-value-bind (buf start size)
+          (if octets
+              (values octets start (min (length octets) size))
+              (values (make-array size :element-type '(unsigned-byte 8))
+                      0 size))
+        (declare (type non-negative-fixnum size start))
+        (do ((i 0 (1+ i))
+             (j start (1+ j)))
+            ((>= i size) (values buf size))
+          (declare (type non-negative-fixnum i j))
+          (setf (aref buf j) (u8-ref ptr i)))))))
 
 (defmacro doevent ((evbuf message-var stream events
                     &optional timestamp-var result) &body body)
@@ -679,8 +706,7 @@ The MIDI messages are aligned to four bytes."
              (declare (type unsigned-byte ,message-var
                             ,@(when timestamp-var `(,timestamp-var))))
              (when (sysex-message-p ,message-var)
-               (setf (cffi:mem-ref (input-stream-sysex-pointer* ,stream) :pointer)
-                     ,ptr))
+               (setf (input-stream-sysex-event ,stream) ,ptr))
              ,@body
              (when (sysex-message-p ,message-var)
                ;; Jump to the end of the SysEx.
@@ -716,7 +742,7 @@ The MIDI messages are aligned to four bytes."
                 (with-event-buffer (,evbuf)
                   (setf ,state-var t)
                   (unwind-protect
-                       (loop initially (%flush-pending (stream-pointer ,stream))
+                       (loop initially (flush-pending ,stream)
                              while ,state-var do
                                (doevent (,evbuf ,message-var ,stream
                                           (foreign-read ,stream

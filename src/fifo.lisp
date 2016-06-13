@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -182,12 +182,13 @@
 (defmacro rt-eval-with-return (&body form)
   (with-gensyms (fn value)
     `(let (,fn)
+       (declare (type (or function null) ,fn))
        (incudine:fast-nrt-funcall
         (lambda ()
           (incudine::fast-rt-funcall
            (lambda () (setf ,fn (rt-return-func ,value ,form))))))
        (loop until ,fn do (sleep 1e-7))
-       (funcall ,fn))))
+       (funcall (the function ,fn)))))
 
 (defmacro rt-eval-without-return (&body form)
   `(incudine:fast-nrt-funcall

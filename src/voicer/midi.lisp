@@ -74,21 +74,50 @@ as argument."
            (type midi-event midi-event))
   (%fill-table midi-event-freq-table obj midi-event))
 
-;;; Fill the frequency table with the data received from a MIDI bulk
-;;; tuninig dump message.
-(defun set-freq-table-from-midi (ev stream)
+(defun set-freq-table-from-portmidi (ev stream)
   (declare (type midi-event ev) (type pm:input-stream stream))
-  (when (and (>= (pm:input-stream-events-remain stream)
-                 (ash incudine::+midi-bulk-tuning-dump-buffer-size+ -2))
-             (incudine::valid-midi-bulk-tuning-dump-p stream nil))
-    (pm:with-input-sysex-event (ptr stream)
+  (pm:with-input-sysex-event (ptr stream)
+    (when (and (>= (pm:input-stream-events-remain stream)
+                   (ash incudine::+midi-bulk-tuning-dump-buffer-size+ -2))
+               (incudine::valid-midi-bulk-tuning-dump-p ptr nil 8))
       (cffi:with-pointer-to-vector-data (freqs (midi-event-freq-table ev))
         (let ((ret (cffi:foreign-funcall "set_ffreqs_from_midi" :pointer ptr
-                                         :pointer freqs :unsigned-char)))
-          (declare (type (unsigned-byte 8) ret))
+                                         :pointer freqs :int)))
+          (declare (type fixnum ret))
           (if (zerop ret)
               (msg debug "received MIDI bulk tuning dump")
               (msg warn "MIDI bulk tuning dump failed at index ~D" ret)))))))
+
+#+jack-midi
+(defun set-freq-table-from-jackmidi (ev stream)
+  (declare (type midi-event ev) (type jackmidi:input-stream stream))
+  (multiple-value-bind (ptr size) (jackmidi:input-stream-sysex-pointer stream)
+    (declare (type cffi:foreign-pointer ptr) (type non-negative-fixnum size))
+    (when (and (= size incudine::+midi-bulk-tuning-dump-buffer-size+)
+               (incudine::valid-midi-bulk-tuning-dump-p ptr nil 4))
+      (cffi:with-pointer-to-vector-data (freqs (midi-event-freq-table ev))
+        (let ((ret (cffi:foreign-funcall "set_ffreqs_from_midi_data_format"
+                     :pointer freqs
+                     :pointer (cffi:inc-pointer ptr
+                                incudine::+midi-bulk-tuning-dump-freq-data-index+)
+                     :unsigned-int 128
+                     :int)))
+          (declare (type fixnum ret))
+          (if (zerop ret)
+              (msg debug "received MIDI bulk tuning dump")
+              (msg warn "MIDI bulk tuning dump failed at index ~D" ret)))))))
+
+;;; Fill the frequency table with the data received from a MIDI bulk
+;;; tuninig dump message.
+(declaim (inline set-freq-table-from-midi))
+(defun set-freq-table-from-midi (ev stream)
+  (declare (type midi-event ev) (type incudine::midi-input-stream stream))
+  #-jack-midi
+  (set-freq-table-from-portmidi ev stream)
+  #+jack-midi
+  (if (pm:input-stream-p stream)
+      (set-freq-table-from-portmidi ev stream)
+      (set-freq-table-from-jackmidi ev stream)))
 
 (defun fill-amp-table (obj midi-event)
   "Fill the table of the frequencies with the content of a INCUDINE:BUFFER

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2015 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -16,12 +16,44 @@
 
 (in-package :incudine)
 
+(deftype midi-input-stream ()
+  #-jack-midi 'pm:input-stream
+  #+jack-midi '(or pm:input-stream jackmidi:input-stream))
+
+(deftype midi-output-stream ()
+  #-jack-midi 'pm:output-stream
+  #+jack-midi '(or pm:output-stream jackmidi:output-stream))
+
 (declaim (inline midiout))
 (defun midiout (status data1 data2 stream)
-  "Send a generic MIDI message to a MIDI OUTPUT STREAM."
+  "Send a generic MIDI message to a MIDI output stream."
   (declare (type (unsigned-byte 8) status data1 data2)
-           (type pm:stream stream))
-  (pm:write-short stream 0 (pm:message status data1 data2)))
+           (type midi-output-stream stream))
+  #-jack-midi
+  (pm:write-short stream 0 (pm:message status data1 data2))
+  #+jack-midi
+  (if (pm:output-stream-p stream)
+      (pm:write-short stream 0 (pm:message status data1 data2))
+      (jackmidi:write-short stream (jackmidi:message status data1 data2) 3)))
+
+(declaim (inline midi-write-sysex))
+#-jack-midi
+(defun midi-write-sysex (stream timestamp msg-ptr size)
+  (declare (ignore size))
+  (cffi:foreign-funcall "Pm_WriteSysEx"
+                        :pointer (pm:stream-pointer stream)
+                        pm:timestamp timestamp :pointer msg-ptr :int))
+
+#+jack-midi
+(defun midi-write-sysex (stream timestamp msg-ptr size)
+  (logand
+    (if (pm:output-stream-p stream)
+        (cffi:foreign-funcall "Pm_WriteSysEx"
+          :pointer (pm:stream-pointer stream) pm:timestamp timestamp
+          :pointer msg-ptr :int)
+        (rt-eval (:return-value-p t)
+          (jackmidi:foreign-write stream msg-ptr size)))
+    #xffffff))
 
 (defun sysex-sequence->foreign-array (seq)
   (declare (type sequence seq))
@@ -37,13 +69,12 @@
 (declaim (inline midiout-sysex))
 (defun midiout-sysex (seq stream &optional (timestamp 0))
   "Send a MIDI SysEx message to a MIDI OUTPUT STREAM."
-  (declare (type sequence seq) (type pm:stream stream)
+  (declare (type sequence seq) (type midi-output-stream stream)
            (type (unsigned-byte 32) timestamp))
   (let ((obj (sysex-sequence->foreign-array seq)))
     (unwind-protect
-         (cffi:foreign-funcall "Pm_WriteSysEx"
-           :pointer (pm:stream-pointer stream) pm:timestamp timestamp
-           :pointer (foreign-array-data obj) :int)
+         (midi-write-sysex stream timestamp (foreign-array-data obj)
+                           (length seq))
       (free obj))))
 
 ;;; MIDI Tuning messages
@@ -83,18 +114,18 @@
   #-little-endian
   (logior (ash b0 24) (ash b1 16) (ash b2 8) b3))
 
-(defmacro with-midi-bulk-tuning-dump-buffer ((buf-var device-id program)
-                                             &body body)
-  ;; Bulk tuninig dump:
-  ;;
-  ;;     F0 7E DEVICE-ID 08 01 PROGRAM TUNINGNAME (XX YY ZZ)x128 CHECKSUM F7
-  ;;
-  `(with-foreign-array (,buf-var :char #.+midi-bulk-tuning-dump-buffer-size+)
-     (setf (u32-ref ,buf-var 0) (midi-four-bytes #xF0 #x7E ,device-id 8))
-     (setf (u8-ref ,buf-var 4) 1)
-     (setf (u8-ref ,buf-var 5) ,program)
-     (setf (u8-ref ,buf-var (1- +midi-bulk-tuning-dump-buffer-size+)) #xF7)
-     ,@body))
+;;; Bulk tuninig dump:
+;;;
+;;;     F0 7E DEVICE-ID 08 01 PROGRAM TUNINGNAME (XX YY ZZ)x128 CHECKSUM F7
+;;;
+(declaim (inline prepare-midi-bulk-tuning-dump-buffer))
+(defun prepare-midi-bulk-tuning-dump-buffer (buffer device-id program)
+  (declare (type foreign-pointer buffer)
+           (type (unsigned-byte 8) device-id program))
+  (setf (u32-ref buffer 0) (midi-four-bytes #xF0 #x7E device-id 8))
+  (setf (u8-ref buffer 4) 1)
+  (setf (u8-ref buffer 5) program)
+  (setf (u8-ref buffer #.(1- +midi-bulk-tuning-dump-buffer-size+)) #xF7))
 
 (defun set-midi-bulk-tuning-name (buffer name)
   (declare (type foreign-pointer buffer) (type string name))
@@ -119,11 +150,12 @@
     (checksum 1 0)))
 
 (defun midi-bulk-tuning-dump (tuning stream device-id program checksum-function)
-  (declare (type pm:stream stream) (type tuning tuning)
+  (declare (type midi-output-stream stream) (type tuning tuning)
            (type (unsigned-byte 8) device-id program)
            (type function checksum-function)
            #.*standard-optimize-settings*)
-  (with-midi-bulk-tuning-dump-buffer (buf device-id program)
+  (with-foreign-array (buf :char #.+midi-bulk-tuning-dump-buffer-size+)
+    (prepare-midi-bulk-tuning-dump-buffer buf device-id program)
     (set-midi-bulk-tuning-name buf (tuning-description tuning))
     (labels ((set-freqs (k i j degrees os)
                (declare (type (unsigned-byte 8) k i j degrees)
@@ -149,8 +181,7 @@
                  (tuning-et12-cents-offset tuning))
       (setf (u8-ref buf +midi-bulk-tuning-dump-checksum-index+)
             (funcall checksum-function buf +midi-bulk-tuning-dump-buffer-size+))
-      (cffi:foreign-funcall "Pm_WriteSysEx"
-        :pointer (pm:stream-pointer stream) pm:timestamp 0 :pointer buf :int)
+      (midi-write-sysex stream 0 buf +midi-bulk-tuning-dump-buffer-size+)
       stream)))
 
 (defmacro with-midi-single-note-tuning-change-buffer ((buf-var device-id program)
@@ -165,7 +196,7 @@
      ,@body))
 
 (defun midi-128-single-note-tuning (tuning stream device-id program)
-  (declare (type pm:stream stream) (type tuning tuning)
+  (declare (type midi-output-stream stream) (type tuning tuning)
            (type (unsigned-byte 8) device-id program)
            #.*standard-optimize-settings*)
   (with-midi-single-note-tuning-change-buffer (buf device-id program)
@@ -181,9 +212,7 @@
                          (- (+ os (aref (tuning-cents tuning) i)) (* xx 100)))
                      (declare (type (unsigned-byte 8) yy zz))
                      (setf (u32-ref buf 2) (midi-four-bytes xx yy zz #xF7))
-                     (cffi:foreign-funcall "Pm_WriteSysEx"
-                       :pointer (pm:stream-pointer stream) pm:timestamp 0
-                       :pointer buf :int)))
+                     (midi-write-sysex stream 0 buf 12)))
                  (sleep .0001)
                  (let ((i (mod (1+ k) degrees)))
                    (send (1+ k) i degrees
@@ -209,51 +238,94 @@ useful if the manufacturer implements a different checksum."
       (midi-bulk-tuning-dump tuning stream device-id program
                              checksum-function)))
 
-(defun valid-midi-bulk-tuning-dump-p (stream device-id)
-  (declare (type pm:input-stream stream)
-           (type (or (unsigned-byte 8) null) device-id))
-  (pm:with-input-sysex-event (ptr stream)
-    (and #+little-endian (= (logand (u32-ref ptr 0) #xFF00FFFF) #x08007EF0)
-         #-little-endian (= (logand (u32-ref ptr 0) #xFFFF00FF) #xF07E0008)
-         (or (null device-id)
-             (= (u8-ref ptr 2) device-id)
-             (= (u8-ref ptr 2) #x7F))
-         ;; sub-id 2 (bulk dump reply)
-         (= (u8-ref ptr 8) 1))))
+(declaim (inline valid-midi-bulk-tuning-dump-p))
+(defun valid-midi-bulk-tuning-dump-p (sysex-ptr device-id sub-id-2)
+  (declare (type foreign-pointer sysex-ptr)
+           (type (or (unsigned-byte 8) null) device-id)
+           (type (unsigned-byte 8) sub-id-2))
+  (and #+little-endian (= (logand (u32-ref sysex-ptr 0) #xff00ffff) #x08007ef0)
+       #-little-endian (= (logand (u32-ref sysex-ptr 0) #xffff00ff) #xf07e0008)
+       (or (null device-id)
+           (= (u8-ref sysex-ptr 2) device-id)
+           (= (u8-ref sysex-ptr 2) #x7f))
+       ;; sub-id 2 (bulk dump reply)
+       (= (u8-ref sysex-ptr sub-id-2) 1)))
 
 (declaim (inline midi-bulk-tuning-program))
 (defun midi-bulk-tuning-program (stream)
   ;; First PmEvent: F0 7E DEVICE-ID 08 [timestamp (4 bytes)] 01 PROGRAM ...
   (pm:with-input-sysex-event (ptr stream) (u8-ref ptr 9)))
 
+(defun set-tuning-from-portmidi (obj stream device-id)
+  (declare (type (or tuning function) obj) (type pm:input-stream stream)
+           (type (or (unsigned-byte 8) null) device-id)
+           #.*standard-optimize-settings*)
+  (pm:with-input-sysex-event (ptr stream)
+    (when (and (>= (pm:input-stream-events-remain stream)
+                   (ash +midi-bulk-tuning-dump-buffer-size+ -2))
+               (valid-midi-bulk-tuning-dump-p ptr device-id 8))
+      (let ((tuning (if (functionp obj)
+                        (funcall obj (midi-bulk-tuning-program stream))
+                        obj)))
+        (declare (type (or tuning null) tuning))
+        (when tuning
+          (cffi:with-foreign-object
+              (name :char (1+ +midi-bulk-tuning-dump-name-length+))
+            (let ((ret (cffi:foreign-funcall "set_freqs_from_midi" :pointer ptr
+                                             :pointer (tuning-data tuning)
+                                             :pointer name :int)))
+              (declare (type fixnum ret))
+              (cond ((zerop ret)
+                     (setf (tuning-description tuning)
+                           (reduce-warnings (cffi:foreign-string-to-lisp name)))
+                     (msg debug "received MIDI bulk tuning dump"))
+                    (t (msg warn "MIDI bulk tuning dump failed at index ~D" ret)
+                       tuning)))))))))
+
+#+jack-midi
+(defun set-tuning-from-jackmidi (obj stream &optional device-id)
+  (declare (type (or tuning function) obj) (type jackmidi:input-stream stream)
+           (type (or (unsigned-byte 8) null) device-id)
+           #.*standard-optimize-settings*)
+  (multiple-value-bind (ptr size) (jackmidi:input-stream-sysex-pointer stream)
+    (declare (type foreign-pointer ptr) (type non-negative-fixnum size))
+    (when (and (= size +midi-bulk-tuning-dump-buffer-size+)
+               (valid-midi-bulk-tuning-dump-p ptr device-id 4))
+      (let ((tuning (if (functionp obj)
+                        ;; Program number as argument.
+                        (funcall obj (u8-ref ptr 5))
+                        obj)))
+        (declare (type (or tuning null) tuning))
+        (when tuning
+          (let ((ret (jackmidi::set-freqs-from-midi-data-format
+                       (tuning-data tuning)
+                       (cffi:inc-pointer ptr
+                         +midi-bulk-tuning-dump-freq-data-index+)
+                       128)))
+            (declare (type fixnum ret))
+            (cond ((zerop ret)
+                   (setf (tuning-description tuning)
+                         (reduce-warnings
+                           (cffi:foreign-string-to-lisp ptr
+                             :offset +midi-bulk-tuning-dump-name-index+
+                             :count +midi-bulk-tuning-dump-name-length+)))
+                   (msg debug "received MIDI bulk tuning dump"))
+                  (t (msg warn "MIDI bulk tuning dump failed at index ~D" ret)
+                     tuning))))))))
+
+(declaim (inline set-tuning-from-midi))
 (defun set-tuning-from-midi (obj stream &optional device-id)
-  "If OBJ is a TUNING structure, the frequencies and the description
+    "If OBJ is a TUNING structure, the frequencies and the description
 of OBJ are changed with the data received from a MIDI bulk tuning dump
 message. If OBJ is a function, it is called with the program number
 contained in the MIDI bulk tuning message. The function has to return
 the TUNING structure to set or NIL to ignore the MIDI message.
 The checksum of the message is ignored."
-  (declare (type (or tuning function) obj) (type pm:input-stream stream)
-           (type (or (unsigned-byte 8) null) device-id)
-           #.*standard-optimize-settings*)
-  (when (and (>= (pm:input-stream-events-remain stream)
-                 (ash +midi-bulk-tuning-dump-buffer-size+ -2))
-             (valid-midi-bulk-tuning-dump-p stream device-id))
-    (let ((tuning (if (functionp obj)
-                      (funcall obj (midi-bulk-tuning-program stream))
-                      obj)))
-      (declare (type (or tuning null) tuning))
-      (when tuning
-        (cffi:with-foreign-object (name :char
-                                   (1+ +midi-bulk-tuning-dump-name-length+))
-          (pm:with-input-sysex-event (ptr stream)
-            (let ((ret (cffi:foreign-funcall "set_freqs_from_midi" :pointer ptr
-                                             :pointer (tuning-data tuning)
-                                             :pointer name :unsigned-char)))
-              (declare (type (unsigned-byte 8) ret))
-              (cond ((zerop ret)
-                     (setf (tuning-description tuning)
-                           (reduce-warnings (cffi:foreign-string-to-lisp name)))
-                     (msg debug "received MIDI bulk tuning dump"))
-                    (t (msg warn "MIDI bulk tuning dump failed at index ~D"
-                            ret))))))))))
+    (declare (type (or tuning function) obj) (type midi-input-stream stream)
+             (type (or (unsigned-byte 8) null) device-id))
+    #-jack-midi
+    (set-tuning-from-portmidi obj stream device-id)
+    #+jack-midi
+    (if (pm:input-stream-p stream)
+        (set-tuning-from-portmidi obj stream device-id)
+        (set-tuning-from-jackmidi obj stream device-id)))

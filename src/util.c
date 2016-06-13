@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015 Tito Latini
+ * Copyright (c) 2013-2016 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -305,14 +305,15 @@ void pconv_multiply_partitions(SAMPLE *out_beg, SAMPLE *fdl_beg, SAMPLE *ir,
 #define MIDI_BULK_TUNING_DUMP_NAME_LENGTH       16
 #define MIDI_BULK_TUNING_DUMP_FREQ_DATA_INDEX   22
 
-#define update_tuning_freq(ftype,freqs,ev,i,x,y,z)                            \
-        do {                                                                  \
-                if ((ev[x] >> 7) | (ev[y] >> 7) | (ev[z] >> 7))               \
-                        return i;                                             \
-                freqs[i] = (ftype)                                            \
-                    (8.1758 * pow(2, (ev[x] + ((ftype) (ev[y] << 7 | ev[z])   \
-                                               / (1 << 14))) / 12));          \
-        } while (0)
+#define update_tuning_freq(ftype,freqs,ev,i,x,y,z)                             \
+    do {                                                                       \
+          if ((ev[x] | ev[y] | ev[z]) & 0x80)                                  \
+                  return i;                                                    \
+          if ((ev[x] & ev[y] & ev[z]) != 0x7f)                                 \
+                  freqs[i] = (ftype)                                           \
+                      (8.1758 * pow(2, (ev[x] + ((ftype) (ev[y] << 7 | ev[z])  \
+                                                 / (1 << 14))) / 12));         \
+    } while (0)
 
 /*
  * Set an array of frequencies with the data received from a MIDI bulk
@@ -320,7 +321,7 @@ void pconv_multiply_partitions(SAMPLE *out_beg, SAMPLE *fdl_beg, SAMPLE *ir,
  *
  * ev is a pointer to an array of PortMidi events (PmEvent structure).
  */
-unsigned char set_freqs_from_midi(unsigned char *ev, SAMPLE *freqs, char *name)
+int set_freqs_from_midi(unsigned char *ev, SAMPLE *freqs, char *name)
 {
         int x, y, i, j;
 
@@ -363,7 +364,7 @@ unsigned char set_freqs_from_midi(unsigned char *ev, SAMPLE *freqs, char *name)
         return 0;
 }
 
-unsigned char set_ffreqs_from_midi(unsigned char *ev, float *freqs)
+int set_ffreqs_from_midi(unsigned char *ev, float *freqs)
 {
         int x, y, i, j;
 
@@ -381,6 +382,58 @@ unsigned char set_ffreqs_from_midi(unsigned char *ev, float *freqs)
                 i += PM_EVENT_SIZE;
                 update_tuning_freq(float, freqs, ev, j, x, i, i + 1);
                 x = i + 2;
+        }
+        return 0;
+}
+
+/*
+ * freqs is the array of the frequencies to update from the frequency
+ * data obtained via MIDI SysEx (no PortMidi).
+ */
+int set_freqs_from_midi_data_format(SAMPLE *freqs, char *midi_freq_data,
+                                    unsigned int size)
+{
+        int i;
+        char *d;
+
+        d = midi_freq_data;
+        for (i = 0; i < size; i++) {
+                SAMPLE s;
+                char x, y, z;
+                x = *d++;
+                y = *d++;
+                z = *d;
+                if ((x | y | z) & 0x80)
+                        return i;  /* Not 21 bits data word. */
+                if ((x & y & z) == 0x7f)
+                        continue;  /* 0x7f 0x7f 0x7f means "no change". */
+                d++;
+                s = (SAMPLE) (x + ((SAMPLE) (y << 7 | z)) / (1 << 14));
+                freqs[i] = (SAMPLE) (8.1758 * pow(2, s / 12));
+        }
+        return 0;
+}
+
+int set_ffreqs_from_midi_data_format(float *freqs, char *midi_freq_data,
+                                     unsigned int size)
+{
+        int i;
+        char *d;
+
+        d = midi_freq_data;
+        for (i = 0; i < size; i++) {
+                float s;
+                char x, y, z;
+                x = *d++;
+                y = *d++;
+                z = *d;
+                if ((x | y | z) & 0x80)
+                        return i;  /* Not 21 bits data word. */
+                if ((x & y & z) == 0x7f)
+                        continue;  /* 0x7f 0x7f 0x7f means "no change". */
+                d++;
+                s = (float) (x + ((float) (y << 7 | z)) / (1 << 14));
+                freqs[i] = (float) (8.1758 * pow(2, s / 12));
         }
         return 0;
 }
