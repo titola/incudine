@@ -1,0 +1,144 @@
+;;; Incudine
+;;; Jack MIDI Interface
+
+;; Enable Jack MIDI in your configuation file:
+
+;; Add to ~/.incudinerc
+(setq *enable-jack-midi* t)
+
+;; We can open/close JACKMIDI:STREAM's before or after the jack startup.
+;; For example:
+
+(defvar *midiin* (jackmidi:open))
+
+;; creates and returns a new JACKMIDI:INPUT-STREAM (the keyword :DIRECTION
+;; is :INPUT by default).
+
+(jackmidi:input-stream-p *midiin*)
+;; T
+
+;; The name of the port for a JACKMIDI:INPUT-STREAM is "midi_in" by default
+
+(jackmidi:port-name *midiin*)
+;; "midi_in"
+
+;; but it is possible to use the keyword :PORT-NAME to set another name
+;; (an error is thrown if the name is used).
+
+;; JACKMIDI:PORT-NAME is SETFable and we can change the port name before
+;; to start jack (the new name is ignored if jack is running).
+
+;; The ports are automatically registered after RT-START and unregistered
+;; after RT-STOP.
+
+(rt-start)
+(defvar *midiout* (jackmidi:open :direction :output))
+
+(jackmidi:output-stream-p *midiout*)
+;; T
+(jackmidi:port-name *midiout*)
+;; "midi_out"
+
+;; We can add other MIDI ports:
+
+(defvar *midiin2* (jackmidi:open :port-name "midi_in 2"))
+(defvar *midiout2* (jackmidi:open :direction :output :port-name "midi_out 2"))
+
+;; JACKMIDI:ALL-STREAMS returns a new list with the opened Jack MIDI streams.
+;; It also works if Jack is stopped:
+
+(jackmidi:all-streams)
+;; (#<JACKMIDI:INPUT-STREAM "midi_in"> #<JACKMIDI:OUTPUT-STREAM "midi_out">
+;;  #<JACKMIDI:INPUT-STREAM "midi_in 2"> #<JACKMIDI:OUTPUT-STREAM "midi_out 2">)
+
+(jackmidi:all-streams :input)
+;; (#<JACKMIDI:INPUT-STREAM "midi_in"> #<JACKMIDI:INPUT-STREAM "midi_in 2">)
+
+(jackmidi:all-streams :output)
+;; (#<JACKMIDI:OUTPUT-STREAM "midi_out"> #<JACKMIDI:OUTPUT-STREAM "midi_out 2">)
+
+;; There are two ways to close a JACKMIDI:STREAM
+
+(jackmidi:close *midiin*)
+(jackmidi:close "midi_in 2")    ; by name
+
+;; JACKMIDI:GET-STREAM-BY-NAME is useful if we don't use a variable:
+
+(jackmidi:get-stream-by-name "midi_out")
+;; #<JACKMIDI:OUTPUT-STREAM "midi_out">
+
+;; JACKMIDI:WRITE-SHORT sends a MIDI message encoded into a 32bit word;
+;; for example, a note-on:
+
+(jackmidi:write-short *midiout* (jackmidi:message 144 60 96) 3)
+
+;; If you test the MIDI output with the jack_midi_dump command, after the
+;; follow line:
+
+(at (+ (now) 23) #'jackmidi:write-short *midiout* (jackmidi:message 128 60 0) 3)
+
+;; the output of jack_midi_dump is
+
+;;     23: 80 3c 00 note off (channel  0): pitch  60, velocity   0
+
+;; and you can notice that the frame number is precise.
+
+;; We can send octets by using the function JACKMIDI:WRITE
+
+(defvar *msg0* (make-array 6 :element-type '(unsigned-byte 8)
+                 :initial-contents '(#xf0 #x7e #x7f #x09 #x01 #xf7)))
+
+(jackmidi:write *midiout* *msg0*)
+
+(jackmidi:write *midiout* (jackmidi:data #xf0 #x7e #x7f #x09 #x01 #xf7))
+
+(defvar *msg1* (coerce '(144 60 96 128 60 0 176 7 99) 'jackmidi:data))
+
+(jackmidi:write *midiout* *msg1* :end 3)           ; note on
+(jackmidi:write *midiout* *msg1* :start 3 :end 6)  ; note off
+(jackmidi:write *midiout* *msg1* :start 6)         ; cc 7
+
+;; If a MIDI message is stored into a foreign buffer, we can use
+;; JACKMIDI:FOREIGN-WRITE to send that message.
+
+;; JACKMIDI:READ fills a buffer with the events received from a
+;; JACKMIDI:INPUT-STREAM. The version to fill a foreign buffer is
+;; called JACKMIDI:FOREIGN-READ.
+
+;; Jack MIDI input works fine with RECV-START and RECV-STOP:
+
+(defparameter *midiin* (jackmidi:open))
+
+(setf (logger-level) :info)
+
+(defvar *midi-dump-test*
+  (make-responder *midiin*
+    (lambda (st d1 d2)
+      (cond ((jackmidi:sysex-message-p st)
+             (msg info "~S"
+                  (jackmidi:input-stream-sysex-octets *midiin*)))
+            (t (msg info "~D ~D ~D" st d1 d2))))))
+
+(rt-start)
+(recv-start *midiin*)
+
+;; playing...
+
+;; JACKMIDI:INPUT-STREAM-SYSEX-OCTETS returns a buffer with the octets
+;; of the last received SysEx message. If the second optional argument
+;; is a lisp buffer of type JACKMIDI:DATA, that buffer is filled with
+;; the received SysEx message.
+
+;; JACKMIDI:INPUT-STREAM-SYSEX-POINTER returns two values, the pointer
+;; to the foreign buffer that contains the last received SysEx and the
+;; length of the message in bytes. If the second value is zero, there
+;; isn't a cached SysEx message and the foreign buffer is to ignore.
+
+;; JACKMIDI:INPUT-STREAM-SYSEX-TIMESTAMP and JACKMIDI:INPUT-STREAM-SYSEX-SIZE
+;; return the timestamp and the length of the last SysEx message, respectively.
+
+;; ...stop
+(recv-stop *midiin*)
+(remove-responder *midi-dump-test*)
+(rt-stop)
+(setf (logger-level) :warn)

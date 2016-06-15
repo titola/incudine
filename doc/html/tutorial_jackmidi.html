@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="incudine.css" />
+    <title>Jack MIDI Interface</title>
+  </head>
+  <body>
+    <div id="content">
+      <table class="navtutor">
+        <tr>
+          <th class="center">Jack MIDI Interface</th>
+        </tr>
+      </table>
+      <hr>
+
+      <p>
+        Enable Jack MIDI in your configuation file:
+      </p>
+
+      <pre class="src src-lisp"><span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Add to ~/.incudinerc</span>
+(setq *enable-jack-midi* t)</pre>
+
+      <p>
+        We can open/close <code>JACKMIDI:STREAM</code>'s before or after the Jack startup.
+        For example:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (<span style="color: #8deeee;">defvar</span> <span style="color: #eedd82;">*midiin*</span> (jackmidi:open))</pre>
+
+      <p>
+        creates and returns a new <code>JACKMIDI:INPUT-STREAM</code> (the
+        keyword <code>:DIRECTION</code> is <code>:INPUT</code> by default).
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (jackmidi:input-stream-p *midiin*)
+T</pre>
+
+      <p>
+        The name of the port for a <code>JACKMIDI:INPUT-STREAM</code>
+        is <code>"midi_in"</code> by default
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (jackmidi:port-name *midiin*)
+<span style="color: #ffa07a;">"midi_in"</span></pre>
+
+      <p>
+        but it is possible to use the keyword <code>:PORT-NAME</code>
+        to set another name (an error is thrown if the name is used).
+      </p>
+
+      <p>
+        <code>JACKMIDI:PORT-NAME</code> is SETFable and we can change the port name before
+        to start Jack (the new name is ignored if Jack is running).
+      </p>
+
+      <p>
+        The ports are automatically registered after <code>RT-START</code>
+        and unregistered after <code>RT-STOP</code>.
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (rt-start)
+<span class="prompt">SCRATCH&gt;</span> (<span style="color: #8deeee;">defvar</span> <span style="color: #eedd82;">*midiout*</span> (jackmidi:open <span style="color: #b0c4de;">:direction</span> <span style="color: #b0c4de;">:output</span>))
+<span class="prompt">SCRATCH&gt;</span> (jackmidi:output-stream-p *midiout*)
+T
+<span class="prompt">SCRATCH&gt;</span> (jackmidi:port-name *midiout*)
+<span style="color: #ffa07a;">"midi_out"</span></pre>
+
+      <p>
+        We can add other MIDI ports:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (<span style="color: #8deeee;">defvar</span> <span style="color: #eedd82;">*midiin2*</span> (jackmidi:open <span style="color: #b0c4de;">:port-name</span> <span style="color: #ffa07a;">"midi_in 2"</span>))
+
+<span class="prompt">SCRATCH&gt;</span> (<span style="color: #8deeee;">defvar</span> <span style="color: #eedd82;">*midiout2*</span>
+           (jackmidi:open <span style="color: #b0c4de;">:direction</span> <span style="color: #b0c4de;">:output</span> <span style="color: #b0c4de;">:port-name</span> <span style="color: #ffa07a;">"midi_out 2"</span>))</pre>
+
+      <p>
+        <code>JACKMIDI:ALL-STREAMS</code> returns a new list with the
+        opened Jack MIDI streams. It also works if Jack is stopped:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (jackmidi:all-streams)
+(#&lt;JACKMIDI:INPUT-STREAM <span style="color: #ffa07a;">"midi_in"</span>&gt; #&lt;JACKMIDI:OUTPUT-STREAM <span style="color: #ffa07a;">"midi_out"</span>&gt;
+ #&lt;JACKMIDI:INPUT-STREAM <span style="color: #ffa07a;">"midi_in 2"</span>&gt; #&lt;JACKMIDI:OUTPUT-STREAM <span style="color: #ffa07a;">"midi_out 2"</span>&gt;)
+
+<span class="prompt">SCRATCH&gt;</span> (jackmidi:all-streams <span style="color: #b0c4de;">:input</span>)
+(#&lt;JACKMIDI:INPUT-STREAM <span style="color: #ffa07a;">"midi_in"</span>&gt; #&lt;JACKMIDI:INPUT-STREAM <span style="color: #ffa07a;">"midi_in 2"</span>&gt;)
+
+<span class="prompt">SCRATCH&gt;</span> (jackmidi:all-streams <span style="color: #b0c4de;">:output</span>)
+(#&lt;JACKMIDI:OUTPUT-STREAM <span style="color: #ffa07a;">"midi_out"</span>&gt; #&lt;JACKMIDI:OUTPUT-STREAM <span style="color: #ffa07a;">"midi_out 2"</span>&gt;)</pre>
+
+      <p>
+        There are two ways to close a <code>JACKMIDI:STREAM</code>
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (jackmidi:close *midiin*)
+<span class="prompt">SCRATCH&gt;</span> (jackmidi:close <span style="color: #ffa07a;">"midi_in 2"</span>)    <span style="color: #ff7f24;">; by name</span></pre>
+
+      <p>
+        <code>JACKMIDI:GET-STREAM-BY-NAME</code> is useful if we don't
+        use a variable:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (jackmidi:get-stream-by-name <span style="color: #ffa07a;">"midi_out"</span>)
+#&lt;JACKMIDI:OUTPUT-STREAM <span style="color: #ffa07a;">"midi_out"</span>&gt;</pre>
+
+      <p>
+        <code>JACKMIDI:WRITE-SHORT</code> sends a MIDI message encoded
+        into a 32bit word; for example, a note-on:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (jackmidi:write-short *midiout* (jackmidi:message 144 60 96) 3)</pre>
+
+      <p>
+        If you test the MIDI output with the <code>jack_midi_dump</code>
+        command, after the follow line:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (at (+ (now) 23) #'jackmidi:write-short *midiout*
+             (jackmidi:message 128 60 0) 3)</pre>
+
+      <p>
+        the output of <code>jack_midi_dump</code> is
+      </p>
+
+      <pre class="example">    23: 80 3c 00 note off (channel  0): pitch  60, velocity   0</pre>
+
+      <p>
+        and you can notice that the frame number is precise.
+      </p>
+
+      <p>
+        We can send octets by using the function <code>JACKMIDI:WRITE</code>
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (<span style="color: #8deeee;">defvar</span> <span style="color: #eedd82;">*msg0*</span> (make-array 6 <span style="color: #b0c4de;">:element-type</span> '(unsigned-byte 8)
+                          <span style="color: #b0c4de;">:initial-contents</span> '(#xf0 #x7e #x7f #x09 #x01 #xf7)))
+
+<span class="prompt"><span class="prompt">SCRATCH&gt;</span></span> (jackmidi:write *midiout* *msg0*)
+
+<span class="prompt"><span class="prompt">SCRATCH&gt;</span></span> (jackmidi:write *midiout* (jackmidi:data #xf0 #x7e #x7f #x09 #x01 #xf7))
+
+<span class="prompt"><span class="prompt">SCRATCH&gt;</span></span> (<span style="color: #8deeee;">defvar</span> <span style="color: #eedd82;">*msg1*</span> (coerce '(144 60 96 128 60 0 176 7 99) 'jackmidi:data))
+
+<span class="prompt"><span class="prompt">SCRATCH&gt;</span></span> (jackmidi:write *midiout* *msg1* <span style="color: #b0c4de;">:end</span> 3)           <span style="color: #ff7f24;">; note on</span>
+<span class="prompt"><span class="prompt">SCRATCH&gt;</span></span> (jackmidi:write *midiout* *msg1* <span style="color: #b0c4de;">:start</span> 3 <span style="color: #b0c4de;">:end</span> 6)  <span style="color: #ff7f24;">; note off</span>
+<span class="prompt"><span class="prompt">SCRATCH&gt;</span></span> (jackmidi:write *midiout* *msg1* <span style="color: #b0c4de;">:start</span> 6)         <span style="color: #ff7f24;">; cc 7</span></pre>
+
+      <p>
+        If a MIDI message is stored into a foreign buffer, we can use
+        <code>JACKMIDI:FOREIGN-WRITE</code> to send that message.
+      </p><p>
+        <code>JACKMIDI:READ</code> fills a buffer with the events received
+        from a <code>JACKMIDI:INPUT-STREAM</code>. The version to fill a
+        foreign buffer is called <code>JACKMIDI:FOREIGN-READ</code>.
+      </p><p>
+        Jack MIDI input works fine with <code>RECV-START</code> and <code>RECV-STOP</code>:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (<span style="color: #8deeee;">defparameter</span> <span style="color: #eedd82;">*midiin*</span> (jackmidi:open))
+
+<span class="prompt">SCRATCH&gt;</span> (setf (logger-level) <span style="color: #b0c4de;">:info</span>)
+
+<span class="prompt">SCRATCH&gt;</span> (<span style="color: #8deeee;">defvar</span> <span style="color: #eedd82;">*midi-dump-test*</span>
+           (make-responder *midiin*
+             (<span style="color: #8deeee;">lambda</span> (st d1 d2)
+               (<span style="color: #8deeee;">cond</span> ((jackmidi:sysex-message-p st)
+                      (msg info <span style="color: #ffa07a;">"~S"</span>
+                           (jackmidi:input-stream-sysex-octets *midiin*)))
+                     (t (msg info <span style="color: #ffa07a;">"~D ~D ~D"</span> st d1 d2))))))
+
+<span class="prompt">SCRATCH&gt;</span> (rt-start)
+<span class="prompt">SCRATCH&gt;</span> (recv-start *midiin*)
+
+<span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">playing...</span></pre>
+
+      <p>
+        <code>JACKMIDI:INPUT-STREAM-SYSEX-OCTETS</code> returns a
+        buffer with the octets of the last received SysEx message.
+        If the second optional argument is a lisp buffer of type
+        JACKMIDI:DATA, that buffer is filled with the received SysEx
+        message.
+      </p><p>
+        <code>JACKMIDI:INPUT-STREAM-SYSEX-POINTER</code> returns two
+        values, the pointer to the foreign buffer that contains the last
+        received SysEx and the length of the message in bytes. If the
+        second value is zero, there isn't a cached SysEx message and
+        the foreign buffer is to ignore.
+      </p><p>
+        <code>JACKMIDI:INPUT-STREAM-SYSEX-TIMESTAMP</code> and
+        <code>JACKMIDI:INPUT-STREAM-SYSEX-SIZE</code> return the
+        timestamp and the length of the last SysEx message, respectively.
+      </p>
+
+      <pre class="src src-lisp"><span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">...stop</span>
+<span class="prompt">SCRATCH&gt;</span> (recv-stop *midiin*)
+<span class="prompt">SCRATCH&gt;</span> (remove-responder *midi-dump-test*)
+<span class="prompt">SCRATCH&gt;</span> (rt-stop)
+<span class="prompt">SCRATCH&gt;</span> (setf (logger-level) <span style="color: #b0c4de;">:warn</span>)</pre>
+
+      <hr>
+      <table class="navtutor">
+        <tr>
+          <td style="width: 20%" class="left">
+            <a href="tutorial_01.html">Getting Started with Incudine</a>
+          </td>
+          <td style="width: 60%" class="center"><a href="index.html">Home</a></td>
+          <td style="width: 20%" class="right"></td>
+        </tr>
+      </table>
+    </div>
+    <div id="postamble">
+      <a href="http://sourceforge.net/projects/incudine">Sourceforge project page</a>
+    </div>
+  </body>
+</html>
