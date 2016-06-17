@@ -63,6 +63,8 @@
     #+(or linux jack-audio) :jack
     #-linux :portaudio)
 
+  (defvar *enable-jack-midi* nil)
+
   (defvar incudine.util:*audio-driver* *audio-driver*)
 
   (defvar incudine.util:*sample-type*
