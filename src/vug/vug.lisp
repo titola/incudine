@@ -1563,6 +1563,14 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
               collect name)
         #'string-lessp :key #'symbol-name))
 
+(declaim (inline argument-names))
+(defun argument-names (args)
+  (mapcar (lambda (x) (if (consp x) (car x) x)) args))
+
+(declaim (inline argument-types))
+(defun argument-types (args)
+  (mapcar (lambda (x) (if (consp x) (cadr x) 'sample)) args))
+
 (defmacro with (bindings &body body)
   `(let* ,bindings ,@body))
 
@@ -1578,9 +1586,7 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
                         `(,x ,+sample-zero+)))
                   bindings)
      ,@(when bindings
-         `((declare (type sample
-                          ,@(mapcar (lambda (x) (if (consp x) (car x) x))
-                                    bindings)))))
+         `((declare (type sample ,@(argument-names bindings)))))
      ,@body))
 
 ;;; Used only inside the definition of a VUG-MACRO to specify the
@@ -1609,3 +1615,19 @@ evaluated only after the change of the 'followed' PARAMETERS.
 If there is a binding between a VUG-VARIABLE and WITH-FOLLOW, the
 variable is updated after the change of the 'followed' PARAMETERS."
   `(make-temporary-binding (%with-follow ,parameters ,@body)))
+
+(defun expand-vuglet-def (def)
+  (destructuring-bind (name lambda-list &rest body) def
+    (let ((args (argument-names lambda-list))
+          (types (argument-types lambda-list)))
+      (list name args
+            `(list 'with (list ,@(loop for a in args collect `(list ',a ,a)))
+                   ,@(when types
+                       `((quote (declare ,@(loop for a in args
+                                                 for type in types
+                                                 collect `(type ,type ,a))))))
+                   '(tick ,@body))))))
+
+(defmacro vuglet (definitions &body body)
+  "Evaluate the BODY-FORMS with local VUG definitions."
+  `(macrolet ,(mapcar #'expand-vuglet-def definitions) ,@body))

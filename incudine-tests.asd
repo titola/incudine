@@ -54,6 +54,7 @@
      (:file "vug/with-or-without-follow" :depends-on ("vug/base"))
      (:file "vug/reinit" :depends-on ("vug/base"))
      (:file "vug/delete-var" :depends-on ("vug/base"))
+     (:file "vug/vuglet" :depends-on ("vug/base"))
      (:file "vug/let-over-vug-1" :depends-on ("vug/base"))
      (:file "vug/let-over-vug-2" :depends-on ("vug/base"))
      (:file "vug/local-func-over-vug" :depends-on ("vug/base"))

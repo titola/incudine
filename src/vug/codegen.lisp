@@ -1113,10 +1113,6 @@
 (defvar *update-dsp-instances* t)
 (declaim (type boolean *update-dsp-instances*))
 
-(declaim (inline %argument-names))
-(defun %argument-names (args)
-  (mapcar (lambda (x) (if (consp x) (car x) x)) args))
-
 (defmacro get-add-action-and-target (&rest keywords)
   `(cond ,@(mapcar (lambda (x) `(,x (values ,(make-keyword x) ,x)))
                    keywords)
@@ -1202,7 +1198,7 @@
   (with-gensyms (get-function)
     (let* ((doc (when (stringp (car body)) (car body)))
            (body (if doc (cdr body) body))
-           (arg-names (%argument-names args))
+           (arg-names (argument-names args))
            (dsp-arg-bindings (dsp-coercing-arguments args)))
       `(macrolet ((,get-function ,arg-names
                     `(prog1
@@ -1256,7 +1252,7 @@
 
 (defmacro %%codegen-debug (name args codegen-fname rest &body body)
   (with-gensyms (fn stream)
-    (let ((lambda-list (%argument-names args)))
+    (let ((lambda-list (argument-names args)))
       `(let ((,fn (%codegen-debug ,name ,args ,lambda-list ,codegen-fname ,rest
                     ,@body)))
          (lambda (,@lambda-list &optional ,stream)

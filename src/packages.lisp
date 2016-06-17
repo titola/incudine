@@ -183,6 +183,7 @@
    #:tick #:external-variable #:init-only #:initialize
    #:with-follow #:without-follow
    #:maybe-expand #:update #:object-to-free
+   #:vuglet
    #:out #:frame-out #:cout #:node-out
    #:dsp-node
    #:lin->lin #:lin->exp
