@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="incudine.css" />
+    <title>Local Virtual UGens</title>
+  </head>
+  <body>
+    <div id="content">
+      <table class="navtutor">
+        <tr>
+          <th class="center">Local Virtual UGens</th>
+        </tr>
+      </table>
+      <hr>
+
+      <p>
+        <code>VUGLET</code> is a macro to define local VUG's within a
+        definition of a DSP, VUG or UGEN. For example:
+      </p>
+
+      <pre class="src src-lisp"><span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Necessary if you compile a cudo file, otherwise sharp-t is</span>
+<span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">in the current readtable after INIT.</span>
+(enable-sharp-t-syntax)
+
+(dsp! <span style="color: #87cefa;">vuglet-test</span> (freq amp)
+  (<span style="color: #8deeee;">vuglet</span> ((osc (freq amp)
+             (* amp (sin (* (phasor freq 0) +twopi+))))
+           (fm (fcar fmod amp (k fixnum))
+             (osc (+ fcar (osc fmod (* fcar (/ k)))) amp))
+           (lp (in)
+             (* 0.5 (+ in (delay1 in))))
+           (lp4 (in) #4t(lp in)))
+    (with-samples ((f1 freq)
+                   (f2 (- 15000 f1))
+                   (g (* amp .5)))
+      (out (+ (lp (fm f1 111 g 8)) (lp4 (fm f2 70 g 18)))))))</pre>
+
+      <p>
+        We can notice:
+      </p>
+
+      <ul class="org-ul">
+        <li>
+          The oscillator <code>OSC</code> shadows the global VUG with the same name.
+        </li>
+        <li>
+          A frequency modulated oscillator depends on the local VUG <code>OSC</code>
+        </li>
+        <li>
+          Two LP filters, first and fourth order, where <code>LP4</code> depends
+          on <code>LP</code>
+        </li>
+      </ul>
+
+      <p>
+        The local VUG's are expanded and merged when they are used;
+        the unused virtual ugens are ignored (all the VUG's are used
+        in the example).
+      </p>
+
+      <p>
+        If you check the generated code by using <code>DSP-DEBUG</code>, or
+        <code>‘C-c i d’</code> at the start of <code>‘(dsp! &#x2026;’</code>
+        if you're using Emacs+SLIME and incudine-mode (for example insert
+        <code>440 .3</code> after <code>‘dsp args:’</code> at Emacs' minibuffer),
+        the local VUG's are melted away. The result is cons-free and really
+        efficient (tested on x86_64 with SBCL 1.3.6).
+      </p>
+
+      <p>
+        Local functions with the same code of the example have a different
+        behavior because if we have x calls to a function, the internal
+        state of that function changes x times. On the contrary, if we use
+        a VUG x times, the VUG is expanded/merged x times. It's because
+        I have used <code>VUGLET</code> instead of <code>LABELS</code> in
+        the example.
+      </p>
+
+      <p>
+        For completeness, here are the same local virtual ugens within
+        the definition of a UGEN:
+      </p>
+
+      <pre class="src src-lisp">(define-ugen <span style="color: #87cefa;">suono</span> sample (freq amp)
+  (<span style="color: #8deeee;">vuglet</span> ((osc (freq amp)
+             (* amp (sin (* (phasor freq 0) +twopi+))))
+           (fm (fcar fmod amp (k fixnum))
+             (osc (+ fcar (osc fmod (* fcar (/ k)))) amp))
+           (lp (in)
+             (* 0.5 (+ in (delay1 in))))
+           (lp4 (in) #4t(lp in)))
+    (with-samples ((f1 freq)
+                   (f2 (- 15000 f1))
+                   (g (* amp .5)))
+      (+ (lp (fm f1 111 g 8)) (lp4 (fm f2 70 g 18))))))
+
+(dsp! <span style="color: #87cefa;">sonica</span> ((pch single-float) gain)
+  (with-samples ((freq (pch-&gt;cps pch))
+                 (amp (db-&gt;lin gain)))
+    (stereo (+ (suono freq amp)
+               (suono (* freq 8) (* amp .2))))))
+
+<span class="prompt">SCRATCH&gt;</span> (rt-start)
+
+<span class="prompt">SCRATCH&gt;</span> (sonica 7.09 -12 <span style="color: #b0c4de;">:id</span> #xBADA)
+
+<span class="prompt">SCRATCH&gt;</span> (set-control #xBADA <span style="color: #b0c4de;">:pch</span> 8.02)
+<span class="prompt">SCRATCH&gt;</span> (set-control #xBADA <span style="color: #b0c4de;">:pch</span> 8.11)
+<span class="prompt">SCRATCH&gt;</span> (set-control #xBADA <span style="color: #b0c4de;">:pch</span> 9.09)
+
+<span class="prompt">SCRATCH&gt;</span> (free #xBADA)</pre>
+
+      <p>
+        Note: the generated performance function of <code>SONICA</code> is a simple
+      </p>
+
+      <pre class="src src-lisp">(<span style="color: #8deeee;">LAMBDA</span> ()
+  (INCUDINE.VUG::WITH-INIT-FRAMES
+    (<span style="color: #8deeee;">PROGN</span>
+      (INCF (AUDIO-OUT 0)
+            (COERCE
+             (SETF #<span style="color: #b0c4de;">:IN584</span> (+ (INCUDINE.VUG::UGEN-RUN #<span style="color: #b0c4de;">:UGEN580</span> SAMPLE)
+                              (INCUDINE.VUG::UGEN-RUN #<span style="color: #b0c4de;">:UGEN582</span> SAMPLE)))
+             'SAMPLE))
+      (INCF (AUDIO-OUT 1) (COERCE #<span style="color: #b0c4de;">:IN584</span> 'SAMPLE))
+      (VALUES))
+    (VALUES)))</pre>
+
+      <p>
+        because we're using a UGEN called <code>SUONO</code>. Besides, <code>#:IN584</code> is
+        of type <code>SAMPLE</code>, therefore <code>COERCE</code> is removed during the compilation.
+      </p>
+
+      <hr>
+      <table class="navtutor">
+        <tr>
+          <td style="width: 20%" class="left">
+            <a href="tutorial_01.html">Getting Started with Incudine</a>
+          </td>
+          <td style="width: 60%" class="center"><a href="index.html">Home</a></td>
+          <td style="width: 20%" class="right"></td>
+        </tr>
+      </table>
+    </div>
+    <div id="postamble">
+      <a href="http://sourceforge.net/projects/incudine">Sourceforge project page</a>
+    </div>
+  </body>
+</html>

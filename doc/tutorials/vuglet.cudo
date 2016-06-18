@@ -1,0 +1,93 @@
+;;; Incudine
+;;; Local Virtual UGens
+
+;; VUGLET is a macro to define local VUG's within a definition of a
+;; DSP, VUG or UGEN. For example:
+
+;; Necessary if you compile a cudo file, otherwise sharp-t is
+;; in the current readtable after INIT.
+(enable-sharp-t-syntax)
+
+(dsp! vuglet-test (freq amp)
+  (vuglet ((osc (freq amp)
+             (* amp (sin (* (phasor freq 0) +twopi+))))
+           (fm (fcar fmod amp (k fixnum))
+             (osc (+ fcar (osc fmod (* fcar (/ k)))) amp))
+           (lp (in)
+             (* 0.5 (+ in (delay1 in))))
+           (lp4 (in) #4t(lp in)))
+    (with-samples ((f1 freq)
+                   (f2 (- 15000 f1))
+                   (g (* amp .5)))
+      (out (+ (lp (fm f1 111 g 8)) (lp4 (fm f2 70 g 18)))))))
+
+;; We can notice:
+
+;;   - The oscillator OSC shadows the global VUG with the same name.
+;;   - A frequency modulated oscillator depends on the local VUG OSC
+;;   - Two LP filters, first and fourth order, where LP4 depends on LP
+
+;; The local VUG's are expanded and merged when they are used; the
+;; unused virtual ugens are ignored (all the VUG's are used in the
+;; example).
+
+;; If you check the generated code by using DSP-DEBUG, or `C-c i d' at
+;; the start of `(dsp! ...' if you're using Emacs+SLIME and incudine-mode
+;; (for example insert 440 .3 after `dsp args:' at emacs' minibuffer),
+;; the local VUG's are melted away. The result is cons-free and really
+;; efficient (tested on x86_64 with SBCL 1.3.6).
+
+;; Local functions with the same code of the example have a different
+;; behavior because if we have x calls to a function, the internal state
+;; of that function changes x times. On the contrary, if we use a VUG x
+;; times, the VUG is expanded/merged x times. It's because I have used
+;; VUGLET instead of LABELS in the example.
+
+;; For completeness, here are the same local virtual ugens within the
+;; definition of a UGEN:
+
+(define-ugen suono sample (freq amp)
+  (vuglet ((osc (freq amp)
+             (* amp (sin (* (phasor freq 0) +twopi+))))
+           (fm (fcar fmod amp (k fixnum))
+             (osc (+ fcar (osc fmod (* fcar (/ k)))) amp))
+           (lp (in)
+             (* 0.5 (+ in (delay1 in))))
+           (lp4 (in) #4t(lp in)))
+    (with-samples ((f1 freq)
+                   (f2 (- 15000 f1))
+                   (g (* amp .5)))
+      (+ (lp (fm f1 111 g 8)) (lp4 (fm f2 70 g 18))))))
+
+(dsp! sonica ((pch single-float) gain)
+  (with-samples ((freq (pch->cps pch))
+                 (amp (db->lin gain)))
+    (stereo (+ (suono freq amp)
+               (suono (* freq 8) (* amp .2))))))
+
+(rt-start)
+
+(sonica 7.09 -12 :id #xBADA)
+
+(set-control #xBADA :pch 8.02)
+(set-control #xBADA :pch 8.11)
+(set-control #xBADA :pch 9.09)
+
+(free #xBADA)
+
+;; Note: the generated performance function of SONICA is a simple
+
+(LAMBDA ()
+  (INCUDINE.VUG::WITH-INIT-FRAMES
+    (PROGN
+      (INCF (AUDIO-OUT 0)
+            (COERCE
+             (SETF #:IN584 (+ (INCUDINE.VUG::UGEN-RUN #:UGEN580 SAMPLE)
+                              (INCUDINE.VUG::UGEN-RUN #:UGEN582 SAMPLE)))
+             'SAMPLE))
+      (INCF (AUDIO-OUT 1) (COERCE #:IN584 'SAMPLE))
+      (VALUES))
+    (VALUES)))
+
+;; because we're using a UGEN called SUONO. Besides, #:IN584 is of
+;; type SAMPLE, therefore COERCE is removed during the compilation.
