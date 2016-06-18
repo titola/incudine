@@ -1621,7 +1621,8 @@ variable is updated after the change of the 'followed' PARAMETERS."
     (let ((args (argument-names lambda-list))
           (types (argument-types lambda-list)))
       (list name args
-            `(list 'with (list ,@(loop for a in args collect `(list ',a ,a)))
+            `(list 'with-vug-inputs
+                   (list ,@(loop for a in args collect `(list ',a ,a)))
                    ,@(when types
                        `((quote (declare ,@(loop for a in args
                                                  for type in types
