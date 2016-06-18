@@ -647,7 +647,7 @@ The MIDI messages are aligned to four bytes."
 (declaim (inline event-sysex-size))
 (defun event-sysex-size (ptr)
   (let ((size (event-slot ptr message-length)))
-    (declare (type non-negative-fixnum))
+    (declare (type non-negative-fixnum size))
     (if (and (plusp size) (= (u8-ref ptr 12) #xf0))
         size
         0)))
