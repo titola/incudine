@@ -336,3 +336,14 @@
     (cond ((> x y) 1)
           ((< x y) -1)
           (t 0))))
+
+(declaim (inline %pow))
+(cffi:defcfun ("pow" %pow) :double
+  (x :double)
+  (y :double))
+
+(declaim (inline incudine.util:pow))
+(defun incudine.util:pow (base power)
+  "Return BASE raised to the POWER.
+The returned value is of type DOUBLE-FLOAT."
+  (%pow (coerce base 'double-float) (coerce power 'double-float)))

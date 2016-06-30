@@ -100,6 +100,7 @@
    #:apply-sample-coerce
    #:alloc-multi-channel-data #:free-multi-channel-data
    #:dochannels
+   #:pow
    #:lin->db #:db->lin
    #:linear-interp #:cos-interp #:cubic-interp
    #:t60->pole
