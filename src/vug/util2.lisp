@@ -311,19 +311,20 @@ START-OFFSET is the initial offset for the internal counter."
          ,in)))
 
   (defmacro wrap-cond ((in low high range &optional (offset in)) &rest clauses)
-    `(progn
-       ;; If the input is to set, here is a good place, because the
-       ;; first condition in the next COND contains an explicit setter
-       ;; form, so the automatic setter is disabled.
-       (maybe-expand ,in)
-       (cond ((zerop ,range)
-              (setf ,in ,(if (eql high range) +sample-zero+ low)))
-             ,@(mapcar (lambda (x)
-                         `(,(car x) ,@(cdr x)
-                            (when ,(car x)
-                              (decf ,in (* ,range (sample->fixnum
-                                                   (/ ,offset ,range)))))))
-                       clauses))))
+    (with-gensyms (r-range)
+      `(with-samples ((,r-range (/ (sample ,range))))
+         ;; If the input is to set, here is a good place, because the
+         ;; first condition in the next COND contains an explicit setter
+         ;; form, so the automatic setter is disabled.
+         (maybe-expand ,in)
+         (cond ((zerop ,range)
+                (setf ,in ,(if (eql high range) +sample-zero+ low)))
+               ,@(mapcar (lambda (x)
+                           `(,(car x) ,@(cdr x)
+                              (when ,(car x)
+                                (decf ,in (* ,range (sample->fixnum
+                                                     (* ,offset ,r-range)))))))
+                         clauses)))))
 
   (define-vug-macro nwrap (in low high &optional range offset)
     (%with-samples-rebinding ((lo low) (hi high))
@@ -337,13 +338,13 @@ START-OFFSET is the initial offset for the internal counter."
 
   (defmacro %mirror-consequent (in threshold1 threshold2 range two-range offset
                                 offset-p bias)
-    (with-gensyms (os)
-      `(progn
+    (with-gensyms (os r-two-range)
+      `(with-samples ((,r-two-range (/ (sample ,two-range))))
          (setf ,in (- (+ ,threshold1 ,threshold1) ,in))
          (if (< ,in ,threshold2)
              (let ((,os ,offset))
                (setf ,in (- ,os (* ,two-range
-                                   (sample->fixnum (/ ,os ,two-range)))))
+                                   (sample->fixnum (* ,os ,r-two-range)))))
                (when (>= ,in ,range)
                  (setf ,in (- ,two-range ,in)))
                ,(if offset-p `(+ ,in ,bias) in))
