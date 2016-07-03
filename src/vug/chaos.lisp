@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -22,7 +22,6 @@
                 ,freq ,interpolation
                 ,(and init-value-p (eq interpolation :cubic))))
 
-
 ;;; Chaotic ugens used in SuperCollider.
 
 ;;; Cusp map chaotic generator.
@@ -30,12 +29,12 @@
 ;;; x = a - b * sqrt(|x|)
 ;;;
 (define-vug-macro cusp (freq a b xinit &optional interpolation)
-  (with-gensyms (x)
-    (with-coerce-arguments (xinit)
-      `(with-vug-inputs ((,x ,xinit))
-         (declare (type sample ,x))
-         (chaos-interpolate (,x ,freq ,interpolation t)
-             (setf ,x (- ,a (* ,b (sqrt (abs ,x))))))))))
+  (with-gensyms (cusp)
+    `(vuglet ((,cusp (freq a b xinit)
+                (with-samples ((x xinit))
+                  (chaos-interpolate (x freq ,interpolation t)
+                    (setf x (- a (* b (sqrt (abs x)))))))))
+       (,cusp ,freq ,a ,b ,xinit))))
 
 ;;; Feedback sine with chaotic phase indexing.
 ;;;
@@ -44,13 +43,15 @@
 ;;;
 (define-vug-macro fb-sine (freq index-mult feedback phase-mult phase-add
                            xinit yinit &optional interpolation)
-  (with-gensyms (x y)
-    (with-coerce-arguments (xinit yinit)
-      `(with-vug-inputs ((,x ,xinit) (,y ,yinit))
-         (declare (type sample ,x ,y))
-         (chaos-interpolate (,x ,freq ,interpolation t)
-             (setf ,x (sin (+ (* ,index-mult ,y) (* ,feedback ,x)))
-                   ,y (wrap (+ (* ,phase-mult ,y) ,phase-add) 0 +twopi+)))))))
+  (with-gensyms (fb-sine)
+    `(vuglet ((,fb-sine (freq index-mult feedback phase-mult phase-add
+                         xinit yinit)
+                (with-samples ((x xinit) (y yinit))
+                  (chaos-interpolate (x freq ,interpolation t)
+                    (setf x (sin (+ (* index-mult y) (* feedback x)))
+                          y (wrap (+ (* phase-mult y) phase-add) 0 +twopi+))))))
+       (,fb-sine ,freq ,index-mult ,feedback ,phase-mult ,phase-add ,xinit
+                 ,yinit))))
 
 ;;; Gingerbreadman map chaotic generator; See Devaney, R. L.
 ;;; "The Gingerbreadman." Algorithm 3, 15-16, Jan. 1992.
@@ -60,29 +61,29 @@
 ;;; y  = x1
 ;;;
 (define-vug-macro gbman (freq xinit yinit &optional interpolation)
-  (with-gensyms (x0 x1 y)
-    (with-coerce-arguments (xinit yinit)
-      `(with-vug-inputs ((,x0 ,xinit) (,x1 0.0d0) (,y ,yinit))
-         (declare (type sample ,x0 ,x1 ,y))
-         (chaos-interpolate (,x0 ,freq ,interpolation t)
-             (setf ,x1 ,x0
-                   ,x0 (+ (- 1 ,y) (abs ,x0))
-                   ,y ,x1))))))
+  (with-gensyms (gbman)
+    `(vuglet ((,gbman (freq xinit yinit)
+                (with-samples ((x0 xinit) (x1 0) (y yinit))
+                  (chaos-interpolate (x0 freq ,interpolation t)
+                    (setf x1 x0
+                          x0 (+ (- 1 y) (abs x0))
+                          y x1)))))
+       (,gbman ,freq ,xinit ,yinit))))
 
 ;;; Hénon map chaotic generator.
 ;;;
 ;;; x = 1 - a*x0^2 + b*x1
 ;;;
 (define-vug-macro henon (freq a b x0 x1 &optional interpolation)
-  (with-gensyms (xn xnm1 xnm2)
-    (with-coerce-arguments (x0 x1)
-      `(with-vug-inputs ((,xn ,x1) (,xnm1 ,x0) (,xnm2 ,x1))
-         (declare (type sample ,xn ,xnm1 ,xnm2))
-         (chaos-interpolate (,xnm2 ,freq ,interpolation t)
-           (setf ,xn (+ (- 1.0 (* ,a ,xnm1 ,xnm1)) (* ,b ,xnm2)))
-           ;; Prevent instability
-           (nclip ,xn (sample -1.5) (sample 1.5))
-           (setf ,xnm2 ,xnm1 ,xnm1 ,xn))))))
+  (with-gensyms (henon)
+    `(vuglet ((,henon (freq a b x0 x1)
+                (with-samples ((xn x1) (xnm1 x0) (xnm2 x1))
+                  (chaos-interpolate (xnm2 freq ,interpolation t)
+                    (setf xn (+ (- 1.0 (* a xnm1 xnm1)) (* b xnm2)))
+                    ;; Prevent instability
+                    (nclip xn (sample -1.5) (sample 1.5))
+                    (setf xnm2 xnm1 xnm1 xn)))))
+       (,henon ,freq ,a ,b ,x0 ,x1))))
 
 ;;; Latoocarfian chaotic generator; see Clifford Pickover's book "Chaos
 ;;; In Wonderland", pag 26.
@@ -93,14 +94,14 @@
 ;;;
 (define-vug-macro latoocarfian (freq a b c d xinit yinit
                                 &optional interpolation)
-  (with-gensyms (x0 x1 y)
-    (with-coerce-arguments (xinit yinit)
-      `(with-vug-inputs ((,x0 ,xinit) (,x1 0.0d0) (,y ,yinit))
-         (declare (type sample ,x0 ,x1 ,y))
-         (chaos-interpolate (,x0 ,freq ,interpolation t)
-           (setf ,x1 ,x0
-                 ,x0 (+ (sin (* ,y  ,b)) (* ,c (sin (* ,x0 ,b))))
-                 ,y  (+ (sin (* ,x1 ,a)) (* ,d (sin (* ,y  ,a))))))))))
+  (with-gensyms (latoocarfian)
+    `(vuglet ((,latoocarfian (freq a b c d xinit yinit)
+                (with-samples ((x0 xinit) (x1 0) (y yinit))
+                  (chaos-interpolate (x0 freq ,interpolation t)
+                    (setf x1 x0
+                          x0 (+ (sin (* y  b)) (* c (sin (* x0 b))))
+                          y  (+ (sin (* x1 a)) (* d (sin (* y  a)))))))))
+       (,latoocarfian ,freq ,a ,b ,c ,d ,xinit ,yinit))))
 
 ;;; Linear congruential chaotic generator.
 ;;;
@@ -108,15 +109,16 @@
 ;;;
 (define-vug-macro lin-cong (freq mult increment modulus xinit
                             &optional interpolation)
-  (with-gensyms (x xscaled scale m)
-    (with-coerce-arguments (xinit)
-      `(with-samples ((,x (vug-input ,xinit))
-                      (,m (vug-input ,modulus))
-                      (,scale (/ 2.0 ,m))
-                      (,xscaled (- (* ,x ,scale) 1.0)))
-         (chaos-interpolate (,xscaled ,freq ,interpolation t)
-           (setf ,x (wrap (+ (* ,x ,mult) ,increment) +sample-zero+ ,m)
-                 ,xscaled (- (* ,x ,scale) 1.0)))))))
+  (with-gensyms (lin-cong)
+    `(vuglet ((,lin-cong (freq mult increment modulus xinit)
+                (with-samples ((x xinit)
+                               (m modulus)
+                               (scale (/ 2.0 m))
+                               (xscaled (1- (* x scale))))
+                  (chaos-interpolate (xscaled freq ,interpolation t)
+                    (setf x (wrap (+ (* x mult) increment) +sample-zero+ m)
+                          xscaled (1- (* x scale)))))))
+       (,lin-cong ,freq ,mult ,increment ,modulus ,xinit))))
 
 ;;; Lorenz chaotic generator.
 ;;;
@@ -125,30 +127,26 @@
 ;;; z' = x*y - b*z
 ;;;
 ;;; Return a frame with the three coordinates.
-(define-vug-macro lorenz (s r b integration-time xinit yinit zinit)
-  (with-gensyms (x y z x0 y0 z0)
-    (with-coerce-arguments (xinit yinit zinit)
-      `(with-vug-inputs ((,x ,xinit) (,y ,yinit) (,z ,zinit))
-         (declare (type sample ,x ,y ,z))
-         (with-samples (,x0 ,y0 ,z0)
-           (setf ,x0 (* ,s (- ,y ,x))
-                 ,y0 (- (* ,r ,x) (* ,x ,z) ,y)
-                 ,z0 (- (* ,x ,y) (* ,b ,z)))
-           (samples (incf ,x (* ,integration-time ,x0))
-                    (incf ,y (* ,integration-time ,y0))
-                    (incf ,z (* ,integration-time ,z0))))))))
+(define-vug lorenz (s r b integration-time xinit yinit zinit)
+  (with-samples ((x xinit) (y yinit) (z zinit) x0 y0 z0)
+    (setf x0 (* s (- y x))
+          y0 (- (* r x) (* x z) y)
+          z0 (- (* x y) (* b z)))
+    (samples (incf x (* integration-time x0))
+             (incf y (* integration-time y0))
+             (incf z (* integration-time z0)))))
 
 ;;; General quadratic map chaotic generator.
 ;;;
 ;;; x = a*x^2 + b*x + c
 ;;;
 (define-vug-macro quad-map (freq a b c xinit &optional interpolation)
-  (with-gensyms (x)
-    (with-coerce-arguments (xinit)
-      `(with-vug-inputs ((,x ,xinit))
-         (declare (type sample ,x))
-         (chaos-interpolate (,x ,freq ,interpolation t)
-           (setf ,x (+ (* ,a ,x ,x) (* ,b ,x) ,c)))))))
+  (with-gensyms (quad-map)
+    `(vuglet ((,quad-map (freq a b c xinit)
+                (with-samples ((x xinit))
+                  (chaos-interpolate (x freq ,interpolation t)
+                    (setf x (+ (* a x x) (* b x) c))))))
+       (,quad-map ,freq ,a ,b ,c ,xinit))))
 
 ;;; Standard map chaotic generator.
 ;;;
@@ -157,12 +155,12 @@
 ;;;
 (define-vug-macro standard-map (freq perturbation xinit yinit
                                 &optional interpolation)
-  (with-gensyms (x xn yn)
-    (with-coerce-arguments (xinit yinit)
-      `(with-vug-inputs ((,xn ,xinit) (,yn ,yinit) (,x 0.0d0))
-         (declare (type sample ,xn ,yn ,x))
-         (chaos-interpolate (,x ,freq ,interpolation t)
-           (setf ,yn (wrap (+ ,yn (* ,perturbation (sin ,xn)))
-                           +sample-zero+ +twopi+)
-                 ,xn (wrap (+ ,xn ,yn) +sample-zero+ +twopi+)
-                 ,x  (* (- ,xn pi) #.(/ 1.0 pi))))))))
+  (with-gensyms (standard-map)
+    `(vuglet ((,standard-map (freq perturbation xinit yinit)
+                (with-samples ((xn xinit) (yn yinit) (x 0))
+                  (chaos-interpolate (x freq ,interpolation t)
+                    (setf yn (wrap (+ yn (* perturbation (sin xn)))
+                                   +sample-zero+ +twopi+)
+                          xn (wrap (+ xn yn) +sample-zero+ +twopi+)
+                          x  (* (- xn pi) #.(/ 1.0 pi)))))))
+       (,standard-map ,freq ,perturbation ,xinit ,yinit))))

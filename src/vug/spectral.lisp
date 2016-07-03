@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -45,31 +45,33 @@
 ;;;   Audio Effects (DAFx-02), Hamburg, Germany, 2002, pp. 33-38.
 ;;;
 (define-vug-macro flux (abuf &optional half-wave-rectifier-p l1-norm-p)
-  (with-gensyms (abuf1 abuf-prev i nbins diff result)
-    `(with-samples (,diff ,result)
-       (with ((,abuf1 (vug-input ,abuf))
-              (,abuf-prev (make-local-abuffer (abuffer-link ,abuf1))))
-         (setf ,result +sample-zero+)
-         (dofft-polar (,i ,nbins (,abuf-prev (compute-abuffer ,abuf1)) ()
-                       :result ,(if l1-norm-p
-                                    result
-                                    `(sqrt (the non-negative-sample ,result))))
-           ;; We don't want the symbols MAG0 and MAG1 in INCUDINE.VUG package
-           ;; because they are interned during the expansion of DOFFT-POLAR.
-           ;; The follow bindings are needed only inside a VUG-MACRO that
-           ;; uses DOFFT.
-           ,(symbol-macrolet ((prev (intern "MAG0"))
-                              (curr (intern "MAG1")))
-              `(progn
-                 (setf ,diff (- ,curr ,prev))
-                 ,@(if (and half-wave-rectifier-p (not l1-norm-p))
-                       `((setf ,diff (* (+ ,diff (abs ,diff)) (sample 0.5)))))
-                 (setf ,prev ,curr)
-                 (incf ,result
-                       ,(cond ((and half-wave-rectifier-p l1-norm-p)
-                               `(* (+ ,diff (abs ,diff)) (sample 0.5)))
-                              (l1-norm-p diff)
-                              (t `(* ,diff ,diff)))))))))))
+  (with-gensyms (flux)
+    `(vuglet ((,flux ((abuf1 abuffer))
+                (with-samples (diff result)
+                  (with ((abuf-prev (make-local-abuffer (abuffer-link abuf1))))
+                    (setf result +sample-zero+)
+                    (dofft-polar (i nbins (abuf-prev (compute-abuffer abuf1)) ()
+                                  :result ,(if l1-norm-p
+                                               'result
+                                               `(sqrt (the non-negative-sample
+                                                           result))))
+                      ;; We don't want the symbols MAG0 and MAG1 in INCUDINE.VUG
+                      ;; package because they are interned during the expansion
+                      ;; of DOFFT-POLAR. The follow bindings are needed only
+                      ;; within a VUG-MACRO that uses DOFFT.
+                      ,(symbol-macrolet ((prev (intern "MAG0"))
+                                         (curr (intern "MAG1")))
+                         `(progn
+                            (setf diff (- ,curr ,prev))
+                            ,@(when (and half-wave-rectifier-p (not l1-norm-p))
+                                `((setf diff (* (+ diff (abs diff)) 0.5))))
+                            (setf ,prev ,curr)
+                            (incf result
+                                  ,(cond ((and half-wave-rectifier-p l1-norm-p)
+                                          `(* (+ diff (abs diff)) 0.5))
+                                         (l1-norm-p 'diff)
+                                         (t `(* diff diff)))))))))))
+       (,flux ,abuf))))
 
 (define-vug spectral-rms ((abuf abuffer))
   "Compute the spectral RMS."

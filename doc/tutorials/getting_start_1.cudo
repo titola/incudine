@@ -98,16 +98,17 @@
 ;; is another useful example:
 
 (define-vug-macro buffer-frame (buffer phase &key wrap-p interpolation)
-  (with-gensyms (%buffer channels frame)
-    `(with ((,%buffer (vug-input ,buffer))
-            (,channels (buffer-channels ,%buffer))
-            (,frame (make-frame ,channels)))
-       (dochannels (current-channel ,channels)
-         (setf (frame-ref ,frame current-channel)
-               (buffer-read ,%buffer ,phase
-                            :wrap-p ,wrap-p
-                            :interpolation ,interpolation)))
-       ,frame)))
+  (with-gensyms (bframe)
+    `(vuglet ((,bframe ((buf buffer) phase (wrap-p boolean))
+                (with ((channels (buffer-channels buf))
+                       (frame (make-frame channels)))
+                  (dochannels (current-channel channels)
+                    (setf (frame-ref frame current-channel)
+                          (buffer-read buf phase
+                                       :wrap-p wrap-p
+                                       :interpolation ,interpolation)))
+                  frame)))
+       (,bframe ,buffer ,phase ,wrap-p))))
 
 ;; COUT is similar to OUT but it is useful in combination with
 ;; FOREACH-CHANNEL. With only one argument, there aren't differences

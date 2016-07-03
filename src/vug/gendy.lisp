@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -21,37 +21,6 @@
 ;;; Iannis Xenakis. See Formalized Music (1992, Stuyvesant, NY:
 ;;; Pendragon Press), pp. 246 - 254, 289 - 322.
 ;;; Based on Nick Collins's Gendy1 ugen (SuperCollider)
-
-;; (define-vug gendy-distribution ((which fixnum) a)
-;;   (with-samples ((a (clip a 0.0001d0 1.0d0))
-;;                  (c 0.0d0)
-;;                  (r 0.0d0))
-;;     (cond ((= which 1) ; cauchy
-;;            (setf c (atan (* 10.0d0 a)))
-;;            (* 0.1d0 (/ 1.0d0 a) (tan (* c (- (* 2.0d0 (random 1.0d0)) 1.0d0)))))
-;;           ((= which 2) ; logist
-;;            (setf c (+ .5d0 (* .499d0 a)))
-;;            (setf c (the sample (log (/ (- 1.0d0 c) c))))
-;;            (setf r (+ (* (- (random 0.998d0) 0.499d0) a) 0.5d0))
-;;            (/ (the sample (log (/ (- 1.0d0 r) r))) c))
-;;           ((= which 3) ; hyperbcos
-;;            (setf c (tan (* 1.5692255d0 a)))
-;;            (setf r (/ (tan (* 1.5692255d0 a (random 1.0d0))) c))
-;;            (setf r (* (the sample (log (+ (* r 0.999d0) .001d0)))
-;;                       -0.1447648d0))
-;;            (- (* 2.0d0 r) 1.0d0))
-;;           ((= which 4) ; arcsine
-;;            (setf c (sin (* 1.5707963d0 a)))
-;;            (/ (sin (* pi (- (random 1.0d0) 0.5d0) a)) c))
-;;           ((= which 5) ; expon
-;;            (setf c (the sample (log (- 1.0d0 (* 0.999d0 a)))))
-;;            (setf r (/ (the sample (log (- 1.0d0 (* (random 0.999d0) a)))) c))
-;;            (- (* 2.0d0 r) 1.0d0))
-;;           ((= which 6) ; external distribution
-;;            (- (* a 2.0d0) 1.0d0))
-;;           ;; linear
-;;           (t (- (random 2.0d0) 1d0)))))
-
 
 ;;; The distributions are not the originals but rewritten by
 ;;; Nick Collins for SuperCollider to fix some numerical problems
@@ -116,33 +85,36 @@
                          &optional (max-points 12) (used-points max-points)
                          (interpolation :linear))
   (if (constantp max-points)
-      (with-gensyms (amps durs distrib index i adist ddist points freq-delta)
-        (with-coerce-arguments (amp-distr-param dur-distr-param freq-min
-                                freq-max amp-scale dur-scale)
-          `(with ((,amps (make-frame ,max-points))
-                  (,durs (make-frame ,max-points))
-                  (,adist (vug-input ,amp-distr))
-                  (,ddist (vug-input ,dur-distr))
-                  (,distrib 0.0d0)
-                  (,freq-delta (vug-input (- ,freq-max ,freq-min)))
-                  (,index 0)
-                  (,points (vug-input (clip (the fixnum ,used-points) 1
-                                            ,max-points))))
-             (declare (type pointer ,amps ,durs)
-                      (type sample ,distrib ,freq-delta)
-                      (type non-negative-fixnum ,index ,adist ,ddist ,points))
-             (initialize
-               (dotimes (,i ,max-points)
-                 (setf (smp-ref ,amps ,i) (- (random (sample 2)) 1.0)
-                       (smp-ref ,durs ,i) (random (sample 1)))))
-             (interpolate
-               (tick
-                (prog1 (smp-ref ,amps ,index)
-                  (when (>= (incf ,index) ,points) (setf ,index 0))
-                  (gendy-update-value ,amps ,index ,distrib ,adist
-                                      ,amp-distr-param ,amp-scale -1 1)
-                  (gendy-update-value ,durs ,index ,distrib ,ddist
-                                      ,dur-distr-param ,dur-scale 0 1)))
-               (* (+ ,freq-min (* ,freq-delta (smp-ref ,durs ,index))) ,points)
-               ,interpolation))))
+      (with-gensyms (gendy)
+        `(vuglet ((,gendy ((adist non-negative-fixnum)
+                           (ddist non-negative-fixnum)
+                           amp-distr-param dur-distr-param freq-min freq-max
+                           amp-scale dur-scale (used-points fixnum))
+                    (with ((max-points ,max-points)
+                           (amps (make-frame max-points))
+                           (durs (make-frame max-points))
+                           (distrib +sample-zero+)
+                           (freq-delta (- freq-max freq-min))
+                           (index 0)
+                           (points (clip used-points 1 max-points)))
+                      (declare (type frame amps durs)
+                               (type sample distrib freq-delta)
+                               (type non-negative-fixnum index points))
+                      (initialize
+                        (dotimes (i max-points)
+                          (setf (smp-ref amps i) (- (random (sample 2)) 1.0)
+                                (smp-ref durs i) (random (sample 1)))))
+                      (interpolate
+                        (tick
+                         (prog1 (smp-ref amps index)
+                           (when (>= (incf index) points) (setf index 0))
+                           (gendy-update-value amps index distrib adist
+                                               amp-distr-param amp-scale -1 1)
+                           (gendy-update-value durs index distrib ddist
+                                               dur-distr-param dur-scale 0 1)))
+                        (* (+ freq-min (* freq-delta (smp-ref durs index)))
+                           points)
+                        ,interpolation))))
+           (,gendy ,amp-distr ,dur-distr ,amp-distr-param ,dur-distr-param
+                   ,freq-min ,freq-max ,amp-scale ,dur-scale ,used-points)))
       (error "MAX-POINTS of GENDY is not a constant")))

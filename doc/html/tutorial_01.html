@@ -144,16 +144,17 @@
       </p>
 
       <pre class="src src-lisp">(define-vug-macro <span style="color: #87cefa;">buffer-frame</span> (buffer phase <span style="color: #98fb98;">&amp;key</span> wrap-p interpolation)
-  (with-gensyms (%buffer channels frame)
-    `(with ((,%buffer (vug-input ,buffer))
-            (,channels (buffer-channels ,%buffer))
-            (,frame (make-frame ,channels)))
-       (dochannels (current-channel ,channels)
-         (setf (frame-ref ,frame current-channel)
-               (buffer-read ,%buffer ,phase
-                            <span style="color: #b0c4de;">:wrap-p</span> ,wrap-p
-                            <span style="color: #b0c4de;">:interpolation</span> ,interpolation)))
-       ,frame)))</pre>
+  (with-gensyms (bframe)
+    `(<span style="color: #8deeee;">vuglet</span> ((,bframe ((buf buffer) phase (wrap-p boolean))
+                (with ((channels (buffer-channels buf))
+                       (frame (make-frame channels)))
+                  (dochannels (current-channel channels)
+                    (setf (frame-ref frame current-channel)
+                          (buffer-read buf phase
+                                       <span style="color: #b0c4de;">:wrap-p</span> wrap-p
+                                       <span style="color: #b0c4de;">:interpolation</span> ,interpolation)))
+                  frame)))
+       (,bframe ,buffer ,phase ,wrap-p))))</pre>
 
       <p>
         <code>COUT</code> is similar to <code>OUT</code> but it is useful in

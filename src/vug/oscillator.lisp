@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2015 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -135,15 +135,6 @@
                      (incf ,phs (- ,phase ,phase-old))
                      (setf ,phase-old ,phase)))))
            (incf ,phs ,freq-inc)))))
-
-  (define-vug single-impulse () (- 1 (delay1 1)))
-
-  ;;; Another single impulse
-  ;; (define-vug single-impulse ()
-  ;;   (with-samples ((x 1))
-  ;;     (initialize (reduce-warnings
-  ;;                   (at (1+ (now)) (lambda () (setf x +sample-zero+)))))
-  ;;     x))
 
   (defmacro %buzz-numerator (buffer data phs two-nh-plus-one minus-lobits mask
                              interpolation)
@@ -589,14 +580,11 @@
 ;;; Wavetable lookup oscillator
 (define-vug-macro osc (buffer &optional (freq 440.0) (amp 1.0d0)
                        (phase +sample-zero+) interpolation)
-  (with-gensyms (%buffer %freq %amp)
-    (with-coerce-arguments (freq amp phase)
-      `(with-vug-inputs ((,%buffer ,buffer)
-                         (,%freq ,freq)
-                         (,%amp ,amp))
-         (declare (type buffer ,%buffer) (type sample ,%freq ,%amp))
-         (%osc ,%buffer ,%freq ,%amp ,phase ,(null (constantp phase))
-               ,interpolation)))))
+  (with-gensyms (osc)
+    `(vuglet ((,osc ((buf buffer) freq amp phase)
+                (%osc buf freq amp phase ,(null (constantp phase))
+                      ,interpolation)))
+       (,osc ,buffer ,freq ,amp ,phase))))
 
 ;;; Sine wave oscillator
 (define-vug sine (freq amp phase)
@@ -608,14 +596,13 @@
 
 (define-vug-macro impulse (&optional (freq 0 freq-p) (amp 1) (phase 0))
   (if freq-p
-      ;; Impulse oscillator
-      (with-gensyms (%freq %amp %phase)
-        (with-coerce-arguments (freq amp phase)
-          `(with-vug-inputs ((,%freq ,freq) (,%amp ,amp) (,%phase ,phase))
-             (declare (type sample ,%freq ,%amp ,%phase))
-             (impulse-oscillator ,%freq ,%amp ,%phase
-                                 ,(null (constantp phase))))))
-      '(single-impulse)))
+      (with-gensyms (periodic-impulse)
+        `(vuglet ((,periodic-impulse (freq amp phase)
+                    (impulse-oscillator freq amp phase
+                                        ,(null (constantp phase)))))
+           (,periodic-impulse ,freq ,amp ,phase)))
+      ;; Single impulse.
+      `(- 1 (delay1 1))))
 
 ;;; Sinusoidal oscillator based on 2D vector rotation,
 ;;;  = undamped "coupled-form" resonator
@@ -650,20 +637,16 @@
                         (table-lookup-p t) buffer (harm-change-lag 0.001d0)
                         (interpolation :linear))
   (if table-lookup-p
-      ;; Version with table lookup
-      (with-gensyms (%buffer %freq %amp %num-harm %harm-change-lag)
-        (with-coerce-arguments (freq amp phase harm-change-lag)
-          `(with-vug-inputs ((,%buffer ,(or buffer '*sine-table*))
-                             (,%freq ,freq)
-                             (,%amp ,amp)
-                             (,%num-harm ,num-harm)
-                             (,%harm-change-lag ,harm-change-lag))
-             (declare (type buffer ,%buffer) (type fixnum ,%num-harm)
-                      (type sample ,%freq ,%amp ,%harm-change-lag))
-             (%buzz ,%buffer ,%freq ,%amp ,%num-harm ,phase
-                    ,(null (constantp phase)) ,%harm-change-lag
-                    ,interpolation))))
-      ;; This version uses directly the SIN function
+      ;; Version with table lookup.
+      (with-gensyms (buzz-table-lookup)
+        `(vuglet ((,buzz-table-lookup (freq amp (num-harm fixnum) phase
+                                       (buf buffer) harm-change-lag)
+                    (%buzz buf freq amp num-harm phase
+                           ,(null (constantp phase)) harm-change-lag
+                           ,interpolation)))
+           (,buzz-table-lookup ,freq ,amp ,num-harm ,phase
+                               ,(or buffer '*sine-table*) ,harm-change-lag)))
+      ;; This version uses directly the SIN function.
       `(buzz-hq ,freq ,amp ,num-harm ,phase ,harm-change-lag)))
 
 (define-vug-macro gbuzz (freq amp num-harm lowest-harm mul
@@ -672,23 +655,16 @@
                          (interpolation :linear))
   (if table-lookup-p
       ;; Version with table lookup
-      (with-gensyms (%buffer %freq %amp %num-harm %harm-change-lag %lowest-harm
-                     %mul)
-        (with-coerce-arguments (freq amp phase mul harm-change-lag)
-          `(with-vug-inputs ((,%buffer ,(or buffer '*cosine-table*))
-                             (,%freq ,freq)
-                             (,%amp ,amp)
-                             (,%num-harm ,num-harm)
-                             (,%lowest-harm ,lowest-harm)
-                             (,%mul ,mul)
-                             (,%harm-change-lag ,harm-change-lag))
-             (declare (type buffer ,%buffer)
-                      (type (integer 0 1000000) ,%num-harm)
-                      (type fixnum ,%lowest-harm)
-                      (type sample ,%freq ,%amp ,%harm-change-lag ,%mul))
-             (%gbuzz ,%buffer ,%freq ,%amp ,%num-harm ,%lowest-harm ,%mul ,phase
-                     ,(null (constantp phase)) ,%harm-change-lag
-                     ,interpolation))))
+      (with-gensyms (gbuzz-table-lookup)
+        `(vuglet ((,gbuzz-table-lookup (freq amp (num-harm fixnum)
+                                        (lowest-harm fixnum) mul phase
+                                        (buf buffer) harm-change-lag)
+                    (%gbuzz buf freq amp num-harm lowest-harm mul phase
+                            ,(null (constantp phase)) harm-change-lag
+                            ,interpolation)))
+           (,gbuzz-table-lookup ,freq ,amp ,num-harm ,lowest-harm ,mul
+                                ,phase ,(or buffer '*cosine-table*)
+                                ,harm-change-lag)))
       `(gbuzz-hq ,freq ,amp ,num-harm ,lowest-harm ,mul ,phase
                  ,harm-change-lag)))
 

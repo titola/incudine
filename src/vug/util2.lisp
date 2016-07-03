@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2015 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -198,27 +198,21 @@
 
 ;;; Count from START to END (excluded)
 (define-vug-macro counter (start end &key (step 1) loop-p done-action)
-  (with-gensyms (%start %end %step index done-p %loop-p)
-    `(with-vug-inputs ((,%start ,start)
-                       (,%end ,end)
-                       (,%step ,step)
-                       (,%loop-p ,loop-p))
-       (declare (type fixnum ,%start ,%end ,%step) (type boolean ,%loop-p))
-       (with ((,done-p nil)
-              (,index (progn (if ,done-p (setf ,done-p nil))
-                             ,%start)))
-         (declare (type fixnum ,index) (type boolean ,done-p))
-         (prog1 ,index
-           (unless ,done-p
-             (setf ,index
-                   (the fixnum
-                     (if (< ,index ,%end)
-                         (+ ,index ,%step)
-                         (cond (,%loop-p ,%start)
-                               (t (done-action ,(or done-action
-                                                    '(function identity)))
-                                  (setf ,done-p t)
-                                  ,index)))))))))))
+  (with-gensyms (counter)
+    `(vuglet ((,counter ((start fixnum) (end fixnum) (step fixnum)
+                         (loop-p boolean) (done-action function))
+                (with ((done-p nil)
+                       (index (progn (if done-p (setf done-p nil)) start)))
+                  (declare (type fixnum index) (type boolean done-p))
+                  (prog1 index
+                    (unless done-p
+                      (setf index
+                            (cond ((< index end) (+ index step))
+                                  (loop-p start)
+                                  (t (done-action done-action)
+                                     (setf done-p t)
+                                     index))))))))
+       (,counter ,start ,end ,step ,loop-p ,(or done-action #'identity)))))
 
 (define-vug downsamp ((control-period fixnum) in)
   (with ((count control-period)
@@ -266,10 +260,10 @@ If N is positive, BODY is updated every N samples.
 If N is zero, BODY is not updated.
 If N is negative, BODY is updated and N becomes zero.
 START-OFFSET is the initial offset for the internal counter."
-  (with-gensyms (gate start)
-    `(with-vug-inputs ((,gate ,n)
-                       (,start ,start-offset))
-       (%with-control-period ,gate ,start (progn ,@body)))))
+  (with-gensyms (kperiod)
+    `(vuglet ((,kperiod ((gate fixnum) (start fixnum))
+                (%with-control-period gate start (progn ,@body))))
+       (,kperiod ,n ,start-offset))))
 
 (define-vug samphold (in gate initial-value initial-threshold)
   (with-samples ((threshold initial-threshold)
@@ -393,35 +387,39 @@ START-OFFSET is the initial offset for the internal counter."
 ;;; INTERPOLATE is particularly useful with the random or chaotic VUGs.
 (define-vug-macro interpolate (generator freq &optional (interpolation :linear)
                                initial-value-p)
-  (with-gensyms (input phase inc x0 x1 x2 x3 delta)
-    (destructuring-bind (bindings init update result)
-        (case interpolation
-          ((:lin :linear)
-           `(((,x1 0.0d0) (,delta 0.0d0))
-             (setf ,x1 ,input)
-             (setf ,x0 ,x1 ,x1 (update ,input) ,delta (- ,x0 ,x1))
-             (+ ,x1 (* ,phase ,delta))))
-          (:cos `(((,x1 0.0d0))
-                  (setf ,x1 ,input)
-                  (setf ,x0 ,x1 ,x1 (update ,input))
-                  (cos-interp ,phase ,x1 ,x0)))
-          (:cubic `(((,x1 0.0d0) (,x2 0.0d0) (,x3 0.0d0))
-                    (setf ,x1 ,input
-                          ;; Three adjacent points initialized with the same
-                          ;; value when it is required an initial value.
-                          ,x2 ,(if initial-value-p input `(update ,input))
-                          ,x3 ,(if initial-value-p input `(update ,input)))
-                    (setf ,x0 ,x1 ,x1 ,x2 ,x2 ,x3 ,x3 (update ,input))
-                    (cubic-interp ,phase ,x3 ,x2 ,x1 ,x0)))
-          (otherwise `(nil nil (setf ,x0 (update ,input)) ,x0)))
-      `(with-samples ((,input (vug-input ,generator))
-                      (,phase 0.0d0)
-                      (,inc (vug-input (* ,freq *sample-duration*)))
-                      (,x0 0.0d0)
-                      ,@bindings)
-         ,@(when init `((initialize ,init)))
-         (decf ,phase ,inc)
-         (when (minusp ,phase)
-           (setf ,phase (wrap ,phase 0 1))
-           ,update)
-         ,result))))
+  (destructuring-bind (bindings init update result)
+      (case interpolation
+        ((:lin :linear)
+         `(((x1 0) (delta 0))
+           (setf x1 input)
+           (setf x0 x1 x1 (update input) delta (- x0 x1))
+           (+ x1 (* phase delta))))
+        (:cos
+         `(((x1 0))
+           (setf x1 input)
+           (setf x0 x1 x1 (update input))
+           (cos-interp phase x1 x0)))
+        (:cubic
+         `(((x1 0) (x2 0) (x3 0))
+           (setf x1 input
+                 ;; Three adjacent points initialized with the same
+                 ;; value when it is required an initial value.
+                 x2 ,(if initial-value-p 'input `(update input))
+                 x3 ,(if initial-value-p 'input `(update input)))
+           (setf x0 x1 x1 x2 x2 x3 x3 (update input))
+           (cubic-interp phase x3 x2 x1 x0)))
+        (otherwise
+         `(nil nil (setf x0 (update input)) x0)))
+    (with-gensyms (interp)
+      `(vuglet ((,interp (input freq)
+                  (with-samples ((phase 0)
+                                 (inc (* freq *sample-duration*))
+                                 (x0 0)
+                                 ,@bindings)
+                    ,@(when init `((initialize ,init)))
+                    (decf phase inc)
+                    (when (minusp phase)
+                      (setf phase (wrap phase 0 1))
+                      ,update)
+                    ,result)))
+         (,interp ,generator ,freq)))))

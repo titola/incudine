@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -180,45 +180,45 @@
       (otherwise `(%no-interp ,data ,phs ,channels ,wrap-phase-fn)))))
 
 (define-vug-macro buffer-read (buffer phase &key wrap-p interpolation)
-  (with-gensyms (%buffer %phs %wrap-p frames channels data wrap-phase-fn)
-    `(with-vug-inputs ((,%buffer ,buffer)
-                       (,%phs (sample ,phase))
-                       (,%wrap-p ,wrap-p))
-       (declare (type buffer ,%buffer) (type sample ,%phs)
-                (type boolean ,%wrap-p))
-       (with ((,frames (buffer-frames ,%buffer))
-              (,channels (buffer-channels ,%buffer))
-              (,data (buffer-data ,%buffer))
-              (,wrap-phase-fn (wrap-phase-func ,%phs ,frames ,%wrap-p)))
-         (declare (type non-negative-fixnum ,frames ,channels)
-                  (type function ,wrap-phase-fn))
-         (select-buffer-interp ,interpolation ,data ,%phs ,frames ,channels
-                               (buffer-size ,%buffer) ,%wrap-p
-                               ,wrap-phase-fn)))))
+  (with-gensyms (bread)
+    `(vuglet ((,bread ((buf buffer) phase (wrap-p boolean))
+                (with ((size (buffer-size buf))
+                       (frames (buffer-frames buf))
+                       (channels (buffer-channels buf))
+                       (data (buffer-data buf))
+                       (wrap-phase-fn (wrap-phase-func phase frames wrap-p)))
+                  (declare (type non-negative-fixnum size frames channels)
+                           (type foreign-pointer data)
+                           (type function wrap-phase-fn))
+                  (select-buffer-interp ,interpolation data phase frames
+                                        channels size wrap-p wrap-phase-fn))))
+       (,bread ,buffer ,phase ,wrap-p))))
 
 ;;; Write an input to a buffer at an index.
 ;;; If INDEX-VAR is the name of an existent variable, the value of the
 ;;; index is stored in this variable.
 (define-vug-macro buffer-write (buffer index input &optional index-var)
-  (with-gensyms (%buffer %index data upper-limit)
-    (with-coerce-arguments (input)
-      `(with ((,%buffer (vug-input ,buffer))
-              (,data (buffer-data ,%buffer))
-              (,upper-limit (1- (buffer-size ,%buffer))))
-         (declare (type buffer ,%buffer) (type foreign-pointer ,data)
-                  (type non-negative-fixnum ,upper-limit))
-         (let* ((,%index (clip ,index 0 ,upper-limit)))
-           (declare (type fixnum ,%index))
-           ,@(when index-var `((setq (external-variable ,index-var) ,%index)))
-           (setf (smp-ref ,data ,%index) ,input))))))
+  (with-gensyms (bwrite)
+    `(vuglet ((,bwrite ((buf buffer) (index fixnum) input)
+                (with ((data (buffer-data buf))
+                       (upper-limit (1- (buffer-size buf)))
+                       (index (clip index 0 upper-limit)))
+                  (declare (type foreign-pointer data)
+                           (type non-negative-fixnum upper-limit index))
+                  ,@(when index-var
+                      `((setq (external-variable ,index-var) index)))
+                  (setf (smp-ref data index) input))))
+       (,bwrite ,buffer ,index ,input))))
 
 (define-vug-macro buffer-frame (buffer phase &key wrap-p interpolation)
-  (with-gensyms (%buffer channels frame)
-    `(with ((,%buffer (vug-input ,buffer))
-            (,channels (buffer-channels ,%buffer))
-            (,frame (make-frame ,channels)))
-       (dochannels (current-channel ,channels)
-         (setf (frame-ref ,frame current-channel)
-               (buffer-read ,%buffer ,phase :wrap-p ,wrap-p
-                            :interpolation ,interpolation)))
-       ,frame)))
+  (with-gensyms (bframe)
+    `(vuglet ((,bframe ((buf buffer) phase (wrap-p boolean))
+                (with ((channels (buffer-channels buf))
+                       (frame (make-frame channels)))
+                  (dochannels (current-channel channels)
+                    (setf (frame-ref frame current-channel)
+                          (buffer-read buf phase
+                                       :wrap-p wrap-p
+                                       :interpolation ,interpolation)))
+                  frame)))
+       (,bframe ,buffer ,phase ,wrap-p))))
