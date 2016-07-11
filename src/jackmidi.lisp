@@ -189,15 +189,6 @@
   (data :pointer)
   (input-p :boolean))
 
-(declaim (inline %jm-update-data))
-(cffi:defcfun ("jm_update_data" %jm-update-data) :void
-  (data-vec :pointer)
-  (input-p :boolean))
-
-(declaim (inline jm-update-data))
-(defun jm-update-data (obj input-p)
-  (%jm-update-data (foreign-data-vector-pointer obj) input-p))
-
 (declaim (inline foreign-write-short))
 (defun foreign-write-short (stream msg size)
   (logand (cffi:foreign-funcall "jm_write_short" :pointer (stream-pointer stream)
@@ -260,6 +251,15 @@ The MIDI messages are aligned to four bytes."
     (tg:cancel-finalization obj)
     (setf (foreign-data-vector-pointer obj) (cffi:null-pointer)))
   (values))
+
+(declaim (inline %jm-update-data))
+(cffi:defcfun ("jm_update_data" %jm-update-data) :void
+  (data-vec :pointer)
+  (input-p :boolean))
+
+(declaim (inline jm-update-data))
+(defun jm-update-data (obj input-p)
+  (%jm-update-data (foreign-data-vector-pointer obj) input-p))
 
 (defun port-register (input-p &optional port-name)
   (declare (type boolean input-p) (type (or string null) port-name))
