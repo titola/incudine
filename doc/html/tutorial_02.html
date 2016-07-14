@@ -163,7 +163,7 @@ Slots with <span style="color: #b0c4de;">:INSTANCE</span> allocation:
       </p>
 
       <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">env-test</span> ((env envelope) gate amp dur)
-  (stereo (* (envgen env gate dur #'free)
+  (stereo (* (envelope env gate dur #'free)
              (white-noise amp))))
 
 <span class="prompt">SCRATCH&gt;</span> (env-test env1 1 .3 1 <span style="color: #b0c4de;">:id</span> 1)
@@ -177,7 +177,7 @@ Slots with <span style="color: #b0c4de;">:INSTANCE</span> allocation:
 -5</pre>
 
       <p>
-        The <code>ENVGEN</code> VUG plays back the segments of an
+        The <code>ENVELOPE</code> VUG plays back the segments of an
         <code>ENVELOPE</code>. When <code>GATE</code> is 0, it starts the
         release phase of the envelope. If <code>GATE</code> is -1, there is an
         immediate cutoff. If <code>GATE</code> is minor than -1, there is a
@@ -185,7 +185,7 @@ Slots with <span style="color: #b0c4de;">:INSTANCE</span> allocation:
       </p>
 
       <p>
-        The fourth argument of <code>ENVGEN</code> is <code>DONE-ACTION</code>,
+        The fourth argument of <code>ENVELOPE</code> is <code>DONE-ACTION</code>,
         a function to call after the end of the envelope. The argument of this
         function is the node of the DSP. In the previous example, the DSP
         terminates after the end of the envelope, so we cannot retrig the
@@ -193,7 +193,7 @@ Slots with <span style="color: #b0c4de;">:INSTANCE</span> allocation:
       </p>
 
       <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">env-test-2</span> ((env envelope) gate amp dur)
-  (stereo (* (envgen env gate dur #'identity)
+  (stereo (* (envelope env gate dur #'identity)
              (white-noise amp))))
 
 <span class="prompt">SCRATCH&gt;</span> (env-test-2 env1 1 .3 1 <span style="color: #b0c4de;">:id</span> 1)
@@ -220,7 +220,7 @@ Slots with <span style="color: #b0c4de;">:INSTANCE</span> allocation:
 
 (dsp! <span style="color: #87cefa;">env-test-3</span> (freq amp pos (env envelope) gate)
   (foreach-channel
-    (cout (pan2 (* (envgen env gate 1 #'stop)
+    (cout (pan2 (* (envelope env gate 1 #'stop)
                    (sine freq amp 0))
                 pos))))
 
@@ -276,7 +276,7 @@ T</pre>
       </p>
 
       <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">env-test-4</span> ((env envelope) gate amp dur)
-  (stereo (sine (envgen env gate dur #'identity) amp 0)))
+  (stereo (sine (envelope env gate dur #'identity) amp 0)))
 
 (defun <span style="color: #87cefa;">retrig-test</span> ()
   (rt-eval ()
@@ -299,7 +299,7 @@ T</pre>
 
       <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">env-test-5</span> (freq amp pos gate a d s r)
   (foreach-channel
-    (cout (pan2 (* (envgen (make-local-adsr a d s r) gate 1 #'stop)
+    (cout (pan2 (* (envelope (make-local-adsr a d s r) gate 1 #'stop)
                    (sine freq amp 0))
                 pos))))
 

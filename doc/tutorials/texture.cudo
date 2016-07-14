@@ -6,10 +6,6 @@
                    (amod (* ndx fmod)))
       (osc buf (+ fcar (osc buf fmod amod 0 :linear)) amp 0 :linear)))
 
-  (define-vug expon (start dur end)
-    "Exponential curve between two points."
-    (x-line start end dur #'free))
-
   (define-vug pan (in (buf buffer) pos)
     "Stereo panpot."
     (with ((tab (buffer-data buf))
@@ -23,7 +19,7 @@
 
 (dsp! texture (dur freq pos (pan-buf buffer) (osc-buf buffer))
   "FM oscillator test."
-  (with-samples ((env (expon 1 dur 0.01)))
+  (with-samples ((env (expon 1 0.01 dur #'free)))
     (foreach-channel
       (cout (pan (foscil (* env 0.128) freq 1 2.41 (* env 6) osc-buf)
                  pan-buf pos)))))

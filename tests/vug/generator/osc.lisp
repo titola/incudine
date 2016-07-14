@@ -10,8 +10,8 @@
                (db->lin amp) 0 :cubic)))
 
 (dsp! vug-osc-test-3 (frq0 frq1 amp afrq0 afrq1 dur)
-  (stereo (osc *sine-table* (x-line frq0 frq1 dur #'free)
-               (+ amp (osc *sine-table* (x-line afrq0 afrq1 dur #'free)
+  (stereo (osc *sine-table* (expon frq0 frq1 dur #'free)
+               (+ amp (osc *sine-table* (expon afrq0 afrq1 dur #'free)
                            amp 0 :linear))
                0 :cubic)))
 

@@ -217,7 +217,7 @@ File to load when processing this option.
 .nf
 cat >foo.cudo <<'---'
 (dsp! simple (freq db (env envelope) gate)
-  (stereo (* (envgen env gate 1 #'free)
+  (stereo (* (envelope env gate 1 #'free)
              (sine freq (db->lin db) 0))))
 ---
 

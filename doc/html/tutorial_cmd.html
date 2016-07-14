@@ -33,7 +33,7 @@ incudine -h
 <span style="color: #ff7f24;"># </span><span style="color: #ff7f24;">Simple files for the test</span>
 cat &gt;foo.cudo &lt;&lt;'---'
 (dsp! simple (freq db (env envelope) gate)
-  (stereo (* (envgen env gate 1 #'free)
+  (stereo (* (envelope env gate 1 #'free)
              (sine freq (db-&gt;lin db) 0))))
 ---
 

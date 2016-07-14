@@ -66,16 +66,16 @@
 ;; with another loop compiled within a UGEN. A efficient technique is
 ;; to compute an array of samples within the UGEN. For example:
 
-(define-ugen envgen* frame ((env envelope) gate time-scale
-                            (done-action function))
+(define-ugen envelope* frame ((env envelope) gate time-scale
+                              (done-action function))
   (with ((frm (make-frame (block-size))))
     (foreach-frame
       (setf (frame-ref frm current-frame)
-            (envgen env gate time-scale done-action)))
+            (envelope env gate time-scale done-action)))
     frm))
 
 (dsp! bbb-ugen-test ((env envelope) freq amp gate)
-  (with ((frm (envgen* env gate 1 #'free)))
+  (with ((frm (envelope* env gate 1 #'free)))
     (declare (type frame frm))
     ;; Set the envelope before the next loop.
     (maybe-expand frm)
@@ -93,7 +93,7 @@
 (set-rt-block-size 1)
 
 ;; The index of the array is CURRENT-FRAME because the output of
-;; ENVGEN is mono. With a multi-channel output, the index is
+;; ENVELOPE is mono. With a multi-channel output, the index is
 
 ;; (+ CURRENT-SAMPLE <channel>)
 

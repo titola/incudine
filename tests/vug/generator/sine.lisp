@@ -9,8 +9,8 @@
   (stereo (sine (+ fc (sine fm (* fm index) 0)) (db->lin amp) 0)))
 
 (dsp! vug-sine-test-3 (frq0 frq1 amp afrq0 afrq1 dur)
-  (stereo (sine (x-line frq0 frq1 dur #'free)
-                (+ amp (sine (x-line afrq0 afrq1 dur #'free) amp 0))
+  (stereo (sine (expon frq0 frq1 dur #'free)
+                (+ amp (sine (expon afrq0 afrq1 dur #'free) amp 0))
                 0)))
 
 (dsp! vug-sine-test-4 (freq amp phs-frq phs-dev)

@@ -6,12 +6,12 @@
   (define-ugen line* sample (start end dur (done-action function))
     (line start end dur done-action))
 
-  (define-ugen x-line* sample (start end dur (done-action function))
-    (x-line start end dur done-action))
+  (define-ugen expon* sample (start end dur (done-action function))
+    (expon start end dur done-action))
 
-  (define-ugen envgen* sample ((env envelope) gate time-scale
-                               (done-action function))
-    (envgen env gate time-scale done-action))
+  (define-ugen envelope* sample ((env envelope) gate time-scale
+                                 (done-action function))
+    (envelope env gate time-scale done-action))
 
   (define-ugen sinosc-1 sample (freq amp)
     (sine freq amp 0))
@@ -21,24 +21,24 @@
 
   (define-ugen sinosc-fadein* sample (f0 f1 amp dur)
     (* (line* 0 amp (1+ dur) #'free)
-       (sinosc-1 (x-line* f0 f1 dur #'reinit) amp)))
+       (sinosc-1 (expon* f0 f1 dur #'reinit) amp)))
 
   (define-ugen sinosc-fadein sample (f0 f1 amp dur)
-    (declare (inline line* x-line* sinosc-1))
+    (declare (inline line* expon* sinosc-1))
     (* (line* 0 amp (1+ dur) #'free)
-       (sinosc-1 (x-line* f0 f1 dur #'reinit) amp)))
+       (sinosc-1 (expon* f0 f1 dur #'reinit) amp)))
 
   (define-ugen sinosc-perc* sample (amp dur)
-    (* (envgen* (make-local-perc .5 .5) 1 dur
-                (reduce-warnings
-                  (lambda (node) (reinit node amp dur))))
+    (* (envelope* (make-local-perc .5 .5) 1 dur
+                  (reduce-warnings
+                    (lambda (node) (reinit node amp dur))))
        (sinosc-2 1000 amp)))
 
   (define-ugen sinosc-perc sample (amp dur)
-    (declare (inline envgen* sinosc-2))
-    (* (envgen* (make-local-perc .5 .5) 1 dur
-                (reduce-warnings
-                  (lambda (node) (reinit node amp dur))))
+    (declare (inline envelope* sinosc-2))
+    (* (envelope* (make-local-perc .5 .5) 1 dur
+                  (reduce-warnings
+                    (lambda (node) (reinit node amp dur))))
        (sinosc-2 1000 amp))))
 
 (dsp! ugen-reinit-test-1 (f0 f1 amp dur)

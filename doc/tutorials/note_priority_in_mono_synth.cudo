@@ -19,7 +19,7 @@
       (if (zerop amp)
           (setf gate +sample-zero+ amp amp-prev)  ; Note off.
           (setf gate (sample 1) amp-prev amp))
-      (stereo (* (envgen (make-local-adsr a d s r) gate 1 #'identity)
+      (stereo (* (envelope (make-local-adsr a d s r) gate 1 #'identity)
                  (gbuzz (lag (midi-cps *default-tuning* keynum) glide)
                         (lag amp 0.02) 20 1 .6))))))
 

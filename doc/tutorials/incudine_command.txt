@@ -15,7 +15,7 @@ incudine -h
 # Simple files for the test
 cat >foo.cudo <<'---'
 (dsp! simple (freq db (env envelope) gate)
-  (stereo (* (envgen env gate 1 #'free)
+  (stereo (* (envelope env gate 1 #'free)
              (sine freq (db->lin db) 0))))
 ---
 

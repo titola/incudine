@@ -4,13 +4,13 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="incudine.css" />
-    <title>Instantaneous retrig and gate modulation with ENVGEN</title>
+    <title>Instantaneous retrig and gate modulation with ENVELOPE</title>
   </head>
   <body>
     <div id="content">
       <table class="navtutor">
         <tr>
-          <th class="center">Instantaneous retrig and gate modulation with ENVGEN</th>
+          <th class="center">Instantaneous retrig and gate modulation with ENVELOPE</th>
         </tr>
       </table>
       <hr>
@@ -24,7 +24,7 @@
       <pre class="src src-lisp">(in-package <span style="color: #b0c4de;">:scratch</span>)
 
 (dsp! <span style="color: #87cefa;">frrr</span> (amp gate)
-  (stereo (* (envgen (make-local-adsr .2 .1 .5 1) gate 1 #'identity)
+  (stereo (* (envelope (make-local-adsr .2 .1 .5 1) gate 1 #'identity)
              (white-noise amp))))
 
 (defun <span style="color: #87cefa;">retrig</span> (node)
@@ -54,10 +54,10 @@
       </p>
 
       <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">explosions</span> (gain gate-base gate-freq)
-  (stereo (* (tanh (* (envgen (make-local-adsr .001 3 .05 .8)
-                              (+ gate-base
-                                 (if (&lt; (phasor gate-freq 0) .5) 1 0))
-                              1 #'identity)
+  (stereo (* (tanh (* (envelope (make-local-adsr .001 3 .05 .8)
+                                (+ gate-base
+                                   (if (&lt; (phasor gate-freq 0) .5) 1 0))
+                                1 #'identity)
                       (butter-lp (bpf (fractal-noise .5 2.3) 150 .1)
                                  8000)))
              (db-&gt;lin gain))))

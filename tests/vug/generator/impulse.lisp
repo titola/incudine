@@ -12,8 +12,8 @@
   (out (impulse (+ freq (sine fmod dev 0)) amp)))
 
 (dsp! vug-impulse-test-4 (frq0 frq1 amp afrq0 afrq1 dur)
-  (stereo (impulse (x-line frq0 frq1 dur #'free)
-                   (+ amp (sine (x-line afrq0 afrq1 dur #'free) amp 0)))))
+  (stereo (impulse (expon frq0 frq1 dur #'free)
+                   (+ amp (sine (expon afrq0 afrq1 dur #'free) amp 0)))))
 
 (dsp! vug-impulse-test-5 (freq amp phs-freq phs-dev)
   (stereo (impulse freq amp (+ phs-dev (sine phs-freq phs-dev 0)))))

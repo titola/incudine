@@ -198,7 +198,7 @@
    ;; envelope
    #:make-local-envelope #:make-local-linen #:make-local-perc
    #:make-local-cutoff #:make-local-asr #:make-local-adsr #:make-local-dadsr
-   #:line #:x-line #:envgen #:node-segment
+   #:line #:expon #:envelope #:node-segment
    ;; noise
    #:white-noise #:pink-noise #:fractal-noise #:crackle
    #:make-random-number-generator #:rand

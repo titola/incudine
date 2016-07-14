@@ -1,5 +1,5 @@
 ;;; Incudine
-;;; Instantaneous retrig and gate modulation with ENVGEN
+;;; Instantaneous retrig and gate modulation with ENVELOPE
 
 ;; The envelope is re-triggered if the difference between the gate of
 ;; the current audio cycle and the gate of the previous audio cycle is
@@ -8,7 +8,7 @@
 (in-package :scratch)
 
 (dsp! frrr (amp gate)
-  (stereo (* (envgen (make-local-adsr .2 .1 .5 1) gate 1 #'identity)
+  (stereo (* (envelope (make-local-adsr .2 .1 .5 1) gate 1 #'identity)
              (white-noise amp))))
 
 (defun retrig (node)
@@ -36,10 +36,10 @@
 ;; The follow example shows a simple modulation of the gate:
 
 (dsp! explosions (gain gate-base gate-freq)
-  (stereo (* (tanh (* (envgen (make-local-adsr .001 3 .05 .8)
-                              (+ gate-base
-                                 (if (< (phasor gate-freq 0) .5) 1 0))
-                              1 #'identity)
+  (stereo (* (tanh (* (envelope (make-local-adsr .001 3 .05 .8)
+                                (+ gate-base
+                                   (if (< (phasor gate-freq 0) .5) 1 0))
+                                1 #'identity)
                       (butter-lp (bpf (fractal-noise .5 2.3) 150 .1)
                                  8000)))
              (db->lin gain))))

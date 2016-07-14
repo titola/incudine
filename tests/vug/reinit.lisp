@@ -4,19 +4,19 @@
 
 (dsp! reinit-test-1 (f0 f1 amp dur)
   (out (* (line 0 amp (1+ dur) #'free)
-          (sine (x-line f0 f1 dur #'reinit) amp 0))))
+          (sine (expon f0 f1 dur #'reinit) amp 0))))
 
 (dsp! reinit-test-2 (f0 f1 amp dur)
   (out (* (line 0 amp (1+ dur) #'free)
-          (sine (x-line f0 f1 dur
+          (sine (expon f0 f1 dur
                         (reduce-warnings
                           (lambda (node) (reinit node f0 f1 amp dur))))
                 amp 0))))
 
 (dsp! reinit-test-3 (amp dur)
-  (stereo (* (envgen (make-local-perc .5 .5) 1 dur
-                     (reduce-warnings
-                       (lambda (node) (reinit node amp dur))))
+  (stereo (* (envelope (make-local-perc .5 .5) 1 dur
+                       (reduce-warnings
+                         (lambda (node) (reinit node amp dur))))
              (oscr 1000 amp))))
 
 (with-dsp-test (reinit.1

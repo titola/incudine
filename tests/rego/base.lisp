@@ -7,7 +7,7 @@
   (foreach-channel (cout (pan2 (sine freq amp 0) pos))))
 
 (dsp! rego-test-3 (freq amp dur)
-  (stereo (* (envgen (make-local-perc .1 .9) 1 dur #'free)
+  (stereo (* (envelope (make-local-perc .1 .9) 1 dur #'free)
              (sine freq amp 0))))
 
 (defmacro test-regofile (path)

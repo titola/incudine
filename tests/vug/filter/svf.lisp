@@ -8,7 +8,7 @@
     (out (smp-ref frm index))))
 
 (dsp! svf-test-2 (f0 f1 dur res drive (index fixnum))
-  (with ((fcut (x-line f0 f1 dur #'identity))
+  (with ((fcut (expon f0 f1 dur #'identity))
          (frm (svf (buzz 100 .35 200) fcut res drive)))
     (declare (type sample fcut) (type frame frm))
     (out (smp-ref frm index))))

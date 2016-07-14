@@ -15,7 +15,7 @@
       (~ (* #4t(pole (+ in it) coef) unity-gain mk)))))
 
 (dsp! moog-vcf-test-1 ()
-  (out (moog-vcf (buzz 200 1 100) .99 (x-line 80 5000 5 #'free))))
+  (out (moog-vcf (buzz 200 1 100) .99 (expon 80 5000 5 #'free))))
 
 (deftest sharp-t.1
     '#4t(pole (+ in it) coef)

@@ -19,24 +19,24 @@
 (set-rt-block-size 1)
 (rt-start)
 
-(compile-vug 'envgen 'sample)
+(compile-vug 'envelope 'sample)
 
-(vug 'envgen)
-;; #<VUG ENVGEN>
+(vug 'envelope)
+;; #<VUG ENVELOPE>
 
-(ugen 'envgen)
-;; #<UGEN ENVGEN>
+(ugen 'envelope)
+;; #<UGEN ENVELOPE>
 
-;; Now, when we use ENVGEN inside the definition of a DSP (or UGEN
+;; Now, when we use ENVELOPE inside the definition of a DSP (or UGEN
 ;; because we can also use nested UGENs), for example
 
 (dsp! ugen-test (freq amp atk rel)
-  (stereo (* (envgen (make-local-perc atk rel) 1 1 #'free)
+  (stereo (* (envelope (make-local-perc atk rel) 1 1 #'free)
              (osc *sine-table* freq amp))))
 
 (ugen-test 440 .3 .01 .5)
 
-;; the generated code uses the UGEN called ENVGEN and not the VUG with
+;; the generated code uses the UGEN called ENVELOPE and not the VUG with
 ;; the same name.
 
 ;; COMPILE-VUG works with VUGs but not with VUG-MACROs, because a
@@ -54,16 +54,16 @@
   (osc buf cps amp 0 :linear))
 
 (dsp! ugen-test2 (freq amp atk rel)
-  (stereo (* (envgen (make-local-perc atk rel) 1 1 #'free)
+  (stereo (* (envelope (make-local-perc atk rel) 1 1 #'free)
              (oscili amp freq *sine-table*))))
 
 (ugen-test2 440 .3 .01 .5)
 
-;; where UGEN-TEST2 is defined with the two UGENs ENVGEN and
+;; where UGEN-TEST2 is defined with the two UGENs ENVELOPE and
 ;; OSCILI. The follow example shows the use of nested UGENs:
 
 (define-ugen perc-sine sample (freq amp atk rel)
-  (* (envgen (make-local-perc atk rel) 1 1 #'free)
+  (* (envelope (make-local-perc atk rel) 1 1 #'free)
      (oscili amp freq *sine-table*)))
 
 (dsp! ugen-test3 (freq amp atk rel)
@@ -71,15 +71,15 @@
 
 (ugen-test3 440 .3 .01 .5)
 
-;; Ok, habemus UGens, but where are the VUGs ENVGEN and OSCILI ?
+;; Ok, habemus UGens, but where are the VUGs ENVELOPE and OSCILI ?
 
 ;; After the creation of a UGEN, a VUG comes into play when the
 ;; related UGEN is inlined. For example, we can define a UGEN called
-;; PERC-SINE* with the VUGs ENVGEN and OSCILI:
+;; PERC-SINE* with the VUGs ENVELOPE and OSCILI:
 
 (define-ugen perc-sine* sample (freq amp atk rel)
-  (declare (inline envgen oscili))
-  (* (envgen (make-local-perc atk rel) 1 1 #'free)
+  (declare (inline envelope oscili))
+  (* (envelope (make-local-perc atk rel) 1 1 #'free)
      (oscili amp freq *sine-table*)))
 
 (dsp! ugen-test4 (freq amp atk rel)
@@ -134,15 +134,15 @@
 ;; Finally, we can see all the defined UGENs with ALL-UGEN-NAMES:
 
 (all-ugen-names)
-;; (ENVGEN MY-PAN2 OSCILI PAN2 PERC-SINE PERC-SINE*)
+;; (ENVELOPE MY-PAN2 OSCILI PAN2 PERC-SINE PERC-SINE*)
 
 ;; After the cancellation of a UGEN by using DESTROY-UGEN, the related
 ;; VUG is still alive:
 
-(destroy-ugen 'envgen)
-(ugen 'envgen)
+(destroy-ugen 'envelope)
+(ugen 'envelope)
 ;; NIL
-(vug 'envgen)
-;; #<VUG ENVGEN>
-(compiled-vug-p 'envgen)
+(vug 'envelope)
+;; #<VUG ENVELOPE>
+(compiled-vug-p 'envelope)
 ;; NIL

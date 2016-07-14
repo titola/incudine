@@ -87,16 +87,16 @@
         For example:
       </p>
 
-      <pre class="src src-lisp">(define-ugen <span style="color: #87cefa;">envgen*</span> frame ((env envelope) gate time-scale
-                            (done-action function))
+      <pre class="src src-lisp">(define-ugen <span style="color: #87cefa;">envelope*</span> frame ((env envelope) gate time-scale
+                              (done-action function))
   (with ((frm (make-frame (block-size))))
     (foreach-frame
       (setf (frame-ref frm current-frame)
-            (envgen env gate time-scale done-action)))
+            (envelope env gate time-scale done-action)))
     frm))
 
 (dsp! <span style="color: #87cefa;">bbb-ugen-test</span> ((env envelope) freq amp gate)
-  (with ((frm (envgen* env gate 1 #'free)))
+  (with ((frm (envelope* env gate 1 #'free)))
     (declare (type frame frm))
     <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Set the envelope before the next loop.</span>
     (maybe-expand frm)
@@ -116,7 +116,7 @@
 
       <p>
         The index of the array is <code>CURRENT-FRAME</code> because the output
-        of <code>ENVGEN</code> is mono. With a multi-channel output, the index is
+        of <code>ENVELOPE</code> is mono. With a multi-channel output, the index is
       </p>
 
       <pre class="src src-lisp">(+ CURRENT-SAMPLE &lt;channel&gt;)</pre>

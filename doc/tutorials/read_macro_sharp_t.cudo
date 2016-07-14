@@ -53,11 +53,11 @@
     (pole (* g in) coef)))
 
 (dsp! tone2-test (amp)
-  (with-samples ((hp (x-line 50 8000 10 #'free)))
+  (with-samples ((hp (expon 50 8000 10 #'free)))
     (stereo #2t(tone (white-noise amp) hp))))
 
 (dsp! tone4-test (amp)
-  (with-samples ((hp (x-line 50 8000 10 #'free))
+  (with-samples ((hp (expon 50 8000 10 #'free))
                  (b (- 2 (cos (* hp *twopi-div-sr*))))
                  (coef (- b (sqrt (the non-negative-sample (- (* b b) 1)))))
                  (g (expt (the non-negative-sample (- 1 coef)) 4)))

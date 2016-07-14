@@ -9,13 +9,13 @@
   (stereo (oscr (+ fc (oscr fm (* fm index))) (db->lin amp))))
 
 (dsp! vug-oscr-test-3 (frq0 frq1 amp afrq0 afrq1 dur)
-  (stereo (oscr (x-line frq0 frq1 dur #'free)
-                (+ amp (oscr (x-line afrq0 afrq1 dur #'free) amp)))))
+  (stereo (oscr (expon frq0 frq1 dur #'free)
+                (+ amp (oscr (expon afrq0 afrq1 dur #'free) amp)))))
 
 (dsp! vug-oscr-test-4 (frq0 frq1 amp afrq0 afrq1 dur)
-  (with-samples ((am (+ amp (oscr (x-line afrq0 afrq1 dur #'free) amp))))
+  (with-samples ((am (+ amp (oscr (expon afrq0 afrq1 dur #'free) amp))))
     (multiple-sample-bind (sin cos)
-        (oscrq (x-line frq0 frq1 dur #'free))
+        (oscrq (expon frq0 frq1 dur #'free))
       (out (* am sin) (* am cos)))))
 
 (with-dsp-test (vug-oscr.1

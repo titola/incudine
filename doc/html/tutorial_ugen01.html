@@ -48,27 +48,27 @@
 
 <span class="prompt">SCRATCH&gt;</span> (rt-start)
 
-<span class="prompt">SCRATCH&gt;</span> (compile-vug 'envgen 'sample)
+<span class="prompt">SCRATCH&gt;</span> (compile-vug 'envelope 'sample)
 
-<span class="prompt">SCRATCH&gt;</span> (vug 'envgen)
-#&lt;VUG ENVGEN&gt;
+<span class="prompt">SCRATCH&gt;</span> (vug 'envelope)
+#&lt;VUG ENVELOPE&gt;
 
-<span class="prompt">SCRATCH&gt;</span> (ugen 'envgen)
-#&lt;UGEN ENVGEN&gt;</pre>
+<span class="prompt">SCRATCH&gt;</span> (ugen 'envelope)
+#&lt;UGEN ENVELOPE&gt;</pre>
 
       <p>
-        Now, when we use <code>ENVGEN</code> inside the definition of a DSP
+        Now, when we use <code>ENVELOPE</code> inside the definition of a DSP
         (or UGEN because we can also use nested UGENs), for example
       </p>
 
       <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">ugen-test</span> (freq amp atk rel)
-  (stereo (* (envgen (make-local-perc atk rel) 1 1 #'free)
+  (stereo (* (envelope (make-local-perc atk rel) 1 1 #'free)
              (osc *sine-table* freq amp))))
 
 <span class="prompt">SCRATCH&gt;</span> (ugen-test 440 .3 .01 .5)</pre>
 
       <p>
-        the generated code uses the UGEN called <code>ENVGEN</code> and not the
+        the generated code uses the UGEN called <code>ENVELOPE</code> and not the
         VUG with the same name.
       </p>
 
@@ -91,19 +91,19 @@
   (osc buf cps amp 0 <span style="color: #b0c4de;">:linear</span>))
 
 (dsp! <span style="color: #87cefa;">ugen-test2</span> (freq amp atk rel)
-  (stereo (* (envgen (make-local-perc atk rel) 1 1 #'free)
+  (stereo (* (envelope (make-local-perc atk rel) 1 1 #'free)
              (oscili amp freq *sine-table*))))
 
 <span class="prompt">SCRATCH&gt;</span> (ugen-test2 440 .3 .01 .5)</pre>
 
       <p>
         where <code>UGEN-TEST2</code> is defined with the two UGENs
-        <code>ENVGEN</code> and <code>OSCILI</code>. The follow example shows
+        <code>ENVELOPE</code> and <code>OSCILI</code>. The follow example shows
         the use of nested UGENs:
       </p>
 
       <pre class="src src-lisp">(define-ugen <span style="color: #87cefa;">perc-sine</span> sample (freq amp atk rel)
-  (* (envgen (make-local-perc atk rel) 1 1 #'free)
+  (* (envelope (make-local-perc atk rel) 1 1 #'free)
      (oscili amp freq *sine-table*)))
 
 (dsp! <span style="color: #87cefa;">ugen-test3</span> (freq amp atk rel)
@@ -112,20 +112,20 @@
 <span class="prompt">SCRATCH&gt;</span> (ugen-test3 440 .3 .01 .5)</pre>
 
       <p>
-        Ok, habemus UGens, but where are the VUGs <code>ENVGEN</code> and
+        Ok, habemus UGens, but where are the VUGs <code>ENVELOPE</code> and
         <code>OSCILI</code> ?
       </p>
 
       <p>
         After the creation of a UGEN, a VUG comes into play when the related
         UGEN is inlined. For example, we can define a UGEN called
-        <code>PERC-SINE*</code> with the VUGs <code>ENVGEN</code> and
+        <code>PERC-SINE*</code> with the VUGs <code>ENVELOPE</code> and
         <code>OSCILI</code>:
       </p>
 
       <pre class="src src-lisp">(define-ugen <span style="color: #87cefa;">perc-sine*</span> sample (freq amp atk rel)
-  (declare (inline envgen oscili))
-  (* (envgen (make-local-perc atk rel) 1 1 #'free)
+  (declare (inline envelope oscili))
+  (* (envelope (make-local-perc atk rel) 1 1 #'free)
      (oscili amp freq *sine-table*)))
 
 (dsp! <span style="color: #87cefa;">ugen-test4</span> (freq amp atk rel)
@@ -189,19 +189,19 @@
       </p>
 
       <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (all-ugen-names)
-(ENVGEN MY-PAN2 OSCILI PAN2 PERC-SINE PERC-SINE*)</pre>
+(ENVELOPE MY-PAN2 OSCILI PAN2 PERC-SINE PERC-SINE*)</pre>
 
       <p>
         After the cancellation of a UGEN by using <code>DESTROY-UGEN</code>, the
         related VUG is still alive:
       </p>
 
-      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (destroy-ugen 'envgen)
-<span class="prompt">SCRATCH&gt;</span> (ugen 'envgen)
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (destroy-ugen 'envelope)
+<span class="prompt">SCRATCH&gt;</span> (ugen 'envelope)
 NIL
-<span class="prompt">SCRATCH&gt;</span> (vug 'envgen)
-#&lt;VUG ENVGEN&gt;
-<span class="prompt">SCRATCH&gt;</span> (compiled-vug-p 'envgen)
+<span class="prompt">SCRATCH&gt;</span> (vug 'envelope)
+#&lt;VUG ENVELOPE&gt;
+<span class="prompt">SCRATCH&gt;</span> (compiled-vug-p 'envelope)
 NIL</pre>
 
       <hr>
