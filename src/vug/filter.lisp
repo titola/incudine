@@ -379,7 +379,7 @@ scale factor."
 
 (define-vug maf (in (max-size positive-fixnum) (size positive-fixnum))
   "Moving Average Filter."
-  (with ((data (make-frame max-size :zero-p t))
+  (with ((data (make-frame (1+ max-size) :zero-p t))
          (sum 0.0d0)
          (old-size 0)
          (size (prog1 (min size max-size)
