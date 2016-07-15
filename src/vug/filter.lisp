@@ -379,26 +379,24 @@ scale factor."
 
 (define-vug maf (in (max-size positive-fixnum) (size positive-fixnum))
   "Moving Average Filter."
-  (with ((data (make-frame (1+ max-size) :zero-p t))
+  (with ((data (make-frame max-size :zero-p t))
          (sum 0.0d0)
          (old-size 0)
          (index 0)
-         (size (prog1 (min size max-size)
-                 (when (< 0 size old-size)
+         (last (progn
+                 (when (< size old-size)
                    ;; Update the sum
-                   (loop for i from (1+ size) to old-size do
+                   (loop for i from size below old-size do
                         (decf sum (smp-ref data i))
-                        (setf (smp-ref data i) +sample-zero+)))
-                 (setf index 0)
-                 (setf old-size size))))
+                        (setf (smp-ref data i) +sample-zero+))
+                   (setf index 0))
+                 (1- (setf old-size (min size max-size))))))
     (declare (type pointer data) (type sample sum)
-             (type non-negative-fixnum index old-size)
-             (type positive-fixnum size))
+             (type non-negative-fixnum index old-size last))
     ;; Subtract the old, add the new and update the index
     (setf sum (+ (- sum (smp-ref data index)) in))
     (setf (smp-ref data index) in)
-    (let ((new (1+ index)))
-      (setf index (if (>= index size) 0 new)))
+    (setf index (if (< index last) (1+ index) 0))
     (/ sum size)))
 
 ;;; Median filter based on James McCartney's Median ugen (SuperCollider).
