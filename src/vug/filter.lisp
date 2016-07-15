@@ -382,14 +382,15 @@ scale factor."
   (with ((data (make-frame (1+ max-size) :zero-p t))
          (sum 0.0d0)
          (old-size 0)
+         (index 0)
          (size (prog1 (min size max-size)
                  (when (< 0 size old-size)
                    ;; Update the sum
-                   (loop for i from size below old-size do
+                   (loop for i from (1+ size) to old-size do
                         (decf sum (smp-ref data i))
                         (setf (smp-ref data i) +sample-zero+)))
-                 (setf old-size size)))
-         (index 0))
+                 (setf index 0)
+                 (setf old-size size))))
     (declare (type pointer data) (type sample sum)
              (type non-negative-fixnum index old-size)
              (type positive-fixnum size))
