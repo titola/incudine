@@ -1514,6 +1514,10 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
       (update-foreach-frame-loop-vars floop-replaced-vars)
       (dolist (var (vug-variables-bindings *vug-variables*))
         (when (and (zerop (vug-variable-ref-count var))
+                   ;; If REF-COUNT is zero and the value is a VUG-PARAMETER,
+                   ;; probably it is an unused parameter. In this case
+                   ;; CHECK-UNUSED-PARAMETERS will print a warning.
+                   (not (vug-parameter-p (vug-variable-value var)))
                    (not (vug-variable-to-preserve-p var)))
           (replace-vug-variable var (vug-variable-value var) t)))
       obj)))

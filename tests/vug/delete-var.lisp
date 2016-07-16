@@ -9,6 +9,11 @@
     ;;; the related VUG-VARIABLE is to preserve.
     (out (* amp (buffer-play buf rate 0 t #'identity)))))
 
+;;; Print a warning during the compilation.
+(dsp! unused-parameters-test (la unused-1 (unused-2 complex))
+  (with-samples ((lalla (+ la la)))
+    (out la la la la lalla la la la la lalla)))
+
 (defun delete-var-test-2 ()
   (let ((*package* (find-package "INCUDINE-TESTS")))
     (handler-bind (((and warning (not style-warning)) #'error))
