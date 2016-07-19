@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="incudine.css" />
+    <title>The rule of the first expansion</title>
+  </head>
+  <body>
+    <div id="content">
+      <table class="navtutor">
+        <tr>
+          <th class="center">The rule of the first expansion</th>
+        </tr>
+      </table>
+      <hr>
+
+      <p>
+        That's an important rule to remember when the definition of a
+        <code>DSP/VUG</code> requires branching.
+      </p>
+
+      <p>
+        A performance-time variable is expanded/updated the first time
+        within the body of a definition. With the trivial example
+      </p>
+
+      <pre class="src src-lisp">(with-samples ((s (blabla-is-performance-time ...)))
+  s s s s s)</pre>
+
+      <p>
+        the generated performance-time function is
+      </p>
+
+      <pre class="src src-lisp">(<span style="color: #8deeee;">progn</span> (setf s (blabla-is-performance-time ...))
+       s s s s)</pre>
+
+      <p>
+        The next example
+      </p>
+
+      <pre class="src src-lisp">(<span style="color: #8deeee;">if</span> (&gt; s 0.5) up-depends-on-s down-depends-on-s)</pre>
+
+      <p>
+        works without surprises and the result is
+      </p>
+
+      <pre class="src src-lisp">(<span style="color: #8deeee;">if</span> (setf s (blabla-...)) up-depends-on-s down-depends-on-s)</pre>
+
+      <p>
+        but often the generated performance-time function in
+      </p>
+
+      <pre class="src src-lisp">(<span style="color: #8deeee;">if</span> rain-p s (* s 0.5))</pre>
+
+      <p>
+        is not what we want because the result is
+      </p>
+
+      <pre class="src src-lisp">(<span style="color: #8deeee;">if</span> rain-p
+    (setf s (blabla-is-performance-time ...))
+    (* s 0.5))</pre>
+
+      <p>
+        and <code>S</code> is performance-time only if it's raining.
+      </p><p>
+        We have at least two solutions:
+      </p>
+
+      <ol class="org-ol">
+        <li><p>
+          <code>MAYBE-EXPAND</code> before <code>IF</code>
+        </p>
+
+        <pre class="src src-lisp">(maybe-expand s)
+(<span style="color: #8deeee;">if</span> rain-p s (* s 0.5))</pre>
+
+        <p>
+          result:
+        </p>
+
+        <pre class="src src-lisp">(setf s (blabla-is-performance-time ...))
+(<span style="color: #8deeee;">if</span> rain-p s (* s 0.5))</pre>
+        <li><p>
+          <code>UPDATE</code>
+        </p>
+
+        <pre class="src src-lisp">(<span style="color: #8deeee;">if</span> rain-p s (* (update s) 0.5))</pre>
+
+        <p>
+          result:
+        </p>
+
+        <pre class="src src-lisp">(<span style="color: #8deeee;">labels</span> ((set-s[gensym-ed] ()
+           (setf s (blabla-is-performance-time ...))))
+  ...
+  (<span style="color: #8deeee;">if</span> rain-p
+      (set-s[gensym-ed])
+      (* (set-s[gensym-ed]) 0.5)))</pre>
+        </li>
+      </ol>
+
+      <hr>
+      <table class="navtutor">
+        <tr>
+          <td style="width: 20%" class="left">
+            <a href="tutorial_01.html">Getting Started with Incudine</a>
+          </td>
+          <td style="width: 60%" class="center"><a href="index.html">Home</a></td>
+          <td style="width: 20%" class="right"></td>
+        </tr>
+      </table>
+    </div>
+    <div id="postamble">
+      <a href="http://sourceforge.net/projects/incudine">Sourceforge project page</a>
+    </div>
+  </body>
+</html>
