@@ -45,7 +45,9 @@
         works without surprises and the result is
       </p>
 
-      <pre class="src src-lisp">(<span style="color: #8deeee;">if</span> (setf s (blabla-...)) up-depends-on-s down-depends-on-s)</pre>
+      <pre class="src src-lisp">(<span style="color: #8deeee;">if</span> (> (setf s (blabla-...)) 0.5)
+    up-depends-on-s
+    down-depends-on-s)</pre>
 
       <p>
         but often the generated performance-time function in
