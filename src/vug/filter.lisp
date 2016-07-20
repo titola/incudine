@@ -379,25 +379,36 @@ scale factor."
 
 (define-vug maf (in (max-size positive-fixnum) (size positive-fixnum))
   "Moving Average Filter."
-  (with ((data (make-frame max-size :zero-p t))
-         (sum 0.0d0)
-         (old-size 0)
-         (index 0)
-         (last (progn
-                 (when (< size old-size)
-                   ;; Update the sum
-                   (loop for i from size below old-size do
-                        (decf sum (smp-ref data i))
-                        (setf (smp-ref data i) +sample-zero+))
-                   (setf index 0))
-                 (1- (setf old-size (min size max-size))))))
-    (declare (type pointer data) (type sample sum)
-             (type non-negative-fixnum index old-size last))
-    ;; Subtract the old, add the new and update the index
-    (setf sum (+ (- sum (smp-ref data index)) in))
-    (setf (smp-ref data index) in)
-    (setf index (if (< index last) (1+ index) 0))
-    (/ sum size)))
+  (macrolet ((reset (index-var curr-sum-var acc-var)
+               `(setf ,index-var 0
+                      ;; Evan Balster's suggestion to prevent drift.
+                      ,acc-var ,curr-sum-var
+                      ,curr-sum-var +sample-zero+)))
+    (with ((data (make-frame max-size :zero-p t))
+           (curr-sum 0.0d0)
+           (acc 0.0d0)
+           (r-size 1.0d0)
+           (old-size 0)
+           (index 0)
+           (last (progn
+                   (when (< size old-size)
+                     ;; Reset the unused values and update the accumulator.
+                     (loop for i from size below old-size do
+                          (setf (smp-ref data i) +sample-zero+))
+                     (reset index curr-sum acc))
+                   (prog1 (1- (setf old-size (min size max-size)))
+                     (setf r-size (/ (sample old-size)))))))
+      (declare (type pointer data) (type sample curr-sum acc r-size)
+               (type non-negative-fixnum index old-size last))
+      (incf curr-sum in)                ; Add the new and
+      (decf acc (smp-ref data index))   ; subtract the oldest
+      (setf (smp-ref data index) in)
+      (cond ((< index last)
+             (incf index)
+             (* (+ curr-sum acc) r-size))
+            (t
+             (reset index curr-sum acc)
+             (* acc r-size))))))
 
 ;;; Median filter based on James McCartney's Median ugen (SuperCollider).
 ;;; Added the code to modulate the window size of the filter.
