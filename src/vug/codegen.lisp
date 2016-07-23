@@ -1246,7 +1246,6 @@
                 (maybe-update-dsp-instances ,name ,arg-names)
                 #',name))))))
 
-(declaim (inline get-node-id))
 (defun get-node-id (id add-action)
   (declare (type (or non-negative-fixnum null) id))
   (cond (id id)
