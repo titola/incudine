@@ -212,7 +212,7 @@
                                   (t (done-action done-action)
                                      (setf done-p t)
                                      index))))))))
-       (,counter ,start ,end ,step ,loop-p ,(or done-action #'identity)))))
+       (,counter ,start ,end ,step ,loop-p ,(or done-action '#'identity)))))
 
 (define-vug downsamp ((control-period fixnum) in)
   (with ((count control-period)
