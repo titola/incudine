@@ -28,6 +28,7 @@ The options for the script `install_executable' are:
   --with-snd            support for the sound editor Snd.
   --with-module=NAME    load the module NAME before to create the executable.
   --sbcl-options=OPTS   options for SBCL.
+  --before-save=FORM    read and evaluate FORM before to create the executable.
 
 For example:
 
