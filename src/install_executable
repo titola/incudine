@@ -7,6 +7,7 @@ PREFIX="${PREFIX:-/usr/local}"
 SWANK_LOADER_PATH=""
 options="--noinform"
 modules="(require \"INCUDINE\")"
+before_save="(progn"
 aclrepl_p="yes"
 linedit_p="no"
 
@@ -28,6 +29,7 @@ Create and install the standalone executable.
   --with-snd            support for the sound editor Snd.
   --with-module=NAME    load the module NAME before to create the executable.
   --sbcl-options=OPTS   options for SBCL.
+  --before-save=FORM    read and evaluate FORM before to create the executable.
 
 EOF
         exit 1
@@ -36,6 +38,11 @@ EOF
 add_opt()
 {
         options="${options} $1"
+}
+
+add_before_save_form()
+{
+        before_save="${before_save} $1"
 }
 
 add_system()
@@ -56,6 +63,7 @@ for arg in "$@"; do
         --with-snd)         add_system "INCUDINE-SND" ;;
         --with-module=*)    add_system "${arg#*=}" ;;
         --sbcl-options=*)   add_opt "${arg#*=}" ;;
+        --before-save=*)    add_before_save_form "${arg#*=}" ;;
         *)                  usage ;;
         esac
 done
@@ -79,6 +87,7 @@ sbcl ${options} \
      --eval "(pushnew (asdf:system-source-directory :incudine) asdf:*central-registry* :test 'equal)" \
      --eval "(progn ${modules})" \
      --eval '(load (asdf:compile-file* "executable.lisp"))' \
+     --eval "${before_save})" \
      --eval "(save-lisp-and-die \"incudine\" :executable t :toplevel 'incudine::incudine-toplevel :save-runtime-options t)" || exit
 
 BINDIR="${BINDIR:-${PREFIX}/bin}"

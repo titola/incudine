@@ -39,7 +39,9 @@ or with Swank server and other options:
 
     sh install_executable --with-linedit --with-fluidsynth \
                           --with-ladspa --with-lv2 --with-snd \
-                          --swank-loader=/path/to/slime/swank-loader.lisp
+                          --swank-loader=/path/to/slime/swank-loader.lisp \
+                          --with-module=inferior-shell \
+                          --before-save="(use-package 'inferior-shell :scratch)"
 
 
 Note: the support for LV2 plugins requires Lilv, a LV2 host library.
