@@ -32,7 +32,7 @@
     (compile-file* (component-pathname c))))
 
 (defsystem "incudine"
-  :version "0.9.6"
+  :version "0.9.7"
   :description "Incudine is a Music/DSP programming environment."
   :licence "GPL v2"
   :author "Tito Latini"
@@ -64,7 +64,7 @@
                    (:static-file "nothing.c")
                    (:static-file "rtjack.c") (:static-file "rtjack.h")
                    (:static-file "rtpa.c") (:static-file "rtpa.h")
-                   (:static-file "osc/osc.c") (:static-file  "osc/osc.h")
+                   (:static-file "network/osc.c") (:static-file  "network/osc.h")
                    (:static-file "cache.lisp"))
       :output-files
       (compile-op (o c)
@@ -112,11 +112,12 @@
      (:file "jack" :if-feature :jack-audio :depends-on ("foreign"))
      (:file "jackmidi" :if-feature :jack-midi :depends-on ("fifo" "receiver"))
      (:file "portaudio" :if-feature :portaudio :depends-on ("foreign"))
-     (:file "receiver" :depends-on ("vug/midi" "osc/osc"))
-     (:file "osc/sbcl-vops" :if-feature (:and :sbcl (:or :x86 :x86-64))
+     (:file "receiver" :depends-on ("vug/midi" "network/generic"))
+     (:file "network/sbcl-vops" :if-feature (:and :sbcl (:or :x86 :x86-64))
                             :depends-on ("packages"))
-     (:file "osc/cffi-osc" :depends-on ("packages"))
-     (:file "osc/osc" :depends-on ("util" "osc/cffi-osc" "osc/sbcl-vops"))
+     (:file "network/cffi-osc" :depends-on ("packages"))
+     (:file "network/osc" :depends-on ("util" "network/cffi-osc" "network/sbcl-vops"))
+     (:file "network/generic" :depends-on ("network/osc"))
      (:file "analysis/maybe-fftw-no-simd"
             :if-feature (:and :sbcl :x86 (:not :darwin))
             :depends-on ("packages"))

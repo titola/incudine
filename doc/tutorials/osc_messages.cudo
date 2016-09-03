@@ -166,10 +166,10 @@
                  (lambda (a b c)
                    (msg warn "~D ~D ~D" a b c))))
 ;; (MAKE-RESPONDER *OSCIN*
-;;                 (LAMBDA ()
-;;                   (WHEN (INCUDINE.OSC:CHECK-PATTERN *OSCIN* "/osc/test" "iii")
+;;                 (LAMBDA (#:S582)
+;;                   (WHEN (INCUDINE.OSC:CHECK-PATTERN #:S582 "/osc/test" "iii")
 ;;                     (INCUDINE.OSC:WITH-VALUES (A B C)
-;;                         (*OSCIN* "iii")
+;;                         (#:S582 "iii")
 ;;                       (MSG WARN "~D ~D ~D" A B C)))
 ;;                   (VALUES)))
 

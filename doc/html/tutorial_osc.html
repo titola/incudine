@@ -220,10 +220,10 @@
                           (lambda (a b c)
                             (msg warn <span style="color: #ffa07a;">"~D ~D ~D"</span> a b c))))
 (MAKE-RESPONDER *OSCIN*
-                (LAMBDA ()
-                  (WHEN (INCUDINE.OSC:CHECK-PATTERN *OSCIN* <span style="color: #ffa07a;">"/osc/test"</span> <span style="color: #ffa07a;">"iii"</span>)
+                (LAMBDA (#:S582)
+                  (WHEN (INCUDINE.OSC:CHECK-PATTERN #:S582 <span style="color: #ffa07a;">"/osc/test"</span> <span style="color: #ffa07a;">"iii"</span>)
                     (INCUDINE.OSC:WITH-VALUES (A B C)
-                        (*OSCIN* <span style="color: #ffa07a;">"iii"</span>)
+                        (#:S582 <span style="color: #ffa07a;">"iii"</span>)
                       (MSG WARN <span style="color: #ffa07a;">"~D ~D ~D"</span> A B C)))
                   (VALUES)))</pre>
 

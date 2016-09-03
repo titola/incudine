@@ -486,16 +486,44 @@
   (:import-from :swap-bytes #:htonl #:htonq #:ntohl #:ntohq)
   (:shadow #:open #:close #:stream #:input-stream-p #:output-stream-p)
   (:export
+   #:+default-msg-flags+
    #:*listen-backlog* #:*buffer-size* #:*max-values* #:*before-close-hook*
    #:stream #:input-stream #:input-stream-p #:output-stream #:output-stream-p
    #:with-stream #:open #:open-p #:close #:block-p #:without-block #:broadcast
-   #:connect #:reject
-   #:connections #:host #:port #:protocol #:protocolp #:socket-fd
-   #:buffer-pointer #:buffer-size #:message-pointer #:message-length
-   #:message-encoding #:receive #:send #:slip-encode #:slip-decode
-   #:message #:start-message #:value #:value-pointer #:midi #:address-pattern
-   #:check-pattern #:index-values #:with-values #:required-values
-   #:buffer-to-octets #:octets-to-buffer #:fix-size #:string-size))
+   #:connect #:reject #:close-connections #:last-recv-fd #:socket-send
+   #:connections #:connections-fd #:host #:port #:protocol #:protocolp
+   #:socket-fd #:direction #:buffer-pointer #:buffer-size
+   #:message-pointer #:message-length #:message-encoding #:receive #:send
+   #:slip-encode #:slip-decode #:message #:start-message #:value #:value-pointer
+   #:midi #:address-pattern #:check-pattern #:index-values #:with-values
+   #:required-values #:buffer-to-octets #:octets-to-buffer
+   #:fix-size #:string-size))
+
+(defpackage :incudine.net
+  (:use :cl)
+  (:nicknames #:net)
+  (:shadowing-import-from #:incudine.osc #:close)
+  (:shadow #:open #:read #:write #:stream #:input-stream-p #:output-stream-p)
+  (:import-from :alexandria #:positive-fixnum #:non-negative-fixnum)
+  (:import-from #:incudine.osc #:+default-msg-flags+ #:*listen-backlog*
+                #:with-stream #:open-p #:block-p #:without-block #:broadcast
+                #:connect #:reject #:close-connections #:connections
+                #:connections-fd #:last-recv-fd #:host #:port
+                #:protocol #:protocolp #:socket-fd #:socket-send #:direction
+                #:buffer-pointer #:buffer-size #:message-pointer #:message-length
+                #:message-encoding #:slip-encode #:slip-decode
+                #:buffer-to-octets #:octets-to-buffer)
+  (:export
+   #:+default-msg-flags+
+   #:*listen-backlog* #:*buffer-size* #:stream #:input-stream #:input-stream-p
+   #:output-stream #:output-stream-p #:with-stream #:open #:open-p #:close
+   #:read #:write #:foreign-read #:foreign-write
+   #:block-p #:without-block #:broadcast #:connect #:reject #:close-connections
+   #:connections #:connections-fd #:last-recv-fd #:host #:port #:protocol
+   #:protocolp #:socket-fd #:direction #:buffer-pointer #:buffer-size
+   #:message-pointer #:message-length #:message-encoding #:slip-encode
+   #:slip-decode #:socket-send #:buffer-to-octets #:octets-to-buffer
+   #:buffer-to-string #:string-to-buffer))
 
 (defpackage :incudine.scratch
   (:use :cl :incudine :incudine.vug :incudine.util :incudine.analysis)

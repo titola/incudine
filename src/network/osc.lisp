@@ -1,4 +1,4 @@
-;;; Copyright (c) 2015 Tito Latini
+;;; Copyright (c) 2015-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -35,22 +35,14 @@ The argument of a function is the OSC:STREAM to close.")
 (defvar *listen-backlog* 8)
 (declaim (type (unsigned-byte 8) *listen-backlog*))
 
-(cffi:defcstruct addrinfo
-  (ai-flags :int)
-  (ai-family :int)
-  (ai-socktype :int)
-  (ai-protocol :int)
-  (ai-addrlen #.+socklen-type+)
-  (ai-addr :pointer)
-  (ai-canonname :pointer)
-  (ai-next :pointer))
-
-(cffi:defcstruct address
-  (info :pointer)               ; (struct addrinfo *)
-  (sockaddr :pointer)           ; (struct sockaddr_storage *)
-  (socklen #.+socklen-type+))
+(defun print-stream (obj stream depth)
+  (declare (ignore depth))
+  (format stream "#<OSC:~A-STREAM ~S ~S ~D>"
+          (stream-direction obj) (stream-protocol obj)
+          (stream-host obj) (stream-port obj)))
 
 (defstruct (stream (:constructor %make-stream)
+                   (:print-function print-stream)
                    (:copier nil))
   (host "localhost" :type simple-string)
   (port #36ROSE :type (unsigned-byte 16))
@@ -87,11 +79,6 @@ The argument of a function is the OSC:STREAM to close.")
 
 (defstruct (output-stream (:include stream)))
 
-(defmethod print-object ((obj stream) stream)
-  (format stream "#<OSC:~A-STREAM ~S ~S ~D>"
-          (stream-direction obj) (stream-protocol obj)
-          (stream-host obj) (stream-port obj)))
-
 (declaim (inline protocolp))
 (defun protocolp (stream protocol)
   (declare (type stream stream) (type (member :udp :tcp) protocol))
@@ -123,7 +110,9 @@ The argument of a function is the OSC:STREAM to close.")
 
 (defun open (&key (host "localhost") (port #36ROSE) (direction :input)
              (protocol :udp) (buffer-size *buffer-size*)
-             (max-values *max-values*) message-encoding)
+             (max-values *max-values*) message-encoding
+             (input-stream-constructor #'make-input-stream)
+             (output-stream-constructor #'make-output-stream))
   (declare (type (member :input :output) direction)
            (type (member :udp :tcp) protocol) (type simple-string host)
            (type (unsigned-byte 16) port) (type non-negative-fixnum buffer-size)
@@ -152,8 +141,8 @@ The argument of a function is the OSC:STREAM to close.")
            (fds-ptr (alloc-fds buf-ptr (+ buffer-size buf-pad) direction
                                protocol))
            (obj (funcall (if (eq direction :input)
-                             #'make-input-stream
-                             #'make-output-stream)
+                             input-stream-constructor
+                             output-stream-constructor)
                          :host host :port port :protocol protocol
                          :address-ptr address :fds-ptr fds-ptr
                          :addrinfo-ptr (cffi:mem-ref address :pointer)
@@ -309,9 +298,31 @@ The argument of a function is the OSC:STREAM to close.")
                                                            "STREAM-~A" name)
                                  stream)))
                           names))))
-  (define-stream-readers (host port protocol socket-fd buffer-pointer
+  (define-stream-readers (host port protocol socket-fd direction buffer-pointer
                           buffer-size message-pointer message-length
                           message-encoding)))
+
+(defun set-message-length (stream value)
+  (declare (type stream stream) (type positive-fixnum value))
+  (setf (stream-message-length stream)
+        (min value (stream-buffer-size stream))))
+
+(defsetf message-length set-message-length)
+
+(defun set-message-encoding (stream value)
+  (declare (type (member nil :slip) value))
+  (if (eq value :slip)
+      (when (cffi:null-pointer-p (stream-aux-buffer-pointer stream))
+        (setf (stream-aux-buffer-pointer stream)
+              (cffi:foreign-alloc :char
+                :count (* 2 (stream-buffer-size stream))
+                :initial-element 0)))
+      (unless (cffi:null-pointer-p (stream-aux-buffer-pointer stream))
+        (cffi:foreign-free (stream-aux-buffer-pointer stream))
+        (setf (stream-aux-buffer-pointer stream) (cffi:null-pointer))))
+  (setf (stream-message-encoding stream) value))
+
+(defsetf message-encoding set-message-encoding)
 
 (defun broadcast (stream)
   (declare (type stream stream))
@@ -345,12 +356,41 @@ The argument of a function is the OSC:STREAM to close.")
              (,without-block-body))))))
 
 (defun connections (stream)
+  "Return the number of the accepted connections."
   (declare (type input-stream stream))
   (if (and (protocolp stream :tcp)
            (not (cffi:null-pointer-p (stream-fds-ptr stream))))
       (cffi:foreign-funcall "osc_connections"
                             :pointer (stream-fds-ptr stream) :int)
       0))
+
+(defun connections-fd (stream)
+  "Return the file descriptors for the accepted connections."
+  (declare (type input-stream stream))
+    (if (and (protocolp stream :tcp)
+             (not (cffi:null-pointer-p (stream-fds-ptr stream))))
+        (loop for i = 3 then fd
+              for fd = (cffi:foreign-funcall "osc_next_fd_set"
+                         :pointer (stream-fds-ptr stream) :int i :int)
+              while (plusp fd)
+                collect fd)))
+
+;;; Sometimes we want to dialog with the sender.
+(declaim (inline last-recv-fd))
+(defun last-recv-fd (stream)
+  "Return the file descriptor for the accepted connection used to get
+the last received message."
+  (cffi:foreign-funcall "osc_lastfd" :pointer (stream-fds-ptr stream) :int))
+
+(defun socket-send (sockfd octets &optional (flags +default-msg-flags+))
+  "Send OCTETS on a socket."
+  (declare (type positive-fixnum sockfd)
+           (type (simple-array (unsigned-byte 8)) octets)
+           (optimize speed (safety 0)))
+  (sb-sys:with-pinned-objects (octets)
+    (cffi:with-pointer-to-vector-data (buf octets)
+      (cffi:foreign-funcall "send" :int sockfd :pointer buf
+                            :unsigned-int (length octets) :int flags :int))))
 
 ;;; SLIP method for framing packets (RFC 1055).
 (declaim (inline slip-encode))
@@ -367,8 +407,7 @@ The argument of a function is the OSC:STREAM to close.")
         (%slip-decode (stream-message-pointer stream)
                       (stream-message-length stream))))
 
-(defun send-slip-message (stream &optional (flags #+linux MSG-NOSIGNAL
-                                                  #-linux 0))
+(defun send-slip-message (stream &optional (flags +default-msg-flags+))
   (declare (type stream stream) (type non-negative-fixnum flags))
   (let ((len (slip-encode stream)))
     (declare (type non-negative-fixnum len))
@@ -385,56 +424,69 @@ The argument of a function is the OSC:STREAM to close.")
          :pointer (stream-aux-buffer-pointer stream) :unsigned-long len
          :int flags :int)))))
 
-(defun receive (stream &optional (flags #+linux MSG-NOSIGNAL
-                                        #-linux 0))
-  "Receive a OSC packet. FLAGS are used with the recv and recvfrom calls."
+(defun net-recv (stream flags osc-message-p)
+  (let ((slip-encoding-flag 1)
+        (count-prefix-flag 2))
+    (multiple-value-bind (ptr size maybe-count-prefix-flag)
+        (if osc-message-p
+            (values (stream-buffer-pointer stream)
+                    (stream-buffer-size stream)
+                    count-prefix-flag)
+            (values (stream-message-pointer stream)
+                    (- (stream-buffer-size stream) 4)
+                    0))
+      (%osc-recv (stream-fds-ptr stream)
+                 (stream-address-ptr stream) ptr size
+                 (if (slip-encoding-p stream)
+                     slip-encoding-flag
+                     maybe-count-prefix-flag)
+                 flags))))
+
+(defun %receive (stream flags osc-message-p)
   (declare (type input-stream stream) (type non-negative-fixnum flags)
-           (optimize speed) #.incudine.util:*reduce-warnings*)
+           (type boolean osc-message-p)
+           (optimize speed))
   (let ((res (if (protocolp stream :tcp)
-                 (cffi:foreign-funcall "osc_recv"
-                   :pointer (stream-fds-ptr stream)
-                   :pointer (stream-address-ptr stream)
-                   :pointer (stream-buffer-pointer stream)
-                   :unsigned-int (stream-buffer-size stream)
-                   :boolean (slip-encoding-p stream) :int flags :int)
-                 (cffi:foreign-funcall "recvfrom"
-                   :int (stream-socket-fd stream)
-                   :pointer (stream-message-pointer stream)
-                   :unsigned-long (stream-buffer-size stream) :int flags
-                   :pointer (address-value stream 'sockaddr)
-                   :pointer (address-socklen-ptr stream) :int))))
+                 (net-recv stream flags osc-message-p)
+                 (%recvfrom (stream-socket-fd stream)
+                   (stream-message-pointer stream) (stream-buffer-size stream)
+                   flags (address-value stream 'sockaddr)
+                   (address-socklen-ptr stream)))))
     (declare (type fixnum res))
-    (if (plusp res)
-        (setf (stream-message-length stream) res
-              (stream-buffer-to-index-p stream) t)
-        (setf (stream-message-length stream) 0))
-    (when (slip-encoding-p stream) (slip-decode stream))
+    (cond ((plusp res)
+           (setf (stream-message-length stream) res)
+           (when osc-message-p
+             (setf (stream-buffer-to-index-p stream) t)))
+          (t
+           (setf (stream-message-length stream) 0)))
+    (when (slip-encoding-p stream)
+      (slip-decode stream))
     res))
 
-(defun send (stream &optional (flags #+linux MSG-NOSIGNAL
-                                     #-linux 0))
-  "Send a OSC packet. FLAGS are used with the send and sendto calls."
+(declaim (inline receive))
+(defun receive (stream &optional (flags +default-msg-flags+))
+  "Store the received OSC message into the STREAM buffer.
+FLAGS are used with the recv and recvfrom calls."
+  (%receive stream flags t))
+
+(defun send (stream &optional (flags +default-msg-flags+))
+  "Send the OSC message stored into the STREAM buffer.
+FLAGS are used with the send and sendto calls."
   (declare (type stream stream) (type non-negative-fixnum flags)
            (optimize speed) #.incudine.util:*reduce-warnings*)
-  (if (slip-encoding-p stream)
-      (send-slip-message stream flags)
-      (case (protocol stream)
-        (:udp
-         (cffi:foreign-funcall "sendto"
-           :int (stream-socket-fd stream)
-           :pointer (stream-message-pointer stream)
-           :unsigned-int (stream-message-length stream) :int flags
-           :pointer (address-value stream 'sockaddr)
-           #.+socklen-type+ (address-value stream 'socklen) :int))
-        (:tcp
+  (cond ((slip-encoding-p stream)
+         (send-slip-message stream flags))
+        ((protocolp stream :udp)
+         (%sendto (stream-socket-fd stream) (stream-message-pointer stream)
+                  (stream-message-length stream) flags
+                  (address-value stream 'sockaddr)
+                  (address-value stream 'socklen)))
+        (t
          ;; OSC 1.0 spec: length-count prefix on the start of the packet.
          (setf (cffi:mem-ref (stream-buffer-pointer stream) :uint32)
                (htonl (stream-message-length stream)))
-         (cffi:foreign-funcall "send"
-           :int (stream-socket-fd stream)
-           :pointer (stream-buffer-pointer stream)
-           :unsigned-int (+ 4 (stream-message-length stream)) :int flags
-           :int)))))
+         (%send (stream-socket-fd stream) (stream-buffer-pointer stream)
+                (+ 4 (stream-message-length stream)) flags))))
 
 #+little-endian
 (defmacro get-float (ptr tmp-ptr &optional double-p)
@@ -837,10 +889,12 @@ the values is reversed on little endian machine."
                                      :unsigned-char i)))
         (values seq len)))))
 
-(defun octets-to-buffer (octets stream &optional (start 0) end)
+(defun octets-to-buffer (octets stream &optional (start 0) end
+                         (osc-message-p t))
   (declare (type (simple-array (unsigned-byte 8) (*)) octets)
            (type stream stream) (type non-negative-fixnum start)
            (type (or non-negative-fixnum null) end)
+           (type boolean osc-message-p)
            (optimize speed (safety 0)))
   (let ((len (- (or end (length octets)) start)))
     (when (<= len (stream-buffer-size stream))
@@ -848,5 +902,6 @@ the values is reversed on little endian machine."
       (dotimes (i len)
         (setf (cffi:mem-aref (stream-message-pointer stream) :unsigned-char i)
               (aref octets i)))
-      (setf (stream-buffer-to-index-p stream) t)
-      stream)))
+      (when osc-message-p
+        (setf (stream-buffer-to-index-p stream) t))
+      (values stream len))))

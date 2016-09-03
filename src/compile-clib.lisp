@@ -142,7 +142,7 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
                     '((:jack "rtjack.c" "rtjack.h")
                       (:portaudio "rtpa.c" "rtpa.h")
                       (:mouse "mouse.c" "mouse.h")
-                      (:osc "osc/osc.c" "osc/osc.h")
+                      (:osc "network/osc.c" "network/osc.h")
                       (:util "util.c"))))))
 
   (defvar *c-source-pathnames*

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Tito Latini
+ * Copyright (c) 2015-2016 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -119,7 +119,7 @@ int index_osc_values(void *oscbuf, void *ibuf, char *typebuf,
         tbuf = typebuf + 1;
 
         while (*ttag) {
-                *res++ = (char *) &data[i];
+                *res = (char *) &data[i];
                 *tbuf = *ttag;
                 switch (*ttag++) {
                 case 'f':    /* float */
@@ -159,8 +159,9 @@ int index_osc_values(void *oscbuf, void *ibuf, char *typebuf,
                          *     N - NIL
                          *     I - INFINITUM
                          */
-                        break;
+                        continue;
                 }
+                res++;
         }
         /* Start of free memory. */
         *res = (char *) &data[i];
@@ -194,7 +195,7 @@ int index_osc_values_le(void *oscbuf, void *ibuf, char *typebuf,
         tbuf = typebuf + 1;
 
         while (*ttag) {
-                *res++ = (char *) &data[i];
+                *res = (char *) &data[i];
                 *tbuf = *ttag;
                 switch (*ttag++) {
                 case 'f':    /* float */
@@ -243,8 +244,9 @@ int index_osc_values_le(void *oscbuf, void *ibuf, char *typebuf,
                          *     N - NIL
                          *     I - INFINITUM
                          */
-                        break;
+                        continue;
                 }
+                res++;
         }
         /* Start of free memory. */
         *res = (char *) &data[i];
@@ -342,7 +344,7 @@ struct osc_fds *osc_alloc_fds(void)
         o = (struct osc_fds *) malloc(sizeof(struct osc_fds));
         if (o != NULL) {
                 FD_ZERO(&o->fds);
-                o->servfd = -1;
+                o->servfd = o->lastfd = -1;
                 o->maxfd = 0;
                 o->count = 0;
         }
@@ -353,6 +355,11 @@ void osc_set_servfd(struct osc_fds *o, int servfd)
 {
         FD_SET(servfd, &o->fds);
         o->maxfd = o->servfd = servfd;
+}
+
+int osc_lastfd(struct osc_fds *o)
+{
+        return o->lastfd;
 }
 
 int osc_connections(struct osc_fds *o)
@@ -370,7 +377,20 @@ void osc_close_connections(struct osc_fds *o)
         FD_ZERO(&o->fds);
         FD_SET(o->servfd, &o->fds);
         o->maxfd = o->servfd;
+        o->lastfd = -1;
         o->count = 0;
+}
+
+int osc_next_fd_set(struct osc_fds *o, int curr)
+{
+        int i;
+
+        if (curr < 3 || curr >= o->maxfd)
+                return -1;
+        for (i = curr + 1; i <= o->maxfd; i++)
+                if (FD_ISSET(i, &o->fds) && i != o->servfd)
+                        return i;
+        return -1;
 }
 
 int osc_close_server(struct osc_fds *o)
@@ -380,20 +400,28 @@ int osc_close_server(struct osc_fds *o)
 
 /* Receiver used with stream-oriented protocols. */
 int osc_recv(struct osc_fds *o, struct osc_address *addr, void *buf,
-             unsigned int maxlen, int is_slip, int flags)
+             unsigned int maxlen, int enc_flags, int flags)
 {
-        int i, ret, fd, remain, nbytes, nfds;
+        int i, ret, fd, remain, nbytes, nfds, is_slip, has_count_prefix;
         unsigned char *data;
         fd_set fds, tmpfds;
-        struct timeval now;
+        struct timeval now, *timeout;
 
+        if (osc_getsock_nonblock(o->servfd)) {
+                now.tv_sec = now.tv_usec = 0;
+                timeout = &now;
+        } else {
+                timeout = NULL;
+        }
+        is_slip = enc_flags & SLIP_ENCODING_FLAG;
+        has_count_prefix = enc_flags & COUNT_PREFIX_FLAG;
         FD_ZERO(&fds);
         nbytes = 0;
         while(1) {
                 fds = o->fds;
                 nfds = o->maxfd + 1;
-                if (select(nfds, &fds, NULL, NULL, NULL) == -1)
-                        return -1;
+                if ((ret = select(nfds, &fds, NULL, NULL, timeout)) <= 0)
+                        return ret;
                 if (FD_ISSET(o->servfd, &fds)) {
                         addr->saddr_len = sizeof(struct sockaddr_storage);
                         fd = accept(o->servfd, (struct sockaddr *) addr->saddr,
@@ -412,6 +440,8 @@ int osc_recv(struct osc_fds *o, struct osc_address *addr, void *buf,
                                 if (ret == 0) {
                                         close(i);
                                         FD_CLR(i, &o->fds);
+                                        if (o->lastfd == i)
+                                                o->lastfd = -1;
                                         if (--o->count == 0) {
                                                 o->maxfd = o->servfd;
                                                 break;
@@ -419,13 +449,14 @@ int osc_recv(struct osc_fds *o, struct osc_address *addr, void *buf,
                                                 continue;
                                         }
                                 }
+                                o->lastfd = i;
                                 if (is_slip) {
                                         /* Serial Line IP */
                                         if (is_slip_msg(data, ret))
                                                 return ret;
                                         nbytes = maxlen;
                                         remain = nbytes - ret;
-                                } else {
+                                } else if (has_count_prefix) {
                                         /*
                                          * OSC 1.0 spec: length-count prefix on
                                          * the start of the packet.
@@ -437,6 +468,8 @@ int osc_recv(struct osc_fds *o, struct osc_address *addr, void *buf,
                                         } else {
                                                 remain = nbytes + 4 - ret;
                                         }
+                                } else {
+                                        return ret;
                                 }
                                 while (remain > 0) {
                                         FD_ZERO(&tmpfds);
@@ -451,6 +484,8 @@ int osc_recv(struct osc_fds *o, struct osc_address *addr, void *buf,
                                                            flags);
                                                 if (ret <= 0) {
                                                         close(i);
+                                                        if (o->lastfd == i)
+                                                                o->lastfd = -1;
                                                         if (--o->count == 0)
                                                                 o->maxfd =
                                                                       o->servfd;
@@ -478,6 +513,10 @@ int osc_recv(struct osc_fds *o, struct osc_address *addr, void *buf,
                 }
                 if (nbytes < 0)
                         return nbytes;
+                if (timeout == &now) {
+                        /* Timeout considered undefined after select() returns. */
+                        now.tv_sec = now.tv_usec = 0;
+                }
         }
 }
 

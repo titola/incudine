@@ -21,6 +21,7 @@
   *max-number-of-channels*
   *max-number-of-nodes*
   *midi-input-timeout*
+  *network-buffer-size*
   *nrt-edf-heap-size*
   *nrt-priority*
   *number-of-bus-channels*

@@ -73,8 +73,12 @@
 ;; low value = low latency but minor CPU time for the system
 (setq *midi-input-timeout* 1)
 
-;;;--------------------[ Open Sound Control ]-----------------------
+;;;------------------------[ Networking ]---------------------------
 
+;; Size of the foreign buffer used to read/write octets.
+(setq *network-buffer-size* 128)
+
+;; Open Sound Control
 (setq *osc-buffer-size* 128)
 (setq *osc-max-values* 16)
 

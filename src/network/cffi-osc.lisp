@@ -1,4 +1,4 @@
-;;; Copyright (c) 2015 Tito Latini
+;;; Copyright (c) 2015-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -17,12 +17,64 @@
 (in-package :incudine.osc)
 
 #+linux
-(define-constant MSG-NOSIGNAL #x4000)
+(define-constant MSG-NOSIGNAL #x4000)  ; Don't generate SIGPIPE.
+
+(define-constant +default-msg-flags+ #+linux MSG-NOSIGNAL
+                                     #-linux 0)
 
 (define-constant +socklen-type+
     (if (> (cffi:foreign-funcall "sizeof_socklen" :unsigned-int) 4)
         :uint64
         :uint32))
+
+(cffi:defcstruct addrinfo
+  (ai-flags :int)
+  (ai-family :int)
+  (ai-socktype :int)
+  (ai-protocol :int)
+  (ai-addrlen #.+socklen-type+)
+  (ai-addr :pointer)
+  (ai-canonname :pointer)
+  (ai-next :pointer))
+
+(cffi:defcstruct address
+  (info :pointer)               ; (struct addrinfo *)
+  (sockaddr :pointer)           ; (struct sockaddr_storage *)
+  (socklen #.+socklen-type+))
+
+(declaim (inline %send))
+(cffi:defcfun ("send" %send) :int
+  (sockfd :int)
+  (buf :pointer)
+  (len :unsigned-int)
+  (flags :int))
+
+(declaim (inline %sendto))
+(cffi:defcfun ("sendto" %sendto) :int
+  (sockfd :int)
+  (buf :pointer)
+  (len :unsigned-int)
+  (flags :int)
+  (dest-addr :pointer)
+  (addrlen #.+socklen-type+))
+
+(declaim (inline %recvfrom))
+(cffi:defcfun ("recvfrom" %recvfrom) :int
+  (sockfd :int)
+  (buf :pointer)
+  (len :unsigned-int)
+  (flags :int)
+  (sockaddr :pointer)
+  (socklen :pointer))
+
+(declaim (inline %osc-recv))
+(cffi:defcfun ("osc_recv" %osc-recv) :int
+  (fds :pointer)
+  (address :pointer)
+  (buf :pointer)
+  (maxlen :unsigned-int)
+  (enc-flags :int)
+  (flags :int))
 
 (cffi:defcfun ("osc_address_new" new-address) :int
   (addr :pointer)

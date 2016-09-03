@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Tito Latini
+ * Copyright (c) 2015-2016 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,6 +39,9 @@
 
 #define REQUIRED_VALUES_INDEX  0
 
+#define SLIP_ENCODING_FLAG  1
+#define COUNT_PREFIX_FLAG   2
+
 #define OSC_MSGTOOLONG  -2
 #define OSC_BADMSG      -3
 
@@ -61,6 +64,7 @@ struct osc_fds {
         fd_set fds;
         int maxfd;      /* highest-numbered fd */
         int servfd;     /* server fd */
+        int lastfd;     /* fd used for the last received message */
         int count;      /* number of the connections */
 };
 
@@ -91,7 +95,9 @@ int osc_maybe_reserve_space(void *oscbuf, void *ibuf, unsigned int index,
                             unsigned int data_size);
 struct osc_fds *osc_alloc_fds(void);
 void osc_set_servfd(struct osc_fds *o, int servfd);
+int osc_lastfd(struct osc_fds *o);
 int osc_connections(struct osc_fds *o);
+int osc_next_fd_set(struct osc_fds *o, int curr);
 void osc_close_connections(struct osc_fds *o);
 int osc_close_server(struct osc_fds *o);
 int osc_recv(struct osc_fds *o, struct osc_address *addr, void *buf,
