@@ -99,39 +99,30 @@ Return the number of the octets."
         (send stream ptr size flags)
         0)))
 
-(defun write-octets (stream octets &optional (start 0) end
-                     (flags +default-msg-flags+))
-  (declare (type output-stream stream)
-           (type (simple-array (unsigned-byte 8)) octets)
-           (type (or positive-fixnum null) end)
-           (type non-negative-fixnum start))
-  (let ((end (or end (length octets))))
-    (declare (type non-negative-fixnum end))
-    (unless (or (>= start end) (> end (length octets)))
-      (sb-sys:with-pinned-objects (octets)
-        (cffi:with-pointer-to-vector-data (ptr octets)
-          (foreign-write stream (cffi:inc-pointer ptr start)
-                         (- end start) flags))))))
-
 (defun write (stream obj &key (start 0) end (flags +default-msg-flags+))
   "Send the octets obtained from a simple-array (unsigned-byte 8) or
 from a string.
 START and END are the bounding index designators of the simple-array.
-If OBJ is NIL, send the message stored into the STREAM buffer.
 FLAGS are used with the send and sendto calls."
-  (typecase obj
-    ((simple-array (unsigned-byte 8))
-     (write-octets stream obj start end flags))
-    (string
-     (let ((len (length obj)))
-       (when (< len (buffer-size stream))
-         (setf (osc::stream-message-length stream) len)
-         (cffi:lisp-string-to-foreign obj
-           (message-pointer stream) (1+ len))
-         (send stream (message-pointer stream) len flags))))
-    (null (foreign-write stream (message-pointer stream)
-                         (message-length stream) flags))
-    (otherwise 0)))
+  (declare (type osc:stream stream)
+           (type (or (simple-array (unsigned-byte 8)) string) obj)
+           (type non-negative-fixnum start)
+           (type (or positive-fixnum null) end)
+           (optimize speed))
+  (if (stringp obj)
+      (let ((len (length obj)))
+        (when (< len (buffer-size stream))
+          (setf (osc::stream-message-length stream) len)
+          (cffi:lisp-string-to-foreign obj
+            (message-pointer stream) (1+ len))
+          (send stream (message-pointer stream) len flags)))
+      (let ((end (or end (length obj))))
+        (declare (type non-negative-fixnum end))
+        (unless (or (>= start end) (> end (length obj)))
+          (sb-sys:with-pinned-objects (obj)
+            (cffi:with-pointer-to-vector-data (ptr obj)
+              (foreign-write stream (cffi:inc-pointer ptr start)
+                             (- end start) flags)))))))
 
 (defun buffer-to-string (stream)
   "Return the string stored into the STREAM buffer."
