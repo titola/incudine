@@ -79,10 +79,10 @@
 <span class="prompt">SCRATCH&gt;</span> (block-size)
 64
 
-(ladspa-&gt;vug <span style="color: #ffa07a;">"zita-reverbs"</span> <span style="color: #ffa07a;">"zita-reverb"</span> zita-reverb)
+(ladspa-&gt;vug <span style="color: #ffa07a;">"caps"</span> <span style="color: #ffa07a;">"Plate"</span> plate-reverb)
 
 <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Test with a UGEN.</span>
-(compile-vug 'zita-reverb 'pointer)
+(compile-vug 'plate-reverb 'pointer)
 
 (define-vug <span style="color: #87cefa;">rev-input</span> ((in pointer))
   <span style="color: #ffa07a;">"Read a block of audio samples from the first Incudine input port."</span>
@@ -96,19 +96,17 @@
     (out (f32-ref (ptr-ref out 0) current-frame)
          (f32-ref (ptr-ref out 1) current-frame))))
 
-(dsp! <span style="color: #87cefa;">rev-test</span> (delay xover rt-low rt-mid damping f1-freq f1-gain
-                f2-freq f2-gain out-mix)
+(dsp! <span style="color: #87cefa;">rev-test</span> (bw tail damping blend)
   (with ((in (make-f32-array (block-size)))
          (out (cffi:null-pointer)))
     (declare (pointer out))
     (rev-input in)
-    (setf out (zita-reverb in in delay xover rt-low rt-mid damping
-                           f1-freq f1-gain f2-freq f2-gain out-mix))
+    (setf out (plate-reverb bw tail damping blend in))
     (rev-output out)))
 
-<span class="prompt">SCRATCH&gt;</span> (rev-test 0.06 223.607 2.75 2.75 6000 159.054 0 2514.87 0 0.5 <span style="color: #b0c4de;">:id</span> 8)
+<span class="prompt">SCRATCH&gt;</span> (rev-test .75 .5 .25 .25 <span style="color: #b0c4de;">:id</span> 8)
 
-<span class="prompt">SCRATCH&gt;</span> (set-controls 8 <span style="color: #b0c4de;">:trig-freq</span> 1.5 <span style="color: #b0c4de;">:delay</span> 0.03 <span style="color: #b0c4de;">:rt-low</span> 1.2 <span style="color: #b0c4de;">:rt-mid</span> 1)
+<span class="prompt">SCRATCH&gt;</span> (set-controls 8 <span style="color: #b0c4de;">:tail</span> .8 <span style="color: #b0c4de;">:dumping</span> .1 <span style="color: #b0c4de;">:blend</span> .5)
 
 <span class="prompt">SCRATCH&gt;</span> (get-bytes-consed-in 5)
 0

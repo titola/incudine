@@ -301,30 +301,28 @@ incudine gverb.cudo -i voice.wav --pad 3 -r 96000 -s gverb-test.rego</pre>
         LADSPA, here is an example to use LADSPA plugins:
       </p>
 
-      <pre class="src src-sh">cat &gt; zita-rev.cudo &lt;&lt;'---'
+      <pre class="src src-sh">cat &gt; plate-rev.cudo &lt;&lt;'---'
 (eval-when (:compile-toplevel :load-toplevel)
-  (ladspa-&gt;vug "zita-reverbs" "zita-reverb" zita-reverb))
+  (ladspa-&gt;vug "caps" "Plate" plate-reverb))
 
-(dsp! zita-reverb-test (trig-freq input-decay input-scale delay xover rt-low
-                        rt-mid damping f1-freq f1-gain f2-freq f2-gain out-mix)
-  "Test of the reverb FDN developed by Fons Adriaensen."
+(dsp! plate-reverb-test (trig-freq input-decay input-scale bw tail damping blend)
+  "Test of the Plate reverb developed by Tim Goetze."
   (with-samples ((in (* (decay (impulse trig-freq) input-decay)
                         (white-noise input-scale))))
-    ;; ZITA-REVERB returns a frame because there are two outputs
+    ;; PLATE-REVERB returns a frame because there are two outputs.
     (multiple-sample-bind (l r)
-        (zita-reverb in in delay xover rt-low rt-mid damping f1-freq f1-gain
-                     f2-freq f2-gain out-mix)
+        (plate-reverb bw tail damping blend in)
       (out l r))))
 ---
 
-cat &gt; zita-rev-test.rego &lt;&lt;'---'
-0 zita-reverb-test 0.5 0.165 0.5 0.06 223.607 2.75 2.75 6000 \
-                   159.054 0 2514.87 0 0.5 :id 1
-4 set-controls 1 :trig-freq 1.5 :delay 0.03 :rt-low 1.2 :rt-mid 1
+cat &gt; plate-rev-test.rego &lt;&lt;'---'
+0 plate-reverb-test 4 .165 .5 .75 .5 .25 .25
+2 set-controls 1 :trig-freq 1.5 :tail .8 :dumping .1 :blend .5
+5 set-control 1 :trig-freq .1
 8 free 1
 ---
 
-incudine zita-rev.cudo -v -s zita-rev-test.rego
+incudine plate-rev.cudo -v -s plate-rev-test.rego
 </pre>
 
       <hr>

@@ -59,10 +59,10 @@
 (block-size)
 ;; 64
 
-(ladspa->vug "zita-reverbs" "zita-reverb" zita-reverb)
+(ladspa->vug "caps" "Plate" plate-reverb)
 
 ;; Test with a UGEN.
-(compile-vug 'zita-reverb 'pointer)
+(compile-vug 'plate-reverb 'pointer)
 
 (define-vug rev-input ((in pointer))
   "Read a block of audio samples from the first Incudine input port."
@@ -76,19 +76,17 @@
     (out (f32-ref (ptr-ref out 0) current-frame)
          (f32-ref (ptr-ref out 1) current-frame))))
 
-(dsp! rev-test (delay xover rt-low rt-mid damping f1-freq f1-gain
-                f2-freq f2-gain out-mix)
+(dsp! rev-test (bw tail damping blend)
   (with ((in (make-f32-array (block-size)))
          (out (cffi:null-pointer)))
     (declare (pointer out))
     (rev-input in)
-    (setf out (zita-reverb in in delay xover rt-low rt-mid damping
-                           f1-freq f1-gain f2-freq f2-gain out-mix))
+    (setf out (plate-reverb bw tail damping blend in))
     (rev-output out)))
 
-(rev-test 0.06 223.607 2.75 2.75 6000 159.054 0 2514.87 0 0.5 :id 8)
+(rev-test .75 .5 .25 .25 :id 8)
 
-(set-controls 8 :trig-freq 1.5 :delay 0.03 :rt-low 1.2 :rt-mid 1)
+(set-controls 8 :tail .8 :dumping .1 :blend .5)
 
 (get-bytes-consed-in 5)
 ;; 0
