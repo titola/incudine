@@ -37,6 +37,11 @@ enum {
 #define JA_PORT_NAME_MAX_LENGTH  16
 #define JA_SAMPLE_SIZE  (sizeof(jack_default_audio_sample_t))
 
+struct ja_xrun {
+        unsigned int count;
+        SAMPLE last_time;
+};
+
 static jack_client_t *client = NULL;
 static SAMPLE ja_sample_rate;
 static SAMPLE *ja_sample_counter;
@@ -53,6 +58,7 @@ static pthread_mutex_t ja_lisp_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  ja_lisp_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t ja_c_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  ja_c_cond = PTHREAD_COND_INITIALIZER;
+static struct ja_xrun ja_xruns;
 static char ja_error_msg[JA_ERROR_MSG_MAX_LENGTH];
 
 #define RETURN_IF_NULLPTR(v, msg)                       \
@@ -91,7 +97,8 @@ static void ja_default_error_callback(const char *msg);
 static void ja_silent_error_callback(const char *msg);
 static int ja_register_ports(void);
 static int ja_connect_client(void);
-static void* ja_process_thread(void *arg);
+static void *ja_process_thread(void *arg);
+static int ja_xrun_cb(void *arg);
 static void ja_shutdown(void *arg);
 static void ja_terminate(void *arg);
 
@@ -102,6 +109,8 @@ void ja_set_lisp_busy_state(int status);
 void ja_transfer_to_c_thread(void);
 int ja_get_buffer_size(void);
 SAMPLE ja_get_sample_rate(void);
+struct ja_xrun *ja_get_xruns(void);
+void ja_xrun_reset(void);
 int ja_initialize(SAMPLE srate, unsigned int input_channels,
                   unsigned int output_channels, unsigned int nframes,
                   const char* client_name, SAMPLE *sample_counter);

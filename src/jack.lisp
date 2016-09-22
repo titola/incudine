@@ -16,6 +16,10 @@
 
 (in-package :incudine.external)
 
+(cffi:defcstruct rt-xrun
+  (count :unsigned-int)
+  (last-time sample))
+
 (cffi:defcfun ("ja_initialize" rt-audio-init) :int
   (sample-rate sample)
   (input-channels :unsigned-int)
@@ -55,6 +59,16 @@
 
 (declaim (inline rt-sample-rate))
 (cffi:defcfun ("ja_get_sample_rate" rt-sample-rate) sample)
+
+(defun rt-xruns (&optional reset-p)
+  "Return the number of the occurred JACK xruns and the time in samples of
+the last xrun. If RESET-P is non-NIL, set the number of JACK xruns to zero."
+  (when reset-p
+    (cffi:foreign-funcall "ja_xrun_reset" :void))
+  (cffi:with-foreign-slots ((count last-time)
+                            (cffi:foreign-funcall "ja_get_xruns" :pointer)
+                            (:struct rt-xrun))
+    (values count last-time)))
 
 (declaim (inline rt-set-busy-state))
 (cffi:defcfun ("ja_set_lisp_busy_state" rt-set-busy-state) :void

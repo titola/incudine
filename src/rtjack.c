@@ -163,6 +163,24 @@ static void* ja_process_thread(void *arg)
         return 0;
 }
 
+static int ja_xrun_cb(void *arg)
+{
+        ja_xruns.count++;
+        ja_xruns.last_time = *((SAMPLE *) arg);
+        return 0;
+}
+
+struct ja_xrun *ja_get_xruns(void)
+{
+        return &ja_xruns;
+}
+
+void ja_xrun_reset(void)
+{
+        ja_xruns.count = 0;
+        ja_xruns.last_time = (SAMPLE) 0.0;
+}
+
 static void ja_shutdown(void *arg)
 {
         (void) arg;
@@ -303,6 +321,8 @@ int ja_initialize(SAMPLE srate, unsigned int input_channels,
 
         jack_set_process_thread(client, ja_process_thread, NULL);
         jack_on_shutdown(client, ja_shutdown, NULL);
+        jack_set_xrun_callback(client, ja_xrun_cb, (void *) sample_counter);
+        ja_xrun_reset();
 
         /* Unblock signals */
         sigemptyset(&sset);
