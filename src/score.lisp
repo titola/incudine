@@ -331,6 +331,41 @@ or IGNORE-SCORE-STATEMENTS."
                                 (subseq line time-pos))
                               nil))))
 
+;;; If we use the symbol // to separate the functions with the same
+;;; time-tag, we get a polyphonic vertical sequencer in text files.
+;;;
+;;; For example:
+;;;
+;;;     2.5 foo 440 .08 // bar 550 .1 // baz 660 .05 // sev 770 .1
+;;;     3.2                           // baz 330 .03
+;;;     4.5 foo 220 .02                              // sev 772 .07
+;;;
+;;; is equivalent to
+;;;
+;;;     2.5 foo 440 .08
+;;;     2.5 bar 550 .1
+;;;     2.5 baz 660 .05
+;;;     2.5 sev 770 .1
+;;;     3.2 baz 330 .03
+;;;     4.5 foo 220 .02
+;;;     4.5 sev 772 .07
+;;;
+(defun score-expand-parallel-functions (form)
+  (let ((pos (position '// form)))
+    (cond ((null pos) form)
+          ((= pos 2)
+           (score-expand-parallel-functions (remove '// form :count 1)))
+          (t
+           (labels ((next (at-fname time form)
+                      (let ((end (position '// form)))
+                        (if end
+                            (cons `(,at-fname ,time ,@(subseq form 0 end))
+                                  (next at-fname time (subseq form (1+ end))))
+                            `((,at-fname ,time ,@form))))))
+             (with-gensyms (time)
+               `(let ((,time ,(cadr form)))
+                  ,@(next (car form) time (cddr form)))))))))
+
 (defun score-line->sexp (line at-fname &optional args)
   (declare (type string line) (type list args))
   (if (include-regofile-p line)
@@ -349,9 +384,10 @@ or IGNORE-SCORE-STATEMENTS."
             (*read-default-float-format* *sample-type*))
         (declare (type string line))
         (if (time-tagged-function-p line)
-            (macroexpand-1
-              (read-from-string
-                (format nil "(INCUDINE::%AT-SAMPLE ~A ~A)" at-fname line)))
+            (score-expand-parallel-functions
+              (macroexpand-1
+                (read-from-string
+                  (format nil "(INCUDINE::%AT-SAMPLE ~A ~A)" at-fname line))))
             ;; Tag or lisp statement.
             (read-from-string (string-left-trim '(#\Space #\Tab) line))))))
 

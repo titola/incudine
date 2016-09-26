@@ -46,3 +46,7 @@
 (with-dsp-test (org-mode.1
       :md5 #(216 196 146 164 88 88 197 20 138 165 207 215 200 7 22 251))
   (test-regofile "org-mode.rego"))
+
+(with-dsp-test (paral.1
+      :md5 #(132 22 147 114 139 210 67 6 172 195 244 193 123 100 193 191))
+  (test-regofile "paral-1.rego"))
