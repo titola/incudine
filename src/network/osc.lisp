@@ -100,6 +100,18 @@ The argument of a function is the OSC:STREAM to close.")
   `(cffi:foreign-slot-value (stream-addrinfo-ptr ,stream)
                             '(:struct addrinfo) ,slot-name))
 
+;;; send() and recv() return the number of the bytes received, or -1
+;;; if an error occurred. We force a fixnum on 32-bit platforms.
+(defmacro force-fixnum (form)
+  (if (> (* 8 (cffi:foreign-type-size :int))
+         incudine.util::n-fixnum-bits)
+      (with-gensyms (x)
+        `(let ((,x ,form))
+           (if (plusp ,x)
+               (logand ,x #xffffff)
+               -1)))
+      form))
+
 (declaim (inline free-pointer))
 (defun free-pointer (ptr)
   (unless (cffi:null-pointer-p ptr) (cffi:foreign-free ptr)))
@@ -389,8 +401,9 @@ the last received message."
            (optimize speed (safety 0)))
   (sb-sys:with-pinned-objects (octets)
     (cffi:with-pointer-to-vector-data (buf octets)
-      (cffi:foreign-funcall "send" :int sockfd :pointer buf
-                            :unsigned-int (length octets) :int flags :int))))
+      (force-fixnum
+        (cffi:foreign-funcall "send" :int sockfd :pointer buf
+                              :unsigned-int (length octets) :int flags :int)))))
 
 ;;; SLIP method for framing packets (RFC 1055).
 (declaim (inline slip-encode))
@@ -448,10 +461,11 @@ the last received message."
            (optimize speed))
   (let ((res (if (protocolp stream :tcp)
                  (net-recv stream flags osc-message-p)
-                 (%recvfrom (stream-socket-fd stream)
-                   (stream-message-pointer stream) (stream-buffer-size stream)
-                   flags (address-value stream 'sockaddr)
-                   (address-socklen-ptr stream)))))
+                 (force-fixnum
+                   (%recvfrom (stream-socket-fd stream)
+                     (stream-message-pointer stream) (stream-buffer-size stream)
+                     flags (address-value stream 'sockaddr)
+                     (address-socklen-ptr stream))))))
     (declare (type fixnum res))
     (cond ((plusp res)
            (setf (stream-message-length stream) res)

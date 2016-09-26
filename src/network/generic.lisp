@@ -70,11 +70,12 @@ Return the number of the copied octets."
 
 (declaim (inline send))
 (defun send (stream ptr size flags)
-  (if (protocolp stream :udp)
-      (osc::%sendto (socket-fd stream) ptr size flags
-                    (osc::address-value stream 'osc::sockaddr)
-                    (osc::address-value stream 'osc::socklen))
-      (osc::%send (socket-fd stream) ptr size flags)))
+  (osc::force-fixnum
+    (if (protocolp stream :udp)
+        (osc::%sendto (socket-fd stream) ptr size flags
+                      (osc::address-value stream 'osc::sockaddr)
+                      (osc::address-value stream 'osc::socklen))
+        (osc::%send (socket-fd stream) ptr size flags))))
 
 (declaim (inline foreign-write))
 (defun foreign-write (stream buffer-pointer buffer-size
@@ -89,9 +90,9 @@ Return the number of the octets."
       (if (osc::slip-encoding-p stream)
           (values (osc::stream-aux-buffer-pointer stream)
                   (if (<= buffer-size (buffer-size stream))
-                      (osc::%slip-encode buffer-pointer
-                                         (osc::stream-aux-buffer-pointer stream)
-                                         buffer-size)
+                      (osc::force-fixnum
+                        (osc::%slip-encode buffer-pointer
+                          (osc::stream-aux-buffer-pointer stream) buffer-size))
                       0))
           (values buffer-pointer buffer-size))
     (declare (type cffi:foreign-pointer ptr) (type non-negative-fixnum size))
