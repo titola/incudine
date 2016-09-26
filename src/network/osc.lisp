@@ -35,12 +35,6 @@ The argument of a function is the OSC:STREAM to close.")
 (defvar *listen-backlog* 8)
 (declaim (type (unsigned-byte 8) *listen-backlog*))
 
-(defun print-stream (obj stream depth)
-  (declare (ignore depth))
-  (format stream "#<OSC:~A-STREAM ~S ~S ~D>"
-          (stream-direction obj) (stream-protocol obj)
-          (stream-host obj) (stream-port obj)))
-
 (defstruct (stream (:constructor %make-stream)
                    (:print-function print-stream)
                    (:copier nil))
@@ -78,6 +72,12 @@ The argument of a function is the OSC:STREAM to close.")
 (defstruct (input-stream (:include stream)))
 
 (defstruct (output-stream (:include stream)))
+
+(defun print-stream (obj stream depth)
+  (declare (ignore depth))
+  (format stream "#<OSC:~A-STREAM ~S ~S ~D>"
+          (stream-direction obj) (stream-protocol obj)
+          (stream-host obj) (stream-port obj)))
 
 (declaim (inline protocolp))
 (defun protocolp (stream protocol)
