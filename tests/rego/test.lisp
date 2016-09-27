@@ -50,3 +50,7 @@
 (with-dsp-test (paral.1
       :md5 #(132 22 147 114 139 210 67 6 172 195 244 193 123 100 193 191))
   (test-regofile "paral-1.rego"))
+
+(with-dsp-test (paral.2
+      :md5 #(225 98 8 15 231 24 109 114 111 196 54 172 233 204 51 11))
+  (test-regofile "paral-2.rego"))
