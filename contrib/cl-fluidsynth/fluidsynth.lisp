@@ -1,4 +1,4 @@
-;;; Copyright (c) 2015 Tito Latini
+;;; Copyright (c) 2015-2016 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -51,8 +51,37 @@
 
 (defsetf setting set-setting)
 
+(defmacro without-interrupts (&body body)
+  #+ecl `(mp:without-interrupts ,@body)
+  #+openmcl `(ccl:without-interrupts ,@body)
+  #+sbcl `(sb-sys:without-interrupts ,@body)
+  #-(or ecl openmcl sbcl) `(progn ,@body))
+
+(defvar *logger-stream* *error-output*)
+(declaim (type stream *logger-stream*))
+
+(defvar *set-logger-functions-p* t)
+
+(cffi:defcallback log-function :void ((level :int) (msg :string) (data :pointer))
+  (declare (ignore data))
+  (format *logger-stream*
+          "cl-fluidsynth: ~[panic: ~;error: ~;warning: ~;~;debug: ~]~A~%"
+          level msg)
+  (force-output *logger-stream*))
+
+(defun set-logger-functions ()
+  (dotimes (level 5)
+    (cffi:foreign-funcall "fluid_set_log_function" :int level
+                          :pointer (cffi:callback log-function)
+                          :pointer (cffi:null-pointer)
+                          :void)))
+
 (defun new-settings (&optional setting-list)
-  (let ((obj (%new-settings)))
-    (loop for (name value) in setting-list
-          do (setf (setting obj name) value))
-    obj))
+  (without-interrupts
+    (let ((obj (%new-settings)))
+      (loop for (name value) in setting-list
+            do (setf (setting obj name) value))
+      (when *set-logger-functions-p*
+        (set-logger-functions)
+        (setf *set-logger-functions-p* nil))
+      obj)))

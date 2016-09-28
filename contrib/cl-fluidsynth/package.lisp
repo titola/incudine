@@ -21,6 +21,8 @@
   (:shadow #:delete #:error)
   (:import-from #:alexandria #:define-constant)
   (:export
+   ;; Variables
+   #:*logger-stream*
    ;; Settings
    #:HINT-BOUNDED-BELOW
    #:HINT-BOUNDED-ABOVE
