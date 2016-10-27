@@ -28,6 +28,14 @@
   "Maximum number of the required values in a OSC message.")
 (declaim (type positive-fixnum *max-values*))
 
+(defvar *addrinfo-hints-flags*
+  (if (boundp 'incudine.config::*addrinfo-hints-flags*)
+      incudine.config::*addrinfo-hints-flags*
+      0)
+  "addrinfo-flags for the argument 'hints' of the c-call getaddrinfo.
+The default is 0.")
+(declaim (type non-negative-fixnum *addrinfo-hints-flags*))
+
 (defvar *before-close-hook* nil
   "List of the functions called before to close a OSC:STREAM.
 The argument of a function is the OSC:STREAM to close.")
@@ -131,7 +139,7 @@ The argument of a function is the OSC:STREAM to close.")
            (type (member nil :slip) message-encoding))
   (cffi:with-foreign-object (address-ptr :pointer)
     (unless (zerop (new-address address-ptr host port (eq protocol :udp)
-                                (eq direction :input)))
+                                (eq direction :input) *addrinfo-hints-flags*))
       (error "OSC address allocation"))
     (let* ((address (cffi:mem-ref address-ptr :pointer))
            ;; Add 4 bytes with zero, so the loop in STREAM-BUFFER-STRLEN

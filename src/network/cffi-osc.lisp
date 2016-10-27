@@ -81,7 +81,8 @@
   (host :string)
   (port :unsigned-int)
   (datagram-p :boolean)
-  (input-p :boolean))
+  (input-p :boolean)
+  (hints-flags :int))
 
 (cffi:defcfun ("osc_address_free" free-address) :void
   (addr :pointer))

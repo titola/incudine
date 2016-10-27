@@ -1,5 +1,6 @@
 (declaim
  (special
+  *addrinfo-hints-flags*
   *audio-driver*
   *bounce-to-disk-guard-size*
   *c-compiler*

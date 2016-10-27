@@ -79,7 +79,8 @@ static void osc_move_data_right(uint32_t *start, uint32_t *end, unsigned int n);
 static int is_slip_msg(const unsigned char *buf, int len);
 
 int osc_address_new(struct osc_address **addr, const char *host,
-                    unsigned int port, int is_datagram, int is_input);
+                    unsigned int port, int is_datagram, int is_input,
+                    int hints_flags);
 void osc_address_free(struct osc_address *a);
 int check_osc_pattern(void *buf, const char *addrpat, const char *types);
 int index_osc_values(void *buf, void *ibuf, char *tbuf,

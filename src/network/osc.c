@@ -20,7 +20,8 @@
 #include "osc.h"
 
 int osc_address_new(struct osc_address **addr, const char *host,
-                    unsigned int port, int is_datagram, int is_input)
+                    unsigned int port, int is_datagram, int is_input,
+                    int hints_flags)
 {
         struct addrinfo hints, *info;
         struct osc_address *a;
@@ -30,6 +31,7 @@ int osc_address_new(struct osc_address **addr, const char *host,
         memset(&hints, 0, sizeof hints);
         hints.ai_family = AF_UNSPEC;
         hints.ai_socktype = is_datagram ? SOCK_DGRAM : SOCK_STREAM;
+        hints.ai_flags = hints_flags;
 
         snprintf(service, 6, "%d", port);
         if ((ret = getaddrinfo(host, service, &hints, &info)) != 0)

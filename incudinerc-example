@@ -75,6 +75,9 @@
 
 ;;;------------------------[ Networking ]---------------------------
 
+;; addrinfo-flags for the argument 'hints' of the c-call getaddrinfo.
+(setq *addrinfo-hints-flags* 0)
+
 ;; Size of the foreign buffer used to read/write octets.
 (setq *network-buffer-size* 128)
 
