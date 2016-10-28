@@ -521,6 +521,13 @@ MY-TEMPO
   (~ (+ in (* coef it))))</pre>
 
       <p>
+        We can also simplify the <code>CRACKLE</code> VUG:
+      </p>
+
+      <pre class="src src-lisp">(define-vug <span style="color: #87cefa;">crackle</span> (param amp)
+  (* amp (~ (abs (- (* it param) (delay1 it) 0.05)) <span style="color: #b0c4de;">:initial-value</span> 0.3d0)))</pre>
+
+      <p>
         And here is a DSP to play
       </p>
 

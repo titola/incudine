@@ -64,10 +64,7 @@
 
 ;;; Noise generator based on a chaotic function (used in SuperCollider).
 (define-vug crackle (param amp)
-  (with-samples (y0 (y1 0.3d0) y2)
-    (setf y0 (abs (- (* y1 param) y2 0.05)))
-    (setf y2 y1 y1 y0)
-    (* amp y0)))
+  (* amp (~ (abs (- (* it param) (delay1 it) 0.05)) :initial-value 0.3d0)))
 
 (define-vug-macro rand (&whole whole distribution &key a b c n n1 n2 p alpha
                         beta mu nu sigma tt zeta seed)

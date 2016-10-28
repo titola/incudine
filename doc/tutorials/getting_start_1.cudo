@@ -369,6 +369,11 @@ my-tempo
 (define-vug pole (in coef)
   (~ (+ in (* coef it))))
 
+;; We can also simplify the CRACKLE VUG:
+
+(define-vug crackle (param amp)
+  (* amp (~ (abs (- (* it param) (delay1 it) 0.05)) :initial-value 0.3d0)))
+
 ;; And here is a DSP to play
 
 (dsp! crackle-test (f1 f2 amp param-fmod coef)
