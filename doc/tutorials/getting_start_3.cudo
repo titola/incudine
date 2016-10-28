@@ -323,6 +323,25 @@ with (id 1) (last 4)
 (1- last)  simple 661 .2 :id (+ id 2)
 last       free 0
 
+;; If we use the symbol // to separate the functions with the same
+;; time-tag, we get a polyphonic vertical sequencer in text files.
+;; A quoted function name is ignored, useful to mute an instrument.
+
+;; For example:
+
+2.5 foo 440 .08 // bar 550 .1 // 'baz 660 .05 // sev 770 .1
+3.2                           //  baz 330 .03
+4.5 foo 220 .02                               // sev 772 .07
+
+;; is equivalent to
+
+2.5 foo 440 .08
+2.5 bar 550 .1
+2.5 sev 770 .1
+3.2 baz 330 .03
+4.5 foo 220 .02
+4.5 sev 772 .07
+
 ;; We can also add a DECLARE expression after the
 ;; bindings.
 
