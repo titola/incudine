@@ -32,7 +32,7 @@
     (compile-file* (component-pathname c))))
 
 (defsystem "incudine"
-  :version "0.9.7"
+  :version "0.9.8"
   :description "Incudine is a Music/DSP programming environment."
   :licence "GPL v2"
   :author "Tito Latini"

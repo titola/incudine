@@ -46,6 +46,7 @@
      (:file "gen-polynomial" :depends-on ("util"))
      (:file "gen-random" :depends-on ("util"))
      (:file "gen-window" :depends-on ("util"))
+     (:file "play-function" :depends-on ("vug/base"))
      (:file "vug/base" :depends-on ("util"))
      (:file "vug/ugen-base" :depends-on ("vug/base"))
      (:file "vug/types" :depends-on ("vug/base"))

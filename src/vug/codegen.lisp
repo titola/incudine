@@ -1129,11 +1129,6 @@
 (defvar *update-dsp-instances* t)
 (declaim (type boolean *update-dsp-instances*))
 
-(defmacro get-add-action-and-target (&rest keywords)
-  `(cond ,@(mapcar (lambda (x) `(,x (values ,(make-keyword x) ,x)))
-                   keywords)
-         (t (values :head incudine::*node-root*))))
-
 (defun dsp-coercing-arguments (args)
   (mapcar (lambda (x)
             (destructuring-bind (arg type) (if (consp x) x `(,x sample))
@@ -1170,23 +1165,15 @@
 (defmacro dsp-init-args (bindings arg-names)
   `(list (parse-dsp-args-func ,bindings ,arg-names) ,@arg-names))
 
-(defmacro with-add-action ((add-action target head tail before after replace)
-                           &body body)
-  `(multiple-value-bind (,add-action ,target)
-       (get-add-action-and-target ,head ,tail ,before ,after ,replace)
-     (let ((,target (if (numberp ,target)
-                        (incudine:node ,target)
-                        ,target)))
-       ,@body)))
-
 (defmacro enqueue-dsp-node (name node-id arg-names arg-bindings get-dsp-func
                             head tail before after replace stop-hook free-hook
                             action fade-time fade-curve)
   (with-gensyms (node dsp add-action target)
-    `(with-add-action (,add-action ,target ,head ,tail ,before ,after ,replace)
+    `(incudine::with-add-action (,add-action ,target ,head ,tail ,before ,after
+                                 ,replace)
        (rt-eval ()
          (let* (,@arg-bindings
-                (,node-id (get-node-id ,node-id ,add-action))
+                (,node-id (incudine::get-node-id ,node-id ,add-action))
                 (,node (incudine:node ,node-id)))
            (declare (type non-negative-fixnum ,node-id)
                     (type incudine:node ,node))
@@ -1245,12 +1232,6 @@
                 (compile ',name)
                 (maybe-update-dsp-instances ,name ,arg-names)
                 #',name))))))
-
-(defun get-node-id (id add-action)
-  (declare (type (or non-negative-fixnum null) id))
-  (cond (id id)
-        ((eq add-action :replace) (incudine::next-large-node-id))
-        (t (incudine:next-node-id))))
 
 (declaim (inline update-node-hooks))
 (defun update-node-hooks (node stop-hook free-hook)

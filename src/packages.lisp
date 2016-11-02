@@ -335,7 +335,7 @@
                 #:non-negative-fixnum #:non-negative-real #:positive-real
                 #:positive-rational
                 #:with-gensyms #:define-constant #:ensure-symbol #:format-symbol
-                #:maphash-keys)
+                #:make-keyword #:maphash-keys)
   (:import-from #:cffi #:foreign-type-size #:foreign-alloc #:foreign-free
                 #:null-pointer #:null-pointer-p
                 #:mem-ref #:mem-aref #:inc-pointer #:incf-pointer)
@@ -378,7 +378,8 @@
    #:pch->cps #:cps->pch #:pch->keynum #:keynum->pch
    #:foreign-array #:make-foreign-array #:foreign-array-data
    #:foreign-array-type
-   #:sample-rate #:filename #:free #:free-p #:stop #:quantize #:circular-shift
+   #:sample-rate #:filename #:free #:free-p #:play #:stop #:quantize
+   #:circular-shift
    #:sort-samples
    #:bus #:audio-in #:audio-out
    #:peak-info #:print-peak-info #:reset-peak-meters
