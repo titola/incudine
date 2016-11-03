@@ -669,7 +669,7 @@ or IGNORE-SCORE-STATEMENTS."
       (with-complex-gensyms (smptime0 smptime1 smptime beats last-time
                              last-dur max-time c-array-wrap)
         `(with-rego-function (,function-name ,compile-rego-p)
-           (incudine.edf::with-schedule
+           (with-schedule
              (with-rego-samples (,c-array-wrap ,smptime0 ,smptime1 ,smptime
                                  ,sched ,last-time ,last-dur ,max-time)
                (let ((,tempo-env (default-tempo-envelope))
@@ -681,7 +681,7 @@ or IGNORE-SCORE-STATEMENTS."
                                 (max ,max-time (+ ,last-time ,last-dur)))
                           (time-at ,tempo-env ,beats ,sched))
                         (,%sched (at-beat fn)
-                          (incudine.edf::%at
+                          (incudine.edf:schedule-at
                             (+ ,smptime
                                (* *sample-rate*
                                   (%time-at ,tempo-env

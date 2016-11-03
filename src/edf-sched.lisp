@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -62,6 +62,13 @@
 (defvar *heap* (make-heap))
 (declaim (type heap *heap*))
 
+(defvar *rt-heap* *heap*)
+(declaim (type heap *rt-heap*))
+
+(declaim (inline rt-heap-p))
+(defun rt-heap-p ()
+  (eq *heap* *rt-heap*))
+
 (declaim (inline heap-empty-p))
 (defun heap-empty-p ()
   (= (heap-next-node *heap*) +node-root+))
@@ -98,8 +105,8 @@
   (node-update src +sample-zero+ #'corrupted-heap nil)
   dest)
 
-(declaim (inline %at))
-(defun %at (time function args)
+(declaim (inline schedule-at))
+(defun schedule-at (time function args)
   (declare (type sample time) (type function function)
            (type list args))
   (unless (>= (heap-next-node *heap*) *heap-size*)
@@ -117,19 +124,20 @@
       (node-update (heap-node curr) t0 function args)
       (incf (heap-next-node *heap*)))))
 
-(declaim (inline %%at))
-(defun %%at (time function args)
+(declaim (inline %at))
+(defun %at (time function args)
   (declare (type sample time) (type function function) (type list args))
-  (if (or (null *rt-thread*) (rt-thread-p))
-      (%at time function args)
-      (incudine:fast-nrt-funcall (lambda ()
-                                   (incudine::fast-rt-funcall
-                                    (lambda () (%at time function args))))))
+  (if (or (null *rt-thread*) (rt-thread-p) (not (rt-heap-p)))
+      (schedule-at time function args)
+      (incudine:fast-nrt-funcall
+        (lambda ()
+          (incudine:fast-rt-funcall
+            (lambda () (schedule-at time function args))))))
   (values))
 
 (declaim (inline at))
 (defun at (time function &rest args)
-  (%%at (sample time) function args))
+  (%at (sample time) function args))
 
 ;;; Anaphoric macro for AT.
 ;;; The variable IT is bound to the time, the first argument of AT.
@@ -233,7 +241,7 @@ The list is empty after FLUSH-PENDING.")
            (rt-flush)
            (nrt-flush))
           (t (incudine:fast-nrt-funcall
-              (lambda () (incudine::fast-rt-funcall #'rt-flush)))
+              (lambda () (incudine:fast-rt-funcall #'rt-flush)))
              (nrt-flush)))
     (values)))
 
@@ -301,7 +309,7 @@ The list is empty after FLUSH-PENDING.")
 (defmacro with-rt-next-node ((node-var time-var heap rt-heap) &body body)
   `(with-next-node (,node-var ,time-var ,heap)
      (with-rt-heap (,rt-heap)
-       (%at ,time-var (node-function ,node-var) (node-args ,node-var))
+       (schedule-at ,time-var (node-function ,node-var) (node-args ,node-var))
        ,@body)))
 
 ;;; Note: %POUR-ON-RT-HEAP is invoked from the realtime thread.
@@ -329,8 +337,8 @@ The list is empty after FLUSH-PENDING.")
                (the-end)))
             (t (with-rt-next-node (next-node time heap rt-heap)
                  ;; Continue to pour at the next tick.
-                 (%at (1+ (the sample (incudine:now))) #'%pour-on-rt-heap
-                      (list heap end-action)))))
+                 (schedule-at (1+ (the sample (incudine:now)))
+                              #'%pour-on-rt-heap (list heap end-action)))))
       (values))))
 
 (defun pour-on-rt-heap (heap)
@@ -344,6 +352,9 @@ The list is empty after FLUSH-PENDING.")
       heap))
 
 (defmacro with-schedule (&body body)
+  "Fast way to schedule multiple events in realtime without an extensive use
+of memory barriers and/or CAS. It fills a temporary queue in non-realtime,
+then it pours the content of the queue on the realtime EDF heap."
   (with-gensyms (tmp-heap heap)
     `(flet ((sched ()
               (let ((,tmp-heap *heap*)
@@ -353,10 +364,6 @@ The list is empty after FLUSH-PENDING.")
                 (declare (special *heap*))
                 ,@body
                 (unless (eq *heap* ,tmp-heap)
-                  ;; Fast way to schedule multiple events in realtime without
-                  ;; an extensive use of memory barriers and/or CAS. It fills
-                  ;; a temporary queue in non-realtime, then it pours the
-                  ;; content of the queue on the realtime EDF heap.
                   (let ((,heap *heap*)
                         ;; Realtime EDF heap.
                         (*heap* ,tmp-heap))

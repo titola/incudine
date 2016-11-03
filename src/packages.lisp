@@ -253,8 +253,9 @@
                 #:next-power-of-two #:power-of-two-p #:with-spinlock-held
                 #:rt-thread-p)
   (:export #:+node-root+ #:*heap* #:*heap-size*
-           #:node #:make-node #:heap #:make-heap
+           #:node #:make-node #:heap #:make-heap #:schedule-at
            #:at #:aat #:sched-loop #:flush-pending #:heap-empty-p #:heap-count
+           #:with-schedule
            #:last-time
            #:add-flush-pending-hook #:remove-flush-pending-hook
            #:reduce-heap-pool))
@@ -355,7 +356,7 @@
                 #:rt-set-busy-state #:rt-silent-errors
                 #:rt-buffer-size #:rt-sample-rate #:rt-xruns #:rt-get-error-msg
                 #:portaudio-device-info #:portaudio-set-device)
-  (:import-from #:incudine.edf #:at #:aat #:flush-pending
+  (:import-from #:incudine.edf #:at #:aat #:with-schedule #:flush-pending
                 #:add-flush-pending-hook #:remove-flush-pending-hook)
   (:import-from #:incudine.gen #:all-random-distributions #:rand-args)
   (:export
@@ -389,7 +390,7 @@
    #:rt-loop-callback #:set-rt-block-size #:block-size
    #:rt-silent-errors
    #:portaudio-device-info #:portaudio-set-device
-   #:at #:aat #:flush-pending #:flush-all-fifos
+   #:at #:aat #:with-schedule #:flush-pending #:flush-all-fifos
    #:tempo #:*tempo* #:make-tempo #:bpm #:bps #:spb #:now #:tempo-sync
    #:tempo-envelope #:make-tempo-envelope #:set-tempo-envelope
    #:copy-tempo-envelope
