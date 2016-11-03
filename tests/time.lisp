@@ -3,19 +3,22 @@
 (deftest tempo.1
     (let ((tempo (make-tempo 120)))
       (values (two-decimals (bpm tempo))
-              (two-decimals (bps tempo))))
-  120.0 0.5)
+              (two-decimals (bps tempo))
+              (two-decimals (spb tempo))))
+  120.0 2.0 0.5)
 
 (deftest tempo.2
     (let ((tempo (make-tempo 135)))
       (setf (bpm tempo) 120)
       (let ((bpm1 (two-decimals (bpm tempo)))
-            (bps1 (two-decimals (bps tempo))))
-        (setf (bps tempo) 1)
-        (values bpm1 bps1
+            (bps1 (two-decimals (bps tempo)))
+            (spb1 (two-decimals (spb tempo))))
+        (setf (bps tempo) 2.6)
+        (values bpm1 bps1 spb1
                 (two-decimals (bpm tempo))
-                (two-decimals (bps tempo)))))
-  120.0 0.5 60.0 1.0)
+                (two-decimals (bps tempo))
+                (two-decimals (spb tempo)))))
+  120.0 2.0 0.5 156.0 2.6 0.38)
 
 (enable-sharp-square-bracket-syntax)
 

@@ -229,9 +229,11 @@
 ;; envelope. The constructor is MAKE-TEMPO-ENVELOPE, and
 ;; SET-TEMPO-ENVELOPE is useful to change an existent instance.
 
-;;; The utilities to get the time, the bps and the bpm are:
+;;; The utilities to get time, SPB, BPS and BPM are:
 
 (time-at tempo-env beats &optional offset)
+
+(spb-at tempo-env beats)
 
 (bps-at tempo-env beats)
 
@@ -263,7 +265,7 @@
 ;;  13.352929835847638d0 13.662314720727547d0 13.974814720727547d0
 ;;  14.287314720727547d0 14.599814720727547d0 14.912314720727547d0
 ;;  15.224814720727547d0 15.537314720727547d0 15.849814720727547d0)
-(loop for beats below 20 by 0.5 collect (bps-at *tenv1* beats))
+(loop for beats below 20 by 0.5 collect (spb-at *tenv1* beats))
 ;; (1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0
 ;;  1.0d0 1.0d0 1.0d0 1.0d0 0.9939482867384511d0 0.9839706983599575d0
 ;;  0.9675204361700447d0 0.9403985389889412d0 0.8956820902047142d0
@@ -277,6 +279,13 @@
 ;;  66.98805374827423d0 72.99650774254955d0 85.6646956725917d0 120.0d0 120.0d0
 ;;  120.0d0 120.0d0 120.0d0 115.76177030980232d0 106.66666666666667d0
 ;;  98.8966147833654d0 96.0d0 96.0d0 96.0d0 96.0d0 96.0d0 96.0d0 96.0d0 96.0d0)
+(loop for beats below 20 by 0.5 collect (bps-at *tenv1* beats))
+;; (1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0 1.0d0
+;;  1.0d0 1.0d0 1.0d0 1.0d0 1.0060885594776836d0 1.0162904257888568d0
+;;  1.0335698995243208d0 1.0633789383330376d0 1.116467562471237d0
+;;  1.216608462375826d0 1.4277449278765284d0 2.0d0 2.0d0 2.0d0 2.0d0 2.0d0
+;;  1.9293628384967052d0 1.7777777777777777d0 1.64827691305609d0 1.6d0 1.6d0 1.6d0
+;;  1.6d0 1.6d0 1.6d0 1.6d0 1.6d0)
 *sample-rate*
 ;; 48000.0d0
 (loop for beats below 20 by 0.5 collect #[1 beat *tenv1* beats])

@@ -284,6 +284,8 @@
 (bpm *tempo*)
 ;; 135.0d0
 (bps *tempo*)
+;; 2.25d0
+(spb *tempo*)
 ;; 0.4444444444444444d0
 #[1 beat]
 ;; 21333.333333333332d0
@@ -322,7 +324,7 @@ my-tempo
 #[4 beats]
 ;; 85333.33333333333d0
 '#[4 beats]
-;; (* 4.0d0 (* *SAMPLE-RATE* (BPS *TEMPO*)))
+;; (* 4.0d0 (* *SAMPLE-RATE* (SPB *TEMPO*)))
 
 ;; We can redefine on-the-fly the SIMPLE-TEST function and stop it in
 ;; at least two possible ways:

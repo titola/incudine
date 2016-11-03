@@ -142,9 +142,11 @@
         (values (zoom (loop for beats below 20 by 0.5
                             collect (time-at tenv beats)))
                 (zoom (loop for beats below 20 by 0.5
-                            collect (bps-at tenv beats)))
+                            collect (spb-at tenv beats)))
                 (zoom (loop for beats below 20 by 0.5
                             collect (bpm-at tenv beats)))
+                (zoom (loop for beats below 20 by 0.5
+                            collect (bps-at tenv beats)))
                 (zoom (loop for beats below 20 by 0.5
                             collect #[1 beat tenv beats])))))
  (0 500 1000 1500 2000 2500 3000 3500 4000 4500 5000 5500 6000 6500 7000
@@ -157,6 +159,9 @@
   60000 60000 60000 60000 60000 60524 61408 62925 65595 70530 80518 105042
   211000 188710 168774 150945 135000 127419 112207 100240 96000 96000 96000
   96000 96000 96000 96000 96000)
+ (1000 1000 1000 1000 1000 1000 1000 1000 1000 1000 1000 1000 1000 1000
+  1000 1000 1000 1008 1023 1048 1093 1175 1341 1750 3516 3145 2812 2515
+  2250 2123 1870 1670 1600 1600 1600 1600 1600 1600 1600 1600)
  (96000000 96000000 96000000 96000000 96000000 96000000 96000000 96000000
   96000000 96000000 96000000 96000000 96000000 96000000 96000000 95809370
   95079315 93650525 91294848 87410994 81007600 70450189 53043962 35545044
@@ -197,7 +202,7 @@
                      `(,test (,reader tenv0) (,reader tenv1)))))
         (multiple-value-prog1
             (values (free-p tenv0) (free-p tenv1) (eq tenv0 tenv1)
-                    (check-slot bps eq)
+                    (check-slot spb eq)
                     (check-slot time-warp cffi:pointer-eq)
                     (check-slot points =)
                     (check-slot max-points =)

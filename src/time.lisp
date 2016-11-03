@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2015 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -17,15 +17,30 @@
 (in-package :incudine)
 
 (defstruct (tempo (:constructor %make-tempo) (:copier nil))
-  (bpm-ptr (error "Missing BPM") :type foreign-pointer))
+  (ptr (error "Missing foreign pointer") :type foreign-pointer))
 
-(defun make-tempo (bpm)
-  (let* ((bpm (sample bpm))
-         (ptr (foreign-alloc 'sample :count 2
-                             :initial-contents `(,bpm ,(/ (sample 60) bpm))))
-         (obj (%make-tempo :bpm-ptr ptr)))
+(defun make-tempo (value &optional (unit :bpm))
+  (declare (type alexandria:positive-real value)
+           (type (member :bpm :spb :bps) unit))
+  (let* ((x (sample value))
+         (ptr (foreign-alloc 'sample :count 3
+                :initial-contents (case unit
+                                    (:bpm (list x (/ 60 x) (/ x 60)))
+                                    (:spb (list (/ 60 x) x (/ x)))
+                                    (:bps (list (* 60 x) (/ x) x)))))
+         (obj (%make-tempo :ptr ptr)))
     (tg:finalize obj (lambda () (foreign-free ptr)))
     obj))
+
+(defmethod free-p ((obj tempo))
+  (null-pointer-p (tempo-ptr obj)))
+
+(defmethod free ((obj tempo))
+  (unless (free-p obj)
+    (foreign-free (tempo-ptr obj))
+    (tg:cancel-finalization obj)
+    (setf (tempo-ptr obj) (null-pointer))
+    (values)))
 
 ;;; Default tempo
 (defvar *tempo* (make-tempo *default-bpm*))
@@ -33,41 +48,51 @@
 
 (declaim (inline bpm))
 (defun bpm (tempo)
-  (declare (type tempo tempo))
-  (rt-eval (:return-value-p t)
-    (smp-ref (tempo-bpm-ptr tempo) 0)))
+  "Beats Per Minute."
+  (smp-ref (tempo-ptr tempo) 0))
 
 (declaim (inline set-bpm))
 (defun set-bpm (tempo bpm)
-  (declare (type tempo tempo))
   (rt-eval ()
-    (setf #1=(smp-ref (tempo-bpm-ptr tempo) 0)
-          (sample bpm))
-    (setf (smp-ref (tempo-bpm-ptr tempo) 1)
-          (/ (sample 60) #1#)))
+    (setf #1=(smp-ref (tempo-ptr tempo) 0) (sample bpm))
+    (setf (smp-ref (tempo-ptr tempo) 1) (/ (sample 60) #1#))
+    (setf (smp-ref (tempo-ptr tempo) 2) (/ #1# (sample 60))))
   bpm)
 
 (defsetf bpm set-bpm)
 
+(declaim (inline spb))
+(defun spb (tempo)
+  "Seconds Per Beat."
+  (smp-ref (tempo-ptr tempo) 1))
+
+(declaim (inline set-spb))
+(defun set-spb (tempo spb)
+  (rt-eval ()
+    (setf #1=(smp-ref (tempo-ptr tempo) 1) (sample spb))
+    (setf (smp-ref (tempo-ptr tempo) 0) (/ 60 #1#))
+    (setf (smp-ref (tempo-ptr tempo) 2) (/ #1#)))
+  spb)
+
+(defsetf spb set-spb)
+
 (declaim (inline bps))
 (defun bps (tempo)
-  (declare (type tempo tempo))
-  (rt-eval (:return-value-p t) (smp-ref (tempo-bpm-ptr tempo) 1)))
+  "Beats Per Second."
+  (smp-ref (tempo-ptr tempo) 2))
 
 (declaim (inline set-bps))
 (defun set-bps (tempo bps)
-  (declare (type tempo tempo))
   (rt-eval ()
-    (setf #1=(smp-ref (tempo-bpm-ptr tempo) 1)
-          (sample bps))
-    (setf (smp-ref (tempo-bpm-ptr tempo) 0)
-          (/ (sample 60) #1#)))
+    (setf #1=(smp-ref (tempo-ptr tempo) 2) (sample bps))
+    (setf (smp-ref (tempo-ptr tempo) 0) (* #1# 60))
+    (setf (smp-ref (tempo-ptr tempo) 1) (/ #1#)))
   bps)
 
 (defsetf bps set-bps)
 
 (defmethod print-object ((obj tempo) stream)
-  (format stream "#<TEMPO ~,2F>" (bpm obj)))
+  (format stream "#<TEMPO ~,2F>" (if (free-p obj) .0 (bpm obj))))
 
 (declaim (inline incf-sample-counter))
 (defun incf-sample-counter (&optional (delta 1))
@@ -86,18 +111,18 @@
 
 (defstruct (tempo-envelope (:constructor %make-tempo-envelope)
                            (:copier nil))
-  (bps (error "Missing BPS envelope") :type envelope)
+  (spb (error "Missing SPB envelope") :type envelope)
   (time-warp (null-pointer) :type foreign-pointer)
   (points 0 :type non-negative-fixnum)
   (max-points *envelope-default-max-points* :type non-negative-fixnum)
   (constant-p t :type boolean))
 
 (defmethod print-object ((obj tempo-envelope) stream)
-  (let ((bps-env (tempo-envelope-bps obj)))
+  (let ((spb-env (tempo-envelope-spb obj)))
     (format stream "#<~S :POINTS ~D :LOOP-NODE ~D :RELEASE-NODE ~D>"
             (type-of obj)
-            (tempo-envelope-points obj) (envelope-loop-node bps-env)
-            (envelope-release-node bps-env))))
+            (tempo-envelope-points obj) (envelope-loop-node spb-env)
+            (envelope-release-node spb-env))))
 
 (declaim (inline tenv-constant-p))
 (defun tenv-constant-p (values)
@@ -107,20 +132,20 @@
                                (release-node -1) restart-level real-time-p)
   (declare (ignore beats curve loop-node release-node restart-level
                    real-time-p))
-  (with-gensyms (tempo-env bps bps-env bpm points max-points twarp-data)
-    `(let* ((,bps (mapcar (lambda (,bpm) (/ ,(sample 60) ,bpm)) ,bpms))
-            (,bps-env (make-envelope ,bps ,@(cddr args)))
-            (,points (envelope-points ,bps-env))
+  (with-gensyms (tempo-env spb spb-env bpm points max-points twarp-data)
+    `(let* ((,spb (mapcar (lambda (,bpm) (/ ,(sample 60) ,bpm)) ,bpms))
+            (,spb-env (make-envelope ,spb ,@(cddr args)))
+            (,points (envelope-points ,spb-env))
             (,max-points (max ,points *envelope-default-max-points*))
             (,twarp-data (foreign-alloc-sample ,max-points))
             (,tempo-env (%make-tempo-envelope
-                          :bps ,bps-env
+                          :spb ,spb-env
                           :time-warp ,twarp-data
                           :points ,points
                           :max-points ,max-points
-                          :constant-p (tenv-constant-p ,bps))))
+                          :constant-p (tenv-constant-p ,spb))))
        (tg:finalize ,tempo-env (lambda () (foreign-free ,twarp-data)))
-       (fill-time-warp-data ,twarp-data ,bps-env)
+       (fill-time-warp-data ,twarp-data ,spb-env)
        ,tempo-env)))
 
 (defmethod free-p ((obj tempo-envelope))
@@ -131,7 +156,7 @@
     (foreign-free #1=(tempo-envelope-time-warp obj))
     (tg:cancel-finalization obj)
     (setf #1# (null-pointer))
-    (free (tempo-envelope-bps obj))
+    (free (tempo-envelope-spb obj))
     (setf (tempo-envelope-points obj) 0))
   (values))
 
@@ -143,7 +168,7 @@
              (max-points (tempo-envelope-max-points tenv))
              (data (foreign-alloc-sample max-points))
              (new (%make-tempo-envelope
-                    :bps (copy-envelope (tempo-envelope-bps tenv))
+                    :spb (copy-envelope (tempo-envelope-spb tenv))
                     :time-warp data
                     :points points
                     :max-points max-points
@@ -219,9 +244,9 @@
               (+seg-cubic-func+ (integrate-cubic-curve y0 y1 x))
               (otherwise (integrate-custom-curve y0 y1 curve x))))))
 
-(defun fill-time-warp-data (twarp-data bps-env)
-  (let* ((data (envelope-data bps-env))
-         (points (envelope-points bps-env))
+(defun fill-time-warp-data (twarp-data spb-env)
+  (let* ((data (envelope-data spb-env))
+         (points (envelope-points spb-env))
          (twarp0 (segment-time-warp (smp-ref data 0) (smp-ref data 2)
                                     (smp-ref data 3) (smp-ref data 1) 1)))
     (setf (smp-ref twarp-data 0) +sample-zero+
@@ -243,14 +268,14 @@
                               (loop-node -1) (release-node -1)
                               restart-level)
   (declare (ignore beats curve loop-node release-node restart-level))
-  (with-gensyms (bps-env bps twarp-data bpm points)
-    `(let ((,bps-env (tempo-envelope-bps ,env))
+  (with-gensyms (spb-env spb twarp-data bpm points)
+    `(let ((,spb-env (tempo-envelope-spb ,env))
            (,twarp-data (tempo-envelope-time-warp ,env))
-           (,bps (mapcar (lambda (,bpm) (/ ,(sample 60) ,bpm)) ,bpms)))
-       (set-envelope ,bps-env ,bps ,@(cdddr args))
-       (let ((,points (envelope-points ,bps-env)))
+           (,spb (mapcar (lambda (,bpm) (/ ,(sample 60) ,bpm)) ,bpms)))
+       (set-envelope ,spb-env ,spb ,@(cdddr args))
+       (let ((,points (envelope-points ,spb-env)))
          (setf (tempo-envelope-constant-p ,env)
-               (tenv-constant-p ,bps))
+               (tenv-constant-p ,spb))
          (unless (= ,points #1=(tempo-envelope-points ,env))
            (setf #1# ,points)
            (when (> ,points #2=(tempo-envelope-max-points ,env))
@@ -259,7 +284,7 @@
              (tg:cancel-finalization ,env)
              (tg:finalize ,env (lambda () (foreign-free ,twarp-data)))
              (setf (tempo-envelope-time-warp ,env) ,twarp-data)))
-         (fill-time-warp-data ,twarp-data ,bps-env)
+         (fill-time-warp-data ,twarp-data ,spb-env)
          ,env))))
 
 (defun %time-at (tempo-env beats)
@@ -271,8 +296,8 @@
                      (t0 0.0)
                      (t1 0.0))
         (let* ((last-point-index (1- (tempo-envelope-points tempo-env)))
-               (bps-env (tempo-envelope-bps tempo-env))
-               (data (envelope-data bps-env))
+               (spb-env (tempo-envelope-spb tempo-env))
+               (data (envelope-data spb-env))
                (twarp-data (tempo-envelope-time-warp tempo-env)))
           (declare #.*standard-optimize-settings* #.*reduce-warnings*)
           (labels ((look (p index)
@@ -302,15 +327,20 @@
       (- (%time-at tempo-env (+ offset beats))
          (%time-at tempo-env offset))))
 
-(declaim (inline bps-at))
-(defun bps-at (tempo-env beats)
+(declaim (inline spb-at))
+(defun spb-at (tempo-env beats)
   (declare (type tempo-envelope tempo-env) (type (real 0) beats))
-  (envelope-at (tempo-envelope-bps tempo-env) beats))
+  (envelope-at (tempo-envelope-spb tempo-env) beats))
 
 (declaim (inline bpm-at))
 (defun bpm-at (tempo-env beats)
   (declare (type tempo-envelope tempo-env) (type (real 0) beats))
-  (/ 60.0 (bps-at tempo-env beats)))
+  (/ 60.0 (spb-at tempo-env beats)))
+
+(declaim (inline bps-at))
+(defun bps-at (tempo-env beats)
+  (declare (type tempo-envelope tempo-env) (type (real 0) beats))
+  (/ (spb-at tempo-env beats)))
 
 (defmacro case-char (char &body cases)
   (with-gensyms (c)
@@ -333,7 +363,7 @@
                   ;; start time in beats
                   `(time-at ,arg0 (incudine.util:sample ,mult) ,arg1)
                   ;; ARG0 is an instance of TEMPO
-                  `(* (incudine.util:sample ,mult) (bps ,(or arg0 '*tempo*))))))
+                  `(* (incudine.util:sample ,mult) (spb ,(or arg0 '*tempo*))))))
     ;; s    -> seconds
     ;; se.* -> seconds
     ;; sa.* -> samples

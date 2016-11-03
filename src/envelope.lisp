@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -574,12 +574,12 @@
       ((>= i points) (nreverse (cons :lin acc)))
     (push curve acc)))
 
-(defun breakpoints->env (bpseq &key curve (loop-node -1)
+(defun breakpoints->env (spbeq &key curve (loop-node -1)
                          (release-node -1) restart-level real-time-p)
-  (declare (type (or list array) bpseq))
-  (multiple-value-bind (bpseq-p size)
-      (breakpoint-sequence-p bpseq)
-    (if bpseq-p
+  (declare (type (or list array) spbeq))
+  (multiple-value-bind (spbeq-p size)
+      (breakpoint-sequence-p spbeq)
+    (if spbeq-p
         (labels ((rec (lst levels times old-time)
                    (if lst
                        (rec (cddr lst) (cons (cadr lst) levels)
@@ -591,7 +591,7 @@
                                       :release-node release-node
                                       :restart-level restart-level
                                       :real-time-p real-time-p))))
-          (let ((bplist (coerce bpseq 'list)))
+          (let ((bplist (coerce spbeq 'list)))
             (declare #.*standard-optimize-settings* #.*reduce-warnings*)
             (unless (zerop (car bplist))
               ;; Add the first pair
@@ -607,19 +607,19 @@
             (rec (cddr bplist) (list (cadr bplist)) nil (car bplist))))
         (msg error "wrong breakpoint sequence"))))
 
-(defun freq-breakpoints->env (bpseq &key (freq-max (* *sample-rate* 0.5))
+(defun freq-breakpoints->env (spbeq &key (freq-max (* *sample-rate* 0.5))
                               curve real-time-p)
-  (declare (type (or list array) bpseq))
-  (multiple-value-bind (bpseq-p size)
-      (breakpoint-sequence-p bpseq)
-    (if bpseq-p
+  (declare (type (or list array) spbeq))
+  (multiple-value-bind (spbeq-p size)
+      (breakpoint-sequence-p spbeq)
+    (if spbeq-p
         (multiple-value-bind (bplist last-freq last-value)
-            (if (listp bpseq)
-                (let ((bpseq-rev (reverse bpseq)))
-                  (values bpseq (cadr bpseq-rev) (car bpseq-rev)))
-                (values (coerce bpseq 'list)
-                        (aref bpseq (- size 2))
-                        (aref bpseq (- size 1))))
+            (if (listp spbeq)
+                (let ((spbeq-rev (reverse spbeq)))
+                  (values spbeq (cadr spbeq-rev) (car spbeq-rev)))
+                (values (coerce spbeq 'list)
+                        (aref spbeq (- size 2))
+                        (aref spbeq (- size 1))))
           (let* ((points (1- (/ size 2)))
                  (curve (expand-curve-list curve points)))
             (unless (= last-freq freq-max)
