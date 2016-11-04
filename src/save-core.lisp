@@ -41,6 +41,7 @@
                 *rt-edf-heap-size*
                 (next-power-of-two *rt-edf-heap-size*)))
       (setf incudine.edf:*heap* (incudine.edf:make-heap))
+      (setf incudine.edf::*rt-heap* incudine.edf:*heap*)
       (setf *nrt-edf-heap-size*
             (if (power-of-two-p *nrt-edf-heap-size*)
                 *nrt-edf-heap-size*
