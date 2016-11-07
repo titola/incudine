@@ -67,7 +67,9 @@ vice versa.")
     (unless buffer
       (setq buffer (get-buffer-create incudine-scratch-buffer))
       (with-current-buffer buffer
-	(incudine-mode)
+        (incudine-mode)
+        (use-local-map incudine-scratch-mode-map)
+        (slime-mode t)
         (if incudine-scratch-message
             (insert incudine-scratch-message))))
     (switch-to-buffer buffer)))
@@ -327,6 +329,14 @@ rego file or call tags-loop-continue."
     (define-key map [next] 'incudine-next-defun)
     map)
   "Keymap for Incudine mode.")
+
+(defvar incudine-scratch-mode-map
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map incudine-mode-map)
+    map))
+
+(slime-define-keys incudine-scratch-mode-map
+  ("\C-j" 'slime-eval-print-last-expression))
 
 (defvar incudine-rego-mode-map
   (let ((map (make-sparse-keymap "Incudine Rego")))
