@@ -1,0 +1,138 @@
+;;; Incudine
+;;; Real-Time Scheduling
+
+;;    Real is just another four-letter word -- Cypher
+
+;; After RT-START, there are at least four threads:
+
+(rt-start)
+;; :STARTED
+(bt:all-threads)
+;; (#<SB-THREAD:THREAD "audio-rt-thread" RUNNING {1002B48093}>
+;;  #<SB-THREAD:THREAD "audio-fast-nrt-thread" RUNNING {1002DDCC33}>
+;;  #<SB-THREAD:THREAD "audio-nrt-thread" RUNNING {1002DDCB23}>
+;;  #<SB-THREAD:THREAD "main thread" RUNNING {1002B3C723}>)
+
+;; where "audio-rt-thread" is the real-time thread used by JACK and
+;; "nrt" means "non-real-time".
+
+;; There are four utilities for lock-free synchronization (single
+;; producer single consumer):
+;;
+;;   1. from nrt thread to rt-thread: (rt-funcall fn)
+;;   2. from rt-thread to nrt-thread: (nrt-funcall fn)
+;;   3. from fast-nrt-thread to rt-thread: (fast-rt-funcall fn)
+;;   4. from rt-thread to fast-nrt-thread: (fast-nrt-funcall fn)
+
+;; The sync from any (non rt) thread to fast-nrt-thread (multiple
+;; producers single consumer) is implemented with a spinlock.
+;; For example:
+
+;;   1. Send an event from "main thread" to "audio-rt-thread"; the road is
+;;
+;;      "main thread" -> "audio-fast-nrt-thread" -> "audio-rt-thread"
+;;
+;;                (spinlock)                 (lock free)
+;;
+;;      Generally, we use the macro RT-EVAL and forget the details:
+;;
+;;          (rt-eval (&key return-value-p) &body form)
+;;
+;;      We use AT for real-time scheduling (see Getting Start - Part 1):
+;;
+;;          (at time function &rest args)
+;;
+;;   2. Send an event from "audio-rt-thread" (i.e. from a running synth)
+;;      to "any-nrt-thread"
+;;
+;;      "audio-rt-thread" -> "audio-nrt-thread" -> "any-thread"
+;;
+;;                   (lock free)        (spinlock or mutex)
+;;
+;;      Generally, we use NRT-FUNCALL for the first step (from rt to nrt)
+;;      and an arbitrary synchronization from nrt to any-nrt.
+
+;; A loop of calls to AT
+
+(dotimes (i n) (at ...))
+
+;; from a nrt-thread is inefficient (it depends on N), because there
+;; are N spinlocks plus N memory barriers (and/or CAS). The simplest
+;; solution is to eval that loop in real-time:
+
+(rt-eval () (dotimes (i n) (at ...)))
+
+;; It requires just 1 spinlock plus 1 memory barrier. Now we have N
+;; calls to AT in rt-thread, that means N loops to fill the EDF
+;; (Earliest Deadline First) real-time heap.
+
+;; We can set the configuration variable *RT-EDF-HEAP-SIZE* in
+;; ${HOME}/.incudinerc to specify the max number (a power of two) of
+;; scheduled events in real-time (the default is 1024).
+
+;; The macro WITH-SCHEDULE is useful to schedule a lot of events in
+;; real-time by optimizing the insertion into the real-time queue.
+
+(with-schedule
+  (dotimes (i n) (at ...)))
+
+;; A temporary EDF heap is filled in a non-real-time thread, then the
+;; events (sorted by time) of that heap are copied to the real-time
+;; EDF heap by using one or a few loops (it depends on the old content
+;; of the rt queue).
+
+;; We can configure the pool of the EDF heaps in ${HOME}/.incudinerc.
+;; The defaults are:
+
+    ;; Pool size of the temporary EDF heaps.
+    (setq *edf-heap-pool-size* 2)
+
+    ;; New EDF heaps to add when the pool is empty.
+    (setq *edf-heap-pool-grow* 1)
+
+;; The function returned from REGOFILE->FUNCTION uses WITH-SCHEDULE,
+;; for example:
+
+(in-package :scratch)
+
+(load (compile-file "/path/to/incudine/doc/tutorials/texture.cudo"))
+
+(regofile->function "/path/to/incudine/doc/tutorials/texture1.sco"
+                    'texture-test)
+
+(rt-start)
+(texture-test)
+
+;; texture1.sco contains about 1380 events, so if you don't hear all
+;; the sounds, probably the value associated with the configuration
+;; variable *RT-EDF-HEAP-SIZE* is 1024. In this case, change that
+;; value (i.e. 2048) and restart Incudine.
+
+;; Here is another example:
+
+(dsp! ringhio (freq gain dur)
+  (with-samples ((amp (db->lin gain))
+                 (dt (* dur 4/5 (spb *tempo*))))
+    (initialize
+      (reduce-warnings (at (+ (now) #[dur beats]) #'free (dsp-node))))
+    (stereo (* amp (ringz (impulse) freq dt)))))
+
+(defun ringhiera ()
+  (with-schedule
+    (loop for i below 10 by .1 do
+         ;; Note: we start from time zero because we are filling
+         ;; a temporary queue.
+         (at #[i beats] #'ringhio (* 440 (1+ i)) -12
+             (+ 3 (max -10/4 (* i -1/4)))))))
+
+;; The duration of 1 beat is 1/10 sec.
+(setf (spb *tempo*) 1/10)
+(bpm *tempo*)
+;; 600.0d0
+
+;; 100 scheduled events where the duration between two events is 10 ms.
+(ringhiera)
+
+;; Reset tempo and stop real-time.
+(setf (bpm *tempo*) 60)
+(rt-stop)

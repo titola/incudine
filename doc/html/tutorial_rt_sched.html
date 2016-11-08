@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="incudine.css" />
+    <title>Real-Time Scheduling</title>
+  </head>
+  <body>
+    <div id="content">
+      <table class="navtutor">
+        <tr>
+          <th class="center">Real-Time Scheduling</th>
+        </tr>
+      </table>
+      <hr>
+
+      <blockquote>
+        <p>
+          Real is just another four-letter word &#x2013; Cypher
+        </p>
+      </blockquote>
+
+      <p>
+        After <code>RT-START</code>, there are at least four threads:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (rt-start)
+<span style="color: #b0c4de;">:STARTED</span>
+<span class="prompt">SCRATCH&gt;</span> (bt:all-threads)
+(#&lt;SB-THREAD:THREAD <span style="color: #ffa07a;">"audio-rt-thread"</span> RUNNING {1002B48093}&gt;
+ #&lt;SB-THREAD:THREAD <span style="color: #ffa07a;">"audio-fast-nrt-thread"</span> RUNNING {1002DDCC33}&gt;
+ #&lt;SB-THREAD:THREAD <span style="color: #ffa07a;">"audio-nrt-thread"</span> RUNNING {1002DDCB23}&gt;
+ #&lt;SB-THREAD:THREAD <span style="color: #ffa07a;">"main thread"</span> RUNNING {1002B3C723}&gt;)</pre>
+
+      <p>
+        where "audio-rt-thread" is the real-time thread used by JACK
+        and "nrt" means "non-real-time".
+      </p>
+
+      <p>
+        There are four utilities for lock-free synchronization
+        (single producer single consumer):
+      </p>
+
+      <ol class="org-ol">
+        <li>from nrt thread to rt-thread: <code>(rt-funcall fn)</code></li>
+
+        <li>from rt-thread to nrt-thread: <code>(nrt-funcall fn)</code></li>
+
+        <li>from fast-nrt-thread to rt-thread: <code>(fast-rt-funcall fn)</code></li>
+
+        <li>from rt-thread to fast-nrt-thread: <code>(fast-nrt-funcall fn)</code></li>
+      </ol>
+
+      <p>
+        The sync from any (non rt) thread to fast-nrt-thread (multiple
+        producers single consumer) is implemented with a spinlock.
+        For example:
+      </p>
+
+      <ol class="org-ol">
+        <li><p>
+          Send an event from "main thread" to "audio-rt-thread"; the road is
+        </p>
+
+        <pre class="src src-example">"main thread" -&gt; "audio-fast-nrt-thread" -&gt; "audio-rt-thread"
+
+          (spinlock)                 (lock free)</pre>
+
+        <p>
+          Generally, we use the macro <code>RT-EVAL</code> and forget the details:
+        </p>
+
+        <pre class="src src-lisp">(rt-eval (<span style="color: #98fb98;">&amp;key</span> return-value-p) <span style="color: #98fb98;">&amp;body</span> form)</pre>
+
+        <p>
+          We use <code>AT</code> for real-time scheduling
+          (see <a href="tutorial_01.html">Getting Start - Part 1</a>):
+        </p>
+
+        <pre class="src src-lisp">(at time function <span style="color: #98fb98;">&amp;rest</span> args)</pre>
+        </li>
+
+        <li><p>
+          Send an event from "audio-rt-thread" (i.e. from a running synth)
+          to "any-nrt-thread"
+        </p>
+
+        <pre class="src src-example">"audio-rt-thread" -&gt; "audio-nrt-thread" -&gt; "any-thread"
+
+             (lock free)        (spinlock or mutex)</pre>
+
+        <p>
+          Generally, we use <code>NRT-FUNCALL</code> for the first step
+          (from rt to nrt) and an arbitrary synchronization from nrt to any-nrt.
+        </p></li>
+      </ol>
+
+      <p>
+        A loop of calls to <code>AT</code>
+      </p>
+
+      <pre class="src src-lisp">(<span style="color: #8deeee;">dotimes</span> (i n) (at ...))</pre>
+
+      <p>
+        from a nrt-thread is inefficient (it depends on <code>N</code>),
+        because there are <code>N</code> spinlocks plus <code>N</code>
+        memory barriers (and/or CAS). The simplest solution is to eval
+        that loop in real-time:
+      </p>
+
+      <pre class="src src-lisp">(rt-eval () (<span style="color: #8deeee;">dotimes</span> (i n) (at ...)))</pre>
+
+      <p>
+        It requires just 1 spinlock plus 1 memory barrier. Now we have
+        <code>N</code> calls to <code>AT</code> in rt-thread, that means
+        <code>N</code> loops to fill the EDF (Earliest Deadline First)
+        real-time heap.
+      </p>
+
+      <p>
+        We can set the configuration variable <code>*RT-EDF-HEAP-SIZE*</code> in
+        <code>${HOME}/.incudinerc</code> to specify the max number (a power of two)
+        of scheduled events in real-time (the default is 1024).
+      </p>
+
+      <p>
+        The macro <code>WITH-SCHEDULE</code> is useful to schedule a lot of
+        events in real-time by optimizing the insertion into the real-time queue.
+      </p>
+
+      <pre class="src src-lisp">(with-schedule
+  (<span style="color: #8deeee;">dotimes</span> (i n) (at ...)))</pre>
+
+      <p>
+        A temporary EDF heap is filled in a non-real-time thread, then the
+        events (sorted by time) of that heap are copied to the real-time EDF heap
+        by using one or a few loops (it depends on the old content of the rt queue).
+      </p>
+
+      <p>
+        We can configure the pool of the EDF heaps in <code>${HOME}/.incudinerc</code>.
+        The defaults are:
+      </p>
+
+      <pre class="src src-lisp"><span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Pool size of the temporary EDF heaps.</span>
+(setq *edf-heap-pool-size* 2)
+
+<span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">New EDF heaps to add when the pool is empty.</span>
+(setq *edf-heap-pool-grow* 1)</pre>
+
+      <p>
+        The function returned from <code>REGOFILE-&gt;FUNCTION</code>
+        uses <code>WITH-SCHEDULE</code>, for example:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (load (compile-file <span style="color: #ffa07a;">"/path/to/incudine/doc/tutorials/texture.cudo"</span>))
+
+<span class="prompt">SCRATCH&gt;</span> (regofile-&gt;function <span style="color: #ffa07a;">"/path/to/incudine/doc/tutorials/texture1.sco"</span>
+                             'texture-test)
+
+<span class="prompt">SCRATCH&gt;</span> (rt-start)
+<span class="prompt">SCRATCH&gt;</span> (texture-test)</pre>
+
+      <p>
+        <code>texture1.sco</code> contains about 1380 events, so if you don't
+        hear all the sounds, probably the value associated with the configuration
+        variable <code>*RT-EDF-HEAP-SIZE*</code> is 1024. In this case, change that
+        value (i.e. 2048) and restart Incudine.
+      </p>
+
+      <p>
+        Here is another example:
+      </p>
+
+      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">ringhio</span> (freq gain dur)
+  (with-samples ((amp (db-&gt;lin gain))
+                 (dt (* dur 4/5 (spb *tempo*))))
+    (initialize
+      (reduce-warnings (at (+ (now) #[dur beats]) #'free (dsp-node))))
+    (stereo (* amp (ringz (impulse) freq dt)))))
+
+(<span style="color: #8deeee;">defun</span> <span style="color: #87cefa;">ringhiera</span> ()
+  (with-schedule
+    (<span style="color: #8deeee;">loop</span> for i below 10 by .1 do
+         <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Note: we start from time zero because we are filling</span>
+         <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">a temporary queue.</span>
+         (at #[i beats] #'ringhio (* 440 (1+ i)) -12
+             (+ 3 (max -10/4 (* i -1/4)))))))
+
+<span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">The duration of 1 beat is 1/10 sec.</span>
+<span class="prompt">SCRATCH&gt;</span> (setf (spb *tempo*) 1/10)
+<span class="prompt">SCRATCH&gt;</span> (bpm *tempo*)
+600.0d0
+
+<span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">100 scheduled events where the duration between two events is 10 ms.</span>
+<span class="prompt">SCRATCH&gt;</span> (ringhiera)
+
+<span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Reset tempo and stop real-time.</span>
+<span class="prompt">SCRATCH&gt;</span> (setf (bpm *tempo*) 60)
+<span class="prompt">SCRATCH&gt;</span> (rt-stop)</pre>
+
+      <hr>
+      <table class="navtutor">
+        <tr>
+          <td style="width: 20%" class="left">
+            <a href="tutorial_01.html">Getting Started with Incudine</a>
+          </td>
+          <td style="width: 60%" class="center"><a href="index.html">Home</a></td>
+          <td style="width: 20%" class="right"></td>
+        </tr>
+      </table>
+    </div>
+    <div id="postamble">
+      <a href="http://sourceforge.net/projects/incudine">Sourceforge project page</a>
+    </div>
+  </body>
+</html>
