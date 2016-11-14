@@ -117,7 +117,7 @@ NIL
 
 <span class="prompt">SCRATCH&gt;</span> (rt-stop)
 
-<span class="prompt">SCRATCH&gt;</span> (snd:eval <span style="color: #ffa07a;">"(close-sound)"</span>)
+<span class="prompt">SCRATCH&gt;</span> (snd:eval <span style="color: #ffa07a;">"(begin (save-sound) (close-sound))"</span>)
 NIL
 
 <span class="prompt">SCRATCH&gt;</span> (snd:buffer-&gt;sound *snd0* <span style="color: #ffa07a;">"/tmp/snd0.wav"</span>)

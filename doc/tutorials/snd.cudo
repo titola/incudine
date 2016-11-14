@@ -104,7 +104,7 @@ snd:*tmpfile*
 
 (rt-stop)
 
-(snd:eval "(close-sound)")
+(snd:eval "(begin (save-sound) (close-sound))")
 ;; NIL
 
 (snd:buffer->sound *snd0* "/tmp/snd0.wav")

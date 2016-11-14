@@ -60,10 +60,9 @@ BUFFER-LOAD-ARGS are the optional arguments for INCUDINE:BUFFER-LOAD."
  (let* ((x ~S)
         (s (if (number? x) (integer->sound x) (find-sound x))))
    (when (sound? s)
-     (save-sound s)
-     (file-name s)))
+     (save-sound-as ~S s)))
 "
-                    id-or-path))
+                    id-or-path *tmpfile*))
 
 (defun selection->buffer (&rest buffer-load-args)
   "The current selection is loaded in a new INCUDINE:BUFFER structure.
