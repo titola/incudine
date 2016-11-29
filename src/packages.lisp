@@ -161,7 +161,7 @@
   (:export
    #:vug #:define-vug #:define-vug-macro #:vug-funcall #:destroy-vug
    #:rename-vug #:all-vug-names #:vug-macro-p #:fix-vug
-   #:ugen #:ugen-instance
+   #:ugen #:ugen-instance #:with-ugen-instance #:with-ugen-instances
    #:define-ugen #:ugen-debug #:compile-vug #:compiled-vug-p
    #:ugen-perf-function #:ugen-reinit-function #:ugen-return-pointer
    #:ugen-control-pointer #:define-ugen-control-setter

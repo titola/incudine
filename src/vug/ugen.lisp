@@ -431,3 +431,16 @@ arguments to update the dependencies if it exists."
              (,(dsp-coercing-arguments (get-bindings args types)) nil nil
               ,instance-constructor)
            (maybe-store-return-value ,return-type ,@form))))))
+
+(defmacro with-ugen-instance ((var ugen-name &rest args) &body body)
+  `(let ((,var (funcall (,ugen-name ,@args))))
+     (unwind-protect
+          (progn ,@body)
+       (incudine:free ,var))))
+
+(defmacro with-ugen-instances (bindings &body body)
+  (if bindings
+      `(with-ugen-instance ,(car bindings)
+         (with-ugen-instances ,(cdr bindings)
+           ,@body))
+      `(progn ,@body)))

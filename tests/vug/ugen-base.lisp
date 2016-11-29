@@ -65,25 +65,39 @@
       (define-ugen oscil-test sample (freq)
         "UGen Test 1."
         (sine freq 1 0))
-      (let* ((doc0 (documentation 'oscil-test 'function))
-             (osc (funcall (oscil-test 440)))
-             (type0 (type-of osc))
-             (val0 (value-test osc)))
-        (free osc)
-        (define-ugen oscil-test sample (freq)
-          "UGen Test 2."
-          (:constructor make-oscil-test-ugen)
-          (sine freq 1 0))
-        (let* ((doc1 (documentation 'oscil-test 'function))
-               (osc (funcall (oscil-test 440)))
-               (type1 (type-of osc))
-               (val1 (value-test osc)))
-          (free osc)
-          (destroy-ugen 'oscil-test)
-          (destroy-vug 'oscil-test)
-          (values doc0 val0 type0 doc1 val1 type1))))
+      (with-ugen-instance (osc oscil-test 440)
+        (let ((doc0 (documentation 'oscil-test 'function))
+              (type0 (type-of osc))
+              (val0 (value-test osc)))
+          (define-ugen oscil-test sample (freq)
+            "UGen Test 2."
+            (:constructor make-oscil-test-ugen)
+            (sine freq 1 0))
+          (with-ugen-instance (osc oscil-test 440)
+            (let ((doc1 (documentation 'oscil-test 'function))
+                  (type1 (type-of osc))
+                  (val1 (value-test osc)))
+              (destroy-ugen 'oscil-test)
+              (destroy-vug 'oscil-test)
+              (values doc0 val0 type0 doc1 val1 type1))))))
   "UGen Test 1." -550 ugen-instance
   "UGen Test 2." -550 oscil-test-ugen)
+
+(with-ugen-test (with-ugen-instances.1)
+    (with-ugen-instances ((u0 ugen-test-1 50 1e5 10)
+                          (u1 ugen-test-1 121 1e5 7)
+                          (u2 ugen-test-1 440 1e5 3))
+      (let* ((gens (list u0 u1 u2))
+             (fns (mapcar #'ugen-perf-function gens)))
+        (loop repeat 32
+              do (mapc #'funcall fns)
+              collect (sample->fixnum
+                        (apply #'+ (mapcar (lambda (x)
+                                             (smp-ref (ugen-return-pointer x) 0))
+                                           gens))))))
+  (300000 298894 295597 290169 282710 273352 262264 249642 235705 220692 204854
+   188448 171733 154962 138378 122208 106655 91900 78094 65358 53778 43409
+   34272 26355 19616 13986 9373 5664 2730 433 -1372 -2830))
 
 (with-ugen-test (ugen.5)
     (let* ((u (funcall (ugen-test-1 100 123456 30)))
@@ -123,23 +137,24 @@
    -3946 -1188 -2763 -4047 -4353 -3300 -932 2352))
 
 (with-ugen-test (ugen.7)
-    (let ((u (funcall (ugen-test-1 100 123456 30))))
-      (multiple-value-bind (ptr fn)
-          (ugen-control-pointer u 'freq)
-        (flet ((vals ()
-                 (loop for i below 32
-                       do (funcall (ugen-perf-function u))
-                       when (zerop (mod i 8)) do
-                         (setf (smp-ref ptr 0) (sample (* 123 i)))
-                         (when fn (funcall fn))
-                         (set-ugen-test-1-nh u (- 50 i))
-                       collect (sample->fixnum
-                                 (smp-ref (ugen-return-pointer u) 0)))))
-          (let ((res (vals)))
+    (let (res res2 uu)
+      (with-ugen-instance (u ugen-test-1 100 123456 30)
+        (multiple-value-bind (ptr fn)
+            (ugen-control-pointer u 'freq)
+          (flet ((vals ()
+                   (loop for i below 32
+                         do (funcall (ugen-perf-function u))
+                         when (zerop (mod i 8)) do
+                           (setf (smp-ref ptr 0) (sample (* 123 i)))
+                           (when fn (funcall fn))
+                           (set-ugen-test-1-nh u (- 50 i))
+                         collect (sample->fixnum
+                                   (smp-ref (ugen-return-pointer u) 0)))))
+            (setf res (vals))
             (funcall (ugen-reinit-function u) 100 123456 30)
-            (let ((res2 (vals)))
-              (free u)
-              (values (free-p u) (equal res res2) res))))))
+            (setf res2 (vals))
+            (setf uu u))))
+      (values (free-p uu) (equal res res2) res))
   t t
   (123456 120149 120149 120149 120149 120149 120149 120149 120149 120149 -28964
    11973 -5919 -5167 3868 -6989 -350 -406 1051 -3246 -4440 -1074 -21 -2951
