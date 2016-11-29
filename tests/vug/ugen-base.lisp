@@ -53,7 +53,37 @@
 
   (define-ugen-control-setter ugen-test-1 freq)
   (define-ugen-control-setter ugen-test-1 freq set-ugen-test-1-freq* sample)
-  (define-ugen-control-setter ugen-test-1 nh))
+  (define-ugen-control-setter ugen-test-1 nh)
+
+  (defstruct (oscil-test-ugen (:include ugen-instance))))
+
+(with-ugen-test (ugen-instance-constructor.1)
+    (flet ((value-test (u)
+             (dotimes (i 100 (sample->fixnum
+                               (* 1e3 (smp-ref (ugen-return-pointer u) 0))))
+               (funcall (ugen-perf-function u)))))
+      (define-ugen oscil-test sample (freq)
+        "UGen Test 1."
+        (sine freq 1 0))
+      (let* ((doc0 (documentation 'oscil-test 'function))
+             (osc (funcall (oscil-test 440)))
+             (type0 (type-of osc))
+             (val0 (value-test osc)))
+        (free osc)
+        (define-ugen oscil-test sample (freq)
+          "UGen Test 2."
+          (:constructor make-oscil-test-ugen)
+          (sine freq 1 0))
+        (let* ((doc1 (documentation 'oscil-test 'function))
+               (osc (funcall (oscil-test 440)))
+               (type1 (type-of osc))
+               (val1 (value-test osc)))
+          (free osc)
+          (destroy-ugen 'oscil-test)
+          (destroy-vug 'oscil-test)
+          (values doc0 val0 type0 doc1 val1 type1))))
+  "UGen Test 1." -550 ugen-instance
+  "UGen Test 2." -550 oscil-test-ugen)
 
 (with-ugen-test (ugen.5)
     (let* ((u (funcall (ugen-test-1 100 123456 30)))
