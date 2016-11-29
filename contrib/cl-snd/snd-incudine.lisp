@@ -1,4 +1,4 @@
-;;; Copyright (c) 2015 Tito Latini
+;;; Copyright (c) 2015-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (export '(*tmpfile* open-or-update-sound mix sound->buffer
             selection->buffer region->buffer mix->buffer
-            buffer->sound buffer->mix)))
+            buffer->sound buffer->mix map-channel)))
 
 (defvar *tmpfile* "/tmp/incudine-snd.snd"
   "Full path of the temporary soundfile.")
@@ -48,21 +48,21 @@
 
 (defmacro with-buffer-load (args control-string &rest format-args)
   (let ((fname (gensym "FILENAME")))
-    `(let ((,fname (snd:eval (format nil ,control-string ,@format-args))))
+    `(let ((,fname (eval (format nil ,control-string ,@format-args))))
        (when (and (stringp ,fname) (probe-file ,fname))
          (apply #'incudine:buffer-load ,fname ,args)))))
 
-(defun sound->buffer (id-or-path &rest buffer-load-args)
-  "The sound ID-OR-PATH is loaded in a new INCUDINE:BUFFER structure.
+(defun sound->buffer (id-or-filename &rest buffer-load-args)
+  "The sound ID-OR-FILENAME is loaded in a new INCUDINE:BUFFER structure.
 BUFFER-LOAD-ARGS are the optional arguments for INCUDINE:BUFFER-LOAD."
-  (declare (type (or fixnum string) id-or-path))
+  (declare (type (or fixnum string) id-or-filename))
   (with-buffer-load buffer-load-args "
  (let* ((x ~S)
         (s (if (number? x) (integer->sound x) (find-sound x))))
    (when (sound? s)
-     (save-sound-as ~S s)))
+     (save-sound-as ~S s :header-type mus-riff :sample-type mus-ldouble)))
 "
-                    id-or-path *tmpfile*))
+                    id-or-filename *tmpfile*))
 
 (defun selection->buffer (&rest buffer-load-args)
   "The current selection is loaded in a new INCUDINE:BUFFER structure.
@@ -125,6 +125,79 @@ INCUDINE:BUFFER-SAVE."
           (values (car args) (cdr args)))
     (with-buffer-save (buf f *tmpfile* bsave-args)
       (mix f mix-args))))
+
+(defun map-channel-new-vec (buffer function beg end)
+  (do ((i 0 (1+ i))
+       (stop nil)
+       (vec (make-array (incudine:buffer-size buffer) :adjustable t
+                        :fill-pointer 0)))
+      ((>= i (incudine:buffer-size buffer)) vec)
+    (when (and end (>= i end))
+      (setf stop t))
+    (let* ((val (incudine:buffer-value buffer i))
+           (ret (if (or stop (< i beg))
+                    val
+                    (funcall function val))))
+      (cond ((numberp ret)
+             (vector-push-extend ret vec))
+            ((and (listp ret) (every #'realp ret))
+             (dolist (x ret) (vector-push-extend x vec)))
+            ((and (vectorp ret) (every #'realp ret))
+             (dotimes (j (length ret))
+               (vector-push-extend (svref ret j) vec)))
+            ((eq ret t)
+             (setf stop t)
+             (vector-push-extend val vec))))))
+
+(defun map-channel (function &key (beg 0) dur snd chn
+                    (origin "incudine map-channel"))
+  "Similar to map-channel in Snd, it applies FUNCTION to each sample
+of the channel CHN in SND (id or filename), starting at sample BEG for
+DUR samples, replacing the current value with whatever FUNCTION returns.
+FUNCTION is a procedure of one argument (the current sample), can
+return NIL, which means that the data passed in is deleted (replaced by
+nothing), or a number which replaces the current sample, or T which
+halts the mapping operation, leaving trailing samples unaffected, or a
+sequence the contents of which are spliced into the edited version,
+effectively replacing the current sample with any number of samples.
+BEG defaults to 0 and DUR defaults to the full length of the sound.
+SND and CHN default to the currently selected sound."
+  (declare (type function function)
+           (type alexandria:non-negative-fixnum beg)
+           (type (or alexandria:positive-fixnum null) dur)
+           (type (or alexandria:non-negative-fixnum string null) snd)
+           (type (or alexandria:non-negative-fixnum null) chn)
+           (type string origin))
+  (let* ((snd (cond ((integerp snd)
+                     (format nil "(integer->sound ~D)" snd))
+                    ((stringp snd)
+                     (format nil "(find-sound ~S)" snd))
+                    (t
+                     "(selected-sound)")))
+         (chn (or chn (format nil "(or (selected-channel ~A) 0)" snd)))
+         (buf (with-buffer-load ()
+                "(let ((s ~A)) ~
+                   (when (sound? s) ~
+                     (save-sound-as ~S s :channel ~A ~
+                                    :header-type mus-riff ~
+                                    :sample-type mus-ldouble)))"
+                snd *tmpfile* chn)))
+    (when buf
+      (unwind-protect
+           (let ((vec (map-channel-new-vec buf function beg
+                                           (and dur (+ beg dur)))))
+             (incudine:with-buffer (new (length vec) :initial-contents vec)
+               (incudine:buffer-save new *tmpfile* :header-type "wav"
+                                     :data-format "double")
+               (eval (format nil "(as-one-edit ~
+                                    (lambda () ~
+                                      (let ((s ~A) (c ~A)) ~
+                                        (delete-samples 0 (framples s c) s c) ~
+                                        (insert-channel ~S :snd s :chn c) ~
+                                        s)) ~
+                                    ~S)"
+                             snd chn *tmpfile* origin))))
+        (incudine:free buf)))))
 
 (in-package :incudine)
 

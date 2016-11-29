@@ -148,6 +148,11 @@ NIL
 <span class="prompt">SCRATCH&gt;</span> (snd:mix <span style="color: #ffa07a;">"/tmp/oscilla-2.wav"</span> '(76400 t))
 ((MIX 3) (MIX 4))
 
+<span class="prompt">SCRATCH&gt;</span> (dotimes (ch 2)
+           (let ((n -1))
+             (snd:map-channel (lambda (x) (* x (incf n) 1/80000))
+                              <span style="color: #b0c4de;">:dur</span> 80000 <span style="color: #b0c4de;">:chn</span> ch)))
+
 <span class="prompt">SCRATCH&gt;</span> (snd-play)
 
          <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">exorcize-filter</span>

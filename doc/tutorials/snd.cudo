@@ -135,6 +135,11 @@ snd:*tmpfile*
 (snd:mix "/tmp/oscilla-2.wav" '(76400 t))
 ;; ((MIX 3) (MIX 4))
 
+(dotimes (ch 2)
+  (let ((n -1))
+    (snd:map-channel (lambda (x) (* x (incf n) 1/80000))
+                     :dur 80000 :chn ch)))
+
 (snd-play)
 
 ;; exorcize-filter
