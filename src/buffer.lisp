@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2015 Tito Latini
+;;; Copyright (c) 2013-2016 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -50,7 +50,7 @@
 
 (declaim (inline %%make-buffer))
 (defun %%make-buffer (frames channels sample-rate real-time-p finalize-p)
-  (let* ((frames (floor frames))
+  (let* ((frames (max 1 (floor frames)))
          (size (the non-negative-fixnum (* frames channels)))
          (data (if real-time-p
                    (foreign-rt-alloc 'sample :count size :zero-p t)
@@ -268,6 +268,7 @@ It is possible to use line comments that begin with the `;' char."
     (funcall (buffer-base-foreign-free obj) (buffer-base-data obj))
     (tg:cancel-finalization obj)
     (setf (buffer-base-data obj) (null-pointer))
+    (setf (buffer-base-size obj) 0)
     (values)))
 
 (defun copy-buffer (buffer)
