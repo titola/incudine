@@ -19,7 +19,8 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (export '(*tmpfile* open-or-update-sound mix sound->buffer
             selection->buffer region->buffer mix->buffer
-            buffer->sound buffer->mix map-channel)))
+            buffer->sound buffer->mix
+            map-channel env-channel env-selection)))
 
 (defvar *tmpfile* "/tmp/incudine-snd.snd"
   "Full path of the temporary soundfile.")
@@ -149,6 +150,16 @@ INCUDINE:BUFFER-SAVE."
              (setf stop t)
              (vector-push-extend val vec))))))
 
+(defun sound-and-channel (snd chn)
+  (let* ((snd (cond ((integerp snd)
+                     (format nil "(integer->sound ~D)" snd))
+                    ((stringp snd)
+                     (format nil "(find-sound ~S)" snd))
+                    (t
+                     "(selected-sound)")))
+         (chn (or chn (format nil "(or (selected-channel ~A) 0)" snd))))
+    (values snd chn)))
+
 (defun map-channel (function &key (beg 0) dur snd chn
                     (origin "incudine map-channel"))
   "Similar to map-channel in Snd, it applies FUNCTION to each sample
@@ -168,36 +179,83 @@ SND and CHN default to the currently selected sound."
            (type (or alexandria:non-negative-fixnum string null) snd)
            (type (or alexandria:non-negative-fixnum null) chn)
            (type string origin))
-  (let* ((snd (cond ((integerp snd)
-                     (format nil "(integer->sound ~D)" snd))
-                    ((stringp snd)
-                     (format nil "(find-sound ~S)" snd))
-                    (t
-                     "(selected-sound)")))
-         (chn (or chn (format nil "(or (selected-channel ~A) 0)" snd)))
-         (buf (with-buffer-load ()
-                "(let ((s ~A)) ~
-                   (when (sound? s) ~
-                     (save-sound-as ~S s :channel ~A ~
-                                    :header-type mus-riff ~
-                                    :sample-type mus-ldouble)))"
-                snd *tmpfile* chn)))
-    (when buf
-      (unwind-protect
-           (let ((vec (map-channel-new-vec buf function beg
-                                           (and dur (+ beg dur)))))
-             (incudine:with-buffer (new (length vec) :initial-contents vec)
-               (incudine:buffer-save new *tmpfile* :header-type "wav"
-                                     :data-format "double")
-               (eval (format nil "(as-one-edit ~
-                                    (lambda () ~
-                                      (let ((s ~A) (c ~A)) ~
-                                        (delete-samples 0 (framples s c) s c) ~
-                                        (insert-channel ~S :snd s :chn c) ~
-                                        s)) ~
-                                    ~S)"
-                             snd chn *tmpfile* origin))))
-        (incudine:free buf)))))
+  (multiple-value-bind (snd chn) (sound-and-channel snd chn)
+    (let ((buf (with-buffer-load ()
+                 "(let ((s ~A)) ~
+                    (when (sound? s) ~
+                      (save-sound-as ~S s :channel ~A ~
+                                     :header-type mus-riff ~
+                                     :sample-type mus-ldouble)))"
+                 snd *tmpfile* chn)))
+      (when buf
+        (unwind-protect
+             (let ((vec (map-channel-new-vec buf function beg
+                                             (and dur (+ beg dur)))))
+               (incudine:with-buffer (new (length vec) :initial-contents vec)
+                 (incudine:buffer-save new *tmpfile* :header-type "wav"
+                                       :data-format "double")
+                 (eval (format nil "(as-one-edit ~
+                                      (lambda () ~
+                                        (let ((s ~A) (c ~A)) ~
+                                          (delete-samples 0 (framples s c) s c) ~
+                                          (insert-channel ~S :snd s :chn c) ~
+                                          s)) ~
+                                      ~S)"
+                               snd chn *tmpfile* origin))))
+          (incudine:free buf))))))
+
+(defun env-channel (env &key (beg 0) dur snd chn (origin "incudine env-channel"))
+  "Similar to env-channel in Snd, it applies the amplitude envelope ENV, an
+INCUDINE:ENVELOPE structure, to the given channel CHN in SND starting at
+sample BEG for DUR samples.
+BEG defaults to 0 and DUR defaults to the full length of the sound.
+SND and CHN default to the currently selected sound."
+  (declare (type incudine:envelope env)
+           (type alexandria:non-negative-fixnum beg)
+           (type (or alexandria:positive-fixnum null) dur)
+           (type (or alexandria:non-negative-fixnum string null) snd)
+           (type (or alexandria:non-negative-fixnum null) chn)
+           (type string origin))
+  (multiple-value-bind (snd chn) (sound-and-channel snd chn)
+    (let ((frames (eval (format nil "(let ((s ~A)) (if (sound? s) (framples s ~A)))"
+                                snd chn))))
+      (when (and frames (plusp frames))
+        (let* ((beg (min beg (1- frames)))
+               (maxdur (- frames beg))
+               (dur (if dur (min dur maxdur) maxdur)))
+          (incudine:with-buffer (buf dur
+                                 :fill-function (gen:envelope env :periodic-p nil))
+            (incudine:buffer-save buf *tmpfile* :header-type "wav"
+                                  :data-format "double")
+            (eval (format nil "(let ((s ~A) (rd (make-sampler 0 ~S))) ~
+                                 (map-channel (lambda (x) (* x (rd))) ~
+                                              ~D ~D s ~A current-edit-position ~
+                                              ~S) ~
+                                 (free-sampler rd) s)"
+                          snd *tmpfile* beg dur chn origin))))))))
+
+(defun env-selection (env &key (origin "incudine env-selection"))
+  "Similar to env-selection in Snd, it applies the amplitude envelope ENV,
+an INCUDINE:ENVELOPE structure, to the selection."
+  (declare (type incudine:envelope env) (type string origin))
+  (when (eval "(selection?)")
+    (let ((info (eval (format nil
+                        "(map (lambda (s) ~
+                                (list (sound->integer s) ~
+                                      (do ((c 0 (+ c 1)) ~
+                                           (res '())) ~
+                                          ((= c (channels s)) (reverse res)) ~
+                                        (set! res (cons ~
+                                                    (list (selection-position s c) ~
+                                                          (selection-framples s c)) ~
+                                                    res))))) ~
+                            (sounds))"))))
+      (loop for (snd chans-info) in info
+            do (loop for (pos frm) in chans-info
+                     for chn from 0
+                     when (plusp frm)
+                       do (env-channel env :beg pos :dur frm :snd snd :chn chn
+                                       :origin origin))))))
 
 (in-package :incudine)
 

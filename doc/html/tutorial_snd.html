@@ -153,12 +153,27 @@ NIL
              (snd:map-channel (lambda (x) (* x (incf n) 1/80000))
                               <span style="color: #b0c4de;">:dur</span> 80000 <span style="color: #b0c4de;">:chn</span> ch)))
 
+<span class="prompt">SCRATCH&gt;</span> (let ((fade-out (make-cutoff 1)))
+           (unwind-protect
+                (progn
+                  (snd:eval <span style="color: #ffa07a;">"(set! (selection-position) (- (framples) 48000))"</span>)
+                  (snd:eval <span style="color: #ffa07a;">"(set! (selection-framples) 48000)"</span>)
+                  (snd:env-selection fade-out))
+             (free fade-out)))
+
 <span class="prompt">SCRATCH&gt;</span> (snd-play)
 
          <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">exorcize-filter</span>
 <span class="prompt">SCRATCH&gt;</span> (buffer-save *snd0* <span style="color: #ffa07a;">"/tmp/snd0.wav"</span>)
 <span class="prompt">SCRATCH&gt;</span> (snd:open-or-update-sound <span style="color: #ffa07a;">"/tmp/snd0.wav"</span>)
 (SOUND 0)
+
+<span class="prompt">SCRATCH&gt;</span> (let ((env (make-adsr .5 .09 .8 1.2)))
+           (unwind-protect
+                (dotimes (ch 2) (snd:env-channel env <span style="color: #b0c4de;">:chn</span> ch))
+             (free env)))
+
+<span class="prompt">SCRATCH&gt;</span> (snd-play)
 
 <span class="prompt">SCRATCH&gt;</span> (snd:exit)
 T</pre>

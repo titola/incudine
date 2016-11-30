@@ -140,12 +140,27 @@ snd:*tmpfile*
     (snd:map-channel (lambda (x) (* x (incf n) 1/80000))
                      :dur 80000 :chn ch)))
 
+(let ((fade-out (make-cutoff 1)))
+  (unwind-protect
+       (progn
+         (snd:eval "(set! (selection-position) (- (framples) 48000))")
+         (snd:eval "(set! (selection-framples) 48000)")
+         (snd:env-selection fade-out))
+    (free fade-out)))
+
 (snd-play)
 
 ;; exorcize-filter
 (buffer-save *snd0* "/tmp/snd0.wav")
 (snd:open-or-update-sound "/tmp/snd0.wav")
 ;;(SOUND 0)
+
+(let ((env (make-adsr .5 .09 .8 1.2)))
+  (unwind-protect
+       (dotimes (ch 2) (snd:env-channel env :chn ch))
+    (free env)))
+
+(snd-play)
 
 (snd:exit)
 ;; T
