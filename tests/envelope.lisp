@@ -54,6 +54,13 @@
             collect (sample->fixnum (envelope-at env beat))))
   (60 60 60 60 120 120 120 120 120 120 90 90 135 135))
 
+(deftest envelope.6
+    (let ((env (make-envelope '(0 100 50) '(10 20))))
+      (loop for i below 5
+            for time = 0 then (+ time (floor (envelope-time env i)))
+            collect (list time (floor (envelope-level env i)))))
+  ((0 0) (10 100) (30 50) (30 50) (30 50)))
+
 (deftest envelope-linen.1
     (envelope-test-1 (make-linen .5 1 1.5 :level .9))
   (0.0 0.0 0.5 0.9 1.0 0.9 1.5 0.0)

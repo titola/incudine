@@ -325,65 +325,64 @@
 (declaim (inline check-envelope-node))
 (defun check-envelope-node (env number)
   (declare (type non-negative-fixnum number))
-  (and (>= number 0)
-       (< number (the non-negative-fixnum (envelope-points env)))))
+  (and (>= number 0) (< number (envelope-points env))))
 
 (declaim (inline envelope-level))
 (defun envelope-level (env node-number)
-  (declare #.*standard-optimize-settings* #.*reduce-warnings*
-           (type envelope env) (type non-negative-fixnum node-number))
-  (when (check-envelope-node env node-number)
-    (smp-ref (envelope-data env)
-             (if (zerop node-number)
-                 0
-                 (the non-negative-fixnum (1- (* node-number 3)))))))
+  (declare (type envelope env) (type non-negative-fixnum node-number))
+  (smp-ref (envelope-data env)
+           (reduce-warnings
+             (if (plusp node-number)
+                 (the non-negative-fixnum
+                   (1- (* (min node-number
+                               (1- (the positive-fixnum (envelope-points env))))
+                          3)))
+                 0))))
 
 (defun set-envelope-level (env node-number level)
-  (declare #.*standard-optimize-settings* #.*reduce-warnings*
+  (declare #.*standard-optimize-settings*
            (type envelope env) (type non-negative-fixnum node-number)
            (type number level))
-  (when (check-envelope-node env node-number)
-    (let ((data (inc-pointer (envelope-data env)
-                             (the non-negative-fixnum
-                               (* node-number 3 +foreign-sample-size+)))))
-      (when (zerop level)
-        (block nil
-          (when (and (plusp node-number)
-                     (exponential-curve-index-p (smp-ref data 0)))
-            (return (setf level +exp-sample-zero+)))
-          (when (/= node-number
-                    (1- (the non-negative-fixnum (envelope-points env))))
-            (incf-pointer data (* 3 +foreign-sample-size+))
-            (when (exponential-curve-index-p (smp-ref data 0))
-              (incf-pointer data (* -3 +foreign-sample-size+))
+  (if (check-envelope-node env node-number)
+      (let ((data (inc-pointer (envelope-data env)
+                               (the non-negative-fixnum
+                                 (* node-number 3 +foreign-sample-size+)))))
+        (when (reduce-warnings (zerop level))
+          (block nil
+            (when (and (plusp node-number)
+                       (exponential-curve-index-p (smp-ref data 0)))
               (return (setf level +exp-sample-zero+)))
-            (incf-pointer data (* -3 +foreign-sample-size+)))))
-      (if (> node-number 0) (incf-pointer data (- +foreign-sample-size+)))
-      (setf (smp-ref data 0) (sample level)))))
+            (when (/= node-number
+                      (1- (the non-negative-fixnum (envelope-points env))))
+              (incf-pointer data (* 3 +foreign-sample-size+))
+              (when (exponential-curve-index-p (smp-ref data 0))
+                (incf-pointer data (* -3 +foreign-sample-size+))
+                (return (setf level +exp-sample-zero+)))
+              (incf-pointer data (* -3 +foreign-sample-size+)))))
+        (if (> node-number 0) (incf-pointer data (- +foreign-sample-size+)))
+        (setf (smp-ref data 0) (reduce-warnings (sample level))))
+      +sample-zero+))
 
 (defsetf envelope-level set-envelope-level)
 
 (declaim (inline envelope-time))
 (defun envelope-time (env node-number)
-  (declare #.*standard-optimize-settings* #.*reduce-warnings*
-           (type envelope env) (type non-negative-fixnum node-number))
-  (when (check-envelope-node env node-number)
-    (if (zerop node-number)
-        +sample-zero+
-        (smp-ref (envelope-data env)
-                 (the non-negative-fixnum (- (* node-number 3) 2))))))
+  (declare (type envelope env) (type non-negative-fixnum node-number))
+  (if (< 0 node-number (envelope-points env))
+      (smp-ref (envelope-data env)
+               (the non-negative-fixnum (- (* node-number 3) 2)))
+      +sample-zero+))
 
 (declaim (inline set-envelope-time))
 (defun set-envelope-time (env node-number time)
-  (declare #.*standard-optimize-settings* #.*reduce-warnings*
+  (declare #.*standard-optimize-settings*
            (type envelope env) (type non-negative-fixnum node-number)
            (type number time))
-  (cond ((zerop node-number) +sample-zero+)
-        ((< node-number (the non-negative-fixnum (envelope-points env)))
-         (setf (smp-ref (envelope-data env)
-                        (the positive-fixnum (- (* node-number 3) 2)))
-               (sample time)))
-        (t +sample-zero+)))
+  (if (< 0 node-number (envelope-points env))
+      (setf (smp-ref (envelope-data env)
+                     (the positive-fixnum (- (* node-number 3) 2)))
+            (reduce-warnings (sample time)))
+      +sample-zero+))
 
 (defsetf envelope-time set-envelope-time)
 
@@ -392,13 +391,13 @@
   (declare #.*standard-optimize-settings* #.*reduce-warnings*
            (type envelope env) (type non-negative-fixnum node-number)
            #+(or cmu sbcl) (values (or symbol sample)))
-  (when (< 0 node-number (the non-negative-fixnum (envelope-points env)))
-    (sample->seg-function-spec (smp-ref (envelope-data env)
-                                        (the non-negative-fixnum
-                                             (* 3 node-number))))))
+  (when (< 0 node-number (envelope-points env))
+    (sample->seg-function-spec
+      (smp-ref (envelope-data env)
+               (the non-negative-fixnum (* 3 node-number))))))
 
 (defun set-envelope-curve (env node-number curve)
-  (declare #.*standard-optimize-settings* #.*reduce-warnings*
+  (declare #.*standard-optimize-settings*
            (type envelope env) (type non-negative-fixnum node-number)
            (type (or symbol real) curve)
            #+(or cmu sbcl) (values (or symbol sample)))
@@ -418,10 +417,11 @@
              (beg-ptr (if (= node-number 1)
                           (envelope-data env)
                           (inc-pointer end-ptr (* -3 +foreign-sample-size+)))))
-        (if (exponential-curve-p curve)
+        (if (reduce-warnings (exponential-curve-p curve))
             (segment-fix-zeros beg-ptr end-ptr +exp-sample-zero+ 0)
             (segment-fix-zeros beg-ptr end-ptr +sample-zero+ +exp-sample-zero+))
-        (setf (smp-ref curve-ptr 0) (seg-function-spec->sample curve))
+        (setf (smp-ref curve-ptr 0)
+              (reduce-warnings (seg-function-spec->sample curve)))
         curve))))
 
 (defsetf envelope-curve set-envelope-curve)
@@ -513,10 +513,7 @@
                    maxval
                    (norm (1+ index)
                          (max (envelope-level env index) maxval)))))
-      (let ((lev (envelope-level env 0)))
-        (if lev
-            (scale-envelope env (/ norm-value (norm 1 lev)))
-            env)))))
+      (scale-envelope env (/ norm-value (norm 1 (envelope-level env 0)))))))
 
 (defun rescale-envelope (env min max)
   (declare (type envelope env) (type real min max))
