@@ -233,7 +233,7 @@
     (/ (+ (* (- c2 cx) y1) (* (- (* cx c0) c2) y0) (- y0 y1)) c1)))
 
 (defun segment-time-warp (y0 y1 curve t1 x)
-  (* t1 (if (or (= y0 y1) (eq curve +seg-step-func+))
+  (* t1 (if (or (= y0 y1) (= curve +seg-step-func+))
             (* y0 x)
             (curve-case curve
               (+seg-lin-func+ (integrate-linear-curve y0 y1 x))
