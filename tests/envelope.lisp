@@ -48,6 +48,12 @@
   (0.0 0.0 0.01 1.0 3.0 0.89 2.0 0.42 0.25 0.0)
   (:EXPONENTIAL :LINEAR :CUBIC :EXPONENTIAL))
 
+(deftest envelope.5
+    (let ((env (make-envelope '(60 120 120 90 135) '(4 6 8 2) :curve :step)))
+      (loop for beat in '(0 .5 1 3 4 7 9 10 15 17.5 18 19.999 20 22)
+            collect (sample->fixnum (envelope-at env beat))))
+  (60 60 60 60 120 120 120 120 120 120 90 90 135 135))
+
 (deftest envelope-linen.1
     (envelope-test-1 (make-linen .5 1 1.5 :level .9))
   (0.0 0.0 0.5 0.9 1.0 0.9 1.5 0.0)

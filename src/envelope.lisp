@@ -432,7 +432,7 @@
      `(flet ((,sqrt-s (,x) (sqrt (the non-negative-sample ,x)))
              (,expt-s (,x ,power) (expt (the non-negative-sample ,x) ,power)))
         (curve-case ,curve
-          (+seg-step-func+ ,end)
+          (+seg-step-func+ ,beg)
           (+seg-lin-func+ (+ (* ,pos (- ,end ,beg)) ,beg))
           (+seg-exp-func+ (* ,beg (,expt-s (/ ,end ,beg) ,pos)))
           (+seg-sine-func+
