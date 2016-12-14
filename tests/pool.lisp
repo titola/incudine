@@ -5,10 +5,16 @@
 (defun cons-pool-default-expand-func (pool &optional (delta 1))
   (expand-cons-pool pool delta nil))
 
-(defmacro with-cons-pool-test ((var size &optional (grow 4)) &body body)
+(defun cons-pool-expand-func-2 (pool &optional (delta 1))
+  (let ((i 0))
+    (expand-cons-pool pool delta (list (incf i)))))
+
+(defmacro with-cons-pool-test ((var size &optional (grow 4)
+                                (expand-func #'cons-pool-default-expand-func))
+                               &body body)
   `(let ((,var (make-cons-pool :data (make-list ,size)
                                :size ,size
-                               :expand-func #'cons-pool-default-expand-func
+                               :expand-func ,expand-func
                                :grow ,grow)))
      ,@body))
 
@@ -63,6 +69,13 @@
       (values (cons-pool-size pool)
               (length (incudine.util::cons-pool-data pool))))
   36 36)
+
+(deftest cons-pool.6
+    (with-cons-pool-test (pool 8 8 #'cons-pool-expand-func-2)
+      (cons-pool-pop-list pool 8)
+      (when (zerop (cons-pool-size pool))
+        (cons-pool-pop-list pool 8)))
+  ((8) (7) (6) (5) (4) (3) (2) (1)))
 
 ;;;; TLIST
 

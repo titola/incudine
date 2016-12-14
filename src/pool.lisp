@@ -28,17 +28,16 @@
   (format stream "#<CONS-POOL ~D>" (cons-pool-size obj)))
 
 (defmacro expand-cons-pool (pool delta new)
-  (with-gensyms (lst p d value i exp-size)
+  (with-gensyms (lst p d i exp-size)
     `(let ((,p ,pool)
-           (,d ,delta)
-           (,value ,new))
+           (,d ,delta))
        (declare (type cons-pool ,p) (type positive-fixnum ,d))
        (labels ((expand (,lst ,i)
                   (declare (type non-negative-fixnum ,i)
                            (type list ,lst))
                   (if (zerop ,i)
                       ,lst
-                      (expand (cons ,value ,lst) (1- ,i)))))
+                      (expand (cons ,new ,lst) (1- ,i)))))
          (with-slots (data size grow) ,p
            (let ((,exp-size (max ,d grow)))
              (incf size ,exp-size)
@@ -87,7 +86,7 @@
                 (type cons-pool ,p))
        (with-slots (data size) ,p
          (when (< size ,lsize)
-           (expand-global-pool ,p ,lsize))
+           (funcall (cons-pool-expand-func ,p) ,p ,lsize))
          (do ((,i 1 (1+ ,i))
               (,lst data (cdr ,lst)))
              ((= ,i ,lsize)
