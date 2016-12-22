@@ -527,8 +527,31 @@
    #:slip-decode #:socket-send #:buffer-to-octets #:octets-to-buffer
    #:buffer-to-string #:string-to-buffer))
 
+(defpackage :incudine.midifile
+  (:use :cl)
+  (:nicknames :midifile)
+  (:shadow #:stream #:input-stream-p #:output-stream-p #:open #:close #:format)
+  (:import-from :alexandria #:non-negative-fixnum #:positive-fixnum
+                #:non-negative-real #:positive-real)
+  (:export #:data #:midifile-error #:midifile-parse-error
+           #:invalid-running-status #:invalid-variable-length-quantity
+           #:invalid-track-chunk-length
+           #:stream #:input-stream #:input-stream-p
+           #:output-stream #:output-stream-p
+           #:open #:open-p #:close #:with-open-midifile
+           #:clear-buffer-pool
+           #:read-header #:write-header
+           #:read-event #:write-event #:write-short-event #:write-tempo-track
+           #:next-track #:current-track
+           #:path #:format #:number-of-tracks #:ppqn #:smpte #:tempo
+           #:event-delta-time #:event-time #:event-beats #:event-seconds
+           #:message #:tempo-message #:string-message #:end-of-track
+           #:message-buffer #:message-length
+           #:message-status #:message-data1 #:message-data2))
+
 (defpackage :incudine.scratch
   (:use :cl :incudine :incudine.vug :incudine.util :incudine.analysis)
   (:import-from #:alexandria #:positive-fixnum #:negative-fixnum
                 #:non-negative-fixnum #:with-gensyms #:define-constant)
+  (:import-from #:incudine.midifile #:with-open-midifile)
   (:nicknames :scratch))

@@ -32,7 +32,7 @@
     (compile-file* (component-pathname c))))
 
 (defsystem "incudine"
-  :version "0.9.8"
+  :version "0.9.9"
   :description "Incudine is a Music/DSP programming environment."
   :licence "GPL v2"
   :author "Tito Latini"
@@ -118,6 +118,7 @@
      (:file "network/cffi-osc" :depends-on ("packages"))
      (:file "network/osc" :depends-on ("util" "network/cffi-osc" "network/sbcl-vops"))
      (:file "network/generic" :depends-on ("network/osc"))
+     (:file "midifile" :depends-on ("util"))
      (:file "analysis/maybe-fftw-no-simd"
             :if-feature (:and :sbcl :x86 (:not :darwin))
             :depends-on ("packages"))

@@ -1,5 +1,6 @@
 *.fasl
 *.so
+*.mid
 *~
 *.o
 src/cache.lisp
