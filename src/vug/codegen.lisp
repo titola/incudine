@@ -1050,31 +1050,31 @@
   (values))
 
 (defmacro update-foreign-array (vug-varname args)
-  (with-gensyms (size type initial-contents opts i)
-    `(let ((,size ,(car args))
-           (,type ,(cadr args)))
-       (declare (type positive-fixnum ,size))
-       (with-slots (incudine::data incudine::size incudine::type) ,vug-varname
-         (cond ((and (equal ,type incudine::type) (= ,size incudine::size))
+  (with-gensyms (new-size new-type initial-contents opts i)
+    `(let ((,new-size ,(car args))
+           (,new-type ,(cadr args)))
+       (declare (type positive-fixnum ,new-size))
+       (incudine.util::with-struct-slots
+           ((data size type) ,vug-varname incudine::foreign-array)
+         (cond ((and (equal ,new-type type) (= ,new-size size))
                 (do ((,opts ',(cddr args) (cddr ,opts)))
                     ((null ,opts))
                   (case (car ,opts)
-                    (:zero-p (incudine.external:foreign-set incudine::data 0
-                               (* ,size (foreign-type-size ,type))))
+                    (:zero-p (incudine.external:foreign-set data 0
+                               (* ,new-size (foreign-type-size ,new-type))))
                     (:initial-contents
                      (let ((,initial-contents (cadr ,opts)))
                        (dotimes (,i (length ,initial-contents))
-                         (setf (mem-aref incudine::data ,type ,i)
+                         (setf (mem-aref data ,new-type ,i)
                                (elt ,initial-contents ,i)))))
                     (:initial-element
-                     (dotimes (,i ,size)
-                       (setf (mem-aref incudine::data ,type ,i)
+                     (dotimes (,i ,new-size)
+                       (setf (mem-aref data ,new-type ,i)
                              (cadr ,opts)))))))
-               (t (setf incudine::data (foreign-rt-realloc incudine::data ,type
-                                                           ,@(cddr args)
-                                                           :count ,size)
-                        incudine::type ,type
-                        incudine::size ,size)))
+               (t (setf data (foreign-rt-realloc data ,new-type ,@(cddr args)
+                                                 :count ,new-size))
+                  (setf type ,new-type)
+                  (setf size ,new-size)))
          ,vug-varname))))
 
 (defun reinit-binding-form (var)

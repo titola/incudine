@@ -116,8 +116,7 @@
                    description real-time-p)))
 
 (defmethod print-object ((obj tuning) stream)
-  (with-slots (frames channels sample-rate) obj
-    (format stream "#<~S ~S>" (type-of obj) (tuning-description obj))))
+  (format stream "#<~S ~S>" (type-of obj) (tuning-description obj)))
 
 (defmethod free ((obj tuning))
   (unless (null-pointer-p (tuning-aux-data obj))

@@ -152,6 +152,18 @@
             (*twopi-div-sr* (* 2 *pi-div-sr*)))
        ,@body))
 
+  (defmacro with-struct-slots ((slots instance struct-name) &body body)
+    (with-gensyms (obj)
+      `(let ((,obj ,instance))
+         (symbol-macrolet
+             ,(mapcar (lambda (slot-name)
+                        `(,slot-name (,(alexandria:format-symbol
+                                         (symbol-package struct-name)
+                                         "~A-~A" struct-name slot-name)
+                                       ,obj)))
+                      slots)
+           ,@body))))
+
   (declaim (inline next-power-of-two))
   (defun next-power-of-two (n)
     (declare (type positive-fixnum n))

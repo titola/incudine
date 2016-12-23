@@ -104,10 +104,10 @@
 (defun read (stream evbuf length)
   (declare (type stream stream) (type event-buffer evbuf)
            (type non-negative-fixnum length))
-  (with-slots (pointer events size) evbuf
-    (setf events (min (the non-negative-fixnum
-                        (read% stream pointer length))
-                      (the non-negative-fixnum size)))))
+  (setf (event-buffer-events evbuf)
+        (min (the non-negative-fixnum
+               (read% stream (event-buffer-pointer evbuf) length))
+             (the non-negative-fixnum (event-buffer-size evbuf)))))
 
 (declaim (inline write))
 (defun write (stream evbuf length)

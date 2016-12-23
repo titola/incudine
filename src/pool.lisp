@@ -38,7 +38,7 @@
                   (if (zerop ,i)
                       ,lst
                       (expand (cons ,new ,lst) (1- ,i)))))
-         (with-slots (data size grow) ,p
+         (with-struct-slots ((data size grow) ,p cons-pool)
            (let ((,exp-size (max ,d grow)))
              (incf size ,exp-size)
              (setf data (expand data ,exp-size))))))))
@@ -48,7 +48,7 @@
     `(let ((,p ,pool)
            (,x ,cons))
        (declare (type cons ,x) (type cons-pool ,p))
-       (with-slots (data size) ,p
+       (with-struct-slots ((data size) ,p cons-pool)
          (incf size)
          (setf (cdr ,x) data data ,x)))))
 
@@ -56,7 +56,7 @@
   (with-gensyms (p result)
     `(let ((,p ,pool))
        (declare (type cons-pool ,p))
-       (with-slots (data size expand-func) ,p
+       (with-struct-slots ((data size expand-func) ,p cons-pool)
          (when (zerop size)
            (funcall expand-func ,p))
          (let ((,result data))
@@ -73,7 +73,7 @@
        (do ((,i 1 (1+ ,i))
             (,l ,lst (cdr ,l)))
            ((null (cdr ,l))
-            (with-slots (data size) ,p
+            (with-struct-slots ((data size) ,p cons-pool)
               (incf size ,i)
               (setf (cdr ,l) data data ,lst)))
          (declare (type positive-fixnum ,i) (type list ,l))))))
@@ -84,7 +84,7 @@
            (,p ,pool))
        (declare (type positive-fixnum ,lsize)
                 (type cons-pool ,p))
-       (with-slots (data size) ,p
+       (with-struct-slots ((data size) ,p cons-pool)
          (when (< size ,lsize)
            (funcall (cons-pool-expand-func ,p) ,p ,lsize))
          (do ((,i 1 (1+ ,i))

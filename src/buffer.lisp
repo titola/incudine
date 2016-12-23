@@ -79,12 +79,11 @@
     obj))
 
 (defmethod print-object ((obj buffer) stream)
-  (with-slots (frames channels sample-rate) obj
-    (format stream "#<~S :FRAMES ~D :CHANNELS ~D :SR ~F>"
-            (type-of obj)
-            (if (free-p obj) 0 (buffer-frames obj))
-            (buffer-channels obj)
-            (buffer-sample-rate obj))))
+  (format stream "#<~S :FRAMES ~D :CHANNELS ~D :SR ~F>"
+          (type-of obj)
+          (if (free-p obj) 0 (buffer-frames obj))
+          (buffer-channels obj)
+          (buffer-sample-rate obj)))
 
 (defmethod free-p ((obj buffer-base))
   (null-pointer-p (buffer-base-data obj)))
