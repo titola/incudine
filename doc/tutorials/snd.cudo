@@ -119,7 +119,7 @@ snd:*tmpfile*
 (snd:buffer->mix *mix0* '(108000 0 nil 0))
 ;; ((MIX 1))
 
-(snd:buffer->mix *mix0* '(108000 0 nil 1))
+(snd:buffer->mix *mix0* '("/tmp/mix0.wav" 108000 0 nil 1))
 ;; ((MIX 2))
 
 (snd:eval "(maxamp)")

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2015-2016 Tito Latini
+;;; Copyright (c) 2015-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -116,15 +116,18 @@ and opened in Snd. BUFFER-SAVE-ARGS are the arguments for INCUDINE:BUFFER-SAVE."
 
 (defun buffer->mix (buf &rest args)
   "The content of a INCUDINE:BUFFER structure is mixed in Snd.
-If the first argument in ARGS is a list, it has the arguments for
-the Snd function `mix'. The rest of the arguments are passed to
-INCUDINE:BUFFER-SAVE."
+If the first argument in ARGS is a list, it has the arguments for the
+Snd function `mix' (file is optional). The rest of the arguments are
+passed to INCUDINE:BUFFER-SAVE."
   (declare (type incudine:buffer buf))
-  (multiple-value-bind (mix-args bsave-args)
-      (if (keywordp (car args))
-          (values nil args)
-          (values (car args) (cdr args)))
-    (with-buffer-save (buf f *tmpfile* bsave-args)
+  (multiple-value-bind (mix-args bsave-args sfile)
+      (if (keywordp (first args))
+          (values nil args *tmpfile*)
+          (let ((mix-args (first args)))
+            (if (stringp (first mix-args))
+                (values (rest mix-args) (rest args) (first mix-args))
+                (values mix-args (rest args) *tmpfile*))))
+    (with-buffer-save (buf f sfile bsave-args)
       (mix f mix-args))))
 
 (defun map-channel-new-vec (buffer function beg end)
@@ -278,8 +281,8 @@ an INCUDINE:ENVELOPE structure, to the selection."
 (defmacro bounce-to-snd-mix ((outfile &rest args) &body body)
   (with-gensyms (fname)
     (multiple-value-bind (mix-args bounce-args)
-        (if (keywordp (car args))
+        (if (keywordp (first args))
             (values nil args)
-            (values (car args) (cdr args)))
+            (values (first args) (rest args)))
       `(with-bounce-to-snd-object (,fname ,outfile ,bounce-args ,body)
          (snd:mix ,fname ,mix-args)))))
