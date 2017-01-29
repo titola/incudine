@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -176,7 +176,7 @@
 
 #-dummy-audio
 (defmacro rt-loop-form (frames-per-buffer block-size)
-  (with-gensyms (frames reset)
+  (with-gensyms (frames reset pt-started pm-time-delta)
     `(block nil
        (rt-set-io-buffers *%input-pointer* *%output-pointer*)
        (unless (= ,block-size 1)
@@ -191,12 +191,19 @@
        (setf *block-samples* (* *block-size* *number-of-output-bus-channels*))
        (setf rt-state 0)
        (reset-sample-counter)
-       (let ((,frames ,frames-per-buffer))
-         (declare (type non-negative-fixnum ,frames))
+       (let ((,frames ,frames-per-buffer)
+             (,pt-started (pt:started))
+             (,pm-time-delta (/ (sample 1000) *sample-rate*)))
+         (declare (type non-negative-fixnum ,frames)
+                  (type boolean ,pt-started)
+                  (type sample ,pm-time-delta))
          (with-restart-point (,reset)
            (loop while (zerop rt-state) do
                 (reset-io-pointers)
                 (with-rt-cycle (,reset ,frames)
+                  (when ,pt-started
+                    (setf (smp-ref *portmidi-time* 0)
+                          (sample (the (unsigned-byte 32) (pt:time)))))
                   #+jack-midi (jackmidi::process ,frames)
                   (fifo-perform-functions *to-engine-fifo*)
                   (do ((i 0 (+ i ,block-size)))
@@ -206,6 +213,8 @@
                     (incudine.edf:sched-loop)
                     (compute-tick)
                     (inc-io-pointers ,block-size)
+                    (when ,pt-started
+                      (inc-portmidi-time ,pm-time-delta))
                     (incf-sample-counter ,block-size))))
            (rt-transfer-to-c-thread)
            (nrt-funcall #'rt-stop))))))

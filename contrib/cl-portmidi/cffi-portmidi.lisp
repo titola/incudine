@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2015 Tito Latini
+;;; Copyright (c) 2013-2017 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -46,7 +46,8 @@
   ;; Number of the events starting from the received SysEx message.
   (events-remain 0 :type non-negative-fixnum))
 
-(defstruct (output-stream (:include stream) (:copier nil)))
+(defstruct (output-stream (:include stream) (:copier nil))
+  (latency 1 :type non-negative-fixnum :read-only t))
 
 (defun make-stream (ptr direction device-id device-interf device-name)
   (declare (type cffi:foreign-pointer ptr)

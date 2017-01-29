@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -24,36 +24,42 @@
   #-jack-midi 'pm:output-stream
   #+jack-midi '(or pm:output-stream jackmidi:output-stream))
 
+(declaim (inline portmidi-write-short))
+(defun portmidi-write-short (stream msg)
+  (pm:write-short stream (if (rt-thread-p) (portmidi-time) 0) msg))
+
+(declaim (inline portmidi-write-sysex))
+(defun portmidi-write-sysex (stream msg-ptr)
+  (cffi:foreign-funcall "Pm_WriteSysEx"
+                        :pointer (pm:stream-pointer stream)
+                        pm:timestamp (if (rt-thread-p) (portmidi-time) 0)
+                        :pointer msg-ptr :int))
+
 (declaim (inline midiout))
 (defun midiout (status data1 data2 stream)
   "Send a generic MIDI message to a MIDI output stream."
   (declare (type (unsigned-byte 8) status data1 data2)
            (type midi-output-stream stream))
   #-jack-midi
-  (pm:write-short stream 0 (pm:message status data1 data2))
+  (portmidi-write-short stream (pm:message status data1 data2))
   #+jack-midi
   (if (pm:output-stream-p stream)
-      (pm:write-short stream 0 (pm:message status data1 data2))
+      (portmidi-write-short stream (pm:message status data1 data2))
       (jackmidi:write-short stream (jackmidi:message status data1 data2) 3)))
 
 (declaim (inline midi-write-sysex))
 #-jack-midi
-(defun midi-write-sysex (stream timestamp msg-ptr size)
+(defun midi-write-sysex (stream msg-ptr size)
   (declare (ignore size))
-  (cffi:foreign-funcall "Pm_WriteSysEx"
-                        :pointer (pm:stream-pointer stream)
-                        pm:timestamp timestamp :pointer msg-ptr :int))
+  (portmidi-write-sysex stream msg-ptr))
 
 #+jack-midi
-(defun midi-write-sysex (stream timestamp msg-ptr size)
-  (logand
-    (if (pm:output-stream-p stream)
-        (cffi:foreign-funcall "Pm_WriteSysEx"
-          :pointer (pm:stream-pointer stream) pm:timestamp timestamp
-          :pointer msg-ptr :int)
-        (rt-eval (:return-value-p t)
-          (jackmidi:foreign-write stream msg-ptr size)))
-    #xffffff))
+(defun midi-write-sysex (stream msg-ptr size)
+  (if (pm:output-stream-p stream)
+      (portmidi-write-sysex stream msg-ptr)
+      (logand (rt-eval (:return-value-p t)
+                (jackmidi:foreign-write stream msg-ptr size))
+              #xffffff)))
 
 (defun sysex-sequence->foreign-array (seq)
   (declare (type sequence seq))
@@ -67,13 +73,12 @@
     obj))
 
 (declaim (inline midiout-sysex))
-(defun midiout-sysex (seq stream &optional (timestamp 0))
+(defun midiout-sysex (seq stream)
   "Send a MIDI SysEx message to a MIDI OUTPUT STREAM."
-  (declare (type sequence seq) (type midi-output-stream stream)
-           (type (unsigned-byte 32) timestamp))
+  (declare (type sequence seq) (type midi-output-stream stream))
   (let ((obj (sysex-sequence->foreign-array seq)))
     (unwind-protect
-         (midi-write-sysex stream timestamp (foreign-array-data obj)
+         (midi-write-sysex stream (foreign-array-data obj)
                            (length seq))
       (free obj))))
 
@@ -181,7 +186,7 @@
                  (tuning-et12-cents-offset tuning))
       (setf (u8-ref buf +midi-bulk-tuning-dump-checksum-index+)
             (funcall checksum-function buf +midi-bulk-tuning-dump-buffer-size+))
-      (midi-write-sysex stream 0 buf +midi-bulk-tuning-dump-buffer-size+)
+      (midi-write-sysex stream buf +midi-bulk-tuning-dump-buffer-size+)
       stream)))
 
 (defmacro with-midi-single-note-tuning-change-buffer ((buf-var device-id program)
@@ -212,7 +217,7 @@
                          (- (+ os (aref (tuning-cents tuning) i)) (* xx 100)))
                      (declare (type (unsigned-byte 8) yy zz))
                      (setf (u32-ref buf 2) (midi-four-bytes xx yy zz #xF7))
-                     (midi-write-sysex stream 0 buf 12)))
+                     (midi-write-sysex stream buf 12)))
                  (sleep .0001)
                  (let ((i (mod (1+ k) degrees)))
                    (send (1+ k) i degrees

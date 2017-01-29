@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2017 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -61,7 +61,7 @@
       (error-generic result)))
 
 (defmacro open (device-id &key (buffer-size default-sysex-buffer-size)
-                (direction :input) (latency 0) driver-info time-proc time-info)
+                (direction :input) (latency 1) driver-info time-proc time-info)
   (let ((ptr (gensym)))
     (multiple-value-bind (open-func latency)
         (if (eq direction :input)

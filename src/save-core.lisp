@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -99,6 +99,8 @@
             (foreign-alloc :double :initial-element +sample-zero+))
       (setf *nrt-tempo* (make-tempo *default-bpm*))
       ;; midi
+      (setf *portmidi-time*
+            (foreign-alloc 'sample :initial-element +sample-zero+))
       (setf incudine.vug::*midi-normalize-table*
             (incudine.vug::make-midi-normalize-table))
       (setf incudine.vug::*midi-normalize-pb-bipolar-table*
