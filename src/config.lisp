@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -101,6 +101,9 @@
   (defvar *sample-duration* (/ 1.0 *sample-rate*))
   (declaim (type sample *sample-duration*))
 
+  (defvar *sample-duration-msec* (* *sample-duration* 1000))
+  (declaim (type sample *sample-duration-msec*))
+
   (defvar *sound-velocity*
     (force-sample-format incudine.config::*sound-velocity*))
   (declaim (type sample *sound-velocity*))
@@ -134,7 +137,8 @@
   (defun sample-rate-deps-update-to-hook ()
     (unless *sample-rate-deps-to-hook-p*
       (pushnew (lambda ()
-                 (setf *cps2inc* (* +table-maxlen+ *sample-duration*)
+                 (setf *sample-duration-msec* (* 1000 *sample-duration*)
+                       *cps2inc* (* +table-maxlen+ *sample-duration*)
                        *pi-div-sr* (coerce (* pi *sample-duration*) 'sample)
                        *minus-pi-div-sr* (- *pi-div-sr*)
                        *twopi-div-sr* (* 2 *pi-div-sr*)))

@@ -193,7 +193,7 @@
        (reset-sample-counter)
        (let ((,frames ,frames-per-buffer)
              (,pt-started (pt:started))
-             (,pm-time-delta (/ (sample 1000) *sample-rate*)))
+             (,pm-time-delta incudine.util::*sample-duration-msec*))
          (declare (type non-negative-fixnum ,frames)
                   (type boolean ,pt-started)
                   (type sample ,pm-time-delta))
