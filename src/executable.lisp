@@ -799,12 +799,21 @@ the argument is parsed with READ-FROM-STRING."
       (restart-case
           (progn
             (funcall *core-init-function*)
-            (when (toplevel-options-sysinit-p opt)
-              (sb-impl::process-init-file
-               (toplevel-options-sysinit opt) :system))
-            (when (toplevel-options-userinit-p opt)
-              (sb-impl::process-init-file
-               (toplevel-options-userinit opt) :user))
+            (let ((pkg *package*))
+              (when (toplevel-options-sysinit-p opt)
+                (sb-impl::process-init-file
+                  (toplevel-options-sysinit opt) :system)
+                (unless (or (eq pkg *package*)
+                            (null (toplevel-options-sysinit opt)))
+                  ;; sysinit file of incudine changes the current package.
+                  (setf pkg *package*)))
+              (when (toplevel-options-userinit-p opt)
+                (sb-impl::process-init-file
+                  (toplevel-options-userinit opt) :user)
+                (unless (or (eq pkg *package*) (toplevel-options-userinit opt))
+                  ;; The default init files of SBCL don't change the
+                  ;; current package.
+                  (setf *package* pkg))))
             (handler-case
                 (progn
                   (dolist (option (nreverse (toplevel-options-functions opt)))
