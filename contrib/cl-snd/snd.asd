@@ -2,7 +2,7 @@
 ;;;
 ;;; ASDF system definition for SND.
 ;;;
-;;; Copyright (c) 2015 Tito Latini
+;;; Copyright (c) 2015-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -18,11 +18,7 @@
 ;;; along with this program; if not, write to the Free Software
 ;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-(in-package :cl-user)
-
-(defpackage :snd-asd (:use #:cl #:asdf))
-
-(in-package :snd-asd)
+(in-package :asdf-user)
 
 (defsystem "snd"
   :description "Interface to interact with the sound editor Snd."

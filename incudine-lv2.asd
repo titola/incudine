@@ -2,7 +2,7 @@
 ;;;
 ;;; ASDF system definition for INCUDINE-LV2
 ;;;
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -18,8 +18,7 @@
 ;;; along with this program; if not, write to the Free Software
 ;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-(defpackage :incudine-lv2-system (:use :cl :asdf))
-(in-package :incudine-lv2-system)
+(in-package :asdf-user)
 
 (defsystem "incudine-lv2"
   :version "1.0"
@@ -38,6 +37,5 @@
      (:file "lilv")))
    (:module "src"
     :depends-on ("contrib/cl-lilv")
-    :serial t
     :components
     ((:file "vug/lv2")))))

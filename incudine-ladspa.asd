@@ -2,7 +2,7 @@
 ;;;
 ;;; ASDF system definition for INCUDINE-LADSPA
 ;;;
-;;; Copyright (c) 2014 Tito Latini
+;;; Copyright (c) 2014-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -18,8 +18,7 @@
 ;;; along with this program; if not, write to the Free Software
 ;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-(defpackage :incudine-ladspa-system (:use :cl :asdf))
-(in-package :incudine-ladspa-system)
+(in-package :asdf-user)
 
 (defsystem "incudine-ladspa"
   :version "1.0"
@@ -38,6 +37,5 @@
      (:file "ladspa")))
    (:module "src"
     :depends-on ("contrib/cl-ladspa")
-    :serial t
     :components
     ((:file "vug/ladspa")))))
