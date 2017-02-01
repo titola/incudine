@@ -12,6 +12,7 @@
   *edf-heap-pool-grow*
   *edf-heap-pool-size*
   *enable-jack-midi*
+  *enable-portmidi-output-sample-offset*
   *fade-curve*
   *foreign-library-directories*
   *foreign-nrt-memory-pool-size*

@@ -174,9 +174,14 @@
 (declaim (inline block-size))
 (defun block-size () *block-size*)
 
+(defun recompile-rt-source-file-p ()
+  (not (eq incudine.config::*enable-portmidi-output-sample-offset*
+           #.incudine.config::*enable-portmidi-output-sample-offset*)))
+
 #-dummy-audio
 (defmacro rt-loop-form (frames-per-buffer block-size)
   (with-gensyms (frames reset pt-started pm-time-delta)
+    (declare (ignorable pt-started pm-time-delta))
     `(block nil
        (rt-set-io-buffers *%input-pointer* *%output-pointer*)
        (unless (= ,block-size 1)
@@ -192,18 +197,21 @@
        (setf rt-state 0)
        (reset-sample-counter)
        (let ((,frames ,frames-per-buffer)
-             (,pt-started (pt:started))
-             (,pm-time-delta incudine.util::*sample-duration-msec*))
+             ,@(when incudine.config::*enable-portmidi-output-sample-offset*
+                 `((,pt-started (pt:started))
+                   (,pm-time-delta incudine.util::*sample-duration-msec*))))
          (declare (type non-negative-fixnum ,frames)
-                  (type boolean ,pt-started)
-                  (type sample ,pm-time-delta))
+                  ,@(when incudine.config::*enable-portmidi-output-sample-offset*
+                      `((type boolean ,pt-started)
+                        (type sample ,pm-time-delta))))
          (with-restart-point (,reset)
            (loop while (zerop rt-state) do
                 (reset-io-pointers)
                 (with-rt-cycle (,reset ,frames)
-                  (when ,pt-started
-                    (setf (smp-ref *portmidi-time* 0)
-                          (sample (the (unsigned-byte 32) (pt:time)))))
+                  ,@(when incudine.config::*enable-portmidi-output-sample-offset*
+                      `((when ,pt-started
+                          (setf (smp-ref *portmidi-time* 0)
+                                (sample (the (unsigned-byte 32) (pt:time)))))))
                   #+jack-midi (jackmidi::process ,frames)
                   (fifo-perform-functions *to-engine-fifo*)
                   (do ((i 0 (+ i ,block-size)))
@@ -213,8 +221,9 @@
                     (incudine.edf:sched-loop)
                     (compute-tick)
                     (inc-io-pointers ,block-size)
-                    (when ,pt-started
-                      (inc-portmidi-time ,pm-time-delta))
+                    ,@(when incudine.config::*enable-portmidi-output-sample-offset*
+                        `((when ,pt-started
+                            (inc-portmidi-time ,pm-time-delta))))
                     (incf-sample-counter ,block-size))))
            (rt-transfer-to-c-thread)
            (nrt-funcall #'rt-stop))))))
@@ -257,7 +266,7 @@
   #+jack-midi (jackmidi::reset)
   (values))
 
-(defvar *default-rt-loop-cb*
+(defparameter *default-rt-loop-cb*
   #+dummy-audio #'identity
   #-dummy-audio
   (if (and (boundp 'incudine.config::*rt-block-size*)

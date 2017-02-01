@@ -31,7 +31,7 @@
 
 (defmethod perform :before ((o load-op) (c incudine-source-file))
   (when *incudine-force-compile-p*
-    (compile-file* (component-pathname c))))
+    (perform 'compile-op c)))
 
 (defsystem "incudine"
   :version "0.9.9"
@@ -105,10 +105,16 @@
      (:file "envelope" :depends-on ("logger" "foreign-array"))
      (:file "graph" :depends-on ("time" "logger" "int-hash"))
      (:file "node-pool" :depends-on ("graph"))
-     (:file "rt" :depends-on ("fifo" "bus" "graph"
-                                     #+jack-audio "jack"
-                                     #+jack-midi "jackmidi"
-                                     #+portaudio "portaudio"))
+     (:file "rt"
+      :depends-on ("fifo" "bus" "graph" #+jack-audio "jack"
+                                        #+jack-midi "jackmidi"
+                                        #+portaudio "portaudio")
+      :perform (load-op :around (o c)
+        (load (first (input-files 'load-op c)))
+        (when (symbol-call :incudine '#:recompile-rt-source-file-p)
+          (perform 'compile-op c)
+          (load (first (input-files 'load-op c))))
+        (call-next-method)))
      (:file "nrt" :depends-on ("rt"))
      (:file "score" :depends-on ("nrt"))
      (:file "midi" :depends-on ("edf-sched" "tuning" #+jack-midi "jackmidi"))

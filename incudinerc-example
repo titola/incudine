@@ -67,6 +67,10 @@
 
 (setq *enable-jack-midi* nil)
 
+;; Timestamp with sample offset for PortMidi output in rt-thread
+;; (T by default with PortAudio).
+;(setq *enable-portmidi-output-sample-offset* (not (eq *audio-driver* :jack)))
+
 ;; Number of milliseconds before to test whether MIDI input is
 ;; available (useful with PortMidi because it does not support a
 ;; blocking read).
