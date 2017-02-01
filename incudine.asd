@@ -2,7 +2,7 @@
 ;;;
 ;;; ASDF system definition for INCUDINE.
 ;;;
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -25,9 +25,11 @@
 
 (in-package :asdf-user)
 
+(defclass incudine-source-file (cl-source-file) ())
+
 (defvar *incudine-force-compile-p* nil)
 
-(defmethod perform :before ((o load-op) (c cl-source-file))
+(defmethod perform :before ((o load-op) (c incudine-source-file))
   (when *incudine-force-compile-p*
     (compile-file* (component-pathname c))))
 
@@ -36,6 +38,7 @@
   :description "Incudine is a Music/DSP programming environment."
   :licence "GPL v2"
   :author "Tito Latini"
+  :default-component-class incudine-source-file
   :depends-on (:alexandria :bordeaux-threads :cffi :swap-bytes :trivial-garbage)
   :components
   ((:module "contrib/cl-sndfile"
@@ -160,7 +163,10 @@
      (:file "vug/fft" :depends-on ("gen/window" "analysis/fft" "vug/codegen"))
      (:file "vug/spectral" :depends-on ("vug/fft"))
      (:file "vug/foreign-plugin" :depends-on ("vug/vug"))
-     (:file "deprecated" :depends-on ("vug/in-out"))))
+     (:file "deprecated" :depends-on ("vug/in-out")))
+    :perform (load-op :after (o c)
+       (when *incudine-force-compile-p*
+         (setf *incudine-force-compile-p* nil))))
    (:file "src/save-core" :depends-on ("src"))
    (:static-file "COPYING")
    (:static-file "README")
