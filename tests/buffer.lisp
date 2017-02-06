@@ -1,5 +1,11 @@
 (in-package :incudine-tests)
 
+(defvar *data-text-file*
+  (merge-pathnames "tests/data.txt" (asdf:system-source-directory :incudine)))
+
+(defvar *data-raw-file*
+  (merge-pathnames "tests/data.raw" (asdf:system-source-directory :incudine)))
+
 (deftest buffer.1
     (let* ((buf (make-buffer 8))
            (lst (unless (free-p buf)
@@ -16,6 +22,32 @@
         (setf (buffer-value buf 4) 123))
       (values lst (sample->fixnum (buffer-value buf 4))))
   (0 1 2 3 4 5 6 7) 123)
+
+(deftest buffer-load.1
+    (let ((buf (buffer-load *data-text-file*)))
+      (prog1 (mapcar (lambda (x) (floor (* x 1000))) (buffer->list buf))
+        (free buf)))
+  (1000 1000 2000 3000 1000 2000 3000 4000 5000 1000 2000 3000 4000 5000 6000
+   7000 1000 2000 3000 4000 5000 6000 7000 8000 9000 1000 2000 3000 4000 5000
+   6000 7000 1000 2000 3000 4000 5000 1000 2000 3000 1000
+   1234 1234 -1234
+   1234000 1234000 1234000 12345000 12345000
+   100 200 300 400 500 600 700 800 900
+   1000 2000 3000
+   10000 20000 30000))
+
+(deftest buffer-load.2
+    (let ((buf (buffer-load *data-raw-file* :headerless-p t)))
+      (prog1 (mapcar #'floor (butlast (buffer->list buf)))
+        (free buf)))
+  (9 8 7 6 5 4 3 2 1 0))
+
+(deftest buffer-load.3
+    (let ((buf (buffer-load *data-raw-file*
+                 :offset 80 :headerless-p t :data-format "pcm-s8")))
+      (prog1 (mapcar (lambda (x) (round (* x 10))) (buffer->list buf))
+        (free buf)))
+  (-3 -2 -1 0 1 2 3 4))
 
 (deftest fill-buffer.1
     (let ((buf (make-buffer 8)))
@@ -58,6 +90,33 @@
       (unless (free-p buf)
         (mapcar #'two-decimals (buffer->list buf))))
   (0.0 0.0 0.0 0.0 0.0 0.25 0.5 0.75))
+
+(deftest fill-buffer.6
+    (with-buffer (buf 64)
+      (mapcar (lambda (x) (floor (* x 1000)))
+              (buffer->list (fill-buffer buf *data-text-file*))))
+  (1000 1000 2000 3000 1000 2000 3000 4000 5000 1000 2000 3000 4000 5000 6000
+   7000 1000 2000 3000 4000 5000 6000 7000 8000 9000 1000 2000 3000 4000 5000
+   6000 7000 1000 2000 3000 4000 5000 1000 2000 3000 1000
+   1234 1234 -1234
+   1234000 1234000 1234000 12345000 12345000
+   100 200 300 400 500 600 700 800 900
+   1000 2000 3000
+   10000 20000 30000))
+
+(deftest fill-buffer.7
+    (with-buffer (buf 10)
+      (mapcar #'floor
+              (butlast (buffer->list (fill-buffer buf *data-raw-file*
+                                                  :headerless-p t)))))
+  (9 8 7 6 5 4 3 2 1))
+
+(deftest fill-buffer.8
+    (with-buffer (buf 8)
+      (fill-buffer buf *data-raw-file*
+                   :sndfile-start 80 :headerless-p t :data-format "pcm-s8")
+      (mapcar (lambda (x) (round (* x 10))) (buffer->list buf)))
+  (-3 -2 -1 0 1 2 3 4))
 
 (deftest map-buffer.1
     (let ((buf (make-buffer 8)))

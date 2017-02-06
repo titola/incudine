@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -173,27 +173,39 @@ It is possible to use line comments that begin with the `;' char."
             (setf (buffer-textfile-p buf) t)
             buf))))))
 
+(declaim (inline headerless-sf-info))
+(defun headerless-sf-info (sample-rate channels data-format)
+  (sf:make-info :sample-rate (floor sample-rate)
+                :channels channels
+                :format (sf:get-format (list "raw" (or data-format "double")))))
+
 (defmacro with-open-sndfile ((var path offset frames channels sample-rate
-                             &rest rest) &body body)
+                              headerless-p data-format) &body body)
   `(if (probe-file ,path)
-       (sf:with-open (,var ,path ,@rest)
-         (if (sf:sndfile-null-p ,var)
-             ;; Try to load a text file
-             (or (buffer-load-textfile ,path ,offset ,frames (or ,channels 1)
-                                       (or ,sample-rate *sample-rate*))
-                 (nrt-msg error (sf:strerror ,var)))
-             ,@body))
+       (let ((,channels (or ,channels 1))
+             (,sample-rate (or ,sample-rate *sample-rate*)))
+         (sf:with-open (,var ,path
+                        :info (when ,headerless-p
+                                (headerless-sf-info ,sample-rate ,channels
+                                                    ,data-format)))
+           (if (sf:sndfile-null-p ,var)
+               ;; Try to load a text file
+               (or (buffer-load-textfile ,path ,offset ,frames ,channels
+                                         ,sample-rate)
+                   (nrt-msg error (sf:strerror ,var)))
+               ,@body)))
        (nrt-msg error "file ~S not found" (namestring ,path))))
 
 (defun buffer-load (path &key (offset 0) frames (channel -1) channels
-                    sample-rate)
+                    sample-rate headerless-p data-format)
   (declare (type (or string pathname) path) (type fixnum channel)
            (type non-negative-real offset))
   (let ((offset (floor offset))
         (frames (and frames (floor frames))))
     (declare (type non-negative-fixnum offset)
              (type (or non-negative-fixnum null) frames))
-    (with-open-sndfile (sf path offset frames channels sample-rate)
+    (with-open-sndfile (sf path offset frames channels sample-rate
+                        headerless-p data-format)
       (let* ((info (sf:info sf))
              (channels (sf:channels info))
              (%frames (- (sf:frames info) offset))
@@ -489,12 +501,19 @@ It is possible to use line comments that begin with the `;' char."
         (rec 0 channel-map)))))
 
 (defun set-buffer-from-sndfile (buffer path start buffer-start buffer-end
-                                &optional channel-map)
+                                &optional channel-map headerless-p data-format)
   (declare (type buffer buffer) (type (or string pathname) path)
            (type non-negative-fixnum start buffer-start buffer-end)
            (type list channel-map))
   (if (probe-file path)
-      (sf:with-open (sf path)
+      (sf:with-open (sf path
+                     :info (when headerless-p
+                             (headerless-sf-info
+                               (buffer-sample-rate buffer)
+                               (if channel-map
+                                   (1+ (reduce #'max channel-map :key #'first))
+                                   (buffer-channels buffer))
+                               data-format)))
         (if (sf:sndfile-null-p sf)
             ;; Perhaps it is a numeric text file
             (set-buffer-from-textfile buffer path start buffer-start buffer-end)
@@ -535,7 +554,8 @@ It is possible to use line comments that begin with the `;' char."
       (nrt-msg error "file ~S not found" (namestring path))))
 
 (defun fill-buffer (buffer values &key (start 0) end (sndfile-start 0)
-                    channel-map (normalize-p nil normalize-pp))
+                    channel-map (normalize-p nil normalize-pp)
+                    headerless-p data-format)
   (declare (type buffer buffer) (type boolean normalize-p)
            (type non-negative-fixnum start sndfile-start))
   (macrolet ((loop-sequence (clause seq)
@@ -574,7 +594,7 @@ It is possible to use line comments that begin with the `;' char."
                                         (if end
                                             (min end (buffer-frames buffer))
                                             (buffer-frames buffer))
-                                        channel-map))
+                                        channel-map headerless-p data-format))
               ((vectorp values) (loop-sequence across values))
               ((envelope-p values)
                (fill-buffer buffer (gen:envelope values)
