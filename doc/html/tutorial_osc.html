@@ -16,18 +16,37 @@
       <hr>
 
       <p>
-        The faster way to send a OSC message is
+        We can set the configuration variables <code>*OSC-BUFFER-SIZE*</code>
+        and <code>*OSC-MAX-VALUES*</code> in <code>${HOME}/.incudinerc</code>
+        to specify the size of the OSC buffer in bytes and the max number of
+        the values to send/receive. Alternatively, we can set the keywords
+        <code>:BUFFER-SIZE</code> and <code>:MAX-VALUES</code> of
+        <code>OSC:OPEN</code>, or the variables <code>OSC:*BUFFER-SIZE*</code>
+        and <code>OSC:*MAX-VALUES*</code> before to call <code>OSC:OPEN</code>.
       </p>
 
       <pre class="src src-lisp">(in-package <span style="color: #b0c4de;">:scratch</span>)
 
-<span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">*oscout*</span> (osc:open <span style="color: #b0c4de;">:direction</span> <span style="color: #b0c4de;">:output</span>))
+        <span style="color: #ff7f24;">;; Default values (changed 2017-02-18)</span>
+<span class="prompt">SCRATCH&gt;</span> osc:*buffer-size*
+1000
+<span class="prompt">SCRATCH&gt;</span> osc:*max-values*
+50</pre>
+
+      <p>
+        The faster way to send a OSC message is
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">*oscout*</span> (osc:open <span style="color: #b0c4de;">:direction</span> <span style="color: #b0c4de;">:output</span>))
 <span class="prompt">SCRATCH&gt;</span> (osc:message *oscout* <span style="color: #ffa07a;">"/osc/test"</span> <span style="color: #ffa07a;">"isf"</span> 1 <span style="color: #ffa07a;">"two"</span> 3.0)</pre>
 
       <p>
         where host, port and protocol are "localhost", 32126 (aka #36ROSE)
-        and <code>:UDP</code> by default. It's enlightening to show the
-        expansion of the <code>OSC:MESSAGE</code> macro:
+        and <code>:UDP</code> by default.
+      </p>
+
+      <p>
+        It's enlightening to show the expansion of the <code>OSC:MESSAGE</code> macro:
       </p>
 
       <pre class="src src-lisp">(macroexpand-1 '(osc:message *oscout* <span style="color: #ffa07a;">"/osc/test"</span> <span style="color: #ffa07a;">"isf"</span> 1 <span style="color: #ffa07a;">"two"</span> 3.0))

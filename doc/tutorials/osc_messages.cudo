@@ -1,16 +1,30 @@
 ;;; Incudine
 ;;; Open Sound Control messages
 
-;; The faster way to send a OSC message is
+;; We can set the configuration variables *OSC-BUFFER-SIZE* and
+;; *OSC-MAX-VALUES* in ${HOME}/.incudinerc to specify the size
+;; of the OSC buffer in bytes and the max number of the values
+;; to send/receive. Alternatively, we can set the keywords
+;; :BUFFER-SIZE and :MAX-VALUES of OSC:OPEN, or the variables
+;; OSC:*BUFFER-SIZE* and OSC:*MAX-VALUES* before to call OSC:OPEN.
 
 (in-package :scratch)
+
+;; Default values (changed 2017-02-18)
+osc:*buffer-size*
+;; 1000
+osc:*max-values*
+;; 50
+
+;; The faster way to send a OSC message is
 
 (defvar *oscout* (osc:open :direction :output))
 (osc:message *oscout* "/osc/test" "isf" 1 "two" 3.0)
 
 ;; where host, port and protocol are "localhost", 32126 (aka #36ROSE)
-;; and :UDP by default. It's enlightening to show the expansion of the
-;; OSC:MESSAGE macro:
+;; and :UDP by default.
+
+;; It's enlightening to show the expansion of the OSC:MESSAGE macro:
 
 (macroexpand-1 '(osc:message *oscout* "/osc/test" "isf" 1 "two" 3.0))
 ;; (PROGN
