@@ -86,8 +86,8 @@
 (setq *network-buffer-size* 128)
 
 ;; Open Sound Control
-(setq *osc-buffer-size* 128)
-(setq *osc-max-values* 16)
+(setq *osc-buffer-size* 1000)
+(setq *osc-max-values* 50)
 
 ;;;---------------------------[ Graph ]-----------------------------
 

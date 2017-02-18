@@ -1,4 +1,4 @@
-;;; Copyright (c) 2015-2016 Tito Latini
+;;; Copyright (c) 2015-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -18,13 +18,13 @@
 
 (defvar *buffer-size* (if (boundp 'incudine.config::*osc-buffer-size*)
                           incudine.config::*osc-buffer-size*
-                          128)
+                          1000)
   "Size of the foreign buffer used to read/write a OSC packet.")
 (declaim (type positive-fixnum *buffer-size*))
 
 (defvar *max-values* (if (boundp 'incudine.config::*osc-max-values*)
                          incudine.config::*osc-max-values*
-                         16)
+                         50)
   "Maximum number of the required values in a OSC message.")
 (declaim (type positive-fixnum *max-values*))
 
