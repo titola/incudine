@@ -62,15 +62,19 @@ The argument of a function is the OSC:STREAM to close.")
   ;; Foreign buffer used to read/write a OSC packet.
   (buffer-pointer (cffi:null-pointer) :type cffi:foreign-pointer)
   (buffer-size *buffer-size* :type positive-fixnum)
+  (max-values *max-values* :type positive-fixnum)
   ;; T if the pointers to the required OSC values are to update.
   (buffer-to-index-p nil :type boolean)
   ;; Pointer to the memory where the OSC message starts.
   (message-pointer (cffi:null-pointer) :type cffi:foreign-pointer)
   (message-length 0 :type non-negative-fixnum)
   (message-encoding nil :type (member nil :slip))
-  ;; Pointers to the required OSC values.
+  ;; Pointers to the required OSC values. The first slot is reserved
+  ;; for the pointer to the first OSC type. The second and last slots
+  ;; are reserved for the pointer to the free memory.
   (value-vec-ptr (cffi:null-pointer) :type cffi:foreign-pointer)
-  ;; Pointer to the OSC types of the required values.
+  ;; Pointer to the OSC types of the required values. The first slot
+  ;; is reserved for the number of the required values.
   (type-vec-ptr (cffi:null-pointer) :type cffi:foreign-pointer)
   ;; Auxiliary foreign buffer used for Serial Line IP (SLIP).
   (aux-buffer-pointer (cffi:null-pointer) :type cffi:foreign-pointer)
@@ -155,8 +159,8 @@ The argument of a function is the OSC:STREAM to close.")
                         (cffi:foreign-alloc :char :count (* 2 buffer-size)
                                             :initial-element 0)
                         (cffi:null-pointer)))
-           (value-vec-ptr (cffi:foreign-alloc :pointer :count max-values))
-           (type-vec-ptr (cffi:foreign-alloc :char :count max-values
+           (value-vec-ptr (cffi:foreign-alloc :pointer :count (+ max-values 3)))
+           (type-vec-ptr (cffi:foreign-alloc :char :count (+ max-values 1)
                                              :initial-element 0))
            (fds-ptr (alloc-fds buf-ptr (+ buffer-size buf-pad) direction
                                protocol))
@@ -174,7 +178,8 @@ The argument of a function is the OSC:STREAM to close.")
                                               (cffi:inc-pointer buf-ptr 4)
                                               buf-ptr)
                          :message-encoding message-encoding
-                         :buffer-size buffer-size :value-vec-ptr value-vec-ptr
+                         :buffer-size buffer-size :max-values max-values
+                         :value-vec-ptr value-vec-ptr
                          :type-vec-ptr type-vec-ptr :aux-buffer-pointer aux-ptr
                          :tmp-ptr (cffi:inc-pointer buf-ptr
                                                     (+ buffer-size
@@ -778,11 +783,16 @@ then index the required values."
 
 (defmacro message (stream address types &rest values)
   "Send a OSC message with OSC ADDRESS, OSC TYPES and arbitrary VALUES."
-  `(progn
-     (start-message ,stream ,address ,types)
-     ,@(loop for val in values for i from 0
-             collect `(set-value ,stream ,i ,val))
-     (send ,stream)))
+  (with-gensyms (s)
+    (let ((typetag-len (length types)))
+      `(let ((,s ,stream))
+         (when (> ,typetag-len (stream-max-values ,s))
+           (error "The length of the OSC type tag is ~D but the limit ~%for this OSC:STREAM is ~D"
+                  ,typetag-len (stream-max-values ,s)))
+         (start-message ,s ,address ,types)
+         ,@(loop for val in values for i from 0
+                 collect `(set-value ,s ,i ,val))
+         (send ,s)))))
 
 (declaim (inline address-pattern))
 (defun address-pattern (stream &optional typetag-p)
@@ -824,8 +834,6 @@ STREAM buffer are ADDRESS and TYPES."
   (member character '(#\b #\c #\d #\f #\h #\i #\m #\s #\S #\t) :test #'char=))
 
 (defun data-getter (stream-var types index)
-  (when (>= index *max-values*)
-    (error "index ~D too large" index))
   (multiple-value-bind (type index)
       (loop for c across types
             for i from 0
@@ -886,6 +894,9 @@ the values is reversed on little endian machine."
   (let ((typetag-len (length types)))
     (with-gensyms (stream)
       `(let ((,stream ,stream-var))
+         (when (> ,typetag-len (stream-max-values ,stream))
+           (error "The length of the OSC type tag is ~D but the limit ~%for this OSC:STREAM is ~D"
+                  ,typetag-len (stream-max-values ,stream)))
          (index-values ,stream nil t)
          (symbol-macrolet
              ,(loop for i below typetag-len
