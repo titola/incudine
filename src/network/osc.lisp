@@ -774,6 +774,10 @@ multiple of four (bytes)."
 (defun start-message (stream address types)
   "Write the OSC ADDRESS pattern and the OSC TYPES on the STREAM buffer,
 then index the required values."
+  (let ((typetag-len (length types)))
+    (when (> typetag-len (stream-max-values stream))
+      (error "The length of the OSC type tag is ~D but the limit ~%for this OSC:STREAM is ~D"
+             typetag-len (stream-max-values stream))))
   (setf (stream-message-length stream)
         (%start-message (stream-message-pointer stream)
                         (stream-buffer-size stream)
@@ -784,15 +788,11 @@ then index the required values."
 (defmacro message (stream address types &rest values)
   "Send a OSC message with OSC ADDRESS, OSC TYPES and arbitrary VALUES."
   (with-gensyms (s)
-    (let ((typetag-len (length types)))
-      `(let ((,s ,stream))
-         (when (> ,typetag-len (stream-max-values ,s))
-           (error "The length of the OSC type tag is ~D but the limit ~%for this OSC:STREAM is ~D"
-                  ,typetag-len (stream-max-values ,s)))
-         (start-message ,s ,address ,types)
-         ,@(loop for val in values for i from 0
-                 collect `(set-value ,s ,i ,val))
-         (send ,s)))))
+    `(let ((,s ,stream))
+       (start-message ,s ,address ,types)
+       ,@(loop for val in values for i from 0
+               collect `(set-value ,s ,i ,val))
+       (send ,s))))
 
 (declaim (inline address-pattern))
 (defun address-pattern (stream &optional typetag-p)
