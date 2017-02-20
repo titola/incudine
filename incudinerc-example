@@ -83,7 +83,7 @@
 (setq *addrinfo-hints-flags* 0)
 
 ;; Size of the foreign buffer used to read/write octets.
-(setq *network-buffer-size* 128)
+(setq *network-buffer-size* 1000)
 
 ;; Open Sound Control
 (setq *osc-buffer-size* 1000)
