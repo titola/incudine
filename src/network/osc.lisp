@@ -139,13 +139,15 @@ The argument of a function is the OSC:STREAM to close.")
              (output-stream-constructor #'make-output-stream))
   (declare (type (member :input :output) direction)
            (type (member :udp :tcp) protocol) (type simple-string host)
-           (type (unsigned-byte 16) port) (type non-negative-fixnum buffer-size)
+           (type (unsigned-byte 16) port)
+           (type positive-fixnum buffer-size max-values)
            (type (member nil :slip) message-encoding))
   (cffi:with-foreign-object (address-ptr :pointer)
     (unless (zerop (new-address address-ptr host port (eq protocol :udp)
                                 (eq direction :input) *addrinfo-hints-flags*))
       (error "OSC address allocation"))
-    (let* ((address (cffi:mem-ref address-ptr :pointer))
+    (let* ((buffer-size (max 250 (* max-values 20) buffer-size))
+           (address (cffi:mem-ref address-ptr :pointer))
            ;; Add 4 bytes with zero, so the loop in STREAM-BUFFER-STRLEN
            ;; never fails if the message is wrong and without zeroes.
            ;; Also reserve the space to store a temporary value (see GET-FLOAT
