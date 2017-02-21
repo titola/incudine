@@ -162,5 +162,49 @@ snd:*tmpfile*
 
 (snd-play)
 
+(snd:eval "(length (define cudotest (channel->float-vector)))")
+
+(defvar *fvec0* (snd:float-vector->buffer "cudotest"))
+
+*fvec0*
+;; #<BUFFER :FRAMES 156000 :CHANNELS 1 :SR 48000.0>
+
+(subseq (buffer->list *fvec0*) 0 10)
+;; (0.0d0 2.803304452250499d-6 1.0656883961029175d-5 2.3519001276374212d-5
+;;  4.132131854014835d-5 6.396912508799108d-5 9.134190665801465d-5
+;;  1.232938527676509d-4 1.5965481562650003d-4 2.002306897983181d-4)
+
+(snd:eval "(set! (transform-graph?) #t)")
+
+(defvar *fvec1* (snd:float-vector->buffer "(transform->float-vector)"))
+
+*fvec1*
+#<BUFFER :FRAMES 512 :CHANNELS 1 :SR 48000.0>
+
+(snd:float-vector "cudotest2" *fvec1*)
+;; 512
+
+(snd:eval "(length cudotest2)")
+;; 512
+
+(snd:float-vector "cudotest3" '(1 2 3 5 8 13 21))
+;; 7
+
+(snd:eval "cudotest3")
+;; (FLOAT-VECTOR 1.0 2.0 3.0 5.0 8.0 13.0 21.0)
+
+(snd:float-vector "cudotest4" #(1 2 3 5 8 13 21) 2 7)
+;; 5
+
+(snd:eval "(cudotest4 3)")
+;; 13.0
+
+(snd:float-vector "cudotest5" (gen:partials '(5 4 3 2 1)) 0 1024)
+;; 1024
+
+(snd:eval "(set! (lisp-graph?) #t)")
+
+(snd:eval "(graph cudotest5 \"cudonics\")")
+
 (snd:exit)
 ;; T
