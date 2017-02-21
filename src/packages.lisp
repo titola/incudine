@@ -119,7 +119,7 @@
    #:thread-set-priority
    #:seed-random-state
    #:sample->fixnum #:sample->int
-   #:without-interrupts #:with-gc-pending
+   #:without-interrupts #:with-pinned-objects #:with-gc-pending
    #:calc-lobits
    #:rt-thread-p #:rt-eval #:rt-eval-if #:allow-rt-memory-p
    #:foreign-pointer

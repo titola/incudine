@@ -208,7 +208,8 @@
         (delete-file *test-midi-file*)
         (midifile:clear-buffer-pool)
         (values #+sbcl
-                (sb-ext:octets-to-string bytes :start 26 :end (+ 26 (length str)))
+                (incudine.util::octets-to-string
+                  bytes :start 26 :end (+ 26 (length str)))
                 (coerce bytes 'list))))
   #+sbcl "End of MIDI File tests"
   (77 84 104 100 0 0 0 6 0 0 0 1 1 224 77 84 114 107 0 0 0 30 0 255

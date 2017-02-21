@@ -493,7 +493,7 @@ port-name of the stream to close."
   (let ((end (or end (length data))))
     (declare (type non-negative-fixnum end))
     (unless (or (>= start end) (> end (length data)))
-      (rt-eval () (sb-sys:with-pinned-objects (data)
+      (rt-eval () (incudine.util:with-pinned-objects (data)
                     (cffi:with-pointer-to-vector-data (ptr data)
                       (foreign-write stream (cffi:inc-pointer ptr start)
                                      (- end start))))))))
@@ -516,7 +516,7 @@ The header of the event is 12 bytes long: a timestamp (foreign double float)
 and the length of the MIDI message (foreign uint32).
 The MIDI messages are aligned to four bytes."
   (declare (type input-stream stream) (type data octets))
-  (sb-sys:with-pinned-objects (octets)
+  (incudine.util:with-pinned-objects (octets)
     (cffi:with-pointer-to-vector-data (ptr octets)
       (foreign-read stream ptr (length octets)))))
 

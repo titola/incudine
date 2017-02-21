@@ -250,7 +250,7 @@
 (defun string-message (meta-event-type string)
   "Return the octets of a text-based Meta event of type META-EVENT-TYPE."
   (declare (type (unsigned-byte 8) meta-event-type) (type simple-string string))
-  (let* ((str-octets (sb-ext:string-to-octets string))
+  (let* ((str-octets (incudine.util::string-to-octets string))
          (slen (length str-octets))
          (len-bytes (variable-length-quantity-bytes slen)))
     (declare (type data str-octets) (type non-negative-fixnum slen len-bytes))

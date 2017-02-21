@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -16,7 +16,9 @@
 
 (in-package :incudine.util)
 
-(import 'sb-int:constant-form-value)
+(import
+ '(sb-int:constant-form-value
+   sb-ext:octets-to-string sb-ext:string-to-octets))
 
 (define-constant n-machine-word-bits sb-vm:n-machine-word-bits)
 
@@ -92,6 +94,9 @@
 (defmacro without-interrupts (&body body)
   `(sb-sys:without-interrupts ,@body))
 
+(defmacro with-pinned-objects ((&rest objects) &body body)
+  `(sb-sys:with-pinned-objects (,@objects) ,@body))
+
 (defmacro with-stop-for-gc-pending (&body body)
   `(when sb-kernel:*stop-for-gc-pending* ,@body))
 
@@ -117,25 +122,13 @@
 (defmacro %exit (&optional (code 0))
   `(sb-ext:exit :code ,code))
 
-;;; Return a string compatible in the non-lisp-world, without loss of
-;;; precision if SAMPLE type is DOUBLE-FLOAT.
-;;;
-;;; Note: "~,,,,,,'eG" is wrong because it uses SB-IMPL::SCALE-EXPONENT,
-;;; for example:
-;;;
-;;;   (lisp-implementation-version)
-;;;   "1.1.11"
-;;;   (let* ((num 0.07696598207510717d0)
-;;;          (str (format nil "~,,,,,,'eG" num))
-;;;          (*read-default-float-format* 'double-float))
-;;;     (values num str (read-from-string str)))
-;;;   0.07696598207510717d0
-;;;   "7.69659820751071800e-2"
-;;;   0.07696598207510719d0
-;;;
-(declaim (inline sample->string))
-(defun sample->string (value)
-  (format nil "~F" value))
+(declaim (inline stdin-fd))
+(defun stdin-fd ()
+  (sb-sys:fd-stream-fd sb-sys:*stdin*))
+
+(declaim (inline stdout-fd))
+(defun stdout-fd ()
+  (sb-sys:fd-stream-fd sb-sys:*stdout*))
 
 ;;; DEBUG
 

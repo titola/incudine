@@ -274,7 +274,7 @@ The argument of a function is the OSC:STREAM to close.")
     (when (open-p stream)
       (dolist (fn *before-close-hook*)
         (funcall fn stream))
-      (sb-sys:without-interrupts
+      (incudine.util:without-interrupts
         (close-fd stream)
         (if (and (input-stream-p stream) (protocolp stream :tcp))
             (free-stream-pointer stream stream-fds-ptr)
@@ -414,7 +414,7 @@ the last received message."
   (declare (type positive-fixnum sockfd)
            (type (simple-array (unsigned-byte 8)) octets)
            (optimize speed (safety 0)))
-  (sb-sys:with-pinned-objects (octets)
+  (incudine.util:with-pinned-objects (octets)
     (cffi:with-pointer-to-vector-data (buf octets)
       (force-fixnum
         (cffi:foreign-funcall "send" :int sockfd :pointer buf

@@ -216,7 +216,7 @@ when the duration is undefined.")
            (if (and (stringp ,%path-or-stdin)
                     (string= ,%path-or-stdin "-"))
                ;; Read from standard input.
-               (values (sb-sys:fd-stream-fd sb-sys:*stdin*) t)
+               (values (incudine.util::stdin-fd) t)
                (values ,%path-or-stdin nil))
          (sf:with-open (,var ,path-or-stdin :info ,info :mode sf:sfm-read
                              :open-fd-p ,open-stdin-p)
@@ -314,7 +314,7 @@ when the duration is undefined.")
                   (if (and (stringp output-filename)
                            (string= output-filename "-"))
                       ;; Write to standard output.
-                      (values (sb-sys:fd-stream-fd sb-sys:*stdout*) t)
+                      (values (incudine.util::stdout-fd) t)
                       (values output-filename nil))
                 (sf:with-open (snd path-or-stdout :info info :mode sf:sfm-write
                                :open-fd-p open-stdout-p)
@@ -366,7 +366,7 @@ when the duration is undefined.")
                     (if (and (stringp output-filename)
                              (string= output-filename "-"))
                         ;; Write to standard output.
-                        (values (sb-sys:fd-stream-fd sb-sys:*stdout*) t)
+                        (values (incudine.util::stdout-fd) t)
                         (values output-filename nil))
                   (sf:with-open (snd-out path-or-stdout :info info
                                  :mode sf:sfm-write :open-fd-p open-stdout-p)
