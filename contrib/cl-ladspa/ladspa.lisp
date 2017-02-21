@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014 Tito Latini
+;;; Copyright (c) 2014-2017 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -17,6 +17,13 @@
 (in-package :ladspa)
 
 (deftype flag () 'cons)
+
+(define-condition ladspa-error (simple-error) ())
+
+(defun ladspa-error (format-control &rest format-arguments)
+  (error 'ladspa-error
+         :format-control format-control
+         :format-arguments format-arguments))
 
 (declaim (inline make-flag))
 (defun make-flag (&optional value) (list value))
@@ -198,7 +205,7 @@
     (let ((path (find-path *ladspa-path* *ladspa-path-separator* 0)))
       (if path
           (namestring path)
-          (error "file ~S not found" name)))))
+          (ladspa-error "File ~S not found." name)))))
 
 (defun find-plugin-filename (name)
   (declare (type string name))
@@ -206,7 +213,7 @@
       ;; NAME is a complete path
       (if (probe-file name)
           name
-          (error "file ~S not found" name))
+          (ladspa-error "File ~S not found." name))
       (let ((name (merge-pathnames name "?.so")))
         (if (probe-file name)
             name
@@ -215,7 +222,7 @@
 (defun plugin-descriptor-alist (handle)
   (let ((descr-cb (dlsym handle "ladspa_descriptor")))
     (if (cffi:null-pointer-p descr-cb)
-        (error "plugin descriptor callback is absent: ~A" (dlerror))
+        (ladspa-error "Plugin descriptor callback is absent: ~A" (dlerror))
         (loop with acc = nil
               for i from 0
               for descr = (call-descriptor descr-cb i)
@@ -247,7 +254,7 @@
     (or descr-alist
         (let ((handle (dlopen path *dlopen-default-flags*)))
           (if (cffi:null-pointer-p handle)
-              (error "loading plugin ~S failed: ~A" filename (dlerror))
+              (ladspa-error "Loading plugin ~S failed: ~A" filename (dlerror))
               (let ((descr-alist (plugin-descriptor-alist handle)))
                 (setf (plugin-libraries-cache path) (cons handle descr-alist))
                 descr-alist))))))
@@ -258,8 +265,8 @@
     (when handle
       (if (zerop (dlclose handle))
           (free-plugin-libraries-cache path)
-          (error "unloading plugin ~S failed: ~A" filename
-                 (cffi:foreign-funcall "dlerror" :string))))))
+          (ladspa-error "unloading plugin ~S failed: ~A" filename
+                        (cffi:foreign-funcall "dlerror" :string))))))
 
 (defun unload-all-plugins ()
   (alexandria:maphash-keys #'unload-plugin-library *plugin-libraries*)

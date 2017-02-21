@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014 Tito Latini
+;;; Copyright (c) 2014-2017 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -21,6 +21,7 @@
   (:import-from #:alexandria #:define-constant)
   (:export
    #:*ladspa-path*
+   #:ladspa-error
    #:data
    #:properties
    #:PROPERTY-REALTIME

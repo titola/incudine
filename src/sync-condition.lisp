@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -18,8 +18,8 @@
 
 (defstruct (sync-condition (:constructor %make-sync-condition)
                            (:copier nil))
-  (variable (error "Missing variable"))
-  (mutex (error "Missing mutex"))
+  (variable (incudine-missing-arg "Missing variable."))
+  (mutex (incudine-missing-arg "Missing mutex."))
   (read 0 :type non-negative-fixnum)
   (write 0 :type non-negative-fixnum))
 

@@ -145,7 +145,7 @@ The argument of a function is the OSC:STREAM to close.")
   (cffi:with-foreign-object (address-ptr :pointer)
     (unless (zerop (new-address address-ptr host port (eq protocol :udp)
                                 (eq direction :input) *addrinfo-hints-flags*))
-      (error "OSC address allocation"))
+      (incudine::foreign-alloc-error "OSC address allocation."))
     (let* ((buffer-size (max 250 (* max-values 20) buffer-size))
            (address (cffi:mem-ref address-ptr :pointer))
            ;; Add 4 bytes with zero, so the loop in STREAM-BUFFER-STRLEN
@@ -224,7 +224,7 @@ The argument of a function is the OSC:STREAM to close.")
               :int (addrinfo-value stream 'ai-socktype)
               :int (addrinfo-value stream 'ai-protocol) :int)))
     (when (= fd -1)
-      (error "failed to create the socket"))
+      (incudine::network-error "Failed to create the socket."))
     (unless (and (input-stream-p stream) (protocolp stream :tcp))
       ;; Info for the finalizer.
       (setf (cffi:mem-ref (stream-fds-ptr stream) :int) fd))
@@ -237,11 +237,11 @@ The argument of a function is the OSC:STREAM to close.")
                             :int fd :pointer (addrinfo-value stream 'ai-addr)
                             #.+socklen-type+ (addrinfo-value stream 'ai-addrlen)
                             :int))
-             (error "failed to assign the address"))
+             (incudine::network-error "Failed to assign the address."))
            (when (protocolp stream :tcp)
              (unless (zerop (cffi:foreign-funcall "listen" :int fd
                                                   :int *listen-backlog* :int))
-               (error "listen call failed"))
+               (incudine::network-error "listen call failed."))
              (set-server-fd (stream-fds-ptr stream) fd)))
           ((protocolp stream :tcp)
            (unless (zerop (cffi:foreign-funcall "connect"
@@ -778,8 +778,9 @@ multiple of four (bytes)."
 then index the required values."
   (let ((typetag-len (length types)))
     (when (> typetag-len (stream-max-values stream))
-      (error "The length of the OSC type tag is ~D but the limit ~%for this OSC:STREAM is ~D"
-             typetag-len (stream-max-values stream))))
+      (incudine::network-error
+        "The length of the OSC type tag is ~D but the limit ~%for this OSC:STREAM is ~D"
+        typetag-len (stream-max-values stream))))
   (setf (stream-message-length stream)
         (%start-message (stream-message-pointer stream)
                         (stream-buffer-size stream)
@@ -822,8 +823,9 @@ STREAM buffer are ADDRESS and TYPES."
     (#\h :int64)
     (#\i :int32)
     ((#\s #\S) :string)
-    (otherwise (error "known conversion from typetag '~A' to foreign type"
-                      character))))
+    (otherwise
+     (incudine::network-error
+       "Known conversion from typetag '~A' to foreign type." character))))
 
 (defun typetag-to-lisp-value (character)
   (case character
@@ -897,8 +899,9 @@ the values is reversed on little endian machine."
     (with-gensyms (stream)
       `(let ((,stream ,stream-var))
          (when (> ,typetag-len (stream-max-values ,stream))
-           (error "The length of the OSC type tag is ~D but the limit ~%for this OSC:STREAM is ~D"
-                  ,typetag-len (stream-max-values ,stream)))
+           (incudine::network-error
+             "The length of the OSC type tag is ~D but the limit ~%for this OSC:STREAM is ~D"
+             ,typetag-len (stream-max-values ,stream)))
          (index-values ,stream nil t)
          (symbol-macrolet
              ,(loop for i below typetag-len

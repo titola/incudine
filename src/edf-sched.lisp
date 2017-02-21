@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -27,7 +27,8 @@
 (define-constant +first-parent+ 2)
 
 (defstruct (heap (:constructor %make-heap))
-  (data (error "heap data required") :type simple-vector)
+  (data (incudine:incudine-missing-arg "EDF heap data required.")
+        :type simple-vector)
   (next-node +node-root+ :type positive-fixnum)
   (temp-node (make-node) :type node)
   (time-offset +sample-zero+ :type sample))
@@ -37,7 +38,7 @@
   (format stream "#<EDF:HEAP>"))
 
 (defun corrupted-heap ()
-  (error "corrupted EDF heap"))
+  (incudine:incudine-error "Corrupted EDF heap."))
 
 (defvar *dummy-node* (make-node))
 (declaim (type node *dummy-node*))

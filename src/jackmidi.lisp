@@ -1,4 +1,4 @@
-;;; Copyright (c) 2016 Tito Latini
+;;; Copyright (c) 2016-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -50,7 +50,7 @@
   (declare (type string port-name))
   (let ((ptr (new-stream-pointer t)))
     (when (cffi:null-pointer-p ptr)
-      (error "Jack MIDI pointer allocation"))
+      (incudine::foreign-alloc-error "Jack MIDI pointer allocation."))
     (let* ((sysex-ptr (cffi:foreign-alloc :pointer))
            (obj (handler-case
                     (%make-input-stream :pointer ptr :direction :input
@@ -74,7 +74,7 @@
   (declare (type string port-name))
   (let ((ptr (new-stream-pointer t)))
     (when (cffi:null-pointer-p ptr)
-      (error "Jack MIDI pointer allocation"))
+      (incudine::foreign-alloc-error "Jack MIDI pointer allocation."))
     (let ((obj (handler-case
                    (%make-output-stream :pointer ptr :direction :output
                                         :port-name port-name)
@@ -150,7 +150,7 @@
 (defun set-port-name (stream name)
   (when (jack-stopped-p)
     (if (get-stream-by-name name)
-        (error "Jack MIDI port name ~S is used" name)
+        (incudine:incudine-error "Jack MIDI port name ~S is used" name)
         (setf (stream-port-name stream) name))))
 
 (defsetf port-name set-port-name)
@@ -238,7 +238,7 @@ The MIDI messages are aligned to four bytes."
 (defun new-foreign-data-vector (input-p)
   (let ((ptr (jm-copy-data-vec input-p)))
     (when (cffi:null-pointer-p ptr)
-      (error "Jack MIDI pointer allocation"))
+      (incudine::foreign-alloc-error "Jack MIDI pointer allocation."))
     (let ((obj (make-foreign-data-vector :pointer ptr
                  :stream-direction (if input-p :input :output))))
       (tg:finalize obj (lambda () (jm-free-data-vec ptr)))
@@ -360,7 +360,7 @@ The MIDI messages are aligned to four bytes."
   (let* ((input-p (eq direction :input))
          (port-name (or port-name (default-port-name input-p))))
     (if (get-stream-by-name port-name)
-        (error "Jack MIDI port name ~S is used" port-name)
+        (incudine:incudine-error "Jack MIDI port name ~S is used" port-name)
         (let ((s (funcall (if input-p
                               #'make-input-stream
                               #'make-output-stream)

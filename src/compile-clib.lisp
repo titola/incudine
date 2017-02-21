@@ -17,6 +17,11 @@
 (in-package :incudine.config)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun compile-error (format-control &rest format-arguments)
+    (error 'incudine:incudine-compile-error
+           :format-control format-control
+           :format-arguments format-arguments))
+
   (defvar *sample-rate* 48000)
 
   (defvar *rt-block-size* 1)
@@ -242,7 +247,8 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
         (with-output-to-string (s)
           (setf exit-code
                 (process-exit-code
-                 #-sbcl (error "Currently, Incudine works only with SBCL.")
+                 #-sbcl (incudine:incudine-error
+                          "Currently, Incudine works only with SBCL.")
                  #+sbcl (sb-ext:run-program program args :output s
                                             :error :output :search t))))
         exit-code)))
@@ -273,7 +279,7 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
       (force-output)
       (if (zerop (exit-code (invoke "sh" "-c" cmd)))
           obj
-          (error "compile C library failed"))))
+          (compile-error "C library compilation failed"))))
 
   (defmacro info (datum &rest arguments)
     `(progn
@@ -348,8 +354,8 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
                          *c-compiler* cc)
                    (setf *c-compiler* cc)
                    t)
-                  (t (error "no ~S or ~S in the search path"
-                            *c-compiler* cc)))))))
+                  (t (compile-error "Command ~S or ~S not found"
+                                    *c-compiler* cc)))))))
 
   ;;; Test for FFTW and unaligned stack pointer with SBCL on x86.
   ;;;
@@ -380,7 +386,7 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
                        (namestring *c-library-pathname*) ofiles libs-dep)))
       (write-line cmd)
       (unless (zerop (exit-code (invoke "sh" "-c" cmd)))
-        (error "compilation of C library failed"))
+        (compile-error "C library compilation failed"))
       (store-compiler-options)
       (values)))
 

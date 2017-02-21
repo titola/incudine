@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014 Tito Latini
+;;; Copyright (c) 2014-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -156,7 +156,9 @@
   (case (port-value-type port)
     ((foreign-float f32) 'make-f32-array)
     ((foreign-double f64) 'make-f64-array)
-    (otherwise (error "unknown port type ~A" (port-value-type port)))))
+    (otherwise
+     (incudine:incudine-error "unknown port type ~A"
+                              (port-value-type port)))))
 
 (defmacro add-vug-declaration (var type plist array-p)
   `(push ,var (getf ,plist (if ,array-p 'cffi:foreign-pointer ,type))))

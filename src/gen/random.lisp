@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -160,7 +160,8 @@
     (declaim (inline find-rand-func-spec))
     (defun find-rand-func-spec (type)
       (or (assoc type *random-number-distributions* :test #'member)
-          (error "Random number distribution ~A not found" type)))
+          (incudine:incudine-error "Random number distribution ~A not found"
+                                   type)))
 
     (declaim (inline random-distribution-list))
     (defun all-random-distributions ()

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -432,7 +432,7 @@
                                   (remove-unused-maps
                                    (voicer-argument-maps ,voicer) ',#1#))))
              ,voicer)
-          (error "Unknown DSP")))))
+          (incudine:incudine-error "Unknown DSP")))))
 
 (defmacro create (polyphony obj)
   `(%create-voicer nil ,obj ,polyphony))

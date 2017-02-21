@@ -265,7 +265,8 @@
         (if (eq :warn on-error)
             (warn "Problem running ~A hook ~S:~%  ~A" kind hook c)
             (with-simple-restart (continue "Skip this ~A hook." kind)
-              (error "Problem running ~A hook ~S:~%  ~A" kind hook c)))))))
+              (incudine-error "Problem running ~A hook ~S:~%  ~A"
+                              kind hook c)))))))
 
 (defun init (&optional force-p)
   (when (or force-p *init-p*)
@@ -371,8 +372,8 @@ function are the vector index and the quantized value."))
     `(let ((,len (,flen ,vec))
            (,end (or ,end (,flen ,vec))))
        (if (or (>= ,start ,len) (> ,end ,len))
-           (error "Cannot quantize from ~D to ~D because data size is ~D"
-                  ,start ,end ,len)
+           (incudine-error "Cannot quantize from ~D to ~D because data size is ~D"
+                           ,start ,end ,len)
            (do ((,i start (1+ ,i)))
                ((>= ,i ,end) ,vec)
              (declare (fixnum ,i))

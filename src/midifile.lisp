@@ -1,4 +1,4 @@
-;;; Copyright (c) 2016 Tito Latini
+;;; Copyright (c) 2016-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
 (defun data (&rest values)
   (coerce values 'data))
 
-(define-condition midifile-error (simple-error) ())
+(define-condition midifile-error (incudine-simple-error) ())
 
 (define-condition midifile-parse-error (midifile-error)
   ((string :initarg :string :reader midifile-error-string)
@@ -49,6 +49,9 @@
 (define-condition invalid-track-chunk-length (midifile-parse-error) ())
 
 (define-condition invalid-variable-length-quantity (midifile-parse-error) ())
+
+(defmacro midifile-error (format-control &rest format-arguments)
+  `(incudine::%simple-error 'midifile-error ,format-control ,@format-arguments))
 
 (declaim (inline read-two-bytes))
 (defun read-two-bytes (stream)
@@ -141,9 +144,9 @@
   (microseconds-per-quarter-note 500000 :type non-negative-fixnum))
 
 (defstruct stream
-  (fd-stream (error "missing stream") :type cl:stream)
+  (fd-stream (incudine-missing-arg "Missing stream.") :type cl:stream)
   (open-p nil :type boolean)
-  (pathname (error "missing pathname") :type pathname)
+  (pathname (incudine-missing-arg "Missing pathname.") :type pathname)
   (direction :input :type (member :input :output))
   (format 0 :type non-negative-fixnum)
   (number-of-tracks 0 :type non-negative-fixnum)
@@ -858,12 +861,12 @@ An error is thrown if a curve of TEMPO-ENVELOPE is not a step function."
          (points (incudine:envelope-points spb-env)))
     ;; Allowing meta-events just at time zero before the tempo changes.
     (unless (zerop (stream-track-time mf))
-      (error "WRITE-TEMPO-TRACK works from time zero."))
+      (midifile-error "WRITE-TEMPO-TRACK works from time zero."))
     (do ((i 1 (1+ i)))
         ((>= i points))
       (unless (eq (incudine:envelope-curve spb-env i) :step)
-        (error "WRITE-TEMPO-TRACK requires a TEMPO-ENVELOPE structure ~
-                with step function curves.")))
+        (midifile-error "WRITE-TEMPO-TRACK requires a TEMPO-ENVELOPE structure ~
+                         with step function curves.")))
     (do* ((i 0 (1+ i))
           (beats 0 (+ beats (incudine:envelope-time spb-env i))))
          ((>= i points))

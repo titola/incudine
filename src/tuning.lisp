@@ -1,4 +1,4 @@
-;;; Copyright (c) 2015 Tito Latini
+;;; Copyright (c) 2015-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -21,10 +21,11 @@
                    (:copier nil))
   (description "" :type string)
   ;; Scale degrees specified as cents.
-  (%cents (error "missign tuning cents") :type (simple-array single-float (*)))
+  (%cents (incudine-missing-arg "Missign tuning cents.")
+          :type (simple-array single-float (*)))
   ;; Scale degrees specified as ratios.
-  (%ratios (error "missing tuning ratios")
-          :type (simple-array positive-rational (*)))
+  (%ratios (incudine-missing-arg "Missing tuning ratios.")
+           :type (simple-array positive-rational (*)))
   ;; Memory reserved for 128 ratios of SAMPLE type plus the reciprocal
   ;; of the first ratio.
   (sample-ratios (cffi:null-pointer) :type foreign-pointer)
@@ -36,7 +37,8 @@
   ;;     TEMP-VALUE-1    SAMPLE type
   ;;     TEMP-VALUE-2    SAMPLE type
   ;;
-  (aux-data (error "missing aux data pointer") :type foreign-pointer))
+  (aux-data (incudine-missing-arg "Missing aux data pointer.")
+            :type foreign-pointer))
 
 (define-constant +last-sample-ratio-reciprocal-index+ 128)
 

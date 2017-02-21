@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -118,7 +118,9 @@
 (declaim (inline foreign-alloc-sample))
 (defun foreign-alloc-sample (size)
   (let ((ptr (%foreign-alloc-sample size)))
-    (if (cffi:null-pointer-p ptr) (error "FOREIGN-ALLOC-SAMPLE failed") ptr)))
+    (if (cffi:null-pointer-p ptr)
+        (incudine::foreign-alloc-error "FOREIGN-ALLOC-SAMPLE failed.")
+        ptr)))
 
 (defmacro foreign-realloc-sample (ptr size)
   `(progn

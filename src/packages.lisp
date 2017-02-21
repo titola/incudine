@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -360,6 +360,9 @@
                 #:add-flush-pending-hook #:remove-flush-pending-hook)
   (:import-from #:incudine.gen #:all-random-distributions #:rand-args)
   (:export
+   #:incudine-error #:incudine-simple-error #:incudine-compile-error
+   #:incudine-storage-condition #:incudine-network-error #:incudine-missing-arg
+   #:incudine-unknown-time-unit
    #:init #:enable-sharp-t-syntax #:enable-sharp-square-bracket-syntax
    #:dsp-seq
    #:buffer #:make-buffer #:buffer-p #:size #:frames #:channels #:mask
@@ -483,9 +486,9 @@
         #+(and sbcl (or x86 x86-64))
         #:sb-assem)
   (:nicknames #:osc)
-  (:import-from :alexandria #:define-constant #:positive-fixnum
+  (:import-from #:alexandria #:define-constant #:positive-fixnum
                 #:non-negative-fixnum #:with-gensyms)
-  (:import-from :swap-bytes #:htonl #:htonq #:ntohl #:ntohq)
+  (:import-from #:swap-bytes #:htonl #:htonq #:ntohl #:ntohq)
   (:shadow #:open #:close #:stream #:input-stream-p #:output-stream-p)
   (:export
    #:+default-msg-flags+
@@ -531,8 +534,9 @@
   (:use :cl)
   (:nicknames :midifile)
   (:shadow #:stream #:input-stream-p #:output-stream-p #:open #:close #:format)
-  (:import-from :alexandria #:non-negative-fixnum #:positive-fixnum
+  (:import-from #:alexandria #:non-negative-fixnum #:positive-fixnum
                 #:non-negative-real #:positive-real)
+  (:import-from #:incudine #:incudine-simple-error #:incudine-missing-arg)
   (:export #:data #:midifile-error #:midifile-parse-error
            #:invalid-running-status #:invalid-variable-length-quantity
            #:invalid-track-chunk-length

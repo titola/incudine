@@ -59,7 +59,8 @@
     :depends-on ("contrib/cl-sndfile" "contrib/cl-portmidi")
     :components
     ((:file "packages")
-     (:file "compile-clib" :depends-on ("packages"))
+     (:file "conditions" :depends-on ("packages"))
+     (:file "compile-clib" :depends-on ("conditions"))
      (:module "clib" :depends-on ("compile-clib")
       :pathname ""
       :components ((:static-file "common.h") (:static-file "util.c")
@@ -93,7 +94,7 @@
      (:file "spinlock" :depends-on ("sbcl"))
      (:file "pool" :depends-on ("spinlock"))
      (:file "util" :depends-on ("pool" "sbcl"))
-     (:file "sync-condition" :depends-on ("packages"))
+     (:file "sync-condition" :depends-on ("conditions"))
      (:file "fifo" :depends-on ("util" "sync-condition"))
      (:file "edf-sched" :depends-on ("fifo"))
      (:file "time" :depends-on ("envelope"))
@@ -123,14 +124,14 @@
      (:file "portaudio" :if-feature :portaudio :depends-on ("foreign"))
      (:file "receiver" :depends-on ("vug/midi" "network/generic"))
      (:file "network/sbcl-vops" :if-feature (:and :sbcl (:or :x86 :x86-64))
-                            :depends-on ("packages"))
-     (:file "network/cffi-osc" :depends-on ("packages"))
+                            :depends-on ("conditions"))
+     (:file "network/cffi-osc" :depends-on ("conditions"))
      (:file "network/osc" :depends-on ("util" "network/cffi-osc" "network/sbcl-vops"))
      (:file "network/generic" :depends-on ("network/osc"))
      (:file "midifile" :depends-on ("util"))
      (:file "analysis/maybe-fftw-no-simd"
             :if-feature (:and :sbcl :x86 (:not :darwin))
-            :depends-on ("packages"))
+            :depends-on ("conditions"))
      (:file "analysis/base" :depends-on ("time" "gen/window"
                                          #+(and sbcl x86 (not darwin))
                                          "analysis/maybe-fftw-no-simd"))

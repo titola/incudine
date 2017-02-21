@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -20,7 +20,8 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (import
-   '(incudine:smp-ref
+   '(incudine:incudine-missing-arg
+     incudine:smp-ref
      incudine:circular-shift
      incudine:free
      incudine:free-p
@@ -29,8 +30,10 @@
   (format *error-output* "~%WARNING: using planner flag FFTW_NO_SIMD~%"))
 
 (defstruct (ring-buffer (:copier nil))
-  (data (error "missing data for the ring buffer") :type foreign-pointer)
-  (size (error "missing size for the ring buffer") :type non-negative-fixnum)
+  (data (incudine-missing-arg "Missing data for the ring buffer.")
+        :type foreign-pointer)
+  (size (incudine-missing-arg "Missing size for the ring buffer.")
+        :type non-negative-fixnum)
   (head 0 :type non-negative-fixnum)
   (real-time-p nil :type boolean)
   (foreign-free #'foreign-free :type function))
@@ -163,15 +166,17 @@
 
 (defstruct (analysis (:copier nil))
   (size 0 :type non-negative-fixnum)
-  (input-buffer (error "missing INPUT-BUFFER") :type foreign-pointer)
+  (input-buffer (incudine-missing-arg "Missing INPUT-BUFFER")
+                :type foreign-pointer)
   (input-size 0 :type non-negative-fixnum)
   (input-changed-p nil :type boolean)
-  (output-buffer (error "missing OUTPUT-BUFFER") :type foreign-pointer)
+  (output-buffer (incudine-missing-arg "Missing OUTPUT-BUFFER")
+                 :type foreign-pointer)
   (output-size 0 :type non-negative-fixnum)
   (output-complex-p nil :type boolean)
   (nbins 0 :type non-negative-fixnum)
   (scale-factor (sample 1) :type sample)
-  (time-ptr (error "missing TIME-PTR") :type foreign-pointer)
+  (time-ptr (incudine-missing-arg "Missing TIME-PTR") :type foreign-pointer)
   (real-time-p nil :type boolean)
   (foreign-free #'foreign-free :type function))
 
@@ -249,17 +254,19 @@ ANALYSIS-INPUT-SIZE samples."
   :documentation "Fast computation of a reasonable FFT plan.")
 
 (defstruct (fft-plan (:constructor %new-fft-plan))
-  (pair (error "missing FFT plans") :type cons)
+  (pair (incudine-missing-arg "Missing FFT plans.") :type cons)
   (size 8 :type positive-fixnum)
   (flags +fft-plan-best+ :type fixnum))
 
 (defstruct (fft-common (:include analysis) (:copier nil))
-  (ring-buffer (error "missing RING-BUFFER") :type ring-buffer)
-  (window-buffer (error "missing WINDOW-BUFFER") :type foreign-pointer)
+  (ring-buffer (incudine-missing-arg "Missing RING-BUFFER") :type ring-buffer)
+  (window-buffer (incudine-missing-arg "Missing WINDOW-BUFFER")
+                 :type foreign-pointer)
   (window-size 0 :type non-negative-fixnum)
-  (window-function (error "missing WINDOW-FUNCTION") :type function)
-  (plan-wrap (error "missing FFT plan wrapper") :type fft-plan)
-  (plan (error "missing FFT plan") :type foreign-pointer))
+  (window-function (incudine-missing-arg "Missing WINDOW-FUNCTION")
+                   :type function)
+  (plan-wrap (incudine-missing-arg "Missing FFT plan wrapper.") :type fft-plan)
+  (plan (incudine-missing-arg "Missing FFT plan.") :type foreign-pointer))
 
 (defstruct (fft (:include fft-common) (:constructor %make-fft) (:copier nil)))
 
@@ -314,11 +321,12 @@ ANALYSIS-INPUT-SIZE samples."
 
 (defstruct (abuffer (:constructor %make-abuffer)
                     (:copier nil))
-  (data (error "missing data for the abuffer") :type foreign-pointer)
+  (data (incudine-missing-arg "Missing data for the abuffer.")
+        :type foreign-pointer)
   (size 0 :type non-negative-fixnum)
   (nbins 0 :type non-negative-fixnum)
   (scale-factor (sample 1) :type sample)
-  (time-ptr (error "missing time-ptr pointer for the abuffer")
+  (time-ptr (incudine-missing-arg "Missing time-ptr pointer for the abuffer.")
             :type foreign-pointer)
   (link nil :type (or analysis null))
   (coord-complex-p nil :type boolean)

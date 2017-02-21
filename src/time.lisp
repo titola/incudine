@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -16,8 +16,14 @@
 
 (in-package :incudine)
 
+(define-condition incudine-unknown-time-unit (incudine-error)
+  ((name :initarg :name :reader time-unit-name))
+  (:report (lambda (condition stream)
+             (format stream "Unknown time unit ~S"
+                     (time-unit-name condition)))))
+
 (defstruct (tempo (:constructor %make-tempo) (:copier nil))
-  (ptr (error "Missing foreign pointer") :type foreign-pointer))
+  (ptr (incudine-missing-arg "Missing foreign pointer.") :type foreign-pointer))
 
 (defun make-tempo (value &optional (unit :bpm))
   (declare (type alexandria:positive-real value)
@@ -111,7 +117,7 @@
 
 (defstruct (tempo-envelope (:constructor %make-tempo-envelope)
                            (:copier nil))
-  (spb (error "Missing SPB envelope") :type envelope)
+  (spb (incudine-missing-arg "Missing SPB envelope.") :type envelope)
   (time-warp (null-pointer) :type foreign-pointer)
   (points 0 :type non-negative-fixnum)
   (max-points *envelope-default-max-points* :type non-negative-fixnum)
@@ -371,7 +377,8 @@
                         (case-char (char string 1)
                           (#\e 'incudine.util:*sample-rate*)
                           (#\a (incudine.util:sample 1.0))
-                          (otherwise (error "Unknown time unit ~S" string)))
+                          (otherwise
+                           (error 'incudine-unknown-time-unit :name string)))
                         'incudine.util:*sample-rate*)))
     ;; m    -> meters   (the optional ARG0 is the velocity of the sound [m/s])
     ;; me.* -> meters   "            "            "             "            "
@@ -385,7 +392,8 @@
                                         'incudine.util:*r-sound-velocity*)
                                    incudine.util:*sample-rate*))
                           (#\i '(* 60.0 incudine.util:*sample-rate*))
-                          (otherwise (error "Unknown time unit ~S" string)))
+                          (otherwise
+                           (error 'incudine-unknown-time-unit :name string)))
                         `(* ,(if arg0
                                  (/ 1.0 arg0)
                                  'incudine.util:*r-sound-velocity*)
@@ -396,7 +404,7 @@
     (#\d `(* ,mult 86400.0 incudine.util:*sample-rate*))
     ;; w.*  -> weeks
     (#\w `(* ,mult 604800.0 incudine.util:*sample-rate*))
-    (otherwise (error "Unknown time unit ~S" string))))
+    (otherwise (error 'incudine-unknown-time-unit :name string))))
 
 (defun split-unit-time-string (stream)
   (declare (type stream stream))
