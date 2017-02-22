@@ -11,7 +11,8 @@
             (osc:protocolp oscout :udp)
             (osc:protocolp oscout :tcp)
             (cffi:null-pointer-p (osc:buffer-pointer oscout))
-            (= (osc:buffer-size oscout) osc:*buffer-size*)))
+            (= (osc:buffer-size oscout)
+               (max 250 (* (osc:max-values oscout) 20) osc:*buffer-size*))))
   (NIL T T T "localhost" #36ROSE T NIL NIL T))
 
 (deftest open-sound-control.2

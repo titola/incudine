@@ -326,7 +326,7 @@ The argument of a function is the OSC:STREAM to close.")
                                  stream)))
                           names))))
   (define-stream-readers (host port protocol socket-fd direction buffer-pointer
-                          buffer-size message-pointer message-length
+                          buffer-size max-values message-pointer message-length
                           message-encoding)))
 
 (defun set-message-length (stream value)

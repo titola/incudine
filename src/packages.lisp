@@ -497,7 +497,7 @@
    #:with-stream #:open #:open-p #:close #:block-p #:without-block #:broadcast
    #:connect #:reject #:close-connections #:last-recv-fd #:socket-send
    #:connections #:connections-fd #:host #:port #:protocol #:protocolp
-   #:socket-fd #:direction #:buffer-pointer #:buffer-size
+   #:socket-fd #:direction #:buffer-pointer #:buffer-size #:max-values
    #:message-pointer #:message-length #:message-encoding #:receive #:send
    #:slip-encode #:slip-decode #:message #:start-message #:value #:value-pointer
    #:midi #:address-pattern #:check-pattern #:index-values #:with-values
