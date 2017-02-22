@@ -238,34 +238,21 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
                                if (intersection (cdr l) changed-src)
                                collect (car l)))))))))
 
-  (defun process-exit-code (process)
-    #+sbcl (sb-ext:process-exit-code process))
-
-  (defun invoke (program &rest args)
-    (let ((exit-code 1))
-      (values
-        (with-output-to-string (s)
-          (setf exit-code
-                (process-exit-code
-                 #-sbcl (incudine:incudine-error
-                          "Currently, Incudine works only with SBCL.")
-                 #+sbcl (sb-ext:run-program program args :output s
-                                            :error :output :search t))))
-        exit-code)))
-
-  (defmacro exit-code (process-output)
-    (alexandria:with-gensyms (out exit-code)
-      `(multiple-value-bind (,out ,exit-code) ,process-output
-         (declare (ignore ,out))
-         ,exit-code)))
+  (defun run-program (format-control &optional format-arguments output
+                      error-output)
+    (multiple-value-bind (out err exit-code)
+        (uiop:run-program (apply #'format nil format-control format-arguments)
+                          :output output :error-output error-output
+                          :ignore-error-status t)
+      (declare (ignore out err))
+      (zerop exit-code)))
 
   (defvar *c-libtest-fmt*
     (format nil "~A -o /dev/null~A ~S -l" *c-compiler* *c-library-paths*
             (namestring (merge-pathnames "nothing.c" *c-source-dir*))))
 
   (defun probe-c-library (name)
-    (zerop (exit-code (invoke "sh" "-c"
-                              (concatenate 'string *c-libtest-fmt* name)))))
+    (run-program "~A ~A" (list *c-libtest-fmt* name)))
 
   (defun compile-c-object (key &optional cflags)
     (let* ((src-path (get-c-source-by-key key))
@@ -277,7 +264,7 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
                         cflags obj (namestring src-path))))
       (write-line cmd)
       (force-output)
-      (if (zerop (exit-code (invoke "sh" "-c" cmd)))
+      (if (run-program cmd nil t t)
           obj
           (compile-error "C library compilation failed"))))
 
@@ -342,7 +329,7 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
   ;;; Probably useful only when "cc" is not available.
   (defun check-c-compiler ()
     (flet ((check (cc)
-             (zerop (exit-code (invoke "which" cc)))))
+             (run-program "which ~A" (list cc))))
       (unless (stringp *c-compiler*)
         (info "*C-COMPILER* is ~S but it should be a string" *c-compiler*)
         (setf *c-compiler* "cc"))
@@ -376,16 +363,16 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
         (let ((testfile (namestring
                           (merge-pathnames "fftw-stack-align-test.lisp"
                                            path))))
-          (sb-ext:run-program (first sb-ext:*posix-argv*)
-                              (list "--non-interactive" "--load" testfile path)
-                              :search t)))))
+          (run-program "~A --non-interactive --load ~S ~S"
+                       (list (first sb-ext:*posix-argv*) testfile path)
+                       t t)))))
 
   (defun %compile-c-library (ofiles libs-dep)
     (let ((cmd (format nil "~A ~A ~A -o ~S~{ ~S~}~{ -l~A~}"
                        *c-compiler* *c-compiler-flags* *c-linker-flags*
                        (namestring *c-library-pathname*) ofiles libs-dep)))
       (write-line cmd)
-      (unless (zerop (exit-code (invoke "sh" "-c" cmd)))
+      (unless (run-program cmd nil t t)
         (compile-error "C library compilation failed"))
       (store-compiler-options)
       (values)))
