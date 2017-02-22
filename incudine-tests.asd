@@ -21,15 +21,13 @@
 (in-package :asdf-user)
 
 (defsystem incudine-tests
-  :depends-on (:incudine #+sbcl :sb-rt #-sbcl :rt #+sbcl :sb-md5)
+  :depends-on (:incudine #+sbcl :sb-rt #+sbcl :sb-md5
+                         #-sbcl :rt    #-sbcl :md5)
   :components
   ((:module "tests"
     :components
     ((:file "packages")
-     (:file "sbcl" :depends-on ("packages"))
-     (:module "cl-impl" :depends-on ("packages") :pathname ""
-      :components ((:file #+sbcl "sbcl")))
-     (:file "util" :depends-on ("cl-impl"))
+     (:file "util" :depends-on ("packages"))
      (:file "logger" :depends-on ("util"))
      (:file "pool" :depends-on ("util"))
      (:file "fifo" :depends-on ("util"))

@@ -6,6 +6,7 @@
   (:import-from #+sbcl :sb-rt #-sbcl :rtest
                 #:*compile-tests* #:*expected-failures*)
   (:import-from :alexandria #:define-constant #:format-symbol #:with-gensyms)
+  (:import-from #+sbcl :sb-md5 #-sbcl :md5 #:md5sum-sequence)
   (:export #:run-tests))
 
 (in-package :incudine-tests)
