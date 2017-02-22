@@ -27,7 +27,9 @@
     :components
     ((:file "packages")
      (:file "sbcl" :depends-on ("packages"))
-     (:file "util" :depends-on ("sbcl"))
+     (:module "cl-impl" :depends-on ("packages") :pathname ""
+      :components ((:file #+sbcl "sbcl")))
+     (:file "util" :depends-on ("cl-impl"))
      (:file "logger" :depends-on ("util"))
      (:file "pool" :depends-on ("util"))
      (:file "fifo" :depends-on ("util"))
