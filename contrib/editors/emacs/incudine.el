@@ -1,6 +1,6 @@
 ;;; incudine.el --- major mode for editing Incudine sources
 
-;; Copyright (c) 2013-2015 Tito Latini
+;; Copyright (c) 2013-2017 Tito Latini
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -300,6 +300,20 @@ rego file or call tags-loop-continue."
                   (delete entry incudine-rego-files-walk))
             (switch-to-buffer to)))
         (tags-loop-continue))))
+
+(font-lock-add-keywords
+  'incudine-mode
+  '(("(\\(d\\(?:ef\\(?:ine-\\(?:ugen\\(?:-control-setter\\)?\\|vug\\(?:-macro\\)?\\)\\|score-statement\\)\\|sp!\\)\\)\\_>\\s *\\(\\(?:\\sw\\|\\s_\\|\\\\.\\)+\\)?"
+     (1 font-lock-keyword-face nil t)
+     (2 font-lock-function-name-face nil t))
+    ("(\\(vuglet\\)\\_>"
+     (1 font-lock-keyword-face nil t))))
+
+(put 'define-vug 'common-lisp-indent-function '(4 &lambda &body))
+(put 'define-ugen 'common-lisp-indent-function '(4 4 &lambda &body))
+(put 'dsp! 'common-lisp-indent-function '(4 &lambda &body))
+(put 'vuglet 'common-lisp-indent-function
+     '((&whole 4 &rest (&whole 1 &lambda &body)) &body))
 
 (defun incudine-mode-common-map (map)
   (define-key map [C-M-return] 'incudine-free-node)
