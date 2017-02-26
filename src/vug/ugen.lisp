@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014-2016 Tito Latini
+;;; Copyright (c) 2014-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@
                     :free-function ,free-fn
                     :init-function (or ,init-function #'dummy-function)
                     :perf-function (or ,perf-function #'dummy-function))))
-       (when ,free-fn (tg:finalize ,obj ,free-fn))
+       (when ,free-fn (incudine:incudine-finalize ,obj ,free-fn))
        ,obj)))
 
 (defmethod print-object ((obj ugen) stream)
@@ -153,11 +153,12 @@ arguments to update the dependencies if it exists."
 (defmethod incudine:free ((obj ugen-instance))
   (unless (incudine:free-p obj)
     (funcall (ugen-instance-free-function obj))
-    (tg:cancel-finalization obj)
+    (incudine:incudine-cancel-finalization obj)
     (setf (ugen-instance-init-function obj) #'dummy-function
           (ugen-instance-perf-function obj) #'dummy-function
           (ugen-instance-free-function obj) #'dummy-function
-          (ugen-instance-name obj) nil))
+          (ugen-instance-name obj) nil)
+    (nrt-msg debug "Free instance of ~A" (type-of obj)))
   (values))
 
 (defun rename-ugen (old-name new-name)

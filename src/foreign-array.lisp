@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -108,7 +108,7 @@
   (rt-eval () 
     (foreign-rt-free #1=(foreign-array-data obj))
     (setf #1# nil)
-    (tg:cancel-finalization obj)
+    (incudine-cancel-finalization obj)
     (rt-foreign-array-pool-push obj)
     (values)))
 
@@ -117,7 +117,7 @@
   (declare (type foreign-array obj))
   (foreign-free #1=(foreign-array-data obj))
   (setf #1# nil)
-  (tg:cancel-finalization obj)
+  (incudine-cancel-finalization obj)
   (nrt-foreign-array-pool-push obj)
   (values))
 
@@ -131,7 +131,7 @@
          (obj (fill-foreign-array (rt-foreign-array-pool-pop)
                                   data dimension element-type
                                   #'rt-free-foreign-array)))
-    (tg:finalize obj (lambda () (rt-eval () (foreign-rt-free data))))
+    (incudine-finalize obj (lambda () (rt-eval () (foreign-rt-free data))))
     obj))
 
 (defun make-nrt-foreign-array-data (dimension element-type zero-p
@@ -156,7 +156,7 @@
          (obj (fill-foreign-array (nrt-foreign-array-pool-pop)
                                   data dimension element-type
                                   #'nrt-free-foreign-array)))
-    (tg:finalize obj (lambda () (foreign-free data)))
+    (incudine-finalize obj (lambda () (foreign-free data)))
     obj))
 
 (declaim (inline make-foreign-array))
@@ -175,8 +175,13 @@
     (funcall (foreign-array-free-func obj) obj)
     (values)))
 
+(defmethod free-p ((obj foreign-array))
+  (null (foreign-array-data obj)))
+
 (defmethod free ((obj foreign-array))
-  (free-foreign-array obj))
+  (free-foreign-array obj)
+  (nrt-msg debug "Free ~A" (type-of obj))
+  (values))
 
 (in-package :incudine.util)
 

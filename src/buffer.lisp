@@ -74,8 +74,8 @@
                :sample-rate (sample sample-rate)
                :real-time-p real-time-p
                :foreign-free free-function)))
-    (if finalize-p
-        (tg:finalize obj (lambda () (funcall free-function data))))
+    (when finalize-p
+      (incudine-finalize obj (lambda () (funcall free-function data))))
     obj))
 
 (defmethod print-object ((obj buffer) stream)
@@ -277,9 +277,10 @@ It is possible to use line comments that begin with the `;' char."
 (defmethod free ((obj buffer-base))
   (unless (free-p obj)
     (funcall (buffer-base-foreign-free obj) (buffer-base-data obj))
-    (tg:cancel-finalization obj)
+    (incudine-cancel-finalization obj)
     (setf (buffer-base-data obj) (null-pointer))
     (setf (buffer-base-size obj) 0)
+    (nrt-msg debug "Free ~A" (type-of obj))
     (values)))
 
 (defun copy-buffer (buffer)
@@ -320,13 +321,13 @@ It is possible to use line comments that begin with the `;' char."
                          (smp-ref old-data (+ j ch))
                          +sample-zero+))))
         (funcall (buffer-foreign-free buffer) (buffer-data buffer))
-        (tg:cancel-finalization buffer)
+        (incudine-cancel-finalization buffer)
         (copy-struct-slots buffer (data size mask lobits lomask lodiv frames
                                    channels sample-rate real-time-p
                                    foreign-free)
                            new buffer)
-        (tg:finalize buffer
-                     (lambda () (funcall (buffer-foreign-free buffer) data)))
+        (incudine-finalize buffer
+          (lambda () (funcall (buffer-foreign-free buffer) data)))
         buffer)))
 
 ;;; FUNCTION has two arguments: the index and the value of the buffer

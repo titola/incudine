@@ -189,3 +189,14 @@
                                              299 99 549 196 282 351 16))
       (mapcar #'sample->fixnum (buffer->list (sort-buffer buf))))
   (5 16 99 196 282 299 300 351 549 750 758 860 889 954 991 993))
+
+(deftest with-cleanup-buffer.1
+    (free-p (with-cleanup (make-buffer 8)))
+  T)
+
+(deftest with-cleanup-buffer.2
+    (mapcar #'free-p
+            (with-cleanup
+              (let ((b0 (make-buffer 8)))
+                (list b0 (copy-buffer b0)))))
+  (T T))

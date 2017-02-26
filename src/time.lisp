@@ -35,7 +35,7 @@
                                     (:spb (list (/ 60 x) x (/ x)))
                                     (:bps (list (* 60 x) (/ x) x)))))
          (obj (%make-tempo :ptr ptr)))
-    (tg:finalize obj (lambda () (foreign-free ptr)))
+    (incudine-finalize obj (lambda () (foreign-free ptr)))
     obj))
 
 (defmethod free-p ((obj tempo))
@@ -44,8 +44,9 @@
 (defmethod free ((obj tempo))
   (unless (free-p obj)
     (foreign-free (tempo-ptr obj))
-    (tg:cancel-finalization obj)
+    (incudine-cancel-finalization obj)
     (setf (tempo-ptr obj) (null-pointer))
+    (nrt-msg debug "Free ~A" (type-of obj))
     (values)))
 
 ;;; Default tempo
@@ -150,7 +151,7 @@
                           :points ,points
                           :max-points ,max-points
                           :constant-p (tenv-constant-p ,spb))))
-       (tg:finalize ,tempo-env (lambda () (foreign-free ,twarp-data)))
+       (incudine-finalize ,tempo-env (lambda () (foreign-free ,twarp-data)))
        (fill-time-warp-data ,twarp-data ,spb-env)
        ,tempo-env)))
 
@@ -160,10 +161,11 @@
 (defmethod free ((obj tempo-envelope))
   (unless (free-p obj)
     (foreign-free #1=(tempo-envelope-time-warp obj))
-    (tg:cancel-finalization obj)
+    (incudine-cancel-finalization obj)
     (setf #1# (null-pointer))
     (free (tempo-envelope-spb obj))
-    (setf (tempo-envelope-points obj) 0))
+    (setf (tempo-envelope-points obj) 0)
+    (nrt-msg debug "Free ~A" (type-of obj)))
   (values))
 
 (defun copy-tempo-envelope (tenv)
@@ -180,7 +182,7 @@
                     :max-points max-points
                     :constant-p (tempo-envelope-constant-p tenv))))
         (foreign-copy-samples data (tempo-envelope-time-warp tenv) points)
-        (tg:finalize new (lambda () (foreign-free data)))
+        (incudine-finalize new (lambda () (foreign-free data)))
         new)))
 
 (declaim (inline integrate-linear-curve))
@@ -287,8 +289,8 @@
            (when (> ,points #2=(tempo-envelope-max-points ,env))
              (setf #2# ,points)
              (foreign-realloc-sample ,twarp-data ,points)
-             (tg:cancel-finalization ,env)
-             (tg:finalize ,env (lambda () (foreign-free ,twarp-data)))
+             (incudine-cancel-finalization ,env)
+             (incudine-finalize ,env (lambda () (foreign-free ,twarp-data)))
              (setf (tempo-envelope-time-warp ,env) ,twarp-data)))
          (fill-time-warp-data ,twarp-data ,spb-env)
          ,env))))

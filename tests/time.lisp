@@ -20,6 +20,10 @@
                 (two-decimals (spb tempo)))))
   120.0 2.0 0.5 156.0 2.6 0.38)
 
+(deftest with-cleanup-tempo.1
+    (free-p (with-cleanup (make-tempo 180)))
+  T)
+
 (enable-sharp-square-bracket-syntax)
 
 (deftest time-units

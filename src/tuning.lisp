@@ -93,7 +93,7 @@
                  :size size
                  :real-time-p (and real-time-p (rt-thread-p))
                  :foreign-free free-function)))
-      (tg:finalize obj (lambda () (funcall free-function data)))
+      (incudine-finalize obj (lambda () (funcall free-function data)))
       (setf (u8-ref aux-data 0) keynum-base)
       (setf (u8-ref aux-data 1) (min degree-index (1- (length cents))))
       (setf (smp-ref aux-data +tuning-freq-base-index+) (sample freq-base))

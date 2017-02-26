@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -56,14 +56,15 @@
 (defmethod free ((obj envelope))
   (unless (free-p obj)
     (funcall (envelope-foreign-free obj) #1=(envelope-data obj))
-    (tg:cancel-finalization obj)
+    (incudine-cancel-finalization obj)
     (setf #1# (null-pointer)
           (envelope-duration obj) +sample-zero+
           (envelope-points obj) 0
           (envelope-data-size obj) 0
           (envelope-loop-node obj) -1
           (envelope-release-node obj) -1
-          (envelope-max-points obj) 0))
+          (envelope-max-points obj) 0)
+    (nrt-msg debug "Free ~A" (type-of obj)))
   (values))
 
 (declaim (inline envelope-restart-level))
@@ -111,7 +112,7 @@
                        :real-time-p (rt-thread-p)
                        :foreign-free free-function)))
             (foreign-copy-samples data (envelope-data envelope) data-size)
-            (tg:finalize new (lambda () (funcall free-function data)))
+            (incudine-finalize new (lambda () (funcall free-function data)))
             new)))))
 
 (defun check-envelope-points (env levels times)
@@ -121,7 +122,7 @@
       (setf (envelope-points env) size
             (envelope-data-size env) (compute-envelope-data-size size)))
     (when (> size (envelope-max-points env))
-      (tg:cancel-finalization env)
+      (incudine-cancel-finalization env)
       (let ((real-time-p (envelope-real-time-p env))
             (free-function (envelope-foreign-free env)))
         (if real-time-p
@@ -131,7 +132,7 @@
                                     (compute-envelope-data-size size)))
         (setf (envelope-max-points env) size)
         (let ((data (envelope-data env)))
-          (tg:finalize env (lambda () (funcall free-function data))))))
+          (incudine-finalize env (lambda () (funcall free-function data))))))
     env))
 
 (declaim (inline exponential-curve-p))
@@ -319,7 +320,7 @@
                               :foreign-free free-function)))
     (set-envelope env levels times :curve curve :loop-node loop-node
                   :release-node release-node)
-    (tg:finalize env (lambda () (funcall free-function data)))
+    (incudine-finalize env (lambda () (funcall free-function data)))
     env))
 
 (declaim (inline check-envelope-node))

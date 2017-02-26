@@ -25,6 +25,8 @@
      incudine:circular-shift
      incudine:free
      incudine:free-p
+     incudine:incudine-finalize
+     incudine:incudine-cancel-finalization
      incudine:now))
   #+fftw-no-simd
   (format *error-output* "~%WARNING: using planner flag FFTW_NO_SIMD~%"))
@@ -63,7 +65,7 @@
             #'safe-foreign-rt-free))
     (let ((data (ring-input-buffer-data obj))
           (foreign-free #1#))
-      (tg:finalize obj (lambda () (funcall foreign-free data)))
+      (incudine-finalize obj (lambda () (funcall foreign-free data)))
       obj)))
 
 (defun make-ring-output-buffer (size &optional real-time-p)
@@ -81,20 +83,24 @@
       (let ((data (ring-output-buffer-data obj))
             (tmp #1#)
             (foreign-free #2#))
-        (tg:finalize obj (lambda ()
-                           (funcall foreign-free data)
-                           (funcall foreign-free tmp)))
+        (incudine-finalize obj (lambda ()
+                                 (funcall foreign-free data)
+                                 (funcall foreign-free tmp)))
         obj))))
 
+(defmethod free-p ((obj ring-buffer))
+  (null-pointer-p (ring-buffer-data obj)))
+
 (defmethod free ((obj ring-buffer))
-  (unless (null-pointer-p #1=(ring-buffer-data obj))
+  (unless (free-p obj)
     (let ((foreign-free (ring-buffer-foreign-free obj)))
-      (funcall foreign-free #1#)
+      (funcall foreign-free #1=(ring-buffer-data obj))
       (setf #1# (null-pointer))
       (when (ring-output-buffer-p obj)
         (funcall foreign-free #2=(ring-output-buffer-tmp obj))
         (setf #2# (null-pointer))))
-    (tg:cancel-finalization obj))
+    (incudine-cancel-finalization obj)
+    (incudine.util:nrt-msg debug "Free ~A" (type-of obj)))
   (setf (ring-buffer-head obj) 0
         (ring-buffer-size obj) 0)
   (values))
@@ -311,8 +317,8 @@ ANALYSIS-INPUT-SIZE samples."
                          (mapc foreign-free
                                (list input-buffer output-buffer
                                      window-buffer time-ptr)))))
-      (tg:cancel-finalization obj)
-      (tg:finalize obj cleanup-fn)
+      (incudine-cancel-finalization obj)
+      (incudine-finalize obj cleanup-fn)
       (funcall foreign-free (fft-common-window-buffer obj))
       (setf (fft-common-window-buffer obj) window-buffer)
       (fill-window-buffer window-buffer (fft-common-window-function obj) size)
@@ -360,9 +366,9 @@ ANALYSIS-INPUT-SIZE samples."
           (setf #1=(abuffer-foreign-free obj)
                 #'safe-foreign-rt-free))
         (let ((foreign-free #1#))
-          (tg:finalize obj (lambda ()
-                             (funcall foreign-free data)
-                             (funcall foreign-free time-ptr)))
+          (incudine-finalize obj (lambda ()
+                                   (funcall foreign-free data)
+                                   (funcall foreign-free time-ptr)))
           obj)))))
 
 (defmethod free-p ((obj abuffer))
@@ -377,7 +383,8 @@ ANALYSIS-INPUT-SIZE samples."
           (abuffer-size obj) 0
           (abuffer-nbins obj) 0
           (abuffer-link obj) nil)
-    (tg:cancel-finalization obj))
+    (incudine-cancel-finalization obj)
+    (incudine.util:nrt-msg debug "Free ~A" (type-of obj)))
   (values))
 
 (declaim (inline abuffer-polar))

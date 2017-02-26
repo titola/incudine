@@ -382,7 +382,9 @@
    #:pch->cps #:cps->pch #:pch->keynum #:keynum->pch
    #:foreign-array #:make-foreign-array #:foreign-array-data
    #:foreign-array-type
-   #:sample-rate #:filename #:free #:free-p #:play #:stop #:quantize
+   #:sample-rate #:filename #:free #:free-p
+   #:with-cleanup #:incudine-finalize #:incudine-cancel-finalization
+   #:play #:stop #:quantize
    #:circular-shift
    #:sort-samples
    #:bus #:audio-in #:audio-out

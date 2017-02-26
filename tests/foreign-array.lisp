@@ -19,3 +19,7 @@
         (free arr)
         (values (= y0 x0) (= y1 x1))))
   T T)
+
+(deftest with-cleanup-foreign-array.1
+    (free-p (with-cleanup (make-foreign-array 8 'sample)))
+  T)

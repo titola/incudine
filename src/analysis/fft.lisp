@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2015 Tito Latini
+;;; Copyright (c) 2013-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -117,7 +117,8 @@ is the plan for a IFFT."
     (funcall (analysis-foreign-free obj) (fft-common-window-buffer obj))
     (setf (fft-common-window-buffer obj) (null-pointer))
     (setf (fft-common-window-size obj) 0))
-  (tg:cancel-finalization obj)
+  (incudine-cancel-finalization obj)
+  (incudine.util:nrt-msg debug "Free ~A" (type-of obj))
   (values))
 
 (defmethod print-object ((obj fft) stream)
@@ -172,10 +173,10 @@ is the plan for a IFFT."
       (setf (analysis-time obj) (sample -1))
       (foreign-zero-sample input-buffer size)
       (let ((foreign-free (fft-foreign-free obj)))
-        (tg:finalize obj (lambda ()
-                           (mapc foreign-free
-                                 (list input-buffer output-buffer
-                                       window-buffer time-ptr))))))))
+        (incudine-finalize obj (lambda ()
+                                 (mapc foreign-free
+                                       (list input-buffer output-buffer
+                                             window-buffer time-ptr))))))))
 
 (defun compute-fft (obj &optional force-p)
   (declare (type fft obj) (type boolean force-p))
@@ -251,10 +252,10 @@ is the plan for a IFFT."
       (setf (analysis-time obj) (sample -1))
       (foreign-zero-sample input-buffer complex-array-size)
       (let ((foreign-free (ifft-foreign-free obj)))
-        (tg:finalize obj (lambda ()
-                           (mapc foreign-free
-                                 (list input-buffer output-buffer
-                                       window-buffer time-ptr))))))))
+        (incudine-finalize obj (lambda ()
+                                 (mapc foreign-free
+                                       (list input-buffer output-buffer
+                                             window-buffer time-ptr))))))))
 
 (declaim (inline ifft-apply-window))
 (defun ifft-apply-window (obj &optional abuf)

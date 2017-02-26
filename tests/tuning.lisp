@@ -129,6 +129,17 @@
    433894/289263 155171/96982 276853/166112 1438049/798916 561752/299601 2)
   (16/15 9/8 6/5 5/4 4/3 7/5 3/2 8/5 5/3 9/5 15/8 2))
 
+(deftest with-cleanup-tuning.1
+    (free-p (with-cleanup (make-tuning)))
+  T)
+
+(deftest with-cleanup-tuning.2
+    (mapcar #'free-p
+            (with-cleanup
+              (let ((t0 (make-tuning)))
+                (list t0 (copy-tuning t0)))))
+  (T T))
+
 (defvar *carlos-beta-tuning*
   (make-tuning
     :notes '(63.8 127.6 191.4 255.2 319.0 382.8 446.6 510.4 574.2 638.0 701.8

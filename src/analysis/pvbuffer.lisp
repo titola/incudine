@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -30,8 +30,9 @@
   (let ((data (pvbuffer-data obj)))
     (unless (null-pointer-p data)
       (free-multi-channel-data data (pvbuffer-channels obj))
-      (tg:cancel-finalization obj)
-      (setf (pvbuffer-data obj) (null-pointer)))
+      (incudine-cancel-finalization obj)
+      (setf (pvbuffer-data obj) (null-pointer))
+      (incudine.util:nrt-msg debug "Free ~A" (type-of obj)))
     (values)))
 
 (defmethod incudine:free-p ((obj pvbuffer))
@@ -115,7 +116,7 @@
     (declare (type non-negative-fixnum channels partitions fft-size block-size
                    size)
              #.*standard-optimize-settings*)
-    (tg:finalize obj (lambda () (free-multi-channel-data data channels)))
+    (incudine-finalize obj (lambda () (free-multi-channel-data data channels)))
     (foreach-pvbuffer-channel (obj pvbuf-ptr pvbpos bpos start channels)
       (foreach-pvbuffer-frame obj
         (fft-input-from-buffer-partition fft-inbuf fft-size partsize bdata bsize

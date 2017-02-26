@@ -145,6 +145,17 @@
   (0.0 220.0 0.5 4000.0 2.5 1027.38)
   (:LINEAR :LINEAR))
 
+(deftest with-cleanup-envelope.1
+    (free-p (with-cleanup (make-envelope '(0 1 0) '(.5 .5))))
+  T)
+
+(deftest with-cleanup-envelope.2
+    (mapcar #'free-p
+            (with-cleanup
+              (let ((e0 (make-envelope '(0 1 0) '(.5 .5))))
+                (list e0 (copy-envelope e0)))))
+  (T T))
+
 (enable-sharp-square-bracket-syntax)
 
 (deftest tempo-envelope.1
@@ -224,3 +235,14 @@
                            '(0 1 2 3 4 5 6 7 8)))
           (free (list tenv0 tenv1)))))
   NIL NIL NIL NIL NIL T T T T)
+
+(deftest with-cleanup-tempo-envelope.1
+    (free-p (with-cleanup (make-tempo-envelope '(90 60 90) '(4 2))))
+  T)
+
+(deftest with-cleanup-tempo-envelope.2
+    (mapcar #'free-p
+            (with-cleanup
+              (let ((e0 (make-tempo-envelope '(90 60 90) '(4 2))))
+                (list e0 (copy-tempo-envelope e0)))))
+  (T T))

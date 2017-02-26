@@ -21,7 +21,9 @@
   (:import-from #:alexandria #:define-constant #:with-gensyms #:positive-fixnum
                 #:non-negative-fixnum)
   (:import-from #:incudine.external #:rt-client)
-  (:import-from #:incudine.util #:rt-eval #:msg #:u8-ref)
+  (:import-from #:incudine.util #:rt-eval #:msg #:nrt-msg #:u8-ref)
+  (:import-from #:incudine #:free #:free-p
+                #:incudine-finalize #:incudine-cancel-finalization)
   (:export #:data #:event-buffer #:open #:close #:stream
            #:input-stream #:input-stream-p #:output-stream #:output-stream-p
            #:input-stream-sysex-timestamp #:input-stream-sysex-size
@@ -612,19 +614,22 @@ The MIDI messages are aligned to four bytes."
   (declare (type positive-fixnum size))
   (let* ((ptr (cffi:foreign-alloc :char :count size))
          (obj (%make-event-buffer :pointer ptr :size size)))
-    (tg:finalize obj (lambda () (cffi:foreign-free ptr)))
-    obj))
+    (incudine-finalize obj (lambda () (cffi:foreign-free ptr)))))
 
 (defmethod print-object ((obj event-buffer) stream)
   (format stream "#<JACKMIDI:EVENT-BUFFER :SIZE ~D>"
           (event-buffer-size obj)))
 
-(defmethod incudine:free ((obj event-buffer))
+(defmethod free-p ((obj event-buffer))
+  (cffi:null-pointer-p (event-buffer-pointer obj)))
+
+(defmethod free ((obj event-buffer))
   (setf (event-buffer-size obj) 0)
-  (let ((ptr (event-buffer-pointer obj)))
-    (unless (cffi:null-pointer-p ptr)
-      (cffi:foreign-free ptr)))
-  (tg:cancel-finalization obj)
+  (unless (free-p obj)
+    (cffi:foreign-free (event-buffer-pointer obj))
+    (incudine-cancel-finalization obj)
+    (setf (event-buffer-pointer obj) (cffi:null-pointer))
+    (nrt-msg debug "Free ~A" (type-of obj)))
   (values))
 
 (declaim (inline input-stream-sysex-event))
@@ -726,7 +731,7 @@ The MIDI messages are aligned to four bytes."
      (declare (type event-buffer ,var))
      (unwind-protect
           (progn ,@body)
-       (incudine:free ,var))))
+       (free ,var))))
 
 (defmacro with-receiver ((state-var stream message-var
                           &optional timestamp-var thread-name) &body body)

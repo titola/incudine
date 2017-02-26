@@ -320,6 +320,30 @@
 
 (defgeneric free-p (obj))
 
+(defmethod free ((obj cons))
+  (dolist (x obj) (free x)))
+
+(defvar *to-free*)
+
+(defmacro with-cleanup (&body body)
+  "All the objects with finalizer INCUDINE-FINALIZE and method INCUDINE:FREE
+instantiated within BODY are invalid beyond the dynamic extent of BODY."
+  `(let ((*to-free* nil))
+     (unwind-protect
+          (progn ,@body)
+       (free (the list *to-free*)))))
+
+(declaim (inline incudine-finalize))
+(defun incudine-finalize (obj function)
+  (tg:finalize obj function)
+  (when (boundp '*to-free*)
+    (push obj *to-free*))
+  obj)
+
+(declaim (inline incudine-cancel-finalization))
+(defun incudine-cancel-finalization (obj)
+  (tg:cancel-finalization obj))
+
 (defgeneric quantize (obj from &key)
   (:documentation "Quantize OBJ with respect to a real number, a vector
 or a BUFFER-BASE structure (i.e. BUFFER or TUNING) in sorted order.
@@ -327,9 +351,6 @@ If OBJ is a vector or a BUFFER-BASE structure, the keywords START and END
 are the bounding index designators, and the keyword FILTER-FUNCTION is
 usable to apply a function to the quantized value.  The arguments of that
 function are the vector index and the quantized value."))
-
-(defmethod free ((obj cons))
-  (mapc #'free obj))
 
 (defun foreign-circular-shift (ptr type size n)
   (declare (type positive-fixnum size) (type fixnum n))
