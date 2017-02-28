@@ -63,7 +63,7 @@
   (:use :cl :incudine.config)
   (:import-from #:alexandria #:positive-fixnum #:negative-fixnum
                 #:non-negative-fixnum #:define-constant #:with-gensyms
-                #:ensure-symbol)
+                #:ensure-symbol #:make-keyword)
   (:import-from #:cffi #:foreign-pointer #:foreign-type-size
                 #:mem-ref #:mem-aref #:make-pointer #:pointer-address
                 #:inc-pointer #:foreign-slot-value
@@ -130,6 +130,7 @@
    #:with-foreign-array #:with-samples #:with-samples*
    #:with-complex
    #:do-complex
+   #:defun* #:lambda* #:defmacro*
    #:spinlock #:make-spinlock #:acquire-spinlock #:release-spinlock
    #:with-spinlock-held
    #:cons-pool #:make-cons-pool #:expand-cons-pool #:cons-pool-size

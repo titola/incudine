@@ -251,6 +251,126 @@
                                           '(:struct sample-complex) 'imagpart)))
          ,@body))))
 
+(defmacro with-doc-string ((var form) &body body)
+  `(multiple-value-bind (,var ,form)
+       (if (stringp (car ,form))
+           (values (list (car ,form)) (cdr ,form))
+           (values nil ,form))
+     ,@body))
+
+(defun lambda*-arguments-without-dot (arguments)
+  (do ((acc nil (cons (car arg) acc))
+       (arg arguments (cdr arg)))
+      ((atom (cdr arg))
+       (if (cdr arg)
+           ;; Replace dot with &rest
+           (nreverse (list* (cdr arg) '&rest (car arg) acc))
+           arguments))))
+
+(defun lambda*-arguments (keys vals)
+  (cond ((or (null vals) (keywordp (car vals))) vals)
+        ((null keys) nil)
+        (t
+         (multiple-value-bind (k v next-keys)
+             (let ((k0 (car keys)))
+               (if (eq k0 '&rest)
+                   (values (cadr keys) vals (cddr keys))
+                   (values k0 (car vals) (cdr keys))))
+           (list* k v (lambda*-arguments next-keys (cdr vals)))))))
+
+(defun lambda*-list-keywords (arguments)
+  (mapcar (lambda (x)
+            (if (eq x '&rest)
+                x
+                (make-keyword (if (listp x) (car x) x))))
+          arguments))
+
+(defun defun*-body (args kargs body)
+  (with-gensyms (kname)
+    `(flet ((,kname (&key ,@kargs) ,@body))
+       (apply #',kname (lambda*-arguments ',(lambda*-list-keywords args)
+                                          optional-keywords)))))
+
+(defmacro with-lambda*-arguments ((args-var kargs-var aux-var arguments)
+                                  &body body)
+  `(let* ((,args-var (lambda*-arguments-without-dot ,arguments))
+          (,kargs-var (remove '&rest args))
+          (,aux-var (make-symbol "LAMBDA-LIST")))
+     ,@body))
+
+;;; DEFUN*, LAMBDA* and DEFMACRO* are inspired by the extensions
+;;; define*, lambda* and define-macro* in Bill Schottstaedt's Scheme
+;;; implementation s7.
+;;;
+;;; Note: the text of the doc-string in DEFUN* is copied/edited from
+;;; the s7.html file provided with the source code:
+;;;
+;;;       ftp://ccrma-ftp.stanford.edu/pub/Lisp/s7.tar.gz
+;;;
+;;; Some examples from s7.html translated to CL:
+;;;
+;;;   (defun* hi (a (b 32) (c "hi")) (list a b c))
+;;;
+;;;   (hi 1)             ; => (1 32 "hi")
+;;;   (hi :b 2 :a 3)     ; => (3 2 "hi")
+;;;   (hi 3 2 1)         ; => (3 2 1)
+;;;
+;;;   (defun* foo ((a 0) (b (+ a 4)) (c (+ a 7))) (list a b c))
+;;;
+;;;   (foo :b 2 :a 60)   ; => (60 2 67)
+;;;
+;;;   (defun* foo (&rest a &rest b) (mapcar #'+ a b))
+;;;
+;;;   (foo 1 2 3 4 5)    ; => (3 5 7 9)
+;;;
+;;;   (defun* foo ((b 3) &rest x (c 1)) (list b c x))
+;;;
+;;;   (foo 32)           ; => (32 1 NIL)
+;;;   (foo 1 2 3 4 5)    ; => (1 3 (2 3 4 5))
+;;;
+;;;   (funcall (lambda* ((b 3) &rest x (c 1) . d) (list b c x d)) 1 2 3 4 5)
+;;;   ; => (1 3 (2 3 4 5) (4 5))
+;;;
+;;;   (defmacro* add-2 (a (b 2)) `(+ ,a ,b))
+;;;
+;;;   (add-2 1 3)        ; => 4
+;;;   (add-2 1)          ; => 3
+;;;   (add-2 :b 3 :a 1)  ; => 4
+;;;
+(defmacro defun* (name (&rest args) &body body)
+  "Every argument in ARGS has a default value and is automatically
+available as a keyword argument. The default value is either NIL if
+unspecified, or given in a list whose first member is the argument name.
+The last argument can be preceded by &rest or a dot to indicate that
+all other trailing arguments should be packaged as a list under that
+argument's name. A trailing or rest argument's default value is NIL.
+You can have more than one &rest parameter."
+  (with-doc-string (doc-string body)
+    (with-lambda*-arguments (args kargs aux-var args)
+      `(defun ,name (&rest optional-keywords &aux (,aux-var ',args))
+         ,@doc-string
+         (declare (ignore ,aux-var))
+         ,(defun*-body args kargs body)))))
+
+(defmacro lambda* ((&rest args) &body body)
+  (with-doc-string (doc-string body)
+    (with-lambda*-arguments (args kargs aux-var args)
+      `(lambda (&rest optional-keywords &aux (,aux-var ',args))
+         ,@doc-string
+         (declare (ignore ,aux-var))
+         ,(defun*-body args kargs body)))))
+
+(defmacro defmacro* (name (&rest args) &body body)
+  (with-doc-string (doc-string body)
+    (with-lambda*-arguments (args kargs aux-var args)
+      `(defmacro ,name (&rest optional-keywords &aux (,aux-var ',args))
+         ,@doc-string
+         (declare (ignore ,aux-var))
+         (with-gensyms (kname)
+           `(macrolet ((,kname (,(cons '&key ',kargs)) ,',@body))
+              (,kname ,(lambda*-arguments ',(lambda*-list-keywords args)
+                                          optional-keywords))))))))
+
 (in-package :incudine)
 
 (defvar *init-p* t)

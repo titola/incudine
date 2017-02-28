@@ -303,7 +303,9 @@ rego file or call tags-loop-continue."
 
 (font-lock-add-keywords
   'incudine-mode
-  '(("(\\(d\\(?:ef\\(?:ine-\\(?:ugen\\(?:-control-setter\\)?\\|vug\\(?:-macro\\)?\\)\\|score-statement\\)\\|sp!\\)\\)\\_>\\s *\\(\\(?:\\sw\\|\\s_\\|\\\\.\\)+\\)?"
+  '((;; define-vug define-vug-macro define-ugen define-ugen-control-setter
+     ;; defscore-statement defun* defmacro* lambda* dsp!
+     "\\(d\\(?:ef\\(?:ine-\\(?:ugen\\(?:-control-setter\\)?\\|vug\\(?:-macro\\)?\\)\\|macro\\*\\|score-statement\\|un\\*\\)\\|sp!\\)\\|lambda\\*\\)\\_>\\s *\\(\\(?:\\sw\\|\\s_\\|\\\\.\\)+\\)?"
      (1 font-lock-keyword-face nil t)
      (2 font-lock-function-name-face nil t))
     ("(\\(vuglet\\)\\_>"

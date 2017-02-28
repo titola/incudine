@@ -74,6 +74,38 @@
         (test-result)))
   ((T NIL) (T T) (T NIL) (T T) (T T) (T T)))
 
+;;;; DEFUN*, LAMBDA* and DEFMACRO*
+
+(defun* hi (a (b 32) (c "hi")) (list a b c))
+(defun* star0 ((a 0) (b (+ a 4)) (c (+ a 7))) (list a b c))
+(defun* star1 (&rest a &rest b) (mapcar #'+ a b))
+(defun* star2 ((b 3) &rest x (c 1)) (list b c x))
+
+(defmacro* add-2 (a (b 2)) `(+ ,a ,b))
+(defmacro* star3 ((a 2) b &rest c (d 44) . e) `(list ,a ,b ',c ,d ',e))
+
+(deftest lambda-star.1
+    (list (hi 1) (hi :b 2 :a 3) (hi 3 2 1)
+          (star0 :b 2 :a 60)
+          (star1 1 2 3 4 5)
+          (star2 32) (star2 1 2 3 4 5)
+          (add-2 1 3) (add-2 1) (add-2 :b 3 :a 1)
+          (star3 1 2 3 4 5 6 7 8))
+  ((1 32 "hi") (3 2 "hi") (3 2 1)
+   (60 2 67)
+   (3 5 7 9)
+   (32 1 NIL) (1 3 (2 3 4 5))
+   4 3 4
+   (1 2 (3 4 5 6 7 8) 4 (5 6 7 8))))
+
+(deftest lambda-star.2
+    (list (funcall (lambda* ((b 3) &rest x (c 1)) (list b c x)) 32)
+          (funcall (lambda* ((b 3) &rest x (c 1)) (list b c x)) 1 2 3 4 5)
+          (funcall (lambda* ((b 3) &rest x (c 1) . d) (list b c x d)) 1 2 3 4 5))
+  ((32 1 NIL)
+   (1 3 (2 3 4 5))
+   (1 3 (2 3 4 5) (4 5))))
+
 ;;;; Interpolation
 
 (deftest linear-interp
