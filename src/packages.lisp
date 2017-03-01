@@ -248,7 +248,7 @@
 (defpackage :incudine.edf
   (:use :cl)
   (:import-from #:alexandria #:positive-fixnum #:non-negative-fixnum
-                #:define-constant #:with-gensyms)
+                #:non-negative-real #:define-constant #:with-gensyms)
   (:import-from #:incudine.util #:*standard-optimize-settings*
                 #:*rt-edf-heap-size* #:*rt-thread* #:sample #:+sample-zero+
                 #:next-power-of-two #:power-of-two-p #:with-spinlock-held

@@ -175,21 +175,20 @@
         (t *dummy-node*)))
 
 (defmacro call-node-function (node)
-  (with-gensyms (c)
+  (with-gensyms (c n)
     `(handler-case
-         (apply (node-function ,node) (node-args ,node))
+         (let ((,n ,node))
+           (declare (type node ,n))
+           (apply (node-function ,n) (node-args ,n)))
        (condition (,c)
          (incudine:nrt-funcall
            (lambda () (format *error-output* "ERROR: ~A~%" ,c)))))))
 
 (defmacro sched-loop ()
-  (with-gensyms (curr-node)
-    `(loop while (and (> (heap-next-node *heap*) ,+node-root+)
-                      (>= (+ (incudine:now) ,(sample 0.5))
-                          (node-time (heap-node ,+node-root+))))
-           do (let ((,curr-node (get-heap)))
-                (declare (type node ,curr-node))
-                (call-node-function ,curr-node)))))
+  `(loop while (and (> (heap-next-node *heap*) ,+node-root+)
+                    (>= (+ (incudine:now) ,(sample 0.5))
+                        (node-time (heap-node ,+node-root+))))
+         do (call-node-function (get-heap))))
 
 (defun last-time ()
   (declare #.*standard-optimize-settings* #.incudine.util:*reduce-warnings*)
@@ -228,23 +227,46 @@ The list is empty after FLUSH-PENDING.")
   (incudine.util:with-spinlock-held (*flush-pending-spinlock*)
     (setf *flush-pending-hook* nil)))
 
-(defun flush-pending ()
+(defun force-pending-events (time-step)
+  (declare (type non-negative-real time-step))
+  (when (> (heap-next-node *heap*) +node-root+)
+    (call-node-function (get-heap))
+    (schedule-at (+ (incudine:now) time-step) #'force-pending-events
+                 (list time-step)))
+  (values))
+
+(defun flush-pending-with-time-step (time-step)
+  (declare (type non-negative-real time-step))
   (flet ((rt-flush ()
-           (setf (heap-next-node *heap*) 1))
-         (nrt-flush ()
-           (dolist (fun *flush-pending-hook*)
-             (funcall fun))
-           (clear-flush-pending-hook)))
-    (cond ((rt-thread-p)
-           (rt-flush)
-           (incudine:nrt-funcall #'nrt-flush))
-          ((null *rt-thread*)
-           (rt-flush)
-           (nrt-flush))
-          (t (incudine:fast-nrt-funcall
-              (lambda () (incudine:fast-rt-funcall #'rt-flush)))
-             (nrt-flush)))
-    (values)))
+           (force-pending-events time-step)))
+    (if (or (rt-thread-p) (null *rt-thread*))
+        (rt-flush)
+        (incudine:fast-nrt-funcall
+          (lambda () (incudine:fast-rt-funcall #'rt-flush))))))
+
+(defun flush-pending (&optional time-step)
+  "If TIME-STEP is NIL, remove all the scheduled events.
+If TIME-STEP is a number, the evaluation of a pending event is
+forced every TIME-STEP samples."
+  (declare (type (or null non-negative-real) time-step))
+  (if time-step
+      (flush-pending-with-time-step time-step)
+      (flet ((rt-flush ()
+               (setf (heap-next-node *heap*) 1))
+             (nrt-flush ()
+               (dolist (fun *flush-pending-hook*)
+                 (funcall fun))
+               (clear-flush-pending-hook)))
+        (cond ((rt-thread-p)
+               (rt-flush)
+               (incudine:nrt-funcall #'nrt-flush))
+              ((null *rt-thread*)
+               (rt-flush)
+               (nrt-flush))
+              (t (incudine:fast-nrt-funcall
+                   (lambda () (incudine:fast-rt-funcall #'rt-flush)))
+                 (nrt-flush)))
+        (values))))
 
 (define-constant +heap-pool-size+
     (if (boundp 'incudine.config::*edf-heap-pool-size*)
