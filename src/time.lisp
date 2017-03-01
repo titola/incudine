@@ -357,7 +357,7 @@
        (cond ,@(mapcar (lambda (x)
                          `(,(if (eq (car x) 'otherwise)
                                 t
-                                `(char= ,c ,(car x)))
+                                `(char-equal ,c ,(car x)))
                            ,@(cdr x)))
                        cases)))))
 
@@ -408,39 +408,22 @@
     (#\w `(* ,mult 604800.0 incudine.util:*sample-rate*))
     (otherwise (error 'incudine-unknown-time-unit :name string))))
 
-(defun split-unit-time-string (stream)
-  (declare (type stream stream))
-  (let ((count 1) lst acc)
-    (do ((prev #\space curr)
-         (curr (read-char stream) (read-char stream)))
-        ((char= curr #\])
-         (when lst (push (coerce (nreverse lst) 'string) acc)))
-      (if (char= curr #\space)
-          (when (char/= prev #\space)
-            (push (coerce (nreverse lst) 'string) acc)
-            (setf lst nil)
-            (if (= count 4) (return) (incf count)))
-          (push curr lst)))
-    (nreverse acc)))
-
 (defun parse-time-string (stream subchar arg)
   (declare #.*standard-optimize-settings*
            (type stream stream) (ignore subchar arg))
-  (let ((str-list (split-unit-time-string stream))
-        (*read-default-float-format* *sample-type*))
-    (declare (type list str-list))
-    (if (null str-list)
-        +sample-zero+
-        (let ((mult (reduce-warnings (read-from-string (first str-list))))
-              (time-unit-str (second str-list)))
-          (if (null time-unit-str)
-              mult
-              (destructuring-bind (&optional tempo beats) (cddr str-list)
-                (parse-time-unit time-unit-str mult
-                                 (if tempo (read-from-string tempo))
-                                 (if beats (read-from-string beats)))))))))
+  (let* ((*read-default-float-format* *sample-type*)
+         (l (read-delimited-list #\] stream t)))
+    (if l
+        (let ((mult (first l)))
+          (if (rest l)
+              (let ((time-unit-str (symbol-name (second l))))
+                (destructuring-bind (&optional tempo beats) (cddr l)
+                  (parse-time-unit time-unit-str mult tempo beats)))
+              mult))
+        +sample-zero+)))
 
 (defun set-sharp-square-bracket-syntax ()
+  (set-macro-character #\] (get-macro-character #\) nil))
   (set-dispatch-macro-character #\# #\[ #'parse-time-string))
 
 (defun add-sharp-square-bracket-syntax ()
