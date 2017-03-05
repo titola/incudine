@@ -96,6 +96,9 @@
    #:SFM-RDWR
    #:AMBISONIC-NONE
    #:AMBISONIC-B-FORMAT
+   #:SEEK-SET
+   #:SEEK-CUR
+   #:SEEK-END
    #:ERR-NO-ERROR
    #:ERR-UNRECOGNISED-FORMAT
    #:ERR-SYSTEM
@@ -276,5 +279,6 @@
    #:tell
    #:with-open
    #:get-format
+   #:decode-format
    #:info
    #:duration))

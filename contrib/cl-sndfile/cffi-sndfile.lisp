@@ -198,6 +198,10 @@
          (SFM-RDWR            #x30)
          (AMBISONIC-NONE      #x40)
          (AMBISONIC-B-FORMAT  #x41)
+         ;; Seek offset.
+         (SEEK-SET 0)
+         (SEEK-CUR 1)
+         (SEEK-END 2)
          ;; Error number.
          (ERR-NO-ERROR              0)
          (ERR-UNRECOGNISED-FORMAT   1)
@@ -252,6 +256,20 @@
            (or (gethash x *formats*) 0)))
     (destructuring-bind (major &optional (sample 0) (endian "file")) fmt-list
       (logior (value major) (value sample) (value endian)))))
+
+(defun decode-format (format)
+  (let ((major (logand format #xffffff0000))
+        (subtype (logand format #xffff))
+        (header-type "unknown")
+        (data-format "unknown")
+        (found 0))
+    (maphash (lambda (k v)
+               (cond ((= v major) (setf header-type k) (incf found))
+                     ((= v subtype) (setf data-format k) (incf found)))
+               (when (> found 1)
+                 (return-from decode-format
+                   (values header-type data-format))))
+             sf::*formats*)))
 
 (cffi:defctype sf-count :int64)
 
