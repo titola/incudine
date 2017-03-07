@@ -258,8 +258,10 @@
       (logior (value major) (value sample) (value endian)))))
 
 (defun decode-format (format)
-  (let ((major (logand format #xffffff0000))
-        (subtype (logand format #xffff))
+  (let ((major (logand format SF:FORMAT-TYPEMASK))
+        (subtype (logand format SF:FORMAT-SUBMASK))
+        (endian (svref #("file" "little" "big" "cpu")
+                       (logand format SF:FORMAT-ENDMASK)))
         (header-type "unknown")
         (data-format "unknown")
         (found 0))
@@ -268,7 +270,7 @@
                      ((= v subtype) (setf data-format k) (incf found)))
                (when (> found 1)
                  (return-from decode-format
-                   (values header-type data-format))))
+                   (values header-type data-format endian))))
              sf::*formats*)))
 
 (cffi:defctype sf-count :int64)
