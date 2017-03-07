@@ -187,3 +187,8 @@
                     (b (+ a 4)))
       (* a b))
   #.(sample 21))
+
+;; Trivial case: (incudine:free nil)
+(deftest with-cleanup-empty
+    (with-cleanup)
+  nil)

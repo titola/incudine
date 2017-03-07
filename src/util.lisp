@@ -440,7 +440,7 @@ You can have more than one &rest parameter."
 
 (defgeneric free-p (obj))
 
-(defmethod free ((obj cons))
+(defmethod free ((obj list))
   (dolist (x obj) (free x)))
 
 (defvar *to-free*)
