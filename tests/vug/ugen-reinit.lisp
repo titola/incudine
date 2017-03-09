@@ -64,14 +64,14 @@
   (at #[2.1 sec] #'set-control 123 :dur .4))
 
 (with-dsp-test (ugen-reinit.3 :channels 2
-      :md5 #(155 94 211 222 231 35 83 232 205 190 160 30 126 202 245 238))
+      :md5 #(13 91 68 234 1 63 20 157 133 123 88 229 32 246 82 66))
   (ugen-reinit-test-3 .75 1 :id 123)
   (at #[1/2 sec] #'set-control 123 :dur .1)
   (at #[2 sec] #'set-control 123 :dur .3)
   (at #[3 sec] #'set-control 123 :dur .5))
 
 (with-dsp-test (ugen-reinit.4 :channels 2
-      :md5 #(155 94 211 222 231 35 83 232 205 190 160 30 126 202 245 238))
+      :md5 #(13 91 68 234 1 63 20 157 133 123 88 229 32 246 82 66))
   (ugen-reinit-test-4 .75 1 :id 123)
   (at #[1/2 sec] #'set-control 123 :dur .1)
   (at #[2 sec] #'set-control 123 :dur .3)

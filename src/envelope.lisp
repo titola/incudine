@@ -137,12 +137,11 @@
 
 (declaim (inline exponential-curve-p))
 (defun exponential-curve-p (curve)
-  (or (member curve '(:exp :exponential))
-      (and (numberp curve) (/= curve 0))))
+  (member curve '(:exp :exponential)))
 
 (declaim (inline exponential-curve-index-p))
 (defun exponential-curve-index-p (index)
-  (or (< index +seg-step-func+) (= index +seg-exp-func+)))
+  (= index +seg-exp-func+))
 
 ;;; Default zero level in an exponential curve
 (define-constant +exp-sample-zero+ (sample 1.0e-5))
