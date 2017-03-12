@@ -14,6 +14,7 @@
   *enable-jack-midi*
   *enable-portmidi-output-sample-offset*
   *fade-curve*
+  *foreign-header-file-directories*
   *foreign-library-directories*
   *foreign-nrt-memory-pool-size*
   *foreign-rt-memory-pool-size*

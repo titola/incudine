@@ -12,6 +12,10 @@
 ;; (see CFFI:*FOREIGN-LIBRARY-DIRECTORIES*)
 (setq *foreign-library-directories* nil)
 
+;; Directories to be searched for header files. A list, in which each
+;; element is a string, a pathname, or a simple Lisp expression.
+(setq *foreign-header-file-directories* nil)
+
 ;;;--------------------[ RT and NRT priorities ]--------------------
 
 ;; Thread scheduling algorithm.

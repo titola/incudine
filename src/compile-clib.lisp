@@ -104,13 +104,20 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
       (format nil "~{ -L\"~A\"~}"
               (mapcar #'cffi-mini-eval cffi:*foreign-library-directories*))))
 
+  (defvar *foreign-header-file-directories* nil)
+
+  (defvar *c-header-file-paths*
+    (format nil "~{ -I\"~A\"~}"
+            (mapcar #'cffi-mini-eval *foreign-header-file-directories*)))
+
   (defvar *c-compiler-flags*
     (concatenate 'string "-O3 -Wall"
                  #-(or darwin cygwin) " -fPIC"
                  (if (eq incudine.util:*sample-type* 'double-float)
                      " -D__INCUDINE_USE_64_BIT_SAMPLE__")
                  #+little-endian " -DLITTLE_ENDIAN"
-                 (format nil " -D__INCUDINE_~A__" *sched-policy*)))
+                 (format nil " -D__INCUDINE_~A__" *sched-policy*)
+                 *c-header-file-paths*))
 
   (defvar *c-linker-flags*
     (concatenate 'string
