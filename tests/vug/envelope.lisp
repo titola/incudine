@@ -5,6 +5,11 @@
 (dsp! vug-envelope-test ((env envelope) gain gate dur)
   (out (* (db->lin gain) (envelope env gate dur #'free))))
 
+(dsp! vug-breakpoint-env-test ((bp cons) gain (base real) dur)
+  (out (* (db->lin gain)
+          (envelope (breakpoints->local-env bp :base base :duration 1)
+                    1 dur #'free))))
+
 (defvar *env-test* (make-envelope '(0 1 0) '(.5 .5)))
 
 (with-dsp-test (vug-envelope.1
@@ -88,3 +93,19 @@
   (dadsr *env-test* .75 .4 .1 .7 1.2)
   (vug-envelope-test *env-test* -3 1 1 :id 1)
   (at #[3.6 s] #'set-control 1 :gate 0))
+
+(with-dsp-test (vug-breakpoint-env.1
+      :md5 #(183 129 5 0 186 19 116 173 181 8 135 11 232 53 67 159))
+  (vug-breakpoint-env-test '(0 0 1 1 2 0) -3 8 5))
+
+(with-dsp-test (vug-breakpoint-env.2
+      :md5 #(205 10 165 34 57 93 122 105 141 75 93 223 222 241 202 32))
+  (vug-breakpoint-env-test '(0 0 1 1 10 0) -3 8 5))
+
+(with-dsp-test (vug-breakpoint-env.3
+      :md5 #(112 6 18 235 76 178 48 89 167 225 219 138 24 146 143 109))
+  (vug-breakpoint-env-test '(0 0 1 1 10 0) -3 8 1)
+  (loop for bp in '((0 0 1 1 2 0) (0 0 8 1 10 0) (0 0 1 1 2 .2 4 .8 7 0)
+                    (0 0 1 .5 2 .2 3 .8 4 .1 5 1 8 0))
+        for i from 1 do
+       (at #[i s] #'vug-breakpoint-env-test bp -3 8 1)))

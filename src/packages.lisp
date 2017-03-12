@@ -199,6 +199,7 @@
    ;; envelope
    #:make-local-envelope #:make-local-linen #:make-local-perc
    #:make-local-cutoff #:make-local-asr #:make-local-adsr #:make-local-dadsr
+   #:breakpoints->local-env
    #:line #:expon #:envelope #:node-segment
    ;; noise
    #:white-noise #:pink-noise #:fractal-noise #:crackle

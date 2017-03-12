@@ -631,13 +631,11 @@ point RELEASE-NODE."
                   collect (cadr i))))
       lst))
 
-(defun adjust-breakpoint-list (lst scaler offset &optional dur)
-  (normalize-env-times
-    (loop for (x y0) on lst by #'cddr
-          for y = (let ((v (if (= scaler 1) y0 (* y0 scaler))))
-                    (if (= offset 0) v (+ v offset)))
-          collect x collect y)
-    dur))
+(defun adjust-breakpoint-list (lst scaler offset)
+  (loop for (x y0) on lst by #'cddr
+        for y = (let ((v (if (= scaler 1) y0 (* y0 scaler))))
+                  (if (= offset 0) v (+ v offset)))
+        collect x collect y))
 
 (defun breakpoint-levels-and-times (lst)
   (let ((levels) (times))
@@ -647,22 +645,20 @@ point RELEASE-NODE."
             (push y levels)
           finally (return (values (nreverse levels) (cdr (nreverse times)))))))
 
-(defun breakpoints->env (bp-seq &key curve base scaler offset duration
-                         (loop-node -1) (release-node -1)
-                         restart-level real-time-p)
-  "Create and return a new ENVELOPE from a sequence of break-point pairs."
+(defun breakpoints->env-arguments (bp-seq curve base scaler offset duration)
   (declare (type (or list array) bp-seq))
   (multiple-value-bind (bp-seq-p size)
       (breakpoint-sequence-p bp-seq)
     (if bp-seq-p
         (let ((bplist (let ((lst (coerce bp-seq 'list)))
-                        (if (or scaler offset)
-                            (adjust-breakpoint-list lst (or scaler 1)
-                                                    (or offset 0)
-                                                    duration)
-                            lst))))
-          (declare #.*standard-optimize-settings* #.*reduce-warnings*)
-          (unless (zerop (car bplist))
+                        (normalize-env-times
+                          (if (or scaler offset)
+                              (adjust-breakpoint-list lst (or scaler 1)
+                                                      (or offset 0))
+                              lst)
+                          duration))))
+          (declare #.*standard-optimize-settings*)
+          (unless (reduce-warnings (zerop (car bplist)))
             ;; Add the first pair.
             (setf bplist (cons 0 (cons (cadr bplist) bplist)))
             (when (and curve (null base))
@@ -675,12 +671,22 @@ point RELEASE-NODE."
                                                  collect curve)))))))
           (multiple-value-bind (levels times)
               (breakpoint-levels-and-times bplist)
-            (make-envelope levels times :curve curve :base base
-                           :loop-node loop-node
-                           :release-node release-node
-                           :restart-level restart-level
-                           :real-time-p real-time-p)))
+            (values levels times (and (null base) curve))))
         (msg error "wrong breakpoint sequence"))))
+
+(declaim (inline breakpoints->env))
+(defun breakpoints->env (bp-seq &key curve base scaler offset duration
+                         (loop-node -1) (release-node -1)
+                         restart-level real-time-p)
+  "Create and return a new ENVELOPE from a sequence of break-point pairs."
+  (declare (type (or list array) bp-seq))
+  (multiple-value-bind (levels times curve)
+      (breakpoints->env-arguments bp-seq curve base scaler offset duration)
+    (make-envelope levels times :curve curve :base base
+                   :loop-node loop-node
+                   :release-node release-node
+                   :restart-level restart-level
+                   :real-time-p real-time-p)))
 
 (defun freq-breakpoints->env (bp-seq &key (freq-max (* *sample-rate* 0.5))
                               curve base real-time-p)

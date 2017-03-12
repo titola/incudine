@@ -97,10 +97,30 @@
 (defmacro make-local-dadsr (delay-time attack-time decay-time sustain-level
                             release-time &key (peak-level 1) (curve -4) base
                             restart-level)
-  `(make-envelope (list 0 0 ,peak-level (* ,peak-level ,sustain-level) 0)
-                  (list ,delay-time ,attack-time ,decay-time ,release-time)
-                  :curve ,curve :base ,base :release-node 3
-                  :restart-level ,restart-level))
+  `(make-local-envelope (list 0 0 ,peak-level (* ,peak-level ,sustain-level) 0)
+                        (list ,delay-time ,attack-time ,decay-time ,release-time)
+                        :curve ,curve :base ,base :release-node 3
+                        :restart-level ,restart-level))
+
+(defmacro breakpoints->local-env (bp-seq &key curve base scaler offset duration
+                                  (loop-node -1) (release-node -1)
+                                  restart-level)
+  (with-gensyms (args seq k b scl os dur)
+    `(with ((,seq ,bp-seq)
+            (,k ,curve)
+            (,b ,base)
+            (,scl ,scaler)
+            (,os ,offset)
+            (,dur ,duration)
+            (,args (multiple-value-list
+                     (incudine::breakpoints->env-arguments
+                       ,seq ,k ,b ,scl ,os ,dur))))
+       (make-local-envelope (first ,args) (second ,args)
+                            :curve (if ,b nil (third ,args))
+                            :base ,b
+                            :loop-node ,loop-node
+                            :release-node ,release-node
+                            :restart-level ,restart-level))))
 
 ;;; Simple segments
 
