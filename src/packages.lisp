@@ -427,8 +427,8 @@
    #:+seg-welch-func+ #:+seg-square-func+ #:+seg-cubic-func+
    #:envelope #:envelope-p #:make-envelope #:set-envelope #:envelope-points
    #:envelope-max-points #:envelope-level #:envelope-time #:envelope-curve
-   #:envelope-data #:envelope-duration #:envelope-loop-node
-   #:envelope-release-node
+   #:envelope-base->curves #:set-envelope-base #:envelope-data #:envelope-duration
+   #:envelope-loop-node #:envelope-release-node
    #:envelope-restart-level #:envelope-at
    #:duration #:max-points #:breakpoints->env #:freq-breakpoints->env
    #:copy-envelope #:scale-envelope #:normalize-envelope #:rescale-envelope

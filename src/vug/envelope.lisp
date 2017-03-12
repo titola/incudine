@@ -31,17 +31,20 @@
      incudine::%segment-update-level))
   (object-to-free incudine:make-envelope update-local-envelope))
 
-(defmacro make-local-envelope (levels times &key curve (loop-node -1)
+(defmacro make-local-envelope (levels times &key curve base (loop-node -1)
                                (release-node -1) restart-level)
-  (with-gensyms (%levels %times %curve env)
+  (with-gensyms (%levels %times %curve %base env)
     `(with ((,%levels (locally (declare #.*reduce-warnings*)
                         ,levels))
             (,%times (locally (declare #.*reduce-warnings*)
                        ,times))
             (,%curve (locally (declare #.*reduce-warnings*)
                        ,curve))
+            (,%base (locally (declare #.*reduce-warnings*)
+                      ,base))
             (,env (incudine:make-envelope ,%levels ,%times
                     :curve ,%curve
+                    :base ,%base
                     :loop-node ,loop-node
                     :release-node ,release-node
                     :restart-level ,restart-level
@@ -61,42 +64,43 @@
                                        ,@(butlast args 2)))))))
 
 (defmacro make-local-linen (attack-time sustain-time release-time
-                            &key (level 1) (curve :lin) restart-level)
+                            &key (level 1) (curve :lin) base restart-level)
   `(make-local-envelope (list 0 ,level ,level 0)
                         (list ,attack-time ,sustain-time ,release-time)
-                        :curve ,curve :restart-level ,restart-level))
+                        :curve ,curve :base ,base :restart-level ,restart-level))
 
 (defmacro make-local-perc (attack-time release-time
-                           &key (level 1) (curve -4) restart-level)
+                           &key (level 1) (curve -4) base restart-level)
   `(make-local-envelope (list 0 ,level 0) (list ,attack-time ,release-time)
-                        :curve ,curve :restart-level ,restart-level))
+                        :curve ,curve :base ,base :restart-level ,restart-level))
 
-(defmacro make-local-cutoff (release-time &key (level 1) (curve :exp)
+(defmacro make-local-cutoff (release-time &key (level 1) (curve :exp) base
                              restart-level)
   `(make-local-envelope (list ,level 0) (list ,release-time)
-                        :curve ,curve :release-node 0
+                        :curve ,curve :base ,base :release-node 0
                         :restart-level ,restart-level))
 
 (defmacro make-local-asr (attack-time sustain-level release-time
-                          &key (curve -4) restart-level)
+                          &key (curve -4) base restart-level)
   `(make-local-envelope (list 0 ,sustain-level 0)
                         (list ,attack-time ,release-time)
-                        :curve ,curve :release-node 1
+                        :curve ,curve :base ,base :release-node 1
                         :restart-level ,restart-level))
 
 (defmacro make-local-adsr (attack-time decay-time sustain-level release-time
-                           &key (peak-level 1) (curve -4) restart-level)
+                           &key (peak-level 1) (curve -4) base restart-level)
   `(make-local-envelope (list 0 ,peak-level (* ,peak-level ,sustain-level) 0)
                         (list ,attack-time ,decay-time ,release-time)
-                        :curve ,curve :release-node 2
+                        :curve ,curve :base ,base :release-node 2
                         :restart-level ,restart-level))
 
 (defmacro make-local-dadsr (delay-time attack-time decay-time sustain-level
-                            release-time &key (peak-level 1) (curve -4)
+                            release-time &key (peak-level 1) (curve -4) base
                             restart-level)
   `(make-envelope (list 0 0 ,peak-level (* ,peak-level ,sustain-level) 0)
                   (list ,delay-time ,attack-time ,decay-time ,release-time)
-                  :curve ,curve :release-node 3 :restart-level ,restart-level))
+                  :curve ,curve :base ,base :release-node 3
+                  :restart-level ,restart-level))
 
 ;;; Simple segments
 

@@ -52,6 +52,17 @@
 ;;   * a list of the prior values to specify the
 ;;     curvature values for each segments
 
+;; The :BASE keyword is an alternative to :CURVE. If BASE is a number,
+;; it is the envelope's base in the style of CLM (Common Lisp Music),
+;; where base is e^k and the curvature depends on the highest and
+;; lowest levels. CURVE is ignored if BASE is non-NIL.
+;; The utility ENVELOPE-BASE->CURVES returns the list of curvature
+;; values for the :CURVE keyword related to an envelope's base in CLM
+;; style:
+
+(envelope-base->curves 10 '(0 1 .5 0))
+;; (2.3025851 -0.597837 -1.704748)
+
 ;; If the envelope is sustained, the :RELEASE-NODE keyword specifies
 ;; the point of the release (starting from 0). The default is -1 that
 ;; means "envelope without sustain".
@@ -60,6 +71,19 @@
 ;; starting point of the loop of the segments during the sustain phase
 ;; of the envelope. The ending point is the point that precedes the
 ;; release point.
+
+;; BREAKPOINTS->ENV and FREQ-BREAKPOINTS->ENV create and return a new
+;; ENVELOPE from a sequence of break-point pairs.
+;; BREAKPOINTS->ENV with the keywords BASE, SCALER, OFFSET and
+;; DURATION defines an envelope in the style of CLM, for example
+
+(defun* make-clm-env (breakpoint-list (scaler 1.0) duration (offset 0.0)
+                      base end length)
+  (breakpoints->env breakpoint-list :scaler scaler :offset offset
+                    :base base
+                    :duration (or duration
+                                  (and end (* end *sample-duration*))
+                                  (and length (* length *sample-duration*)))))
 
 ;; There are useful macros to create frequently used envelope shapes:
 
@@ -73,6 +97,7 @@
 ;; There are also utilities to edit an existent envelope:
 
 ;;   * SET-ENVELOPE
+;;   * SET-ENVELOPE-BASE
 ;;   * LINEN
 ;;   * PERC
 ;;   * CUTOFF

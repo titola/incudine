@@ -98,6 +98,19 @@ Slots with <span style="color: #b0c4de;">:INSTANCE</span> allocation:
       </ul>
 
       <p>
+        The <code>:BASE</code> keyword is an alternative to <code>:CURVE</code>.
+        If <code>BASE</code> is a number, it is the envelope's base in the style
+        of CLM (Common Lisp Music), where <code>BASE</code> is <code>e^k</code> and
+        the curvature depends on the highest and lowest levels. <code>CURVE</code>
+        is ignored if <code>BASE</code> is non-NIL. The utility <code>ENVELOPE-BASE->CURVES</code>
+        returns the list of curvature values for the :CURVE keyword related to an
+        envelope's base in CLM style:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (envelope-base->curves 10 '(0 1 .5 0))
+(2.3025851 -0.597837 -1.704748)</pre>
+
+      <p>
         If the envelope is sustained, the <code>:RELEASE-NODE</code> keyword
         specifies the point of the release (starting from 0). The default is -1
         that means "envelope without sustain".
@@ -109,6 +122,23 @@ Slots with <span style="color: #b0c4de;">:INSTANCE</span> allocation:
         of the envelope. The ending point is the point that precedes the release
         point.
       </p>
+
+      <p>
+        <code>BREAKPOINTS->ENV</code> and <code>FREQ-BREAKPOINTS->ENV</code>
+        create and return a new <code>ENVELOPE</code> from a sequence of
+        break-point pairs. <code>BREAKPOINTS->ENV</code> with the keywords
+        <code>BASE</code>, <code>SCALER</code>, <code>OFFSET</code> and
+        <code>DURATION</code> defines an envelope in the style of CLM,
+        for example
+      </p>
+
+      <pre class="src src-lisp">(defun* <span style="color: #87cefa;">make-clm-env</span> (breakpoint-list (scaler 1.0) duration (offset 0.0)
+                      base end length)
+  (breakpoints->env breakpoint-list <span style="color: #b0c4de;">:scaler</span> scaler <span style="color: #b0c4de;">:offset</span> offset
+                    <span style="color: #b0c4de;">:base</span> base
+                    <span style="color: #b0c4de;">:duration</span> (or duration
+                                  (and end (* end *sample-duration*))
+                                  (and length (* length *sample-duration*)))))</pre>
 
       <p>
         There are useful macros to create frequently used envelope shapes:
@@ -129,6 +159,7 @@ Slots with <span style="color: #b0c4de;">:INSTANCE</span> allocation:
 
       <ul>
         <li>SET-ENVELOPE</li>
+        <li>SET-ENVELOPE-BASE</li>
         <li>LINEN</li>
         <li>PERC</li>
         <li>CUTOFF</li>

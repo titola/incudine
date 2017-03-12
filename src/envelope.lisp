@@ -180,13 +180,33 @@
         ((= x +seg-cubic-func+) :cubic)
         (t x)))
 
-(defun set-envelope (env levels times &key curve
+(declaim (inline envelope-base->curve))
+(defun envelope-base->curve (base lev0 lev1 min max)
+  (let ((b1 (1- base))
+        (b2 (- max (* base min))))
+    (/ (+ (* lev1 b1) b2)
+       (+ (* lev0 b1) b2))))
+
+(defun envelope-base->curves (base levels)
+  (cond ((< base 0)
+         (incudine-error "Envelope's base ~A less than zero." base))
+        ((= base 0) :step)
+        ((= base 1) :linear)
+        (t
+         (loop for y0 = (car levels) then y1
+               for y1 in (cdr levels)
+               with min = (reduce #'min levels)
+                and max = (reduce #'max levels)
+               collect (log (envelope-base->curve base y0 y1 min max))))))
+
+(defun set-envelope (env levels times &key curve base
                      (loop-node -1) (release-node -1)
                      (restart-level nil restart-level-p))
   (declare (type envelope env) (type list levels times))
   (let ((data (envelope-data
-               (check-envelope-points env levels times)))
-        (curve (cond ((null curve) (list :lin))
+                (check-envelope-points env levels times)))
+        (curve (cond (base (envelope-base->curves base levels))
+                     ((null curve) (list :lin))
                      ((atom curve) (list curve))
                      (t curve)))
         (first-level (sample (car levels))))
@@ -298,8 +318,25 @@
   ;; is (de)allocated in realtime from a single rt-thread.
   (rt-eval () (foreign-rt-free ptr)))
 
-(defun make-envelope (levels times &key curve (loop-node -1)
+(defun make-envelope (levels times &key curve base (loop-node -1)
                       (release-node -1) restart-level real-time-p)
+  "Create and return a new ENVELOPE struct from a list of LEVELS and
+a list of TIMES.
+If BASE is a number, it is the envelope's base in the style of CLM
+(Common Lisp Music), where BASE is e^k and the curvature depends on
+the highest and lowest levels.
+CURVE sets the shape of the segments; the possible values are
+:STEP, :LIN or :LINEAR (default), :SIN or :SINE, :WEL or :WELCH,
+:SQR or :SQUARE, :CUB or :CUBIC, a number that represents the
+curvature value between two levels for all the segments or a list of the
+prior values to specify the curvature values for each segments.
+CURVE is ignored if BASE is non-NIL.
+If the envelope is sustained, RELEASE-NODE specifies the point of the
+release (starting from 0). The default is -1 that means 'envelope
+without sustain'. If LOOP-NODE is a non-negative value, it is the
+starting point of the loop of the segments during the sustain phase of
+the envelope. The ending point is the point that precedes the release
+point RELEASE-NODE."
   (declare (type list levels times)
            (type fixnum loop-node release-node)
            (type boolean real-time-p))
@@ -317,7 +354,7 @@
                                                   (sample restart-level))
                               :real-time-p real-time-p
                               :foreign-free free-function)))
-    (set-envelope env levels times :curve curve :loop-node loop-node
+    (set-envelope env levels times :curve curve :base base :loop-node loop-node
                   :release-node release-node)
     (incudine-finalize env (lambda () (funcall free-function data)))
     env))
@@ -425,6 +462,19 @@
         curve))))
 
 (defsetf envelope-curve set-envelope-curve)
+
+(declaim (inline envelope-levels))
+(defun envelope-levels (env)
+  (loop for i below (envelope-points env) collect (envelope-level env i)))
+
+(defun set-envelope-base (env base)
+  (declare (type envelope env) (type real base))
+  (let ((curves (envelope-base->curves base (envelope-levels env))))
+    (declare #.*standard-optimize-settings*)
+    (loop for c in curves
+          for i of-type non-negative-fixnum from 1
+          do (setf (envelope-curve env i) c))
+    base))
 
 (defmacro %envelope-at (beg end pos curve tmp0 tmp1 tmp2)
   (with-gensyms (sqrt-s expt-s x power)
@@ -571,145 +621,174 @@
       ((>= i points) (nreverse (cons :lin acc)))
     (push curve acc)))
 
-(defun breakpoints->env (spbeq &key curve (loop-node -1)
-                         (release-node -1) restart-level real-time-p)
-  (declare (type (or list array) spbeq))
-  (multiple-value-bind (spbeq-p size)
-      (breakpoint-sequence-p spbeq)
-    (if spbeq-p
-        (labels ((rec (lst levels times old-time)
-                   (if lst
-                       (rec (cddr lst) (cons (cadr lst) levels)
-                            (cons (- (car lst) old-time) times)
-                            (car lst))
-                       (make-envelope (nreverse levels) (nreverse times)
-                                      :curve curve
-                                      :loop-node loop-node
-                                      :release-node release-node
-                                      :restart-level restart-level
-                                      :real-time-p real-time-p))))
-          (let ((bplist (coerce spbeq 'list)))
-            (declare #.*standard-optimize-settings* #.*reduce-warnings*)
-            (unless (zerop (car bplist))
-              ;; Add the first pair
-              (setf bplist (cons 0 (cons (cadr bplist) bplist)))
-              (if curve
-                  (let ((points (1- (the positive-fixnum (/ size 2)))))
-                    (declare (type positive-fixnum points))
-                    ;; Add the first curve
-                    (setf curve (if (consp curve)
-                                    (cons :lin (expand-curve-list curve points))
-                                    (cons :lin (loop repeat points
-                                                     collect curve)))))))
-            (rec (cddr bplist) (list (cadr bplist)) nil (car bplist))))
+(defun normalize-env-times (lst dur)
+  (if dur
+      (let ((scl (/ (car (last lst 2)) dur)))
+        (if (or (= scl 0) (< (car lst) 0))
+            (error "Malformed breakpoint list pairs.")
+            (loop for i on lst by #'cddr
+                  collect (/ (car i) scl)
+                  collect (cadr i))))
+      lst))
+
+(defun adjust-breakpoint-list (lst scaler offset &optional dur)
+  (normalize-env-times
+    (loop for (x y0) on lst by #'cddr
+          for y = (let ((v (if (= scaler 1) y0 (* y0 scaler))))
+                    (if (= offset 0) v (+ v offset)))
+          collect x collect y)
+    dur))
+
+(defun breakpoint-levels-and-times (lst)
+  (let ((levels) (times))
+    (loop for t0 = 0 then t1
+          for (t1 y) on lst by #'cddr do
+            (push (- t1 t0) times)
+            (push y levels)
+          finally (return (values (nreverse levels) (cdr (nreverse times)))))))
+
+(defun breakpoints->env (bp-seq &key curve base scaler offset duration
+                         (loop-node -1) (release-node -1)
+                         restart-level real-time-p)
+  "Create and return a new ENVELOPE from a sequence of break-point pairs."
+  (declare (type (or list array) bp-seq))
+  (multiple-value-bind (bp-seq-p size)
+      (breakpoint-sequence-p bp-seq)
+    (if bp-seq-p
+        (let ((bplist (let ((lst (coerce bp-seq 'list)))
+                        (if (or scaler offset)
+                            (adjust-breakpoint-list lst (or scaler 1)
+                                                    (or offset 0)
+                                                    duration)
+                            lst))))
+          (declare #.*standard-optimize-settings* #.*reduce-warnings*)
+          (unless (zerop (car bplist))
+            ;; Add the first pair.
+            (setf bplist (cons 0 (cons (cadr bplist) bplist)))
+            (when (and curve (null base))
+              (let ((points (1- (the positive-fixnum (/ size 2)))))
+                (declare (type positive-fixnum points))
+                ;; Add the first curve.
+                (setf curve (if (consp curve)
+                                (cons :lin (expand-curve-list curve points))
+                                (cons :lin (loop repeat points
+                                                 collect curve)))))))
+          (multiple-value-bind (levels times)
+              (breakpoint-levels-and-times bplist)
+            (make-envelope levels times :curve curve :base base
+                           :loop-node loop-node
+                           :release-node release-node
+                           :restart-level restart-level
+                           :real-time-p real-time-p)))
         (msg error "wrong breakpoint sequence"))))
 
-(defun freq-breakpoints->env (spbeq &key (freq-max (* *sample-rate* 0.5))
-                              curve real-time-p)
-  (declare (type (or list array) spbeq))
-  (multiple-value-bind (spbeq-p size)
-      (breakpoint-sequence-p spbeq)
-    (if spbeq-p
+(defun freq-breakpoints->env (bp-seq &key (freq-max (* *sample-rate* 0.5))
+                              curve base real-time-p)
+  (declare (type (or list array) bp-seq))
+  (multiple-value-bind (bp-seq-p size)
+      (breakpoint-sequence-p bp-seq)
+    (if bp-seq-p
         (multiple-value-bind (bplist last-freq last-value)
-            (if (listp spbeq)
-                (let ((spbeq-rev (reverse spbeq)))
-                  (values spbeq (cadr spbeq-rev) (car spbeq-rev)))
-                (values (coerce spbeq 'list)
-                        (aref spbeq (- size 2))
-                        (aref spbeq (- size 1))))
+            (if (listp bp-seq)
+                (let ((bp-seq-rev (reverse bp-seq)))
+                  (values bp-seq (cadr bp-seq-rev) (car bp-seq-rev)))
+                (values (coerce bp-seq 'list)
+                        (aref bp-seq (- size 2))
+                        (aref bp-seq (- size 1))))
           (let* ((points (1- (/ size 2)))
                  (curve (expand-curve-list curve points)))
             (unless (= last-freq freq-max)
               ;; Add the last pair
               (setf bplist (nconc bplist (list freq-max last-value)))
-              (if curve
-                  (setf curve (if (consp curve)
-                                  (nconc (expand-curve-list curve points)
-                                         (list :lin))
-                                  (expanded-atomic-curve-plus-linear curve
-                                                                     points)))))
-            (breakpoints->env bplist :curve curve :real-time-p real-time-p)))
+              (when (and curve (null base))
+                (setf curve
+                      (if (consp curve)
+                          (nconc (expand-curve-list curve points) (list :lin))
+                          (expanded-atomic-curve-plus-linear curve points)))))
+            (breakpoints->env bplist :curve curve :base base
+                              :real-time-p real-time-p)))
         (msg error "wrong breakpoint sequence"))))
 
 ;;; Frequently used envelope shapes
 
 (declaim (inline make-linen))
 (defun make-linen (attack-time sustain-time release-time
-                   &key (level 1) (curve :lin) restart-level real-time-p)
+                   &key (level 1) (curve :lin) base restart-level real-time-p)
   (make-envelope (list 0 level level 0)
                  (list attack-time sustain-time release-time)
-                 :curve curve :restart-level restart-level
+                 :curve curve :base base :restart-level restart-level
                  :real-time-p real-time-p))
 
 (declaim (inline linen))
 (defun linen (obj attack-time sustain-time release-time
-              &key (level 1) (curve :lin))
+              &key (level 1) (curve :lin) base)
   (set-envelope obj `(0 ,level ,level 0)
                 `(,attack-time ,sustain-time ,release-time)
-                :curve curve))
+                :curve curve :base base))
 
 (declaim (inline make-perc))
 (defun make-perc (attack-time release-time
-                  &key (level 1) (curve -4) restart-level real-time-p)
+                  &key (level 1) (curve -4) base restart-level real-time-p)
   (make-envelope (list 0 level 0) (list attack-time release-time)
-                 :curve curve :restart-level restart-level
+                 :curve curve :base base :restart-level restart-level
                  :real-time-p real-time-p))
 
 (declaim (inline perc))
-(defun perc (obj attack-time release-time &key (level 1) (curve -4))
+(defun perc (obj attack-time release-time &key (level 1) (curve -4) base)
   (set-envelope obj `(0 ,level 0) `(,attack-time ,release-time)
-                :curve curve))
+                :curve curve :base base))
 
 (declaim (inline make-cutoff))
-(defun make-cutoff (release-time &key (level 1) (curve :exp) restart-level
+(defun make-cutoff (release-time &key (level 1) (curve :exp) base restart-level
                     real-time-p)
   (make-envelope (list level 0) (list release-time)
-                 :curve curve :release-node 0 :restart-level restart-level
-                 :real-time-p real-time-p))
+                 :curve curve :base base :release-node 0
+                 :restart-level restart-level :real-time-p real-time-p))
 
 (declaim (inline cutoff))
-(defun cutoff (env release-time &key (level 1) (curve :exp))
-  (set-envelope env `(,level 0) `(,release-time) :curve curve :release-node 0))
+(defun cutoff (env release-time &key (level 1) (curve :exp) base)
+  (set-envelope env `(,level 0) `(,release-time) :curve curve :base base
+                :release-node 0))
 
 (declaim (inline make-asr))
 (defun make-asr (attack-time sustain-level release-time
-                 &key (curve -4) restart-level real-time-p)
+                 &key (curve -4) base restart-level real-time-p)
   (make-envelope (list 0 sustain-level 0) (list attack-time release-time)
-                 :curve curve :release-node 1 :restart-level restart-level
-                 :real-time-p real-time-p))
+                 :curve curve :base base :release-node 1
+                 :restart-level restart-level :real-time-p real-time-p))
 
 (declaim (inline asr))
-(defun asr (env attack-time sustain-level release-time &key (curve -4))
+(defun asr (env attack-time sustain-level release-time &key (curve -4) base)
   (set-envelope env `(0 ,sustain-level 0) `(,attack-time ,release-time)
-                :curve curve :release-node 1))
+                :curve curve :base base :release-node 1))
 
 (declaim (inline make-adsr))
 (defun make-adsr (attack-time decay-time sustain-level release-time
-                  &key (peak-level 1) (curve -4) restart-level real-time-p)
+                  &key (peak-level 1) (curve -4) base restart-level real-time-p)
   (make-envelope (list 0 peak-level (* peak-level sustain-level) 0)
                  (list attack-time decay-time release-time)
-                 :curve curve :release-node 2 :restart-level restart-level
-                 :real-time-p real-time-p))
+                 :curve curve :base base :release-node 2
+                 :restart-level restart-level :real-time-p real-time-p))
 
 (declaim (inline adsr))
 (defun adsr (env attack-time decay-time sustain-level release-time
-             &key (peak-level 1) (curve -4))
+             &key (peak-level 1) (curve -4) base)
   (set-envelope env `(0 ,peak-level ,(* peak-level sustain-level) 0)
                 `(,attack-time ,decay-time ,release-time) :curve curve
-                :release-node 2))
+                :base base :release-node 2))
 
 (declaim (inline make-dadsr))
 (defun make-dadsr (delay-time attack-time decay-time sustain-level
-                   release-time &key (peak-level 1) (curve -4)
+                   release-time &key (peak-level 1) (curve -4) base
                    restart-level real-time-p)
   (make-envelope (list 0 0 peak-level (* peak-level sustain-level) 0)
                  (list delay-time attack-time decay-time release-time)
-                 :curve curve :release-node 3 :restart-level restart-level
-                 :real-time-p real-time-p))
+                 :curve curve :base base :release-node 3
+                 :restart-level restart-level :real-time-p real-time-p))
 
 (declaim (inline dadsr))
 (defun dadsr (env delay-time attack-time decay-time sustain-level release-time
-              &key (peak-level 1) (curve -4))
+              &key (peak-level 1) (curve -4) base)
   (set-envelope env `(0 0 ,peak-level ,(* peak-level sustain-level) 0)
                 `(,delay-time ,attack-time ,decay-time ,release-time)
-                :curve curve :release-node 3))
+                :curve curve :base base :release-node 3))
