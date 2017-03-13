@@ -190,8 +190,8 @@
 (defun envelope-base->curves (base levels)
   (cond ((< base 0)
          (incudine-error "Envelope's base ~A less than zero." base))
-        ((= base 0) :step)
-        ((= base 1) :linear)
+        ((= base 0) (list :step))
+        ((= base 1) (list :linear))
         (t
          (loop for y0 = (car levels) then y1
                for y1 in (cdr levels)
