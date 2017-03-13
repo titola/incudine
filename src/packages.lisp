@@ -165,7 +165,8 @@
    #:ugen #:ugen-instance #:with-ugen-instance #:with-ugen-instances
    #:define-ugen #:ugen-debug #:compile-vug #:compiled-vug-p
    #:ugen-perf-function #:ugen-reinit-function #:ugen-return-pointer
-   #:ugen-control-pointer #:define-ugen-control-setter
+   #:ugen-control-pointer
+   #:define-ugen-control-getter #:define-ugen-control-setter
    #:ugen-funcall #:destroy-ugen #:rename-ugen #:fix-ugen #:all-ugen-names
    #:*eval-some-specials-p* #:*specials-to-eval*
    #:with

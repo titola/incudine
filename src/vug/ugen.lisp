@@ -101,43 +101,88 @@ to call to get the control value."
           `(coerce ,value ',ctrl-type)
           value)))
 
-(defmacro define-ugen-control-setter (ugen-name control-name
-                                      &optional setter-name (value-type nil
-                                                             value-type-p))
+(defmacro define-ugen-control-getter (ugen-name control-name
+                                      &optional getter-name arg-name ugen-type
+                                      (inline-p t) method-p)
   (let* ((u (ugen ugen-name))
          (index (index-of-ugen-control u control-name)))
     (when index
       (let* ((flag (ugen-control-flag u index))
-             (type (ugen-arg-type u index))
+             (utype (ugen-arg-type u index))
+             (ptr-p (ctrl-foreign-object-p flag))
+             (id (* index 2))
+             (name (or getter-name
+                       (format-symbol *package* "~A-~A" ugen-name
+                                      control-name)))
+             (ugen-instance (ensure-symbol (if arg-name
+                                               (symbol-name arg-name)
+                                               "UGEN-INSTANCE")))
+             (ugen-type (or ugen-type 'ugen-instance))
+             (type (if ptr-p
+                       (if (subtypep utype 'sample) utype :pointer)
+                       utype))
+             (ctrl (gensym "CTRL")))
+        `(progn
+           ,@(when (and inline-p (not method-p))
+               `((declaim (inline ,name))))
+           (,@(if method-p
+                  `(defmethod ,name ((,ugen-instance ,ugen-type)))
+                  `(defun ,name (,ugen-instance)
+                     (declare (type ,ugen-type ,ugen-instance))))
+             (let ((,ctrl (ugen-instance-controls ,ugen-instance)))
+               ,(if ptr-p
+                    `(mem-ref (svref ,ctrl ,id) ',type)
+                    `(the ,type (funcall (svref ,ctrl ,id))))))
+           (values (compile ',name)))))))
+
+(defmacro define-ugen-control-setter (ugen-name control-name
+                                      &optional setter-name value-type
+                                      value-name arg-name ugen-type
+                                      (inline-p t) method-p)
+  (let* ((u (ugen ugen-name))
+         (index (index-of-ugen-control u control-name)))
+    (when index
+      (let* ((flag (ugen-control-flag u index))
+             (utype (ugen-arg-type u index))
              (ptr-p (ctrl-foreign-object-p flag))
              (id (* index 2))
              (name (or setter-name
                        (format-symbol *package* "SET-~A-~A"
-                                      ugen-name control-name))))
-        (with-gensyms (ctrl)
-          (with-ensure-symbols (ugen-instance value)
-            (let* ((type (if ptr-p
-                             (if (subtypep type 'sample) type :pointer)
-                             type))
-                   (new-value (ugen-control-new-value value type value-type
-                                                      value-type-p)))
-              `(progn
-                 ,@(if (and ptr-p
-                            value-type-p
+                                      ugen-name control-name)))
+             (ugen-instance (ensure-symbol (if arg-name
+                                               (symbol-name arg-name)
+                                               "UGEN-INSTANCE")))
+             (value (or value-name (ensure-symbol "VALUE")))
+             (ugen-type (or ugen-type 'ugen-instance))
+             (type (if ptr-p
+                       (if (subtypep utype 'sample) utype :pointer)
+                       utype))
+             (new-value (ugen-control-new-value value type value-type
+                                                value-type))
+             (ctrl (gensym "CTRL")))
+        `(progn
+           ,@(when (or (and inline-p (not method-p))
+                       (and ptr-p
+                            value-type
                             (or (subtypep value-type 'sample)
-                                (subtypep value-type 'foreign-pointer)))
-                       `((declaim (inline ,name))))
-                 (defun ,name (,ugen-instance ,value)
-                   (declare (type ugen-instance ,ugen-instance)
-                            ,@(if value-type-p `((type ,value-type ,value))))
-                   (let ((,ctrl (ugen-instance-controls ,ugen-instance)))
-                     ,@(if ptr-p `((setf (mem-ref (svref ,ctrl ,id) ',type)
-                                         ,new-value)))
-                     ,@(if (ctrl-update-function-p flag)
-                           `((funcall (the function (svref ,ctrl ,(1+ id)))
-                                      ,@(unless ptr-p `(,new-value)))))
-                     (values)))
-                 (values (compile ',name))))))))))
+                                (subtypep value-type 'foreign-pointer))))
+               `((declaim (inline ,name))))
+           (,@(if method-p
+                  `(defmethod (setf ,name)
+                       (,(if value-type `(,value ,value-type) value)
+                        (,ugen-instance ,ugen-type)))
+                  `(defun ,name (,ugen-instance ,value)
+                     (declare (type ,ugen-type ,ugen-instance)
+                              ,@(when value-type
+                                  `((type ,value-type ,value))))))
+             (let ((,ctrl (ugen-instance-controls ,ugen-instance)))
+               ,@(if ptr-p `((setf (mem-ref (svref ,ctrl ,id) ',type)
+                                   ,new-value)))
+               ,@(if (ctrl-update-function-p flag)
+                     `((funcall (the function (svref ,ctrl ,(1+ id)))
+                                ,@(unless ptr-p `(,new-value)))))
+               ,value))
+           (values (compile ',name)))))))
 
 (defmacro ugen-funcall (name &rest arguments)
   `(funcall (ugen-callback (ugen ,name)) ,@arguments))
