@@ -63,7 +63,7 @@
 (counts 16)
 ;; (0 1 2 3 4 5 6 0 1 2 3 4 5 6 0 1)
 
-;; The return type of the next UGEN is SAMPLE…
+;; The return type of the next UGEN is SAMPLE...
 
 (define-ugen zibaldone sample (night deep (darkness fixnum))
   (buzz night deep darkness))
@@ -74,8 +74,8 @@
 *notturno*
 ;; #<UGEN-INSTANCE ZIBALDONE>
 
-;; … but the return type of the performance function is NIL. We
-;; retrieve the result from the foreign pointer:
+;; ...but the return type of the performance function is NIL.
+;; We retrieve the result from the foreign pointer:
 
 (defun star-samples (n)
   (loop repeat n do (funcall (ugen-perf-function *notturno*))
@@ -123,6 +123,17 @@
 ;; #.(SB-SYS:INT-SAP #X0072F500)
 ;; #<CLOSURE (LAMBDA ()) {1005B7253B}>
 
+;; Note: if the control is not represented by a foreign object, the
+;; returned pointer is a function of no arguments to call to get the
+;; control value. For example, DARKNESS is of fixnum type, therefore
+
+(ugen-control-pointer *notturno* 'darkness)
+;; #<CLOSURE (LAMBDA () ...>
+;; #<CLOSURE (LAMBDA (INCUDINE.VUG::X)...>
+
+(funcall *)
+;; 30
+
 ;; So, a low level way to transform the night is
 
 (multiple-value-bind (ptr fn)
@@ -135,5 +146,5 @@
     ;; notte confondendo gli oggetti, l'animo non ne
     ;; concepisce che un'immagine vaga, indistinta,
     ;; incompleta, sì di essa che quanto ella
-    ;; contiene. Così oscurità, profondo ec. ec. –
-    ;; Giacomo Leopardi (Zibaldone)
+    ;; contiene. Così oscurità, profondo ec. ec.
+    ;;               -- Giacomo Leopardi (Zibaldone)

@@ -160,6 +160,14 @@
    11973 -5919 -5167 3868 -6989 -350 -406 1051 -3246 -4440 -1074 -21 -2951
    -3946 -1188 -2763 -4047 -4353 -3300 -932 2352))
 
+(with-ugen-test (ugen.8)
+    (with-ugen-instance (u ugen-test-1 100 123456 30)
+      ;; NH is of fixnum type, so the pointer is a function.
+      (let ((nh0 (funcall (ugen-control-pointer u 'nh))))
+        (set-ugen-test-1-nh u 50)
+        (values nh0 (funcall (ugen-control-pointer u 'nh)))))
+  30 50)
+
 (deftest with-cleanup-ugen-instance.1
     (free-p (with-cleanup (funcall (ugen-test-1 100 123456 30))))
   T)
