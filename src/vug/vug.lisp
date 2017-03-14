@@ -1566,19 +1566,32 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
                args types)
      ,@body))
 
-(declaim (inline extract-vug-config))
-(defun extract-vug-config (code)
+(declaim (inline unquoting-spec-p))
+(defun unquoting-spec-p (name)
+  (member name '(:pre-hook)))
+
+;;; SBCL VOP style for optional VUG SPEC's.
+(defun extract-vug-specs (code)
   (declare (type list code))
   (let ((doc (when (stringp (car code))
                (car code))))
-    (do ((l (if doc (cdr code) code) (cddr l))
+    (do ((l (if doc (cdr code) code) (cdr l))
          (acc nil))
-        ((or (null l) (not (keywordp (car l))))
+        ((or (null l) (not (keywordp (caar l))))
          (values doc (when acc `(list ,@acc)) l))
-      (push (second l) acc)
-      (push (first l) acc))))
+      (let ((key (caar l))
+            (value (cdar l)))
+        (setf acc (list* key (if (unquoting-spec-p key)
+                                 (list* 'list value)
+                                 (list 'quote value))
+                         acc))))))
 
-(declaim (inline arg-names-and-types))
+(defun get-vug-spec (name specs)
+  (getf specs name))
+
+(defun call-vug-pre-hooks (specs)
+  (dolist (fn (get-vug-spec :pre-hook specs)) (funcall fn)))
+
 (defun arg-names-and-types (lambda-list)
   (let ((names) (types))
     (dolist (arg lambda-list)
@@ -1600,17 +1613,17 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
 (defmacro define-vug (name lambda-list &body body)
   (if (dsp name)
       (msg error "~A was defined to be a DSP." name)
-      (with-gensyms (fn init)
+      (with-gensyms (fn s)
         (multiple-value-bind (args types) (arg-names-and-types lambda-list)
-          (multiple-value-bind (doc config vug-body) (extract-vug-config body)
+          (multiple-value-bind (doc specs vug-body) (extract-vug-specs body)
             `(let ((,fn (lambda ,args ,doc
                           (flet ((,fn ,args
                                    (with-coerce-arguments ,lambda-list
                                      (vug-block
                                        (with-argument-bindings (,args ,types t)
                                          ,@vug-body)))))
-                            (let ((,init (getf ,config :pre-hook)))
-                              (when ,init (funcall ,init))
+                            (let ((,s ,specs))
+                              (call-vug-pre-hooks ,s)
                               (,fn ,@args))))))
                (setf (symbol-function ',name) ,fn)
                (add-vug ',name ',args ',types ,fn)))))))
@@ -1730,15 +1743,21 @@ variable is updated after the change of the 'followed' PARAMETERS."
 (defun expand-vuglet-def (def)
   (destructuring-bind (name lambda-list &rest body) def
     (let ((args (argument-names lambda-list))
-          (types (argument-types lambda-list)))
-      (list name args
-            `(list 'with-vug-inputs
-                   (list ,@(loop for a in args collect `(list ',a ,a)))
-                   ,@(when types
-                       `((quote (declare ,@(loop for a in args
-                                                 for type in types
-                                                 collect `(type ,type ,a))))))
-                   '(tick ,@body))))))
+          (types (argument-types lambda-list))
+          (s (gensym)))
+      (multiple-value-bind (doc specs vug-body) (extract-vug-specs body)
+        (declare (ignore doc))
+        (list name args
+              `(let ((,s ,specs))
+                 (call-vug-pre-hooks ,s)
+                 (list 'with-vug-inputs
+                       (list ,@(loop for a in args collect `(list ',a ,a)))
+                       ,@(when types
+                           `((quote (declare
+                                      ,@(loop for a in args
+                                              for type in types
+                                              collect `(type ,type ,a))))))
+                       '(tick ,@vug-body))))))))
 
 (defmacro vuglet (definitions &body body)
   "Evaluate the BODY-FORMS with local VUG definitions."

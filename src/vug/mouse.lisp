@@ -78,7 +78,7 @@
     (cffi:foreign-slot-value *mouse-event* '(:struct mouse-event) 'button))
 
   (define-vug mouse-x ()
-    :pre-hook #'mouse-start
+    (:pre-hook #'mouse-start)
     ;; :PRE-HOOK makes sense only during the compilation. A check during
     ;; the initialization is safe, especially if we use a DSP compiled
     ;; in a fasl file.
@@ -86,12 +86,12 @@
     (get-mouse-x))
 
   (define-vug mouse-y ()
-    :pre-hook #'mouse-start
+    (:pre-hook #'mouse-start)
     (initialize (mouse-start))
     (get-mouse-y)))
 
 (define-vug mouse-button ()
-  :pre-hook #'mouse-start
+  (:pre-hook #'mouse-start)
   (initialize (mouse-start))
   (get-mouse-button))
 
