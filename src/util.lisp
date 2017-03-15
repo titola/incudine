@@ -294,7 +294,7 @@
 (defmacro with-lambda*-arguments ((args-var kargs-var aux-var arguments)
                                   &body body)
   `(let* ((,args-var (lambda*-arguments-without-dot ,arguments))
-          (,kargs-var (remove '&rest args))
+          (,kargs-var (remove '&rest ,arguments))
           (,aux-var (make-symbol "LAMBDA-LIST")))
      ,@body))
 
@@ -360,16 +360,20 @@ You can have more than one &rest parameter."
          (declare (ignore ,aux-var))
          ,(defun*-body args kargs body)))))
 
+;;; DEFMACRO*-BODY is also used in local VUG with :DEFAULTS spec.
+(defun defmacro*-body (optkey-var args kargs body)
+  `(with-gensyms (kname)
+     `(macrolet ((,kname (,(cons '&key ',kargs)) ,',@body))
+        (,kname ,(lambda*-arguments ',(lambda*-list-keywords args)
+                                    ,optkey-var)))))
+
 (defmacro defmacro* (name (&rest args) &body body)
   (with-doc-string (doc-string body)
     (with-lambda*-arguments (args kargs aux-var args)
       `(defmacro ,name (&rest optional-keywords &aux (,aux-var ',args))
          ,@doc-string
          (declare (ignore ,aux-var))
-         (with-gensyms (kname)
-           `(macrolet ((,kname (,(cons '&key ',kargs)) ,',@body))
-              (,kname ,(lambda*-arguments ',(lambda*-list-keywords args)
-                                          optional-keywords))))))))
+         ,(defmacro*-body 'optional-keywords args kargs body)))))
 
 (in-package :incudine)
 

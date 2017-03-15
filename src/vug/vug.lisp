@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -103,6 +103,7 @@
   (callback nil :type (or function null))
   (args nil :type list)
   (arg-types nil :type list)
+  (defaults nil :type list)
   (macro-p nil :type boolean :read-only t))
 
 (defstruct (vug-object (:copier nil))
@@ -186,6 +187,7 @@
   (return-type nil :type (or symbol list))
   (args nil :type list)
   (arg-types nil :type list)
+  (defaults nil :type list)
   (control-flags nil :type list))
 
 (defmethod print-object ((obj vug) stream)
@@ -906,14 +908,38 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
        ,@(when (foreign-type-p type)
            (list `(return-ugen-foreign-value ,ugen ,type))))))
 
+(defun sort-ugen-callback-args (args arg-names defaults)
+  (labels ((rec (args arg-names defaults tail)
+             (when arg-names
+               (let ((arg (car args))
+                     (val (car defaults)))
+                 (multiple-value-bind (curr args)
+                     (if (keywordp arg)
+                         (values (list (or (getf args (make-keyword
+                                                        (car arg-names)))
+                                           val))
+                                 args)
+                         (values (list (or arg val)) (cdr args)))
+                   (rplacd tail curr)
+                   (rec args (cdr arg-names) (cdr defaults) curr))))))
+    (let ((head (list nil)))
+      (rec args arg-names defaults head)
+      (cdr head))))
+
 (defun parse-ugen (def flist mlist floop-info)
-  (let ((type (ugen-return-type (ugen (car def)))))
+  (let* ((u (ugen (car def)))
+         (type (ugen-return-type u)))
     (parse-vug-def
       ;; We can use the arguments of GET-UGEN-INSTANCE during the
       ;; code-walking. The value of the VUG-VARIABLE bound to a UGEN
       ;; is a VUG-FUNCTION where the arguments are respectively the
       ;; name and the arguments of the UGEN.
-      `(with ((ugen (get-ugen-instance ',(car def) ,@(cdr def) (dsp-node)))
+      `(with ((ugen (get-ugen-instance ',(car def)
+                      ,@(if (ugen-defaults u)
+                            (sort-ugen-callback-args
+                              (cdr def) (ugen-args u) (ugen-defaults u))
+                            (cdr def))
+                      (dsp-node)))
               (ret (ugen-run ugen ,type)))
          (declare (type ugen-instance ugen) (type ,type ret))
          ret)
@@ -1128,6 +1154,7 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
                    (parse-vug-def (cdr def) t flist mlist floop-info))
              (parse-vug-form def flist mlist floop-info)))
         ((eq def 'pi) (sample pi))
+        ((keywordp def) def)
         ((and (symbolp def) (or (boundp def) (eq def '%dsp-node%)))
          `(make-vug-symbol :name ',def))
         ((and (symbolp def)
@@ -1578,9 +1605,11 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
     (do ((l (if doc (cdr code) code) (cdr l))
          (acc nil))
         ((or (null l) (not (keywordp (caar l))))
-         (values doc (when acc `(list ,@acc)) l))
+         (values doc acc l))
       (let ((key (caar l))
             (value (cdar l)))
+        (unless (member key '(:constructor :defaults :pre-hook))
+          (incudine-error "Unknown SPEC ~S" key))
         (setf acc (list* key (if (unquoting-spec-p key)
                                  (list* 'list value)
                                  (list 'quote value))
@@ -1602,13 +1631,22 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
                (push 'sample types))))
     (values (nreverse names) (nreverse types))))
 
-(defun add-vug (name args arg-types callback &optional macro-p)
+(defun add-vug (name args arg-types defaults callback &optional macro-p)
   (let ((obj (make-vug :name name :callback callback :args args
-                       :arg-types arg-types :macro-p macro-p)))
+                       :arg-types arg-types :defaults defaults
+                       :macro-p macro-p)))
     (when (ugen name)
       (destroy-ugen name)
       (nrt-msg debug "destroy UGEN ~A" name))
     (setf (gethash name *vugs*) obj)))
+
+(defun check-default-args (args defaults object-type)
+  (if (or (null defaults)
+          (= (length defaults) (length args)))
+      t
+      (incudine-error "Invalid number of ~A's default values: ~
+                                 ~D instead of ~D"
+                      object-type (length defaults) (length args))))
 
 (defmacro define-vug (name lambda-list &body body)
   (if (dsp name)
@@ -1616,24 +1654,37 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
       (with-gensyms (fn s)
         (multiple-value-bind (args types) (arg-names-and-types lambda-list)
           (multiple-value-bind (doc specs vug-body) (extract-vug-specs body)
-            `(let ((,fn (lambda ,args ,doc
-                          (flet ((,fn ,args
-                                   (with-coerce-arguments ,lambda-list
-                                     (vug-block
-                                       (with-argument-bindings (,args ,types t)
-                                         ,@vug-body)))))
-                            (let ((,s ,specs))
-                              (call-vug-pre-hooks ,s)
-                              (,fn ,@args))))))
-               (setf (symbol-function ',name) ,fn)
-               (add-vug ',name ',args ',types ,fn)))))))
+            (let ((defaults (cadr (get-vug-spec :defaults specs))))
+              (check-default-args args defaults 'vug)
+              (let ((optional-keys (mapcar #'list args defaults)))
+                `(let ((,fn (,@(if optional-keys
+                                   `(lambda* ,optional-keys)
+                                   `(lambda ,args))
+                              ,@(and doc `(,doc))
+                              (flet ((,fn ,args
+                                       (with-coerce-arguments ,lambda-list
+                                         (vug-block
+                                           (with-argument-bindings (,args ,types t)
+                                             ,@vug-body)))))
+                                (let ((,s (list ,@specs)))
+                                  (call-vug-pre-hooks ,s)
+                                  (,fn ,@args))))))
+                   (setf (symbol-function ',name) ,fn)
+                   (add-vug ',name ',args ',types ',defaults ,fn)))))))))
 
 (defmacro define-vug-macro (name lambda-list &body body)
   (if (dsp name)
       (msg error "~A was defined to be a DSP." name)
-      `(progn
-         (defmacro ,name ,lambda-list ,@body)
-         (add-vug ',name ',lambda-list nil (macro-function ',name) t))))
+      (multiple-value-bind (doc specs vug-body) (extract-vug-specs body)
+        (let ((defaults (cadr (get-vug-spec :defaults specs))))
+          (check-default-args lambda-list defaults 'vug-macro)
+          `(progn
+             (,@(if defaults
+                    `(defmacro* ,name ,(mapcar #'list lambda-list defaults))
+                    `(defmacro ,name ,lambda-list))
+                ,@(and doc `(,doc)) ,@vug-body)
+             (add-vug ',name ',lambda-list nil ',defaults
+                      (macro-function ',name) t))))))
 
 (defun rename-vug (old-name new-name)
   (declare (type symbol old-name new-name))
@@ -1747,17 +1798,25 @@ variable is updated after the change of the 'followed' PARAMETERS."
           (s (gensym)))
       (multiple-value-bind (doc specs vug-body) (extract-vug-specs body)
         (declare (ignore doc))
-        (list name args
-              `(let ((,s ,specs))
-                 (call-vug-pre-hooks ,s)
-                 (list 'with-vug-inputs
-                       (list ,@(loop for a in args collect `(list ',a ,a)))
-                       ,@(when types
-                           `((quote (declare
-                                      ,@(loop for a in args
-                                              for type in types
-                                              collect `(type ,type ,a))))))
-                       '(tick ,@vug-body))))))))
+        (let ((defaults (cadr (get-vug-spec :defaults specs))))
+          (check-default-args args defaults 'vuglet)
+          (let ((form
+                 `(let ((,s (list ,@specs)))
+                    (call-vug-pre-hooks ,s)
+                    (list 'with-vug-inputs
+                          (list ,@(loop for a in args collect `(list ',a ,a)))
+                          ,@(when types
+                              `((quote (declare
+                                        ,@(loop for a in args
+                                                for type in types
+                                                collect `(type ,type ,a))))))
+                          '(tick ,@vug-body)))))
+            (list* name
+                   (if defaults
+                       (list '(&rest optional-keywords)
+                             (incudine.util::defmacro*-body 'optional-keywords
+                               args (mapcar #'list args defaults) (list form)))
+                       (list args form)))))))))
 
 (defmacro vuglet (definitions &body body)
   "Evaluate the BODY-FORMS with local VUG definitions."

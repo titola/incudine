@@ -394,25 +394,24 @@ to call to get the control value."
       `(progn ,@body)))
 
 (defmacro %compile-vug (name bindings return-type args arg-names
-                        ugen-instance-constructor ugen)
+                        optional-keys ugen-instance-constructor ugen)
   (with-gensyms (get-function fn node)
     `(macrolet ((,get-function (,@arg-names ,node)
                   `(prog1
                      ,(generate-ugen-code ',name ,args ,arg-names
-                                          ,bindings ,ugen ,node
-                                          ,ugen-instance-constructor
-                                          (maybe-store-return-value
-                                            ,return-type
-                                            (vug-funcall ',name
-                                                         ,@arg-names)))
+                        ,bindings ,ugen ,node ,ugen-instance-constructor
+                        (maybe-store-return-value
+                          ,return-type (vug-funcall ',name ,@arg-names)))
                      (nrt-msg info "new alloc for UGEN ~A" ',',name))))
-       (let ((,fn (lambda (,@arg-names &optional ,node)
-                    (declare (type (or incudine:node null) ,node))
+       (let ((,fn (,@(if optional-keys
+                         `(lambda* (,@optional-keys ugen-node))
+                         `(lambda (,@arg-names &optional ugen-node)))
+                    (declare (type (or incudine:node null) ugen-node))
                     ,(documentation (ugen-inline-callback ugen) 'function)
                     (let* (,@bindings
-                           (%dsp-node% ,node))
+                           (%dsp-node% ugen-node))
                       (declare (ignorable %dsp-node%))
-                      (,get-function ,@arg-names ,node)))))
+                      (,get-function ,@arg-names ugen-node)))))
          (setf (ugen-callback ,ugen) ,fn)
          (setf (ugen-return-type ,ugen) ',return-type)
          (setf (symbol-function ',name) ,fn)
@@ -437,16 +436,19 @@ to call to get the control value."
                   (types (vug-arg-types vug))
                   (args (get-bindings arg-names types))
                   (arg-bindings (dsp-coercing-arguments args))
-                  (fn (vug-callback vug)))
-             (let ((ugen (make-ugen :name name
-                                    :return-type return-type
-                                    :args arg-names
-                                    :arg-types types
-                                    :inline-callback fn)))
-               (incudine.util::cudo-compile
-                 `(%compile-vug ,name ,arg-bindings ,return-type ,args
-                                ,arg-names ,ugen-instance-constructor
-                                ,ugen))))))))
+                  (defaults (vug-defaults vug))
+                  (fn (vug-callback vug))
+                  (ugen (make-ugen :name name
+                                   :return-type return-type
+                                   :args arg-names
+                                   :arg-types types
+                                   :defaults defaults
+                                   :inline-callback fn)))
+             (incudine.util::cudo-compile
+              `(%compile-vug ,name ,arg-bindings ,return-type ,args
+                             ,arg-names ,(mapcar #'list arg-names defaults)
+                             ,ugen-instance-constructor
+                             ,ugen)))))))
 
 (defun get-ugen-specs (def)
   (multiple-value-bind (form doc)
@@ -458,11 +460,11 @@ to call to get the control value."
         ((not (keywordp (caar l))) (values doc specs l)))))
 
 (defun get-ugen-spec (name specs)
-  (second (assoc name specs)))
+  (cdr (assoc name specs)))
 
 (defmacro define-ugen (name return-type lambda-list &body body)
   (multiple-value-bind (doc specs form) (get-ugen-specs body)
-    (let ((instance-constructor (get-ugen-spec :constructor specs)))
+    (let ((instance-constructor (car (get-ugen-spec :constructor specs))))
       `(compile-vug (define-vug ,name ,lambda-list ,@(and doc `(,doc))
                                 ,@specs ,@form)
                     ',return-type nil ',instance-constructor))))
@@ -471,11 +473,13 @@ to call to get the control value."
 ;;; The arguments of the function are the arguments of the UGEN
 ;;; plus one optional STREAM.
 (defmacro ugen-debug (name return-type lambda-list &body body)
-  (multiple-value-bind (specs form doc) (get-ugen-specs body)
+  (multiple-value-bind (doc specs form) (get-ugen-specs body)
     (declare (ignore doc))
-    (let ((instance-constructor (get-ugen-spec :constructor specs)))
+    (let ((instance-constructor (car (get-ugen-spec :constructor specs)))
+          (defaults (get-ugen-spec :defaults specs)))
+      (check-default-args lambda-list defaults 'ugen)
       (multiple-value-bind (args types) (arg-names-and-types lambda-list)
-        `(%%codegen-debug ,name ,lambda-list generate-ugen-code
+        `(%%codegen-debug ,name ,lambda-list ,defaults generate-ugen-code
              (,(dsp-coercing-arguments (get-bindings args types)) nil nil
               ,instance-constructor)
            (maybe-store-return-value ,return-type ,@form))))))

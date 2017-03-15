@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -1165,9 +1165,9 @@
 (defmacro dsp-init-args (bindings arg-names)
   `(list (parse-dsp-args-func ,bindings ,arg-names) ,@arg-names))
 
-(defmacro enqueue-dsp-node (name node-id arg-names arg-bindings get-dsp-func
-                            head tail before after replace stop-hook free-hook
-                            action fade-time fade-curve)
+(defmacro enqueue-dsp-node (name arg-names arg-bindings get-dsp-func node-id
+                            head tail before after replace action stop-hook
+                            free-hook fade-time fade-curve)
   (with-gensyms (node dsp add-action target)
     `(incudine::with-add-action (,add-action ,target ,head ,tail ,before ,after
                                  ,replace)
@@ -1199,39 +1199,42 @@
 ;;; of NAME. When the argument is a symbol, the default type is SAMPLE.
 (defmacro dsp! (name args &body body)
   (with-gensyms (get-function)
-    (let* ((doc (when (stringp (car body)) (car body)))
-           (body (if doc (cdr body) body))
-           (arg-names (argument-names args))
-           (dsp-arg-bindings (dsp-coercing-arguments args)))
-      `(macrolet ((,get-function ,arg-names
-                    `(prog1
-                       ,(generate-dsp-code ',name ,args ,arg-names
-                                           (progn ,@body))
-                       (nrt-msg info "new alloc for DSP ~A" ',',name))))
-         (cond ((vug ',name)
-                (msg error "~A was defined to be a VUG" ',name))
-               ((ugen ',name)
-                (msg error "~A was defined to be an UGEN" ',name))
-               (t
-                ;; If there is a DSP called NAME, remove the cached instances.
-                (free-dsp-instances ',name)
-                (set-dsp-arg-names ',name ',arg-names)
-                (defun ,name (,@arg-names &key id head tail before after replace
-                              action stop-hook free-hook fade-time fade-curve)
-                  (declare (type (or non-negative-fixnum null) id)
-                           (type (or incudine:node fixnum null) head tail before
-                                 after replace)
-                           (type (or function null) action)
-                           (type list stop-hook free-hook))
-                  ,doc
-                  (enqueue-dsp-node ,name id ,arg-names ,dsp-arg-bindings
-                                    ,get-function head tail before after replace
-                                    stop-hook free-hook action fade-time
-                                    fade-curve)
-                  (values))
-                (compile ',name)
-                (maybe-update-dsp-instances ,name ,arg-names)
-                #',name))))))
+    (multiple-value-bind (doc specs form) (extract-vug-specs body)
+      (let* ((arg-names (argument-names args))
+             (dsp-arg-bindings (dsp-coercing-arguments args))
+             (defaults (cadr (get-vug-spec :defaults specs)))
+             (keywords '(id head tail before after replace action
+                         stop-hook free-hook fade-time fade-curve)))
+        (check-default-args args defaults 'dsp)
+        `(macrolet ((,get-function ,arg-names
+                      `(prog1
+                           ,(generate-dsp-code ',name ,args ,arg-names
+                                               (progn ,@form))
+                         (nrt-msg info "new alloc for DSP ~A" ',',name))))
+           (cond ((vug ',name)
+                  (msg error "~A was defined to be a VUG" ',name))
+                 ((ugen ',name)
+                  (msg error "~A was defined to be an UGEN" ',name))
+                 (t
+                  ;; If there is a DSP called NAME, remove the cached instances.
+                  (free-dsp-instances ',name)
+                  (set-dsp-arg-names ',name ',arg-names)
+                  (,@(if defaults
+                         `(defun* ,name (,@(mapcar #'list arg-names defaults)
+                                         ,@keywords))
+                         `(defun ,name (,@arg-names &key ,@keywords)))
+                    (declare (type (or non-negative-fixnum null) id)
+                             (type (or incudine:node fixnum null) head tail
+                                   before after replace)
+                             (type (or function null) action)
+                             (type list stop-hook free-hook))
+                    ,@(and doc `(,doc))
+                    (enqueue-dsp-node ,name ,arg-names ,dsp-arg-bindings
+                                      ,get-function ,@keywords)
+                    (values))
+                  (compile ',name)
+                  (maybe-update-dsp-instances ,name ,arg-names)
+                  #',name)))))))
 
 (declaim (inline update-node-hooks))
 (defun update-node-hooks (node stop-hook free-hook)
@@ -1246,20 +1249,26 @@
          (,codegen-fname ',name ,args ,arg-names ,@rest
                          (progn ,@(if doc (cdr body) body)))))))
 
-(defmacro %%codegen-debug (name args codegen-fname rest &body body)
-  (with-gensyms (fn stream)
+(defmacro %%codegen-debug (name args defaults codegen-fname rest &body body)
+  (with-gensyms (fn)
     (let ((lambda-list (argument-names args)))
       `(let ((,fn (%codegen-debug ,name ,args ,lambda-list ,codegen-fname ,rest
                     ,@body)))
-         (lambda (,@lambda-list &optional ,stream)
+         (,@(if defaults
+                `(lambda* (,@(mapcar #'list lambda-list defaults) debug-stream))
+                `(lambda (,@lambda-list &optional debug-stream)))
            (flet ((codegen () (funcall ,fn ,@lambda-list)))
-             (if ,stream
+             (if debug-stream
                  (let ((*print-gensym* nil))
-                   (pprint (codegen) ,stream))
+                   (pprint (codegen) debug-stream))
                  (codegen))))))))
 
 ;;; Return a function to show the code generated by DSP!.
 ;;; The arguments of the function are the arguments of the dsp
 ;;; plus one optional STREAM.
 (defmacro dsp-debug (name args &body body)
-  `(%%codegen-debug ,name ,args generate-dsp-code nil ,@body))
+  (multiple-value-bind (doc specs form) (get-ugen-specs body)
+    (declare (ignore doc))
+    (let ((defaults (get-ugen-spec :defaults specs)))
+      (check-default-args args defaults 'ugen)
+      `(%%codegen-debug ,name ,args ,defaults generate-dsp-code nil ,@form))))
