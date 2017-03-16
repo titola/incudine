@@ -1,0 +1,60 @@
+;;; Incudine
+;;; Default values for VUG, UGEN and DSP
+
+;; Incudine follows the SBCL VOP style for optional VUG spec's:
+;; each spec is a list beginning with a keyword indicating the
+;; interpretation of the other forms in the spec.
+
+;; A :GENERATOR spec is not necessary, the body after the specs is the
+;; body of the VUG/UGEN/DSP.
+
+;; The optional :DEFAULTS spec is used to provide the default values
+;; for VUG & co. The related functions (or macros) are defined with
+;; DEFUN* (or DEFMACRO*), therefore the arguments are optional keywords.
+
+;; A minimal example:
+
+(in-package :scratch)
+
+(define-vug buzz* (freq amp (nh fixnum))
+  (:defaults 110 .3 (+ 1 (random 10)))
+  (buzz freq amp nh))
+
+(define-vug-macro sine* (freq amp)
+  (:defaults 440 .3)
+  `(sine ,freq ,amp 0))
+
+(define-ugen resonz* sample (in fcut q)
+  (:defaults 0 2000 100)
+  (resonz in fcut q))
+
+(dsp! habemus-defaults (amp (nh fixnum) res)
+  (:defaults .3 20 3.9)
+  (vuglet ((lp (in fcut res)
+             (:defaults 0 1000 0)
+             (moogff in fcut res nil))
+           (hp (in fcut)
+             (:defaults 0 8000)
+             (butter-hp in fcut))
+           (noise ()
+             (white-noise amp)))
+    (out (+ (lp (noise) :res res)
+            (hp (noise))
+            (resonz* (noise)))
+         (+ (buzz* :nh nh)
+            (sine* :amp amp)))))
+
+(rt-start)
+
+(habemus-defaults)
+
+;; :DEFAULTS also works with DSP-DEBUG and UGEN-DEBUG:
+
+(funcall (dsp-debug foo (amp) (:defaults .3) (out (white-noise amp))))
+
+(with-open-file (f "/tmp/dsp-debug.cudo" :direction :output
+                 :if-exists :supersede)
+  (funcall (dsp-debug foo (amp)
+             (:defaults .3)
+             (out (white-noise amp)))
+           :debug-stream f))

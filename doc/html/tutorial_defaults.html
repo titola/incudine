@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="incudine.css" />
+    <title>Default values for VUG, UGEN and DSP</title>
+  </head>
+  <body>
+    <div id="content">
+      <table class="navtutor">
+        <tr>
+          <th class="center">Default values for VUG, UGEN and DSP</th>
+        </tr>
+      </table>
+      <hr>
+
+      <p>
+        Incudine follows the SBCL <code>VOP</code> style for optional
+        VUG spec's: each spec is a list beginning with a keyword
+        indicating the interpretation of the other forms in the spec.
+      </p>
+
+      <p>
+        A <code>:GENERATOR</code> spec is not necessary, the body
+        after the specs is the body of the VUG/UGEN/DSP.
+      </p>
+
+      <p>
+        The optional <code>:DEFAULTS</code> spec is used to provide the
+        default values for VUG &amp; co. The related functions (or macros)
+        are defined with <code>DEFUN*</code> (or <code>DEFMACRO*</code>),
+        therefore the arguments are optional keywords.
+      </p>
+
+      <p>
+        A minimal example:
+      </p>
+
+      <pre class="src src-lisp">(<span style="color: #8deeee;">in-package</span> <span style="color: #b0c4de;">:scratch</span>)
+
+(define-vug <span style="color: #87cefa;">buzz*</span> (freq amp (nh fixnum))
+  (<span style="color: #b0c4de;">:defaults</span> 110 .3 (+ 1 (random 10)))
+  (buzz freq amp nh))
+
+(define-vug-macro <span style="color: #87cefa;">sine*</span> (freq amp)
+  (<span style="color: #b0c4de;">:defaults</span> 440 .3)
+  `(sine ,freq ,amp 0))
+
+(define-ugen <span style="color: #87cefa;">resonz*</span> sample (in fcut q)
+  (<span style="color: #b0c4de;">:defaults</span> 0 2000 100)
+  (resonz in fcut q))
+
+(dsp! <span style="color: #87cefa;">habemus-defaults</span> (amp (nh fixnum) res)
+  (<span style="color: #b0c4de;">:defaults</span> .3 20 3.9)
+  (vuglet ((lp (in fcut res)
+             (<span style="color: #b0c4de;">:defaults</span> 0 1000 0)
+             (moogff in fcut res nil))
+           (hp (in fcut)
+             (<span style="color: #b0c4de;">:defaults</span> 0 8000)
+             (butter-hp in fcut))
+           (noise ()
+             (white-noise amp)))
+    (out (+ (lp (noise) <span style="color: #b0c4de;">:res</span> res)
+            (hp (noise))
+            (resonz* (noise)))
+         (+ (buzz* <span style="color: #b0c4de;">:nh</span> nh)
+            (sine* <span style="color: #b0c4de;">:amp</span> amp)))))
+
+<span class="prompt">SCRATCH&gt;</span> (rt-start)
+
+<span class="prompt">SCRATCH&gt;</span> (habemus-defaults)</pre>
+
+      <p>
+        <code>:DEFAULTS</code> also works with <code>DSP-DEBUG</code> and
+        <code>UGEN-DEBUG</code>:
+      </p>
+
+      <pre class="src src-lisp">(funcall (dsp-debug foo (amp) (<span style="color: #b0c4de;">:defaults</span> .3) (out (white-noise amp))))
+
+(<span style="color: #8deeee;">with-open-file</span> (f <span style="color: #ffa07a;">"/tmp/dsp-debug.cudo"</span> <span style="color: #b0c4de;">:direction</span> <span style="color: #b0c4de;">:output</span>
+                 <span style="color: #b0c4de;">:if-exists</span> <span style="color: #b0c4de;">:supersede</span>)
+  (funcall (dsp-debug foo (amp)
+             (<span style="color: #b0c4de;">:defaults</span> .3)
+             (out (white-noise amp)))
+           <span style="color: #b0c4de;">:debug-stream</span> f))</pre>
+
+      <hr>
+      <table class="navtutor">
+        <tr>
+          <td style="width: 20%" class="left">
+            <a href="tutorial_01.html">Getting Started with Incudine</a>
+          </td>
+          <td style="width: 60%" class="center"><a href="index.html">Home</a></td>
+          <td style="width: 20%" class="right"></td>
+        </tr>
+      </table>
+    </div>
+    <div id="postamble">
+      <a href="http://sourceforge.net/projects/incudine">Sourceforge project page</a>
+    </div>
+  </body>
+</html>
