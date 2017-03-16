@@ -1195,6 +1195,22 @@
   `(when *update-dsp-instances*
      (update-dsp-instances ,dsp-name ,arg-names)))
 
+(defun dsp-optional-keywords (arg-names defaults fixed-keywords)
+  (flet ((optional-keyword-name (name reserved-names)
+           (if (member name reserved-names :key #'symbol-name :test #'string=)
+               (incudine-error "The keyword :~A is reserved in DSP function.~%~
+                                Please use another optional keyword name."
+                               name)
+               name)))
+    (do* ((names arg-names (cdr names))
+          (values defaults (cdr values))
+          (tail (list nil))
+          (head tail))
+         ((null names) (rplacd tail fixed-keywords) (cdr head))
+      (rplacd tail (setq tail `((,(optional-keyword-name (car names)
+                                                         fixed-keywords)
+                                 ,(car values))))))))
+
 ;;; An argument is a symbol or a pair (NAME TYPE), where TYPE is the specifier
 ;;; of NAME. When the argument is a symbol, the default type is SAMPLE.
 (defmacro dsp! (name args &body body)
@@ -1220,8 +1236,8 @@
                   (free-dsp-instances ',name)
                   (set-dsp-arg-names ',name ',arg-names)
                   (,@(if defaults
-                         `(defun* ,name (,@(mapcar #'list arg-names defaults)
-                                         ,@keywords))
+                         `(defun* ,name ,(dsp-optional-keywords
+                                           arg-names defaults keywords))
                          `(defun ,name (,@arg-names &key ,@keywords)))
                     (declare (type (or non-negative-fixnum null) id)
                              (type (or incudine:node fixnum null) head tail
