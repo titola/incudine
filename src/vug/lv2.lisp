@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -51,6 +51,7 @@
                             (lilv:port-get-symbol plugin port))
                     :id i
                     :type (lv2-port-type plugin port)
+                    :default (lv2-port-default plugin port)
                     :value-type 'foreign-float))
     'simple-vector))
 
@@ -70,6 +71,15 @@
             (portp lilv:*uri-audio-port* +audio-port+)
             (portp lilv:*uri-event-port* +event-port+)
             (portp lilv:*uri-midi-port* +midi-port+))))
+
+(defun lv2-port-default (plugin port)
+  (cffi:with-foreign-object (ptr :pointer)
+    (lilv:port-get-range plugin port ptr (cffi:null-pointer) (cffi:null-pointer))
+    (unwind-protect
+         (and (or (lilv:node-is-float #1=(cffi:mem-ref ptr :pointer))
+                  (lilv:node-is-int #1#))
+              (lilv:node-as-float #1#))
+      (lilv:node-free #1#))))
 
 (declaim (inline lv2-plugin-instantiate))
 (defun lv2-plugin-instantiate (plugin &optional arg)

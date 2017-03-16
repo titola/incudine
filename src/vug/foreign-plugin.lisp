@@ -21,12 +21,13 @@
   (lisp-name "" :type string :read-only t)
   (id 0 :type non-negative-fixnum :read-only t)
   (type 0 :type non-negative-fixnum :read-only t)
+  (default nil :type (or list real))
   (value-type t :type (or symbol cons) :read-only t))
 
-(defun make-port (&key (name "") (id 0) (type 0) (value-type t))
+(defun make-port (&key (name "") (id 0) (type 0) default (value-type t))
   (let ((lisp-name (lispify-name name)))
     (%make-port :name name :lisp-name lisp-name :id id :type type
-                :value-type value-type)))
+                :default default :value-type value-type)))
 
 (defmethod print-object ((obj port) stream)
   (format stream "#<PLUGIN-PORT ~D ~A>" (port-id obj) (port-lisp-name obj)))
@@ -149,6 +150,21 @@
   (port-loop (p i plugin)
     if (input-port-p p) collect (port-input-arg p block-size)))
 
+(defun port-input-defaults-p (plugin)
+  (port-loop (p i plugin)
+    if (and (input-port-p p) (not (null (port-default p))))
+      do (return t)))
+
+(defun port-input-defaults (plugin &optional missing-arg-format-control)
+  (when (port-input-defaults-p plugin)
+    (port-loop (p i plugin)
+      if (input-port-p p)
+        collect (or (port-default p)
+                    (when missing-arg-format-control
+                      `(incudine:incudine-error
+                         ,(format nil missing-arg-format-control
+                                  (port-name p))))))))
+
 (defun io-array-p (port block-size)
   (and (> block-size 1) (audio-port-p port)))
 
@@ -176,26 +192,26 @@
   (vug-port-bindings (decl)
     (port-loop (p i plugin)
       if (input-port-p p)
-      collect (let* ((name (port-lisp-name p))
-                     (arg (ensure-symbol name))
-                     (array-p (io-array-p p block-size)))
-                (add-vug-declaration arg (port-value-type p) decl array-p)
-                `(,arg ,(if array-p
-                            arg
-                            (vug::dsp-coercing-argument
-                              arg (port-value-type p))))))))
+        collect (let* ((name (port-lisp-name p))
+                       (arg (ensure-symbol name))
+                       (array-p (io-array-p p block-size)))
+                  (add-vug-declaration arg (port-value-type p) decl array-p)
+                  `(,arg ,(if array-p
+                              arg
+                              (vug::dsp-coercing-argument
+                               arg (port-value-type p))))))))
 
 (defun vug-port-output-bindings (plugin &optional (block-size 1))
   (vug-port-bindings (decl)
     (port-loop (p i plugin)
       if (output-port-p p)
-      collect (let* ((name (port-lisp-name p))
-                     (arg (ensure-symbol name))
-                     (array-p (io-array-p p block-size)))
-                (add-vug-declaration arg (port-value-type p) decl array-p)
-                `(,arg ,(if array-p
-                            `(,(port-array-fname p) ,block-size)
-                            (vug::coerce-number 0 (port-value-type p))))))))
+        collect (let* ((name (port-lisp-name p))
+                       (arg (ensure-symbol name))
+                       (array-p (io-array-p p block-size)))
+                  (add-vug-declaration arg (port-value-type p) decl array-p)
+                  `(,arg ,(if array-p
+                              `(,(port-array-fname p) ,block-size)
+                              (vug::coerce-number 0 (port-value-type p))))))))
 
 (defun vug-frame-binding (plugin block-size)
   (let ((outs (plugin-outputs plugin)))
@@ -231,22 +247,24 @@
       (vug-port-input-bindings plugin block-size)
     (multiple-value-bind (out-bindings out-decl)
         (vug-port-output-bindings plugin block-size)
-      `(define-vug ,vug-name ,(port-input-args plugin block-size)
-         ,(doc-string plugin)
-         (with (,@in-bindings
-                ,@out-bindings
-                ,@(vug-frame-binding plugin block-size))
-           (declare ,@in-decl ,@out-decl)
-           ,@(when (and (> (plugin-outputs plugin) 1)
-                        (> block-size 1))
-               ;; Set the pointer to the foreign arrays.
-               `((initialize
-                  ,@(port-loop (p i plugin)
-                      with index = 0
-                      if (output-port-p p)
-                      collect (set-outputs index (arg-symbol p) block-size
-                                           (control-port-p p))
-                      and do (incf index)))))
-           (maybe-expand ,@(port-input-names plugin))
-           ,@body
-           ,@(get-output plugin block-size))))))
+      (let ((defaults (port-input-defaults plugin "Missing ~S argument")))
+        `(define-vug ,vug-name ,(port-input-args plugin block-size)
+           ,(doc-string plugin)
+           ,@(when defaults `((:defaults ,@defaults)))
+           (with (,@in-bindings
+                  ,@out-bindings
+                  ,@(vug-frame-binding plugin block-size))
+             (declare ,@in-decl ,@out-decl)
+             ,@(when (and (> (plugin-outputs plugin) 1)
+                          (> block-size 1))
+                 ;; Set the pointer to the foreign arrays.
+                 `((initialize
+                    ,@(port-loop (p i plugin)
+                        with index = 0
+                        if (output-port-p p)
+                          collect (set-outputs index (arg-symbol p) block-size
+                                               (control-port-p p))
+                          and do (incf index)))))
+             (maybe-expand ,@(port-input-names plugin))
+             ,@body
+             ,@(get-output plugin block-size)))))))

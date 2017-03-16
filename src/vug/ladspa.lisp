@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014 Tito Latini
+;;; Copyright (c) 2014-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -55,6 +55,7 @@
                       :name (cffi:mem-aref names :string i)
                       :id i
                       :type (ladspa-port-type descriptor i)
+                      :default (ladspa-port-default descriptor i)
                       :value-type 'foreign-float))
       'simple-vector)))
 
@@ -70,6 +71,13 @@
             (if (ladspa:port-output-p n) +output-port+ 0)
             (if (ladspa:port-control-p n) +control-port+ 0)
             (if (ladspa:port-audio-p n) +audio-port+ 0))))
+
+(defun ladspa-port-default (descriptor index
+                            &optional (sample-rate 'incudine.util:*sample-rate*))
+  (ladspa:hint-default
+    (cffi:mem-aptr (ladspa:descriptor-slot-value descriptor 'port-range-hints)
+                   '(:struct ladspa:port-range-hint) index)
+    sample-rate))
 
 (declaim (inline ladspa-plugin-instantiate))
 (defun ladspa-plugin-instantiate (plugin &optional arg)

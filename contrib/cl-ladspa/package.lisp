@@ -73,6 +73,7 @@
    #:hint-default-1-p
    #:hint-default-100-p
    #:hint-default-440-p
+   #:hint-default
    #:port-range-hint
    #:descriptor
    #:descriptor-slot-value

@@ -276,3 +276,48 @@
 (declaim (inline plugin-descriptor))
 (defun plugin-descriptor (filename label)
   (cdr (assoc label (load-plugin-library filename) :test #'string=)))
+
+(defmacro hint-default-case (hint-descriptor &body cases)
+  (let ((h (gensym)))
+    `(let ((,h (logand ,hint-descriptor hint-default-mask)))
+       (cond ,@(mapcar (lambda (x)
+                         (if (eq (car x) 'otherwise)
+                             `(t ,@(cdr x))
+                             `((= ,h ,(car x)) ,@(cdr x))))
+                       cases)))))
+
+(defun hint-default (port-range-hint-pointer &optional sample-rate)
+  (cffi:with-foreign-slots ((hint-descriptor lower-bound upper-bound)
+                            port-range-hint-pointer
+                            (:struct port-range-hint))
+    (when (hint-has-default-p hint-descriptor)
+      (hint-default-case hint-descriptor
+        (hint-default-0 0)
+        (hint-default-1 1)
+        (hint-default-100 100)
+        (hint-default-440 440)
+        (otherwise
+         (let* ((log-p (hint-logarithmic-p hint-descriptor))
+                (default
+                 (hint-default-case hint-descriptor
+                   (hint-default-minimum lower-bound)
+                   (hint-default-maximum upper-bound)
+                   (hint-default-low
+                    (if log-p
+                        (exp (+ (* .75 (log lower-bound))
+                                (* .25 (log upper-bound))))
+                        (+ (* .75 lower-bound) (* .25 upper-bound))))
+                   (hint-default-middle
+                    (if log-p
+                        (sqrt (* lower-bound upper-bound))
+                        (* .5 (+ lower-bound upper-bound))))
+                   (hint-default-high
+                    (if log-p
+                        (exp (+ (* .25 (log lower-bound))
+                                (* .75 (log upper-bound))))
+                        (+ (* .25 lower-bound) (* .75 upper-bound)))))))
+           (if (and sample-rate (hint-sample-rate-p hint-descriptor))
+               (if (numberp sample-rate)
+                   (* default sample-rate)
+                   `(* ,default ,sample-rate))
+               default)))))))

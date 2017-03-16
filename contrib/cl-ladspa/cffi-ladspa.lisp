@@ -58,7 +58,7 @@
 (define-constant HINT-SAMPLE-RATE      #x0008)
 (define-constant HINT-LOGARITHMIC      #x0010)
 (define-constant HINT-INTEGER          #x0020)
-(define-constant HINT-DEFAULT-MASK     #x0030)
+(define-constant HINT-DEFAULT-MASK     #x03C0)
 (define-constant HINT-DEFAULT-NONE     #x0000)
 (define-constant HINT-DEFAULT-MINIMUM  #x0040)
 (define-constant HINT-DEFAULT-LOW      #x0080)
