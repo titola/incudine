@@ -161,7 +161,7 @@
       if (input-port-p p)
         collect (or (port-default p)
                     (when missing-arg-format-control
-                      `(incudine:incudine-error
+                      `(incudine-missing-arg
                          ,(format nil missing-arg-format-control
                                   (port-name p))))))))
 
@@ -173,8 +173,7 @@
     ((foreign-float f32) 'make-f32-array)
     ((foreign-double f64) 'make-f64-array)
     (otherwise
-     (incudine:incudine-error "unknown port type ~A"
-                              (port-value-type port)))))
+     (incudine-error "unknown port type ~A" (port-value-type port)))))
 
 (defmacro add-vug-declaration (var type plist array-p)
   `(push ,var (getf ,plist (if ,array-p 'cffi:foreign-pointer ,type))))

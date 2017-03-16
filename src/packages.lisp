@@ -475,7 +475,7 @@
   (:import-from #:alexandria #:define-constant #:make-keyword
                 #:format-symbol #:ensure-symbol #:with-gensyms
                 #:non-negative-fixnum)
-  (:import-from #:incudine #:block-size)
+  (:import-from #:incudine #:block-size #:incudine-error #:incudine-missing-arg)
   (:export
    #:+input-port+ #:+output-port+ #:+control-port+ #:+audio-port+
    #:+event-port+ #:+midi-port+
