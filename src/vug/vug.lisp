@@ -735,15 +735,21 @@
                                      :inputs (list ,@inputs))
                  (car inputs)))))))
 
+(declaim (inline lambda-arg-names))
+(defun lambda-arg-names (args)
+  (loop for arg in args
+        unless (member arg '(&optional &rest &key &allow-other-keys &aux))
+          collect (if (listp arg) (car arg) arg)))
+
 (declaim (inline lambda-bindings))
 (defun lambda-bindings (args)
-  (loop for i in args
-        unless (member i '(&optional &key &rest))
-        collect `(,i ',i)))
+  (loop for i in args collect `(,i ',i)))
 
 (defun parse-lambda-form (form flist mlist floop-info)
-  (let ((args (cadr form)))
-    `(let ,(lambda-bindings args)
+  (let* ((args (cadr form))
+         (arg-names (lambda-arg-names args)))
+    `(let ,(lambda-bindings arg-names)
+       (declare (ignorable ,@arg-names))
        (make-vug-function :name ',(car form)
          :inputs (list ',args
                        (list ,@(parse-lambda-body (cddr form)
