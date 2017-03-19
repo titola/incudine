@@ -316,6 +316,7 @@ rego file or call tags-loop-continue."
 (put 'dsp! 'common-lisp-indent-function '(4 &lambda &body))
 (put 'vuglet 'common-lisp-indent-function
      '((&whole 4 &rest (&whole 1 &lambda &body)) &body))
+(put 'initialize 'common-lisp-indent-function 0)
 
 (defun incudine-mode-common-map (map)
   (define-key map [C-M-return] 'incudine-free-node)
