@@ -433,6 +433,8 @@
                          `((let* ((,(vug-variable-name var) (,setter-name))
                                   ,@(%set-let-variables-loop (cdr variables)
                                                              finally-func))
+                             ,@(when (vug-variable-temporary-p var)
+                                 `((declare (ignorable ,(vug-object-name var)))))
                              ,@(%set-local-declarations variables (car rest))
                              ,@(%set-variables rest body))))))))
             ((foreign-object-p var)
