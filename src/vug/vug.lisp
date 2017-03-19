@@ -988,7 +988,14 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
 
 (defun vug-funcall-form (name def flist mlist floop-info)
   (let* ((fname (if (ugen-block-p name) 'ugen-inline-funcall 'vug-funcall))
-         (form `(,fname ',name ,@(parse-vug-def def t flist mlist floop-info))))
+         (vug (vug name))
+         (form `(,fname ',name
+                        ,@(parse-vug-def
+                            (if (vug-defaults vug)
+                                (sort-ugen-callback-args
+                                  def (vug-args vug) (vug-defaults vug))
+                                def)
+                            t flist mlist floop-info))))
     (if floop-info
         `(make-vug-function :name 'filter-foreach-frame-form
                             :inputs (list ,@floop-info ,form))
