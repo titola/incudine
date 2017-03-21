@@ -2,7 +2,8 @@
   (:use :cl)
   (:shadow #:eval #:load)
   (:export #:*program-name* #:*program-args* #:snd-error
-           #:run #:eval #:load #:exit #:flush-stream #:close-stream))
+           #:run #:eval #:load #:exit #:flush-stream #:close-stream
+           #:emacs-mode-p))
 
 (in-package :snd)
 

@@ -1,6 +1,6 @@
 ;;; Common Lisp interface to interact with the sound editor Snd.
 ;;;
-;;; Copyright (c) 2015 Tito Latini
+;;; Copyright (c) 2015-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -112,30 +112,74 @@
                                    ;; Output string ends with "\r\n"
                                    (coerce (nreverse (cddr acc)) 'string))))))
 
+(defvar *emacs-mode-p* nil)
+(declaim (type boolean *emacs-mode-p*))
+
+(defun emacs-mode-p () *emacs-mode-p*)
+
+;;; SWANK:EVAL-IN-EMACS requires slime-enable-evaluate-in-emacs T
+;;; on the Emacs side.
+(defun eval-in-emacs (form)
+  (funcall (find-symbol "EVAL-IN-EMACS" "SWANK") form))
+
+(defun emacs-mode-utils ()
+  (eval-in-emacs
+    '(unless (fboundp 'incudine-snd-send-string)
+       (defun incudine-snd-send-string (string)
+         (let* ((str "")
+                (comint-output-filter-functions
+                  (list (lambda (text) (setq str (concat str text)))))
+                (buf (inf-snd-proc-buffer)))
+           (with-current-buffer buf
+             (snd-send-invisible string)
+             (accept-process-output (get-buffer-process buf)))
+           str)))))
+
+(defun set-emacs-mode-p (enable-p)
+  (declare (type boolean enable-p))
+  (when enable-p
+    (emacs-mode-utils))
+  (setf *emacs-mode-p* enable-p))
+
+(defsetf emacs-mode-p set-emacs-mode-p)
+
 (defun run (&optional (program-name *program-name*) (args *program-args*))
   "Start Snd."
-  (cond ((process-alive-p) *snd*)
-        (t (close-stream)
-           (setf *snd* (run-program program-name args :pty :stream
-                                    :wait nil)))))
+  (cond (*emacs-mode-p*
+         (emacs-mode-utils)
+         (eval-in-emacs
+          `(run-snd-scheme ,(format nil "~{~A~^ ~}" (cons program-name args)))))
+        ((process-alive-p)
+         *snd*)
+        (t
+         (close-stream)
+         (setf *snd* (run-program program-name args :pty :stream
+                                  :wait nil)))))
 
 (defun exit ()
   "Terminate Snd."
-  (when *snd*
-    (when (open-process-stream-p)
-      (to-process "(exit 0)"))
-    (dotimes (i 20)
-      (if (process-exited-p) (return) (sleep .1)))
-    (close-stream)
-    (let ((code (process-exit-code)))
-      (and code (zerop code)))))
+  (cond (*emacs-mode-p*
+         (eval "(exit 0)"))
+        (*snd*
+         (when (open-process-stream-p)
+           (to-process "(exit 0)"))
+         (dotimes (i 20)
+           (if (process-exited-p) (return) (sleep .1)))
+         (close-stream)
+         (let ((code (process-exit-code)))
+           (and code (zerop code))))))
 
 (defun eval (string &key (output-p t) (parser #'default-parser))
   "Evaluates STRING in Snd."
   (declare (type string string) (type boolean output-p) (type function parser))
-  (when *snd*
-    (to-process string)
-    (if output-p (from-process parser) (flush-stream))))
+  (cond (*emacs-mode-p*
+         (let ((str (eval-in-emacs `(incudine-snd-send-string ,string))))
+           (when output-p
+             (funcall parser
+                      (subseq str 0 (position #\newline str :from-end t))))))
+        (*snd*
+         (to-process string)
+         (if output-p (from-process parser) (flush-stream)))))
 
 (defun truenamestring (pathspec)
   (namestring (truename pathspec)))

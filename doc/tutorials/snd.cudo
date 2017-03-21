@@ -16,6 +16,11 @@ snd:*program-args*
 snd:*tmpfile*
 ;; "/tmp/incudine-snd.snd"
 
+;; It is possible to use the Emacs' Snd-Scheme mode. It requires
+;; slime-enable-evaluate-in-emacs T on the Emacs side, then
+;;
+;;     (setf (snd:emacs-mode-p) t)
+
 (snd:run)
 ;; #<SB-IMPL::PROCESS 1955 :RUNNING>
 
