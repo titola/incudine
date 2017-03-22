@@ -57,6 +57,7 @@
      (:file "vug/reinit" :depends-on ("vug/base"))
      (:file "vug/reducible" :depends-on ("vug/base"))
      (:file "vug/delete-var" :depends-on ("vug/base"))
+     (:file "vug/frame-slot-names" :depends-on ("vug/base"))
      (:file "vug/vuglet" :depends-on ("vug/base"))
      (:file "vug/let-over-vug-1" :depends-on ("vug/base"))
      (:file "vug/let-over-vug-2" :depends-on ("vug/base"))

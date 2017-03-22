@@ -677,9 +677,10 @@
     `(progn ,@ret)))
 
 (defmacro vug-foreign-varnames (type)
-  `(mapcar #'vug-object-name
-           (,(format-symbol :incudine.vug "VUG-VARIABLES-FOREIGN-~A" type)
-             *vug-variables*)))
+  `(nreverse
+     (mapcar #'vug-object-name
+             (,(format-symbol :incudine.vug "VUG-VARIABLES-FOREIGN-~A" type)
+               *vug-variables*))))
 
 (defun sample-array-bindings (name wrap-name size)
   (when (reduce-warnings
@@ -701,8 +702,9 @@
 
 (declaim (inline vug-variables-foreign-sample-names))
 (defun vug-variables-foreign-sample-names ()
-  (mapcar #'vug-object-name
-          (vug-variables-foreign-sample *vug-variables*)))
+  (nreverse
+    (mapcar #'vug-object-name
+            (vug-variables-foreign-sample *vug-variables*))))
 
 (defmacro with-dsp-preamble ((dsp-var name control-table-var
                               free-hook-var) &body body)
