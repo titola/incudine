@@ -187,3 +187,67 @@
 (defun load (scmfile &optional env)
   "Loads the scheme FILE in Snd."
   (eval (format nil "(load ~S~@[ ~(~A~)~])" (truenamestring scmfile) env)))
+
+(defvar *sharp-s-function* (get-dispatch-macro-character #\# #\s))
+
+(defun simple-sharp-char (stream subchar arg)
+  (declare (ignore stream arg))
+  (make-symbol (format nil "#~A" (char-downcase subchar))))
+
+;;; Format s7 code for SND:EVAL
+;;;
+;;;   (snd:enable-sharp-s7-syntax)
+;;;
+;;;   #s7(let ((snd (open-sound "foo.wav")))
+;;;        (play snd :wait #t))
+;;;
+;;;   ;; => "(let ((snd (open-sound \"foo.wav\"))) (play snd :wait #t))"
+;;;
+;;;   #s7(quote #.(LOOP REPEAT 8 COLLECT (RANDOM 1.0)))
+;;;
+;;;   ;; => "(quote
+;;;   ;;      (0.5520501 0.4115485 0.35940528 0.0056368113 0.31019592
+;;;   ;;       0.4214077 0.32522345 0.2879219))"
+;;;
+;;;   (format nil #s7(new-sound "/tmp/foo.wav" :channels 1 :size ~D)
+;;;           (floor incudine.util:*sample-rate*))
+;;;
+;;;   ;; => "(new-sound \"/tmp/foo.wav\" :channels 1 :size 48000)"
+;;;
+;;;   (snd:eval *)   ; => (SOUND 0)
+;;;
+;;;   (defstruct point x y)
+;;;   #s(point)
+;;;   ;; => #S(POINT :X NIL :Y NIL)
+;;;
+(defun |#s7-reader| (stream subchar arg)
+  (cond ((char= (peek-char nil stream) #\7)
+         (read-char stream)
+         (assert (char= (read-char stream) #\())
+         (labels ((rec (x)
+                    (cond ((consp x)
+                           (cons (rec (car x)) (rec (cdr x))))
+                          ((stringp x)
+                           (format nil "~S" x))
+                          ((keywordp x)
+                           (make-symbol (format nil "~S" x)))
+                          (t x))))
+           (let ((*readtable* (copy-readtable)))
+             (setf (readtable-case *readtable*) :preserve)
+             (loop for c across "tf" do
+               (set-dispatch-macro-character #\# c #'simple-sharp-char))
+             (format nil "~A"
+               (rec (read-delimited-list #\) stream t))))))
+        (t
+         (funcall *sharp-s-function* stream subchar arg))))
+
+(defun set-sharp-s7-syntax ()
+  (set-dispatch-macro-character #\# #\s #'|#s7-reader|))
+
+(defun add-sharp-s7-syntax ()
+  (setf *readtable* (copy-readtable))
+  (set-sharp-s7-syntax))
+
+(defmacro enable-sharp-s7-syntax ()
+  `(eval-when (:compile-toplevel :execute)
+     (add-sharp-s7-syntax)))

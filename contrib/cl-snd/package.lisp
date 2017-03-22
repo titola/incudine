@@ -3,7 +3,7 @@
   (:shadow #:eval #:load)
   (:export #:*program-name* #:*program-args* #:snd-error
            #:run #:eval #:load #:exit #:flush-stream #:close-stream
-           #:emacs-mode-p))
+           #:emacs-mode-p #:enable-sharp-s7-syntax))
 
 (in-package :snd)
 
