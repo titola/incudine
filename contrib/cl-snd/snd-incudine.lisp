@@ -25,13 +25,17 @@
 (defvar *tmpfile* "/tmp/incudine-snd.snd"
   "Full path of the temporary soundfile.")
 
+(enable-sharp-s7-syntax)
+
+(defmacro eval-format (control-string &rest format-arguments)
+  `(eval (format nil ,control-string ,@format-arguments)))
+
 (defun open-or-update-sound (file)
-     (eval (format nil "
- (let* ((f ~S)
-        (s (find-sound f)))
-   (if s (update-sound s) (open-sound f)))
-"
-                   (truenamestring file))))
+  (eval-format
+    #s7(let* ((f ~S)
+              (s (find-sound f)))
+         (if s (update-sound s) (open-sound f)))
+    (truenamestring file)))
 
 (defun arg-list (lst)
   (mapcar (lambda (arg)
@@ -57,28 +61,28 @@
   "The sound ID-OR-FILENAME is loaded in a new INCUDINE:BUFFER structure.
 BUFFER-LOAD-ARGS are the optional arguments for INCUDINE:BUFFER-LOAD."
   (declare (type (or fixnum string) id-or-filename))
-  (with-buffer-load buffer-load-args "
- (let* ((x ~S)
-        (s (if (number? x) (integer->sound x) (find-sound x))))
-   (when (sound? s)
-     (save-sound-as ~S s :header-type mus-riff :sample-type mus-ldouble)))
-"
-                    id-or-filename *tmpfile*))
+  (with-buffer-load buffer-load-args
+    #s7(let* ((x ~S)
+              (s (if (number? x) (integer->sound x) (find-sound x))))
+         (when (sound? s)
+           (save-sound-as ~S s :header-type mus-riff :sample-type mus-ldouble)))
+    id-or-filename *tmpfile*))
 
 (defun selection->buffer (&rest buffer-load-args)
   "The current selection is loaded in a new INCUDINE:BUFFER structure.
 BUFFER-LOAD-ARGS are the optional arguments for INCUDINE:BUFFER-LOAD."
   (with-buffer-load buffer-load-args
-     "(save-selection ~S :header-type mus-riff :sample-type mus-ldouble)"
-     *tmpfile*))
+    #s7(save-selection ~S :header-type mus-riff :sample-type mus-ldouble)
+    *tmpfile*))
 
 (defun region->buffer (region-id &rest buffer-load-args)
   "The region REGION-ID is loaded in a new INCUDINE:BUFFER structure.
 BUFFER-LOAD-ARGS are the optional arguments for INCUDINE:BUFFER-LOAD."
   (declare (type fixnum region-id))
   (with-buffer-load buffer-load-args
-     "(save-region (integer->region ~D) ~S :header-type mus-riff :sample-type mus-ldouble)"
-     region-id *tmpfile*))
+    #s7(save-region (integer->region ~D) ~S :header-type mus-riff
+                    :sample-type mus-ldouble)
+    region-id *tmpfile*))
 
 (defun mix->buffer (mix-id &rest buffer-load-args)
   "The mix MIX-ID is loaded in a new INCUDINE:BUFFER structure.
@@ -87,29 +91,29 @@ BUFFER-LOAD-ARGS are the optional arguments for INCUDINE:BUFFER-LOAD."
   ;; libsndfile doesn't support the next/ldouble format used by Snd,
   ;; therefore the soundfile is rewritten with riff/ldouble header
   ;; on little endian machines.
-  (with-buffer-load buffer-load-args "
- (let* ((tmpfile \"~A_\")
-        (res (save-mix (integer->mix ~D) tmpfile)))
-   (when res
-     (unless (and (= (mus-sound-sample-type tmpfile) mus-bdouble)
-                  (= (mus-sound-header-type tmpfile) mus-next))
-       (open-sound tmpfile)
-       (set! res (save-sound-as ~S :header-type mus-riff :sample-type mus-ldouble))
-       (close-sound))
-     res))
-"
-                    *tmpfile* mix-id *tmpfile*))
+  (with-buffer-load buffer-load-args
+    #s7(let* ((tmpfile \"~A_\")
+              (res (save-mix (integer->mix ~D) tmpfile)))
+         (when res
+           (unless (and (= (mus-sound-sample-type tmpfile) mus-bdouble)
+                        (= (mus-sound-header-type tmpfile) mus-next))
+             (open-sound tmpfile)
+             (set! res (save-sound-as ~S :header-type mus-riff
+                                      :sample-type mus-ldouble))
+             (close-sound))
+           res))
+    *tmpfile* mix-id *tmpfile*))
 
 (defun float-vector->buffer (fvec-string &rest buffer-load-args)
   "The float-vector FVEC-STRING of Snd is loaded in a new INCUDINE:BUFFER
 structure. BUFFER-LOAD-ARGS are the optional arguments for INCUDINE:BUFFER-LOAD."
   (declare (type string fvec-string))
   (with-buffer-load buffer-load-args
-    "(with-sound (:output ~S :clipped #f :to-snd #f ~
-                  :header-type mus-riff :sample-type mus-ldouble) ~
-       (let* ((v ~A) (end (length v))) ~
-         (do ((i 0 (+ i 1))) ((= i end)) ~
-           (outa i (v i)))))"
+    #s7(with-sound (:output ~S :clipped #f :to-snd #f
+                    :header-type mus-riff :sample-type mus-ldouble)
+         (let* ((v ~A) (end (length v)))
+           (do ((i 0 (+ i 1))) ((= i end))
+             (outa i (v i)))))
     *tmpfile* fvec-string))
 
 (defmacro with-buffer-save ((buf fname-var path args) &body body)
@@ -145,18 +149,18 @@ passed to INCUDINE:BUFFER-SAVE."
 (defun buffer->float-vector (buf fvec-name &rest buffer-save-args)
   (declare (type incudine:buffer buf) (type string fvec-name))
   (with-buffer-save (buf f *tmpfile* buffer-save-args)
-    (eval (format nil
-            "(begin ~
-               (define ~A ~
-                 (let* ((sf ~S) ~
-                        (size (mus-sound-samples sf)) ~
-                        (v (make-float-vector size)) ~
-                        (rd (make-sampler 0 sf))) ~
-                   (do ((i 0 (+ i 1))) ~
-                       ((= i size) (free-sampler rd) v) ~
-                     (float-vector-set! v i (rd))))) ~
-               (length ~A))"
-            fvec-name f fvec-name))))
+    (eval-format
+      #s7(begin
+           (define ~A
+             (let* ((sf ~S)
+                    (size (mus-sound-samples sf))
+                    (v (make-float-vector size))
+                    (rd (make-sampler 0 sf)))
+               (do ((i 0 (+ i 1)))
+                   ((= i size) (free-sampler rd) v)
+                 (float-vector-set! v i (rd)))))
+           (length ~A))
+      fvec-name f fvec-name)))
 
 (defun float-vector (fvec-name obj &optional (start 0) (end 0))
   "A float-vector in Snd called FVEC-NAME is defined with the content of
@@ -231,11 +235,11 @@ SND and CHN default to the currently selected sound."
            (type string origin))
   (multiple-value-bind (snd chn) (sound-and-channel snd chn)
     (let ((buf (with-buffer-load ()
-                 "(let ((s ~A)) ~
-                    (when (sound? s) ~
-                      (save-sound-as ~S s :channel ~A ~
-                                     :header-type mus-riff ~
-                                     :sample-type mus-ldouble)))"
+                 #s7(let ((s ~A))
+                      (when (sound? s)
+                        (save-sound-as ~S s :channel ~A
+                                       :header-type mus-riff
+                                       :sample-type mus-ldouble)))
                  snd *tmpfile* chn)))
       (when buf
         (unwind-protect
@@ -244,14 +248,15 @@ SND and CHN default to the currently selected sound."
                (incudine:with-buffer (new (length vec) :initial-contents vec)
                  (incudine:buffer-save new *tmpfile* :header-type "wav"
                                        :data-format "double")
-                 (eval (format nil "(as-one-edit ~
-                                      (lambda () ~
-                                        (let ((s ~A) (c ~A)) ~
-                                          (delete-samples 0 (framples s c) s c) ~
-                                          (insert-channel ~S :snd s :chn c) ~
-                                          s)) ~
-                                      ~S)"
-                               snd chn *tmpfile* origin))))
+                 (eval-format
+                   #s7(as-one-edit
+                       (lambda ()
+                         (let ((s ~A) (c ~A))
+                           (delete-samples 0 (framples s c) s c)
+                           (insert-channel ~S :snd s :chn c)
+                           s))
+                       ~S)
+                   snd chn *tmpfile* origin)))
           (incudine:free buf))))))
 
 (defun env-channel (env &key (beg 0) dur snd chn (origin "incudine env-channel"))
@@ -267,8 +272,8 @@ SND and CHN default to the currently selected sound."
            (type (or alexandria:non-negative-fixnum null) chn)
            (type string origin))
   (multiple-value-bind (snd chn) (sound-and-channel snd chn)
-    (let ((frames (eval (format nil "(let ((s ~A)) (if (sound? s) (framples s ~A)))"
-                                snd chn))))
+    (let ((frames (eval-format #s7(let ((s ~A)) (if (sound? s) (framples s ~A)))
+                               snd chn)))
       (when (and frames (plusp frames))
         (let* ((beg (min beg (1- frames)))
                (maxdur (- frames beg))
@@ -277,29 +282,29 @@ SND and CHN default to the currently selected sound."
                                  :fill-function (gen:envelope env :periodic-p nil))
             (incudine:buffer-save buf *tmpfile* :header-type "wav"
                                   :data-format "double")
-            (eval (format nil "(let ((s ~A) (rd (make-sampler 0 ~S))) ~
-                                 (map-channel (lambda (x) (* x (rd))) ~
-                                              ~D ~D s ~A current-edit-position ~
-                                              ~S) ~
-                                 (free-sampler rd) s)"
-                          snd *tmpfile* beg dur chn origin))))))))
+            (eval-format
+              #s7(let ((s ~A) (rd (make-sampler 0 ~S)))
+                   (map-channel (lambda (x) (* x (rd)))
+                                ~D ~D s ~A current-edit-position ~S)
+                   (free-sampler rd) s)
+              snd *tmpfile* beg dur chn origin)))))))
 
 (defun env-selection (env &key (origin "incudine env-selection"))
   "Similar to env-selection in Snd, it applies the amplitude envelope ENV,
 an INCUDINE:ENVELOPE structure, to the selection."
   (declare (type incudine:envelope env) (type string origin))
   (when (eval "(selection?)")
-    (let ((info (eval (format nil
-                        "(map (lambda (s) ~
-                                (list (sound->integer s) ~
-                                      (do ((c 0 (+ c 1)) ~
-                                           (res '())) ~
-                                          ((= c (channels s)) (reverse res)) ~
-                                        (set! res (cons ~
-                                                    (list (selection-position s c) ~
-                                                          (selection-framples s c)) ~
-                                                    res))))) ~
-                            (sounds))"))))
+    (let ((info (eval
+                  #s7(map (lambda (s)
+                            (list (sound->integer s)
+                                  (do ((c 0 (+ c 1))
+                                       (res '()))
+                                      ((= c (channels s)) (reverse res))
+                                    (set! res (cons
+                                                (list (selection-position s c)
+                                                      (selection-framples s c))
+                                                res)))))
+                          (sounds)))))
       (loop for (snd chans-info) in info
             do (loop for (pos frm) in chans-info
                      for chn from 0

@@ -31,8 +31,10 @@ snd:*tmpfile*
   (hello-snd 230 .2 255 .1))
 ;; (SOUND 0)
 
+(snd:enable-sharp-s7-syntax)
+
 (defun snd-play ()
-  (snd:eval "(play)"))
+  (snd:eval #s7(play)))
 
 (snd-play)
 
@@ -44,14 +46,14 @@ snd:*tmpfile*
   (hello-snd 1000 .2 1220 .1))
 ;; ((MIX 1) (MIX 2))
 
-(snd:eval "(set! (cursor) 108000)")
+(snd:eval #s7(set! (cursor) 108000))
 ;; 108000
 
 (bounce-to-snd-mix ("/tmp/oscilla-4.wav" '("(cursor)" t) :duration 1)
   (hello-snd 660 .1 888 .1))
 ;; ((MIX 3) (MIX 4))
 
-(snd:eval "(set! (cursor) 0)")
+(snd:eval #s7(set! (cursor) 0))
 ;; 0
 
 (snd-play)
@@ -76,10 +78,10 @@ snd:*tmpfile*
 
 (bplay *snd0* 1 0 t)
 
-(snd:eval "(set! (selection-position) 73000)")
+(snd:eval #s7(set! (selection-position) 73000))
 ;; 73000
 
-(snd:eval "(set! (selection-framples) 48000)")
+(snd:eval #s7(set! (selection-framples) 48000))
 ;; 48000
 
 (defvar *snd-sel* (snd:selection->buffer))
@@ -89,33 +91,33 @@ snd:*tmpfile*
 
 (set-control 1 :buf *snd-sel*)
 
-(snd:eval "(set! (selection-position) 20000)")
+(snd:eval #s7(set! (selection-position) 20000))
 ;; 20000
 
-(snd:eval "(set! (selection-framples) 48000)" :output-p nil)
+(snd:eval #s7(set! (selection-framples) 48000) :output-p nil)
 ;; NIL
 
-(defvar *snd-reg0* (snd:region->buffer (second (snd:eval "(make-region)"))))
+(defvar *snd-reg0* (snd:region->buffer (second (snd:eval #s7(make-region)))))
 
 *snd-reg0*
 ;; #<BUFFER :FRAMES 48000 :CHANNELS 2 :SR 48000.0>
 
 (set-control 1 :buf *snd-reg0*)
 
-(snd:eval "(unselect-all)")
+(snd:eval #s7(unselect-all))
 ;; NIL
 
 (free 0)
 
 (rt-stop)
 
-(snd:eval "(begin (save-sound) (close-sound))")
+(snd:eval #s7(begin (save-sound) (close-sound)))
 ;; NIL
 
 (snd:buffer->sound *snd0* "/tmp/snd0.wav")
 ;; (SOUND 0)
 
-(snd:eval "(scale-to .3)")
+(snd:eval #s7(scale-to .3))
 ;; 0.3
 
 (snd:buffer->mix *snd-sel*)
@@ -127,7 +129,7 @@ snd:*tmpfile*
 (snd:buffer->mix *mix0* '("/tmp/mix0.wav" 108000 0 nil 1))
 ;; ((MIX 2))
 
-(snd:eval "(maxamp)")
+(snd:eval #s7(maxamp))
 ;; 0.9025847
 
 (with-open-file (f "/tmp/666.scm" :direction :output
@@ -145,13 +147,11 @@ snd:*tmpfile*
     (snd:map-channel (lambda (x) (* x (incf n) 1/80000))
                      :dur 80000 :chn ch)))
 
-(let ((fade-out (make-cutoff 1)))
-  (unwind-protect
-       (progn
-         (snd:eval "(set! (selection-position) (- (framples) 48000))")
-         (snd:eval "(set! (selection-framples) 48000)")
-         (snd:env-selection fade-out))
-    (free fade-out)))
+(with-cleanup
+  (snd:eval #s7(begin
+                 (set! (selection-position) (- (framples) 48000))
+                 (set! (selection-framples) 48000)))
+  (snd:env-selection (make-cutoff 1)))
 
 (snd-play)
 
@@ -160,14 +160,13 @@ snd:*tmpfile*
 (snd:open-or-update-sound "/tmp/snd0.wav")
 ;;(SOUND 0)
 
-(let ((env (make-adsr .5 .09 .8 1.2)))
-  (unwind-protect
-       (dotimes (ch 2) (snd:env-channel env :chn ch))
-    (free env)))
+(with-cleanup
+  (let ((env (make-adsr .5 .09 .8 1.2)))
+    (dotimes (ch 2) (snd:env-channel env :chn ch))))
 
 (snd-play)
 
-(snd:eval "(length (define cudotest (channel->float-vector)))")
+(snd:eval #s7(length (define cudotest (channel->float-vector))))
 
 (defvar *fvec0* (snd:float-vector->buffer "cudotest"))
 
@@ -179,37 +178,37 @@ snd:*tmpfile*
 ;;  4.132131854014835d-5 6.396912508799108d-5 9.134190665801465d-5
 ;;  1.232938527676509d-4 1.5965481562650003d-4 2.002306897983181d-4)
 
-(snd:eval "(set! (transform-graph?) #t)")
+(snd:eval #s7(set! (transform-graph?) #t))
 
-(defvar *fvec1* (snd:float-vector->buffer "(transform->float-vector)"))
+(defvar *fvec1* (snd:float-vector->buffer #s7(transform->float-vector)))
 
 *fvec1*
-#<BUFFER :FRAMES 512 :CHANNELS 1 :SR 48000.0>
+;; #<BUFFER :FRAMES 512 :CHANNELS 1 :SR 48000.0>
 
 (snd:float-vector "cudotest2" *fvec1*)
 ;; 512
 
-(snd:eval "(length cudotest2)")
+(snd:eval #s7(length cudotest2))
 ;; 512
 
 (snd:float-vector "cudotest3" '(1 2 3 5 8 13 21))
 ;; 7
 
 (snd:eval "cudotest3")
-;; (FLOAT-VECTOR 1.0 2.0 3.0 5.0 8.0 13.0 21.0)
+;; "#r(1.0 2.0 3.0 5.0 8.0 13.0 21.0)"
 
 (snd:float-vector "cudotest4" #(1 2 3 5 8 13 21) 2 7)
 ;; 5
 
-(snd:eval "(cudotest4 3)")
+(snd:eval #s7(cudotest4 3))
 ;; 13.0
 
 (snd:float-vector "cudotest5" (gen:partials '(5 4 3 2 1)) 0 1024)
 ;; 1024
 
-(snd:eval "(set! (lisp-graph?) #t)")
+(snd:eval #s7(set! (lisp-graph?) #t))
 
-(snd:eval "(graph cudotest5 \"cudonics\")")
+(snd:eval #s7(graph cudotest5 \"cudonics\"))
 
 (snd:exit)
 ;; T

@@ -43,8 +43,10 @@ NIL
            (hello-snd 230 .2 255 .1))
 (SOUND 0)
 
+<span class="prompt">SCRATCH&gt;</span> (snd:enable-sharp-s7-syntax)
+
 <span class="prompt">SCRATCH&gt;</span> (defun <span style="color: #87cefa;">snd-play</span> ()
-           (snd:eval <span style="color: #ffa07a;">"(play)"</span>))
+           (snd:eval #s7(play)))
 
 <span class="prompt">SCRATCH&gt;</span> (snd-play)
 
@@ -56,14 +58,14 @@ NIL
            (hello-snd 1000 .2 1220 .1))
 ((MIX 1) (MIX 2))
 
-<span class="prompt">SCRATCH&gt;</span> (snd:eval <span style="color: #ffa07a;">"(set! (cursor) 108000)"</span>)
+<span class="prompt">SCRATCH&gt;</span> (snd:eval #s7(set! (cursor) 108000))
 108000
 
 <span class="prompt">SCRATCH&gt;</span> (bounce-to-snd-mix (<span style="color: #ffa07a;">"/tmp/oscilla-4.wav"</span> '(<span style="color: #ffa07a;">"(cursor)"</span> t) <span style="color: #b0c4de;">:duration</span> 1)
            (hello-snd 660 .1 888 .1))
 ((MIX 3) (MIX 4))
 
-<span class="prompt">SCRATCH&gt;</span> (snd:eval <span style="color: #ffa07a;">"(set! (cursor) 0)"</span>)
+<span class="prompt">SCRATCH&gt;</span> (snd:eval #s7(set! (cursor) 0))
 0
 
 <span class="prompt">SCRATCH&gt;</span> (snd-play)
@@ -88,10 +90,10 @@ NIL
 
 <span class="prompt">SCRATCH&gt;</span> (bplay *snd0* 1 0 t)
 
-<span class="prompt">SCRATCH&gt;</span> (snd:eval <span style="color: #ffa07a;">"(set! (selection-position) 73000)"</span>)
+<span class="prompt">SCRATCH&gt;</span> (snd:eval #s7(set! (selection-position) 73000))
 73000
 
-<span class="prompt">SCRATCH&gt;</span> (snd:eval <span style="color: #ffa07a;">"(set! (selection-framples) 48000)"</span>)
+<span class="prompt">SCRATCH&gt;</span> (snd:eval #s7(set! (selection-framples) 48000))
 48000
 
 <span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">*snd-sel*</span> (snd:selection-&gt;buffer))
@@ -101,34 +103,34 @@ NIL
 
 <span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:buf</span> *snd-sel*)
 
-<span class="prompt">SCRATCH&gt;</span> (snd:eval <span style="color: #ffa07a;">"(set! (selection-position) 20000)"</span>)
+<span class="prompt">SCRATCH&gt;</span> (snd:eval #s7(set! (selection-position) 20000))
 20000
 
-<span class="prompt">SCRATCH&gt;</span> (snd:eval <span style="color: #ffa07a;">"(set! (selection-framples) 48000)"</span> <span style="color: #b0c4de;">:output-p</span> nil)
+<span class="prompt">SCRATCH&gt;</span> (snd:eval #s7(set! (selection-framples) 48000) <span style="color: #b0c4de;">:output-p</span> nil)
 NIL
 
 <span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">*snd-reg0*</span>
-           (snd:region-&gt;buffer (second (snd:eval <span style="color: #ffa07a;">"(make-region)"</span>))))
+           (snd:region-&gt;buffer (second (snd:eval #s7(make-region)))))
 
 <span class="prompt">SCRATCH&gt;</span> *snd-reg0*
 #&lt;BUFFER <span style="color: #b0c4de;">:FRAMES</span> 48000 <span style="color: #b0c4de;">:CHANNELS</span> 2 <span style="color: #b0c4de;">:SR</span> 48000.0&gt;
 
 <span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:buf</span> *snd-reg0*)
 
-<span class="prompt">SCRATCH&gt;</span> (snd:eval <span style="color: #ffa07a;">"(unselect-all)"</span>)
+<span class="prompt">SCRATCH&gt;</span> (snd:eval #s7(unselect-all))
 NIL
 
 <span class="prompt">SCRATCH&gt;</span> (free 0)
 
 <span class="prompt">SCRATCH&gt;</span> (rt-stop)
 
-<span class="prompt">SCRATCH&gt;</span> (snd:eval <span style="color: #ffa07a;">"(begin (save-sound) (close-sound))"</span>)
+<span class="prompt">SCRATCH&gt;</span> (snd:eval #s7(begin (save-sound) (close-sound)))
 NIL
 
 <span class="prompt">SCRATCH&gt;</span> (snd:buffer-&gt;sound *snd0* <span style="color: #ffa07a;">"/tmp/snd0.wav"</span>)
 (SOUND 0)
 
-<span class="prompt">SCRATCH&gt;</span> (snd:eval <span style="color: #ffa07a;">"(scale-to .3)"</span>)
+<span class="prompt">SCRATCH&gt;</span> (snd:eval #s7(scale-to .3))
 0.3
 
 <span class="prompt">SCRATCH&gt;</span> (snd:buffer-&gt;mix *snd-sel*)
@@ -140,7 +142,7 @@ NIL
 <span class="prompt">SCRATCH&gt;</span> (snd:buffer-&gt;mix *mix0* '(<span style="color: #ffa07a;">"/tmp/mix0.wav"</span> 108000 0 nil 1))
 ((MIX 2))
 
-<span class="prompt">SCRATCH&gt;</span> (snd:eval <span style="color: #ffa07a;">"(maxamp)"</span>)
+<span class="prompt">SCRATCH&gt;</span> (snd:eval #s7(maxamp))
 0.9025847
 
 <span class="prompt">SCRATCH&gt;</span> (with-open-file (f <span style="color: #ffa07a;">"/tmp/666.scm"</span> <span style="color: #b0c4de;">:direction</span> <span style="color: #b0c4de;">:output</span>
@@ -158,13 +160,11 @@ NIL
              (snd:map-channel (lambda (x) (* x (incf n) 1/80000))
                               <span style="color: #b0c4de;">:dur</span> 80000 <span style="color: #b0c4de;">:chn</span> ch)))
 
-<span class="prompt">SCRATCH&gt;</span> (let ((fade-out (make-cutoff 1)))
-           (unwind-protect
-                (progn
-                  (snd:eval <span style="color: #ffa07a;">"(set! (selection-position) (- (framples) 48000))"</span>)
-                  (snd:eval <span style="color: #ffa07a;">"(set! (selection-framples) 48000)"</span>)
-                  (snd:env-selection fade-out))
-             (free fade-out)))
+<span class="prompt">SCRATCH&gt;</span> (with-cleanup
+           (snd:eval #s7(begin
+                          (set! (selection-position) (- (framples) 48000))
+                          (set! (selection-framples) 48000)))
+           (snd:env-selection (make-cutoff 1)))
 
 <span class="prompt">SCRATCH&gt;</span> (snd-play)
 
@@ -173,14 +173,13 @@ NIL
 <span class="prompt">SCRATCH&gt;</span> (snd:open-or-update-sound <span style="color: #ffa07a;">"/tmp/snd0.wav"</span>)
 (SOUND 0)
 
-<span class="prompt">SCRATCH&gt;</span> (let ((env (make-adsr .5 .09 .8 1.2)))
-           (unwind-protect
-                (dotimes (ch 2) (snd:env-channel env <span style="color: #b0c4de;">:chn</span> ch))
-             (free env)))
+<span class="prompt">SCRATCH&gt;</span> (with-cleanup
+           (let ((env (make-adsr .5 .09 .8 1.2)))
+             (dotimes (ch 2) (snd:env-channel env <span style="color: #b0c4de;">:chn</span> ch))))
 
 <span class="prompt">SCRATCH&gt;</span> (snd-play)
 
-<span class="prompt">SCRATCH&gt;</span> (snd:eval <span style="color: #ffa07a;">"(length (define cudotest (channel->float-vector)))"</span>)
+<span class="prompt">SCRATCH&gt;</span> (snd:eval #s7(length (define cudotest (channel->float-vector))))
 
 <span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">*fvec0*</span> (snd:float-vector->buffer <span style="color: #ffa07a;">"cudotest"</span>))
 
@@ -192,7 +191,7 @@ NIL
  4.132131854014835d-5 6.396912508799108d-5 9.134190665801465d-5
  1.232938527676509d-4 1.5965481562650003d-4 2.002306897983181d-4)
 
-<span class="prompt">SCRATCH&gt;</span> (snd:eval <span style="color: #ffa07a;">"(set! (transform-graph?) #t)"</span>)
+<span class="prompt">SCRATCH&gt;</span> (snd:eval #s7(set! (transform-graph?) #t))
 
 <span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">*fvec1*</span>
            (snd:float-vector->buffer <span style="color: #ffa07a;">"(transform->float-vector)"</span>))
@@ -203,27 +202,27 @@ NIL
 <span class="prompt">SCRATCH&gt;</span> (snd:float-vector <span style="color: #ffa07a;">"cudotest2"</span> *fvec1*)
 512
 
-<span class="prompt">SCRATCH&gt;</span> (snd:eval <span style="color: #ffa07a;">"(length cudotest2)"</span>)
+<span class="prompt">SCRATCH&gt;</span> (snd:eval #s7(length cudotest2))
 512
 
 <span class="prompt">SCRATCH&gt;</span> (snd:float-vector <span style="color: #ffa07a;">"cudotest3"</span> '(1 2 3 5 8 13 21))
 7
 
 <span class="prompt">SCRATCH&gt;</span> (snd:eval <span style="color: #ffa07a;">"cudotest3"</span>)
-(FLOAT-VECTOR 1.0 2.0 3.0 5.0 8.0 13.0 21.0)
+<span style="color: #ffa07a;">"#r(1.0 2.0 3.0 5.0 8.0 13.0 21.0)"</span>
 
 <span class="prompt">SCRATCH&gt;</span> (snd:float-vector <span style="color: #ffa07a;">"cudotest4"</span> #(1 2 3 5 8 13 21) 2 7)
 5
 
-<span class="prompt">SCRATCH&gt;</span> (snd:eval <span style="color: #ffa07a;">"(cudotest4 3)"</span>)
+<span class="prompt">SCRATCH&gt;</span> (snd:eval #s7(cudotest4 3))
 13.0
 
 <span class="prompt">SCRATCH&gt;</span> (snd:float-vector <span style="color: #ffa07a;">"cudotest5"</span> (gen:partials '(5 4 3 2 1)) 0 1024)
 1024
 
-<span class="prompt">SCRATCH&gt;</span> (snd:eval <span style="color: #ffa07a;">"(set! (lisp-graph?) #t)"</span>)
+<span class="prompt">SCRATCH&gt;</span> (snd:eval #s7(set! (lisp-graph?) #t))
 
-<span class="prompt">SCRATCH&gt;</span> (snd:eval <span style="color: #ffa07a;">"(graph cudotest5 \"cudonics\")"</span>)
+<span class="prompt">SCRATCH&gt;</span> (snd:eval #s7(graph cudotest5 \"cudonics\"))
 
 <span class="prompt">SCRATCH&gt;</span> (snd:exit)
 T</pre>
