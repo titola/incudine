@@ -251,8 +251,8 @@
          (read-char stream)
          (assert (and (char= (read-char stream) #\d)
                       (char= (peek-char nil stream) #\()))
-         (list 'quote (snd:eval (funcall #'|#s7-reader| stream subchar 7)
-                                :output-p (not (and arg (= arg 0))))))
+         (list 'snd:eval (funcall #'|#s7-reader| stream subchar 7)
+               :output-p (not (and arg (= arg 0)))))
         (t
          (funcall *sharp-s-function* stream subchar arg))))
 
