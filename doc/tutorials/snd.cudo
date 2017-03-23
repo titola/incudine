@@ -148,9 +148,8 @@ snd:*tmpfile*
                      :dur 80000 :chn ch)))
 
 (with-cleanup
-  (snd:eval #s7(begin
-                 (set! (selection-position) (- (framples) 48000))
-                 (set! (selection-framples) 48000)))
+  #snd(begin (set! (selection-position) (- (framples) 48000))
+             (set! (selection-framples) 48000))
   (snd:env-selection (make-cutoff 1)))
 
 (snd-play)
@@ -208,7 +207,40 @@ snd:*tmpfile*
 
 (snd:eval #s7(set! (lisp-graph?) #t))
 
-(snd:eval #s7(graph cudotest5 \"cudonics\"))
+(snd:eval #s7(graph cudotest5 "cudonics"))
+
+;; Format s7 code for SND:EVAL
+
+#s7(let ((snd (open-sound "/tmp/snd0.wav")))
+     (play snd :wait #t))
+;; "(let ((snd (open-sound \"/tmp/snd0.wav\"))) (play snd :wait #t))"
+
+#s7(quote #.(LOOP REPEAT 8 COLLECT (RANDOM 1.0)))
+;; "(quote
+;;   (0.5520501 0.4115485 0.35940528 0.0056368113 0.31019592
+;;    0.4214077 0.32522345 0.2879219))"
+
+(format nil #s7(new-sound "/tmp/foo.wav" :channels 1 :size ~D)
+        (floor incudine.util:*sample-rate*))
+;; => "(new-sound \"/tmp/foo.wav\" :channels 1 :size 48000)"
+
+;; #snd(...)   is equivalent to  (snd:eval #s7(...))
+;; #0snd(...)  is equivalent to  (snd:eval #s7(...) :output-p nil)
+
+;; hidden side effect:  #7s is equivalent to #s7
+
+(defstruct point x y)
+#s(point)
+;; => #S(POINT :X NIL :Y NIL)
+
+#snd(list #t #f ())
+;; (T NIL NIL)
+
+#0snd(define foo 123)
+;; NIL
+
+#snd(list foo)
+;; (123)
 
 (snd:exit)
 ;; T

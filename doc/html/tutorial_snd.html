@@ -161,9 +161,8 @@ NIL
                               <span style="color: #b0c4de;">:dur</span> 80000 <span style="color: #b0c4de;">:chn</span> ch)))
 
 <span class="prompt">SCRATCH&gt;</span> (with-cleanup
-           (snd:eval #s7(begin
-                          (set! (selection-position) (- (framples) 48000))
-                          (set! (selection-framples) 48000)))
+           #snd(begin (set! (selection-position) (- (framples) 48000))
+                      (set! (selection-framples) 48000))
            (snd:env-selection (make-cutoff 1)))
 
 <span class="prompt">SCRATCH&gt;</span> (snd-play)
@@ -222,7 +221,38 @@ NIL
 
 <span class="prompt">SCRATCH&gt;</span> (snd:eval #s7(set! (lisp-graph?) #t))
 
-<span class="prompt">SCRATCH&gt;</span> (snd:eval #s7(graph cudotest5 \"cudonics\"))
+<span class="prompt">SCRATCH&gt;</span> (snd:eval #s7(graph cudotest5 <span style="color: #ffa07a;">"cudonics"</span>))
+
+<span class="prompt">SCRATCH&gt;</span> #s7(let ((snd (open-sound "/tmp/snd0.wav")))
+              (play snd <span style="color: #b0c4de;">:wait</span> #t))
+<span style="color: #ffa07a;">"(let ((snd (open-sound \"/tmp/snd0.wav\"))) (play snd :wait #t))"</span>
+
+<span class="prompt">SCRATCH&gt;</span> #s7(quote #.(LOOP REPEAT 8 COLLECT (RANDOM 1.0)))
+<span style="color: #ffa07a;">"(quote
+  (0.5520501 0.4115485 0.35940528 0.0056368113 0.31019592
+   0.4214077 0.32522345 0.2879219))"</span>
+
+<span class="prompt">SCRATCH&gt;</span> (format nil #s7(new-sound "/tmp/foo.wav" <span style="color: #b0c4de;">:channels</span> 1 <span style="color: #b0c4de;">:size</span> ~D)
+                 (floor incudine.util:*sample-rate*))
+<span style="color: #ffa07a;">"(new-sound \"/tmp/foo.wav\" :channels 1 :size 48000)"</span>
+
+#snd(...)   is equivalent to  (snd:eval #s7(...))
+#0snd(...)  is equivalent to  (snd:eval #s7(...) :output-p nil)
+
+hidden side effect:  #7s is equivalent to #s7
+
+<span class="prompt">SCRATCH&gt;</span> (defstruct point x y)
+<span class="prompt">SCRATCH&gt;</span> #s(point)
+#S(POINT <span style="color: #b0c4de;">:X</span> NIL <span style="color: #b0c4de;">:Y</span> NIL)
+
+<span class="prompt">SCRATCH&gt;</span> #snd(list #t #f ())
+(T NIL NIL)
+
+<span class="prompt">SCRATCH&gt;</span> #0snd(define foo 123)
+NIL
+
+<span class="prompt">SCRATCH&gt;</span> #snd(list foo)
+(123)
 
 <span class="prompt">SCRATCH&gt;</span> (snd:exit)
 T</pre>
