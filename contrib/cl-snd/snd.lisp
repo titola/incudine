@@ -216,13 +216,19 @@
 ;;;
 ;;;   (snd:eval *)   ; => (SOUND 0)
 ;;;
+;;;   #snd(...)   is equivalent to  (snd:eval #s7(...))
+;;;   #0snd(...)  is equivalent to  (snd:eval #s7(...) :output-p nil)
+;;;
+;;;   hidden side effect:  #7s is equivalent to #s7
+;;;
 ;;;   (defstruct point x y)
 ;;;   #s(point)
 ;;;   ;; => #S(POINT :X NIL :Y NIL)
 ;;;
 (defun |#s7-reader| (stream subchar arg)
-  (cond ((char= (peek-char nil stream) #\7)
-         (read-char stream)
+  (cond ((or (char= (peek-char nil stream) #\7)
+             (and arg (= arg 7)))
+         (unless arg (read-char stream))
          (assert (char= (read-char stream) #\())
          (labels ((rec (x)
                     (cond ((consp x)
@@ -241,6 +247,12 @@
                (set-dispatch-macro-character #\# c #'simple-sharp-char))
              (format nil "~A"
                (rec (read-delimited-list #\) stream t))))))
+        ((char= (peek-char nil stream) #\n)
+         (read-char stream)
+         (assert (and (char= (read-char stream) #\d)
+                      (char= (peek-char nil stream) #\()))
+         (list 'quote (snd:eval (funcall #'|#s7-reader| stream subchar 7)
+                                :output-p (not (and arg (= arg 0))))))
         (t
          (funcall *sharp-s-function* stream subchar arg))))
 
