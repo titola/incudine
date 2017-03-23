@@ -290,6 +290,23 @@
     (macroexpand-1
       `(%%segment-init ,beg ,end ,dur ,curve ,grow ,a2 ,b1 ,y1 ,y2))))
 
+(defmacro with-segment-stack (vars consointer &body body)
+  (with-gensyms (stack)
+    `(let ((,stack (car ,consointer)))
+       (declare (type foreign-pointer ,stack))
+       (symbol-macrolet ,(loop for v in vars
+                               for i from 0
+                               collect `(,v (smp-ref ,stack ,i)))
+         ,@body))))
+
+(defun segment-stack-init (consointer dur)
+  (declare (type cons consointer)
+           (type non-negative-fixnum dur)
+           #.*standard-optimize-settings*)
+  (with-segment-stack (beg end curve grow a2 b1 y1 y2) consointer
+    (%segment-init beg end dur curve grow a2 b1 y1 y2)
+    (values)))
+
 (defmacro %segment-update-level (level curve grow a2 b1 y1 y2)
   (with-gensyms (y0)
     `(curve-case ,curve

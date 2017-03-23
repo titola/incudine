@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -244,9 +244,15 @@
     (and (zerop index) (zerop dur))))
 
 (define-vug envelope ((env envelope) gate time-scale (done-action function))
-  (with-samples (last-level end old-gate grow a2 b1 y1 y2)
+  (with-samples (last-level end (curve +seg-lin-func+) grow a2 b1 y1 y2 old-gate)
+    (declare (preserve last-level end curve grow a2 b1 y1 y2))
     (with ((index 0)
            (curr-node -1)
+           ;; Pointer to the frame where the first slot is LAST-LEVEL.
+           ;; The variables from LAST-LEVEL to Y2 are declared PRESERVE,
+           ;; therefore they are not removed during the compilation and
+           ;; we get a frame with slot names.
+           (consointer (reduce-warnings (list (get-pointer last-level))))
            (env-data (envelope-data env))
            (data-size (envelope-data-size env))
            (last-point (1- (the non-negative-fixnum (envelope-points env))))
@@ -258,7 +264,6 @@
            (done-p nil)
            (dur 0)
            (remain 0)
-           (curve +seg-lin-func+)
            (gate-trig (plusp gate))
            (level (cond ((prog1 (and gate-trig (<= gate old-gate))
                            (setf old-gate gate))
@@ -290,8 +295,7 @@
                                  curve (smp-ref env-data index)
                                  prev-index curr-index))
                          (setf sustain nil)
-                         (%segment-init last-level end dur curve
-                                        grow a2 b1 y1 y2)
+                         (incudine::segment-stack-init consointer dur)
                          last-level)
                         ((envelope-begin-p index dur)
                          (cond (gate-trig
@@ -332,13 +336,13 @@
                                  end (smp-ref env-data index)
                                  index (1+ index)
                                  curve (smp-ref env-data index))
-                           (%segment-init last-level end dur curve
-                                          grow a2 b1 y1 y2)
+                           (incudine::segment-stack-init consointer dur)
                            last-level))))
       (declare (type non-negative-fixnum index data-size last-point dur remain
                      curr-index prev-index)
+               (type cons consointer)
                (type fixnum curr-node loop-node release-node)
-               (type sample level curve)
+               (type sample level)
                (type boolean sustain done-p gate-trig))
       (initialize (setf end level))
       ;; Expand if GATE is modulated.
@@ -367,8 +371,9 @@
                             index (1+ index)
                             curve (smp-ref env-data index)
                             prev-index curr-index)
-                      (%segment-init level end dur curve grow a2 b1 y1 y2)
-                      (setf last-level level))))
+                      (setf last-level level)
+                      (incudine::segment-stack-init consointer dur)
+                      (setf level last-level))))
             (t (if (and (= remain 3)
                         (envelope-end-of-data-p (1+ index) data-size))
                    (setf remain 1)
