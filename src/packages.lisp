@@ -535,6 +535,26 @@
    #:slip-decode #:socket-send #:buffer-to-octets #:octets-to-buffer
    #:buffer-to-string #:string-to-buffer))
 
+(defpackage :incudine.soundfile
+  (:use :cl)
+  (:nicknames :soundfile)
+  (:shadow #:stream #:input-stream-p #:output-stream-p #:open #:close
+           #:read #:write #:position)
+  (:import-from #:alexandria #:positive-fixnum #:non-negative-fixnum)
+  (:import-from #:incudine #:incudine-simple-error #:incudine-missing-arg)
+  (:import-from #:incudine.util #:*sndfile-buffer-size* #:*sample-rate*
+                #:*default-header-type* #:*default-data-format*
+                #:*standard-optimize-settings* #:reduce-warnings
+                #:non-negative-fixnum64 #:next-power-of-two #:db->lin)
+  (:export
+   #:soundfile-error
+   #:stream #:input-stream #:input-stream-p #:output-stream #:output-stream-p
+   #:open #:open-p #:close #:with-open-soundfile #:eof-p
+   #:read-header #:read-next #:read-into-buffer #:read #:write
+   #:foreign-read #:foreign-write
+   #:position #:buffer-data #:buffer-size #:buffer-value #:path #:sample-rate
+   #:frames #:channels #:header-type #:data-format #:convert))
+
 (defpackage :incudine.midifile
   (:use :cl)
   (:nicknames :midifile)
@@ -563,4 +583,5 @@
   (:import-from #:alexandria #:positive-fixnum #:negative-fixnum
                 #:non-negative-fixnum #:with-gensyms #:define-constant)
   (:import-from #:incudine.midifile #:with-open-midifile)
+  (:import-from #:incudine.soundfile #:with-open-soundfile)
   (:nicknames :scratch))
