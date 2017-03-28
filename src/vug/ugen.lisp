@@ -132,7 +132,8 @@ to call to get the control value."
              (let ((,ctrl (ugen-instance-controls ,ugen-instance)))
                ,(if ptr-p
                     `(mem-ref (svref ,ctrl ,id) ',type)
-                    `(the ,type (funcall (svref ,ctrl ,id))))))
+                    `(reduce-warnings
+                       (the ,type (funcall (svref ,ctrl ,id)))))))
            (values (compile ',name)))))))
 
 (defmacro define-ugen-control-setter (ugen-name control-name

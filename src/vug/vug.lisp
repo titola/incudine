@@ -262,6 +262,10 @@
     (push par (vug-variables-parameter-list *vug-variables*))
     par))
 
+(declaim (inline vug-parameter-aux-variable-p))
+(defun vug-parameter-aux-variable-p (obj)
+  (and (vug-variable-p obj) (vug-parameter-p (vug-variable-value obj))))
+
 (declaim (inline vug-input-p))
 (defun vug-input-p (obj)
   (and (vug-function-p obj)
@@ -412,7 +416,12 @@
 (defun make-vug-variable (name value &optional type)
   (multiple-value-bind (input-p value ref-count)
       (cond ((vug-input-p value)
-             (values t (car (vug-function-inputs value)) 0))
+             (let ((in (car (vug-function-inputs value))))
+               (when (vug-parameter-aux-variable-p in)
+                 ;; Auxiliary VUG-VARIABLE of a VUG-PARAMETER
+                 ;; (i.e. passed to VUG-FUNCALL in DEFINE-UGEN).
+                 (return-from make-vug-variable in))
+               (values t in 0)))
             ((store-ugen-return-value-p value)
              (store-ugen-return-varname name)
              (values nil (car (vug-function-inputs value)) 1))
@@ -1207,7 +1216,7 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
 (defun recheck-variables (var)
   (declare (type vug-variable var))
   (let ((vardep (pop (vug-variable-variables-to-recheck var))))
-    (when vardep
+    (when (and vardep (not (vug-variable-temporary-p vardep)))
       (when #1=(vug-variable-init-time-p vardep)
         (setf #1# nil)
         (when (vug-variable-deleted-p vardep)

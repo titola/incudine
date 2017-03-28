@@ -933,7 +933,8 @@
                        (if (vug-variable-value-to-cache-p var)
                            (%update-vug-variable var)
                            (blockexpand value param-plist))))
-                  ((vug-variable-init-time-p var)
+                  ((or (vug-variable-init-time-p var)
+                       (vug-variable-to-set-p var))
                    (%set-vug-variable var value param-plist))))))
       (cdr (vug-parameter-vars-to-update param)))))
 
