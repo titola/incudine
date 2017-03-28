@@ -19,6 +19,7 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (import
    '(incudine:+seg-lin-func+
+     incudine:incudine-missing-arg
      incudine:envelope
      incudine:envelope-data
      incudine::envelope-data-size
@@ -27,7 +28,8 @@
      incudine:envelope-loop-node
      incudine:envelope-release-node
      incudine:envelope-restart-level
-     incudine::%segment-init
+     incudine::segment-stack-init
+     incudine::segment-stack-reposition
      incudine::%segment-update-level))
   (object-to-free incudine:make-envelope update-local-envelope))
 
@@ -243,7 +245,9 @@
   (defun envelope-begin-p (index dur)
     (and (zerop index) (zerop dur))))
 
-(define-vug envelope ((env envelope) gate time-scale (done-action function))
+(define-vug envelope ((env envelope) gate time-scale (done-action function)
+                      (location non-negative-fixnum))
+  (:defaults (incudine-missing-arg "Missing ENVELOPE struct.") 1 1 #'identity 0)
   (with-samples (last-level end (curve +seg-lin-func+) grow a2 b1 y1 y2 old-gate)
     (declare (preserve last-level end curve grow a2 b1 y1 y2))
     (with ((index 0)
@@ -264,6 +268,7 @@
            (done-p nil)
            (dur 0)
            (remain 0)
+           (pos 0)
            (gate-trig (plusp gate))
            (level (cond ((prog1 (and gate-trig (<= gate old-gate))
                            (setf old-gate gate))
@@ -295,7 +300,7 @@
                                  curve (smp-ref env-data index)
                                  prev-index curr-index))
                          (setf sustain nil)
-                         (incudine::segment-stack-init consointer dur)
+                         (segment-stack-init consointer dur)
                          last-level)
                         ((envelope-begin-p index dur)
                          (cond (gate-trig
@@ -332,27 +337,65 @@
                                  ;; One sample is subtracted in the previous
                                  ;; value of REMAIN
                                  remain dur
-                                 index (1+ index)
-                                 end (smp-ref env-data index)
-                                 index (1+ index)
+                                 end (smp-ref env-data (1+ index))
+                                 index (+ index 2)
                                  curve (smp-ref env-data index))
-                           (incudine::segment-stack-init consointer dur)
+                           (segment-stack-init consointer dur)
                            last-level))))
       (declare (type non-negative-fixnum index data-size last-point dur remain
-                     curr-index prev-index)
+                     pos curr-index prev-index)
                (type cons consointer)
                (type fixnum curr-node loop-node release-node)
                (type sample level)
                (type boolean sustain done-p gate-trig))
       (initialize (setf end level))
+      (with-follow (location)
+        ;; Jump location.
+        (with ((dest-node 0) (end-time 0) (pos-time 0))
+          (declare (type non-negative-fixnum dest-node)
+                   (type sample end-time pos-time))
+          (setf end-time +sample-zero+)
+          (setf pos-time (* location *sample-duration*))
+          (loop for i from 0 below (envelope-points env)
+                for j from 1 by 3 do
+                  (incf end-time (* time-scale (smp-ref env-data j)))
+                  (when (> (- end-time *sample-duration*) pos-time)
+                    (setf pos location
+                          curr-node i
+                          index j
+                          curr-index j
+                          prev-index j
+                          dur (envelope-next-dur env-data index time-scale 0)
+                          remain (1+ (sample->fixnum
+                                       (* (- end-time pos-time) *sample-rate*)))
+                          last-level (smp-ref env-data (if (= j 1) 0 (- j 2)))
+                          end (smp-ref env-data (incf index))
+                          curve (smp-ref env-data (incf index))
+                          done-p nil
+                          sustain nil)
+                    (segment-stack-reposition consointer dur (- dur remain))
+                    (setf level last-level)
+                    (return))
+                finally
+                  ;; Last location.
+                  (setf pos (1- (sample->fixnum (* end-time *sample-rate*))))
+                  (envelope-jump-node (1- i) curr-node index)
+                  (setf dur (envelope-next-dur env-data index time-scale 0)
+                        remain 0
+                        last-level (smp-ref env-data (1+ index))
+                        index (+ index 2)
+                        level last-level)
+                  (unless done-p
+                    (done-action done-action)
+                    (setf done-p t)))))
       ;; Expand if GATE is modulated.
       (maybe-expand level)
-      (cond ((or done-p sustain) last-level)
+      (cond ((or done-p sustain) (values last-level pos))
             ((<= remain 1)
              ;; End of segment.
              (cond ((envelope-end-of-data-p (incf index) data-size)
                     (done-action done-action)
-                    (setf done-p t last-level end))
+                    (values (setf done-p t last-level end) pos))
                    (t (incf curr-node)
                       (cond
                         ((jump-to-loop-node-p gate curr-node loop-node
@@ -363,21 +406,22 @@
                       ;; Compute the parameters for the next segment.
                       (setf dur (envelope-next-dur env-data index time-scale 0)
                             remain dur
-                            index (1+ index)
                             ;; The first value of the segment is the
                             ;; last value of the previous segment.
                             level end
-                            end (smp-ref env-data index)
-                            index (1+ index)
+                            end (smp-ref env-data (1+ index))
+                            index (+ index 2)
                             curve (smp-ref env-data index)
                             prev-index curr-index)
                       (setf last-level level)
-                      (incudine::segment-stack-init consointer dur)
-                      (setf level last-level))))
+                      (segment-stack-init consointer dur)
+                      (values (setf level last-level)
+                              (prog1 pos (incf pos))))))
             (t (if (and (= remain 3)
                         (envelope-end-of-data-p (1+ index) data-size))
                    (setf remain 1)
                    (decf remain))
                ;; Compute the next point.
                (%segment-update-level level curve grow a2 b1 y1 y2)
-               (setf last-level level))))))
+               (values (setf last-level level)
+                       (prog1 pos (incf pos))))))))

@@ -243,7 +243,7 @@
                        cases)))))
 
 (defmacro %%segment-init (beg end dur curve grow a2 b1 y1 y2)
-  (with-gensyms (w)
+  (with-gensyms (w diff)
     `(curve-case ,curve
        (+seg-step-func+ (values))
        (+seg-lin-func+ (setf ,grow (/ (- ,end ,beg) ,dur)))
@@ -258,17 +258,16 @@
                 ,y2 (* ,y1 (sin (the maybe-limited-sample
                                   (- +half-pi+ ,w)))))))
        (+seg-welch-func+
-        (let ((,w (/ +half-pi+ ,dur)))
+        (let ((,w (/ +half-pi+ ,dur))
+              (,diff (- ,beg ,end)))
           (setf ,b1 (* 2.0 (cos (the maybe-limited-sample ,w))))
           (if (>= ,end ,beg)
               (setf ,a2 ,beg
                     ,y1 +sample-zero+
-                    ,y2 (* (- (sin (the maybe-limited-sample ,w)))
-                           (- ,end ,beg)))
+                    ,y2 (* ,diff (sin (the maybe-limited-sample ,w))))
               (setf ,a2 ,end
-                    ,y1 (- ,beg ,end)
-                    ,y2 (* (cos (the maybe-limited-sample ,w))
-                           (- ,beg ,end))))))
+                    ,y1 ,diff
+                    ,y2 (* ,diff (cos (the maybe-limited-sample ,w)))))))
        (+seg-square-func+
         (setf ,y1 (the non-negative-sample (sqrt ,beg))
               ,y2 (the non-negative-sample (sqrt ,end))
@@ -306,6 +305,73 @@
   (with-segment-stack (beg end curve grow a2 b1 y1 y2) consointer
     (%segment-init beg end dur curve grow a2 b1 y1 y2)
     (values)))
+
+(defun %segment-stack-reposition (consointer dur delta)
+  (declare (type cons consointer)
+           (type non-negative-fixnum dur)
+           (type positive-fixnum delta)
+           #.*standard-optimize-settings*)
+  (with-segment-stack (beg end curve grow a2 b1 y1 y2) consointer
+    (curve-case curve
+       (+seg-step-func+ beg)
+       (+seg-lin-func+
+        (setf grow (/ (- end beg) dur))
+        (incf beg (* grow delta)))
+       (+seg-exp-func+
+        (let ((x (the non-negative-sample (/ end beg)))
+              (y (/ (sample 1) dur)))
+          (setf grow (expt x y))
+          (setf beg (* beg (expt x (* y delta))))))
+       (+seg-sine-func+
+        (let ((w (/ pi dur))
+              (a3 (* (- end beg) 0.5)))
+          (setf a2 (* (+ end beg) 0.5))
+          (setf b1 (* 2.0 (cos (the maybe-limited-sample w))))
+          (setf y2 (- a2 (+ beg (* a3 (- 1 (cos (the maybe-limited-sample
+                                                  (* w (1- delta)))))))))
+          (incf beg (* a3 (- 1 (cos (the maybe-limited-sample (* w delta))))))
+          (setf y1 (- a2 beg))))
+       (+seg-welch-func+
+        (let ((w (/ +half-pi+ dur))
+              (a3 (- end beg)))
+          (setf a2 beg)
+          (setf b1 (* 2.0 (cos (the maybe-limited-sample w))))
+          (setf y2 (* a3 (sin (the maybe-limited-sample (* w (1- delta))))))
+          (incf beg (* a3 (sin (the maybe-limited-sample (* w delta)))))
+          (setf y1 (- beg a2))))
+       (+seg-square-func+
+        (setf y1 (the non-negative-sample (sqrt beg))
+              y2 (the non-negative-sample (sqrt end))
+              grow (/ (- y2 y1) dur)
+              y1 (+ y1 (* grow delta))
+              beg (* y1 y1)))
+       (+seg-cubic-func+
+        (setf y1 (expt (the non-negative-sample beg) (sample 1/3))
+              y2 (expt (the non-negative-sample end) (sample 1/3))
+              grow (/ (- y2 y1) dur)
+              y1 (+ y1 (* grow delta))
+              beg (* y1 y1 y1)))
+       ;; custom curve
+       (otherwise
+        (if (< (abs curve) 0.001)
+            (setf grow (/ (- end beg) dur)
+                  curve +seg-lin-func+
+                  beg (+ beg (* grow delta)))
+            (setf b1 (/ (- end beg) (- 1.0 (exp curve)))
+                  a2 (+ beg b1)
+                  grow (exp (/ curve dur))
+                  b1 (* b1 (expt (the non-negative-sample grow) (sample delta)))
+                  beg (- a2 b1)))))
+    (values)))
+
+(declaim (inline segment-stack-reposition))
+(defun segment-stack-reposition (consointer dur delta)
+  (declare (type cons consointer)
+           (type non-negative-fixnum dur delta)
+           #.*standard-optimize-settings*)
+  (if (= delta 0)
+      (segment-stack-init consointer dur)
+      (%segment-stack-reposition consointer dur delta)))
 
 (defmacro %segment-update-level (level curve grow a2 b1 y1 y2)
   (with-gensyms (y0)
