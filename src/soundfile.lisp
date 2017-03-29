@@ -250,7 +250,7 @@ for IF-EXISTS are: :APPEND, :ERROR (default), :MIX, :OVERWRITE and
 :SUPERSEDE (if the action is :SUPERSEDE and there is a jump back of the
 file position during the output operations on the stream, the writing
 continues in mix mode).
-SAMPLE-RATE, CHANNELS, HEADER-TYPE and DATA-FORMAT determine theheader of
+SAMPLE-RATE, CHANNELS, HEADER-TYPE and DATA-FORMAT determine the header of
 the new sound file.
 A new sound file is opened BUFFER-SIZE is the size of the internal buffer."
   (declare (type (or string pathname) filename)
