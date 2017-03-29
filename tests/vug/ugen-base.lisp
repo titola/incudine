@@ -49,11 +49,10 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (define-ugen ugen-test-1 sample (freq amp (nh fixnum))
+    (:writers (freq)
+              (freq :name set-ugen-test-1-freq* :value-type sample)
+              (nh))
     (buzz freq amp nh))
-
-  (define-ugen-control-setter ugen-test-1 freq)
-  (define-ugen-control-setter ugen-test-1 freq set-ugen-test-1-freq* sample)
-  (define-ugen-control-setter ugen-test-1 nh)
 
   (defstruct (oscil-test-ugen (:include ugen-instance))))
 
@@ -71,7 +70,7 @@
               (val0 (value-test osc)))
           (define-ugen oscil-test sample (freq)
             "UGen Test 2."
-            (:constructor make-oscil-test-ugen)
+            (:instance-type oscil-test-ugen)
             (sine freq 1 0))
           (with-ugen-instance (osc oscil-test 440)
             (let ((doc1 (documentation 'oscil-test 'function))

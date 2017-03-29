@@ -4,6 +4,7 @@
   (define-ugen param-side-effects-1 sample ((list list) duration (base real)
                                             (location fixnum))
     (:defaults '(0 0 1 1 2 0) 4 7 0)
+    (:accessors (location))
     (with ((env (breakpoints->local-env list :base base :duration 1.0)))
       ;; ENVELOPE inlined to avoid a failure if it is vug-compiled with
       ;; return-type SAMPLE (return-type T is ok in this case because we get
@@ -21,6 +22,7 @@
   (define-ugen param-side-effects-2 sample ((list list) duration (base real)
                                             (location fixnum))
     (:defaults '(0 0 1 1 2 0) 4 7 0)
+    (:accessors (location))
     (with ((env (breakpoints->local-env list :base base :duration 1.0))
            ;; Rebinding to inhibit side effects.
            (pos location))
@@ -28,12 +30,7 @@
       (multiple-value-bind (e i) (envelope env 1 duration #'free location)
         (declare (sample e) (fixnum i))
         (setf pos i)
-        e)))
-
-  (define-ugen-control-getter param-side-effects-1 location)
-  (define-ugen-control-setter param-side-effects-1 location)
-  (define-ugen-control-getter param-side-effects-2 location)
-  (define-ugen-control-setter param-side-effects-2 location))
+        e))))
 
 (with-ugen-test (param-side-effects.1)
     (with-ugen-instance (u param-side-effects-1)
