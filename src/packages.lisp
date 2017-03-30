@@ -544,7 +544,8 @@
   (:import-from #:incudine #:incudine-simple-error #:incudine-missing-arg)
   (:import-from #:incudine.util #:*sndfile-buffer-size* #:*sample-rate*
                 #:*default-header-type* #:*default-data-format*
-                #:*standard-optimize-settings* #:reduce-warnings
+                #:*standard-optimize-settings*
+                #:*reduce-warnings* #:reduce-warnings
                 #:non-negative-fixnum64 #:next-power-of-two #:db->lin)
   (:export
    #:soundfile-error

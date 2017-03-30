@@ -98,7 +98,8 @@
 
 (defun set-position (sf pos)
   (declare (type soundfile:stream sf) (type non-negative-fixnum64 pos)
-           #.*standard-optimize-settings*)
+           #.*standard-optimize-settings*
+           #-64-bit #.*reduce-warnings*)
   (when (soundfile:output-stream-p sf)
     (write-buffered-data sf)
     (when (< pos (output-stream-frame-threshold sf))
@@ -327,11 +328,13 @@ either normally or abnormally, the SOUNDFILE:STREAM is automatically closed."
 
 (declaim (inline eof-p))
 (defun eof-p (sf)
+  #-64-bit (declare #.*reduce-warnings*)
   (>= (stream-curr-frame sf) (stream-frames sf)))
 
 (defun write-buffered-data (sf)
   (declare (type soundfile:output-stream sf)
-           #.*standard-optimize-settings*)
+           #.*standard-optimize-settings*
+           #-64-bit #.*reduce-warnings*)
   (if (= (output-stream-buffer-written-frames sf) 0)
       0
       (let ((frames (cffi:foreign-funcall "sf_writef_double"
@@ -374,15 +377,17 @@ either normally or abnormally, the SOUNDFILE:STREAM is automatically closed."
                  (= (the non-negative-fixnum64 (read-into-buffer sf)) 0)))
         0d0
         (let ((res (current-buffer-value sf channel)))
+          (declare #.*reduce-warnings*)
           (unless peek-p
             (incf (stream-curr-frame sf))
             (incf (stream-buffer-index sf) channels))
-          (reduce-warnings res)))))
+          res))))
 
 (defun read-backward (sf &optional (channel 0) peek-p)
   (declare (type soundfile:stream sf) (type non-negative-fixnum channel)
            (type boolean peek-p)
-           #.*standard-optimize-settings*)
+           #.*standard-optimize-settings*
+           #-64-bit #.*reduce-warnings*)
   (let ((channels (stream-channels sf)))
     (declare (type non-negative-fixnum channels))
     (if (or (not (open-p sf))
@@ -447,6 +452,7 @@ frame. If PEEK-P is NIL (default), read forward if FORWARD-P is T
 
 (declaim (inline move-to-frame))
 (defun move-to-frame (sf frame buffer-end)
+  #-64-bit (declare #.*reduce-warnings*)
   (let ((curr (stream-curr-frame sf)))
     (unless (or (= frame curr)
                 (and (> frame curr) (buffer-index-fwd sf frame buffer-end))
@@ -466,7 +472,8 @@ if FORWARD-P is NIL."
            (type (or null non-negative-fixnum64) frame)
            (type non-negative-fixnum channel)
            (type boolean forward-p peek-p)
-           #.*standard-optimize-settings*)
+           #.*standard-optimize-settings*
+           #-64-bit #.*reduce-warnings*)
   (cond ((or (not (open-p sf))
              (>= channel (stream-channels sf)))
          0d0)
@@ -481,6 +488,7 @@ if FORWARD-P is NIL."
 
 (declaim (inline update-frame-threshold))
 (defun update-frame-threshold (sf frame)
+  #-64-bit (declare #.*reduce-warnings*)
   (cond ((or (output-stream-overwrite-p sf) (output-stream-mix-p sf))
          nil)
         ((> frame (output-stream-frame-threshold sf))
@@ -538,7 +546,8 @@ is filled with the next BUFFER-SIZE items read from SF."
 double float pointed to by BUFFER-POINTER."
   (declare (type soundfile:output-stream sf)
            (type cffi:foreign-pointer buffer-pointer)
-           (type non-negative-fixnum buffer-size))
+           (type non-negative-fixnum buffer-size)
+           #-64-bit #.*reduce-warnings*)
   (if (open-p sf)
       (let ((frames (cffi:foreign-funcall "sf_write_double"
                       :pointer (output-stream-sf-pointer sf)
