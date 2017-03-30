@@ -481,7 +481,9 @@
                            (cond ((vug-variable-performance-time-p obj) t)
                                  ((vug-variable-init-time-p obj)
                                   (if (or var-to-recheck-p
-                                          (vug-variable-input-p obj))
+                                          (vug-variable-input-p obj)
+                                          ;; Maybe a control with side effects.
+                                          (vug-parameter-aux-variable-p obj))
                                       (pushnew var
                                         (vug-variable-variables-to-recheck obj)))
                                   (ptime-p (vug-variable-value obj)))

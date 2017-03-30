@@ -32,6 +32,24 @@
         (setf pos i)
         e))))
 
+(dsp! param-side-effects-3 (freq phase)
+  (vuglet ((rorrim (in low high)
+             (with-samples ((x0 (* low 2))
+                            (x1 (* high 2))
+                            (x in))
+               (maybe-expand x)
+               (loop (cond ((> x high) (setf x (- x1 x)))
+                           ((< x low) (setf x (- x0 x)))
+                           (t (return x)))))))
+    (with-samples ((inc (* freq *twopi-div-sr*)))
+      (initialize (setf phase +half-pi+))
+      ;; The input of VUG RORRIM is PHASE, a control with side effects,
+      ;; so the variable X in RORRIM is performance-time.
+      (out (* .5 (- (rorrim phase 0 pi) +half-pi+)))
+      (incf phase inc)
+      (cond ((> phase +twopi+) (decf phase +twopi+))
+            ((minusp phase) (incf phase +twopi+))))))
+
 (with-ugen-test (param-side-effects.1)
     (with-ugen-instance (u param-side-effects-1)
       (let ((pos (list (param-side-effects-1-location u))))
@@ -55,3 +73,7 @@
         (push (param-side-effects-2-location u) pos)
         (nreverse pos)))
   (0 0 1000 1000))
+
+(with-dsp-test (param-side-effects.3
+      :md5 #(51 81 0 169 234 213 207 194 109 202 77 53 135 96 13 33))
+  (param-side-effects-3 6 0))
