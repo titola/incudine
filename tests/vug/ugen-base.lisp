@@ -2,6 +2,10 @@
 
 (compile-vug 'vug-test-1 'sample)
 
+(define-ugen envelope* sample ((env envelope) gate time-scale
+                               (done-action function))
+  (envelope env gate time-scale done-action))
+
 ;;; Test name, return-type, arguments, types and control-flags.
 (with-ugen-test (ugen.1)
     (let ((u (ugen 'vug-test-1)))

@@ -109,3 +109,22 @@
                     (0 0 1 .5 2 .2 3 .8 4 .1 5 1 8 0))
         for i from 1 do
        (at #[i s] #'vug-breakpoint-env-test bp -3 8 1)))
+
+(defun ugen-breakpoint-env-test (bp-list length)
+  (with-cleanup
+    (let ((u (funcall
+               (envelope* (breakpoints->env bp-list
+                            :duration (* length *sample-duration*))
+                          1 1 #'free))))
+      (loop repeat length
+            collect (progn
+                      (funcall (ugen-perf-function u))
+                      (round (smp-ref (ugen-return-pointer u) 0)))))))
+
+(with-ugen-test (ugen-breakpoint-env.1)
+    (ugen-breakpoint-env-test '(0 0 1 100 2 0) 10)
+  (0 20 40 60 80 100 75 50 25 0))
+
+(with-ugen-test (ugen-breakpoint-env.2)
+    (ugen-breakpoint-env-test '(0 0 1 100 2 0) 13)
+  (0 17 33 50 67 83 100 83 67 50 33 17 0))

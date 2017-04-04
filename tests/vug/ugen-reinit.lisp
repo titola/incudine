@@ -9,10 +9,6 @@
   (define-ugen expon* sample (start end dur (done-action function))
     (expon start end dur done-action))
 
-  (define-ugen envelope* sample ((env envelope) gate time-scale
-                                 (done-action function))
-    (envelope env gate time-scale done-action))
-
   (define-ugen sinosc-1 sample (freq amp)
     (sine freq amp 0))
 
