@@ -13,97 +13,97 @@
 (defvar *env-test* (make-envelope '(0 1 0) '(.5 .5)))
 
 (with-dsp-test (vug-envelope.1
-      :md5 #(32 145 63 123 200 150 230 36 247 2 47 102 178 248 244 184))
+      :md5 #(27 133 61 38 244 95 113 211 23 61 48 224 246 123 132 13))
   (vug-envelope-test *env-test* -3 1 5))
 
 (with-dsp-test (vug-envelope.2
-      :md5 #(70 128 93 221 105 97 30 164 13 209 118 47 105 176 131 100))
+      :md5 #(21 244 178 46 77 71 55 119 171 84 13 146 128 30 157 254))
   (setf (envelope-curve *env-test* 1) :exp)
   (setf (envelope-curve *env-test* 2) :linear)
   (vug-envelope-test *env-test* -3 1 5))
 
 (with-dsp-test (vug-envelope.3
-      :md5 #(13 199 55 245 223 160 205 208 93 167 4 224 212 65 146 19))
+      :md5 #(223 218 116 247 110 167 67 164 252 163 164 182 102 140 220 37))
   (setf (envelope-curve *env-test* 1) 4)
   (setf (envelope-curve *env-test* 2) -4)
   (vug-envelope-test *env-test* -3 1 5))
 
 (with-dsp-test (vug-envelope.4
-      :md5 #(201 151 64 235 148 248 65 73 8 58 36 112 111 55 72 78))
+      :md5 #(67 12 215 32 127 93 217 151 206 235 251 142 116 77 162 47))
   (set-envelope-base *env-test* 7)
   (vug-envelope-test *env-test* -3 1 5))
 
 (with-dsp-test (vug-envelope.5
-      :md5 #(96 42 136 101 6 204 133 142 159 152 34 153 12 59 194 29))
+      :md5 #(183 151 50 218 1 36 206 18 152 27 14 64 166 54 86 209))
   (set-envelope *env-test* '(0 1 0) '(.2 .8) :curve (list :cub :sqr))
   (vug-envelope-test *env-test* -3 1 5))
 
 (with-dsp-test (vug-envelope.6
-      :md5 #(255 229 27 19 199 95 64 252 193 170 195 123 172 113 11 229))
+      :md5 #(31 49 109 6 210 163 192 240 184 143 49 19 71 122 45 55))
   (set-envelope *env-test* '(0 1 .3 .15) '(.2 .3 .5) :base .2)
   (vug-envelope-test *env-test* -3 1 5))
 
 (with-dsp-test (vug-linen.1
-      :md5 #(110 255 215 74 77 220 70 131 239 1 98 83 29 38 244 9))
+      :md5 #(245 86 98 176 11 207 232 64 98 15 55 46 228 176 61 181))
   (linen *env-test* .3 3.7 1)
   (vug-envelope-test *env-test* -3 1 1))
 
 (with-dsp-test (vug-linen.2
-      :md5 #(215 171 108 65 146 85 128 39 218 16 99 241 49 86 164 95))
+      :md5 #(100 4 192 51 198 96 130 216 12 146 14 121 211 114 7 126))
   (linen *env-test* .3 3.7 1 :curve :sin)
   (vug-envelope-test *env-test* -3 1 1))
 
 (with-dsp-test (vug-perc.1
-      :md5 #(74 63 175 0 148 195 193 174 103 19 84 66 206 235 131 156))
+      :md5 #(23 14 194 147 4 126 127 179 133 61 139 190 77 61 70 9))
   (perc *env-test* .001 1)
   (vug-envelope-test *env-test* -3 1 1))
 
 (with-dsp-test (vug-cutoff.1
-      :md5 #(138 28 147 170 26 178 34 46 162 25 41 7 233 207 61 69))
+      :md5 #(66 253 57 218 0 39 148 123 54 52 223 214 69 220 5 116))
   (cutoff *env-test* 2)
   (vug-envelope-test *env-test* -3 1 1 :id 8)
   (at #[2.8 s] #'set-control 8 :gate 0))
 
 (with-dsp-test (vug-cutoff.2
-      :md5 #(62 248 233 33 66 97 199 247 230 112 222 148 73 164 232 137))
+      :md5 #(4 134 209 136 100 169 81 65 24 14 242 247 130 56 127 3))
   (cutoff *env-test* 2 :curve 8)
   (vug-envelope-test *env-test* -3 1 1 :id 8)
   (at #[2.8 s] #'set-control 8 :gate 0))
 
 (with-dsp-test (vug-asr.1
-      :md5 #(154 149 220 163 107 143 243 86 2 4 61 174 143 29 38 158))
+      :md5 #(209 61 1 41 4 200 106 1 64 119 25 84 228 170 47 131))
   (asr *env-test* 1 1 1.5)
   (vug-envelope-test *env-test* -3 1 1 :id 8)
   (at #[3 s] #'set-control 8 :gate 0))
 
 (with-dsp-test (vug-adsr.1
-      :md5 #(240 236 179 75 248 77 180 111 210 163 138 26 211 244 115 48))
+      :md5 #(60 250 238 0 15 1 113 169 120 24 233 159 35 39 245 69))
   (adsr *env-test* .2 .09 .8 1)
   (vug-envelope-test *env-test* -3 1 1 :id 1)
   (at #[3.5 s] #'set-control 1 :gate 0))
 
 (with-dsp-test (vug-adsr.2
-      :md5 #(56 125 117 117 23 168 166 178 108 29 173 220 141 222 231 112))
+      :md5 #(36 242 35 85 185 166 32 133 237 8 55 153 157 103 132 3))
   (adsr *env-test* .2 .09 .8 1 :base 12)
   (vug-envelope-test *env-test* -3 1 1 :id 1)
   (at #[3.5 s] #'set-control 1 :gate 0))
 
 (with-dsp-test (vug-dadsr.1
-      :md5 #(149 120 225 228 16 147 255 87 132 159 221 201 203 175 234 28))
+      :md5 #(114 95 25 30 207 71 2 217 136 255 187 232 126 22 167 118))
   (dadsr *env-test* .75 .4 .1 .7 1.2)
   (vug-envelope-test *env-test* -3 1 1 :id 1)
   (at #[3.6 s] #'set-control 1 :gate 0))
 
 (with-dsp-test (vug-breakpoint-env.1
-      :md5 #(183 129 5 0 186 19 116 173 181 8 135 11 232 53 67 159))
+      :md5 #(48 252 231 245 131 115 75 138 37 106 16 48 210 134 212 142))
   (vug-breakpoint-env-test '(0 0 1 1 2 0) -3 8 5))
 
 (with-dsp-test (vug-breakpoint-env.2
-      :md5 #(205 10 165 34 57 93 122 105 141 75 93 223 222 241 202 32))
+      :md5 #(70 89 202 143 251 153 231 26 242 79 167 94 32 220 232 24))
   (vug-breakpoint-env-test '(0 0 1 1 10 0) -3 8 5))
 
 (with-dsp-test (vug-breakpoint-env.3
-      :md5 #(112 6 18 235 76 178 48 89 167 225 219 138 24 146 143 109))
+      :md5 #(8 50 249 229 251 222 164 57 30 165 32 9 27 33 51 164))
   (vug-breakpoint-env-test '(0 0 1 1 10 0) -3 8 1)
   (loop for bp in '((0 0 1 1 2 0) (0 0 8 1 10 0) (0 0 1 1 2 .2 4 .8 7 0)
                     (0 0 1 .5 2 .2 3 .8 4 .1 5 1 8 0))

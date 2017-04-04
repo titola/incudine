@@ -176,9 +176,17 @@
 
 (eval-when (:compile-toplevel :load-toplevel)
   (declaim (inline envelope-next-dur))
-  (defun envelope-next-dur (env-data index time-scale offset)
-    (max 1 (+ offset (sample->fixnum (* (smp-ref env-data index)
-                                        time-scale *sample-rate*)))))
+  (defun envelope-next-dur (env-data index time-scale carry offset)
+    (let* ((dur (+ (* (smp-ref env-data index) time-scale *sample-rate*)
+                   carry offset))
+           (idur (sample->fixnum dur)))
+      (values (max 1 idur) (- dur idur))))
+
+  (defmacro envelope-update-dur (dur-var data index scale carry-var os)
+    (with-gensyms (d c)
+      `(multiple-value-bind (,d ,c)
+           (envelope-next-dur ,data ,index ,scale ,carry-var ,os)
+         (setf ,dur-var ,d ,carry-var ,c))))
 
   (defmacro envelope-next-index (data-size index curr-node)
     `(the non-negative-fixnum
@@ -260,6 +268,8 @@
            (env-data (envelope-data env))
            (data-size (envelope-data-size env))
            (last-point (1- (the non-negative-fixnum (envelope-points env))))
+           (last-dur-index (- data-size 3))
+           (offset 0)
            (curr-index (envelope-next-index data-size index curr-node))
            (prev-index 0)
            (loop-node (envelope-loop-node env))
@@ -270,6 +280,10 @@
            (remain 0)
            (pos 0)
            (gate-trig (plusp gate))
+           ;; The duration of a segment is not a multiple of 1/srate.
+           ;; CARRY stores the remainder after the truncation and it is
+           ;; used to compute the next duration.
+           (carry 0)
            (level (cond ((prog1 (and gate-trig (<= gate old-gate))
                            (setf old-gate gate))
                          ;; Restart only when the current gate is major than
@@ -277,6 +291,7 @@
                          last-level)
                         ((release-before-sustain-p gate sustain curr-node
                                                    release-node)
+                         (setf carry +sample-zero+)
                          (envelope-jump-node (1- release-node) curr-node index)
                          (setf remain 0)
                          (setf end last-level))
@@ -332,21 +347,20 @@
                          (envelope-no-sustain sustain)
                          last-level)
                         (t (envelope-no-sustain sustain)
-                           (setf dur (envelope-next-dur env-data index time-scale
-                                                        (- remain dur))
-                                 ;; One sample is subtracted in the previous
-                                 ;; value of REMAIN
-                                 remain dur
+                           (envelope-update-dur dur env-data index time-scale
+                                                carry (- remain dur))
+                           ;; One sample subtracted in the previous REMAIN value.
+                           (setf remain dur
                                  end (smp-ref env-data (1+ index))
                                  index (+ index 2)
                                  curve (smp-ref env-data index))
                            (segment-stack-init consointer dur)
                            last-level))))
       (declare (type non-negative-fixnum index data-size last-point dur remain
-                     pos curr-index prev-index)
+                     pos curr-index prev-index last-dur-index offset)
                (type cons consointer)
                (type fixnum curr-node loop-node release-node)
-               (type sample level)
+               (type sample level carry)
                (type boolean sustain done-p gate-trig))
       (initialize (setf end level))
       (with-follow (location)
@@ -360,12 +374,15 @@
                 for j from 1 by 3 do
                   (incf end-time (* time-scale (smp-ref env-data j)))
                   (when (> (- end-time *sample-duration*) pos-time)
+                    (setf carry +sample-zero+)
+                    (setf offset (truncate (/ j last-dur-index)))
+                    (envelope-update-dur dur env-data j time-scale carry
+                                         (- offset))
                     (setf pos location
                           curr-node i
                           index j
                           curr-index j
                           prev-index j
-                          dur (envelope-next-dur env-data index time-scale 0)
                           remain (1+ (sample->fixnum
                                        (* (- end-time pos-time) *sample-rate*)))
                           last-level (smp-ref env-data (if (= j 1) 0 (- j 2)))
@@ -380,8 +397,9 @@
                   ;; Last location.
                   (setf pos (1- (sample->fixnum (* end-time *sample-rate*))))
                   (envelope-jump-node (1- i) curr-node index)
-                  (setf dur (envelope-next-dur env-data index time-scale 0)
+                  (setf dur (envelope-next-dur env-data index time-scale 0 0)
                         remain 0
+                        carry +sample-zero+
                         last-level (smp-ref env-data (1+ index))
                         index (+ index 2)
                         level last-level)
@@ -395,7 +413,8 @@
              ;; End of segment.
              (cond ((envelope-end-of-data-p (incf index) data-size)
                     (done-action done-action)
-                    (values (setf done-p t last-level end) pos))
+                    (values (setf done-p t carry +sample-zero+ last-level end)
+                            pos))
                    (t (incf curr-node)
                       (cond
                         ((jump-to-loop-node-p gate curr-node loop-node
@@ -404,8 +423,13 @@
                         ((envelope-to-sustain-p gate curr-node release-node)
                          (envelope-sustain sustain)))
                       ;; Compute the parameters for the next segment.
-                      (setf dur (envelope-next-dur env-data index time-scale 0)
-                            remain dur
+                      ;; OFFSET is 1 if it is the last segment, so CARRY
+                      ;; is incremented by 0.5 to prevent rounding errors.
+                      (setf offset (truncate (/ index last-dur-index)))
+                      (incf carry (* offset 0.5))
+                      (envelope-update-dur dur env-data index time-scale
+                                           carry (- offset))
+                      (setf remain (+ dur offset)
                             ;; The first value of the segment is the
                             ;; last value of the previous segment.
                             level end
