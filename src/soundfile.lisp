@@ -301,7 +301,8 @@ A new sound file is opened BUFFER-SIZE is the size of the internal buffer."
           (when (and (not input-p) (eq if-exists :append))
             ;; Offset by SF-POSITION-OFFSET
             (setf (position sf) 0))
-          (tg:finalize sf (lambda () (free-foreign-pointers sf-ptr buf-ptr))))
+          (incudine-finalize sf
+            (lambda () (free-foreign-pointers sf-ptr buf-ptr))))
       (condition (c)
         (free-foreign-pointers sf-ptr buf-ptr)
         (error c)))))
@@ -316,9 +317,15 @@ A new sound file is opened BUFFER-SIZE is the size of the internal buffer."
     (when (soundfile:output-stream-p sf)
       (write-buffered-data sf))
     (free-foreign-pointers (stream-sf-pointer sf) (stream-buffer-pointer sf))
-    (tg:cancel-finalization sf)
+    (incudine-cancel-finalization sf)
     (setf (stream-open-p sf) nil))
   sf)
+
+(defmethod incudine:free-p ((obj soundfile:stream))
+  (not (soundfile:open-p obj)))
+
+(defmethod incudine:free ((obj soundfile:stream))
+  (soundfile:close obj))
 
 (defmacro with-open-soundfile ((stream filespec &rest options) &body body)
   "Use SOUNDFILE:OPEN to create a SOUNDFILE:STREAM. When control leaves the body,

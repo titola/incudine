@@ -531,9 +531,8 @@ Write the current track if OBJ is of type MIDIFILE:OUTPUT-STREAM."))
                  ;; If the number of tracks will change, the header will be
                  ;; updated during MIDIFILE:CLOSE.
                  (write-header mf)))
-          (tg:finalize mf (lambda ()
-                            (cl:close stream)
-                            (add-to-buffer-pool buffer)))
+          (incudine-finalize mf
+            (lambda () (cl:close stream) (add-to-buffer-pool buffer)))
           mf)
       (condition (c)
         (if mf
@@ -550,7 +549,7 @@ If MF is a MIDIFILE:OUTPUT-STREAM, write the current track."
         ;; Write the current track.
         (write-track mf))
       (cl:close f)
-      (tg:cancel-finalization mf)
+      (incudine-cancel-finalization mf)
       (when (and (midifile:output-stream-p mf)
                  (> (stream-number-of-tracks mf) 1))
         ;; Update format and number of tracks in header-chunk.
@@ -564,6 +563,12 @@ If MF is a MIDIFILE:OUTPUT-STREAM, write the current track."
       (setf (stream-open-p mf) nil)
       (add-to-buffer-pool (stream-buffer mf)))
       mf))
+
+(defmethod incudine:free-p ((obj midifile:stream))
+  (not (open-stream-p (stream-fd-stream obj))))
+
+(defmethod incudine:free ((obj midifile:stream))
+  (midifile:close obj))
 
 (defmacro with-open-midifile ((midifile-stream filespec &rest options) &body body)
   "Use MIDIFILE:OPEN to create a MIDIFILE:STREAM. When control leaves the body,

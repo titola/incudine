@@ -541,7 +541,8 @@
   (:shadow #:stream #:input-stream-p #:output-stream-p #:open #:close
            #:read #:write #:position)
   (:import-from #:alexandria #:positive-fixnum #:non-negative-fixnum)
-  (:import-from #:incudine #:incudine-simple-error #:incudine-missing-arg)
+  (:import-from #:incudine #:incudine-simple-error #:incudine-missing-arg
+                #:incudine-finalize #:incudine-cancel-finalization)
   (:import-from #:incudine.util #:*sndfile-buffer-size* #:*sample-rate*
                 #:*default-header-type* #:*default-data-format*
                 #:*standard-optimize-settings*
@@ -562,7 +563,8 @@
   (:shadow #:stream #:input-stream-p #:output-stream-p #:open #:close #:format)
   (:import-from #:alexandria #:non-negative-fixnum #:positive-fixnum
                 #:non-negative-real #:positive-real)
-  (:import-from #:incudine #:incudine-simple-error #:incudine-missing-arg)
+  (:import-from #:incudine #:incudine-simple-error #:incudine-missing-arg
+                #:incudine-finalize #:incudine-cancel-finalization)
   (:export #:data #:midifile-error #:midifile-parse-error
            #:invalid-running-status #:invalid-variable-length-quantity
            #:invalid-track-chunk-length
