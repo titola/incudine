@@ -216,6 +216,11 @@
 (defun header-type (obj) (header-value obj 3))
 (defun data-format (obj) (header-value obj 4))
 
+(defun duration (obj)
+  (multiple-value-bind (sr frames) (read-header obj)
+    (declare (type positive-fixnum sr) (type non-negative-fixnum64 frames))
+    (float (/ frames sr))))
+
 (defun free-foreign-pointers (sf-ptr buf-ptr)
   (flet ((to-free-p (ptr)
            (and (typep ptr 'cffi:foreign-pointer)
