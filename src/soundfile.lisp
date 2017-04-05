@@ -538,37 +538,45 @@ if FORWARD-P is NIL."
 (defun foreign-read (sf buffer-pointer buffer-size
                      &optional update-position-p)
   "A foreign buffer of type double float pointed to by BUFFER-POINTER
-is filled with the next BUFFER-SIZE items read from SF."
+is filled with the next BUFFER-SIZE items read from SF.
+Return the number of items read."
   (declare (type soundfile:stream sf)
            (type cffi:foreign-pointer buffer-pointer)
            (type non-negative-fixnum buffer-size))
   (if (open-p sf)
-      (let ((frames (cffi:foreign-funcall "sf_read_double"
-                      :pointer (stream-sf-pointer sf) :pointer buffer-pointer
-                      sf:sf-count buffer-size sf:sf-count)))
-        (when (> frames 0)
+      (let ((items (cffi:foreign-funcall "sf_read_double"
+                     :pointer (stream-sf-pointer sf) :pointer buffer-pointer
+                     sf:sf-count buffer-size sf:sf-count)))
+        (declare (type non-negative-fixnum items))
+        (when (> items 0)
           (when update-position-p
-            (incf (stream-sf-position sf) frames))
-          (setf (stream-buffer-index sf) 0)))
+            (incf (stream-sf-position sf)
+                  (truncate items (stream-channels sf))))
+          (setf (stream-buffer-index sf) 0))
+        items)
       0))
 
 (declaim (inline foreign-write))
 (defun foreign-write (sf buffer-pointer buffer-size)
   "Write to SF BUFFER-SIZE values stored into a foreign buffer of type
-double float pointed to by BUFFER-POINTER."
+double float pointed to by BUFFER-POINTER.
+Return the number of the items written."
   (declare (type soundfile:output-stream sf)
            (type cffi:foreign-pointer buffer-pointer)
            (type non-negative-fixnum buffer-size)
            #-64-bit #.*reduce-warnings*)
   (if (open-p sf)
-      (let ((frames (cffi:foreign-funcall "sf_write_double"
-                      :pointer (output-stream-sf-pointer sf)
-                      :pointer buffer-pointer sf:sf-count buffer-size
-                      sf:sf-count)))
-        (when (> frames 0)
-          (incf (stream-sf-position sf) frames)
+      (let ((items (cffi:foreign-funcall "sf_write_double"
+                     :pointer (output-stream-sf-pointer sf)
+                     :pointer buffer-pointer sf:sf-count buffer-size
+                     sf:sf-count)))
+        (declare (type non-negative-fixnum items))
+        (when (> items 0)
+          (incf (stream-sf-position sf)
+                (truncate items (stream-channels sf)))
           (setf (stream-buffer-index sf) 0)
-          (setf (output-stream-buffer-written-frames sf) 0)))
+          (setf (output-stream-buffer-written-frames sf) 0))
+        items)
       0))
 
 (defun maxamp (infile)
@@ -621,3 +629,87 @@ or scaled by SCALE-BY."
                                     (* (buffer-value in i) mult))))
                     (foreign-write out (stream-buffer-pointer in) items))
             outfile))))))
+
+(defun check-soundfiles-to-combine (input-files)
+  (multiple-value-bind (sr frames chans) (read-header (first input-files))
+    (declare (ignore frames))
+    (dolist (in (rest input-files))
+      (with-open-soundfile (sf in)
+        (unless (= (sample-rate sf) sr)
+          (error 'soundfile-error
+            :format-control "Input files with different sample rate."))
+        (unless (= (channels sf) chans)
+          (error 'soundfile-error
+            :format-control "Input files with different number of channels."))))
+    (values sr chans)))
+
+(defun concatenate (output-file input-files &key (if-exists :error)
+                    (header-type *default-header-type*)
+                    (data-format *default-data-format*)
+                    (buffer-size *sndfile-buffer-size*))
+  "OUTPUT-FILE is the concatenation of the sound files INPUT-FILES.
+The input files must have the same sampling rate and number of channels.
+OUTPUT-FILE is written with HEADER-TYPE and DATA-FORMAT.
+The action for IF-EXISTS is :ERROR by default.
+BUFFER-SIZE is the size of the internal buffer."
+  (declare (type non-negative-fixnum buffer-size))
+  (multiple-value-bind (sr chans) (check-soundfiles-to-combine input-files)
+    (cffi:with-foreign-object (buf :double buffer-size)
+      (with-open-soundfile (out output-file :direction :output
+                            :if-exists if-exists :sample-rate sr
+                            :channels chans :header-type header-type
+                            :data-format data-format)
+        (dolist (input input-files)
+          (with-open-soundfile (in input)
+            (loop for items = (foreign-read in buf *sndfile-buffer-size*)
+                  while (> items 0) do
+                    (foreign-write out buf items)))))))
+  output-file)
+
+(defun merge (output-file input-files &key (if-exists :error)
+              (header-type *default-header-type*)
+              (data-format *default-data-format*)
+              (buffer-size *sndfile-buffer-size*)
+              normalize scale-by scale-to)
+    "OUTPUT-FILE is the mix of the sound files INPUT-FILES.
+The input files must have the same sampling rate and number of channels.
+OUTPUT-FILE is written with HEADER-TYPE and DATA-FORMAT.
+The action for IF-EXISTS is :ERROR by default.
+The mix is possibly normalized to NORMALIZE dB or SCALE-TO [0.0,1.0],
+or scaled by SCALE-BY.
+BUFFER-SIZE is the size of the internal buffer."
+    (declare (type non-negative-fixnum buffer-size))
+    (multiple-value-bind (sr chans) (check-soundfiles-to-combine input-files)
+      (multiple-value-bind (temp-file-p file ht df)
+          (if (or normalize scale-to)
+              (values t (make-pathname :defaults output-file :type "tmp")
+                      "wav" "double")
+              (values nil output-file header-type data-format))
+        (cffi:with-foreign-objects ((buf :double buffer-size)
+                                    (tmp :double buffer-size))
+          (with-open-soundfile (out file :direction :output :if-exists if-exists
+                                :sample-rate sr :channels chans :header-type ht
+                                :data-format df)
+            (incudine:with-cleanup
+              (let ((inputs (mapcar #'soundfile:open input-files))
+                    (items buffer-size)
+                    (tmp-items 0))
+                (declare (type non-negative-fixnum items tmp-items))
+                (loop while (> items 0) do
+                        (setf items (foreign-read (first inputs) buf buffer-size))
+                        (dolist (in (rest inputs))
+                          (setf tmp-items (foreign-read in tmp buffer-size))
+                          (setf items (max items tmp-items))
+                          (dotimes (i tmp-items)
+                            (incf (cffi:mem-aref buf :double i)
+                                  (cffi:mem-aref tmp :double i))))
+                        (when scale-by
+                          (dotimes (i items)
+                            (setf (cffi:mem-aref buf :double i)
+                                  (* (cffi:mem-aref buf :double i) scale-by))))
+                        (foreign-write out buf items))))))
+        (when temp-file-p
+          (convert file output-file header-type data-format :normalize normalize
+                   :scale-to scale-to)
+          (delete-file file))))
+    output-file)

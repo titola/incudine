@@ -539,7 +539,7 @@
   (:use :cl)
   (:nicknames :soundfile)
   (:shadow #:stream #:input-stream-p #:output-stream-p #:open #:close
-           #:read #:write #:position)
+           #:read #:write #:position #:concatenate #:merge)
   (:import-from #:alexandria #:positive-fixnum #:non-negative-fixnum)
   (:import-from #:incudine #:incudine-simple-error #:incudine-missing-arg
                 #:incudine-finalize #:incudine-cancel-finalization)
@@ -555,7 +555,8 @@
    #:read-header #:read-next #:read-into-buffer #:read #:write
    #:foreign-read #:foreign-write
    #:position #:buffer-data #:buffer-size #:buffer-value #:path #:sample-rate
-   #:frames #:channels #:duration #:header-type #:data-format #:convert))
+   #:frames #:channels #:duration #:header-type #:data-format #:convert
+   #:concatenate #:merge))
 
 (defpackage :incudine.midifile
   (:use :cl)
