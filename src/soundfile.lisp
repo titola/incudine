@@ -55,12 +55,12 @@
   (sf-position-offset 0 :type non-negative-fixnum64))
 
 (defmethod print-object ((obj soundfile:stream) stream)
-  (let ((type (symbol-name (type-of obj))))
+  (let ((type (type-of obj)))
     (if (stream-open-p obj)
-        (format stream "#<SOUNDFILE:~A :FRAMES ~D :CHANNELS ~D :SR ~F>"
+        (format stream "#<~S :FRAMES ~D :CHANNELS ~D :SR ~F>"
                 type (stream-frames obj) (stream-channels obj)
                 (stream-sample-rate obj))
-        (format stream "#<SOUNDFILE:~A (closed)>" type))))
+        (format stream "#<~S (closed)>" type))))
 
 (defun sf-open (file input-p info-ptr if-exists)
   (when (and (eq if-exists :supersede) (probe-file file))
@@ -247,7 +247,9 @@
              (sample-rate *sample-rate*) (channels 1)
              (header-type *default-header-type*)
              (data-format *default-data-format*)
-             (buffer-size *sndfile-buffer-size*))
+             (buffer-size *sndfile-buffer-size*)
+             (input-stream-constructor #'make-input-stream)
+             (output-stream-constructor #'make-output-stream))
   "Create, open and return a SOUNDFILE:STREAM that is connected to the
 file specified by FILENAME.
 If DIRECTION is :INPUT, return a SOUNDFILE:INPUT-STREAM.
@@ -282,8 +284,8 @@ A new sound file is opened BUFFER-SIZE is the size of the internal buffer."
                     (setf sf-ptr ptr)
                     (let ((buf-max-frames (floor (/ buffer-size channels))))
                       (apply (if input-p
-                                 #'make-input-stream
-                                 #'make-output-stream)
+                                 input-stream-constructor
+                                 output-stream-constructor)
                              (list*
                                :sf-pointer sf-ptr
                                :buffer-pointer buf-ptr
