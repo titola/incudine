@@ -554,9 +554,9 @@
    #:open #:open-p #:close #:with-open-soundfile #:eof-p
    #:read-header #:read-next #:read-into-buffer #:read #:write
    #:foreign-read #:foreign-write
-   #:position #:buffer-data #:buffer-size #:buffer-value #:path #:sample-rate
-   #:frames #:channels #:duration #:header-type #:data-format #:convert
-   #:concatenate #:merge))
+   #:position #:buffer-data #:buffer-size #:buffer-index #:buffer-value
+   #:current-frame #:path #:sample-rate #:frames #:channels #:duration
+   #:header-type #:data-format #:convert #:concatenate #:merge))
 
 (defpackage :incudine.midifile
   (:use :cl)

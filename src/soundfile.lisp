@@ -144,6 +144,14 @@
 (defun buffer-data (sf)
   (stream-buffer-pointer sf))
 
+(declaim (inline buffer-index))
+(defun buffer-index (sf)
+  (stream-buffer-index sf))
+
+(declaim (inline current-frame))
+(defun current-frame (sf)
+  (stream-curr-frame sf))
+
 (declaim (inline path))
 (defun path (sf)
   (stream-pathname sf))
