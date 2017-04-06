@@ -463,6 +463,35 @@ to call to get the control value."
 (defun get-ugen-spec (name specs)
   (cdr (assoc name specs)))
 
+(defun format-ugen-accessor-spec-name (spec)
+  (let* ((pl (cdr spec))
+         (name (and (not (getf pl :method-p))
+                    (getf pl :name)))
+         (setter nil)
+         (spec (copy-list spec)))
+    (when name
+      (setf setter (format-symbol *package* "SET-~A" name))
+      (setf (getf (cdr spec) :name) setter))
+    (values spec name setter)))
+
+(defun extend-ugen-specs (specs)
+  (let ((readers) (writers) (setfable))
+    (flet ((add-setfable-functions (spec)
+             (multiple-value-bind (sp name setter)
+                 (format-ugen-accessor-spec-name spec)
+               (when name (push (list name setter) setfable))
+               sp)))
+      (dolist (sp specs)
+        (case (first sp)
+          (:readers (push (rest sp) readers))
+          (:writers (push (rest sp) writers))
+          (:accessors
+           (push (copy-list (rest sp)) readers)
+           (push (mapcar #'add-setfable-functions (rest sp)) writers))))
+      (list (cons :readers (apply #'append (nreverse readers)))
+            (cons :writers (apply #'append (nreverse writers)))
+            (cons :setfable (nreverse setfable))))))
+
 (defun define-ugen-control-get/setters (ugen-name instance-type specs)
   (flet ((def (fname spec args)
            `(,fname ,ugen-name ,(car spec)
@@ -470,17 +499,18 @@ to call to get the control value."
                      if (consp a)
                        append (mapcar (lambda (x) (getf (cdr spec) x)) a)
                      else
-                       collect a)))
-         (specs (keys)
-           (apply #'append (mapcar (lambda (k) (get-ugen-spec k specs)) keys))))
-    `(,@(loop for sp in (specs '(:readers :accessors))
-              collect (def 'define-ugen-control-getter sp
-                       `((:name :arg-name) ,instance-type
-                         (:inline-p :method-p))))
-      ,@(loop for sp in (specs '(:writers :accessors))
-              collect (def 'define-ugen-control-setter sp
-                       `((:name :value-type :value-name :arg-name)
-                         ,instance-type (:inline-p :method-p)))))))
+                       collect a))))
+    (let ((specs (extend-ugen-specs specs)))
+      `(,@(loop for sp in (get-ugen-spec :readers specs)
+                collect (def 'define-ugen-control-getter sp
+                         `((:name :arg-name) ,instance-type
+                           (:inline-p :method-p))))
+        ,@(loop for sp in (get-ugen-spec :writers specs)
+                collect (def 'define-ugen-control-setter sp
+                         `((:name :value-type :value-name :arg-name)
+                           ,instance-type (:inline-p :method-p))))
+        ,@(loop for args in (get-ugen-spec :setfable specs)
+                collect `(defsetf ,@args))))))
 
 ;;; SBCL VOP style for optional UGEN SPEC's. Each SPEC is a list
 ;;; beginning with a keyword indicating the interpretation of the
@@ -514,13 +544,24 @@ to call to get the control value."
 ;;;     :VALUE-NAME   Name of the new value (default: VALUE)
 ;;;     :VALUE-TYPE   Type of the passed value
 ;;;     :INLINE-P     T to declare the function inline (default: T if METHOD-P NIL)
-;;;     :METHOD-P     T to define the getter with DEFMETHOD (default: nil)
+;;;     :METHOD-P     T to define the setter with DEFMETHOD (default: nil)
 ;;;
 ;;; :ACCESSORS {(Control-Name {Key Value}*)}*
 ;;;     Specifications of the control getters and setters.
 ;;;     The valid keywords are:
 ;;;
 ;;;     :NAME :ARG-NAME :VALUE-NAME :VALUE-TYPE :INLINE-P :METHOD-P
+;;;
+;;;     If :METHOD-P is NIL and :NAME is specified, the function NAME is SETF-able:
+;;;
+;;;         (defun name ...)
+;;;         (defun set-name ...)
+;;;         (defsetf name set-name)
+;;;
+;;;     If :METHOD-P is T, define the methods:
+;;;
+;;;         (defmethod name ...)
+;;;         (defmethod (setf name) ...)
 ;;;
 (defmacro define-ugen (name return-type lambda-list &body body)
   (multiple-value-bind (doc specs form) (get-ugen-specs body)
