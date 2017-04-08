@@ -135,3 +135,12 @@
           (free u)
           res)))
   (SAMPLE 2 :FLOAT 4 :DOUBLE 6 :INT32 8 :UINT32 10 :INT64 12 :UINT64 14))
+
+(deftest pointer-test.5
+    (progn
+      (define-ugen pointer-test-5 list ()
+        (with ((arr (make-i32-array 8 :initial-contents '(0 1 2 3 4 5 6 7))))
+          (loop for i below 8 collect (i32-ref arr i))))
+      (with-ugen-instance (u pointer-test-5)
+        (funcall (ugen-perf-function u))))
+  (0 1 2 3 4 5 6 7))

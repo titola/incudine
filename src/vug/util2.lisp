@@ -101,7 +101,7 @@
                                    `(:initial-contents
                                      ;; Dummy value for the header.
                                      (cons (car ,vals) ,vals))))
-                    `(let ,binding
+                    `(with ,binding
                        (%make-foreign-array ,size ,,type ,@key-args
                                             ,@init-key-value)))))))
   ;; A FRAME is a foreign array of SAMPLE type, useful to efficiently
