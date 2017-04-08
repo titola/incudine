@@ -693,15 +693,16 @@ point RELEASE-NODE."
                  (complete-curve-list lst (or (cdr curr) lst)
                                       (cons (car curr) result)
                                       (1- size)))))
-    (if (and (consp curve) (/= (length curve) points))
-        (complete-curve-list curve curve nil points)
+    (if (and (consp curve) (/= (length curve) (1- points)))
+        (complete-curve-list curve curve nil (1- points))
         curve)))
 
 (declaim (inline expanded-atomic-curve-plus-linear))
 (defun expanded-atomic-curve-plus-linear (curve points)
   (do ((i 0 (1+ i))
-       (acc nil))
-      ((>= i points) (nreverse (cons :lin acc)))
+       (acc nil)
+       (end (- points 2)))
+      ((>= i end) (nreverse (cons :lin acc)))
     (push curve acc)))
 
 (defun normalize-env-times (lst dur)
@@ -755,7 +756,7 @@ point RELEASE-NODE."
           (multiple-value-bind (levels times)
               (breakpoint-levels-and-times bplist)
             (values levels times (and (null base) curve))))
-        (msg error "wrong breakpoint sequence"))))
+        (incudine-error "Wrong breakpoint sequence: ~A" bp-seq))))
 
 (declaim (inline breakpoints->env))
 (defun breakpoints->env (bp-seq &key curve base scaler offset duration
@@ -777,26 +778,32 @@ point RELEASE-NODE."
   (multiple-value-bind (bp-seq-p size)
       (breakpoint-sequence-p bp-seq)
     (if bp-seq-p
-        (multiple-value-bind (bplist last-freq last-value)
-            (if (listp bp-seq)
-                (let ((bp-seq-rev (reverse bp-seq)))
-                  (values bp-seq (cadr bp-seq-rev) (car bp-seq-rev)))
-                (values (coerce bp-seq 'list)
-                        (aref bp-seq (- size 2))
-                        (aref bp-seq (- size 1))))
-          (let* ((points (1- (/ size 2)))
-                 (curve (expand-curve-list curve points)))
-            (unless (= last-freq freq-max)
-              ;; Add the last pair
-              (setf bplist (nconc bplist (list freq-max last-value)))
-              (when (and curve (null base))
-                (setf curve
-                      (if (consp curve)
-                          (nconc (expand-curve-list curve points) (list :lin))
-                          (expanded-atomic-curve-plus-linear curve points)))))
-            (breakpoints->env bplist :curve curve :base base
-                              :real-time-p real-time-p)))
-        (msg error "wrong breakpoint sequence"))))
+        (let* ((points (/ size 2))
+               (curve (and (null base) (expand-curve-list curve points)))
+               (bplist
+                 (do ((acc nil (list* (second l) (first l) acc))
+                      (l (coerce bp-seq 'list) (cddr l)))
+                     ((or (null l) (> (first l) freq-max))
+                      (when l
+                        ;; Discard useless points.
+                        (let ((len (/ (length l) 2)))
+                          (decf points len)
+                          (when (and (consp curve) (> len 1))
+                            (setf curve (butlast curve (1- len))))))
+                      (unless (and (rest acc) (= (second acc) freq-max))
+                        ;; Add the last pair.
+                        (setf acc (list* (or (first acc) 0) freq-max acc))
+                        (incf points)
+                        (when (and curve (null l))
+                          (setf curve
+                                (if (consp curve)
+                                    (nconc curve (list :lin))
+                                    (expanded-atomic-curve-plus-linear
+                                      curve points)))))
+                      (nreverse acc)))))
+          (breakpoints->env bplist :curve curve :base base
+                            :real-time-p real-time-p))
+        (incudine-error "Wrong breakpoint sequence: ~A" bp-seq))))
 
 ;;; Frequently used envelope shapes
 
