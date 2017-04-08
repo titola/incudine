@@ -183,14 +183,15 @@ is the plan for a IFFT."
   (when (or force-p (fft-input-changed-p obj))
     (let ((fftsize (fft-size obj))
           (winsize (fft-window-size obj)))
-    (copy-from-ring-buffer (fft-input-buffer obj) (fft-ring-buffer obj) fftsize)
-    (unless (eq (fft-window-function obj) #'rectangular-window)
-      (apply-window (fft-input-buffer obj) (fft-window-buffer obj) winsize))
-    (apply-zero-padding (fft-input-buffer obj) winsize fftsize)
-    (fft-execute (fft-plan obj) (fft-input-buffer obj) (fft-output-buffer obj))
-    (setf (analysis-time obj) (now))
-    (setf (fft-input-changed-p obj) nil)
-    t)))
+      (copy-from-ring-buffer
+        (fft-input-buffer obj) (fft-ring-buffer obj) fftsize)
+      (unless (eq (fft-window-function obj) #'rectangular-window)
+        (apply-window (fft-input-buffer obj) (fft-window-buffer obj) winsize))
+      (apply-zero-padding (fft-input-buffer obj) winsize fftsize)
+      (fft-execute (fft-plan obj) (fft-input-buffer obj) (fft-output-buffer obj))
+      (setf (analysis-time obj) (now))
+      (setf (fft-input-changed-p obj) nil)))
+  obj)
 
 (defmethod update-linked-object ((obj fft) force-p)
   (compute-fft obj force-p))
@@ -290,8 +291,8 @@ is the plan for a IFFT."
     (copy-to-ring-output-buffer (ifft-ring-buffer obj) (ifft-output-buffer obj)
                                 (ifft-size obj))
     (setf (analysis-time obj) (now))
-    (setf (ifft-input-changed-p obj) nil)
-    t))
+    (setf (ifft-input-changed-p obj) nil))
+  obj)
 
 (declaim (inline ifft-output))
 (defun ifft-output (ifft)
@@ -301,4 +302,5 @@ is the plan for a IFFT."
   ;; Shifting the ring buffer head is also faster but GEN:ANALYSIS
   ;; does a copy of the output buffer.
   (incudine::foreign-circular-shift (ifft-output-buffer obj) 'sample
-                                    (ifft-output-size obj) n))
+                                    (ifft-output-size obj) n)
+  obj)

@@ -403,7 +403,8 @@ It is possible to use line comments that begin with the `;' char."
 
 (defmethod circular-shift ((obj buffer-base) n)
   (foreign-circular-shift (buffer-base-data obj) 'sample
-                          (buffer-base-size obj) n))
+                          (buffer-base-size obj) n)
+  obj)
 
 (defmethod quantize ((obj real) (from buffer-base) &key)
   (quantize-from-vector obj from smp-ref buffer-base-size
