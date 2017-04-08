@@ -326,7 +326,7 @@
                 #:non-negative-sample
                 #:+sample-zero+ #:limited-sample #:sample->fixnum #:sample->int
                 #:nrt-msg #:cheb)
-  (:export #:analysis #:envelope
+  (:export #:analysis #:envelope #:fir
            #:partials #:gbuzz #:chebyshev-1 #:polynomial
            #:defwindow #:symmetric-loop #:symmetric-set #:bartlett #:blackman
            #:dolph-chebyshev #:gaussian #:hamming #:hanning #:kaiser #:sinc

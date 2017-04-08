@@ -145,6 +145,7 @@
      (:file "gen/window" :depends-on ("foreign" "foreign-array"))
      (:file "gen/random" :depends-on ("foreign"))
      (:file "gen/analysis" :depends-on ("analysis/fft"))
+     (:file "gen/filter" :depends-on ("analysis/fft"))
      (:file "voicer/base" :depends-on ("vug/dsp"))
      (:file "voicer/event" :depends-on ("voicer/base" "receiver"))
      (:file "voicer/midi" :depends-on ("voicer/event" "vug/midi"))
