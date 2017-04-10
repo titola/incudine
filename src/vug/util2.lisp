@@ -96,11 +96,14 @@
                   (when initial-contents
                     (remf key-args :initial-contents))
                   (multiple-value-bind (binding init-key-value)
+                      ;; The type of INITIAL-CONTENTS is only LIST but it is
+                      ;; possible to initialize the array from other sequences
+                      ;; within the INITIALIZE block.
                       (and initial-contents
                            (values `((,vals ,initial-contents))
                                    `(:initial-contents
                                      ;; Dummy value for the header.
-                                     (cons (car ,vals) ,vals))))
+                                     (and ,vals (cons (car ,vals) ,vals)))))
                     `(with ,binding
                        (%make-foreign-array ,size ,,type ,@key-args
                                             ,@init-key-value)))))))
