@@ -353,6 +353,12 @@ either normally or abnormally, the SOUNDFILE:STREAM is automatically closed."
   #-64-bit (declare #.*reduce-warnings*)
   (>= (stream-curr-frame sf) (stream-frames sf)))
 
+(declaim (inline clear-buffer))
+(defun clear-buffer (sf frames)
+  (incudine.external:foreign-zero-sample
+    (stream-buffer-pointer sf)
+    (the non-negative-fixnum (* frames (stream-channels sf)))))
+
 (defun write-buffered-data (sf)
   (declare (type soundfile:output-stream sf)
            #.*standard-optimize-settings*
@@ -368,6 +374,7 @@ either normally or abnormally, the SOUNDFILE:STREAM is automatically closed."
         (when (> frames 0)
           (incf (stream-sf-position sf) frames)
           (setf (stream-buffer-index sf) 0)
+          (clear-buffer sf (1+ (output-stream-buffer-written-frames sf)))
           (setf (output-stream-buffer-written-frames sf) 0))
         frames)))
 
