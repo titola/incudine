@@ -106,19 +106,16 @@
 
 (declaim (inline linear-interp))
 (defun linear-interp (in y0 y1)
-  (declare (type sample in y0 y1))
   (+ y0 (* in (- y1 y0))))
 
 (declaim (inline cos-interp))
 (defun cos-interp (in y0 y1)
-  (declare (type sample in y0 y1))
   (linear-interp (* (- 1 (cos (the limited-sample (* in (sample pi)))))
                     0.5) y0 y1))
 
 ;;; Catmull-Rom spline
 (declaim (inline cubic-interp))
 (defun cubic-interp (in y0 y1 y2 y3)
-  (declare (type sample in y0 y1 y2 y3))
   (let ((a0 (+ (* -0.5 y0) (* 1.5 y1) (* -1.5 y2) (* 0.5 y3)))
         (a1 (+ y0 (* -2.5 y1) (* 2.0 y2) (* -0.5 y3)))
         (a2 (+ (* -0.5 y0) (* 0.5 y2))))
