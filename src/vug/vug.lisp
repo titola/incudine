@@ -819,11 +819,23 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
                                         *local-vug-functions*)))
      ,@body))
 
-(defun parse-local-function (def flist mlist floop-info)
+(declaim (inline make-local-function-object))
+(defun make-local-function-object (name)
+  (cons name (gensym (string name))))
+
+(declaim (inline local-function-name))
+(defun local-function-name (local-func-obj)
+  (car local-func-obj))
+
+(declaim (inline local-function-real-name))
+(defun local-function-real-name (local-func-obj)
+  (cdr local-func-obj))
+
+(defun parse-local-function (def real-name flist mlist floop-info)
   (let ((args (cadr def)))
     (multiple-value-bind (decl rest) (separate-declaration (cddr def))
       `(with-local-bindings ,args
-         (list ',(car def) (list ,@args)
+         (list ',real-name (list ,@args)
                ,@(vug-declarations decl)
                ,@(parse-vug-def rest nil flist mlist floop-info))))))
 
@@ -831,14 +843,18 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
   (declare (type list form flist mlist))
   (let* ((acc nil)
          (lfuns (mapcar (lambda (def)
-                          (push (car def) acc)
-                          (parse-local-function def flist mlist floop-info))
-                        (cadr form))))
-    `(with-local-vug-functions (,acc)
+                          (let ((f (make-local-function-object (car def))))
+                            (push f acc)
+                            (parse-local-function
+                              def (local-function-real-name f) flist mlist
+                              floop-info)))
+                        (cadr form)))
+         (names (mapcar #'local-function-real-name acc)))
+    (setf acc (nconc (nreverse acc) flist))
+    `(with-local-vug-functions (,names)
        (make-local-vug-functions :name ',(car form)
          :inputs (list (list ,@lfuns)
-                       ,@(parse-vug-def (cddr form) nil
-                           (progn (rplacd (last acc) flist) acc)
+                       ,@(parse-vug-def (cddr form) nil acc
                            ;; It's unnecessary to update the list of the visible
                            ;; local macros because the local functions are
                            ;; checked before the local macros in PARSE-VUG-FORM.
@@ -848,15 +864,19 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
 
 (defun parse-labels-form (form flist mlist floop-info)
   (declare (type list form flist mlist))
-  (let ((acc (copy-list flist))
-        (definitions (cadr form)))
-    (dolist (l definitions) (push (car l) acc))
-    `(with-local-vug-functions (,acc)
+  (let* ((definitions (cadr form))
+         (acc (mapcar (lambda (x) (make-local-function-object (car x)))
+                      definitions))
+         (names (mapcar #'local-function-real-name acc)))
+    (rplacd (last acc) flist)
+    `(with-local-vug-functions (,names)
        (make-local-vug-functions :name ',(car form)
-         :inputs (list (list ,@(mapcar (lambda (def)
-                                         (parse-local-function def acc mlist
-                                                               floop-info))
-                                       definitions))
+         :inputs (list (list ,@(mapcar (lambda (def fobj)
+                                         (parse-local-function
+                                           def
+                                           (local-function-real-name fobj)
+                                           acc mlist floop-info))
+                                       definitions acc))
                        ,@(parse-vug-def (cddr form) nil acc
                            ;; Not updated (FLIST checked before MLIST in
                            ;; PARSE-VUG-FORM).
@@ -873,7 +893,8 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
        :inputs (list ,@(parse-vug-def (cddr form) nil
                          ;; Update the visible local functions.
                          (remove-if (lambda (x)
-                                      (member x definitions :key #'car))
+                                      (member (local-function-name x)
+                                              definitions :key #'car))
                                     flist)
                          acc floop-info)))))
 
@@ -1153,21 +1174,29 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
                `(make-vug-declaration (list ,@decl)))))
           ((eq name 'locally)
            (parse-locally-form def flist mlist floop-info))
-          ((member name flist) ; local function
-           `(make-local-vug-function ,name
-              (list ,@(parse-vug-def (cdr def) t flist mlist floop-info))))
-          ((member name mlist :key #'car) ; local macro
-           (destructuring-bind (lambda-list &rest body) (cdr (assoc name mlist))
-             (parse-vug-def
-               (eval `(destructuring-bind ,lambda-list ',(cdr def)
-                        ;; Remove a possible doc string before a declaration.
-                        ,@(do ((l body (cdr l)))
-                              ((not (stringp (car l))) l))))
-               nil flist mlist floop-info)))
-          ((function-call-p def)
-           (parse-vug-function def name flist mlist floop-info))
           (t
-           (cons name (parse-vug-def (cdr def) t flist mlist floop-info))))))
+           (let ((local-func (find name flist :key #'local-function-name)))
+             (cond (local-func
+                    `(make-local-vug-function
+                       ,(local-function-real-name local-func)
+                       (list ,@(parse-vug-def (cdr def) t flist mlist
+                                              floop-info))))
+                   ((member name mlist :key #'car)
+                    ;; Local macro.
+                    (destructuring-bind (lambda-list &rest body)
+                        (cdr (assoc name mlist))
+                      (parse-vug-def
+                       (eval `(destructuring-bind ,lambda-list ',(cdr def)
+                                ;; Remove a possible doc string before
+                                ;; a declaration.
+                                ,@(do ((l body (cdr l)))
+                                      ((not (stringp (car l))) l))))
+                       nil flist mlist floop-info)))
+                   ((function-call-p def)
+                    (parse-vug-function def name flist mlist floop-info))
+                   (t
+                    (cons name (parse-vug-def (cdr def) t flist mlist
+                                              floop-info)))))))))
 
 (defun parse-vug-def (def &optional cdr-p flist mlist floop-info)
   (declare (type boolean cdr-p) (type list flist mlist))
