@@ -497,7 +497,14 @@ to call to get the control value."
            `(,fname ,ugen-name ,(car spec)
              ,@(loop for a in args
                      if (consp a)
-                       append (mapcar (lambda (x) (getf (cdr spec) x)) a)
+                       append (mapcar
+                                (lambda (x)
+                                  (let ((val (getf (cdr spec) x)))
+                                    (or (and (eq x :inline-p)
+                                             (null val)
+                                             (not (getf (cdr spec) :method-p)))
+                                        val)))
+                                a)
                      else
                        collect a))))
     (let ((specs (extend-ugen-specs specs)))
