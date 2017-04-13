@@ -177,16 +177,28 @@
 
 ;;;; Macros
 
-(deftest with-samples
+(deftest with-samples.1
     (with-samples ((a 3) (b 4))
       (+ a b))
   #.(sample 7))
 
-(deftest with-samples*
+(deftest with-samples.2
     (with-samples* ((a 3)
                     (b (+ a 4)))
       (* a b))
   #.(sample 21))
+
+(deftest with-samples.3
+    (let ((a 1) (b 2) (c 3))
+      (with-samples ((a 10) (b (* a 2)) c d (e (+ b 3)))
+        (+ a b c d e)))
+  #.(sample 17))
+
+(deftest with-samples.4
+    (let* ((a 1) (b 2) (c 3))
+      (with-samples* ((a 10) (b (* a 2)) c d (e (+ b 3)))
+        (+ a b c d e)))
+  #.(sample 53))
 
 ;; Trivial case: (incudine:free nil)
 (deftest with-cleanup-empty

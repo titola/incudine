@@ -203,56 +203,48 @@
                (incudine::free-foreign-array ,array-wrap)
                (incudine.util::foreign-nrt-free ,var)))))))
 
-;;; The expansion inside a definition of a VUG is different
+(defmacro %with-samples ((bindings set let) &body body)
+  (with-gensyms (c-array)
+    (if *use-foreign-sample-p*
+        (let* ((bindings (loop for x in bindings
+                               collect (if (consp x) x (list x 0d0))))
+               (vars (mapcar (lambda (x) (declare (ignore x)) (gensym))
+                             bindings))
+               (paral-p (eq let 'let*))
+               (count 0))
+          `(with-foreign-array (,c-array 'sample ,(length bindings))
+             (,let ,(loop for (x y) in bindings
+                          for v on vars
+                          collect (list (car v) (if paral-p `(sample ,y) y))
+                          when (and paral-p (cdr v))
+                            collect (list x (car v)))
+               ,@(when paral-p
+                   `((declare (ignorable ,@(butlast (mapcar #'car bindings))))))
+               (symbol-macrolet
+                   ,(mapcar (lambda (x)
+                              (prog1 `(,(if (consp x) (car x) x)
+                                       (smp-ref ,c-array ,count))
+                                (incf count)))
+                            bindings)
+                 (,set ,@(loop for x in bindings
+                               for v in vars
+                               append `(,(car x)
+                                        ,(if paral-p v `(sample ,v)))))
+                 ,@body))))
+        `(,let (,@(mapcar (lambda (x)
+                            (if (consp x)
+                                `(,(car x) (sample ,(cadr x)))
+                                `(,x ,+sample-zero+)))
+                          bindings))
+           (declare (type sample
+                          ,@(mapcar (lambda (x) (if (consp x) (car x) x))
+                                    bindings)))
+           ,@body))))
+
+;;; The expansion within the definition of a VUG is different
 ;;; (see %WITH-SAMPLES in `vug/vug.lisp')
 (defmacro with-samples (bindings &body body)
-  (with-gensyms (c-array)
-    (let ((size (length bindings))
-          (count 0))
-      (if *use-foreign-sample-p*
-          `(with-foreign-array (,c-array 'sample ,size)
-             (symbol-macrolet
-                 ,(mapcar (lambda (x)
-                            (prog1 `(,(if (consp x) (car x) x)
-                                     (smp-ref ,c-array ,count))
-                              (incf count)))
-                          bindings)
-               (psetf ,@(loop for i in bindings
-                              when (consp i)
-                              append `(,(car i) (sample ,(cadr i)))))
-               ,@body))
-          `(let (,@(mapcar (lambda (x)
-                             (if (consp x)
-                                 `(,(car x) (sample ,(cadr x)))
-                                 `(,x ,+sample-zero+)))
-                           bindings))
-             (declare (type sample ,@(mapcar (lambda (x)
-                                               (if (consp x) (car x) x))
-                                             bindings)))
-             ,@body)))))
+  `(%with-samples (,bindings psetf let) ,@body))
 
 (defmacro with-samples* (bindings &body body)
-  (with-gensyms (c-array)
-    (let ((size (length bindings))
-          (count 0))
-      (if *use-foreign-sample-p*
-          `(with-foreign-array (,c-array 'sample ,size)
-             (symbol-macrolet
-                 ,(mapcar (lambda (x)
-                            (prog1 `(,(if (consp x) (car x) x)
-                                     (smp-ref ,c-array ,count))
-                              (incf count)))
-                          bindings)
-               (setf ,@(loop for i in bindings
-                             when (consp i)
-                             append `(,(car i) (sample ,(cadr i)))))
-               ,@body))
-          `(let* (,@(mapcar (lambda (x)
-                              (if (consp x)
-                                  `(,(car x) (sample ,(cadr x)))
-                                  `(,x ,+sample-zero+)))
-                            bindings))
-             (declare (type sample ,@(mapcar (lambda (x)
-                                               (if (consp x) (car x) x))
-                                             bindings)))
-             ,@body)))))
+  `(%with-samples (,bindings setf let*) ,@body))
