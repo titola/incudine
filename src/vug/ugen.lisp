@@ -78,19 +78,23 @@ UGEN-INSTANCE's result when the type of the result is foreign."
   (declare (type ugen-instance ugen-instance))
   (ugen-instance-return-pointer ugen-instance))
 
-(defun ugen-control-pointer (ugen-instance control-name)
-  "Return a pointer to the UGEN-INSTANCE's control CONTROL-NAME and
-the function of no arguments to update the dependencies if it exists.
+(defun ugen-control-pointer (ugen-instance control-name-or-index)
+  "Return a pointer to the UGEN-INSTANCE's control CONTROL-NAME-OR-INDEX
+and the function of no arguments to update the dependencies if it exists.
 If the control is represented by a foreign object (i.e. a control of
 SAMPLE type), the returned pointer is the foreign pointer to the memory
 used to store the value, otherwise it is a function of no arguments
 to call to get the control value."
-  (let* ((u (ugen (ugen-instance-name ugen-instance)))
-         (index (index-of-ugen-control u control-name)))
-    (when index
-      (let* ((pos (* 2 index))
-             (ptr (svref (ugen-instance-controls ugen-instance) pos)))
-        (values ptr (svref (ugen-instance-controls ugen-instance) (1+ pos)))))))
+  (flet ((ctrl-ref (u i)
+           (let ((pos (* 2 i)))
+             (values (svref (ugen-instance-controls u) pos)
+                     (svref (ugen-instance-controls u) (1+ pos))))))
+    (if (numberp control-name-or-index)
+        (ctrl-ref ugen-instance control-name-or-index)
+        (let* ((u (ugen (ugen-instance-name ugen-instance)))
+               (index (index-of-ugen-control u control-name-or-index)))
+          (when index
+            (ctrl-ref ugen-instance index))))))
 
 (defun ugen-control-new-value (value ctrl-type value-type value-type-p)
   (if value-type-p
