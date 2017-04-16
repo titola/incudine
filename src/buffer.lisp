@@ -372,8 +372,8 @@ It is possible to use line comments that begin with the `;' char."
                (if (= index size)
                    max
                    (norm (1+ index)
-                         (max (smp-ref data index) max)))))
-      (scale-buffer buffer (/ norm-value (norm 1 (smp-ref data 0)))))))
+                         (max (abs (smp-ref data index)) max)))))
+      (scale-buffer buffer (/ norm-value (norm 1 (abs (smp-ref data 0))))))))
 
 (defun rescale-buffer (buffer min max)
   (declare (type buffer-base buffer) (type real min max))

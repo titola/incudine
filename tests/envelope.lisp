@@ -133,11 +133,17 @@
   (0.0 4.4 0.5 25.0 2.5 8.8)
   (:LINEAR :LINEAR))
 
-(deftest normalize-envelope
+(deftest normalize-envelope.1
     (let ((env (make-envelope '(440 2500 880) '(.5 2.5))))
       (envelope-test-1 (normalize-envelope env 2)))
   (0.0 0.35 0.5 2.0 2.5 0.7)
   (:LINEAR :LINEAR))
+
+(deftest normalize-envelope.2
+    (let ((env (make-envelope '(-8 3 -2 4 0) '(1 1 1 1))))
+      (envelope-test-1 (normalize-envelope env 1)))
+  (0.0 -1.0 1.0 0.38 1.0 -0.25 1.0 0.5 1.0 0.0)
+  (:LINEAR :LINEAR :LINEAR :LINEAR))
 
 (deftest rescale-envelope
     (let ((env (make-envelope '(440 2500 880) '(.5 2.5))))

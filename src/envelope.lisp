@@ -645,8 +645,8 @@ point RELEASE-NODE."
                (if (= index points)
                    maxval
                    (norm (1+ index)
-                         (max (envelope-level env index) maxval)))))
-      (scale-envelope env (/ norm-value (norm 1 (envelope-level env 0)))))))
+                         (max (abs (envelope-level env index)) maxval)))))
+      (scale-envelope env (/ norm-value (norm 1 (abs (envelope-level env 0))))))))
 
 (defun rescale-envelope (env min max)
   (declare (type envelope env) (type real min max))

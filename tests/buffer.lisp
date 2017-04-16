@@ -150,6 +150,13 @@
         (mapcar #'two-decimals (buffer->list buf))))
   (0.12 0.25 0.38 0.5 0.62 0.75 0.88 1.0))
 
+(deftest normalize-buffer.2
+    (let ((buf (make-buffer 8 :initial-contents '(-100 22 -50 31 -12 44 -70 75))))
+      (normalize-buffer buf 1)
+      (unless (free-p buf)
+        (mapcar #'two-decimals (buffer->list buf))))
+  (-1.0 0.22 -0.5 0.31 -0.12 0.44 -0.7 0.75))
+
 (deftest rescale-buffer.1
     (let ((buf (make-buffer 8 :initial-contents '(10 20 30 40 50 60 70 80))))
       (rescale-buffer buf 0 1000)
