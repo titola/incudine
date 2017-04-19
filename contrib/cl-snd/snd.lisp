@@ -225,6 +225,8 @@
 ;;;   #s(point)
 ;;;   ;; => #S(POINT :X NIL :Y NIL)
 ;;;
+(declaim (special *s7-readtable*))
+
 (defun |#s7-reader| (stream subchar arg)
   (cond ((or (char= (peek-char nil stream) #\7)
              (and arg (= arg 7)))
@@ -241,10 +243,7 @@
                           ((keywordp x)
                            (make-symbol (format nil "~S" x)))
                           (t x))))
-           (let ((*readtable* (copy-readtable)))
-             (setf (readtable-case *readtable*) :preserve)
-             (loop for c across "tf" do
-               (set-dispatch-macro-character #\# c #'simple-sharp-char))
+           (let ((*readtable* *s7-readtable*))
              (format nil "~A"
                (rec (read-delimited-list #\) stream t))))))
         ((char= (peek-char nil stream) #\n)
@@ -257,7 +256,13 @@
          (funcall *sharp-s-function* stream subchar arg))))
 
 (defun set-sharp-s7-syntax ()
-  (set-dispatch-macro-character #\# #\s #'|#s7-reader|))
+  (set-dispatch-macro-character #\# #\s #'|#s7-reader|)
+  (setf *s7-readtable* (copy-readtable))
+  (setf (readtable-case *s7-readtable*) :preserve)
+  (loop for c across "tf" do
+          (set-dispatch-macro-character #\# c #'simple-sharp-char
+                                        *s7-readtable*))
+  t)
 
 (defun add-sharp-s7-syntax ()
   (setf *readtable* (copy-readtable))
