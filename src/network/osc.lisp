@@ -414,11 +414,10 @@ the last received message."
   (declare (type positive-fixnum sockfd)
            (type (simple-array (unsigned-byte 8)) octets)
            (optimize speed (safety 0)))
-  (incudine.util:with-pinned-objects (octets)
-    (cffi:with-pointer-to-vector-data (buf octets)
-      (force-fixnum
-        (cffi:foreign-funcall "send" :int sockfd :pointer buf
-                              :unsigned-int (length octets) :int flags :int)))))
+  (cffi:with-pointer-to-vector-data (buf octets)
+    (force-fixnum
+      (cffi:foreign-funcall "send" :int sockfd :pointer buf
+                            :unsigned-int (length octets) :int flags :int))))
 
 ;;; SLIP method for framing packets (RFC 1055).
 (declaim (inline slip-encode))

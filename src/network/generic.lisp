@@ -120,10 +120,9 @@ FLAGS are used with the send and sendto calls."
       (let ((end (or end (length obj))))
         (declare (type non-negative-fixnum end))
         (unless (or (>= start end) (> end (length obj)))
-          (incudine.util:with-pinned-objects (obj)
-            (cffi:with-pointer-to-vector-data (ptr obj)
-              (foreign-write stream (cffi:inc-pointer ptr start)
-                             (- end start) flags)))))))
+          (cffi:with-pointer-to-vector-data (ptr obj)
+            (foreign-write stream (cffi:inc-pointer ptr start)
+                           (- end start) flags))))))
 
 (defun buffer-to-string (stream)
   "Return the string stored into the STREAM buffer."
