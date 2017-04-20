@@ -92,6 +92,21 @@
       (setf (stream-buffer-frames sf) frames))
     frames))
 
+(declaim (inline read-before-mix))
+(defun read-before-mix (sf)
+  (declare (type soundfile:output-stream sf))
+  (let ((frames (read-into-buffer sf nil)))
+    (declare (type non-negative-fixnum frames))
+    (when (< frames (stream-buffer-max-frames sf))
+      ;; Zero padding.
+      (incudine.external:foreign-zero-sample
+        (cffi:inc-pointer (stream-buffer-pointer sf)
+                          (the non-negative-fixnum
+                            (* (the non-negative-fixnum
+                                 (* frames (stream-channels sf)))
+                               #.(cffi:foreign-type-size :double))))
+        (- (stream-buffer-max-frames sf) frames)))))
+
 (declaim (inline position))
 (defun position (sf)
   (stream-sf-position sf))
@@ -115,18 +130,7 @@
           (t
            (when (and (soundfile:output-stream-p sf)
                       (output-stream-mix-p sf))
-             ;; Read before mix.
-             (let ((frames (read-into-buffer sf nil)))
-               (declare (type non-negative-fixnum frames))
-               (when (< frames (stream-buffer-max-frames sf))
-                 ;; Zero padding.
-                 (incudine.external:foreign-zero-sample
-                   (cffi:inc-pointer (stream-buffer-pointer sf)
-                     (the non-negative-fixnum
-                       (* (the non-negative-fixnum
-                            (* frames (stream-channels sf)))
-                          #.(cffi:foreign-type-size :double))))
-                   (- (stream-buffer-max-frames sf) frames)))))
+             (read-before-mix sf))
            (setf (stream-buffer-index sf) 0
                  (stream-buffer-frames sf) 0
                  (stream-buffer-end sf) 0
@@ -313,9 +317,16 @@ A new sound file is opened BUFFER-SIZE is the size of the internal buffer."
                                           (if (eq if-exists :append)
                                               frames
                                               0)))))))))
-          (when (and (not input-p) (eq if-exists :append))
-            ;; Offset by SF-POSITION-OFFSET
-            (setf (position sf) 0))
+          (unless input-p
+            (case if-exists
+              (:append
+               ;; Offset by SF-POSITION-OFFSET
+               (setf (position sf) 0))
+              (:mix
+               (sf-seek sf 0)
+               (read-before-mix sf))
+              (:overwrite
+               (sf-seek sf 0))))
           (incudine-finalize sf
             (lambda () (free-foreign-pointers sf-ptr buf-ptr))))
       (condition (c)
