@@ -44,6 +44,7 @@
 (defstruct (input-stream (:include stream) (:copier nil)))
 
 (defstruct (output-stream (:include stream) (:copier nil))
+  (dirty-p nil :type boolean)
   (buffer-written-frames 0 :type non-negative-fixnum)
   (mix-p nil :type boolean)
   (overwrite-p nil :type boolean :read-only t)
@@ -374,8 +375,7 @@ either normally or abnormally, the SOUNDFILE:STREAM is automatically closed."
   (declare (type soundfile:output-stream sf)
            #.*standard-optimize-settings*
            #-64-bit #.*reduce-warnings*)
-  (if (= (output-stream-buffer-written-frames sf) 0)
-      0
+  (if (output-stream-dirty-p sf)
       (let ((frames (cffi:foreign-funcall "sf_writef_double"
                       :pointer (stream-sf-pointer sf)
                       :pointer (stream-buffer-pointer sf)
@@ -386,8 +386,10 @@ either normally or abnormally, the SOUNDFILE:STREAM is automatically closed."
           (incf (stream-sf-position sf) frames)
           (setf (stream-buffer-index sf) 0)
           (clear-buffer sf (1+ (output-stream-buffer-written-frames sf)))
+          (setf (output-stream-dirty-p sf) nil)
           (setf (output-stream-buffer-written-frames sf) 0))
-        frames)))
+        frames)
+      0))
 
 (defmacro maybe-read-before-test (sf test)
   `(progn
@@ -500,7 +502,11 @@ frame. If PEEK-P is NIL (default), read forward if FORWARD-P is T
                      (not (< frame (stream-buffer-offset sf)))
                      (buffer-index-rew sf frame)))
       ;; Frame out of buffer.
-      (setf (position sf) frame))))
+      (setf (position sf) frame))
+    (when (and (soundfile:output-stream-p sf)
+               (not (output-stream-dirty-p sf)))
+      (setf (output-stream-dirty-p sf) t))
+    sf))
 
 (defun read (sf &optional frame (channel 0) (peek-p t) (forward-p t))
   "Read a value at FRAME (default is current) and CHANNEL (0 by default)
@@ -523,8 +529,8 @@ if FORWARD-P is NIL."
            (setf (stream-curr-frame sf) (stream-frames sf)))
          0d0)
         (t
-         (move-to-frame sf frame (stream-buffer-end sf))
-         (read-next sf channel forward-p peek-p))))
+         (read-next (move-to-frame sf frame (stream-buffer-end sf))
+                    channel forward-p peek-p))))
 
 (declaim (inline update-frame-threshold))
 (defun update-frame-threshold (sf frame)
@@ -545,8 +551,8 @@ if FORWARD-P is NIL."
            (type non-negative-fixnum channel)
            #.*standard-optimize-settings*)
   (when (and (open-p sf) (< channel (stream-channels sf)))
-    (move-to-frame sf frame (stream-buffer-size sf))
-    (update-frame-threshold sf frame)
+    (update-frame-threshold
+      (move-to-frame sf frame (stream-buffer-size sf)) frame)
     (when (< (stream-buffer-index sf) (stream-buffer-size sf))
       (if (output-stream-mix-p sf)
           (incf (buffer-value sf (+ (stream-buffer-index sf) channel)) data)
@@ -603,6 +609,7 @@ Return the number of the items written."
           (incf (stream-sf-position sf)
                 (truncate items (stream-channels sf)))
           (setf (stream-buffer-index sf) 0)
+          (setf (output-stream-dirty-p sf) nil)
           (setf (output-stream-buffer-written-frames sf) 0))
         items)
       0))
