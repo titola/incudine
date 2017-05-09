@@ -454,10 +454,14 @@ instantiated within BODY are invalid beyond the dynamic extent of BODY."
           (progn ,@body)
        (free (the list *to-free*)))))
 
+(declaim (inline dynamic-incudine-finalizer-p))
+(defun dynamic-incudine-finalizer-p ()
+  (boundp '*to-free*))
+
 (declaim (inline incudine-finalize))
 (defun incudine-finalize (obj function)
   (tg:finalize obj function)
-  (when (boundp '*to-free*)
+  (when (dynamic-incudine-finalizer-p)
     (push obj *to-free*))
   obj)
 

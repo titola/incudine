@@ -387,6 +387,7 @@
    #:foreign-array-type
    #:sample-rate #:filename #:free #:free-p
    #:with-cleanup #:incudine-finalize #:incudine-cancel-finalization
+   #:dynamic-incudine-finalizer-p
    #:play #:stop #:quantize
    #:circular-shift
    #:sort-samples
