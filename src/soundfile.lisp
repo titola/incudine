@@ -141,6 +141,19 @@
 
 (defsetf position set-position)
 
+(declaim (inline offset))
+(defun offset (sf)
+  (output-stream-sf-position-offset sf))
+
+(declaim (inline set-offset))
+(defun set-offset (sf os)
+  (declare (type non-negative-fixnum64 os))
+  (setf (output-stream-sf-position-offset sf) os)
+  (setf (position sf) 0)
+  os)
+
+(defsetf offset set-offset)
+
 (declaim (inline buffer-size))
 (defun buffer-size (sf)
   (stream-buffer-size sf))
