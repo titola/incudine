@@ -378,6 +378,48 @@ either normally or abnormally, the SOUNDFILE:STREAM is automatically closed."
   #-64-bit (declare #.*reduce-warnings*)
   (>= (stream-curr-frame sf) (stream-frames sf)))
 
+(defgeneric metadata (obj type))
+
+(defgeneric (setf metadata) (string obj type))
+
+(defun metadata-sf-type (type)
+  (declare (type (or symbol string) type))
+  (cdr (assoc (string type)
+              `(("title" . ,SF:STR-TITLE) ("copyright" . ,SF:STR-COPYRIGHT)
+                ("software" . ,SF:STR-SOFTWARE) ("artist" . ,SF:STR-ARTIST)
+                ("comment" . ,SF:STR-COMMENT) ("date" . ,SF:STR-DATE)
+                ("album" . ,SF:STR-ALBUM) ("license" . ,SF:STR-LICENSE)
+                ("tracknumber" . ,SF:STR-TRACKNUMBER) ("genre" . ,SF:STR-GENRE))
+              :test 'string-equal)))
+
+(defmethod metadata ((obj soundfile:stream) type)
+  (let ((sf-type (metadata-sf-type type)))
+    (when sf-type
+      (cffi:foreign-funcall "sf_get_string" :pointer (stream-sf-pointer obj)
+                            :int sf-type :string))))
+
+(defmethod metadata ((obj pathname) type)
+  (with-open-soundfile (sf obj) (metadata sf type)))
+
+(defmethod metadata ((obj string) type)
+  (metadata (truename obj) type))
+
+(defmethod (setf metadata) ((string string) (obj soundfile:stream) type)
+  (let ((sf-type (metadata-sf-type type)))
+    (and sf-type
+         (= (cffi:foreign-funcall "sf_set_string"
+                                  :pointer (stream-sf-pointer obj)
+                                  :int sf-type :string string :int)
+            SF:ERR-NO-ERROR)
+         string)))
+
+(defmethod (setf metadata) ((string string) (obj pathname) type)
+  (with-open-soundfile (sf obj :direction :output :if-exists :mix)
+    (setf (metadata sf type) string)))
+
+(defmethod (setf metadata) ((string string) (obj string) type)
+  (setf (metadata (truename obj) type) string))
+
 (declaim (inline clear-buffer))
 (defun clear-buffer (sf frames)
   (incudine.external:foreign-zero-sample
