@@ -602,7 +602,14 @@
 
 (declaim (inline function-call-p))
 (defun function-call-p (lst)
-  (and (symbolp (car lst)) (fboundp (car lst))))
+  (let ((obj (car lst)))
+    (and (symbolp obj)
+         #-sbcl (fboundp obj)
+         #+sbcl (or (fboundp obj)
+                    ;; For example SB-VM::TOUCH-OBJECT from
+                    ;; the expansion of SB-SYS:WITH-PINNED-OBJECTS
+                    ;; (Tested with SBCL 1.3.17)
+                    (and (sb-int:info :function :kind obj) t)))))
 
 (declaim (inline init-binding-form-p))
 (defun init-binding-form-p (lst)
