@@ -787,7 +787,7 @@
        (when funcs
          `(list ',(car form) ,@(cdr funcs)))))
     ((dynamic-extent ignore optimize special ignorable)
-     `(list ',(car form) ,@(cdr form)))
+     `(quote ,form))
     (otherwise (parse-other-declare-form form
                  (performance-time preserve temporary)))))
 
@@ -851,16 +851,18 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
                         (cadr form)))
          (names (mapcar #'local-function-real-name acc)))
     (setf acc (nconc (nreverse acc) flist))
-    `(with-local-vug-functions (,names)
-       (make-local-vug-functions :name ',(car form)
-         :inputs (list (list ,@lfuns)
-                       ,@(parse-vug-def (cddr form) nil acc
-                           ;; It's unnecessary to update the list of the visible
-                           ;; local macros because the local functions are
-                           ;; checked before the local macros in PARSE-VUG-FORM.
-                           mlist
-                           floop-info))
-         :vars (get-local-vug-function-vars ',acc)))))
+    (multiple-value-bind (decl rest) (separate-declaration (cddr form))
+      `(with-local-vug-functions (,names)
+         (make-local-vug-functions :name ',(car form)
+           :inputs (list (list ,@lfuns)
+                         ,@(vug-declarations decl)
+                         ,@(parse-vug-def rest nil acc
+                             ;; It's unnecessary to update the list of the visible
+                             ;; local macros because the local functions are
+                             ;; checked before the local macros in PARSE-VUG-FORM.
+                             mlist
+                             floop-info))
+           :vars (get-local-vug-function-vars ',acc))))))
 
 (defun parse-labels-form (form flist mlist floop-info)
   (declare (type list form flist mlist))
@@ -869,20 +871,22 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
                       definitions))
          (names (mapcar #'local-function-real-name acc)))
     (rplacd (last acc) flist)
-    `(with-local-vug-functions (,names)
-       (make-local-vug-functions :name ',(car form)
-         :inputs (list (list ,@(mapcar (lambda (def fobj)
-                                         (parse-local-function
-                                           def
-                                           (local-function-real-name fobj)
-                                           acc mlist floop-info))
-                                       definitions acc))
-                       ,@(parse-vug-def (cddr form) nil acc
-                           ;; Not updated (FLIST checked before MLIST in
-                           ;; PARSE-VUG-FORM).
-                           mlist
-                           floop-info))
-         :vars (get-local-vug-function-vars ',acc)))))
+    (multiple-value-bind (decl rest) (separate-declaration (cddr form))
+      `(with-local-vug-functions (,names)
+         (make-local-vug-functions :name ',(car form)
+           :inputs (list (list ,@(mapcar (lambda (def fobj)
+                                           (parse-local-function
+                                             def
+                                             (local-function-real-name fobj)
+                                             acc mlist floop-info))
+                                         definitions acc))
+                         ,@(vug-declarations decl)
+                         ,@(parse-vug-def rest nil acc
+                             ;; Not updated (FLIST checked before MLIST in
+                             ;; PARSE-VUG-FORM).
+                             mlist
+                             floop-info))
+           :vars (get-local-vug-function-vars ',acc))))))
 
 (defun parse-macrolet-form (form flist mlist floop-info)
   (declare (type list form flist mlist))
