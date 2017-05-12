@@ -122,6 +122,9 @@
 (defmacro %exit (&optional (code 0))
   `(sb-ext:exit :code ,code))
 
+(setf (symbol-function 'stream-fd) (symbol-function 'sb-sys:fd-stream-fd))
+(setf (symbol-function 'lseek) (symbol-function 'sb-posix:lseek))
+
 (declaim (inline stdin-fd))
 (defun stdin-fd ()
   (sb-sys:fd-stream-fd sb-sys:*stdin*))

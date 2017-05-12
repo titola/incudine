@@ -557,7 +557,7 @@
    #:foreign-read #:foreign-write
    #:position #:offset #:buffer-data #:buffer-size #:buffer-index #:buffer-value
    #:current-frame #:path #:sample-rate #:frames #:channels #:duration #:metadata
-   #:header-type #:data-format #:convert #:concatenate #:merge))
+   #:data-location #:header-type #:data-format #:convert #:concatenate #:merge))
 
 (defpackage :incudine.midifile
   (:use :cl)

@@ -174,6 +174,16 @@
 (defun path (sf)
   (stream-pathname sf))
 
+(defun data-location (filename)
+  (with-open-file (f filename)
+    (let ((fd (incudine.util::stream-fd f)))
+      (cffi:with-foreign-object (info '(:struct sf:info))
+        (let ((sf (cffi:foreign-funcall "sf_open_fd"
+                    :int fd :int SF:SFM-READ :pointer info
+                    :pointer (cffi:null-pointer) :pointer)))
+          (unwind-protect (incudine.util::lseek fd 0 SF:SEEK-CUR)
+            (cffi:foreign-funcall "sf_close" :pointer sf :int)))))))
+
 (defun update-sf-info (ptr sample-rate frames channels header-type data-format)
   (cffi:with-foreign-slots ((sf:sample-rate sf:frames sf:channels sf:format
                              sf:sections sf:seekable)

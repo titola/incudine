@@ -33,8 +33,7 @@ The options for the script `install_executable' are:
 For example:
 
     sh install_executable --with-linedit --with-ladspa --with-snd  \
-                          --with-module=sb-posix --with-module=ltk \
-                          --with-module=dsp-collection
+                          --with-module=ltk --with-module=dsp-collection
 
 or with Swank server and other options:
 
