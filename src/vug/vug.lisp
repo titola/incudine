@@ -655,9 +655,13 @@
 
 (declaim (inline parse-block-form))
 (defun parse-block-form (form flist mlist floop-info)
-  `(make-vug-function :name ',(car form)
-     :inputs (list ',(cadr form)
-                   ,@(parse-vug-def (cddr form) nil flist mlist floop-info))))
+  (let ((body (cddr form)))
+    `(make-vug-function :name ',(car form)
+       :inputs (list ',(cadr form)
+                     ,@(parse-vug-def (if (consp (car body))
+                                          body
+                                          `((progn ,@body)))
+                                      nil flist mlist floop-info)))))
 
 (declaim (inline vug-declarations))
 (defun vug-declarations (declare-expressions)
@@ -1154,8 +1158,13 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
                (parse-vug-def expansion nil flist mlist floop-info))))
         ((quote-symbol-p def)
          `(make-vug-symbol :name '',(second def)))
-        ((member name '(block return-from the catch throw))
+        ((member name '(block catch throw))
          (parse-block-form def flist mlist floop-info))
+        ((eq name 'the)
+         `(make-vug-function :name 'the
+            :inputs (list ',(second def)
+                          ,(parse-vug-def
+                             (third def) nil flist mlist floop-info))))
         ((eq name 'tagbody)
          (parse-tagbody-form def flist mlist floop-info))
         ((eq name 'go)
