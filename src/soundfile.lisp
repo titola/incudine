@@ -679,19 +679,63 @@ Return the number of the items written."
         items)
       0))
 
-(defun maxamp (infile)
-  (declare (type (or pathname string) infile))
-  (cffi:with-foreign-objects ((val :double) (max :double))
-    (setf max 0d0)
+(defmacro maxamp-loop ((sf count index chan curr max) &body update-max)
+  (alexandria:with-gensyms (frames channels j)
+    `(loop for ,count of-type non-negative-fixnum64 = 0 then (+ ,count ,frames)
+           for ,frames of-type non-negative-fixnum = (read-into-buffer ,sf nil)
+           with ,channels of-type non-negative-fixnum = (channels ,sf)
+           while (> ,frames 0) do
+             (loop for ,index below ,frames do
+                     (loop for ,chan below ,channels
+                           for ,j of-type non-negative-fixnum
+                                  from (* ,index ,channels) do
+                             (setf ,curr (abs (buffer-value ,sf ,j)))
+                             (when (> ,curr ,max)
+                               ,@update-max))))))
+
+(defun maxamp-for-channel (infile)
+  (with-open-soundfile (in infile)
+    (let* ((chans (channels in))
+           (max-arr (make-array chans :element-type 'double-float
+                                :initial-element 0d0))
+           (pos-arr (make-array chans :element-type '(unsigned-byte 64)
+                                :initial-element 0))
+           (max-chan 0)
+           (val 0d0))
+      (maxamp-loop (in count index ch val (aref max-arr ch))
+        (setf (aref max-arr ch) val)
+        (setf (aref pos-arr ch) (+ count index))
+        (when (and (/= max-chan ch) (> val (aref max-arr max-chan)))
+          (setf max-chan ch)))
+      (values max-arr pos-arr max-chan))))
+
+(defun maxamp-all-channels (infile)
+  (cffi:with-foreign-objects ((max :double)
+                              (curr :double)
+                              (pos :uint64))
+    (setf (cffi:mem-ref max :double) 0d0)
+    (setf (cffi:mem-ref pos :uint64) 0)
     (with-open-soundfile (in infile)
-      (loop for frames of-type non-negative-fixnum
-                       = (read-into-buffer in nil)
-            while (> frames 0) do
-              (loop for i below frames do
-                      (setf val (abs (buffer-value in i)))
-                      (when (> val max)
-                        (setf max val)))
-            finally (return max)))))
+      (maxamp-loop (in count index ch (cffi:mem-ref curr :double)
+                    (cffi:mem-ref max :double))
+        (setf (cffi:mem-ref max :double) (cffi:mem-ref curr :double))
+        (setf (cffi:mem-ref pos :uint64) (+ count index))))
+    (values (cffi:mem-ref max :double) (cffi:mem-ref pos :uint64))))
+
+(defun maxamp (infile &optional channel)
+  (declare (type (or pathname string) infile)
+           (type (or boolean non-negative-fixnum) channel))
+  (if channel
+      (multiple-value-bind (max-arr pos-arr ch) (maxamp-for-channel infile)
+        (if (numberp channel)
+            (if (< channel (length max-arr))
+                (values (aref max-arr channel) (aref pos-arr channel) channel)
+                (error 'soundfile-error
+                       :format-control "Channel index ~D but ~S is a sound file ~
+                                        with ~D channels."
+                       :format-arguments (list channel infile (length max-arr))))
+            (values max-arr pos-arr ch)))
+      (maxamp-all-channels infile)))
 
 (defun convert (infile outfile header-type data-format
                 &key normalize scale-by scale-to)
