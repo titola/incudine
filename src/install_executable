@@ -22,6 +22,7 @@ Create and install the standalone executable.
   --bindir=DIR          user executables [PREFIX/bin]
   --swank-loader=PATH   support for Swank server with path to swank-loader.lisp
   --without-aclrepl     do not use Allegro CL-style Read-Eval-Print Loop.
+  --with-clm            use cudere-clm, the Incudine version of CLM
   --with-linedit        support for Linedit, readline-style library in CL.
   --with-fluidsynth     support for FluidSynth SoundFont synthesizer.
   --with-ladspa         support for LADSPA plugins.
@@ -57,6 +58,7 @@ for arg in "$@"; do
         --swank-loader=*)   SWANK_LOADER_PATH="${arg#*=}" ;;
         --without-aclrepl)  aclrepl_p="no" ;;
         --with-linedit)     linedit_p="yes" ;;
+        --with-clm)         add_system "CUDERE-CLM" ;;
         --with-fluidsynth)  add_system "INCUDINE-FLUIDSYNTH" ;;
         --with-ladspa)      add_system "INCUDINE-LADSPA" ;;
         --with-lv2)         add_system "INCUDINE-LV2" ;;

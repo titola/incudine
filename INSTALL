@@ -21,6 +21,7 @@ The options for the script `install_executable' are:
   --bindir=DIR          user executables [PREFIX/bin]
   --swank-loader=PATH   support for Swank server with path to swank-loader.lisp
   --without-aclrepl     do not use Allegro CL-style Read-Eval-Print Loop.
+  --with-clm            use cudere-clm, the Incudine version of CLM
   --with-linedit        support for Linedit, readline-style library in CL.
   --with-fluidsynth     support for FluidSynth SoundFont synthesizer.
   --with-ladspa         support for LADSPA plugins.
