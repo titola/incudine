@@ -306,8 +306,9 @@
   (centered-random amp))
 
 (defun randomantic (amp distribution)
+  (declare (type (or null (simple-array double-float (*))) distribution))
   (if distribution
-      (* amp (aref distribution (random +random-distribution-table-size+)))
+      (* amp (aref distribution (random (length distribution))))
       (centered-random amp)))
 
 (declaim (inline sqr))

@@ -557,13 +557,9 @@
   (:writers (sweep :arg-name gen))
   (with-samples (value)
     (initialize
-      (cond (distribution
-             (setf distribution
-                   (make-array +random-distribution-table-size+
-                               :element-type 'double-float)))
-            (envelope
-             (setf distribution
-                   (reduce-warnings (inverse-integrate envelope)))))
+      (when envelope
+        (setf distribution
+              (reduce-warnings (inverse-integrate envelope))))
       (setf value (randomantic amp distribution)))
     (when (or (>= phase +twopi+) (minusp phase))
       (setf phase (mod phase +twopi+))
@@ -573,8 +569,13 @@
 
 (defun* make-rand ((frequency *clm-default-frequency*) (amplitude 1.0)
                    envelope distribution)
-  (funcall (cudere-clm.ugens:rand (hz->radians (abs frequency)) amplitude
-                                  envelope distribution 0 0)))
+  (let ((distr (and distribution
+                    (if (typep distribution '(simple-array double-float (*)))
+                        distribution
+                        (make-double-array (length distribution)
+                                           :initial-contents distribution)))))
+    (funcall (cudere-clm.ugens:rand (hz->radians (abs frequency)) amplitude
+                                    envelope distr 0 0))))
 
 (declaim (inline rand))
 (defun rand (r &optional (sweep 0 sweep-p))
@@ -614,13 +615,9 @@
                            (sample 1)
                            (/ (sample 1) (ceiling (/ +twopi+ inc))))))
     (initialize
-      (cond (distribution
-             (setf distribution
-                   (make-array +random-distribution-table-size+
-                               :element-type 'double-float)))
-            (envelope
-             (setf distribution
-                   (reduce-warnings (inverse-integrate envelope)))))
+      (when envelope
+        (setf distribution
+              (reduce-warnings (inverse-integrate envelope))))
       (setf value (randomantic amp distribution))
       (setf step (* (- (randomantic amp distribution) value) norm))
       (decf value step))
@@ -639,8 +636,13 @@
 
 (defun* make-rand-interp ((frequency *clm-default-frequency*) (amplitude 1.0)
                           envelope distribution)
-  (funcall (cudere-clm.ugens:rand-interp (hz->radians (abs frequency)) amplitude
-                                         envelope distribution 0 0)))
+  (let ((distr (and distribution
+                    (if (typep distribution '(simple-array double-float (*)))
+                        distribution
+                        (make-double-array (length distribution)
+                                           :initial-contents distribution)))))
+    (funcall (cudere-clm.ugens:rand-interp (hz->radians (abs frequency)) amplitude
+                                           envelope distr 0 0))))
 
 (declaim (inline rand-interp))
 (defun rand-interp (r &optional (sweep 0 sweep-p))
