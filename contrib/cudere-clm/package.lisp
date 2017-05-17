@@ -84,9 +84,10 @@
    #:run #:run*
    ;; Methods
    #:mus-channel #:mus-channels #:mus-close #:mus-data #:mus-file-name
-   #:mus-frequency #:mus-increment #:mus-input? #:mus-length #:mus-location
-   #:mus-offset #:mus-output? #:mus-phase #:mus-reset #:mus-safety
-   #:mus-scaler
+   #:mus-feedback #:mus-feedforward #:mus-frequency #:mus-hop #:mus-increment
+   #:mus-input? #:mus-interp-type #:mus-length #:mus-location #:mus-offset
+   #:mus-order #:mus-output? #:mus-phase #:mus-ramp #:mus-reset #:mus-safety
+   #:mus-scaler #:mus-xcoeff #:mus-xcoeffs #:mus-ycoeff #:mus-ycoeffs #:mus-width
    ;; Utilities
    #:hz->radians #:radians->hz
    #:seconds->samples #:samples->seconds #:times->samples
