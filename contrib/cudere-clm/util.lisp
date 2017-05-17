@@ -776,6 +776,14 @@
                 (setf x0 x1 y0 y1))))
     (or new-e e)))
 
+(declaim (inline ensure-double-float-random-distribution))
+(defun ensure-double-float-random-distribution (distribution)
+  (when distribution
+    (if (typep distribution '(simple-array double-float (*)))
+        distribution
+        (make-double-array (length distribution)
+                           :initial-contents distribution))))
+
 ;;; Edited from clm-5/env.lisp
 (defun inverse-integrate (dist &optional
                                  (data-size #.+random-distribution-table-size+)

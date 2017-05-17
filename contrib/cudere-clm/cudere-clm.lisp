@@ -554,7 +554,7 @@
               (amp :name mus-scaler :arg-name gen :method-p t)
               (phase :name mus-phase :arg-name gen :method-p t))
   (:readers (distribution :name mus-data :arg-name gen :method-p t))
-  (:writers (sweep :arg-name gen))
+  (:writers (distribution :arg-name gen) (sweep :arg-name gen))
   (with-samples (value)
     (initialize
       (when envelope
@@ -569,11 +569,7 @@
 
 (defun* make-rand ((frequency *clm-default-frequency*) (amplitude 1.0)
                    envelope distribution)
-  (let ((distr (and distribution
-                    (if (typep distribution '(simple-array double-float (*)))
-                        distribution
-                        (make-double-array (length distribution)
-                                           :initial-contents distribution)))))
+  (let ((distr (ensure-double-float-random-distribution distribution)))
     (funcall (cudere-clm.ugens:rand (hz->radians (abs frequency)) amplitude
                                     envelope distr 0 0))))
 
@@ -588,6 +584,9 @@
 
 (defmethod mus-length ((gen rand-instance))
   (length (mus-data gen)))
+
+(defmethod (setf mus-data) (value (gen rand-instance))
+  (set-rand-distribution gen (ensure-double-float-random-distribution value)))
 
 (defmethod mus-reset ((gen rand-instance))
   (setf (mus-phase gen) +twopi+)
@@ -607,7 +606,7 @@
               (amp :name mus-scaler :arg-name gen :method-p t)
               (phase :name mus-phase :arg-name gen :method-p t))
   (:readers (distribution :name mus-data :arg-name gen :method-p t))
-  (:writers (sweep :arg-name gen))
+  (:writers (distribution :arg-name gen) (sweep :arg-name gen))
   (with-samples ((value 0)
                  (step 0)
                  (minus-amp (- amp))
@@ -636,11 +635,7 @@
 
 (defun* make-rand-interp ((frequency *clm-default-frequency*) (amplitude 1.0)
                           envelope distribution)
-  (let ((distr (and distribution
-                    (if (typep distribution '(simple-array double-float (*)))
-                        distribution
-                        (make-double-array (length distribution)
-                                           :initial-contents distribution)))))
+  (let ((distr (ensure-double-float-random-distribution distribution)))
     (funcall (cudere-clm.ugens:rand-interp (hz->radians (abs frequency)) amplitude
                                            envelope distr 0 0))))
 
@@ -655,6 +650,10 @@
 
 (defmethod mus-length ((gen rand-interp-instance))
   (length (mus-data gen)))
+
+(defmethod (setf mus-data) (value (gen rand-interp-instance))
+  (set-rand-interp-distribution gen
+    (ensure-double-float-random-distribution value)))
 
 (defmethod mus-reset ((gen rand-interp-instance))
   (setf (mus-phase gen) +twopi+)
