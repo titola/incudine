@@ -28,7 +28,7 @@
                 #:define-constant #:with-gensyms #:format-symbol)
   (:import-from #:incudine #:incudine-simple-error #:incudine-missing-arg)
   (:import-from #:incudine.soundfile #:with-open-soundfile)
-  (:shadow #:play #:rand #:two-pole #:two-zero #:delay)
+  (:shadow #:play #:rand #:two-pole #:two-zero #:delay #:notch)
   (:export
    ;; Conditions
    #:cudere-clm-error
