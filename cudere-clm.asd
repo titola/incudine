@@ -36,7 +36,7 @@
      (:file "cudere-clm")
      (:file "score"))
     :perform (load-op :after (o c)
-               (load (system-relative-pathname "cudere-clm"
-                       (or (eval (find-symbol "*CLM-INIT*" :cudere-clm))
-                           "clm-init.lisp"))
+               (load (or (eval (find-symbol "*CLM-INIT*" :cudere-clm))
+                         (system-relative-pathname
+                           "cudere-clm" "contrib/cudere-clm/clm-init.lisp"))
                      :if-does-not-exist nil)))))
