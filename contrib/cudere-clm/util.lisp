@@ -1044,4 +1044,5 @@
             (chan-stats "Out" out-chans ovals otimes)
             (when clm-revfile-name
               (chan-stats "Rev" rev-chans rvals rtimes))
-            (terpri stream)))))))
+            (terpri stream)
+            (force-output stream)))))))
