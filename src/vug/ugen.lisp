@@ -582,7 +582,7 @@ to call to get the control value."
                                      (format-symbol
                                        (symbol-package instance-type)
                                        "MAKE-~A" instance-type))))
-      `(progn
+      `(eval-when (:compile-toplevel :load-toplevel :execute)
          (compile-vug (define-vug ,name ,lambda-list ,@(and doc `(,doc))
                                   ,@specs ,@form)
                       ',return-type nil ',instance-constructor)

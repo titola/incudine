@@ -2,40 +2,39 @@
 
 (enable-sharp-square-bracket-syntax)
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (define-ugen line* sample (start end dur (done-action function))
-    (line start end dur done-action))
+(define-ugen line* sample (start end dur (done-action function))
+  (line start end dur done-action))
 
-  (define-ugen expon* sample (start end dur (done-action function))
-    (expon start end dur done-action))
+(define-ugen expon* sample (start end dur (done-action function))
+  (expon start end dur done-action))
 
-  (define-ugen sinosc-1 sample (freq amp)
-    (sine freq amp 0))
+(define-ugen sinosc-1 sample (freq amp)
+  (sine freq amp 0))
 
-  (define-ugen sinosc-2 sample (freq amp)
-    (oscr freq amp))
+(define-ugen sinosc-2 sample (freq amp)
+  (oscr freq amp))
 
-  (define-ugen sinosc-fadein* sample (f0 f1 amp dur)
-    (* (line* 0 amp (1+ dur) #'free)
-       (sinosc-1 (expon* f0 f1 dur #'reinit) amp)))
+(define-ugen sinosc-fadein* sample (f0 f1 amp dur)
+  (* (line* 0 amp (1+ dur) #'free)
+     (sinosc-1 (expon* f0 f1 dur #'reinit) amp)))
 
-  (define-ugen sinosc-fadein sample (f0 f1 amp dur)
-    (declare (inline line* expon* sinosc-1))
-    (* (line* 0 amp (1+ dur) #'free)
-       (sinosc-1 (expon* f0 f1 dur #'reinit) amp)))
+(define-ugen sinosc-fadein sample (f0 f1 amp dur)
+  (declare (inline line* expon* sinosc-1))
+  (* (line* 0 amp (1+ dur) #'free)
+     (sinosc-1 (expon* f0 f1 dur #'reinit) amp)))
 
-  (define-ugen sinosc-perc* sample (amp dur)
-    (* (envelope* (make-local-perc .5 .5) 1 dur
-                  (reduce-warnings
-                    (lambda (node) (reinit node amp dur))))
-       (sinosc-2 1000 amp)))
+(define-ugen sinosc-perc* sample (amp dur)
+  (* (envelope* (make-local-perc .5 .5) 1 dur
+                (reduce-warnings
+                  (lambda (node) (reinit node amp dur))))
+     (sinosc-2 1000 amp)))
 
-  (define-ugen sinosc-perc sample (amp dur)
-    (declare (inline envelope* sinosc-2))
-    (* (envelope* (make-local-perc .5 .5) 1 dur
-                  (reduce-warnings
-                    (lambda (node) (reinit node amp dur))))
-       (sinosc-2 1000 amp))))
+(define-ugen sinosc-perc sample (amp dur)
+  (declare (inline envelope* sinosc-2))
+  (* (envelope* (make-local-perc .5 .5) 1 dur
+                (reduce-warnings
+                  (lambda (node) (reinit node amp dur))))
+     (sinosc-2 1000 amp)))
 
 (dsp! ugen-reinit-test-1 (f0 f1 amp dur)
   (out (sinosc-fadein f0 f1 amp dur)))

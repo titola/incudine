@@ -61,56 +61,56 @@ stored in a buffer."
      incudine.analysis:pvbuffer-fft-size
      incudine.analysis:pvbuffer-block-size
      incudine.analysis:pvbuffer-scale-factor
-     incudine.external:pconv-multiply-partitions))
+     incudine.external:pconv-multiply-partitions)))
 
-  (defmacro pconv-update-frame (frame output-index-var outbuf
-                                channels mult)
-    (with-gensyms (ch i)
-      `(do ((,ch 0 (1+ ,ch))
-            (,i ,output-index-var (1+ ,i)))
-           ((>= ,ch ,channels) (setf ,output-index-var ,i))
-         (declare (type non-negative-fixnum ,ch ,i))
-         (setf (frame-ref ,frame ,ch)
-               (* ,mult (smp-ref ,outbuf ,i))))))
+(defmacro pconv-update-frame (frame output-index-var outbuf
+                              channels mult)
+  (with-gensyms (ch i)
+    `(do ((,ch 0 (1+ ,ch))
+          (,i ,output-index-var (1+ ,i)))
+         ((>= ,ch ,channels) (setf ,output-index-var ,i))
+       (declare (type non-negative-fixnum ,ch ,i))
+       (setf (frame-ref ,frame ,ch)
+             (* ,mult (smp-ref ,outbuf ,i))))))
 
-  (defmacro pconv-update-input (fft-inbuf index value pad-index-var)
-    `(progn
-       (setf (smp-ref ,fft-inbuf ,index) ,value)
-       ;; Zero padding of the second half
-       (setf (smp-ref ,fft-inbuf ,pad-index-var) +sample-zero+)
-       (incf ,pad-index-var)
-       (incf ,index)))
+(defmacro pconv-update-input (fft-inbuf index value pad-index-var)
+  `(progn
+     (setf (smp-ref ,fft-inbuf ,index) ,value)
+     ;; Zero padding of the second half
+     (setf (smp-ref ,fft-inbuf ,pad-index-var) +sample-zero+)
+     (incf ,pad-index-var)
+     (incf ,index)))
 
-  (declaim (inline pconv-update-output))
-  (defun pconv-update-output (partsize channel channels
-                              outbuf outbuf-half ifft-outbuf)
-    (labels ((rec (i j k l)
-               (declare (type non-negative-fixnum i j k l))
-               (when (< i partsize)
-                 (setf (smp-ref outbuf k) (+ (smp-ref ifft-outbuf i)
-                                             ;; Overlap the the tail of the
-                                             ;; prior computation
-                                             (smp-ref outbuf l)))
-                 ;; Update the tail to overlap at the next block
-                 (setf (smp-ref outbuf l) (smp-ref ifft-outbuf j))
-                 (rec (1+ i) (1+ j) (+ k channels) (+ l channels)))))
-      (rec 0 partsize channel (+ channel outbuf-half))))
+(declaim (inline pconv-update-output))
+(defun pconv-update-output (partsize channel channels
+                            outbuf outbuf-half ifft-outbuf)
+  (labels ((rec (i j k l)
+             (declare (type non-negative-fixnum i j k l))
+             (when (< i partsize)
+               (setf (smp-ref outbuf k) (+ (smp-ref ifft-outbuf i)
+                                           ;; Overlap the the tail of the
+                                           ;; prior computation
+                                           (smp-ref outbuf l)))
+               ;; Update the tail to overlap at the next block
+               (setf (smp-ref outbuf l) (smp-ref ifft-outbuf j))
+               (rec (1+ i) (1+ j) (+ k channels) (+ l channels)))))
+    (rec 0 partsize channel (+ channel outbuf-half))))
 
-  (declaim (inline update-fdl))
-  (defun update-fdl (fdl fft-outbuf start block-size)
-    (declare (type non-negative-fixnum start block-size))
-    (do ((i 0 (1+ i))
-         (j start (1+ j)))
-        ((>= i block-size))
-      (declare (type non-negative-fixnum i j))
-      (setf (smp-ref fdl j) (smp-ref fft-outbuf i))))
+(declaim (inline update-fdl))
+(defun update-fdl (fdl fft-outbuf start block-size)
+  (declare (type non-negative-fixnum start block-size))
+  (do ((i 0 (1+ i))
+       (j start (1+ j)))
+      ((>= i block-size))
+    (declare (type non-negative-fixnum i j))
+    (setf (smp-ref fdl j) (smp-ref fft-outbuf i))))
 
-  (defmacro update-fdl-head (head-var block-size last)
-    `(setf ,head-var (if (plusp ,head-var)
-                         ;; Decrement the FDL
-                         (- ,head-var ,block-size)
-                         ;; Last partition of the FDL
-                         ,last))))
+(defmacro update-fdl-head (head-var block-size last)
+  `(setf ,head-var (if (plusp ,head-var)
+                       ;; Decrement the FDL
+                       (- ,head-var ,block-size)
+                       ;; Last partition of the FDL
+                       ,last)))
 
 (define-vug part-convolve (in (pvbuf pvbuffer))
   "Partitioned convolution. The PVBUFFER contains the partitioned FFT

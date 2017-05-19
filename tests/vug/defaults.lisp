@@ -1,21 +1,20 @@
 (in-package :incudine-tests)
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (define-vug vug-default-test-1 (freq amp (nh fixnum))
-    (:defaults 110 .3 (+ 1 (random 10)))
-    (buzz freq amp nh))
+(define-vug vug-default-test-1 (freq amp (nh fixnum))
+  (:defaults 110 .3 (+ 1 (random 10)))
+  (buzz freq amp nh))
 
-  (define-vug vug-default-test-2 (amp (lst cons))
-    (:defaults .5 (list 440))
-    (sine (reduce-warnings (sample (car lst))) amp 0))
+(define-vug vug-default-test-2 (amp (lst cons))
+  (:defaults .5 (list 440))
+  (sine (reduce-warnings (sample (car lst))) amp 0))
 
-  (define-vug-macro vug-macro-default-test-2 (freq amp)
-    (:defaults 440 .3)
-    `(sine ,freq ,amp 0))
+(define-vug-macro vug-macro-default-test-2 (freq amp)
+  (:defaults 440 .3)
+  `(sine ,freq ,amp 0))
 
-  (define-ugen ugen-default-test-1 sample (in fcut q)
-    (:defaults 0 2000 100)
-    (resonz in fcut q)))
+(define-ugen ugen-default-test-1 sample (in fcut q)
+  (:defaults 0 2000 100)
+  (resonz in fcut q))
 
 (dsp! default-test-1 (amp (nh fixnum) res)
   (:defaults .3 20 3.9)

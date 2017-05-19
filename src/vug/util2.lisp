@@ -287,81 +287,80 @@ START-OFFSET is the initial offset for the internal counter."
              (* old-rdelta (- in old-min)))
        new-min)))
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defmacro %with-samples-rebinding (bindings &body body)
-    `(let ,(mapcar (lambda (x)
-                     (let ((value (cadr x)))
-                       `(,(car x) (if (atom ,value) ,value (gensym)))))
-                   bindings)
-       `(with-samples (,@,@(mapcar (lambda (x)
-                                     (let ((value (cadr x)))
-                                       `(unless (atom ,value)
-                                          `((,,(car x) (vug-input ,,value))))))
-                                   bindings))
-          ,,@body)))
+(defmacro %with-samples-rebinding (bindings &body body)
+  `(let ,(mapcar (lambda (x)
+                   (let ((value (cadr x)))
+                     `(,(car x) (if (atom ,value) ,value (gensym)))))
+                 bindings)
+     `(with-samples (,@,@(mapcar (lambda (x)
+                                   (let ((value (cadr x)))
+                                     `(unless (atom ,value)
+                                        `((,,(car x) (vug-input ,,value))))))
+                                 bindings))
+        ,,@body)))
 
-  (define-vug-macro nclip (in low high)
-    (%with-samples-rebinding ((lo low) (hi high))
+(define-vug-macro nclip (in low high)
+  (%with-samples-rebinding ((lo low) (hi high))
+    `(progn
+       (cond ((> ,in ,hi) (setf ,in ,hi))
+             ((< ,in ,lo) (setf ,in ,lo)))
+       ,in)))
+
+(defmacro wrap-cond ((in low high range &optional (offset in)) &rest clauses)
+  (with-gensyms (r-range)
+    `(with-samples ((,r-range (/ (sample ,range))))
+       ;; If the input is to set, here is a good place, because the
+       ;; first condition in the next COND contains an explicit setter
+       ;; form, so the automatic setter is disabled.
+       (maybe-expand ,in)
+       (cond ((zerop ,range)
+              (setf ,in ,(if (eql high range) +sample-zero+ low)))
+             ,@(mapcar (lambda (x)
+                         `(,(car x) ,@(cdr x)
+                            (when ,(car x)
+                              (decf ,in (* ,range (sample->fixnum
+                                                   (* ,offset ,r-range)))))))
+                       clauses)))))
+
+(define-vug-macro nwrap (in low high &optional range offset)
+  (%with-samples-rebinding ((lo low) (hi high))
+    (let ((delta (or range hi)))
       `(progn
-         (cond ((> ,in ,hi) (setf ,in ,hi))
-               ((< ,in ,lo) (setf ,in ,lo)))
-         ,in)))
+         (wrap-cond (,in ,lo ,hi ,delta ,(or offset in))
+           ((>= ,in ,hi) (decf ,in ,delta))
+           (,(if range `(< ,in ,lo) `(minusp ,in))
+            (incf ,in ,delta)))
+         ,in))))
 
-  (defmacro wrap-cond ((in low high range &optional (offset in)) &rest clauses)
-    (with-gensyms (r-range)
-      `(with-samples ((,r-range (/ (sample ,range))))
-         ;; If the input is to set, here is a good place, because the
-         ;; first condition in the next COND contains an explicit setter
-         ;; form, so the automatic setter is disabled.
-         (maybe-expand ,in)
-         (cond ((zerop ,range)
-                (setf ,in ,(if (eql high range) +sample-zero+ low)))
-               ,@(mapcar (lambda (x)
-                           `(,(car x) ,@(cdr x)
-                              (when ,(car x)
-                                (decf ,in (* ,range (sample->fixnum
-                                                     (* ,offset ,r-range)))))))
-                         clauses)))))
-
-  (define-vug-macro nwrap (in low high &optional range offset)
-    (%with-samples-rebinding ((lo low) (hi high))
-      (let ((delta (or range hi)))
-        `(progn
-           (wrap-cond (,in ,lo ,hi ,delta ,(or offset in))
-             ((>= ,in ,hi) (decf ,in ,delta))
-             (,(if range `(< ,in ,lo) `(minusp ,in))
-              (incf ,in ,delta)))
+(defmacro %mirror-consequent (in threshold1 threshold2 range two-range offset
+                              offset-p bias)
+  (with-gensyms (os r-two-range)
+    `(with-samples ((,r-two-range (/ (sample ,two-range))))
+       (setf ,in (- (+ ,threshold1 ,threshold1) ,in))
+       (if (< ,in ,threshold2)
+           (let ((,os ,offset))
+             (setf ,in (- ,os (* ,two-range
+                                 (sample->fixnum (* ,os ,r-two-range)))))
+             (when (>= ,in ,range)
+               (setf ,in (- ,two-range ,in)))
+             ,(if offset-p `(+ ,in ,bias) in))
            ,in))))
 
-  (defmacro %mirror-consequent (in threshold1 threshold2 range two-range offset
-                                offset-p bias)
-    (with-gensyms (os r-two-range)
-      `(with-samples ((,r-two-range (/ (sample ,two-range))))
-         (setf ,in (- (+ ,threshold1 ,threshold1) ,in))
-         (if (< ,in ,threshold2)
-             (let ((,os ,offset))
-               (setf ,in (- ,os (* ,two-range
-                                   (sample->fixnum (* ,os ,r-two-range)))))
-               (when (>= ,in ,range)
-                 (setf ,in (- ,two-range ,in)))
-               ,(if offset-p `(+ ,in ,bias) in))
-             ,in))))
-
-  (define-vug-macro nmirror (in low high &optional range two-range offset)
-    (%with-samples-rebinding ((lo low) (hi high))
-      (let ((%range (or range hi))
-            (%offset (or offset in)))
-          `(progn
-             (maybe-expand ,in)
-             (cond ((zerop ,%range)
-                    (setf ,in ,(if (eql hi %range) +sample-zero+ lo)))
-                   ((>= ,in ,hi)
-                    (%mirror-consequent ,in ,hi ,lo ,%range ,two-range ,%offset
-                                        ,offset ,lo))
-                   ((< ,in ,lo)
-                    (%mirror-consequent ,in ,lo ,hi ,%range ,two-range ,%offset
-                                        ,offset ,lo))
-                   (t ,in)))))))
+(define-vug-macro nmirror (in low high &optional range two-range offset)
+  (%with-samples-rebinding ((lo low) (hi high))
+    (let ((%range (or range hi))
+          (%offset (or offset in)))
+        `(progn
+           (maybe-expand ,in)
+           (cond ((zerop ,%range)
+                  (setf ,in ,(if (eql hi %range) +sample-zero+ lo)))
+                 ((>= ,in ,hi)
+                  (%mirror-consequent ,in ,hi ,lo ,%range ,two-range ,%offset
+                                      ,offset ,lo))
+                 ((< ,in ,lo)
+                  (%mirror-consequent ,in ,lo ,hi ,%range ,two-range ,%offset
+                                      ,offset ,lo))
+                 (t ,in))))))
 
 (declaim (inline clip))
 (defun clip (in low high)

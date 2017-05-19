@@ -1228,7 +1228,9 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
              (parse-vug-form def flist mlist floop-info)))
         ((eq def 'pi) (sample pi))
         ((keywordp def) def)
-        ((and (symbolp def) (or (boundp def) (eq def '%dsp-node%)))
+        ((and (symbolp def) (or (boundp def)
+                                (incudine.util::var-globally-special-p def)
+                                (eq def '%dsp-node%)))
          `(make-vug-symbol :name ',def))
         ((and (symbolp def)
               (member def '(current-channel current-frame current-sample)))
@@ -1731,20 +1733,22 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
             (let ((defaults (cadr (get-vug-spec :defaults specs))))
               (check-default-args args defaults 'vug)
               (let ((optional-keys (mapcar #'list args defaults)))
-                `(let ((,fn (,@(if optional-keys
-                                   `(lambda* ,optional-keys)
-                                   `(lambda ,args))
-                              ,@(and doc `(,doc))
-                              (flet ((,fn ,args
-                                       (with-coerce-arguments ,lambda-list
-                                         (vug-block
-                                           (with-argument-bindings (,args ,types t)
-                                             ,@vug-body)))))
-                                (let ((,s (list ,@specs)))
-                                  (call-vug-pre-hooks ,s)
-                                  (,fn ,@args))))))
-                   (setf (symbol-function ',name) ,fn)
-                   (add-vug ',name ',args ',types ',defaults ,fn)))))))))
+                `(eval-when (:compile-toplevel :load-toplevel :execute)
+                   (let ((,fn (,@(if optional-keys
+                                     `(lambda* ,optional-keys)
+                                     `(lambda ,args))
+                                 ,@(and doc `(,doc))
+                                 (flet ((,fn ,args
+                                          (with-coerce-arguments ,lambda-list
+                                            (vug-block
+                                              (with-argument-bindings
+                                                  (,args ,types t)
+                                                ,@vug-body)))))
+                                   (let ((,s (list ,@specs)))
+                                     (call-vug-pre-hooks ,s)
+                                     (,fn ,@args))))))
+                     (setf (symbol-function ',name) ,fn)
+                     (add-vug ',name ',args ',types ',defaults ,fn))))))))))
 
 (defmacro define-vug-macro (name lambda-list &body body)
   (if (dsp name)
@@ -1752,7 +1756,7 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
       (multiple-value-bind (doc specs vug-body) (extract-vug-specs body)
         (let ((defaults (cadr (get-vug-spec :defaults specs))))
           (check-default-args lambda-list defaults 'vug-macro)
-          `(progn
+          `(eval-when (:compile-toplevel :load-toplevel :execute)
              (,@(if defaults
                     `(defmacro* ,name ,(mapcar #'list lambda-list defaults))
                     `(defmacro ,name ,lambda-list))

@@ -206,14 +206,13 @@ sndfile-metadata-get --str-{title,artist} quux.wav</pre>
       </p>
 
       <pre class="src src-sh">cat &gt; conv.cudo &lt;&lt;'---'
-(eval-when (:compile-toplevel :load-toplevel)
-  (defvar *pvbuf*
-    (let ((buf (buffer-load (read-arg 1 nil))))
-      (cond (buf (buffer-&gt;pvbuffer buf 2048))
-            (t (msg error "Failed to open the IR")
-               (exit 1)))))
+(defvar *pvbuf*
+  (let ((buf (buffer-load (read-arg 1 nil))))
+    (cond (buf (buffer-&gt;pvbuffer buf 2048))
+          (t (msg error "Failed to open the IR")
+             (exit 1)))))
 
-  (defvar *scale* (sample (or (read-arg 2) 1))))
+(defvar *scale* (sample (or (read-arg 2) 1))))
 
 (dsp! convolve ()
   (with-samples ((scale *scale*))
@@ -255,8 +254,7 @@ convolve voice48.wav ir48.wav 0.53 48000 2.5
       </p>
 
       <pre class="src src-sh">cat &gt; amp.cudo &lt;&lt;'---'
-(eval-when (:compile-toplevel :load-toplevel)
-  (lv2-&gt;vug "http://plugin.org.uk/swh-plugins/amp" swh.amp))
+(lv2-&gt;vug "http://plugin.org.uk/swh-plugins/amp" swh.amp)
 
 (dsp! amp-test (gain)
   (stereo (swh.amp gain (white-noise 1))))
@@ -278,8 +276,7 @@ incudine amp.cudo -s amp-test.rego</pre>
       </p>
 
       <pre class="src src-sh">cat &gt; gverb.cudo &lt;&lt;'---'
-(eval-when (:compile-toplevel :load-toplevel)
-  (lv2-&gt;vug "http://plugin.org.uk/swh-plugins/gverb" gverb))
+(lv2-&gt;vug "http://plugin.org.uk/swh-plugins/gverb" gverb)
 
 (dsp! gverb-test (room-size rev-time damping input-bw dry early-level
                   tail-level scale)
@@ -302,8 +299,7 @@ incudine gverb.cudo -i voice.wav --pad 3 -r 96000 -s gverb-test.rego</pre>
       </p>
 
       <pre class="src src-sh">cat &gt; plate-rev.cudo &lt;&lt;'---'
-(eval-when (:compile-toplevel :load-toplevel)
-  (ladspa-&gt;vug "caps" "Plate" plate-reverb))
+(ladspa-&gt;vug "caps" "Plate" plate-reverb)
 
 (dsp! plate-reverb-test (trig-freq input-decay input-scale bw tail damping blend)
   "Test of the Plate reverb developed by Tim Goetze."

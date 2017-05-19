@@ -139,14 +139,13 @@ conv.cudo the code to parse the user options and the definition of the
 DSP for the convolver.
 
 cat > conv.cudo <<'---'
-(eval-when (:compile-toplevel :load-toplevel)
-  (defvar *pvbuf*
-    (let ((buf (buffer-load (read-arg 1 nil))))
-      (cond (buf (buffer->pvbuffer buf 2048))
-            (t (msg error "Failed to open the IR")
-               (exit 1)))))
+(defvar *pvbuf*
+  (let ((buf (buffer-load (read-arg 1 nil))))
+    (cond (buf (buffer->pvbuffer buf 2048))
+          (t (msg error "Failed to open the IR")
+             (exit 1)))))
 
-  (defvar *scale* (sample (or (read-arg 2) 1))))
+(defvar *scale* (sample (or (read-arg 2) 1))))
 
 (dsp! convolve ()
   (with-samples ((scale *scale*))
@@ -182,8 +181,7 @@ If you have created the incudine command with the support for LV2, you
 can use LV2 plugins in your scripts. A trivial example:
 
 cat > amp.cudo <<'---'
-(eval-when (:compile-toplevel :load-toplevel)
-  (lv2->vug "http://plugin.org.uk/swh-plugins/amp" swh.amp))
+(lv2->vug "http://plugin.org.uk/swh-plugins/amp" swh.amp)
 
 (dsp! amp-test (gain)
   (stereo (swh.amp gain (white-noise 1))))
@@ -203,8 +201,7 @@ incudine amp.cudo -s amp-test.rego
 Another example, where a multi output plugin returns a FRAME:
 
 cat > gverb.cudo <<'---'
-(eval-when (:compile-toplevel :load-toplevel)
-  (lv2->vug "http://plugin.org.uk/swh-plugins/gverb" gverb))
+(lv2->vug "http://plugin.org.uk/swh-plugins/gverb" gverb)
 
 (dsp! gverb-test (room-size rev-time damping input-bw dry early-level
                   tail-level scale)
@@ -225,8 +222,7 @@ If you have also created the incudine command with the support for
 LADSPA, here is an example to use LADSPA plugins:
 
 cat > plate-rev.cudo <<'---'
-(eval-when (:compile-toplevel :load-toplevel)
-  (ladspa->vug "caps" "Plate" plate-reverb))
+(ladspa->vug "caps" "Plate" plate-reverb)
 
 (dsp! plate-reverb-test (trig-freq input-decay input-scale bw tail damping blend)
   "Test of the Plate reverb developed by Tim Goetze."

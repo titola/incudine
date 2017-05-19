@@ -55,24 +55,23 @@ endin
 A cudo file to test the output of CMask is
 
 ;;; texture.cudo
-(eval-when (:compile-toplevel :load-toplevel)
-  (define-vug foscil (amp cps car mod ndx (buf buffer))
-    "A basic FM oscillator."
-    (with-samples ((fcar (* cps car))
-                   (fmod (* cps mod))
-                   (amod (* ndx fmod)))
-      (osc buf (+ fcar (osc buf fmod amod 0 :linear)) amp 0 :linear)))
+(define-vug foscil (amp cps car mod ndx (buf buffer))
+  "A basic FM oscillator."
+  (with-samples ((fcar (* cps car))
+                 (fmod (* cps mod))
+                 (amod (* ndx fmod)))
+    (osc buf (+ fcar (osc buf fmod amod 0 :linear)) amp 0 :linear)))
 
-  (define-vug pan (in (buf buffer) pos)
-    "Stereo panpot."
-    (with ((tab (buffer-data buf))
-           (frames (1- (buffer-frames buf)))
-           (index (sample->fixnum (* pos frames))))
-      (with-samples ((left (smp-ref tab (- frames index)))
-                     (right (smp-ref tab index)))
-        (cond ((= current-channel 0) (* left in))
-              ((= current-channel 1) (* right in))
-              (t +sample-zero+))))))
+(define-vug pan (in (buf buffer) pos)
+  "Stereo panpot."
+  (with ((tab (buffer-data buf))
+         (frames (1- (buffer-frames buf)))
+         (index (sample->fixnum (* pos frames))))
+    (with-samples ((left (smp-ref tab (- frames index)))
+                   (right (smp-ref tab index)))
+      (cond ((= current-channel 0) (* left in))
+            ((= current-channel 1) (* right in))
+            (t +sample-zero+)))))
 
 (dsp! texture (dur freq pos (pan-buf buffer) (osc-buf buffer))
   "FM oscillator test."

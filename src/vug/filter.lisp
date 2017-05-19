@@ -16,74 +16,73 @@
 
 (in-package :incudine.vug)
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  ;;; Note: nested anaphoric VUG-MACROs are safe, because the
-  ;;; VUG-VARIABLE IT becomes a new symbol created with GENSYM.
-  ;;;
-  ;;; The symbol ~ is inspired by FAUST programming language.
-  (define-vug-macro ~ (in &key (type 'sample) (initial-value 0))
-    "Anaphoric VUG MACRO for recursive composition."
-    (let ((it (ensure-symbol 'it)))
-      `(with ((,it ,(coerce-number initial-value type)))
-         (declare (type ,type ,it))
-         (setf ,it ,in))))
+;;; Note: nested anaphoric VUG-MACROs are safe, because the
+;;; VUG-VARIABLE IT becomes a new symbol created with GENSYM.
+;;;
+;;; The symbol ~ is inspired by FAUST programming language.
+(define-vug-macro ~ (in &key (type 'sample) (initial-value 0))
+  "Anaphoric VUG MACRO for recursive composition."
+  (let ((it (ensure-symbol 'it)))
+    `(with ((,it ,(coerce-number initial-value type)))
+       (declare (type ,type ,it))
+       (setf ,it ,in))))
 
-  (define-vug delay1 (in)
-    "One sample delay."
-    (with-samples (sig) (prog1 sig (setf sig in))))
+(define-vug delay1 (in)
+  "One sample delay."
+  (with-samples (sig) (prog1 sig (setf sig in))))
 
-  (define-vug pole (in coef)
-    "One pole filter."
-    (~ (+ in (* coef it))))
+(define-vug pole (in coef)
+  "One pole filter."
+  (~ (+ in (* coef it))))
 
-  (define-vug pole* (in coef)
-    "Scaled one pole filter."
-    (with-samples ((g (- 1 (abs coef))))
-      (pole (* g in) coef)))
+(define-vug pole* (in coef)
+  "Scaled one pole filter."
+  (with-samples ((g (- 1 (abs coef))))
+    (pole (* g in) coef)))
 
-  (define-vug zero (in coef)
-    "One zero filter."
-    (- in (* coef (delay1 in))))
+(define-vug zero (in coef)
+  "One zero filter."
+  (- in (* coef (delay1 in))))
 
-  (define-vug zero* (in coef)
-    "Scaled one zero filter."
-    (with-samples ((g (- 1 (abs coef))))
-      (+ (* g in) (* coef (delay1 in)))))
+(define-vug zero* (in coef)
+  "Scaled one zero filter."
+  (with-samples ((g (- 1 (abs coef))))
+    (+ (* g in) (* coef (delay1 in)))))
 
-  (define-vug lag (in time)
-    "Scaled one pole filter with the coefficient calculated from
-a 60 dB lag TIME."
-    (pole* in (t60->pole time)))
-
-  (define-vug lag-ud (in attack-time decay-time)
+(define-vug lag (in time)
   "Scaled one pole filter with the coefficient calculated from
+a 60 dB lag TIME."
+  (pole* in (t60->pole time)))
+
+(define-vug lag-ud (in attack-time decay-time)
+"Scaled one pole filter with the coefficient calculated from
 a 60 dB lag ATTACK-TIME and DECAY-TIME."
-  (with-samples ((coef-up (t60->pole attack-time))
-                 (coef-down (t60->pole decay-time)))
-    (~ (pole* in (if (> in it) coef-up coef-down)))))
+(with-samples ((coef-up (t60->pole attack-time))
+               (coef-down (t60->pole decay-time)))
+  (~ (pole* in (if (> in it) coef-up coef-down)))))
 
-  (define-vug decay (in decay-time)
-    "Exponential decay."
-    (pole in (t60->pole decay-time)))
+(define-vug decay (in decay-time)
+  "Exponential decay."
+  (pole in (t60->pole decay-time)))
 
-  (define-vug biquad (in b0 b1 b2 a0 a1 a2)
-    "Biquad filter."
-    (with-samples (x1 x2 y y1 y2)
-      (with-samples ((a0r (/ a0))
-                     (n0 (* b0 a0r))
-                     (n1 (* b1 a0r))
-                     (n2 (* b2 a0r))
-                     (d1 (* a1 a0r))
-                     (d2 (* a2 a0r)))
-        (setf y (- (+ (* n0 in) (* n1 x1) (* n2 x2)) (* d1 y1) (* d2 y2))
-              x2 x1 x1 in y2 y1 y1 y)
-        y)))
+(define-vug biquad (in b0 b1 b2 a0 a1 a2)
+  "Biquad filter."
+  (with-samples (x1 x2 y y1 y2)
+    (with-samples ((a0r (/ a0))
+                   (n0 (* b0 a0r))
+                   (n1 (* b1 a0r))
+                   (n2 (* b2 a0r))
+                   (d1 (* a1 a0r))
+                   (d2 (* a2 a0r)))
+      (setf y (- (+ (* n0 in) (* n1 x1) (* n2 x2)) (* d1 y1) (* d2 y2))
+            x2 x1 x1 in y2 y1 y1 y)
+      y)))
 
-  (defmacro with-reson-common ((wt-var radius-var freq q) &body body)
-    `(with-samples ((,wt-var (* ,freq *twopi-div-sr*))
-                    (,radius-var (exp (* (/ ,freq ,q)
-                                         *minus-pi-div-sr*))))
-       ,@body)))
+(defmacro with-reson-common ((wt-var radius-var freq q) &body body)
+  `(with-samples ((,wt-var (* ,freq *twopi-div-sr*))
+                  (,radius-var (exp (* (/ ,freq ,q)
+                                       *minus-pi-div-sr*))))
+     ,@body))
 
 ;;; `tone' and `atone' opcodes used in Csound.
 (define-vug cs-tone (in hp)
@@ -191,33 +190,32 @@ scale factor."
 ;;; EQ biquad filter coefficients by Robert Bristow-Johnson
 ;;; http://www.musicdsp.org/files/Audio-EQ-Cookbook.txt
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defmacro %%with-biquad-common (bindings &body body)
-    `(with-samples ((w0 (* freq *twopi-div-sr*))
-                    (cos-w0 (cos w0))
-                    (sin-w0 (sin w0))
-                    ,@bindings)
-       ,@body))
+(defmacro %%with-biquad-common (bindings &body body)
+  `(with-samples ((w0 (* freq *twopi-div-sr*))
+                  (cos-w0 (cos w0))
+                  (sin-w0 (sin w0))
+                  ,@bindings)
+     ,@body))
 
-  (defmacro %with-biquad-common (bindings &body body)
-    `(%%with-biquad-common
-         ((alpha (* sin-w0 (if (plusp q) (/ 0.5 q) (sample 1000))))
-          ,@bindings)
-       ,@body))
+(defmacro %with-biquad-common (bindings &body body)
+  `(%%with-biquad-common
+       ((alpha (* sin-w0 (if (plusp q) (/ 0.5 q) (sample 1000))))
+        ,@bindings)
+     ,@body))
 
-  (defmacro %with-biquad-shelf-common (&body body)
-    `(%%with-biquad-common
-         ((gain (expt (sample 10) (* db (sample 0.025))))
-          (alpha (* sin-w0 0.5
-                    (sqrt (the non-negative-sample
-                            (+ 2.0 (* (+ gain (/ gain))
-                                      (- (/ s) 1.0)))))))
-          (c1 (+ gain 1.0))
-          (c2 (- gain 1.0))
-          (c3 (* c1 cos-w0))
-          (c4 (* c2 cos-w0))
-          (c5 (* 2 (sqrt (the non-negative-sample gain)) alpha)))
-       ,@body)))
+(defmacro %with-biquad-shelf-common (&body body)
+  `(%%with-biquad-common
+       ((gain (expt (sample 10) (* db (sample 0.025))))
+        (alpha (* sin-w0 0.5
+                  (sqrt (the non-negative-sample
+                          (+ 2.0 (* (+ gain (/ gain))
+                                    (- (/ s) 1.0)))))))
+        (c1 (+ gain 1.0))
+        (c2 (- gain 1.0))
+        (c3 (* c1 cos-w0))
+        (c4 (* c2 cos-w0))
+        (c5 (* 2 (sqrt (the non-negative-sample gain)) alpha)))
+     ,@body))
 
 (define-vug lpf (in freq q)
   "Second-order lowpass filter."
@@ -412,72 +410,71 @@ scale factor."
 
 ;;; Median filter based on James McCartney's Median ugen (SuperCollider).
 ;;; Added the code to modulate the window size of the filter.
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (declaim (inline %median-update-value))
-  (defun %median-update-value (values ages src-pos dest-pos)
-    (setf (smp-ref values dest-pos) (smp-ref values src-pos)
-          (svref ages dest-pos) (svref ages src-pos)))
+(declaim (inline %median-update-value))
+(defun %median-update-value (values ages src-pos dest-pos)
+  (setf (smp-ref values dest-pos) (smp-ref values src-pos)
+        (svref ages dest-pos) (svref ages src-pos)))
 
-  (declaim (inline %median-shrink))
-  (defun %median-shrink (values ages old-size new-size)
-    (declare (type foreign-pointer values) (type simple-vector ages)
-             (type positive-fixnum old-size new-size))
-    (let ((pos 0))
-      (declare (type non-negative-fixnum pos))
-      (dotimes (i old-size)
-        (when (< (svref ages i) new-size)
-          (unless (= pos i)
-            (%median-update-value values ages i pos))
-          (incf pos)))))
+(declaim (inline %median-shrink))
+(defun %median-shrink (values ages old-size new-size)
+  (declare (type foreign-pointer values) (type simple-vector ages)
+           (type positive-fixnum old-size new-size))
+  (let ((pos 0))
+    (declare (type non-negative-fixnum pos))
+    (dotimes (i old-size)
+      (when (< (svref ages i) new-size)
+        (unless (= pos i)
+          (%median-update-value values ages i pos))
+        (incf pos)))))
 
-  (declaim (inline %median-expand))
-  (defun %median-expand (values ages old-size new-size)
-    (declare (type foreign-pointer values) (type simple-vector ages)
-             (type positive-fixnum old-size new-size))
-    (let ((right-shift (ash (+ (- new-size old-size) 1) -1))
-          (pos (1- new-size))
-          (old-last (1- old-size))
-          (age old-size))
-      (dotimes (i right-shift)
-        (setf (smp-ref values pos) (smp-ref values old-last))
-        (setf (svref ages pos) age)
-        (decf pos)
-        (incf age))
-      (dotimes (i old-size)
-        (setf (smp-ref values pos) (smp-ref values old-last))
-        (decf pos)
-        (decf old-last))
-      (do ((old-first (1+ pos))
-           (i 0 (1+ i)))
-          ((> i pos))
-        (setf (smp-ref values i) (smp-ref values old-first))
-        (setf (svref ages i) age)
-        (incf age))))
+(declaim (inline %median-expand))
+(defun %median-expand (values ages old-size new-size)
+  (declare (type foreign-pointer values) (type simple-vector ages)
+           (type positive-fixnum old-size new-size))
+  (let ((right-shift (ash (+ (- new-size old-size) 1) -1))
+        (pos (1- new-size))
+        (old-last (1- old-size))
+        (age old-size))
+    (dotimes (i right-shift)
+      (setf (smp-ref values pos) (smp-ref values old-last))
+      (setf (svref ages pos) age)
+      (decf pos)
+      (incf age))
+    (dotimes (i old-size)
+      (setf (smp-ref values pos) (smp-ref values old-last))
+      (decf pos)
+      (decf old-last))
+    (do ((old-first (1+ pos))
+         (i 0 (1+ i)))
+        ((> i pos))
+      (setf (smp-ref values i) (smp-ref values old-first))
+      (setf (svref ages i) age)
+      (incf age))))
 
-  (defmacro %median-update-ages (position-var ages size last)
-    (with-gensyms (index)
-      `(dotimes (,index ,size)
-         (if (= (the fixnum (svref ,ages ,index)) ,last)
-             (setf ,position-var ,index)  ; position of the oldest value
-             (incf (the fixnum (svref ,ages ,index)))))))
+(defmacro %median-update-ages (position-var ages size last)
+  (with-gensyms (index)
+    `(dotimes (,index ,size)
+       (if (= (the fixnum (svref ,ages ,index)) ,last)
+           (setf ,position-var ,index)  ; position of the oldest value
+           (incf (the fixnum (svref ,ages ,index)))))))
 
-  (defmacro %median-search-lower (input values ages pos)
-    (with-gensyms (prev-pos)
-      `(progn
-         ,input
-         (loop for ,prev-pos = (the fixnum (1- ,pos))
-               while (and (plusp ,pos)
-                          (< ,input (smp-ref ,values ,prev-pos))) do
-              (%median-update-value ,values ,ages ,prev-pos ,pos)
-              (decf ,pos)))))
+(defmacro %median-search-lower (input values ages pos)
+  (with-gensyms (prev-pos)
+    `(progn
+       ,input
+       (loop for ,prev-pos = (the fixnum (1- ,pos))
+             while (and (plusp ,pos)
+                        (< ,input (smp-ref ,values ,prev-pos))) do
+            (%median-update-value ,values ,ages ,prev-pos ,pos)
+            (decf ,pos)))))
 
-  (defmacro %median-search-higher (input values ages pos last)
-    (with-gensyms (next-pos)
-      `(loop for ,next-pos = (the non-negative-fixnum (1+ ,pos))
-             while (and (/= ,pos ,last)
-                        (> ,input (smp-ref ,values ,next-pos))) do
-            (%median-update-value ,values ,ages ,next-pos ,pos)
-            (incf ,pos)))))
+(defmacro %median-search-higher (input values ages pos last)
+  (with-gensyms (next-pos)
+    `(loop for ,next-pos = (the non-negative-fixnum (1+ ,pos))
+           while (and (/= ,pos ,last)
+                      (> ,input (smp-ref ,values ,next-pos))) do
+          (%median-update-value ,values ,ages ,next-pos ,pos)
+          (incf ,pos))))
 
 (define-vug median (in (max-size positive-fixnum) (size positive-fixnum))
   "Median filter."

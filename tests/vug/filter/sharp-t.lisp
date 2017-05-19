@@ -2,17 +2,16 @@
 
 (enable-sharp-t-syntax)
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  ;;; Moog "Voltage Controlled Filter" (VCF) in "analog" form.
-  ;;; References:
-  ;;;   [1] https://ccrma.stanford.edu/~stilti/papers/moogvcf.pdf
-  ;;;   [2] https://ccrma.stanford.edu/~jos/pasp/vegf.html
-  (define-vug moog-vcf (in res fr)
-    (with-samples ((wt (* fr *twopi-div-sr*))
-                   (coef (- 1 wt))
-                   (unity-gain (* wt wt wt wt))
-                   (mk (* -4 (clip res 0.0d0 0.999999d0))))
-      (~ (* #4t(pole (+ in it) coef) unity-gain mk)))))
+;;; Moog "Voltage Controlled Filter" (VCF) in "analog" form.
+;;; References:
+;;;   [1] https://ccrma.stanford.edu/~stilti/papers/moogvcf.pdf
+;;;   [2] https://ccrma.stanford.edu/~jos/pasp/vegf.html
+(define-vug moog-vcf (in res fr)
+  (with-samples ((wt (* fr *twopi-div-sr*))
+                 (coef (- 1 wt))
+                 (unity-gain (* wt wt wt wt))
+                 (mk (* -4 (clip res 0.0d0 0.999999d0))))
+    (~ (* #4t(pole (+ in it) coef) unity-gain mk))))
 
 (dsp! moog-vcf-test-1 ()
   (out (moog-vcf (buzz 200 1 100) .99 (expon 80 5000 5 #'free))))
