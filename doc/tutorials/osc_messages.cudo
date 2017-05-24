@@ -10,9 +10,9 @@
 
 (in-package :scratch)
 
-;; Default values (changed 2017-02-18)
+;; Default values (changed 2017-05-24)
 osc:*buffer-size*
-;; 1000
+;; 1500
 osc:*max-values*
 ;; 50
 

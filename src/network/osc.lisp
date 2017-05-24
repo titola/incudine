@@ -18,7 +18,7 @@
 
 (defvar *buffer-size* (if (boundp 'incudine.config::*osc-buffer-size*)
                           incudine.config::*osc-buffer-size*
-                          1000)
+                          1500)
   "Size of the foreign buffer used to read/write a OSC packet.")
 (declaim (type positive-fixnum *buffer-size*))
 
@@ -68,6 +68,9 @@ The argument of a function is the OSC:STREAM to close.")
   ;; Pointer to the memory where the OSC message starts.
   (message-pointer (cffi:null-pointer) :type cffi:foreign-pointer)
   (message-length 0 :type non-negative-fixnum)
+  (message-length-pointer (cffi:null-pointer) :type cffi:foreign-pointer)
+  (bundle-pointer (cffi:null-pointer) :type cffi:foreign-pointer)
+  (bundle-length 0 :type non-negative-fixnum)
   (message-encoding nil :type (member nil :slip))
   ;; Pointers to the required OSC values. The first slot is reserved
   ;; for the pointer to the first OSC type. The second and last slots
@@ -83,7 +86,9 @@ The argument of a function is the OSC:STREAM to close.")
 
 (defstruct (input-stream (:include stream)))
 
-(defstruct (output-stream (:include stream)))
+(defstruct (output-stream (:include stream))
+  ;; Latency in seconds.
+  (latency 0d0 :type double-float))
 
 (defun print-stream (obj stream depth)
   (declare (ignore depth))
@@ -124,29 +129,77 @@ The argument of a function is the OSC:STREAM to close.")
                -1)))
       form))
 
+(declaim (inline encode-timestamp))
+(defun encode-timestamp (seconds)
+  "Return the two 32-bit fields of the 64-bit NTP timestamp format (RFC 5905)."
+  (if (zerop seconds)
+      (values 0 1) ; Immediate 0x0000000000000001
+      (multiple-value-bind (sec frac)
+          ;; We don't send OSC bundles in the past, therefore we can use
+          ;; the time with dual meaning: if SECONDS is greater than 63103
+          ;; (about 17 hours), the time is absolute otherwise it is added
+          ;; to the current time.  63104 is the offset of the NTP Timestamp
+          ;; Era 1 (from 8 Feb 2036), so this hack will work for centuries.
+          (floor (if (> seconds 63103) seconds (+ (incudine:timestamp) seconds)))
+        (values sec (floor (* frac #x100000000))))))
+
 (declaim (inline free-pointer))
 (defun free-pointer (ptr)
   (unless (cffi:null-pointer-p ptr) (cffi:foreign-free ptr)))
 
+(define-constant +bundle-reserved-bytes+ (+ 8 8 4))
 (define-constant +zero-padding-bytes+ 4)
 (define-constant +temp-space-bytes+ 8)
 (define-constant +int-size+ (cffi:foreign-type-size :int))
 
+(declaim (inline latency))
+(defun latency (stream)
+  (output-stream-latency stream))
+
+(defun set-latency (stream value)
+  (setf (output-stream-latency stream)
+        (max 0d0 (coerce value 'double-float))))
+
+(defsetf latency set-latency)
+
+(declaim (inline set-bundle-time))
+(defun set-bundle-time (stream seconds)
+  (multiple-value-bind (sec frac) (encode-timestamp seconds)
+    (setf (cffi:mem-aref (stream-bundle-pointer stream) :uint32 2)
+          (swap-bytes:htonl sec))
+    (setf (cffi:mem-aref (stream-bundle-pointer stream) :uint32 3)
+          (swap-bytes:htonl frac))
+    seconds))
+
+(declaim (inline set-bundle-first-element-length))
+(defun set-bundle-first-element-length (stream)
+  (setf (cffi:mem-aref (stream-message-length-pointer stream) :uint32)
+        (swap-bytes:htonl (stream-message-length stream))))
+
+(defun init-stream (obj latency)
+  (when (output-stream-p obj)
+    (setf (latency obj) latency))
+  (cffi:lisp-string-to-foreign "#bundle" (stream-bundle-pointer obj) 8)
+  (set-bundle-time obj 0)
+  (setf (stream-message-length-pointer obj)
+        (cffi:inc-pointer (stream-bundle-pointer obj) 16))
+  obj)
+
 (defun open (&key (host "localhost") (port #36ROSE) (direction :input)
-             (protocol :udp) (buffer-size *buffer-size*)
+             (protocol :udp) (buffer-size *buffer-size*) (latency 0)
              (max-values *max-values*) message-encoding
              (input-stream-constructor #'make-input-stream)
              (output-stream-constructor #'make-output-stream))
   (declare (type (member :input :output) direction)
            (type (member :udp :tcp) protocol) (type simple-string host)
-           (type (unsigned-byte 16) port)
+           (type (unsigned-byte 16) port) (type real latency)
            (type positive-fixnum buffer-size max-values)
            (type (member nil :slip) message-encoding))
   (cffi:with-foreign-object (address-ptr :pointer)
     (unless (zerop (new-address address-ptr host port (eq protocol :udp)
                                 (eq direction :input) *addrinfo-hints-flags*))
       (incudine::foreign-alloc-error "OSC address allocation."))
-    (let* ((buffer-size (max 250 (* max-values 20) buffer-size))
+    (let* ((buffer-size (max 1500 buffer-size))
            (address (cffi:mem-ref address-ptr :pointer))
            ;; Add 4 bytes with zero, so the loop in STREAM-BUFFER-STRLEN
            ;; never fails if the message is wrong and without zeroes.
@@ -166,6 +219,10 @@ The argument of a function is the OSC:STREAM to close.")
                                              :initial-element 0))
            (fds-ptr (alloc-fds buf-ptr (+ buffer-size buf-pad) direction
                                protocol))
+           (buffer-offset (if (and (eq protocol :tcp) (null message-encoding))
+                              ;; 4 bytes reserved for the size of the message.
+                              4 0))
+           (reserved-bytes (+ +bundle-reserved-bytes+ buffer-offset))
            (obj (funcall (if (eq direction :input)
                              input-stream-constructor
                              output-stream-constructor)
@@ -173,12 +230,12 @@ The argument of a function is the OSC:STREAM to close.")
                          :address-ptr address :fds-ptr fds-ptr
                          :addrinfo-ptr (cffi:mem-ref address :pointer)
                          :direction direction :buffer-pointer buf-ptr
-                         :message-pointer (if (and (eq protocol :tcp)
-                                                   (null message-encoding))
-                                              ;; 4 bytes reserved for the size
-                                              ;; of the message.
-                                              (cffi:inc-pointer buf-ptr 4)
-                                              buf-ptr)
+                         :message-pointer (cffi:inc-pointer buf-ptr
+                                                            reserved-bytes)
+                         :bundle-pointer (if (zerop buffer-offset)
+                                             buf-ptr
+                                             (cffi:inc-pointer buf-ptr
+                                                               buffer-offset))
                          :message-encoding message-encoding
                          :buffer-size buffer-size :max-values max-values
                          :value-vec-ptr value-vec-ptr
@@ -193,7 +250,7 @@ The argument of a function is the OSC:STREAM to close.")
                                (list buf-ptr aux-ptr value-vec-ptr
                                      type-vec-ptr))))
       (handler-case
-          (%open obj)
+          (%open (init-stream obj latency))
         (error (c)
           (close obj)
           (incudine.util:msg error "OSC:OPEN ~A (~A)" c
@@ -421,11 +478,11 @@ the last received message."
 
 ;;; SLIP method for framing packets (RFC 1055).
 (declaim (inline slip-encode))
-(defun slip-encode (stream)
+(defun slip-encode (stream &optional ptr length)
   "Serial Line IP encoding."
-  (%slip-encode (stream-message-pointer stream)
+  (%slip-encode (or ptr (stream-message-pointer stream))
                 (stream-aux-buffer-pointer stream)
-                (stream-message-length stream)))
+                (or length (stream-message-length stream))))
 
 (declaim (inline slip-decode))
 (defun slip-decode (stream)
@@ -434,9 +491,10 @@ the last received message."
         (%slip-decode (stream-message-pointer stream)
                       (stream-message-length stream))))
 
-(defun send-slip-message (stream &optional (flags +default-msg-flags+))
+(defun send-slip-message (stream msg-ptr length
+                          &optional (flags +default-msg-flags+))
   (declare (type stream stream) (type non-negative-fixnum flags))
-  (let ((len (slip-encode stream)))
+  (let ((len (slip-encode stream msg-ptr length)))
     (declare (type non-negative-fixnum len))
     (case (protocol stream)
       (:udp
@@ -456,8 +514,8 @@ the last received message."
         (count-prefix-flag 2))
     (multiple-value-bind (ptr size maybe-count-prefix-flag)
         (if osc-message-p
-            (values (stream-buffer-pointer stream)
-                    (stream-buffer-size stream)
+            (values (stream-message-length-pointer stream)
+                    (- (stream-buffer-size stream) +bundle-reserved-bytes+)
                     count-prefix-flag)
             (values (stream-message-pointer stream)
                     (- (stream-buffer-size stream) 4)
@@ -503,7 +561,8 @@ FLAGS are used with the send and sendto calls."
   (declare (type stream stream) (type non-negative-fixnum flags)
            (optimize speed) #.incudine.util:*reduce-warnings*)
   (cond ((slip-encoding-p stream)
-         (send-slip-message stream flags))
+         (send-slip-message stream (stream-message-pointer stream)
+                            (stream-message-length stream) flags))
         ((protocolp stream :udp)
          (%sendto (stream-socket-fd stream) (stream-message-pointer stream)
                   (stream-message-length stream) flags
@@ -511,10 +570,27 @@ FLAGS are used with the send and sendto calls."
                   (address-value stream 'socklen)))
         (t
          ;; OSC 1.0 spec: length-count prefix on the start of the packet.
-         (setf (cffi:mem-ref (stream-buffer-pointer stream) :uint32)
+         (setf (cffi:mem-ref (stream-message-length-pointer stream) :uint32)
                (htonl (stream-message-length stream)))
-         (%send (stream-socket-fd stream) (stream-buffer-pointer stream)
+         (%send (stream-socket-fd stream) (stream-message-length-pointer stream)
                 (+ 4 (stream-message-length stream)) flags))))
+
+(defun send-bundle (stream &optional (seconds 0.0) (flags +default-msg-flags+))
+  (declare (type stream stream)
+           (type non-negative-fixnum flags)
+           (optimize speed) #.incudine.util:*reduce-warnings*)
+  (set-bundle-time stream (+ seconds (latency stream)))
+  (cond ((slip-encoding-p stream)
+         (send-slip-message stream (stream-bundle-pointer stream)
+                            (stream-bundle-length stream)))
+        ((protocolp stream :udp)
+         (%sendto (stream-socket-fd stream) (stream-bundle-pointer stream)
+                  (stream-bundle-length stream) flags
+                  (address-value stream 'sockaddr)
+                  (address-value stream 'socklen)))
+        (t
+         (%send (stream-socket-fd stream) (stream-buffer-pointer stream)
+                (+ 4 (stream-bundle-length stream)) flags))))
 
 #+little-endian
 (defmacro get-float (ptr tmp-ptr &optional double-p)
@@ -703,7 +779,12 @@ multiple of four (bytes)."
          (setf (stream-message-length ,s)
                (%maybe-reserve-space (stream-message-pointer ,s)
                                      (stream-value-vec-ptr ,s) ,i
-                                     ,data-size)))))
+                                     ,data-size))
+         (when (output-stream-p ,s)
+           (setf (stream-bundle-length ,s)
+                 (+ (stream-message-length ,s) ,+bundle-reserved-bytes+))
+           (set-bundle-first-element-length ,s))
+         ,s)))
 
 (defun set-string (stream index string)
   (declare (type stream stream) (type non-negative-fixnum index)
@@ -795,6 +876,20 @@ then index the required values."
        ,@(loop for val in values for i from 0
                collect `(set-value ,s ,i ,val))
        (send ,s))))
+
+(defmacro simple-bundle (stream seconds address types &rest values)
+  (with-gensyms (s)
+    `(let ((,s ,stream))
+       (start-message ,s ,address ,types)
+       ,@(loop for val in values for i from 0
+               collect `(set-value ,s ,i ,val))
+       (setf (stream-bundle-length ,s)
+             (+ (stream-message-length ,s) ,+bundle-reserved-bytes+))
+       (when (and (protocolp ,s :tcp) (null (stream-message-encoding ,s)))
+         (setf (cffi:mem-ref (stream-buffer-pointer ,s) :uint32)
+               (swap-bytes:htonl (stream-bundle-length ,s))))
+       (set-bundle-first-element-length ,s)
+       (send-bundle ,s ,seconds))))
 
 (declaim (inline address-pattern))
 (defun address-pattern (stream &optional typetag-p)
@@ -931,14 +1026,17 @@ the values is reversed on little endian machine."
   (declare (type (simple-array (unsigned-byte 8) (*)) octets)
            (type stream stream) (type non-negative-fixnum start)
            (type (or non-negative-fixnum null) end)
-           (type boolean osc-message-p)
-           (optimize speed (safety 0)))
+           (type boolean osc-message-p))
   (let ((len (- (or end (length octets)) start)))
+    (declare (optimize speed (safety 0)))
     (when (<= len (stream-buffer-size stream))
       (setf (stream-message-length stream) len)
       (dotimes (i len)
         (setf (cffi:mem-aref (stream-message-pointer stream) :unsigned-char i)
               (aref octets i)))
       (when osc-message-p
-        (setf (stream-buffer-to-index-p stream) t))
+        (setf (stream-buffer-to-index-p stream) t)
+        (set-bundle-first-element-length stream)
+        (setf (stream-bundle-length stream)
+              (+ (stream-message-length stream) +bundle-reserved-bytes+)))
       (values stream len))))

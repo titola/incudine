@@ -435,3 +435,11 @@
 (defmacro enable-sharp-square-bracket-syntax ()
   `(eval-when (:compile-toplevel :execute)
      (add-sharp-square-bracket-syntax)))
+
+(define-constant unix-to-universal-time 2208988800)
+
+(defun timestamp ()
+  "Return a double float value for the current time of day in
+universal time format."
+  (multiple-value-bind (sec usec) (incudine.util::get-time-of-day)
+    (+ (* usec 1d-6) sec unix-to-universal-time)))

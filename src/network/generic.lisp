@@ -18,7 +18,7 @@
 
 (defvar *buffer-size* (if (boundp 'incudine.config::*network-buffer-size*)
                           incudine.config::*network-buffer-size*
-                          1000)
+                          1500)
   "Size of the foreign buffer used to read/write octets.")
 (declaim (type positive-fixnum *buffer-size*))
 

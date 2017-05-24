@@ -404,6 +404,7 @@
    #:tempo-envelope #:make-tempo-envelope #:set-tempo-envelope
    #:copy-tempo-envelope
    #:time-at #:bps-at #:bpm-at #:spb-at
+   #:timestamp
    #:rt-funcall #:fast-rt-funcall #:nrt-funcall #:fast-nrt-funcall
    #:*sine-table* #:*cosine-table*
    #:all-random-distributions #:rand-args
@@ -503,9 +504,11 @@
    #:with-stream #:open #:open-p #:close #:block-p #:without-block #:broadcast
    #:connect #:reject #:close-connections #:last-recv-fd #:socket-send
    #:connections #:connections-fd #:host #:port #:protocol #:protocolp
-   #:socket-fd #:direction #:buffer-pointer #:buffer-size #:max-values
-   #:message-pointer #:message-length #:message-encoding #:receive #:send
-   #:slip-encode #:slip-decode #:message #:start-message #:value #:value-pointer
+   #:socket-fd #:direction #:buffer-pointer #:buffer-size #:max-values #:latency
+   #:message-pointer #:message-length #:message-encoding
+   #:receive #:send #:send-bundle
+   #:slip-encode #:slip-decode #:simple-bundle #:message #:start-message
+   #:value #:value-pointer
    #:midi #:address-pattern #:check-pattern #:index-values #:with-values
    #:required-values #:buffer-to-octets #:octets-to-buffer
    #:fix-size #:string-size))
