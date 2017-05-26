@@ -237,7 +237,8 @@ The argument of a function is the OSC:STREAM to close.")
                                              (cffi:inc-pointer buf-ptr
                                                                buffer-offset))
                          :message-encoding message-encoding
-                         :buffer-size buffer-size :max-values max-values
+                         :buffer-size (- buffer-size reserved-bytes)
+                         :max-values max-values
                          :value-vec-ptr value-vec-ptr
                          :type-vec-ptr type-vec-ptr :aux-buffer-pointer aux-ptr
                          :tmp-ptr (cffi:inc-pointer buf-ptr

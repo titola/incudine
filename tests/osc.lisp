@@ -12,7 +12,8 @@
             (osc:protocolp oscout :tcp)
             (cffi:null-pointer-p (osc:buffer-pointer oscout))
             (= (osc:buffer-size oscout)
-               (max 1500 (* (osc:max-values oscout) 20) osc:*buffer-size*))))
+               (- (max 1500 (* (osc:max-values oscout) 20) osc:*buffer-size*)
+                  osc::+bundle-reserved-bytes+))))
   (NIL T T T "localhost" #36ROSE T NIL NIL T))
 
 (deftest open-sound-control.2
