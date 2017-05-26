@@ -209,9 +209,9 @@
                                         `(coerce ,value 'double-float)
                                         value))))
              (lambda (,c-array ,size)
-               (declare #.*standard-optimize-settings*
-                        (type foreign-pointer ,c-array)
+               (declare (type foreign-pointer ,c-array)
                         (type non-negative-fixnum ,size))
                (dotimes (,i ,size)
+                 (declare #.*standard-optimize-settings*)
                  (setf (smp-ref ,c-array ,i)
                        (,lisp-name ,rng ,@(mapcar #'caar args)))))))))))

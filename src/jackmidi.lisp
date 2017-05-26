@@ -421,20 +421,20 @@ port-name of the stream to close."
 (declaim (inline decode-message))
 (defun decode-message (msg)
   "Decode a MIDI message encoded into a (UNSIGNED-BYTE 32)."
-  (declare #.incudine.util:*standard-optimize-settings*
-           (type (unsigned-byte 32) msg))
-  #+little-endian
-  (let* ((msg (logand msg #xFFFFFF))
-         (ash-8 (ldb (byte 16 8) msg)))
-    (values (ldb (byte 8 0) msg)       ; status
-            (ldb (byte 8 0) ash-8)     ; data1
-            (ldb (byte 8 8) ash-8)))   ; data2
-  #-little-endian
-  (let* ((m (ash msg -8))
-         (m2 (ash m -8)))
-    (values (ldb (byte 8 8) m2)
-            (ldb (byte 8 0) m2)
-            (ldb (byte 8 0) m))))
+  (declare (type (unsigned-byte 32) msg))
+  (locally (declare #.incudine.util:*standard-optimize-settings*)
+    #+little-endian
+    (let* ((msg (logand msg #xFFFFFF))
+           (ash-8 (ldb (byte 16 8) msg)))
+      (values (ldb (byte 8 0) msg)       ; status
+              (ldb (byte 8 0) ash-8)     ; data1
+              (ldb (byte 8 8) ash-8)))   ; data2
+    #-little-endian
+    (let* ((m (ash msg -8))
+           (m2 (ash m -8)))
+      (values (ldb (byte 8 8) m2)
+              (ldb (byte 8 0) m2)
+              (ldb (byte 8 0) m)))))
 
 (declaim (inline sysex-message-p))
 (defun sysex-message-p (msg)
@@ -672,11 +672,10 @@ The MIDI messages are aligned to four bytes."
 
 (defun input-stream-sysex-octets (stream &optional octets (start 0))
   (declare (type input-stream stream) (type (or data null) octets)
-           (type non-negative-fixnum start)
-           #.incudine.util:*standard-optimize-settings*)
-  (multiple-value-bind (ptr size)
-      (input-stream-sysex-pointer stream)
-    (declare (type cffi:foreign-pointer ptr) (type non-negative-fixnum size))
+           (type non-negative-fixnum start))
+  (multiple-value-bind (ptr size) (input-stream-sysex-pointer stream)
+    (declare (type cffi:foreign-pointer ptr) (type non-negative-fixnum size)
+             #.incudine.util:*standard-optimize-settings*)
     (when (and (plusp size) (<= size +sysex-max-size+))
       (multiple-value-bind (buf start size)
           (if octets

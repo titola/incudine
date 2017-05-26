@@ -27,8 +27,7 @@
 (defun envelope (env &key (periodic-p t) normalize-p)
   (declare (type incudine:envelope env) (type boolean periodic-p normalize-p))
   (lambda (c-array size)
-    (declare (type foreign-pointer c-array) (type non-negative-fixnum size)
-             #.*standard-optimize-settings* #.*reduce-warnings*)
+    (declare (type foreign-pointer c-array) (type non-negative-fixnum size))
     (let* ((size (if periodic-p size (1- size)))
            ;; Used at the end of the envelope to fix roundoff errors
            (size-remained size)
@@ -39,7 +38,8 @@
            (dur 0)
            (remain 0))
       (declare (type non-negative-fixnum size size-remained data-size
-                     guard-point index dur remain))
+                     guard-point index dur remain)
+               #.*standard-optimize-settings* #.*reduce-warnings*)
       (with-samples* ((level (smp-ref env-data 0))
                       (time-scale (/ size (envelope-duration env)))
                       (end level)

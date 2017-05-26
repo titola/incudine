@@ -167,37 +167,37 @@ or by calling a function with the key number as argument."
              (incudine:make-responder ,stream
               (compile nil
                 (lambda (,status ,data1 ,data2)
-                  (declare #.*standard-optimize-settings*
-                           (type (integer 0 255) ,status)
+                  (declare (type (integer 0 255) ,status)
                            (type (integer 0 127) ,data1 ,data2))
-                  (when (and (= (ldb (byte 4 0) ,status) ,channel)
-                             (<= ,lokey ,data1)
-                             (<= ,data1 ,hikey))
-                    (let ((,typ (ldb (byte 4 4) ,status)))
-                      (cond
-                        ((pm:sysex-message-p ,status)
-                         (set-freq-table-from-midi ,event ,stream))
-                        ((= ,typ 9)
-                         (with-safe-change (,voicer)
-                           (responder-noteon-form (,voicer ,note-off-p ,data1
-                                                   ,data2)
-                             (unsafe-set-controls ,voicer
-                               ,@(if freq-keyword
-                                     `(,freq-keyword
-                                       (aref (midi-event-freq-table ,event)
-                                             ,data1))
-                                     `(:keynum ,data1))
-                               ,@(if amp-keyword
-                                     `(,amp-keyword
-                                       (aref (midi-event-amp-table ,event)
-                                             ,data2))
-                                     `(:velocity ,data2))
-                               ,@(if gate-keyword
-                                     `(,gate-keyword ,gate-value)))
-                             (unsafe-trigger ,voicer ,data1))))
-                        ,@(if note-off-p
-                              `(((= ,typ 8) (release ,voicer ,data1)))))))
-                  (values)))))
+                  (locally (declare #.*standard-optimize-settings*)
+                    (when (and (= (ldb (byte 4 0) ,status) ,channel)
+                               (<= ,lokey ,data1)
+                               (<= ,data1 ,hikey))
+                      (let ((,typ (ldb (byte 4 4) ,status)))
+                        (cond
+                          ((pm:sysex-message-p ,status)
+                           (set-freq-table-from-midi ,event ,stream))
+                          ((= ,typ 9)
+                           (with-safe-change (,voicer)
+                             (responder-noteon-form (,voicer ,note-off-p ,data1
+                                                     ,data2)
+                               (unsafe-set-controls ,voicer
+                                 ,@(if freq-keyword
+                                       `(,freq-keyword
+                                         (aref (midi-event-freq-table ,event)
+                                               ,data1))
+                                       `(:keynum ,data1))
+                                 ,@(if amp-keyword
+                                       `(,amp-keyword
+                                         (aref (midi-event-amp-table ,event)
+                                               ,data2))
+                                       `(:velocity ,data2))
+                                 ,@(if gate-keyword
+                                       `(,gate-keyword ,gate-value)))
+                               (unsafe-trigger ,voicer ,data1))))
+                          ,@(if note-off-p
+                                `(((= ,typ 8) (release ,voicer ,data1)))))))
+                    (values))))))
        ,event)))
 
 (defun scale-midi-amp (midi-event mult)

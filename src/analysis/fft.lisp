@@ -83,10 +83,10 @@ is the plan for a IFFT."
 
 (defun new-fft-plan (size &optional flags)
   "Calculate and store a new FFT-PLAN with the specified size."
-  (declare (type positive-fixnum size) (type (or fixnum null) flags)
-           #.*standard-optimize-settings*)
+  (declare (type positive-fixnum size) (type (or fixnum null) flags))
   (let ((plan (get-fft-plan size))
         (realtime-p (rt-thread-p)))
+    (declare #.*standard-optimize-settings*)
     (if plan
         (if realtime-p
             plan

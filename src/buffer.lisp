@@ -332,18 +332,18 @@ It is possible to use line comments that begin with the `;' char."
 
 ;;; FUNCTION has two arguments: the index and the value of the buffer
 (defun map-buffer (function buffer)
-  (declare #.*standard-optimize-settings* #.*reduce-warnings*
-           (type function function) (type buffer-base buffer))
+  (declare (type function function) (type buffer-base buffer))
   (dotimes (i (buffer-base-size buffer) buffer)
+    (declare #.*standard-optimize-settings* #.*reduce-warnings*)
     (setf #1=(buffer-value buffer i) (funcall function i #1#))))
 
 ;;; Like MAP-INTO but for the BUFFERs
 (defun map-into-buffer (result-buffer function &rest buffers)
-  (declare #.*standard-optimize-settings* #.*reduce-warnings*
-           (type function function) (type buffer-base result-buffer))
+  (declare (type function function) (type buffer-base result-buffer))
   (let ((size (reduce #'min
                       (mapcar #'buffer-base-size (cons result-buffer buffers)))))
-    (declare (type non-negative-fixnum size))
+    (declare (type non-negative-fixnum size)
+             #.*standard-optimize-settings* #.*reduce-warnings*)
     (flet ((compute-value (i)
              (cond ((null buffers) (funcall function))
                    ((cdr buffers)

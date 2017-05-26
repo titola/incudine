@@ -21,10 +21,10 @@
       (incudine.util::separate-declaration body)
     `(defun ,name ,args ,@decl
        (lambda (,c-array-var ,size-var)
-         (declare #.*standard-optimize-settings*
-                  (type foreign-pointer ,c-array-var)
+         (declare (type foreign-pointer ,c-array-var)
                   (type positive-fixnum ,size-var))
-         ,@rest))))
+         (locally (declare #.*standard-optimize-settings*)
+           ,@rest)))))
 
 (defmacro symmetric-loop ((var0 var1 count &optional (result nil)) &body body)
   (with-gensyms (half-count)

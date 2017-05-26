@@ -113,31 +113,31 @@
   (stream-sf-position sf))
 
 (defun set-position (sf pos)
-  (declare (type soundfile:stream sf) (type non-negative-fixnum64 pos)
-           #.*standard-optimize-settings*
-           #-64-bit #.*reduce-warnings*)
-  (when (soundfile:output-stream-p sf)
-    (write-buffered-data sf)
-    (when (< pos (output-stream-frame-threshold sf))
-      (setf (output-stream-mix-p sf) t)))
-  (let* ((offset (if (and (soundfile:output-stream-p sf)
-                          (> (output-stream-sf-position-offset sf) 0))
-                     (output-stream-sf-position-offset sf)
-                     0))
-         (pos (- (sf-seek sf (+ pos offset)) offset)))
-    (declare (type non-negative-fixnum64 offset)
-             (type (integer -1 #.(1- (ash 1 59))) pos))
-    (cond ((< pos 0) (position sf))
-          (t
-           (when (and (soundfile:output-stream-p sf)
-                      (output-stream-mix-p sf))
-             (read-before-mix sf))
-           (setf (stream-buffer-index sf) 0
-                 (stream-buffer-frames sf) 0
-                 (stream-buffer-end sf) 0
-                 (stream-buffer-offset sf) pos
-                 (stream-curr-frame sf) pos
-                 (stream-sf-position sf) pos)))))
+  (declare (type soundfile:stream sf) (type non-negative-fixnum64 pos))
+  (locally (declare #.*standard-optimize-settings*
+                    #-64-bit #.*reduce-warnings*)
+    (when (soundfile:output-stream-p sf)
+      (write-buffered-data sf)
+      (when (< pos (output-stream-frame-threshold sf))
+        (setf (output-stream-mix-p sf) t)))
+    (let* ((offset (if (and (soundfile:output-stream-p sf)
+                            (> (output-stream-sf-position-offset sf) 0))
+                       (output-stream-sf-position-offset sf)
+                       0))
+           (pos (- (sf-seek sf (+ pos offset)) offset)))
+      (declare (type non-negative-fixnum64 offset)
+               (type (integer -1 #.(1- (ash 1 59))) pos))
+      (cond ((< pos 0) (position sf))
+            (t
+             (when (and (soundfile:output-stream-p sf)
+                        (output-stream-mix-p sf))
+               (read-before-mix sf))
+             (setf (stream-buffer-index sf) 0
+                   (stream-buffer-frames sf) 0
+                   (stream-buffer-end sf) 0
+                   (stream-buffer-offset sf) pos
+                   (stream-curr-frame sf) pos
+                   (stream-sf-position sf) pos))))))
 
 (defsetf position set-position)
 
@@ -582,20 +582,20 @@ if FORWARD-P is NIL."
   (declare (type soundfile:stream sf)
            (type (or null non-negative-fixnum64) frame)
            (type non-negative-fixnum channel)
-           (type boolean forward-p peek-p)
-           #.*standard-optimize-settings*
-           #-64-bit #.*reduce-warnings*)
-  (cond ((or (not (open-p sf))
-             (>= channel (stream-channels sf)))
-         0d0)
-        ((>= (or frame (setf frame (stream-curr-frame sf)))
-             (stream-frames sf))
-         (unless (= frame (stream-curr-frame sf))
-           (setf (stream-curr-frame sf) (stream-frames sf)))
-         0d0)
-        (t
-         (read-next (move-to-frame sf frame (stream-buffer-end sf))
-                    channel forward-p peek-p))))
+           (type boolean forward-p peek-p))
+  (locally (declare #.*standard-optimize-settings*
+                    #-64-bit #.*reduce-warnings*)
+    (cond ((or (not (open-p sf))
+               (>= channel (stream-channels sf)))
+           0d0)
+          ((>= (or frame (setf frame (stream-curr-frame sf)))
+               (stream-frames sf))
+           (unless (= frame (stream-curr-frame sf))
+             (setf (stream-curr-frame sf) (stream-frames sf)))
+           0d0)
+          (t
+           (read-next (move-to-frame sf frame (stream-buffer-end sf))
+                      channel forward-p peek-p)))))
 
 (declaim (inline update-frame-threshold))
 (defun update-frame-threshold (sf frame)

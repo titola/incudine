@@ -460,13 +460,13 @@ point RELEASE-NODE."
                  0))))
 
 (defun set-envelope-level (env node-number level)
-  (declare #.*standard-optimize-settings*
-           (type envelope env) (type non-negative-fixnum node-number)
+  (declare (type envelope env) (type non-negative-fixnum node-number)
            (type number level))
   (if (check-envelope-node env node-number)
       (let ((data (inc-pointer (envelope-data env)
                                (the non-negative-fixnum
                                  (* node-number 3 +foreign-sample-size+)))))
+        (declare #.*standard-optimize-settings*)
         (when (reduce-warnings (zerop level))
           (block nil
             (when (and (plusp node-number)
@@ -495,54 +495,56 @@ point RELEASE-NODE."
 
 (declaim (inline set-envelope-time))
 (defun set-envelope-time (env node-number time)
-  (declare #.*standard-optimize-settings*
-           (type envelope env) (type non-negative-fixnum node-number)
+  (declare (type envelope env) (type non-negative-fixnum node-number)
            (type number time))
-  (if (< 0 node-number (envelope-points env))
-      (setf (smp-ref (envelope-data env)
-                     (the positive-fixnum (- (* node-number 3) 2)))
-            (reduce-warnings (sample time)))
-      +sample-zero+))
+  (locally (declare #.*standard-optimize-settings*)
+    (if (< 0 node-number (envelope-points env))
+        (setf (smp-ref (envelope-data env)
+                       (the positive-fixnum (- (* node-number 3) 2)))
+              (reduce-warnings (sample time)))
+        +sample-zero+)))
 
 (defsetf envelope-time set-envelope-time)
 
 (declaim (inline envelope-curve))
 (defun envelope-curve (env node-number)
-  (declare #.*standard-optimize-settings* #.*reduce-warnings*
-           (type envelope env) (type non-negative-fixnum node-number)
+  (declare (type envelope env) (type non-negative-fixnum node-number)
            #+(or cmu sbcl) (values (or symbol sample)))
-  (when (< 0 node-number (envelope-points env))
-    (sample->seg-function-spec
-      (smp-ref (envelope-data env)
-               (the non-negative-fixnum (* 3 node-number))))))
+  (locally (declare #.*standard-optimize-settings* #.*reduce-warnings*)
+    (when (< 0 node-number (envelope-points env))
+      (sample->seg-function-spec
+        (smp-ref (envelope-data env)
+                 (the non-negative-fixnum (* 3 node-number)))))))
 
 (defun set-envelope-curve (env node-number curve)
-  (declare #.*standard-optimize-settings*
-           (type envelope env) (type non-negative-fixnum node-number)
+  (declare (type envelope env) (type non-negative-fixnum node-number)
            (type (or symbol real) curve)
-           #+(or cmu sbcl) (values (or symbol sample)))
-  (macrolet ((segment-fix-zero (ptr new-zero old-zero)
-               `(when (= (smp-ref ,ptr 0) ,old-zero)
-                  (setf (smp-ref ,ptr 0) ,new-zero)))
-             (segment-fix-zeros (beg-ptr end-ptr new-zero old-zero)
-               `(progn
-                  (segment-fix-zero ,beg-ptr ,new-zero ,old-zero)
-                  (segment-fix-zero ,end-ptr ,new-zero ,old-zero))))
-    (when (< 0 node-number (the non-negative-fixnum (envelope-points env)))
-      (let* ((curve-ptr (inc-pointer (envelope-data env)
-                                     (the non-negative-fixnum
-                                       (* node-number 3
-                                          +foreign-sample-size+))))
-             (end-ptr (inc-pointer curve-ptr (- +foreign-sample-size+)))
-             (beg-ptr (if (= node-number 1)
-                          (envelope-data env)
-                          (inc-pointer end-ptr (* -3 +foreign-sample-size+)))))
-        (if (reduce-warnings (exponential-curve-p curve))
-            (segment-fix-zeros beg-ptr end-ptr +exp-sample-zero+ 0)
-            (segment-fix-zeros beg-ptr end-ptr +sample-zero+ +exp-sample-zero+))
-        (setf (smp-ref curve-ptr 0)
-              (reduce-warnings (seg-function-spec->sample curve)))
-        curve))))
+           #+(or cmu sbcl) (values (or symbol real)))
+  (locally (declare #.*standard-optimize-settings*)
+    (macrolet ((segment-fix-zero (ptr new-zero old-zero)
+                 `(when (= (smp-ref ,ptr 0) ,old-zero)
+                    (setf (smp-ref ,ptr 0) ,new-zero)))
+               (segment-fix-zeros (beg-ptr end-ptr new-zero old-zero)
+                 `(progn
+                    (segment-fix-zero ,beg-ptr ,new-zero ,old-zero)
+                    (segment-fix-zero ,end-ptr ,new-zero ,old-zero))))
+      (when (< 0 node-number (the non-negative-fixnum (envelope-points env)))
+        (let* ((curve-ptr (inc-pointer (envelope-data env)
+                                       (the non-negative-fixnum
+                                         (* node-number 3
+                                            +foreign-sample-size+))))
+               (end-ptr (inc-pointer curve-ptr (- +foreign-sample-size+)))
+               (beg-ptr (if (= node-number 1)
+                            (envelope-data env)
+                            (inc-pointer end-ptr
+                                         (* -3 +foreign-sample-size+)))))
+          (if (reduce-warnings (exponential-curve-p curve))
+              (segment-fix-zeros beg-ptr end-ptr +exp-sample-zero+ 0)
+              (segment-fix-zeros beg-ptr end-ptr +sample-zero+
+                                 +exp-sample-zero+))
+          (setf (smp-ref curve-ptr 0)
+                (reduce-warnings (seg-function-spec->sample curve)))
+          curve)))))
 
 (defsetf envelope-curve set-envelope-curve)
 

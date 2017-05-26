@@ -253,8 +253,7 @@ Examples:
   (played-midi-note 6 0) ; =>  0,  0, NIL
 "
   (declare (type (unsigned-byte 8) note-number)
-           (type (unsigned-byte 4) channel)
-           #.*standard-optimize-settings*)
+           (type (unsigned-byte 4) channel))
   (labels ((played (x i offset veloc-vec)
              (declare (type non-negative-fixnum x)
                       (type (unsigned-byte 8) i offset)
@@ -281,6 +280,7 @@ Examples:
                        (played x n (svref +note-priority-offset-vector+ i)
                                veloc-vec)
                        (find-note (1+ i) (- n size) prio-vec veloc-vec))))))
+    (declare #.*standard-optimize-settings*)
     (let ((mtab (svref *midi-table* channel)))
       (find-note 0 note-number (midi-table-note-priority-vec mtab)
                  (midi-table-note-velocity-vec mtab)))))

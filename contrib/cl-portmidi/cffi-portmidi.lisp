@@ -246,43 +246,42 @@
 
 (declaim (inline message))
 (defun message (status data1 data2)
-  (declare #.*standard-optimize-settings*
-           (type (unsigned-byte 8) status data1 data2))
-  (logior (ash data2 16) (ash data1 8) status))
+  (declare (type (unsigned-byte 8) status data1 data2))
+  (locally (declare #.*standard-optimize-settings*)
+    (logior (ash data2 16) (ash data1 8) status)))
 
 (declaim (inline message-status))
 (defun message-status (msg)
-  (declare #.*standard-optimize-settings*
-           (type (unsigned-byte 24) msg))
+  (declare (type (unsigned-byte 24) msg))
   (logand msg #xFF))
 
 (declaim (inline message-data1))
 (defun message-data1 (msg)
-  (declare #.*standard-optimize-settings*
-           (type (unsigned-byte 24) msg))
-  (ldb (byte 8 8) msg))
+  (declare (type (unsigned-byte 24) msg))
+  (locally (declare #.*standard-optimize-settings*)
+    (ldb (byte 8 8) msg)))
 
 (declaim (inline message-data2))
 (defun message-data2 (msg)
-  (declare #.*standard-optimize-settings*
-           (type (unsigned-byte 24) msg))
-  (ldb (byte 8 16) msg))
+  (declare (type (unsigned-byte 24) msg))
+  (locally (declare #.*standard-optimize-settings*)
+    (ldb (byte 8 16) msg)))
 
 (declaim (inline decode-message))
 (defun decode-message (msg)
-  (declare #.*standard-optimize-settings*
-           (type (unsigned-byte 24) msg))
+  (declare (type (unsigned-byte 24) msg))
   (let ((ash-8 (ldb (byte 16 8) msg)))
+    (declare #.*standard-optimize-settings*)
     (values (ldb (byte 8 0) msg)       ; status
             (ldb (byte 8 0) ash-8)     ; data1
             (ldb (byte 8 8) ash-8))))  ; data2
 
 (declaim (inline decode-channel-message))
 (defun decode-channel-message (msg)
-  (declare #.*standard-optimize-settings*
-           (type (unsigned-byte 24) msg))
+  (declare (type (unsigned-byte 24) msg))
   (let* ((ash-4 (ldb (byte 20 4) msg))
          (ash-8 (ldb (byte 16 4) ash-4)))
+    (declare #.*standard-optimize-settings*)
     (values (ldb (byte 4 0) ash-4)     ; type
             (ldb (byte 4 0) msg)       ; channel
             (ldb (byte 8 0) ash-8)     ; data1
@@ -290,16 +289,12 @@
 
 (declaim (inline before))
 (defun before (t1 t2)
-  (declare #.*standard-optimize-settings*
-           (type (unsigned-byte 32) t1 t2))
+  (declare (type (unsigned-byte 32) t1 t2))
   (< t1 t2))
 
 (declaim (inline channel))
 (defun channel (chan)
-  (declare #.*standard-optimize-settings*
-           (type (unsigned-byte 4) chan)
-           ;; Avoid the boring notes from sbcl-1.8
-           #+sbcl (sb-ext:muffle-conditions sb-ext:compiler-note))
+  (declare (type (unsigned-byte 4) chan))
   (ash 1 chan))
 
 (in-package :porttime)

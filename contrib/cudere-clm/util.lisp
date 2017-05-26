@@ -164,11 +164,11 @@
          (,def ,name ,lambda-list
            ,@doc-string
            ,@decl
-           ,@(when (and *clm-optimize-settings*
-                        (not (declare-optimize-p decl)))
-               `((declare ,*clm-optimize-settings*)))
-           (with-cleanup ,@body))
-         (values (compile ',name))))))
+           (locally ,@(when (and *clm-optimize-settings*
+                                 (not (declare-optimize-p decl)))
+                        `((declare ,*clm-optimize-settings*)))
+             (with-cleanup ,@body))
+           (values (compile ',name)))))))
 
 (defmacro definstrument (name lambda-list &body body)
   `(%definstrument ,name ,lambda-list defun ,@body))

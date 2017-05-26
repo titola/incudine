@@ -330,20 +330,21 @@
 
 (declaim (inline unsafe-trigger))
 (defun unsafe-trigger (voicer tag)
-  (declare #.*standard-optimize-settings* (type voicer voicer))
-  (when (full-p voicer)
-    (if (voicer-steal-function voicer)
-        (funcall (the function (voicer-steal-function voicer)) voicer)
-        (return-from unsafe-trigger nil)))
-  (loop for fn being the hash-values in (voicer-argument-maps voicer)
-        do (funcall (the function (car fn))))
-  (let ((new-node (node-pool-pop voicer)))
-    (set-node new-node nil tag
-              (unless (eq new-node (last-node voicer))
-                (last-node voicer))
-              nil)
-    (funcall (voicer-trigger-function voicer) voicer tag new-node)
-    (add-node voicer tag new-node)))
+  (declare (type voicer voicer))
+  (locally (declare #.*standard-optimize-settings*)
+    (when (full-p voicer)
+      (if (voicer-steal-function voicer)
+          (funcall (the function (voicer-steal-function voicer)) voicer)
+          (return-from unsafe-trigger nil)))
+    (loop for fn being the hash-values in (voicer-argument-maps voicer)
+          do (funcall (the function (car fn))))
+    (let ((new-node (node-pool-pop voicer)))
+      (set-node new-node nil tag
+                (unless (eq new-node (last-node voicer))
+                  (last-node voicer))
+                nil)
+      (funcall (voicer-trigger-function voicer) voicer tag new-node)
+      (add-node voicer tag new-node))))
 
 (declaim (inline trigger))
 (defun trigger (voicer tag)
@@ -351,10 +352,10 @@
 
 (declaim (inline unsafe-release))
 (defun unsafe-release (voicer tag &optional (object-free-p t) free-function)
-  (declare #.*standard-optimize-settings* (type voicer voicer)
-           (type (or function null) free-function))
-  (funcall (voicer-release-function voicer) voicer tag object-free-p)
-  (when free-function (funcall free-function)))
+  (declare (type voicer voicer) (type (or function null) free-function))
+  (locally (declare #.*standard-optimize-settings*)
+    (funcall (voicer-release-function voicer) voicer tag object-free-p)
+    (when free-function (funcall free-function))))
 
 (declaim (inline release))
 (defun release (voicer tag &optional (object-free-p t) free-function)
@@ -442,18 +443,18 @@
 
 (declaim (inline unsafe-control-value))
 (defun unsafe-control-value (voicer control-name)
-  (declare #.*standard-optimize-settings*
-           (type voicer voicer) (type symbol control-name))
+  (declare (type voicer voicer) (type symbol control-name))
   (let ((entry (gethash control-name (voicer-arguments voicer))))
+    (declare #.*standard-optimize-settings*)
     (if entry
         (values (funcall (the function (cdr entry))) t)
         (values nil nil))))
 
 (declaim (inline unsafe-set-control))
 (defun unsafe-set-control (voicer control-name value)
-  (declare #.*standard-optimize-settings*
-           (type voicer voicer) (type symbol control-name))
+  (declare (type voicer voicer) (type symbol control-name))
   (let ((entry (gethash control-name (voicer-arguments voicer))))
+    (declare #.*standard-optimize-settings*)
     (when entry (funcall (the function (car entry)) value))))
 
 (defsetf unsafe-control-value unsafe-set-control)
@@ -532,11 +533,11 @@
     (clrhash (voicer-argument-maps voicer))))
 
 (defun unsafe-mapvoicer (function voicer)
-  (declare #.*standard-optimize-settings*
-           (type function function) (type voicer voicer))
+  (declare (type function function) (type voicer voicer))
   (labels ((rec (obj)
              (funcall function obj)
              (when #1=(node-next obj) (rec #1#))))
+    (declare #.*standard-optimize-settings*)
     (let ((first (car (voicer-objects voicer))))
       (when first (rec first)))))
 

@@ -180,9 +180,9 @@
 
 (defun make-group (id &optional (add-action :head) (target *node-root*))
   (declare (type fixnum id) (type keyword add-action)
-           (type (or node fixnum) target)
-           #.*standard-optimize-settings*)
+           (type (or node fixnum) target))
   (let ((target (if (numberp target) (node target) target)))
+    (declare #.*standard-optimize-settings*)
     (rt-eval ()
       (let ((group (node id)))
         (when (and (null-node-p group) (not (null-node-p target)))
@@ -270,11 +270,11 @@
   (null (node-funcons *node-root*)))
 
 (defun node (id)
-  (declare (type fixnum id)
-           #.*standard-optimize-settings*)
-  (if (zerop id)
-      *node-root*
-      (getihash id *node-hash* node-hash node-id null-node-p node)))
+  (declare (type fixnum id))
+  (locally (declare #.*standard-optimize-settings*)
+    (if (zerop id)
+        *node-root*
+        (getihash id *node-hash* node-hash node-id null-node-p node))))
 
 (declaim (inline node-start-time))
 (defun node-start-time (obj)
@@ -873,11 +873,11 @@
 
 (defun move (src move-action dest)
   "Move a node of the graph."
-  (declare (type (or node fixnum) src dest) (type keyword move-action)
-           #.*standard-optimize-settings*)
+  (declare (type (or node fixnum) src dest) (type keyword move-action))
   (flet ((make-loop-p (group dest)
            ;; The final T to optimize the return value in SBCL
            (and (group-p dest) (find-group group dest) t)))
+    (declare #.*standard-optimize-settings*)
     (let ((src (if (numberp src) (node src) src))
           (dest (if (numberp dest) (node dest) dest)))
       (declare (type node src dest))
@@ -1063,17 +1063,16 @@
 
 (declaim (inline control-getter))
 (defun control-getter (obj control-name)
-  (declare #.*standard-optimize-settings*
-           (type (or non-negative-fixnum node) obj) (type symbol control-name)
+  (declare (type (or non-negative-fixnum node) obj) (type symbol control-name)
            #+(or cmu sbcl) (values (or function null)))
   (cdr (control-functions obj control-name)))
 
 (declaim (inline control-setter))
 (defun control-setter (obj control-name)
-  (declare #.*standard-optimize-settings*
-           (type (or non-negative-fixnum node) obj) (type symbol control-name)
+  (declare (type (or non-negative-fixnum node) obj) (type symbol control-name)
            #+(or cmu sbcl) (values (or function null)))
   (let ((fn (car (control-functions obj control-name))))
+    (declare #.*standard-optimize-settings*)
     (or fn
         (let ((node (if (numberp obj) (node obj) obj)))
           (if (group-p node)
@@ -1142,10 +1141,10 @@
   (the function (car (node-init-args node))))
 
 (defun reinit (node &rest args)
-  (declare (type (or node positive-fixnum) node)
-           #.*standard-optimize-settings*)
+  (declare (type (or node positive-fixnum) node))
   (at 0
       (lambda ()
+        (declare #.*standard-optimize-settings*)
         (let ((node (if (node-p node) node (node node))))
           (declare (type node node))
           (when (node-id node)
@@ -1247,12 +1246,12 @@
 (defgeneric dump (obj &optional stream))
 
 (defmethod dump ((obj node) &optional (stream *logger-stream*))
-  (declare #.*standard-optimize-settings*
-           (type stream stream))
+  (declare (type stream stream))
   (let ((indent 0)
         (indent-incr 4)
         (last-list nil))
-    (declare (type non-negative-fixnum indent indent-incr))
+    (declare (type non-negative-fixnum indent indent-incr)
+             #.*standard-optimize-settings*)
     (fresh-line stream)
     (flet ((inc-indent (n)
              (unless (symbolp (node-last n))
@@ -1296,8 +1295,8 @@
        ,@body)))
 
 (defun node-segment (obj end dur &optional start curve (done-action #'identity))
-  (declare #.*standard-optimize-settings* #.*reduce-warnings*)
   (let ((obj (if (node-p obj) obj (node obj))))
+    (declare #.*standard-optimize-settings* #.*reduce-warnings*)
     (cond ((or (null-node-p obj) (node-release-phase-p obj)) obj)
           ((or *node-enable-gain-p* (node-enable-gain-p obj))
            (with-node-segment-symbols obj

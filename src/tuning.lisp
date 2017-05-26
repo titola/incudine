@@ -144,14 +144,14 @@
 to generate the TUNING frequencies."
   (declare (type tuning tuning)
            (type (integer 0 127) keynum-base degree-index)
-           (type (real 0 20000) freq-base)
-           #.*standard-optimize-settings*)
-  (setf (u8-ref (tuning-aux-data tuning) 0) keynum-base)
-  (setf (u8-ref (tuning-aux-data tuning) 1) degree-index)
-  (reduce-warnings
-    (setf (smp-ref (tuning-aux-data tuning) +tuning-freq-base-index+)
-          (sample freq-base)))
-  (update-tuning-data tuning))
+           (type (real 0 20000) freq-base))
+  (locally (declare #.*standard-optimize-settings*)
+    (setf (u8-ref (tuning-aux-data tuning) 0) keynum-base)
+    (setf (u8-ref (tuning-aux-data tuning) 1) degree-index)
+    (reduce-warnings
+      (setf (smp-ref (tuning-aux-data tuning) +tuning-freq-base-index+)
+            (sample freq-base)))
+    (update-tuning-data tuning)))
 
 (declaim (inline tuning-cents))
 (defun tuning-cents (tuning)
@@ -273,25 +273,25 @@ path of a .scl file, import the notes from this file."
            (type (or list string pathname) notes-or-file)
            (type (or string null) description)
            (type (or (integer 0 127) null) keynum-base degree-index)
-           (type (or (real 0 20000) null) freq-base)
-           #.*standard-optimize-settings*)
-  (when keynum-base
-    (setf (u8-ref (tuning-aux-data tuning) 0) keynum-base))
-  (when degree-index
-    (setf (u8-ref (tuning-aux-data tuning) 1) degree-index))
-  (when freq-base
-    (reduce-warnings
-      (setf (smp-ref (tuning-aux-data tuning) +tuning-freq-base-index+)
-            (sample freq-base))))
-  (if (listp notes-or-file)
-      (if (check-tuning-notes notes-or-file)
-          (set-tuning-notes tuning notes-or-file (length notes-or-file)
-                            (or description ""))
-          (msg error "incorrect note list ~A" notes-or-file))
-      (multiple-value-bind (notes len descr)
-          (load-sclfile notes-or-file)
-        (declare (type (unsigned-byte 8) len))
-        (set-tuning-notes tuning notes len descr))))
+           (type (or (real 0 20000) null) freq-base))
+  (locally (declare #.*standard-optimize-settings*)
+    (when keynum-base
+      (setf (u8-ref (tuning-aux-data tuning) 0) keynum-base))
+    (when degree-index
+      (setf (u8-ref (tuning-aux-data tuning) 1) degree-index))
+    (when freq-base
+      (reduce-warnings
+        (setf (smp-ref (tuning-aux-data tuning) +tuning-freq-base-index+)
+              (sample freq-base))))
+    (if (listp notes-or-file)
+        (if (check-tuning-notes notes-or-file)
+            (set-tuning-notes tuning notes-or-file (length notes-or-file)
+                              (or description ""))
+            (msg error "incorrect note list ~A" notes-or-file))
+        (multiple-value-bind (notes len descr)
+            (load-sclfile notes-or-file)
+          (declare (type (unsigned-byte 8) len))
+          (set-tuning-notes tuning notes len descr)))))
 
 ;;; We can use the ears to directly set the frequencies in a TUNING
 ;;; from the keynum START to the keynum END. Then we call TUNING-NOTES-FROM-DATA
@@ -305,11 +305,11 @@ last TUNING ratio. If SIGNIFICAND-ERROR is non-zero (default), try to
 minimize the TUNING ratios by introducing an error (default 0.0005%)
 in the significand of the floating point numbers."
   (declare (type tuning tuning) (type (integer 0 127) start end)
-           (type (or null string) description)
-           #.*standard-optimize-settings*)
+           (type (or null string) description))
   (when (> end start)
     (let ((len (- end start)))
-      (declare (type (integer 0 127) len))
+      (declare (type (integer 0 127) len)
+               #.*standard-optimize-settings*)
       (maybe-rewrite-tuning-cents-and-ratios tuning len)
       ;; Probably unnecessary, but it is safer to explicitly set the first slot.
       (setf (aref (tuning-cents tuning) 0) 0.0)
