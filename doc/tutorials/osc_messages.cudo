@@ -150,6 +150,68 @@ osc:*max-values*
 (osc:send *oscout*)
 ;; 40
 
+;; Sending an OSC message with timestamp:
+
+(osc:simple-bundle *oscout* .5 "/osc/test" "iii" 1 2 3)
+;; 52
+
+(setf (osc:latency *oscout*) .2)
+
+;; time = latency + 1.5 seconds
+(osc:simple-bundle *oscout* 1.5 "/osc/test" "iii" 1 2 3)
+(setf (osc:latency *oscout*) 0)
+
+;; Send the previous OSC bundle immediately.
+(osc:send-bundle *oscout*)
+
+;; Send again with delta time 0.85 seconds.
+(osc:send-bundle *oscout* .85)
+
+;; TIMESTAMP returns a double float value for the current time of day
+;; in universal time format:
+
+(timestamp)
+;; 3.704630902676296d9
+
+;; We don't send OSC bundles in the past, therefore we can use the time
+;; with dual meaning: if it is greater than 63103 seconds (about 17 hours),
+;; the time is absolute otherwise it is added to the current time.
+
+;; 63104 is the offset of the NTP Timestamp Era 1 (from 8 Feb 2036), so
+;; this hack will work for centuries.
+
+;; Sending three OSC bundles with a time related to a common absolute time:
+
+(let ((time (timestamp)))
+  (osc:simple-bundle *oscout* time "/osc/test" "iii" 1 2 3)
+  (setf (osc:value *oscout* 1) 123)
+  (osc:send-bundle *oscout* (+ time .5))
+  (setf (osc:value *oscout* 2) 321)
+  (osc:send-bundle *oscout* (+ time 1.5)))
+
+;; OSC:SEND-BUNDLE works after OSC:OCTETS-TO-BUFFER
+
+(setq *msg1* (osc:buffer-to-octets *oscout*))
+(osc:message *oscout* "/test/synth/freq" "f" 440.0)
+;; 28
+(osc:octets-to-buffer *msg1* *oscout*)
+(osc:send-bundle *oscout* .75)
+;; 52
+
+;; and OSC:SEND works after OSC:SIMPLE-BUNDLE...
+
+(osc:simple-bundle *oscout* 1.2 "/test/synth/freq" "f" 440.0)
+;; 48
+(osc:send *oscout*)
+;; 28
+
+;; ...but OSC:SEND-BUNDLE fails after OSC:MESSAGE
+
+(osc:message *oscout* "/test/msg" "iii" 1 2 3)
+;; 32
+(osc:send-bundle *oscout*)  ; SERVER ERROR
+;; 48 instead of 52 (truncated message)
+
 ;; Broadcast in a local network:
 
 (osc:close *oscout*)

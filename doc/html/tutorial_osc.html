@@ -201,6 +201,84 @@
 40</pre>
 
       <p>
+        Sending an OSC message with timestamp:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (osc:simple-bundle *oscout* .5 <span style="color: #ffa07a;">"/osc/test"</span> <span style="color: #ffa07a;">"iii"</span> 1 2 3)
+52
+
+<span class="prompt">SCRATCH&gt;</span> (setf (osc:latency *oscout*) .2)
+
+          <span style="color: #ff7f24;">;; time = latency + 1.5 seconds</span>
+<span class="prompt">SCRATCH&gt;</span> (osc:simple-bundle *oscout* 1.5 <span style="color: #ffa07a;">"/osc/test"</span> <span style="color: #ffa07a;">"iii"</span> 1 2 3)
+<span class="prompt">SCRATCH&gt;</span> (setf (osc:latency *oscout*) 0)
+
+          <span style="color: #ff7f24;">;; Send the previous OSC bundle immediately.</span>
+<span class="prompt">SCRATCH&gt;</span> (osc:send-bundle *oscout*)
+
+          <span style="color: #ff7f24;">;; Send again with delta time 0.85 seconds.</span>
+<span class="prompt">SCRATCH&gt;</span> (osc:send-bundle *oscout* .85)</pre>
+
+      <p>
+        <code>TIMESTAMP</code> returns a double float value for the current
+        time of day in universal time format:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (timestamp)
+3.704630902676296d9</pre>
+
+      <p>
+        We don't send OSC bundles in the past, therefore we can use the time with
+        dual meaning: if it is greater than 63103 seconds (about 17 hours), the
+        time is absolute otherwise it is added to the current time.
+      </p>
+
+      <p>
+        63104 is the offset of the NTP Timestamp Era 1 (from 8 Feb 2036), so
+        this hack will work for centuries.
+      </p>
+
+      <p>
+        Sending three OSC bundles with a time related to a common absolute time:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (let ((time (timestamp)))
+           (osc:simple-bundle *oscout* time <span style="color: #ffa07a;">"/osc/test"</span> <span style="color: #ffa07a;">"iii"</span> 1 2 3)
+           (setf (osc:value *oscout* 1) 123)
+           (osc:send-bundle *oscout* (+ time .5))
+           (setf (osc:value *oscout* 2) 321)
+           (osc:send-bundle *oscout* (+ time 1.5)))</pre>
+
+      <p>
+        <code>OSC:SEND-BUNDLE</code> works after <code>OSC:OCTETS-TO-BUFFER</code>
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (setq *msg1* (osc:buffer-to-octets *oscout*))
+<span class="prompt">SCRATCH&gt;</span> (osc:message *oscout* <span style="color: #ffa07a;">"/test/synth/freq"</span> <span style="color: #ffa07a;">"f"</span> 440.0)
+28
+<span class="prompt">SCRATCH&gt;</span> (osc:octets-to-buffer *msg1* *oscout*)
+<span class="prompt">SCRATCH&gt;</span> (osc:send-bundle *oscout* .75)
+52</pre>
+
+      <p>
+        and <code>OSC:SEND</code> works after <code>OSC:SIMPLE-BUNDLE</code>...
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (osc:simple-bundle *oscout* 1.2 <span style="color: #ffa07a;">"/test/synth/freq"</span> <span style="color: #ffa07a;">"f"</span> 440.0)
+48
+<span class="prompt">SCRATCH&gt;</span> (osc:send *oscout*)
+28</pre>
+
+      <p>
+        ...but <code>OSC:SEND-BUNDLE</code> fails after <code>OSC:MESSAGE</code>
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (osc:message *oscout* <span style="color: #ffa07a;">"/test/msg"</span> <span style="color: #ffa07a;">"iii"</span> 1 2 3)
+32
+<span class="prompt">SCRATCH&gt;</span> (osc:send-bundle *oscout*)  <span style="color: #ff7f24;">; SERVER ERROR</span>
+48 instead of 52 (truncated message)</pre>
+
+      <p>
         Broadcast in a local network:
       </p>
 
