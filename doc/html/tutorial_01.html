@@ -443,7 +443,7 @@ MY-TEMPO
 <span class="prompt">SCRATCH&gt;</span> #[1 meter]
 139.1304347826087d0
 <span class="prompt">SCRATCH&gt;</span> #[1 meter 340]
-141.1764733493328d0</pre>
+141.1764705882353d0</pre>
 
       <p>
         The expansion of the read-macro <code>#[&#x2026;]</code> is the
@@ -453,15 +453,15 @@ MY-TEMPO
       <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> #[1/2 sec]
 24000.0d0
 <span class="prompt">SCRATCH&gt;</span> '#[1/2 sec]
-(* 0.5d0 *SAMPLE-RATE*)
+(* 1/2 *SAMPLE-RATE*)
 <span class="prompt">SCRATCH&gt;</span> #[123 msec]
-5904.0002804249525d0
+5904.0d0
 <span class="prompt">SCRATCH&gt;</span> '#[123 msec]
-(* 123.0d0 (* 0.001 *SAMPLE-RATE*))
+(* 123 (* 0.001d0 *SAMPLE-RATE*))
 <span class="prompt">SCRATCH&gt;</span> #[4 beats]
 85333.33333333333d0
 <span class="prompt">SCRATCH&gt;</span> '#[4 beats]
-(* 4.0d0 (* *SAMPLE-RATE* (SPB *TEMPO*)))</pre>
+(* *SAMPLE-RATE* (* (SAMPLE 4) (SPB *TEMPO*)))</pre>
 
       <p>
         We can redefine on-the-fly the <code>SIMPLE-TEST</code> function and

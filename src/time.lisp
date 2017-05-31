@@ -388,24 +388,24 @@
     ;; ms.* -> msec
     (#\m `(* ,mult ,(if (> (length string) 1)
                         (case-char (char string 1)
-                          (#\s '(* 1.0e-3 incudine.util:*sample-rate*))
+                          (#\s '(* 1d-3 incudine.util:*sample-rate*))
                           (#\e `(* ,(if arg0
-                                        (/ 1.0 arg0)
+                                        (/ 1d0 arg0)
                                         'incudine.util:*r-sound-velocity*)
                                    incudine.util:*sample-rate*))
-                          (#\i '(* 60.0 incudine.util:*sample-rate*))
+                          (#\i '(* 60d0 incudine.util:*sample-rate*))
                           (otherwise
                            (error 'incudine-unknown-time-unit :name string)))
                         `(* ,(if arg0
-                                 (/ 1.0 arg0)
+                                 (/ 1d0 arg0)
                                  'incudine.util:*r-sound-velocity*)
                             incudine.util:*sample-rate*))))
     ;; h.*  -> hours
-    (#\h `(* ,mult 3600.0 incudine.util:*sample-rate*))
+    (#\h `(* ,mult 3600d0 incudine.util:*sample-rate*))
     ;; d.*  -> days
-    (#\d `(* ,mult 86400.0 incudine.util:*sample-rate*))
+    (#\d `(* ,mult 86400d0 incudine.util:*sample-rate*))
     ;; w.*  -> weeks
-    (#\w `(* ,mult 604800.0 incudine.util:*sample-rate*))
+    (#\w `(* ,mult 604800d0 incudine.util:*sample-rate*))
     (otherwise (error 'incudine-unknown-time-unit :name string))))
 
 (defun parse-time-string (stream subchar arg)
