@@ -165,7 +165,7 @@
 ;; MIDIFILE:MESSAGE-LENGTH returns the length of the last message in bytes.
 
 ;; MIDIFILE:MESSAGE-BUFFER returns the internal buffer used to store
-;; the the MIDI messages and the length of the last message in bytes.
+;; the MIDI messages and the length of the last message in bytes.
 
 ;; For example, the octets of the last message are
 ;;
