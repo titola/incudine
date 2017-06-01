@@ -1,0 +1,283 @@
+;;; Incudine
+;;; Reading and writing MIDI files
+
+;; MIDIFILE:OPEN creates and returns a new MIDIFILE:STREAM.
+;;
+;;     midifile:open file &key (direction :input) (if-exists :error)
+;;                             format (ppqn 480) buffer-size
+;;
+;; Note: FORMAT is 0 by default but if DIRECTION is :OUTPUT and we
+;; write more than one MIDI track, the FORMAT is automatically changed
+;; to 1 during MIDIFILE:CLOSE.
+
+(defvar *midi-file-test* "/tmp/test.mid")
+
+(defparameter *mf* (midifile:open *midi-file-test* :direction :output
+                                  :if-exists :supersede))
+
+(midifile:open-p *mf*)
+;; T
+
+(midifile:input-stream-p *mf*)
+;; NIL
+
+(midifile:output-stream-p *mf*)
+;; T
+
+(midifile:path *mf*)
+;; #P"/tmp/test.mid"
+
+(midifile:current-track *mf*)
+;; 0
+
+;; MIDIFILE:NEXT-TRACK returns the number (zero based) of the next
+;; track or NIL if the MIDIFILE:STREAM is of type MIDIFILE:INPUT-STREAM
+;; and there aren't other tracks to read.
+
+;; MIDIFILE:NEXT-TRACK writes the current track if the MIDIFILE:STREAM
+;; is of type MIDIFILE:OUTPUT-STREAM
+
+;; Write the MIDI track 0 and start the track 1
+(midifile:next-track *mf*)
+;; 1
+
+;; Write the MIDI track 1 and start the track 2
+(midifile:next-track *mf*)
+;; 2
+
+(midifile:current-track *mf*)
+;; 2
+
+;; Write the MIDI tracks from 2 to 14
+(dotimes (i 13) (midifile:next-track *mf*))
+
+(midifile:current-track *mf*)
+;; 15
+
+;; Write the MIDI track 15 (the current track) and close the
+;; MIDIFILE:OUTPUT-STREAM
+(midifile:close *mf*)
+
+(midifile:open-p *mf*)
+;; NIL
+
+;; Reading MIDI file:
+
+(setf *mf* (midifile:open *midi-file-test*))
+;; #<MIDIFILE:INPUT-STREAM :NUMBER-OF-TRACKS 16 :PPQN 480>
+
+(midifile:input-stream-p *mf*)
+;; T
+
+(midifile:output-stream-p *mf*)
+;; NIL
+
+;; MIDIFILE:READ-HEADER reads the header of a MIDI file and returns
+;; four values: format, number of tracks, ppqn-or-smpte-format and
+;; ticks-per-frame.
+
+(midifile:read-header *mf*)
+;; 1
+;; 16
+;; 480
+;; 0
+
+;; The methods to read the header fields are:
+
+(midifile:format *mf*)
+;; 1
+
+(midifile:number-of-tracks *mf*)
+;; 16
+
+(midifile:ppqn *mf*)
+;; 480
+
+(midifile:smpte *mf*)
+;; 0
+;; 0
+
+;; These methods also work with a file name (or PATHNAME):
+
+(loop for f in '(midifile:format midifile:number-of-tracks
+                 midifile:ppqn midifile:smpte)
+      collect (funcall f *midi-file-test*))
+;; (1 16 480 0)
+
+;; If the MIDI file contains a single tempo event, MIDIFILE:TEMPO
+;; returns the tempo in BPM.
+
+;; If there are more tempo changes, MIDIFILE:TEMPO returns two lists:
+;; the values in BPM and the delta-times of the changes in beats
+;; (useful to create a INCUDINE:TEMPO-ENVELOPE structure).
+
+(midifile:tempo *mf*)
+;; 120.0
+
+(midifile:close *mf*)
+
+;; The next example writes a MIDI file with 16 empty tracks:
+
+(with-open-midifile (mf *midi-file-test* :direction :output
+                     :if-exists :supersede)
+  (dotimes (i 15) (midifile:next-track mf))
+  *midi-file-test*)
+
+;; MIDIFILE:READ-EVENT reads the next event from a MIDIFILE:INPUT-STREAM
+;; and returns the status byte or NIL if EOF.
+
+;; A simple function to read the number of the events of a MIDI file is:
+
+(defun number-of-midi-events (path)
+  (with-open-midifile (mf path)
+    (loop for n from 0 while (midifile:read-event mf) finally (return n))))
+
+;; The next example is a minimal MIDI player for Jack MIDI.
+
+;; All the events are scheduled if the value of the configuration variable
+;; *RT-EDF-HEAP-SIZE* in ${HOME}/.incudinerc is at least
+(next-power-of-two (number-of-midi-events "/path/to/file.mid"))
+
+(defun play-midifile (port path)
+  (with-schedule
+    (with-open-midifile (mf path)
+      (loop for st = (midifile:read-event mf)
+            while st
+            when (< st #xf0)
+              do (at (* (midifile:event-seconds mf) *sample-rate*)
+                     #'jackmidi:write-short port
+                     (jackmidi:message st
+                       (midifile:message-data1 mf)
+                       (midifile:message-data2 mf))
+                     (midifile:message-length mf))))))
+
+(rt-start)
+(defparameter *midiout* (jackmidi:open :direction :output))
+(play-midifile *midiout* "/path/to/file.mid")
+(rt-stop)
+
+;; MIDIFILE:EVENT-SECONDS and MIDIFILE:EVENT-BEATS return the time of
+;; the last event in seconds and beats, respectively.
+
+;; MIDIFILE:EVENT-DELTA-TIME and MIDIFILE:EVENT-TIME return delta-time
+;; and time of the current track, respectively.
+
+;; MIDIFILE:MESSAGE-LENGTH returns the length of the last message in bytes.
+
+;; MIDIFILE:MESSAGE-BUFFER returns the internal buffer used to store
+;; the the MIDI messages and the length of the last message in bytes.
+
+;; For example, the octets of the last message are
+;;
+;;   (subseq (midifile:message-buffer mf) 0 (midifile:message-length mf))
+
+;; We can use MIDIFILE:MESSAGE-STATUS, MIDIFILE:MESSAGE-DATA1 and
+;; MIDIFILE:MESSAGE-DATA2 to get status byte and data bytes of the
+;; last MIDI message.
+
+;; The method MIDIFILE:WRITE-HEADER writes the header-chunk of a MIDI file.
+;; It works with CL:STREAM or MIDIFILE:OUTPUT-STREAM
+
+(with-open-file (f *midi-file-test* :direction :output
+                 :if-exists :supersede :element-type '(unsigned-byte 8))
+  (midifile:write-header f :format 1 :number-of-tracks 5
+                         :ppqn-or-smpte-format 960))
+
+(midifile:read-header *midi-file-test*)
+;; 1
+;; 5
+;; 960
+;; NIL
+;; 14       ; used internally
+
+;; There are four utilities to write MIDI messages:
+;;
+;;     midifile:message status data1 data2
+;;
+;;     midifile:tempo-message bpm
+;;
+;;     midifile:string-message meta-event-type string
+;;
+;;     midifile:data &rest values
+;;
+;; MIDIFILE:MESSAGE encodes a short MIDI message into a (UNSIGNED-BYTE 32)
+;; for MIDIFILE:WRITE-SHORT-EVENT.
+;;
+;; MIDIFILE:TEMPO-MESSAGE, MIDIFILE:STRING-MESSAGE and MIDIFILE:DATA
+;; return the octets for MIDIFILE:WRITE-EVENT.
+
+(midifile:message #x90 60 100)
+;; 6569104  ; (on little-endian machines)
+
+(midifile:tempo-message 135)
+;; #(255 81 3 6 200 28)
+
+(midifile:string-message 3 "trackname")
+;; #(255 3 9 116 114 97 99 107 110 97 109 101)
+
+(midifile:data #x90 60 100)
+;; #(144 60 100)
+
+;; The syntax of MIDIFILE:WRITE-SHORT-EVENT and MIDIFILE:WRITE-EVENT is
+;;
+;;     write-short-event mf beats msg size
+;;
+;;     write-event mf beats data &key (start 0) end
+;;
+;; Note: we have to add MIDI events in chronological order; if the new
+;; event precedes the last event, it is added with delta-time zero.
+
+;; MIDIFILE:WRITE-TEMPO-TRACK writes a track of a MIDIFILE:OUTPUT-STREAM
+;; with the tempo changes obtained from a INCUDINE:TEMPO-ENVELOPE.
+;; It fails if the current track contains events at non-zero time.
+
+;; Note: an error is thrown if a curve of TEMPO-ENVELOPE is not a step
+;; function.
+
+(defvar *tenv* (make-tempo-envelope '(96 135 120) '(8 12) :curve :step))
+
+(setf *mf* (midifile:open *midi-file-test* :direction :output
+                          :if-exists :supersede))
+;; #<MIDIFILE:OUTPUT-STREAM :NUMBER-OF-TRACKS 1 :PPQN 480>
+
+(midifile:write-event *mf* 0 (midifile:string-message 3 "tempo track"))
+;; 15
+
+(midifile:write-tempo-track *mf* *tenv*)
+;; 1   ; the next MIDI track
+
+(midifile:write-event *mf* 0 (midifile:string-message 3 "one note"))
+;; 12
+
+(midifile:write-short-event *mf* 0 (midifile:message #x90 60 100) 3)
+;; 16
+
+(midifile:write-short-event *mf* 12 (midifile:message #x80 60 0) 3)
+;; 21
+
+(midifile:close *mf*)
+;; #<MIDIFILE:OUTPUT-STREAM :NUMBER-OF-TRACKS 2 :PPQN 480>
+
+(midifile:tempo *midi-file-test*)
+;; (96.0 135.0 120.0)
+;; (8.0 12.0)
+
+(with-open-midifile (mf *midi-file-test*)
+  (loop for ev = (midifile:read-event mf)
+        while ev
+        collect (list (midifile:event-time mf)
+                      (midifile:event-delta-time mf)
+                      (midifile:event-beats mf)
+                      (midifile:event-seconds mf)
+                      (multiple-value-bind (buf len)
+                          (midifile:message-buffer mf)
+                        (subseq buf 0 len)))))
+;; ((   0    0  0.0d0  0.0d0      #(255 3 11 116 101 109 112 111 32 116 114 97 99 107))
+;;  (   0    0  0.0d0  0.0d0      #(255 81 3 9 137 104))
+;;  (3840 3840  8.0d0  5.0d0      #(255 81 3 6 200 28))
+;;  (9600 5760 20.0d0 10.333328d0 #(255 81 3 7 161 32))
+;;  (   0    0  0.0d0  0.0d0      #(255 47 0))  ; EOT (time ignored)
+;;  (   0    0  0.0d0  0.0d0      #(255 3 8 111 110 101 32 110 111 116 101))
+;;  (   0    0  0.0d0  0.0d0      #(144 60 100))
+;;  (5760 5760 12.0d0  6.777776d0 #(128 60 0))
+;;  (5760    0 12.0d0  6.777776d0 #(255 47 0))) ; EOT

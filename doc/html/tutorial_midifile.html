@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="incudine.css" />
+    <title>Reading and writing MIDI files</title>
+  </head>
+  <body>
+    <div id="content">
+      <table class="navtutor">
+        <tr>
+          <th class="center">Reading and writing MIDI files</th>
+        </tr>
+      </table>
+      <hr>
+
+      <p>
+        <code>MIDIFILE:OPEN</code> creates and returns a new
+        <code>MIDIFILE:STREAM</code>.
+      </p>
+
+      <pre class="example">    midifile:open file &amp;key (direction :input) (if-exists :error)
+                            format (ppqn 480) buffer-size</pre>
+
+      <p>
+        Note: <code>FORMAT</code> is 0 by default but if <code>DIRECTION</code>
+        is <code>:OUTPUT</code> and we write more than one MIDI track, the
+        <code>FORMAT</code> is automatically changed to 1 during <code>MIDIFILE:CLOSE</code>.
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (<span style="color: #8deeee;">defvar</span> <span style="color: #eedd82;">*midi-file-test*</span> <span style="color: #ffa07a;">"/tmp/test.mid"</span>)
+
+<span class="prompt">SCRATCH&gt;</span> (<span style="color: #8deeee;">defparameter</span> <span style="color: #eedd82;">*mf*</span> (midifile:open *midi-file-test*
+                                           <span style="color: #b0c4de;">:direction</span> <span style="color: #b0c4de;">:output</span>
+                                           <span style="color: #b0c4de;">:if-exists</span> <span style="color: #b0c4de;">:supersede</span>))
+
+<span class="prompt"><span class="prompt">SCRATCH&gt;</span></span> (midifile:open-p *mf*)
+T
+
+<span class="prompt"><span class="prompt">SCRATCH&gt;</span></span> (midifile:input-stream-p *mf*)
+NIL
+
+<span class="prompt"><span class="prompt">SCRATCH&gt;</span></span> (midifile:output-stream-p *mf*)
+T
+
+<span class="prompt"><span class="prompt">SCRATCH&gt;</span></span> (midifile:path *mf*)
+#P<span style="color: #ffa07a;">"/tmp/test.mid"</span>
+
+<span class="prompt"><span class="prompt">SCRATCH&gt;</span></span> (midifile:current-track *mf*)
+0</pre>
+
+      <p>
+        <code>MIDIFILE:NEXT-TRACK</code> returns the number (zero based) of
+        the next track or <code>NIL</code> if the <code>MIDIFILE:STREAM</code>
+        is of type <code>MIDIFILE:INPUT-STREAM</code> and there aren't other
+        tracks to read.
+      </p>
+
+      <p>
+        <code>MIDIFILE:NEXT-TRACK</code> writes the current track if the
+        <code>MIDIFILE:STREAM</code> is of type <code>MIDIFILE:OUTPUT-STREAM</code>
+      </p>
+
+      <pre class="src src-lisp">         <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Write the MIDI track 0 and start the track 1</span>
+<span class="prompt">SCRATCH&gt;</span> (midifile:next-track *mf*)
+1
+
+         <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Write the MIDI track 1 and start the track 2</span>
+<span class="prompt">SCRATCH&gt;</span> (midifile:next-track *mf*)
+2
+
+<span class="prompt">SCRATCH&gt;</span> (midifile:current-track *mf*)
+2
+
+         <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Write the MIDI tracks from 2 to 14</span>
+<span class="prompt">SCRATCH&gt;</span> (<span style="color: #8deeee;">dotimes</span> (i 13) (midifile:next-track *mf*))
+
+<span class="prompt">SCRATCH&gt;</span> (midifile:current-track *mf*)
+15
+
+         <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Write the MIDI track 15 (the current track) and close the</span>
+         <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">MIDIFILE:OUTPUT-STREAM</span>
+<span class="prompt">SCRATCH&gt;</span> (midifile:close *mf*)
+
+<span class="prompt">SCRATCH&gt;</span> (midifile:open-p *mf*)
+NIL</pre>
+
+      <p>
+        Reading MIDI file:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (setf *mf* (midifile:open *midi-file-test*))
+#&lt;MIDIFILE:INPUT-STREAM <span style="color: #b0c4de;">:NUMBER-OF-TRACKS</span> 16 <span style="color: #b0c4de;">:PPQN</span> 480&gt;
+
+<span class="prompt">SCRATCH&gt;</span> (midifile:input-stream-p *mf*)
+T
+
+<span class="prompt">SCRATCH&gt;</span> (midifile:output-stream-p *mf*)
+NIL</pre>
+
+      <p>
+        <code>MIDIFILE:READ-HEADER</code> reads the header of a MIDI file and
+        returns four values: <code>format</code>, <code>number of tracks</code>,
+        <code>ppqn-or-smpte-format</code> and <code>ticks-per-frame</code>.
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (midifile:read-header *mf*)
+1
+16
+480
+0</pre>
+
+      <p>
+        The methods to read the header fields are:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (midifile:format *mf*)
+1
+
+<span class="prompt">SCRATCH&gt;</span> (midifile:number-of-tracks *mf*)
+16
+
+<span class="prompt">SCRATCH&gt;</span> (midifile:ppqn *mf*)
+480
+
+<span class="prompt">SCRATCH&gt;</span> (midifile:smpte *mf*)
+0
+0</pre>
+
+      <p>
+        These methods also work with a file name (or <code>PATHNAME</code>):
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (<span style="color: #8deeee;">loop</span> for f in '(midifile:format midifile:number-of-tracks
+                          midifile:ppqn midifile:smpte)
+               collect (funcall f *midi-file-test*))
+(1 16 480 0)</pre>
+
+      <p>
+        If the MIDI file contains a single tempo event, <code>MIDIFILE:TEMPO</code>
+        returns the tempo in BPM.
+      </p>
+
+      <p>
+        If there are more tempo changes, <code>MIDIFILE:TEMPO</code> returns
+        two lists: the values in BPM and the delta-times of the changes in beats
+        (useful to create a <code>INCUDINE:TEMPO-ENVELOPE</code> structure).
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (midifile:tempo *mf*)
+120.0
+
+<span class="prompt">SCRATCH&gt;</span> (midifile:close *mf*)</pre>
+
+      <p>
+        The next example writes a MIDI file with 16 empty tracks:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (with-open-midifile (mf *midi-file-test* <span style="color: #b0c4de;">:direction</span> <span style="color: #b0c4de;">:output</span>
+                              <span style="color: #b0c4de;">:if-exists</span> <span style="color: #b0c4de;">:supersede</span>)
+           (<span style="color: #8deeee;">dotimes</span> (i 15) (midifile:next-track mf))
+           *midi-file-test*)</pre>
+
+      <p>
+        <code>MIDIFILE:READ-EVENT</code> reads the next event from a
+        <code>MIDIFILE:INPUT-STREAM</code> and returns the status byte
+        or <code>NIL</code> if <code>EOF</code>.
+      </p>
+
+      <p>
+        A simple function to read the number of the events of a MIDI file is:
+      </p>
+
+      <pre class="src src-lisp">(<span style="color: #8deeee;">defun</span> <span style="color: #87cefa;">number-of-midi-events</span> (path)
+  (with-open-midifile (mf path)
+    (<span style="color: #8deeee;">loop</span> for n from 0 while (midifile:read-event mf) finally (<span style="color: #8deeee;">return</span> n))))</pre>
+
+      <p>
+        The next example is a minimal MIDI player for Jack MIDI.
+      </p>
+
+      <pre class="src src-lisp"><span style="color: #ff7f24;">;; All the events are scheduled if the value of the configuration variable</span>
+<span style="color: #ff7f24;">;; *RT-EDF-HEAP-SIZE* in ${HOME}/.incudinerc is at least</span>
+<span class="prompt">SCRATCH&gt;</span> (next-power-of-two (number-of-midi-events <span style="color: #ffa07a;">"/path/to/file.mid"</span>))
+
+(<span style="color: #8deeee;">defun</span> <span style="color: #87cefa;">play-midifile</span> (port path)
+  (with-schedule
+    (with-open-midifile (mf path)
+      (<span style="color: #8deeee;">loop</span> for st = (midifile:read-event mf)
+            while st
+            when (&lt; st #xf0)
+              do (at (* (midifile:event-seconds mf) *sample-rate*)
+                     #'jackmidi:write-short port
+                     (jackmidi:message st
+                       (midifile:message-data1 mf)
+                       (midifile:message-data2 mf))
+                     (midifile:message-length mf))))))
+
+<span class="prompt">SCRATCH&gt;</span> (rt-start)
+<span class="prompt">SCRATCH&gt;</span> (<span style="color: #8deeee;">defparameter</span> <span style="color: #eedd82;">*midiout*</span> (jackmidi:open <span style="color: #b0c4de;">:direction :output</span>))
+<span class="prompt">SCRATCH&gt;</span> (play-midifile *midiout* <span style="color: #ffa07a;">"/path/to/file.mid"</span>)
+<span class="prompt">SCRATCH&gt;</span> (rt-stop)</pre>
+
+      <p>
+        <code>MIDIFILE:EVENT-SECONDS</code> and <code>MIDIFILE:EVENT-BEATS</code>
+        return the time of the last event in seconds and beats, respectively.
+      </p>
+
+      <p>
+        <code>MIDIFILE:EVENT-DELTA-TIME</code> and <code>MIDIFILE:EVENT-TIME</code>
+        return delta-time and time of the current track, respectively.
+      </p>
+
+      <p>
+        <code>MIDIFILE:MESSAGE-LENGTH</code> returns the length of the last message
+        in bytes.
+      </p>
+
+      <p>
+        <code>MIDIFILE:MESSAGE-BUFFER</code> returns the internal buffer used to
+        store the the MIDI messages and the length of the last message in bytes.
+      </p>
+
+      <p>
+        For example, the octets of the last message are
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (subseq (midifile:message-buffer mf) 0 (midifile:message-length mf))</pre>
+
+      <p>
+        We can use <code>MIDIFILE:MESSAGE-STATUS</code>, <code>MIDIFILE:MESSAGE-DATA1</code>
+        and <code>MIDIFILE:MESSAGE-DATA2</code> to get status byte and data bytes of the
+        last MIDI message.
+      </p>
+
+      <p>
+        The method <code>MIDIFILE:WRITE-HEADER</code> writes the header-chunk of
+        a MIDI file. It works with <code>CL:STREAM</code> or <code>MIDIFILE:OUTPUT-STREAM</code>
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (<span style="color: #8deeee;">with-open-file</span> (f *midi-file-test* <span style="color: #b0c4de;">:direction</span> <span style="color: #b0c4de;">:output</span>
+                          <span style="color: #b0c4de;">:if-exists</span> <span style="color: #b0c4de;">:supersede</span>
+                          <span style="color: #b0c4de;">:element-type</span> '(unsigned-byte 8))
+           (midifile:write-header f <span style="color: #b0c4de;">:format</span> 1 <span style="color: #b0c4de;">:number-of-tracks</span> 5
+                                  <span style="color: #b0c4de;">:ppqn-or-smpte-format</span> 960))
+
+<span class="prompt"><span class="prompt">SCRATCH&gt;</span></span> (midifile:read-header *midi-file-test*)
+1
+5
+960
+NIL
+14       <span style="color: #ff7f24;">; used internally</span></pre>
+
+      <p>
+        There are four utilities to write MIDI messages:
+      </p>
+
+      <pre class="example">
+    midifile:message status data1 data2
+
+    midifile:tempo-message bpm
+
+    midifile:string-message meta-event-type string
+
+    midifile:data &amp;rest values</pre>
+
+      <p>
+        <code>MIDIFILE:MESSAGE</code> encodes a short MIDI message into a
+        <code>(UNSIGNED-BYTE 32)</code> for <code>MIDIFILE:WRITE-SHORT-EVENT</code>.
+      </p>
+
+      <p>
+        <code>MIDIFILE:TEMPO-MESSAGE</code>, <code>MIDIFILE:STRING-MESSAGE</code>
+        and <code>MIDIFILE:DATA</code> return the octets for <code>MIDIFILE:WRITE-EVENT</code>.
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (midifile:message #x90 60 100)
+6569104  <span style="color: #ff7f24;">; (on little-endian machines)</span>
+
+<span class="prompt">SCRATCH&gt;</span> (midifile:tempo-message 135)
+#(255 81 3 6 200 28)
+
+<span class="prompt">SCRATCH&gt;</span> (midifile:string-message 3 <span style="color: #ffa07a;">"trackname"</span>)
+#(255 3 9 116 114 97 99 107 110 97 109 101)
+
+<span class="prompt">SCRATCH&gt;</span> (midifile:data #x90 60 100)
+#(144 60 100)</pre>
+
+      <p>
+        The syntax of <code>MIDIFILE:WRITE-SHORT-EVENT</code> and
+        <code>MIDIFILE:WRITE-EVENT</code> is
+      </p>
+
+      <pre class="example">
+    write-short-event mf beats msg size
+
+    write-event mf beats data &amp;key (start 0) end</pre>
+
+      <p>
+        Note: we have to add MIDI events in chronological order; if the new
+        event precedes the last event, it is added with delta-time zero.
+      </p>
+
+      <p>
+        <code>MIDIFILE:WRITE-TEMPO-TRACK</code> writes a track of a
+        <code>MIDIFILE:OUTPUT-STREAM</code> with the tempo changes obtained from
+        a <code>INCUDINE:TEMPO-ENVELOPE</code>. It fails if the current track
+        contains events at non-zero time.
+      </p>
+
+      <p>
+        Note: an error is thrown if a curve of <code>TEMPO-ENVELOPE</code>
+        is not a step function.
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (<span style="color: #8deeee;">defvar</span> <span style="color: #eedd82;">*tenv*</span> (make-tempo-envelope '(96 135 120) '(8 12) <span style="color: #b0c4de;">:curve</span> <span style="color: #b0c4de;">:step</span>))
+
+<span class="prompt">SCRATCH&gt;</span> (setf *mf* (midifile:open *midi-file-test* <span style="color: #b0c4de;">:direction</span> <span style="color: #b0c4de;">:output</span>
+                                   <span style="color: #b0c4de;">:if-exists</span> <span style="color: #b0c4de;">:supersede</span>))
+#&lt;MIDIFILE:OUTPUT-STREAM <span style="color: #b0c4de;">:NUMBER-OF-TRACKS</span> 1 <span style="color: #b0c4de;">:PPQN</span> 480&gt;
+
+<span class="prompt"><span class="prompt">SCRATCH&gt;</span></span> (midifile:write-event *mf* 0 (midifile:string-message 3 <span style="color: #ffa07a;">"tempo track"</span>))
+15
+
+<span class="prompt"><span class="prompt">SCRATCH&gt;</span></span> (midifile:write-tempo-track *mf* *tenv*)
+1   <span style="color: #ff7f24;">; the next MIDI track</span>
+
+<span class="prompt"><span class="prompt">SCRATCH&gt;</span></span> (midifile:write-event *mf* 0 (midifile:string-message 3 <span style="color: #ffa07a;">"one note"</span>))
+12
+
+<span class="prompt"><span class="prompt">SCRATCH&gt;</span></span> (midifile:write-short-event *mf* 0 (midifile:message #x90 60 100) 3)
+16
+
+<span class="prompt"><span class="prompt">SCRATCH&gt;</span></span> (midifile:write-short-event *mf* 12 (midifile:message #x80 60 0) 3)
+21
+
+<span class="prompt"><span class="prompt">SCRATCH&gt;</span></span> (midifile:close *mf*)
+#&lt;MIDIFILE:OUTPUT-STREAM <span style="color: #b0c4de;">:NUMBER-OF-TRACKS</span> 2 <span style="color: #b0c4de;">:PPQN</span> 480&gt;
+
+<span class="prompt"><span class="prompt">SCRATCH&gt;</span></span> (midifile:tempo *midi-file-test*)
+(96.0 135.0 120.0)
+(8.0 12.0)
+
+<span class="prompt"><span class="prompt">SCRATCH&gt;</span></span> (with-open-midifile (mf *midi-file-test*)
+           (<span style="color: #8deeee;">loop</span> for ev = (midifile:read-event mf)
+                 while ev
+                 collect (list (midifile:event-time mf)
+                               (midifile:event-delta-time mf)
+                               (midifile:event-beats mf)
+                               (midifile:event-seconds mf)
+                               (<span style="color: #8deeee;">multiple-value-bind</span> (buf len)
+                                   (midifile:message-buffer mf)
+                                 (subseq buf 0 len)))))
+((   0    0  0.0d0  0.0d0      #(255 3 11 116 101 109 112 111 32 116 114 97 99 107))
+ (   0    0  0.0d0  0.0d0      #(255 81 3 9 137 104))
+ (3840 3840  8.0d0  5.0d0      #(255 81 3 6 200 28))
+ (9600 5760 20.0d0 10.333328d0 #(255 81 3 7 161 32))
+ (   0    0  0.0d0  0.0d0      #(255 47 0))  <span style="color: #ff7f24;">; EOT (time ignored)</span>
+ (   0    0  0.0d0  0.0d0      #(255 3 8 111 110 101 32 110 111 116 101))
+ (   0    0  0.0d0  0.0d0      #(144 60 100))
+ (5760 5760 12.0d0  6.777776d0 #(128 60 0))
+ (5760    0 12.0d0  6.777776d0 #(255 47 0))) <span style="color: #ff7f24;">; EOT</span></pre>
+
+      <hr>
+      <table class="navtutor">
+        <tr>
+          <td style="width: 20%" class="left">
+            <a href="tutorial_01.html">Getting Started with Incudine</a>
+          </td>
+          <td style="width: 60%" class="center"><a href="index.html">Home</a></td>
+          <td style="width: 20%" class="right"></td>
+        </tr>
+      </table>
+    </div>
+    <div id="postamble">
+      <a href="http://sourceforge.net/projects/incudine">Sourceforge project page</a>
+    </div>
+  </body>
+</html>
