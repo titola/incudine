@@ -240,11 +240,8 @@ to call to get the control value."
       t)))
 
 (declaim (inline all-ugen-names))
-(defun all-ugen-names ()
-  (sort (loop for name being the hash-keys in *ugens*
-              when (find-symbol (symbol-name name))
-              collect name)
-        #'string-lessp :key #'symbol-name))
+(defun all-ugen-names (&optional inaccessible-p)
+  (%all-vug-names *ugens* inaccessible-p))
 
 (declaim (inline compiled-vug-p))
 (defun compiled-vug-p (name)

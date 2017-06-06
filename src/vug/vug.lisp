@@ -1809,12 +1809,19 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
         (setf (symbol-function name) (vug-callback vug)))))
   (values))
 
-(declaim (inline all-vug-names))
-(defun all-vug-names ()
-  (sort (loop for name being the hash-keys in *vugs*
-              when (find-symbol (symbol-name name))
-              collect name)
+(defun %all-vug-names (ht inaccessible-p)
+  (sort (loop for name being the hash-keys in ht
+              when (or inaccessible-p
+                       (eq (symbol-package name) *package*)
+                       (multiple-value-bind (sym status)
+                           (find-symbol (symbol-name name) (symbol-package name))
+                         (and sym (not (eq status :internal)))))
+                collect name)
         #'string-lessp :key #'symbol-name))
+
+(declaim (inline all-vug-names))
+(defun all-vug-names (&optional inaccessible-p)
+  (%all-vug-names *vugs* inaccessible-p))
 
 (declaim (inline argument-names))
 (defun argument-names (args)
