@@ -66,7 +66,7 @@
   ;;;
   (defvar *audio-driver*
     #+(or linux jack-audio) :jack
-    #-linux :portaudio)
+    #-(or linux jack-audio) :portaudio)
 
   (defvar *enable-jack-midi* nil)
 
