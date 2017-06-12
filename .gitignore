@@ -1,5 +1,7 @@
 *.fasl
 *.so
+*.dylib
+*.dll
 *.mid
 *~
 *.o
