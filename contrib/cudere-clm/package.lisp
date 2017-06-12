@@ -81,7 +81,7 @@
    #:*clm-optimize-settings* #:*clm-logger-stream*
    ;; Definitions
    #:define-clm-ugen #:definstrument #:definstrument* #:def-clm-struct
-   #:run #:run*
+   #:def-optkey-fun #:run #:run*
    ;; Methods
    #:mus-channel #:mus-channels #:mus-close #:mus-data #:mus-file-name
    #:mus-feedback #:mus-feedforward #:mus-frequency #:mus-hop #:mus-increment

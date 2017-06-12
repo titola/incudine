@@ -22,8 +22,8 @@
 (defstruct (clm-ugen-instance (:include ugen-instance) (:copier nil)))
 
 (defmacro define-clm-ugen (name return-type lambda-list &body body)
-  (let ((struct-name (format-symbol "CUDERE-CLM" "~A-INSTANCE" name))
-        (predicate (format-symbol "CUDERE-CLM" "~A?" name))
+  (let ((struct-name (format-symbol *package* "~A-INSTANCE" name))
+        (predicate (format-symbol *package* "~A?" name))
         (ugen-name (alexandria:format-symbol *clm-ugens-package* "~A" name)))
     `(progn
        (eval-when (:compile-toplevel :load-toplevel :execute)
