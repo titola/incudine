@@ -107,8 +107,15 @@
     (setf (fft-size obj) 0))
   (values))
 
-(defvar *fft* (make-fft 1024))
+(define-constant +default-fft-size+ 1024)
+
+(defvar *fft* (make-fft +default-fft-size+))
 (declaim (type fft *fft*))
+
+(defun reinit-fft-var ()
+  (setq *fft* (make-fft +default-fft-size+)))
+
+(pushnew #'reinit-fft-var sb-ext:*init-hooks*)
 
 (defmacro with-pointer-to-fft-data ((real-ptr imag-ptr rdat idat) &body body)
   `(cffi:with-pointer-to-vector-data (,real-ptr ,rdat)

@@ -107,7 +107,7 @@
    #:clm-cerror #:clm-print
    #:play #:stop-playing #:dac #:stop-dac
    ;; FFT
-   #:fft #:make-fft #:with-pointer-to-fft-data
+   #:*fft* #:fft #:make-fft #:with-pointer-to-fft-data
    #:rectangular->polar #:rectangular->magnitudes #:polar->rectangular
    #:make-fft-window #:apply-window #:spectrum #:convolution
    #:autocorrelate #:correlate
