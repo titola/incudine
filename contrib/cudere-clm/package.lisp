@@ -112,7 +112,7 @@
    #:make-fft-window #:apply-window #:spectrum #:convolution
    #:autocorrelate #:correlate
    ;; Common Music interface
-   #:init-with-sound #:finish-with-sound
+   #:init-with-sound #:finish-with-sound #:wsdat-play
    ;; Generators
    #:make-oscil #:oscil #:oscil?
    #:make-env #:env #:env?
