@@ -16,19 +16,17 @@
 ;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (when (and (find-package "CLM") (null (find-package "CLM-ORIG")))
+  (when (and (find-package "CLM")
+             (not (find-package "CUDERE-CLM"))
+             (null (find-package "CLM-ORIG")))
     (rename-package "CLM" "CLM-ORIG"))
   (pushnew :clm *features*)
   (pushnew :cudere-clm *features*))
 
 (defpackage :cudere-clm
-  (:use #:cl #:incudine #:incudine.vug #:incudine.util)
+  (:use #:cl)
   (:nicknames :clm)
-  (:import-from #:alexandria #:non-negative-fixnum #:positive-fixnum
-                #:define-constant #:with-gensyms #:format-symbol)
-  (:import-from #:incudine #:incudine-simple-error #:incudine-missing-arg)
-  (:import-from #:incudine.soundfile #:with-open-soundfile)
-  (:shadow #:play #:rand #:two-pole #:two-zero #:delay #:notch)
+  (:import-from #:alexandria #:define-constant)
   (:export
    ;; Conditions
    #:cudere-clm-error
@@ -98,14 +96,15 @@
    #:sound-framples #:sound-srate #:sound-comment #:sound-datum-size
    #:sound-data-location #:sound-maxamp
    #:double #:double-float #:make-double-float-array #:make-double-array
-   #:make-integer-array
+   #:make-integer-array #:clear-array
    #:array-interp #:mus-interpolate
    #:partials->wave #:phase-partials->wave
    #:normalize-partials #:partials->polynomial #:polynomial
    #:file->array #:array->file
    #:frample->frample
    #:envelope->coeffs #:envelope-interp #:x-norm
-   #:clm-print
+   #:reduce-amplitude-quantization-noise #:inverse-integrate
+   #:clm-cerror #:clm-print
    #:play #:stop-playing #:dac #:stop-dac
    ;; FFT
    #:fft #:make-fft #:with-pointer-to-fft-data
@@ -164,9 +163,24 @@
    #:locsig-reverb-ref #:locsig-reverb-set! #:move-locsig #:locsig-type
    #:make-move-sound #:move-sound #:move-sound?
    #:in-any #:ina #:inb #:out-any #:outa #:outb #:outc #:outd
+   #:open-input #:open-input* #:close-input
    ;; Score
    #:with-sound #:clm-load #:sound-let #:with-offset
    #:scaled-by #:scaled-to))
+
+(defpackage :cudere-clm.sys
+  (:use #:cl #:cudere-clm #:incudine #:incudine.util)
+  (:shadowing-import-from #:incudine #:play)
+  (:import-from #:incudine.vug #:ugen-instance #:define-ugen
+                #:ugen-perf-function #:ugen-reinit-function
+                #:ugen-return-pointer #:ugen-control-pointer
+                #:with #:initialize #:with-follow #:vuglet #:get-pointer
+                #:make-frame #:maybe-expand #:breakpoints->local-env
+                #:~ #:delay1 #:nclip)
+  (:import-from #:alexandria #:non-negative-fixnum #:positive-fixnum
+                #:define-constant #:with-gensyms #:format-symbol)
+  (:import-from #:incudine #:incudine-simple-error #:incudine-missing-arg)
+  (:import-from #:incudine.soundfile #:with-open-soundfile))
 
 (defpackage :cudere-clm.ugens
   (:use #:cl)

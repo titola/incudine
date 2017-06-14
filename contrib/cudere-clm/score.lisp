@@ -15,7 +15,7 @@
 ;;; along with this program; if not, write to the Free Software
 ;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-(in-package :cudere-clm)
+(in-package :cudere-clm.sys)
 
 ;;; Copied from clm-5/mus.lisp
 (defun clm-cleanup ()

@@ -15,7 +15,7 @@
 ;;; along with this program; if not, write to the Free Software
 ;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-(in-package :cudere-clm)
+(in-package :cudere-clm.sys)
 
 (define-constant FFTW-FORWARD -1)
 (define-constant FFTW-BACKWARD 1)
@@ -33,13 +33,15 @@
 (incudine.external::def-fftw-fun ("execute" fftw-execute) :void
   (plan :pointer))
 
-(defstruct (fft (:constructor %make-fft) (:copier nil))
+(defstruct %fft
   (pointers (cffi:null-pointer) :type foreign-pointer)
   (in-data (cffi:null-pointer) :type foreign-pointer)
   (out-data (cffi:null-pointer) :type foreign-pointer)
   (r-plan (cffi:null-pointer) :type foreign-pointer)
   (i-plan (cffi:null-pointer) :type foreign-pointer)
   (size 0 :type non-negative-fixnum))
+
+(defstruct (fft (:constructor %make-fft) (:include %fft)  (:copier nil)))
 
 (defmethod print-object ((obj fft) stream)
   (format stream "#<CLM:FFT :SIZE ~D>" (fft-size obj)))
@@ -120,7 +122,7 @@
 
 (declaim (inline update-fft-instance))
 (defun update-fft-instance (obj fftsize)
-  (with-fft-slots (obj fft)
+  (with-fft-slots (obj %fft)
     (unless (= fftsize size)
       (free-fft-data pointers)
       (alloc-fft-data pointers fftsize)
@@ -136,7 +138,7 @@
            (type positive-fixnum fftsize) (type (member -1 1) sign)
            (type fft fft-instance))
   (update-fft-instance fft-instance fftsize)
-  (with-fft-slots (fft-instance fft)
+  (with-fft-slots (fft-instance %fft)
     (loop for i below (* fftsize 2) by 2
           for j below fftsize do
             (setf (cffi:mem-aref in-data :double i) (aref rdat j))
@@ -153,7 +155,7 @@
            (type positive-fixnum fftsize) (type (member -1 1) sign)
            (type fft fft-instance))
   (update-fft-instance fft-instance fftsize)
-  (with-fft-slots (fft-instance fft)
+  (with-fft-slots (fft-instance %fft)
     (loop for i below (* fftsize 2) by 2
           for j below fftsize do
             (setf (cffi:mem-aref in-data :double i)

@@ -1,4 +1,4 @@
-(in-package :cudere-clm)
+(in-package :cudere-clm.sys)
 
 #+sbcl
 (declaim (sb-ext:disable-package-locks double-float))

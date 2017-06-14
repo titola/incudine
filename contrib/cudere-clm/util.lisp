@@ -15,7 +15,7 @@
 ;;; along with this program; if not, write to the Free Software
 ;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-(in-package :cudere-clm)
+(in-package :cudere-clm.sys)
 
 (define-condition cudere-clm-error (incudine-simple-error) ())
 
@@ -64,9 +64,9 @@
        (if ,opt-args ,form ,@body))))
 
 (defmacro mus-frequency-method-from-radians (name)
-  (let ((instance-type (format-symbol "CUDERE-CLM" "~A-INSTANCE" name))
-        (increment-getter (format-symbol "CUDERE-CLM" "~A-INC" name))
-        (increment-setter (format-symbol "CUDERE-CLM" "SET-~A-INC" name)))
+  (let ((instance-type (format-symbol *package* "~A-INSTANCE" name))
+        (increment-getter (format-symbol *package* "~A-INC" name))
+        (increment-setter (format-symbol *package* "SET-~A-INC" name)))
     `(progn
        (defmethod mus-frequency ((gen ,instance-type))
          (radians->hz (,increment-getter gen)))
@@ -936,7 +936,7 @@
       (when run
         (setf *dac-pid* (getf (funcall run command :wait nil) :process))))))
 
-(defun* play (file (start 0) end (wait *clm-dac-wait-default*))
+(defun* clm:play (file (start 0) end (wait *clm-dac-wait-default*))
   (let ((filename (if file
                       (namestring (merge-pathnames file (or *clm-file-name* "")))
                       last-dac-filename)))
