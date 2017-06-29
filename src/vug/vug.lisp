@@ -510,7 +510,8 @@
 
 (defun resolve-variable-to-update (obj var)
   (cond ((vug-function-p obj)
-         (resolve-variable-to-update (vug-function-inputs obj) var))
+         (unless (eq (vug-function-name obj) 'get-pointer)
+           (resolve-variable-to-update (vug-function-inputs obj) var)))
         ((vug-variable-p obj)
          (resolve-variable-to-update (vug-variable-value obj) var))
         ((vug-parameter-p obj)
