@@ -16,6 +16,10 @@
 
 (in-package :incudine.osc)
 
+(eval-when (:load-toplevel :execute)
+  (let ((nick incudine.config::*osc-package-nicknames*))
+    (when nick (rename-package "INCUDINE.OSC" "INCUDINE.OSC" nick))))
+
 (defvar *buffer-size* (if (boundp 'incudine.config::*osc-buffer-size*)
                           incudine.config::*osc-buffer-size*
                           1500)

@@ -32,6 +32,7 @@
   *number-of-output-bus-channels*
   *osc-buffer-size*
   *osc-max-values*
+  *osc-package-nicknames*
   *portaudio-input-device*
   *portaudio-output-device*
   *receiver-default-priority*

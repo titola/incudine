@@ -492,7 +492,6 @@
         #:sb-c
         #+(and sbcl (or x86 x86-64))
         #:sb-assem)
-  (:nicknames #:osc)
   (:import-from #:alexandria #:define-constant #:positive-fixnum
                 #:non-negative-fixnum #:with-gensyms)
   (:import-from #:swap-bytes #:htonl #:htonq #:ntohl #:ntohq)

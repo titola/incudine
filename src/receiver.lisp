@@ -133,11 +133,11 @@
 
 ;;; Open Sound Control
 
-(pushnew 'remove-receiver-and-responders osc:*before-close-hook*)
+(pushnew 'remove-receiver-and-responders incudine.osc:*before-close-hook*)
 
-(defmethod valid-input-stream-p ((obj osc:input-stream)) t)
+(defmethod valid-input-stream-p ((obj incudine.osc:input-stream)) t)
 
-(defmethod valid-input-stream-p ((obj osc:output-stream)) nil)
+(defmethod valid-input-stream-p ((obj incudine.osc:output-stream)) nil)
 
 (defmacro make-osc-responder (stream address types function)
   (let ((function (if (eq (car function) 'function)
@@ -150,8 +150,8 @@
     (with-gensyms (s)
       `(make-responder ,stream
          (lambda (,s)
-           (when (osc:check-pattern ,s ,address ,types)
-             (osc:with-values ,(cadr function) (,s ,types)
+           (when (incudine.osc:check-pattern ,s ,address ,types)
+             (incudine.osc:with-values ,(cadr function) (,s ,types)
                ,@(cddr function)))
            (values))))))
 
@@ -160,39 +160,39 @@
   (bt:make-thread
     (lambda ()
       (let ((stream (receiver-stream receiver)))
-        (declare (type osc:input-stream stream))
-        (osc:close-connections stream)
+        (declare (type incudine.osc:input-stream stream))
+        (incudine.osc:close-connections stream)
         ;; Flush pending writes.
-        (osc:without-block (in stream)
-          (loop while (plusp (the fixnum (osc:receive in)))))
+        (incudine.osc:without-block (in stream)
+          (loop while (plusp (the fixnum (incudine.osc:receive in)))))
         (setf (receiver-status receiver) t)
         (loop while (receiver-status receiver) do
-                (when (and (plusp (the fixnum (osc:receive stream)))
+                (when (and (plusp (the fixnum (incudine.osc:receive stream)))
                            (receiver-status receiver))
                   (handler-case
                       (dolist (fn (receiver-functions receiver))
                         (funcall (the function fn) stream))
                     (condition (c) (nrt-msg error "~A" c)))))))
     :name (format nil "osc-recv ~D"
-                  (osc:port (receiver-stream receiver)))))
+                  (incudine.osc:port (receiver-stream receiver)))))
 
-(defmethod recv-start ((stream osc::stream)
+(defmethod recv-start ((stream incudine.osc::stream)
                        &key (priority *receiver-default-priority*))
   (add-receiver stream (or (receiver stream) (make-receiver stream))
                 #'start-osc-recv priority))
 
-(defmethod recv-stop ((stream osc::stream))
+(defmethod recv-stop ((stream incudine.osc::stream))
   (let ((recv (receiver stream)))
     (when recv
-      (osc:with-stream (tmp :direction :output
-                        :protocol (osc:protocol stream)
-                        :host (osc:host stream)
-                        :port (osc:port stream)
-                        :buffer-size 32 :max-values 8)
+      (incudine.osc:with-stream (tmp :direction :output
+                                 :protocol (incudine.osc:protocol stream)
+                                 :host (incudine.osc:host stream)
+                                 :port (incudine.osc:port stream)
+                                 :buffer-size 32 :max-values 8)
         (compare-and-swap (receiver-status recv) t nil)
         ;; Unblock the receiver.
-        (osc:message tmp "/receiver/quit" ""))
-      (osc:close-connections stream)
+        (incudine.osc:message tmp "/receiver/quit" ""))
+      (incudine.osc:close-connections stream)
       recv)))
 
 ;;; Generic networking

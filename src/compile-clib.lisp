@@ -29,6 +29,9 @@
   (defvar *midi-input-timeout* 1)
   (declaim (type alexandria:positive-fixnum *midi-input-timeout*))
 
+  (defvar *osc-package-nicknames* (list "OSC"))
+  (declaim  (type list *osc-package-nicknames*))
+
   ;;; Velocity of the sound at 22°C, 1 atmosfera
   (defvar *sound-velocity* 345)
 

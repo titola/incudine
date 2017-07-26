@@ -93,6 +93,9 @@
 (setq *osc-buffer-size* 1500)
 (setq *osc-max-values* 50)
 
+;; INCUDINE.OSC package nicknames [default: (list "OSC")]
+;(setq *osc-package-nicknames* nil)
+
 ;;;---------------------------[ Graph ]-----------------------------
 
 (setq *max-number-of-nodes* 1024)
