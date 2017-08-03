@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 Tito Latini
+ * Copyright (c) 2013-2017 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,6 +33,8 @@ enum {
         JA_SHUTDOWN
 };
 
+#define SBCL_SIG_STOP_FOR_GC  SIGUSR2
+
 #define JA_ERROR_MSG_MAX_LENGTH  256
 #define JA_PORT_NAME_MAX_LENGTH  16
 #define JA_SAMPLE_SIZE  (sizeof(jack_default_audio_sample_t))
@@ -60,6 +62,7 @@ static pthread_mutex_t ja_c_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  ja_c_cond = PTHREAD_COND_INITIALIZER;
 static struct ja_xrun ja_xruns;
 static char ja_error_msg[JA_ERROR_MSG_MAX_LENGTH];
+static sigset_t sig_stop_for_gc;
 
 #define RETURN_IF_NULLPTR(v, msg)                       \
         do {                                            \

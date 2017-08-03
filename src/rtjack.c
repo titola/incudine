@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 Tito Latini
+ * Copyright (c) 2013-2017 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -330,6 +330,9 @@ int ja_initialize(SAMPLE srate, unsigned int input_channels,
                 ja_error("Unblock signals error\n");
                 return 1;
         }
+        sigemptyset(&sig_stop_for_gc);
+        sigaddset(&sig_stop_for_gc, SBCL_SIG_STOP_FOR_GC);
+
         ja_lisp_busy = 1;
 
         return 0;
@@ -371,12 +374,13 @@ jack_nframes_t ja_cycle_begin(void)
         if (ja_status != JA_RUNNING)
                 return 0;
         /*
-         * In JACK2, `sem_timedwait' is interrupted by SIGUSR2 during the gc.
-         * We are within SB-SYS:WITHOUT-GCING but the inhibition of the gc is
-         * not guaranteed, therefore it is not a good idea to block this signal
-         * around `jack_cycle_wait', because it could cause the arrest of SBCL.
+         * We are calling `ja_cycle_begin' from lisp, and the signal
+         * sent by SBCL during the gc (SIGUSR2) interrupts `sem_timedwait'
+         * used by Jack (i.e. JACK2 shuts down the client thread).
          */
+        pthread_sigmask(SIG_BLOCK, &sig_stop_for_gc, NULL);
         frames = jack_cycle_wait(client);
+        pthread_sigmask(SIG_UNBLOCK, &sig_stop_for_gc, NULL);
 
         if (ja_status != JA_RUNNING)
                 return 0;
