@@ -74,13 +74,13 @@
                         (vug-variable-performance-time-p input))
               (setf (vug-variable-performance-time-p input) t)))))
 
-(declaim (inline vug-variable-to-set-inside-body-p))
 (defun vug-variable-to-set-inside-body-p (obj vug-body-p init-pass-p)
   (and (vug-variable-p obj)
        vug-body-p
        (vug-variable-to-set-p obj)
        (not (and init-pass-p (vug-variable-skip-init-set-p obj)))
-       (not (vug-variable-init-time-p obj))))
+       (not (vug-variable-init-time-p obj))
+       (not (vug-variable-temporary-p obj))))
 
 (declaim (inline vug-variable-setter-name))
 (defun vug-variable-setter-name (var)

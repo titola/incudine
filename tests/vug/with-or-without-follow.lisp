@@ -17,6 +17,24 @@
                       (setf amp (sample (if (< freq 500) .5 .2))))))
     (out (sine freq g 0))))
 
+(dsp! with-follow-test-4 (freq p)
+  (with ((phs (phasor freq 0))
+         (last +sample-zero+)
+         (changed nil))
+    (declare (sample phs last) (boolean changed))
+    (initialize (setf last phs))
+    (with-follow (p)
+      ;; PHS is performance-time
+      (setf phs p)
+      (setf changed t)
+      phs)
+    (if changed
+        ;; PHS is the value of the updated parameter P
+        (setf changed nil)
+        (maybe-expand phs))
+    (out phs)
+    (setf last phs)))
+
 (dsp! without-follow-test-1 (freq amp)
   (with-samples ((g (without-follow (amp)
                       (setf amp (sample (if (< freq 500) .5 .2))))))
@@ -45,6 +63,11 @@
   (at #[3/2 s] #'set-control 123 :amp .3)   ; ignored
   (at #[2 s] #'set-control 123 :freq 1000)
   (at #[5/2 s] #'set-control 123 :amp .3))  ; ignored
+
+(with-dsp-test (with-follow.4
+      :md5 #(109 114 43 224 128 31 1 241 225 44 190 182 169 167 58 136))
+  (with-follow-test-4 1 .5 :id 1)
+  (at #[1.5 s] #'set-control 1 :p .15))
 
 (with-dsp-test (without-follow.1
       :md5 #(214 105 172 97 50 65 114 30 82 17 111 17 82 152 84 255))
