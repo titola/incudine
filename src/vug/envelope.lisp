@@ -364,9 +364,8 @@
       (initialize (setf end level))
       (with-follow (location)
         ;; Jump location.
-        (with ((dest-node 0) (end-time 0) (pos-time 0))
-          (declare (type non-negative-fixnum dest-node)
-                   (type sample end-time pos-time))
+        (with ((end-time 0) (pos-time 0))
+          (declare (type sample end-time pos-time))
           (setf end-time +sample-zero+)
           (setf pos-time (* location *sample-duration*))
           (loop for i from 0 below (envelope-points env)
