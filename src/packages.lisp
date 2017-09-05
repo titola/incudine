@@ -51,7 +51,7 @@
    #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
    #:qsort
    #:rt-audio-init #:rt-audio-start #:rt-audio-stop #:rt-get-input #:rt-client
-   #:rt-set-output #:rt-cycle-start-time
+   #:rt-set-output #:rt-cycle-start-time #:rt-time-offset
    #:rt-condition-wait #:rt-transfer-to-c-thread #:rt-cycle-begin #:rt-cycle-end
    #:rt-set-busy-state #:rt-buffer-size #:rt-sample-rate #:rt-set-io-buffers
    #:rt-xruns #:rt-get-error-msg #:portaudio-device-info #:portaudio-set-device
@@ -356,7 +356,7 @@
                 #:rt-get-input #:rt-set-output #:rt-cycle-begin #:rt-cycle-end
                 #:rt-set-io-buffers
                 #:rt-condition-wait #:rt-transfer-to-c-thread
-                #:rt-set-busy-state #:rt-silent-errors
+                #:rt-time-offset #:rt-set-busy-state #:rt-silent-errors
                 #:rt-buffer-size #:rt-sample-rate #:rt-xruns #:rt-get-error-msg
                 #:portaudio-device-info #:portaudio-set-device)
   (:import-from #:incudine.edf #:at #:aat #:with-schedule #:flush-pending
@@ -397,7 +397,7 @@
    #:*rt-thread-start-hook* #:*rt-thread-exit-hook*
    #:rt-start #:rt-stop #:rt-status #:rt-buffer-size #:rt-sample-rate #:rt-xruns
    #:rt-loop-callback #:set-rt-block-size #:block-size
-   #:rt-silent-errors
+   #:rt-time-offset #:rt-silent-errors
    #:portaudio-device-info #:portaudio-set-device
    #:at #:aat #:with-schedule #:flush-pending #:flush-all-fifos
    #:tempo #:*tempo* #:make-tempo #:bpm #:bps #:spb #:now #:tempo-sync

@@ -45,7 +45,7 @@ struct ja_xrun {
 };
 
 static jack_client_t *client = NULL;
-static SAMPLE ja_sample_rate;
+static SAMPLE ja_sample_rate, ja_sample_duration;
 static SAMPLE *ja_sample_counter;
 static SAMPLE ja_cycle_start_time; /* Cycle start time in samples. */
 static unsigned int ja_in_channels, ja_out_channels, ja_frames;
@@ -123,6 +123,7 @@ void ja_set_lisp_io(SAMPLE *input, SAMPLE *output);
 jack_nframes_t ja_cycle_begin(void);
 void ja_cycle_end(jack_nframes_t frames);
 SAMPLE ja_get_cycle_start_time(void);
+double ja_get_time_offset(void);
 jack_client_t *ja_client(void);
 
 /* Jack MIDI */

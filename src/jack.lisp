@@ -46,6 +46,8 @@
 
 (cffi:defcfun ("ja_get_cycle_start_time" rt-cycle-start-time) sample)
 
+(cffi:defcfun ("ja_get_time_offset" rt-time-offset) :double)
+
 (cffi:defcfun ("ja_client" rt-client) :pointer)
 
 (declaim (inline rt-condition-wait))

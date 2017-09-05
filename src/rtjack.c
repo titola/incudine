@@ -275,6 +275,7 @@ int ja_initialize(SAMPLE srate, unsigned int input_channels,
         }
         ja_frames = jack_get_buffer_size(client);
         ja_sample_rate = (SAMPLE) jack_get_sample_rate(client);
+        ja_sample_duration = 1.0 / ja_sample_rate;
         ja_in_channels = input_channels;
         ja_out_channels = output_channels;
         ja_buffer_bytes = ja_frames * JA_SAMPLE_SIZE;
@@ -421,6 +422,20 @@ void ja_cycle_end(jack_nframes_t frames)
 SAMPLE ja_get_cycle_start_time(void)
 {
         return ja_cycle_start_time;
+}
+
+double ja_get_time_offset(void)
+{
+        if (client != NULL) {
+                jack_nframes_t jack_frames;
+                int frames;
+
+                jack_frames = jack_frames_since_cycle_start(client);
+                frames = (int) (*ja_sample_counter - ja_cycle_start_time);
+                if (frames > jack_frames)
+                        return (frames - jack_frames) * ja_sample_duration;
+        }
+        return 0.0;
 }
 
 jack_client_t *ja_client(void)
