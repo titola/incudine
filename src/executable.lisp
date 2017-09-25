@@ -765,6 +765,26 @@ the argument is parsed with READ-FROM-STRING."
                      (funcall (q "CREATE-SERVER") :port port :dont-close t))))))
       (when log-p (format t "~&~A" res)))))
 
+;;; Adapted to PROCESS-INIT-FILE in SB-IMPL::TOPLEVEL-INIT
+(defun process-sbcl-init-file (context specified-pathname default-function)
+  (let ((thing (or specified-pathname (funcall default-function))))
+    (when thing
+      (with-open-file (stream (if specified-pathname
+                                  (sb-ext:parse-native-namestring thing)
+                                  (pathname thing))
+                       :if-does-not-exist nil)
+        (cond (stream
+               (let* ((*load-pathname* (handler-case (pathname stream)
+                                         (error () nil)))
+                      (*load-truename* (when *load-pathname*
+                                         (handler-case (truename stream)
+                                           (file-error () nil)))))
+                 (sb-int:load-as-source stream :context context)))
+              (specified-pathname
+               (cerror "Ignore missing init file"
+                       "The specified ~A file ~A was not found."
+                       context specified-pathname)))))))
+
 ;;; Adapted to SB-IMPL::TOPLEVEL-INIT in `sbcl/src/code/toplevel.lisp'.
 (defun incudine-toplevel ()
   (let ((options (cdr sb-ext:*posix-argv*))
@@ -801,15 +821,17 @@ the argument is parsed with READ-FROM-STRING."
             (funcall *core-init-function*)
             (let ((pkg *package*))
               (when (toplevel-options-sysinit-p opt)
-                (sb-impl::process-init-file
-                  (toplevel-options-sysinit opt) :system)
+                (process-sbcl-init-file
+                  "sysinit" (toplevel-options-sysinit opt)
+                  sb-ext:*sysinit-pathname-function*)
                 (unless (or (eq pkg *package*)
                             (null (toplevel-options-sysinit opt)))
                   ;; sysinit file of incudine changes the current package.
                   (setf pkg *package*)))
               (when (toplevel-options-userinit-p opt)
-                (sb-impl::process-init-file
-                  (toplevel-options-userinit opt) :user)
+                (process-sbcl-init-file
+                  "userinit" (toplevel-options-userinit opt)
+                  sb-ext:*userinit-pathname-function*)
                 (unless (or (eq pkg *package*) (toplevel-options-userinit opt))
                   ;; The default init files of SBCL don't change the
                   ;; current package.
