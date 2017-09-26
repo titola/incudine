@@ -77,6 +77,8 @@ n rego-test-1 (incf frq 110) .03
 #+RESULTS:
 [[file:ly_test.png]]
 
+: small example
+
 :labella
 n rego-test-1 2200 .1
 (incf n)

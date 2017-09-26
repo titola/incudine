@@ -96,7 +96,7 @@ score block to ignore."
   ;; used in org-mode.
   (ignore-score-statements
     (append '("*" "**" "***" "****" "*****" "+" "-" "/" "!" "^" "$" "$$"
-              "#" "DEADLINE:" "SCHEDULED:" ("#+BEGIN:" "#+END:"))
+              "#" ":" "DEADLINE:" "SCHEDULED:" ("#+BEGIN:" "#+END:"))
             (mapcar (lambda (name)
                       (list (format nil "#+BEGIN_~A" name)
                             (format nil "#+END_~A" name)))
