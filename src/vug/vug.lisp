@@ -1129,7 +1129,12 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
          (let ((fn (cadr def)))
            (if (and (consp fn) (not (eq (car fn) 'setf)))
                (parse-lambda-form fn flist mlist floop-info)
-               `(make-vug-function :name 'function :inputs (list ',fn)))))
+               (let ((local-func (find fn flist :key #'local-function-name)))
+                 `(make-vug-function
+                    :name 'function
+                    :inputs (list ',(if local-func
+                                        (local-function-real-name local-func)
+                                        fn)))))))
         ((eq name 'lambda)
          (parse-lambda-form def flist mlist floop-info))
         ((eq name 'flet)

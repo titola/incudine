@@ -25,6 +25,15 @@
                (sine (* fscale freq) (* ascale amp) 0)))
       (out (prove m0 m1)))))
 
+(defun function-on-local-name-test () 54321)
+
+(dsp! function-on-local-name ()
+  (initialize
+    (flet ((function-on-local-name-test () 12345))
+      (unless (= (funcall #'function-on-local-name-test) 12345)
+        (error "BUG!! FUNCTION on a local function name."))))
+  (out +sample-zero+))
+
 (with-dsp-test (flet-over-vug.1
       :md5 #(133 30 145 103 143 149 213 125 6 156 63 127 54 219 38 60))
   (flet-over-vug-1 4400 1 10 30 :id 1)
@@ -36,3 +45,10 @@
   (labels-over-vug-1 4400 1 10 30 :id 1)
   (at #[3 s] #'set-controls 1 :freq 3300 :amp .5)
   (at #[4 s] #'set-controls 1 :f-percent 20 :a-percent 40))
+
+(deftest function-on-local-name.1
+    (progn
+      (setf (buffer-value *buffer-test-c1* 100) (sample 1))
+      (bounce-to-buffer (*buffer-test-c1*) (function-on-local-name))
+      (buffer-value *buffer-test-c1* 100))
+  #.+sample-zero+)
