@@ -401,13 +401,12 @@
                   nil curve #'free)))
 
 (declaim (inline start-with-fade-in))
-(defun start-with-fade-in (node name fade-time fade-curve)
-  (declare (type node node) (type symbol name)
-           #.*reduce-warnings*)
+(defun start-with-fade-in (node fade-time fade-curve)
+  (declare (type node node) #.*reduce-warnings*)
   (when (or *node-enable-gain-p* (node-enable-gain-p node))
     (setf (node-fade-time node)
           (or fade-time
-              (let ((time (node-fade-time name)))
+              (let ((time (node-fade-time node)))
                 (if (plusp time) time *fade-time*))))
     (node-fade-in node (node-fade-time node) fade-curve)))
 
@@ -489,7 +488,7 @@
                        (when (node-p (node-next item))
                          (setf (node-prev (node-next item)) item))
                        (incf (int-hash-table-count *node-hash*))
-                       (start-with-fade-in item name fade-time fade-curve)
+                       (start-with-fade-in item fade-time fade-curve)
                        item)
                       (t (setf (node-id item) nil)))))
              (:tail
@@ -529,7 +528,7 @@
                          (setf (node-last target) item
                                (node-parent item) target)
                          (incf (int-hash-table-count *node-hash*))
-                         (start-with-fade-in item name fade-time fade-curve)
+                         (start-with-fade-in item fade-time fade-curve)
                          item))
                       (t (setf (node-id item) nil)))))
              (:before
@@ -548,7 +547,7 @@
                        (link-to-prev item (node-prev item))
                        (link-to-unpaused-prev item (node-prev item))
                        (incf (int-hash-table-count *node-hash*))
-                       (start-with-fade-in item name fade-time fade-curve)
+                       (start-with-fade-in item fade-time fade-curve)
                        item)
                       (t (setf (node-id item) nil)))))
              (:after
@@ -578,7 +577,7 @@
                        (when (eq target (node-last (node-parent item)))
                          (setf (node-last (node-parent item)) item))
                        (incf (int-hash-table-count *node-hash*))
-                       (start-with-fade-in item name fade-time fade-curve)
+                       (start-with-fade-in item fade-time fade-curve)
                        item)
                       (t (setf (node-id item) nil)))))
              (t (nrt-msg error "unknown add-action ~S" add-action)))))))
