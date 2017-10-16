@@ -389,3 +389,9 @@ n  simple3  (+ 100 (random 1000))  0.3  (dur 0.5)
 
 ;;; From rego to lisp file and compilation
 (compile-file (regofile->lispfile "/tmp/loop.rego" 'loop1))
+
+;;; From regofile to list...
+(regofile->list "/tmp/loop.rego")
+
+;;; ...and vice versa
+(regolist->file (regofile->list "/tmp/loop.rego") "/tmp/test.rego")

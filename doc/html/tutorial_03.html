@@ -444,20 +444,26 @@ n  simple3  (+ 100 (random 1000))  0.3  (dur 0.5)
   (stereo (* (envelope (make-local-perc .1 .9) 1 dur #'free)
              (sine freq amp 0))))
 
-<span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Off-line rendering</span>
+<span style="color: #ff7f24;">;;; Off-line rendering</span>
 (bounce-to-disk (<span style="color: #ffa07a;">"/tmp/loop.wav"</span> <span style="color: #b0c4de;">:pad</span> .3)
   (funcall (regofile-&gt;function <span style="color: #ffa07a;">"/tmp/loop.rego"</span>)))
 
-<span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">Realtime #1</span>
+<span style="color: #ff7f24;">;;; Realtime #1</span>
 (rt-start)
 (funcall (regofile-&gt;function <span style="color: #ffa07a;">"/tmp/loop.rego"</span>))
 
-<span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">Realtime #2</span>
+<span style="color: #ff7f24;">;;; Realtime #2</span>
 (regofile-&gt;function <span style="color: #ffa07a;">"/tmp/loop.rego"</span> 'loop1)
 (loop1)
 
-<span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">From rego to lisp file and compilation</span>
-(compile-file (regofile-&gt;lispfile <span style="color: #ffa07a;">"/tmp/loop.rego"</span> 'loop1))</pre>
+<span style="color: #ff7f24;">;;; From rego to lisp file and compilation</span>
+(compile-file (regofile-&gt;lispfile <span style="color: #ffa07a;">"/tmp/loop.rego"</span> 'loop1))
+
+<span style="color: #ff7f24;">;;; From regofile to list...</span>
+(regofile-&gt;list <span style="color: #ffa07a;">"/tmp/loop.rego"</span>)
+
+<span style="color: #ff7f24;">;;; ...and vice versa</span>
+(regolist-&gt;file (regofile-&gt;list <span style="color: #ffa07a;">"/tmp/loop.rego"</span>) <span style="color: #ffa07a;">"/tmp/test.rego"</span>)</pre>
 
       <hr>
       <table class="navtutor">
