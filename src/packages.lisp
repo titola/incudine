@@ -442,6 +442,7 @@
    #:with-nrt #:bounce-to-disk #:bounce-to-buffer
    #:*score-readtable*
    #:regofile->sexp #:regofile->function #:regofile->lispfile
+   #:regofile->list #:regolist->file
    #:defscore-statement #:ignore-score-statements #:delete-score-statement))
 
 (defpackage :incudine.voicer

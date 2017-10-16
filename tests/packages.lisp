@@ -18,4 +18,4 @@
       (when rt-p (rt-start)))))
 
 (defun two-decimals (x)
-  (* .01 (round (* x 100))))
+  (/ (round (* x 100.0)) 100.0))

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -527,21 +527,24 @@ or IGNORE-SCORE-STATEMENTS."
         ;; TIME-OFFSET should be altered if it is defined with a
         ;; parent's variable shadowed in the included rego file,
         ;; therefore it is safe to create a new variable binding.
-        (time-os-bind `(,time-offset-var ,time-offset))
+        (time-os-bind `(,time-offset-var ,(or time-offset +sample-zero+)))
         (tenv-bind `(,parent-tempo-env ,tempo-env))
         (local-tempo `(progn
-                        ,(and time-offset `(incf ,time ,time-offset-var))
+                        ,@(and time-offset `((incf ,time ,time-offset-var)))
                         (setf ,tempo-env (copy-tempo-envelope ,tempo-env))
-                        (push ,tempo-env *score-objects-to-free*))))
+                        (unless (dynamic-incudine-finalizer-p)
+                          (push ,tempo-env *score-objects-to-free*))))
+        (decl `(declare (ignorable ,time-offset-var))))
     (if (car local-bindings)
         ;; Update the local bindings.
-        `((,time-bind ,time-os-bind ,tenv-bind ,@local-bindings) ,local-tempo)
+        `((,time-bind ,time-os-bind ,tenv-bind ,@local-bindings)
+          ,decl ,local-tempo)
         ;; Set the local bindings.
-        `((,time-bind ,time-os-bind ,tenv-bind) ,local-tempo
+        `((,time-bind ,time-os-bind ,tenv-bind) ,decl ,local-tempo
           ,@(cdr local-bindings)))))
 
 (defun %write-regofile (score at-fname time-var dur-var max-time tenv
-                        &optional included-p time-offset)
+                        &optional included-p time-offset (extend-time-p t))
   `(prog*
      ,@(progn
          (unless included-p
@@ -569,8 +572,8 @@ or IGNORE-SCORE-STATEMENTS."
                         ;; End of the included regofile.
                         (pop *include-rego-stack*)
                         `((setf ,time ,parent-time ,tempo-env ,parent-tempo-env)))
-                       (t (list (maybe-extend-time at-fname max-time
-                                                   tenv)))))))))))
+                       (extend-time-p
+                        (list (maybe-extend-time at-fname max-time tenv)))))))))))
 
 (define-constant +rego-time0-index+ 0)
 (define-constant +rego-time1-index+ 1)
@@ -716,13 +719,73 @@ or IGNORE-SCORE-STATEMENTS."
 (defun regofile->function (path &optional fname compile-rego-p)
   (eval (regofile->sexp path fname compile-rego-p)))
 
-(defun regofile->lispfile (rego-file &optional fname lisp-file compile-rego-p)
-  (declare (type (or pathname string null) rego-file lisp-file))
-  (let ((lisp-file (or lisp-file (make-pathname :defaults rego-file
+(defun regofile->lispfile (path &optional fname lisp-file compile-rego-p)
+  (declare (type (or pathname string null) path lisp-file))
+  (let ((lisp-file (or lisp-file (make-pathname :defaults path
                                                 :type "cudo"))))
     (with-open-file (lfile lisp-file :direction :output :if-exists :supersede)
-      (write (regofile->sexp rego-file fname compile-rego-p)
+      (write (regofile->sexp path fname compile-rego-p)
              :stream lfile :gensym nil)
       (terpri lfile)
-      (msg debug "convert ~A -> ~A" rego-file lisp-file)
+      (msg debug "convert ~A -> ~A" path lisp-file)
       lisp-file)))
+
+;;; Similar to REGO-STREAM->SEXP
+(defun %stream->regolist (stream)
+  (let ((%sched (ensure-complex-gensym "AT"))
+        (sched (ensure-complex-gensym "AT"))
+        (incudine::*include-rego-stack* nil))
+    (with-ensure-symbols (time dur tempo tempo-env)
+      (with-gensyms (c-array-wrap smptime0 smptime1 smptime beats last-time
+                     last-dur max-time flist)
+        `(with-cleanup
+           (with-rego-samples (,c-array-wrap ,smptime0 ,smptime1 ,smptime
+                               ,sched ,last-time ,last-dur ,max-time)
+             (let ((,tempo-env (default-tempo-envelope))
+                   (,flist nil))
+               (flet ((,dur (,beats)
+                        (setf ,last-time ,sched)
+                        (setf ,last-dur (sample ,beats))
+                        (setf ,max-time
+                              (max ,max-time (+ ,last-time ,last-dur)))
+                        (time-at ,tempo-env ,beats ,sched))
+                      (,%sched (at-beat fn)
+                        (push (list (+ (* ,smptime *sample-duration*)
+                                       (%time-at ,tempo-env
+                                                 (setf ,sched (sample at-beat))))
+                                    fn)
+                              ,flist)))
+                 (declare (ignorable (function ,dur)))
+                 (macrolet ((,tempo (&rest args)
+                              `(set-tempo-envelope ,',tempo-env
+                                 ,@(if (cdr args)
+                                       args
+                                       `((list ,(car args) ,(car args)) '(0)))))
+                            (,sched (at-beat fn &rest args)
+                              (with-gensyms (x)
+                                `(,',%sched ,at-beat
+                                            (lambda (,x)
+                                              (setf ,',sched (sample ,x))
+                                              (list ',fn ,@args))))))
+                   (symbol-macrolet
+                       ((,time (rego-time (foreign-array-data ,c-array-wrap)
+                                          ,tempo-env)))
+                     ,(incudine::%write-regofile stream sched last-time last-dur
+                                                 max-time tempo-env nil nil nil)
+                     (mapcar (lambda (l) (cons (first l)
+                                               (funcall (second l) (first l))))
+                             (sort (nreverse ,flist) '< :key 'first))))))))))))
+
+(defun stream->regolist (stream)
+  (eval (%stream->regolist stream)))
+
+(defun write-regolist (list stream)
+  (dolist (l list list) (format stream "~{~S~^ ~}~%" l)))
+
+(defun regofile->list (path)
+  (with-open-file (f path) (stream->regolist f)))
+
+(defun regolist->file (list path)
+  (with-open-file (f path :direction :output :if-exists :supersede)
+    (write-regolist list f)
+    path))
