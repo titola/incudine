@@ -174,10 +174,6 @@
 (declaim (inline block-size))
 (defun block-size () *block-size*)
 
-(defun recompile-rt-source-file-p ()
-  (not (eq incudine.config::*enable-portmidi-output-sample-offset*
-           #.incudine.config::*enable-portmidi-output-sample-offset*)))
-
 #-dummy-audio
 (defmacro rt-loop-form (frames-per-buffer block-size)
   (with-gensyms (frames reset pt-started pm-time-delta)

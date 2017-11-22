@@ -29,6 +29,10 @@
 
 (defvar *incudine-force-compile-p* nil)
 
+(defun incudine-maybe-recompile-source-file (component file)
+  (when (symbol-call :incudine.config '#:recompile-source-file-p file)
+    (perform 'compile-op component)))
+
 (defmethod perform :before ((o load-op) (c incudine-source-file))
   (when *incudine-force-compile-p*
     (perform 'compile-op c)))
@@ -69,8 +73,7 @@
                    (:static-file "nothing.c")
                    (:static-file "rtjack.c") (:static-file "rtjack.h")
                    (:static-file "rtpa.c") (:static-file "rtpa.h")
-                   (:static-file "network/osc.c") (:static-file  "network/osc.h")
-                   (:static-file "cache.lisp"))
+                   (:static-file "network/osc.c") (:static-file  "network/osc.h"))
       :output-files
       (compile-op (o c)
         (let ((name #-cygwin "libincudine" #+cygwin "cygincudine-0")
@@ -83,7 +86,8 @@
                  #+(and sbcl x86 (not darwin))
                  (symbol-call :incudine.config '#:fftw-stack-align-test))
       :perform (load-op (o c)
-                 (when (symbol-call :incudine.config '#:changed-compiler-options)
+                 (when (symbol-call :incudine.config '#:changed-compiler-options
+                                    :exclude '(:lisp-features))
                    (setf *incudine-force-compile-p* t)
                    (symbol-call :incudine.config '#:compile-c-library))
                  (symbol-call :cffi '#:load-foreign-library
@@ -97,7 +101,9 @@
      (:file "pool" :depends-on ("spinlock"))
      (:file "util" :depends-on ("pool" "cl-impl"))
      (:file "sync-condition" :depends-on ("conditions"))
-     (:file "fifo" :depends-on ("util" "sync-condition"))
+     (:file "fifo" :depends-on ("util" "sync-condition")
+      :perform (load-op :before (o c)
+                 (incudine-maybe-recompile-source-file c "fifo")))
      (:file "edf-sched" :depends-on ("fifo"))
      (:file "time" :depends-on ("envelope"))
      (:file "int-hash" :depends-on ("util"))
@@ -112,12 +118,8 @@
       :depends-on ("fifo" "bus" "graph" #+jack-audio "jack"
                                         #+jack-midi "jackmidi"
                                         #+portaudio "portaudio")
-      :perform (load-op :around (o c)
-        (load (first (input-files 'load-op c)))
-        (when (symbol-call :incudine '#:recompile-rt-source-file-p)
-          (perform 'compile-op c)
-          (load (first (input-files 'load-op c))))
-        (call-next-method)))
+      :perform (load-op :before (o c)
+                 (incudine-maybe-recompile-source-file c "rt")))
      (:file "nrt" :depends-on ("rt"))
      (:file "score" :depends-on ("nrt"))
      (:file "midi" :depends-on ("edf-sched" "tuning" #+jack-midi "jackmidi"))
@@ -177,7 +179,9 @@
      (:file "deprecated" :depends-on ("vug/in-out")))
     :perform (load-op :after (o c)
        (when *incudine-force-compile-p*
-         (setf *incudine-force-compile-p* nil))))
+         (setf *incudine-force-compile-p* nil))
+       (when (symbol-call :incudine.config '#:changed-compiler-options)
+         (symbol-call :incudine.config '#:store-compiler-options))))
    (:file "src/save-core" :depends-on ("src"))
    (:static-file "COPYING")
    (:static-file "README")
