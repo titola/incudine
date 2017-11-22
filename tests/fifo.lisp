@@ -1,7 +1,7 @@
 (in-package :incudine-tests)
 
 (defmacro with-fifo-test ((var size) &body body)
-  `(let ((,var (incudine::make-fifo ,size :name "test fifo 1 2 3")))
+  `(let ((,var (incudine::make-fifo :buffer-size ,size :name "test fifo 1 2 3")))
      ,@body))
 
 (deftest ring-buffer.1

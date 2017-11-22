@@ -22,7 +22,10 @@
                    (jack-midi-p
                     (pushnew :jack-midi *features*)
                     (pushnew :jack-audio *features*))
-                   (t (default-features)))))
+                   (t (default-features))))
+           (when (and (boundp '*fifo-buffer-type*)
+                      (eq *fifo-buffer-type* 'list))
+             (pushnew :incudine-fifo-circular-list *features*)))
           (t (default-features)))))
 
 (in-package :cl-user)

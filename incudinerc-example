@@ -102,6 +102,12 @@
 
 ;;;----------------------[ Event scheduling ]-----------------------
 
+;; array or list
+(setq *fifo-buffer-type* 'array)
+
+;; A power of two if *FIFO-BUFFER-TYPE* is ARRAY
+(setq *fifo-buffer-size* 128)
+
 ;; Max number of scheduled events in realtime (a power of two).
 (setq *rt-edf-heap-size* 1024)
 

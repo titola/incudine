@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -16,74 +16,118 @@
 
 (in-package :incudine)
 
-(defstruct (fifo (:constructor %make-fifo)
-                 (:copier nil))
-  (items nil)
-  (read-head nil :type list)
-  (write-head nil :type list)
-  (buffer-size 0 :type non-negative-fixnum)
-  (name nil))
+(defvar incudine.config::*fifo-buffer-size* 128)
+(declaim (type (unsigned-byte 16) incudine.config::*fifo-buffer-size*))
 
-(defun make-fifo (buffer-size &key name)
-  (let* ((bsize (next-power-of-two buffer-size))
-         (f (%make-fifo :buffer-size bsize :name name))
-         (lst (make-list bsize :initial-element #'identity)))
-    ;; Ring buffer with a circular list
-    (setf (cdr (last lst)) lst)
-    (setf (fifo-items f) lst)
-    (setf (fifo-read-head f) lst)
-    (setf (fifo-write-head f) lst)
-    f))
+#+incudine-fifo-circular-list
+(progn
+  (defstruct (fifo (:constructor %make-fifo) (:copier nil))
+    (items nil :type list :read-only t)
+    (read-head nil :type list)
+    (write-head nil :type list)
+    (buffer-size 20 :type positive-fixnum)
+    (name nil))
+
+  (defun make-fifo (&key buffer-size name)
+    (let* ((size (or buffer-size incudine.config::*fifo-buffer-size*))
+           (lst (make-list size :initial-element #'identity))
+           (obj (%make-fifo :items lst :read-head lst :write-head lst
+                            :buffer-size size :name name)))
+      (setf (cdr (last lst)) lst)
+      obj))
+
+  (declaim (inline fifo-head-equal))
+  (defun fifo-head-equal (h0 h1) (eq h0 h1))
+
+  (defmacro fifo-head-next (fifo head)
+    `(cdr (,head ,fifo)))
+
+  (defmacro fifo-value (fifo next)
+    (declare (ignore fifo))
+    `(car ,next)))
+
+#-incudine-fifo-circular-list
+(progn
+  (defstruct (fifo (:constructor %make-fifo) (:copier nil))
+    (items (make-array 16 :element-type 'function :initial-element #'identity)
+           :type simple-vector :read-only t)
+    (read-head 0 :type non-negative-fixnum)
+    (write-head 0 :type non-negative-fixnum)
+    (buffer-size 16 :type positive-fixnum :read-only t)
+    (mask 15 :type positive-fixnum :read-only t)
+    (name nil))
+
+  (defun make-fifo (&key buffer-size name)
+    (let ((size (next-power-of-two
+                  (or buffer-size incudine.config::*fifo-buffer-size*))))
+      (%make-fifo :items (make-array size :element-type 'function
+                                     :initial-element #'identity)
+                  :buffer-size size :mask (1- size) :name name)))
+
+  (declaim (inline fifo-head-equal))
+  (defun fifo-head-equal (h0 h1) (= h0 h1))
+
+  (defmacro fifo-head-next (fifo head)
+    `(logand (1+ (,head ,fifo)) (fifo-mask ,fifo)))
+
+  (defmacro fifo-value (fifo index)
+    `(aref (fifo-items ,fifo) ,index)))
+
+;;; Communication from nrt-thread to rt-thread
+;;; (single producer single consumer)
+(defvar *to-engine-fifo* (make-fifo :name "to engine"))
+(declaim (type fifo *to-engine-fifo*))
+
+;;; Communication from rt-thread to nrt-thread
+;;; (single producer single consumer)
+(defvar *from-engine-fifo* (make-fifo :name "from engine"))
+(declaim (type fifo *from-engine-fifo*))
+
+;;; Communication from any (non rt) thread to fast-nrt-thread
+;;; (multiple producer single consumer using a spinlock)
+(defvar *from-world-fifo* (make-fifo :name "from world"))
+(declaim (type fifo *from-world-fifo*))
+
+;;; Communication from rt-thread to fast-nrt-thread
+;;; (single producer single consumer)
+(defvar *fast-from-engine-fifo* (make-fifo :name "fast from engine"))
+(declaim (type fifo *fast-from-engine-fifo*))
+
+;;; Communication from fast-nrt-thread to fast-rt-thread
+;;; (single producer single consumer)
+(defvar *fast-to-engine-fifo* (make-fifo :name "fast to engine"))
+(declaim (type fifo *fast-to-engine-fifo*))
+
+(defvar *fast-nrt-spinlock* (make-spinlock "fast nrt"))
+(declaim (type spinlock *fast-nrt-spinlock*))
+
+(defvar *nrt-audio-sync* (make-sync-condition "nrt audio"))
+(declaim (type sync-condition *nrt-audio-sync*))
+
+(defvar *fast-nrt-audio-sync* (make-sync-condition "fast nrt audio"))
+(declaim (type sync-condition *fast-nrt-audio-sync*))
 
 (defmethod print-object ((obj fifo) stream)
   (let ((*print-circle* t))
     (format stream "#<FIFO ~S>" (fifo-name obj))))
 
-(define-constant +fifo-size+ 128)
-
-;;; Communication from nrt-thread to rt-thread
-;;; (single producer single consumer)
-(defvar *to-engine-fifo* (make-fifo +fifo-size+ :name "to engine"))
-(declaim (type fifo *to-engine-fifo*))
-
-;;; Communication from rt-thread to nrt-thread
-;;; (single producer single consumer)
-(defvar *from-engine-fifo* (make-fifo +fifo-size+ :name "from engine"))
-(declaim (type fifo *from-engine-fifo*))
-
-;;; Communication from any (non rt) thread to fast-nrt-thread
-;;; (multiple producer single consumer using a spinlock)
-(defvar *from-world-fifo* (make-fifo +fifo-size+ :name "from world"))
-(declaim (type fifo *from-world-fifo*))
-
-;;; Communication from rt-thread to fast-nrt-thread
-;;; (single producer single consumer)
-(defvar *fast-from-engine-fifo* (make-fifo +fifo-size+
-                                           :name "fast from engine"))
-(declaim (type fifo *fast-from-engine-fifo*))
-
-;;; Communication from fast-nrt-thread to fast-rt-thread
-;;; (single producer single consumer)
-(defvar *fast-to-engine-fifo* (make-fifo +fifo-size+ :name "fast to engine"))
-(declaim (type fifo *fast-to-engine-fifo*))
+(declaim (inline fifo-empty-p))
+(defun fifo-empty-p (fifo)
+  (declare (type fifo fifo))
+  (fifo-head-equal (fifo-read-head fifo) (fifo-write-head fifo)))
 
 (declaim (inline fifo-flush))
 (defun fifo-flush (fifo)
   (declare (type fifo fifo))
   (setf (fifo-read-head fifo) (fifo-write-head fifo)))
 
-(declaim (inline fifo-empty-p))
-(defun fifo-empty-p (fifo)
-  (declare (type fifo fifo))
-  (eq (fifo-read-head fifo) (fifo-write-head fifo)))
-
 (declaim (inline enqueue))
 (defun enqueue (value fifo)
   "Adds VALUE to the end of FIFO. Returns VALUE."
   (declare (type fifo fifo))
-  (let ((next (cdr (fifo-write-head fifo))))
-    (unless (eq next (fifo-read-head fifo))
-      (setf (car next) value)
+  (let ((next (fifo-head-next fifo fifo-write-head)))
+    (unless (fifo-head-equal next (fifo-read-head fifo))
+      (setf (fifo-value fifo next) value)
       (barrier (:memory))
       (setf (fifo-write-head fifo) next)
       value)))
@@ -93,17 +137,15 @@
   (declare (type (or function null) function) (type fifo fifo))
   (when function (enqueue function fifo)))
 
-(defvar *fast-nrt-spinlock* (make-spinlock "fast nrt"))
-
 (defun fast-nrt-enqueue-function (function)
   (declare (type (or function null) function))
   (when function
     (let ((fifo *from-world-fifo*))
       (with-spinlock-held (*fast-nrt-spinlock*)
-        (let ((next (cdr (fifo-write-head fifo))))
-          (unless (eq next (fifo-read-head fifo))
-            (setf (car next) function
-                  (fifo-write-head fifo) next)
+        (let ((next (fifo-head-next fifo fifo-write-head)))
+          (unless (fifo-head-equal next (fifo-read-head fifo))
+            (setf (fifo-value fifo next) function)
+            (setf (fifo-write-head fifo) next)
             function))))))
 
 (declaim (inline fast-nrt-perform-functions))
@@ -111,9 +153,9 @@
   (let ((fifo *from-world-fifo*))
     (with-spinlock-held (*fast-nrt-spinlock*)
       (loop until (fifo-empty-p fifo) do
-           (let* ((next (cdr (fifo-read-head fifo)))
-                  (fn (car next)))
-             (declare (type list next) (type function fn))
+           (let* ((next (fifo-head-next fifo fifo-read-head))
+                  (fn (fifo-value fifo next)))
+             (declare (type function fn))
              (funcall fn)
              (setf (fifo-read-head fifo) next))))))
 
@@ -127,15 +169,11 @@
   (enqueue-function function *fast-to-engine-fifo*)
   nil)
 
-(defvar *nrt-audio-sync* (make-sync-condition "nrt audio"))
-
 (declaim (inline nrt-funcall))
 (defun nrt-funcall (function)
   (enqueue-function function *from-engine-fifo*)
   (sync-condition-signal *nrt-audio-sync*)
   nil)
-
-(defvar *fast-nrt-audio-sync* (make-sync-condition "fast nrt audio"))
 
 (declaim (inline fast-nrt-funcall))
 (defun fast-nrt-funcall (function)
@@ -160,9 +198,9 @@
   (declare #.*standard-optimize-settings*
            (type fifo fifo))
   (loop until (fifo-empty-p fifo) do
-       (let* ((next (cdr (fifo-read-head fifo)))
-              (fn (car next)))
-           (declare (type list next) (type function fn))
+       (let* ((next (fifo-head-next fifo fifo-read-head))
+              (fn (fifo-value fifo next)))
+           (declare (type function fn))
            (barrier (:memory))
            (setf (fifo-read-head fifo) next)
            (handler-case (funcall fn)

@@ -23,10 +23,10 @@ when the duration is undefined.")
 (defvar *sample-size* 4)
 (declaim (type (integer 0 15) *sample-size*))
 
-(defvar *nrt-fifo* (make-fifo 512))
+(defvar *nrt-fifo* (make-fifo :buffer-size 512))
 (declaim (type fifo *nrt-fifo*))
 
-(defvar *nrt-from-world-fifo* (make-fifo +fifo-size+))
+(defvar *nrt-from-world-fifo* (make-fifo))
 (declaim (type fifo *nrt-from-world-fifo*))
 
 (defvar *nrt-node-root*
