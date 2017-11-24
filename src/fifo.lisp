@@ -236,7 +236,7 @@
 
 (defmacro rt-eval ((&key return-value-p) &body form)
   (with-gensyms (func)
-    `(flet ((,func () (progn ,@form)))
+    `(flet ((,func () (progn ,@form ,@(unless return-value-p '(nil)))))
        (if (or (null *rt-thread*) (rt-thread-p))
            (,func)
            (,(if return-value-p
