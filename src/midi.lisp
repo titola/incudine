@@ -45,7 +45,8 @@
   #+jack-midi
   (if (pm:output-stream-p stream)
       (portmidi-write-short stream (pm:message status data1 data2))
-      (jackmidi:write-short stream (jackmidi:message status data1 data2) 3)))
+      (jackmidi:write-short stream (jackmidi:message status data1 data2) 3))
+  stream)
 
 (declaim (inline midi-write-sysex))
 #-jack-midi
@@ -57,9 +58,8 @@
 (defun midi-write-sysex (stream msg-ptr size)
   (if (pm:output-stream-p stream)
       (portmidi-write-sysex stream msg-ptr)
-      (logand (rt-eval (:return-value-p t)
-                (jackmidi:foreign-write stream msg-ptr size))
-              #xffffff)))
+      (rt-eval () (jackmidi:foreign-write stream msg-ptr size)))
+  stream)
 
 (defun sysex-sequence->foreign-array (seq)
   (declare (type sequence seq))
@@ -186,8 +186,7 @@
                  (tuning-et12-cents-offset tuning))
       (setf (u8-ref buf +midi-bulk-tuning-dump-checksum-index+)
             (funcall checksum-function buf +midi-bulk-tuning-dump-buffer-size+))
-      (midi-write-sysex stream buf +midi-bulk-tuning-dump-buffer-size+)
-      stream)))
+      (midi-write-sysex stream buf +midi-bulk-tuning-dump-buffer-size+))))
 
 (defmacro with-midi-single-note-tuning-change-buffer ((buf-var device-id program)
                                                       &body body)
