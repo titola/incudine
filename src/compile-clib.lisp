@@ -407,8 +407,9 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
       (store-compiler-options)
       (values)))
 
-  (defun compile-c-library ()
-    (let ((objs (c-objects-to-compile)))
+  (defun compile-c-library (&optional force-p)
+    (let ((objs (or (c-objects-to-compile)
+                    (and force-p (mapcar #'car *c-source-deps-alist*)))))
       (when objs
         (check-c-compiler)
         (flet ((to-compile-p (key)

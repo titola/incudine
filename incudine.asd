@@ -82,7 +82,16 @@
                                                   :type type))
                   t)))
       :perform (compile-op (o c)
-                 (symbol-call :incudine.config '#:compile-c-library)
+                 (symbol-call :incudine.config '#:compile-c-library
+                   ;; Remake c-library if compile-clib.fasl is updated
+                   ;; (avoid problems with timestamps in ASDF 3.3.1)
+                   (destructuring-bind (t0 t1)
+                       (mapcar #'safe-file-write-date
+                               (list (output-file 'compile-op c)
+                                     (compile-file-pathname*
+                                       (system-relative-pathname
+                                         "incudine" "src/compile-clib"))))
+                     (and t0 t1 (< t0 t1))))
                  #+(and sbcl x86 (not darwin))
                  (symbol-call :incudine.config '#:fftw-stack-align-test))
       :perform (load-op (o c)
