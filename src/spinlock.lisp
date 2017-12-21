@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2017 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -40,16 +40,21 @@
 ;;; Acquire spinlock for the dynamic scope of BODY.
 ;;; Inspired by SB-THREAD:WITH-MUTEX
 #+sbcl
-(defmacro with-spinlock-held ((place) &body body)
-  (with-gensyms (got-it)
-    `(let ((,got-it nil))
-       (declare (sb-int:truly-dynamic-extent ,got-it))
-       (without-interrupts
-         (unwind-protect
-              (when (setq ,got-it (sb-sys:allow-with-interrupts
-                                    (acquire-spinlock ,place)))
-                (sb-sys:with-local-interrupts ,@body))
-           (when ,got-it (release-spinlock ,place)))))))
+(progn
+  (defun call-with-spinlock (function spinlock)
+    (declare (type function function) (type spinlock spinlock))
+    (sb-int:dx-let ((got-it nil))
+      (without-interrupts
+        (unwind-protect
+             (when (setq got-it (sb-sys:allow-with-interrupts
+                                  (acquire-spinlock spinlock)))
+               (sb-sys:with-local-interrupts (funcall function)))
+          (when got-it
+            (release-spinlock spinlock))))))
+
+  (defmacro with-spinlock-held ((place) &body body)
+    `(sb-int:dx-flet ((with-spinlock-thunk () ,@body))
+       (call-with-spinlock #'with-spinlock-thunk ,place))))
 
 #-sbcl
 (defmacro with-spinlock-held ((place) &body body)
