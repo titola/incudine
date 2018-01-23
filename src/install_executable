@@ -88,7 +88,7 @@ fi
 sbcl ${options} \
      --eval "(pushnew (asdf:system-source-directory :incudine) asdf:*central-registry* :test 'equal)" \
      --eval "(progn ${modules})" \
-     --eval '(load (asdf:compile-file* "executable.lisp"))' \
+     --eval '(load (asdf:compile-file* "executable.lisp" :external-format :utf-8))' \
      --eval "${before_save})" \
      --eval "(save-lisp-and-die \"incudine\" :executable t :toplevel 'incudine::incudine-toplevel :save-runtime-options t)" || exit
 

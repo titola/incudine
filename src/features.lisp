@@ -10,7 +10,8 @@
                     #-linux :portaudio
                     *features*)))
     (cond ((probe-file init-file)
-           (load init-file)
+           (load init-file
+             :external-format '(:utf-8 :replacement #\replacement_character))
            (let ((jack-midi-p (and (boundp '*enable-jack-midi*) *enable-jack-midi*)))
              (cond ((boundp '*audio-driver*)
                     (case *audio-driver*

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2015-2017 Tito Latini
+;;; Copyright (c) 2015-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -654,25 +654,27 @@ FLAGS are used with the send and sendto calls."
   (declare (type (signed-byte 64) integer))
   (swap-bytes-i64 integer))
 
-#+(and sbcl little-endian x86)
+#+(and little-endian (not (and sbcl (or x86 x86-64))))
+(defmacro force-signed-integer (value bits)
+  (let ((index (1- bits))
+        (n (gensym)))
+    `(let ((,n ,value))
+       (declare #.incudine.util:*reduce-warnings*)
+       (if (logbitp ,index ,n)
+           (dpb ,n (byte ,index 0) -1)
+           ,n))))
+
+#+(and little-endian (not (and sbcl (or x86 x86-64))))
+(defun swap-bytes-i32 (integer)
+  (declare (type (signed-byte 32) integer)
+           (optimize speed (safety 0)))
+  (force-signed-integer (ntohl (logand #xffffffff integer)) 32))
+
+#+(and sbcl little-endian (not x86-64))
 (defun swap-bytes-i64 (integer)
   (declare (type (signed-byte 64) integer)
            (optimize speed (safety 0)))
-  (let ((n (ntohq integer)))
-    (declare (type (unsigned-byte 64) n))
-    (incudine.util:reduce-warnings
-      (if (logbitp 63 integer)
-          (dpb n (byte 63 0) -1)
-          n))))
-
-#+(and little-endian (not (and sbcl (or x86 x86-64))))
-(progn
-  (declaim (inline swap-bytes-i32 swap-bytes-i64))
-  (defun swap-bytes-i32 (integer)
-    (ntohl integer))
-
-  (defun swap-bytes-i64 (integer)
-    (ntohq integer)))
+  (force-signed-integer (ntohq (ldb (byte 64 0) integer)) 64))
 
 #+little-endian
 (defmacro maybe-ntoh (stream ntoh-fname value)
@@ -743,11 +745,21 @@ multiple of four (bytes)."
 
 (declaim (inline set-int32))
 (defun set-int32 (ptr value)
-  (setf (cffi:mem-ref ptr :uint32) (htonl value)))
+  (setf (cffi:mem-ref ptr :uint32)
+        #-little-endian
+        value
+        #+little-endian
+        (htonl #+(or x86 x86-64) value
+               #-(or x86 x86-64) (logand #xffffffff value))))
 
 (declaim (inline set-int64))
 (defun set-int64 (ptr value)
-  (setf (cffi:mem-ref ptr :uint64) (htonq value)))
+  (setf (cffi:mem-ref ptr :uint64)
+        #-little-endian
+        value
+        #+little-endian
+        (htonq #+(or x86 x86-64) value
+               #-(or x86 x86-64) (ldb (byte 64 0) value))))
 
 (declaim (inline set-char))
 (defun set-char (ptr c)

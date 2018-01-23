@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014-2017 Tito Latini
+;;; Copyright (c) 2014-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -45,7 +45,8 @@
             (let ((init-file (merge-pathnames ".incudinerc"
                                               (user-homedir-pathname))))
               (if (probe-file init-file)
-                  (load init-file)
+                  (load init-file
+                    :external-format '(:utf-8 :replacement #\replacement_character))
                   t)))))
 
   (unless *incudinerc-loaded-p*
