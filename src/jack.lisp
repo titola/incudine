@@ -21,7 +21,6 @@
   (last-time sample))
 
 (cffi:defcfun ("ja_initialize" rt-audio-init) :int
-  (sample-rate sample)
   (input-channels :unsigned-int)
   (output-channels :unsigned-int)
   (frames-per-buffer :unsigned-int)

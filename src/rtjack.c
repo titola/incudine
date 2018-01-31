@@ -259,12 +259,11 @@ SAMPLE ja_get_sample_rate(void)
         return ja_sample_rate;
 }
 
-int ja_initialize(SAMPLE srate, unsigned int input_channels,
-                  unsigned int output_channels, unsigned int nframes,
-                  const char* client_name, SAMPLE *sample_counter)
+int ja_initialize(unsigned int input_channels, unsigned int output_channels,
+                  unsigned int nframes, const char* client_name,
+                  SAMPLE *sample_counter)
 {
         sigset_t sset;
-        (void) srate;
         (void) nframes;
 
         ja_error_msg[0] = '\0';

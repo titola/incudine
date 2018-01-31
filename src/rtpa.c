@@ -97,10 +97,10 @@ SAMPLE pa_get_sample_rate(void)
         return pa_sample_rate;
 }
 
-int pa_initialize(SAMPLE srate, unsigned int input_channels,
-                  unsigned int output_channels, unsigned long nframes,
-                  const char* client_name)
+int pa_initialize(unsigned int input_channels, unsigned int output_channels,
+                  unsigned long nframes, const char* client_name)
 {
+        double srate = -1.0;
         PaStreamParameters input_param, *iparam = NULL;
         PaStreamParameters output_param, *oparam = NULL;
         PaStreamInfo *stream_info;
@@ -122,19 +122,6 @@ int pa_initialize(SAMPLE srate, unsigned int input_channels,
         pa_out_channels = output_channels;
 
         count = Pa_GetDeviceCount();
-        if (pa_input_id >= 0 && pa_input_id < count)
-                input_param.device = pa_input_id;
-        else
-                input_param.device = Pa_GetDefaultInputDevice();
-
-        if (input_param.device != paNoDevice) {
-                input_param.channelCount = input_channels;
-                input_param.sampleFormat = paFloat32;
-                input_param.suggestedLatency =
-                        Pa_GetDeviceInfo(input_param.device)->defaultLowInputLatency;
-                input_param.hostApiSpecificStreamInfo = NULL;
-                iparam = &input_param;
-        }
         if (pa_output_id >= 0 && pa_output_id < count)
                 output_param.device = pa_output_id;
         else
@@ -144,12 +131,34 @@ int pa_initialize(SAMPLE srate, unsigned int input_channels,
                 output_param.channelCount = output_channels;
                 output_param.sampleFormat = paFloat32;
                 output_param.suggestedLatency =
-                        Pa_GetDeviceInfo(output_param.device)->defaultLowOutputLatency;
+                    Pa_GetDeviceInfo(output_param.device)->defaultLowOutputLatency;
                 output_param.hostApiSpecificStreamInfo = NULL;
                 oparam = &output_param;
+                srate = Pa_GetDeviceInfo(output_param.device)->defaultSampleRate;
         }
-        err = Pa_OpenStream(&stream, iparam, oparam, (double)srate, nframes,
-                            paClipOff, NULL, NULL);
+        if (pa_input_id >= 0 && pa_input_id < count)
+                input_param.device = pa_input_id;
+        else
+                input_param.device = Pa_GetDefaultInputDevice();
+
+        if (input_param.device != paNoDevice) {
+                input_param.channelCount = input_channels;
+                input_param.sampleFormat = paFloat32;
+                input_param.suggestedLatency =
+                    Pa_GetDeviceInfo(input_param.device)->defaultLowInputLatency;
+                input_param.hostApiSpecificStreamInfo = NULL;
+                iparam = &input_param;
+                if (srate <= 0)
+                        srate = Pa_GetDeviceInfo(input_param.device)->defaultSampleRate;
+        }
+        err = Pa_IsFormatSupported(iparam, oparam, srate);
+        if (err != paNoError) {
+                pa_set_error_msg(Pa_GetErrorText(err));
+                Pa_Terminate();
+                return 1;
+        }
+        err = Pa_OpenStream(&stream, iparam, oparam, srate, nframes, paClipOff,
+                            NULL, NULL);
         if (err != paNoError) {
                 pa_set_error_msg("PA_OpenStream failed");
                 Pa_Terminate();

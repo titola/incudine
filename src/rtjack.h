@@ -114,9 +114,9 @@ int ja_get_buffer_size(void);
 SAMPLE ja_get_sample_rate(void);
 struct ja_xrun *ja_get_xruns(void);
 void ja_xrun_reset(void);
-int ja_initialize(SAMPLE srate, unsigned int input_channels,
-                  unsigned int output_channels, unsigned int nframes,
-                  const char* client_name, SAMPLE *sample_counter);
+int ja_initialize(unsigned int input_channels, unsigned int output_channels,
+                  unsigned int nframes, const char* client_name,
+                  SAMPLE *sample_counter);
 int ja_start(void);
 int ja_stop(void);
 void ja_set_lisp_io(SAMPLE *input, SAMPLE *output);

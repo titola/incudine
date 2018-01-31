@@ -66,8 +66,7 @@
   #+portaudio (incudine.external::pa-set-devices
                 incudine.config::*portaudio-output-device*
                 incudine.config::*portaudio-input-device*)
-  (cond ((and (zerop (rt-audio-init *sample-rate*
-                                    *number-of-input-bus-channels*
+  (cond ((and (zerop (rt-audio-init *number-of-input-bus-channels*
                                     *number-of-output-bus-channels*
                                     (rt-params-frames-per-buffer *rt-params*)
                                     *foreign-client-name*

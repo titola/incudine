@@ -17,7 +17,6 @@
 (in-package :incudine.external)
 
 (cffi:defcfun ("pa_initialize" rt-audio-init) :int
-  (sample-rate sample)
   (input-channels :unsigned-int)
   (output-channels :unsigned-int)
   (frames-per-buffer :unsigned-long)

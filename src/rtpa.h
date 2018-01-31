@@ -77,9 +77,8 @@ void pa_set_lisp_busy_state(int status);
 void pa_transfer_to_c_thread(void);
 int pa_get_buffer_size(void);
 SAMPLE pa_get_sample_rate(void);
-int pa_initialize(SAMPLE srate, unsigned int input_channels,
-                  unsigned int output_channels, unsigned long nframes,
-                  const char* client_name);
+int pa_initialize(unsigned int input_channels, unsigned int output_channels,
+                  unsigned long nframes, const char* client_name);
 int pa_start(void);
 int pa_stop(void *arg);
 void pa_set_lisp_io(SAMPLE *input, SAMPLE *output);
