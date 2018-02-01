@@ -134,7 +134,7 @@
      (:file "midi" :depends-on ("edf-sched" "tuning" #+jack-midi "jackmidi"))
      (:file "jack" :if-feature :jack-audio :depends-on ("foreign"))
      (:file "jackmidi" :if-feature :jack-midi :depends-on ("fifo" "receiver"))
-     (:file "portaudio" :if-feature :portaudio :depends-on ("foreign"))
+     (:file "portaudio" :if-feature :portaudio :depends-on ("foreign" "logger"))
      (:file "receiver" :depends-on ("vug/midi" "network/generic"))
      (:file "network/sbcl-vops" :if-feature (:and :sbcl (:or :x86 :x86-64))
                             :depends-on ("conditions"))
