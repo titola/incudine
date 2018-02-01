@@ -61,7 +61,8 @@
 
 (declaim (inline recv-set-priority))
 (defun recv-set-priority (thread priority)
-  (when (bt:threadp thread) (thread-set-priority thread priority)))
+  (when (bt:threadp thread)
+    (setf (thread-priority thread) priority)))
 
 (defun add-receiver (stream recv start-function priority)
   (let ((result (funcall start-function recv)))

@@ -66,6 +66,9 @@
 
 ;;; THREADS
 
+(cffi:defcfun "pthread_priority" :int
+  (thread :pointer))
+
 (cffi:defcfun "pthread_set_priority" :int
   (thread :pointer)
   (priority :int))

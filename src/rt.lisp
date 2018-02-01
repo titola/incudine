@@ -30,10 +30,11 @@
 (defmacro with-new-thread ((varname name priority debug-message) &body body)
   `(unless ,varname
      (setf ,varname
-           (bt:make-thread (lambda ()
-                             (thread-set-priority (bt:current-thread) ,priority)
-                             ,@body)
-                           :name ,name))
+           (bt:make-thread
+             (lambda ()
+               (setf (thread-priority (bt:current-thread)) ,priority)
+               ,@body)
+             :name ,name))
      (msg debug ,debug-message)))
 
 (defun nrt-start ()

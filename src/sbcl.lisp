@@ -72,11 +72,23 @@
 (defmacro barrier ((kind) &body body)
   `(sb-thread:barrier (,kind) ,@body))
 
-(defun thread-set-priority (thread priority)
+(defun thread-pointer (thread)
+  (cffi:make-pointer (sb-thread::thread-os-thread thread)))
+
+(defun thread-priority (thread)
+  (declare (type sb-thread:thread thread))
   (when (bt:threadp thread)
-    (incudine.external:pthread-set-priority
-      (cffi:make-pointer (sb-thread::thread-os-thread thread)) priority)
-    thread))
+    (incudine.external::pthread-priority (thread-pointer thread))))
+
+(defun set-thread-priority (thread priority)
+  (declare (type sb-thread:thread thread) (type fixnum priority))
+  (when (bt:threadp thread)
+    (if (zerop (incudine.external:pthread-set-priority
+                 (thread-pointer thread) priority))
+        priority
+        (warn "failed to set scheduling priority ~D" priority))))
+
+(defsetf thread-priority set-thread-priority)
 
 (declaim (inline seed-from-random-state))
 (defun seed-from-random-state (state)

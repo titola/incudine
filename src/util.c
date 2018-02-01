@@ -33,6 +33,15 @@
 
 /* THREAD */
 
+int pthread_priority(pthread_t thread)
+{
+        int policy;
+        struct sched_param param;
+
+        pthread_getschedparam(thread, &policy, &param);
+        return param.sched_priority;
+}
+
 int pthread_set_priority(pthread_t thread, int priority)
 {
         int policy, minprio;

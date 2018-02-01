@@ -116,7 +116,7 @@
    #:logger-time #:logger-time-function #:default-logger-time-function
    #:compare-and-swap #:barrier
    #:get-bytes-consed-in
-   #:thread-set-priority
+   #:thread-priority
    #:seed-random-state
    #:sample->fixnum #:sample->int
    #:without-interrupts #:with-pinned-objects #:with-gc-pending
