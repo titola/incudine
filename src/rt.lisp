@@ -276,7 +276,9 @@
 (defmacro set-rt-block-size (value)
   "Change the block size and update the default realtime loop callback."
   `(progn
-     (rt-stop)
+     (unless (eq (rt-status) :stopped)
+       (rt-stop)
+       (msg warn "rt-thread stopped."))
      (setf *default-rt-loop-cb*
            (case ,value
              ( 1 #'rt-loop-1)
@@ -339,3 +341,15 @@
                  (msg debug "realtime thread stopped")))
              (call-after-stop)
              (setf (rt-params-status *rt-params*) :stopped)))))
+
+#+portaudio
+(defun portaudio-set-device (output &optional (input output))
+  (declare (type fixnum output input))
+  (unless (and (= incudine.config::*portaudio-output-device* output)
+               (= incudine.config::*portaudio-input-device* input))
+    (unless (eq (rt-status) :stopped)
+      (rt-stop)
+      (msg warn "rt-thread stopped."))
+    (setf incudine.config::*portaudio-output-device* output
+          incudine.config::*portaudio-input-device* input))
+  (values output input))
