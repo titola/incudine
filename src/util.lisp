@@ -98,7 +98,7 @@
 (declaim (inline lin->db))
 (defun lin->db (x)
   (let ((in (if (zerop x) least-positive-sample x)))
-    (* (sample 20) (log in (sample 10)))))
+    (* (log in) #.(/ (sample 20) (log (sample 10))))))
 
 (declaim (inline db->lin))
 (defun db->lin (x)
