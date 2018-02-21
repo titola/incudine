@@ -163,11 +163,12 @@
   *sound-velocity*)
 
 (declaim (inline sample->fixnum))
-(defun sample->fixnum (x)
+(defun sample->fixnum (x &key roundp)
   (declare (type (sample
                   #.(coerce (ash most-negative-fixnum -1) 'sample)
-                  #.(coerce (ash most-positive-fixnum -1) 'sample)) x))
-  (multiple-value-bind (result rem) (floor x)
+                  #.(coerce (ash most-positive-fixnum -1) 'sample)) x)
+           (type boolean roundp))
+  (multiple-value-bind (result rem) (if roundp (round x) (floor x))
     (declare (ignore rem))
     result))
 

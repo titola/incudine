@@ -26,12 +26,19 @@
     (mapcar #'power-of-two-p '(7 8 12345 2048 4194304 65535 65536 512 128 8193))
   (NIL T NIL T T NIL T T T NIL))
 
-(deftest sample->fixnum
+(deftest sample->fixnum.1
     (mapcar #'sample->fixnum
             (mapcar (lambda (x) (sample x))
                     '(1.234567 5.4358 7.66854 -15.738 5632.589 299.32563
                       -4984.593 38.4892 -93.4583)))
   (1 5 7 -16 5632 299 -4985 38 -94))
+
+(deftest sample->fixnum.2
+    (mapcar (lambda (x) (sample->fixnum x :roundp t))
+            (mapcar (lambda (x) (sample x))
+                    '(1.234567 5.4358 7.66854 -15.738 5632.589 299.32563
+                      -4984.593 38.4892 -93.4583)))
+  (1 5 8 -16 5633 299 -4985 38 -93))
 
 (deftest calc-lobits
     (loop for i = +table-maxlen+ then (ash i -1)
