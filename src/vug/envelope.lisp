@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -18,8 +18,7 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (import
-   '(incudine:+seg-lin-func+
-     incudine:incudine-missing-arg
+   '(incudine:incudine-missing-arg
      incudine:envelope
      incudine:envelope-data
      incudine::envelope-data-size
@@ -255,7 +254,8 @@
 (define-vug envelope ((env envelope) gate time-scale (done-action function)
                       (location non-negative-fixnum))
   (:defaults (incudine-missing-arg "Missing ENVELOPE struct.") 1 1 #'identity 0)
-  (with-samples (last-level end (curve +seg-lin-func+) grow a2 b1 y1 y2 old-gate)
+  (with-samples (last-level end (curve incudine::+seg-lin-func+)
+                 grow a2 b1 y1 y2 old-gate)
     (declare (preserve last-level end curve grow a2 b1 y1 y2))
     (with ((index 0)
            (curr-node -1)

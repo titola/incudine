@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -224,7 +224,7 @@
    #:moogladder #:moogff #:lpf18 #:svf
    #:direct-convolve #:part-convolve
    ;; multi-channel
-   #:mono #:stereo #:pan2 #:fpan2
+   #:stereo #:pan2 #:fpan2
    ;; midi
    #:*linear-midi-table*
    #:midi-note #:midi-keynum #:midi-highest-keynum #:midi-lowest-keynum
@@ -368,7 +368,7 @@
    #:incudine-unknown-time-unit
    #:init #:enable-sharp-t-syntax #:enable-sharp-square-bracket-syntax
    #:dsp-seq
-   #:buffer #:make-buffer #:buffer-p #:size #:frames #:channels #:mask
+   #:buffer #:make-buffer #:buffer-p
    #:buffer-mask #:buffer-data #:fill-buffer #:smp-ref #:buffer-value
    #:buffer-size #:buffer-frames #:buffer-channels #:buffer-sample-rate
    #:buffer-value #:buffer-mask #:buffer-lobits #:buffer-lomask #:buffer-lodiv
@@ -385,7 +385,7 @@
    #:pch->cps #:cps->pch #:pch->keynum #:keynum->pch
    #:foreign-array #:make-foreign-array #:foreign-array-data
    #:foreign-array-type
-   #:sample-rate #:filename #:free #:free-p
+   #:free #:free-p
    #:with-cleanup #:incudine-finalize #:incudine-cancel-finalization
    #:dynamic-incudine-finalizer-p
    #:play #:stop #:quantize
@@ -427,14 +427,12 @@
    ;; midi
    #:midiout #:midiout-sysex #:midi-tuning-sysex #:set-tuning-from-midi
    ;; envelope
-   #:+seg-step-func+ #:+seg-lin-func+ #:+seg-exp-func+ #:+seg-sine-func+
-   #:+seg-welch-func+ #:+seg-square-func+ #:+seg-cubic-func+
    #:envelope #:envelope-p #:make-envelope #:set-envelope #:envelope-points
    #:envelope-max-points #:envelope-level #:envelope-time #:envelope-curve
    #:envelope-base->curves #:set-envelope-base #:envelope-data #:envelope-duration
    #:envelope-loop-node #:envelope-release-node
    #:envelope-restart-level #:envelope-at
-   #:duration #:max-points #:breakpoints->env #:freq-breakpoints->env
+   #:breakpoints->env #:freq-breakpoints->env
    #:copy-envelope #:scale-envelope #:normalize-envelope #:rescale-envelope
    #:linen #:perc #:cutoff #:asr #:adsr #:dadsr
    #:make-linen #:make-perc #:make-cutoff #:make-asr #:make-adsr #:make-dadsr

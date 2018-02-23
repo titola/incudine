@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@
                       (b1 0.0)
                       (y1 0.0)
                       (y2 0.0)
-                      (curve incudine:+seg-lin-func+))
+                      (curve incudine::+seg-lin-func+))
         (dotimes (i size)
           (setf (smp-ref c-array i)
                 (if (zerop remain)
