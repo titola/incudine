@@ -41,8 +41,9 @@ when the duration is undefined.")
 (declaim (type int-hash-table *nrt-node-hash*))
 
 (defvar *%nrt-input-pointer*
-  (foreign-alloc-sample (* *max-buffer-size*
-                           %number-of-input-bus-channels)))
+  (foreign-alloc-sample (+ (* *max-buffer-size*
+                              %number-of-input-bus-channels)
+                           +io-bus-channels-pad+)))
 (declaim (type foreign-pointer *%nrt-input-pointer*))
 
 (defvar *nrt-input-pointer*
@@ -50,15 +51,17 @@ when the duration is undefined.")
 (declaim (type foreign-pointer *nrt-input-pointer*))
 
 (defvar *%nrt-output-pointer*
-  (foreign-alloc-sample (* *max-buffer-size*
-                           *number-of-output-bus-channels*)))
+  (foreign-alloc-sample (+ (* *max-buffer-size*
+                              *number-of-output-bus-channels*)
+                           +io-bus-channels-pad+)))
 (declaim (type foreign-pointer *%nrt-output-pointer*))
 
 (defvar *nrt-output-pointer*
   (cffi:foreign-alloc :pointer :initial-element *%nrt-output-pointer*))
 (declaim (type foreign-pointer *nrt-output-pointer*))
 
-(defvar *nrt-bus-pointer* (foreign-alloc-sample *number-of-bus-channels*))
+(defvar *nrt-bus-pointer*
+  (foreign-alloc-sample (+ *number-of-bus-channels* +io-bus-channels-pad+)))
 (declaim (type foreign-pointer *nrt-bus-pointer*))
 
 (defvar *nrt-output-peak-values*

@@ -49,16 +49,20 @@
       (setf *nrt-edf-heap* (incudine.edf:make-heap *nrt-edf-heap-size*))
       ;; bus
       (setf *%input-pointer*
-            (foreign-alloc-sample (* *max-buffer-size*
-                                     %number-of-input-bus-channels)))
+            (foreign-alloc-sample (+ (* *max-buffer-size*
+                                        %number-of-input-bus-channels)
+                                     +io-bus-channels-pad+)))
       (setf *input-pointer*
             (foreign-alloc :pointer :initial-element *%input-pointer*))
       (setf *%output-pointer*
-            (foreign-alloc-sample (* *max-buffer-size*
-                                     *number-of-output-bus-channels*)))
+            (foreign-alloc-sample (+ (* *max-buffer-size*
+                                        *number-of-output-bus-channels*)
+                                     +io-bus-channels-pad+)))
       (setf *output-pointer*
             (foreign-alloc :pointer :initial-element *%output-pointer*))
-      (setf *bus-pointer* (foreign-alloc-sample *number-of-bus-channels*))
+      (setf *bus-pointer*
+            (foreign-alloc-sample (+ *number-of-bus-channels*
+                                     +io-bus-channels-pad+)))
       (setf *output-peak-values*
             (foreign-alloc-sample *number-of-output-bus-channels*))
       ;; time
@@ -83,16 +87,20 @@
               group))
       (setf *nrt-node-hash* (make-node-hash *max-number-of-nodes*))
       (setf *%nrt-input-pointer*
-            (foreign-alloc-sample (* *max-buffer-size*
-                                     %number-of-input-bus-channels)))
+            (foreign-alloc-sample (+ (* *max-buffer-size*
+                                        %number-of-input-bus-channels)
+                                     +io-bus-channels-pad+)))
       (setf *nrt-input-pointer*
             (foreign-alloc :pointer :initial-element *%nrt-input-pointer*))
       (setf *%nrt-output-pointer*
-            (foreign-alloc-sample (* *max-buffer-size*
-                                     *number-of-output-bus-channels*)))
+            (foreign-alloc-sample (+ (* *max-buffer-size*
+                                        *number-of-output-bus-channels*)
+                                     +io-bus-channels-pad+)))
       (setf *nrt-output-pointer*
             (foreign-alloc :pointer :initial-element *%nrt-output-pointer*))
-      (setf *nrt-bus-pointer* (foreign-alloc-sample *number-of-bus-channels*))
+      (setf *nrt-bus-pointer*
+            (foreign-alloc-sample (+ *number-of-bus-channels*
+                                     +io-bus-channels-pad+)))
       (setf *nrt-output-peak-values*
             (foreign-alloc-sample *max-number-of-channels*))
       (setf *nrt-sample-counter*

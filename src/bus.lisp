@@ -16,6 +16,10 @@
 
 (in-package :incudine)
 
+;; Samples reserved after the allocated audio busses to avoid a segfault
+;; if the user accidentally requires a value after the last frame.
+(define-constant +io-bus-channels-pad+ 1024)
+
 (defvar *number-of-input-bus-channels* 2)
 (declaim (type channel-number *number-of-input-bus-channels*))
 
@@ -38,8 +42,9 @@
   (max *number-of-input-bus-channels* *number-of-output-bus-channels*))
 
 (defvar *%input-pointer*
-  (foreign-alloc-sample (* *max-buffer-size*
-                           %number-of-input-bus-channels)))
+  (foreign-alloc-sample (+ (* *max-buffer-size*
+                              %number-of-input-bus-channels)
+                           +io-bus-channels-pad+)))
 (declaim (type foreign-pointer *%input-pointer*))
 
 (defvar *input-pointer*
@@ -50,8 +55,9 @@
   `(mem-ref *input-pointer* :pointer))
 
 (defvar *%output-pointer*
-  (foreign-alloc-sample (* *max-buffer-size*
-                           *number-of-output-bus-channels*)))
+  (foreign-alloc-sample (+ (* *max-buffer-size*
+                              *number-of-output-bus-channels*)
+                           +io-bus-channels-pad+)))
 (declaim (type foreign-pointer *%output-pointer*))
 
 (defvar *output-pointer*
@@ -61,7 +67,8 @@
 (defmacro output-pointer ()
   `(mem-ref *output-pointer* :pointer))
 
-(defvar *bus-pointer* (foreign-alloc-sample *number-of-bus-channels*))
+(defvar *bus-pointer*
+  (foreign-alloc-sample (+ *number-of-bus-channels* +io-bus-channels-pad+)))
 (declaim (type foreign-pointer *bus-pointer*))
 
 (defmacro reset-io-pointers ()
