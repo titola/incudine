@@ -49,6 +49,11 @@
         (free buf)))
   (-3 -2 -1 0 1 2 3 4))
 
+(deftest buffer->array.1
+    (with-buffer (buf 8 :initial-contents '(1 2 3 4 5 6 7 8))
+      (coerce (buffer->array buf) 'list))
+  (1.0d0 2.0d0 3.0d0 4.0d0 5.0d0 6.0d0 7.0d0 8.0d0))
+
 (deftest fill-buffer.1
     (let ((buf (make-buffer 8)))
       (fill-buffer buf '(1 2 3 4) :start 4)

@@ -438,6 +438,13 @@ It is possible to use line comments that begin with the `;' char."
                      &key (start 0) end filter-function)
   (quantize-vector obj from start end filter-function aref length obj))
 
+(defun buffer->array (buf)
+  (declare (type buffer-base buf))
+  (let* ((size (buffer-base-size buf))
+         (arr (make-array size :element-type 'sample)))
+    (dotimes (i size arr)
+      (setf (aref arr i) (buffer-value buf i)))))
+
 (declaim (inline buffer->list))
 (defun buffer->list (buf)
   (declare (type buffer-base buf))
