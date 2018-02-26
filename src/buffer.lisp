@@ -565,7 +565,7 @@ It is possible to use line comments that begin with the `;' char."
                   `(let ((end (if end (min end size) size)))
                      (loop for ,i from start below end
                            for ,j ,clause ,seq
-                           for ,max = 0 then (max ,j ,max) do
+                           for ,max = 0 then (max (abs ,j) ,max) do
                           (setf (buffer-value buffer ,i) ,j)
                            finally (when (and normalize-p (/= ,max 1))
                                      (loop for ,i from start below end

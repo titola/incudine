@@ -71,6 +71,12 @@
   (0.0 0.0 0.0 0.0 0.5 1.0 0.0 0.0))
 
 (deftest fill-buffer.4
+    (with-buffer (buf 8)
+      (fill-buffer buf '(1 -1 2 -2 3 -5 4 -4) :normalize-p t)
+      (mapcar #'two-decimals (buffer->list buf)))
+  (0.2 -0.2 0.4 -0.4 0.6 -1.0 0.8 -0.8))
+
+(deftest fill-buffer.5
     (let ((buf (make-buffer 8
                  :fill-function (lambda (arr size)
                                   (dotimes (i size)
@@ -80,7 +86,7 @@
         (mapcar #'two-decimals (buffer->list buf))))
   (0.0 0.12 0.25 0.38 0.5 0.62 0.75 0.88))
 
-(deftest fill-buffer.5
+(deftest fill-buffer.6
     (let ((buf (make-buffer 8)))
       (fill-buffer buf (lambda (arr size)
                          (dotimes (i size)
@@ -91,7 +97,7 @@
         (mapcar #'two-decimals (buffer->list buf))))
   (0.0 0.0 0.0 0.0 0.0 0.25 0.5 0.75))
 
-(deftest fill-buffer.6
+(deftest fill-buffer.7
     (with-buffer (buf 64)
       (mapcar (lambda (x) (floor (* x 1000)))
               (buffer->list (fill-buffer buf *data-text-file*))))
@@ -104,14 +110,14 @@
    1000 2000 3000
    10000 20000 30000))
 
-(deftest fill-buffer.7
+(deftest fill-buffer.8
     (with-buffer (buf 10)
       (mapcar #'floor
               (butlast (buffer->list (fill-buffer buf *data-raw-file*
                                                   :headerless-p t)))))
   (9 8 7 6 5 4 3 2 1))
 
-(deftest fill-buffer.8
+(deftest fill-buffer.9
     (with-buffer (buf 8)
       (fill-buffer buf *data-raw-file*
                    :sndfile-start 80 :headerless-p t :data-format "pcm-s8")
