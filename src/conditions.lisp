@@ -1,4 +1,4 @@
-;;; Copyright (c) 2017 Tito Latini
+;;; Copyright (c) 2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -35,6 +35,8 @@
           ,@(if format-arguments `(:format-arguments (list ,@format-arguments)))))
 
 (defmacro incudine-error (format-control &rest format-arguments)
+  "Signals an INCUDINE-SIMPLE-ERROR controlled by FORMAT-CONTROL
+and FORMAT-ARGUMENTS."
   `(%simple-error 'incudine-simple-error ,format-control ,@format-arguments))
 
 (defmacro foreign-alloc-error (format-control &rest format-arguments)
@@ -44,4 +46,5 @@
   `(%simple-error 'incudine-network-error ,format-control ,@format-arguments))
 
 (defun incudine-missing-arg (datum)
+  "Signals an INCUDINE-MISSING-ARG error."
   (%simple-error 'incudine-missing-arg datum))

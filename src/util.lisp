@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -438,9 +438,11 @@ You can have more than one &rest parameter."
 (defgeneric circular-shift (obj n)
   (:documentation "Perform a circular shift of length N."))
 
-(defgeneric free (obj))
+(defgeneric free (obj)
+  (:documentation "Deallocate the object OBJ."))
 
-(defgeneric free-p (obj))
+(defgeneric free-p (obj)
+  (:documentation "Return T if the object obj is deallocated."))
 
 (defmethod free ((obj list))
   (dolist (x obj) (free x)))

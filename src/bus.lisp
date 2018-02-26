@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -93,6 +93,7 @@
 
 (declaim (inline bus))
 (defun bus (num)
+  "Return the value of the bus number NUM. Setfable."
   (declare (type bus-number num))
   (smp-ref *bus-pointer* num))
 
@@ -105,12 +106,14 @@
 
 (declaim (inline audio-in))
 (defun audio-in (channel &optional (frame 0))
+  "Return the value of the CHANNEL of the input buffer FRAME."
   (declare (type channel-number channel)
            (type non-negative-fixnum frame))
   (smp-ref (input-pointer) (the non-negative-fixnum (+ frame channel))))
 
 (declaim (inline audio-out))
 (defun audio-out (channel &optional (frame 0))
+  "Return the value of the CHANNEL of the output buffer FRAME. Setfable."
   (declare (type channel-number channel)
            (type non-negative-fixnum frame))
   (smp-ref (output-pointer) (the non-negative-fixnum (+ frame channel))))
@@ -141,12 +144,18 @@
 
 (declaim (inline peak-info))
 (defun peak-info (chan)
+  "Return peak information for the channel CHAN."
   (declare (type channel-number chan))
   (values (smp-ref *output-peak-values* chan)
           (svref *out-of-range-counter* chan)))
 
 (defun print-peak-info (&optional (channels *number-of-output-bus-channels*)
                         (stream *logger-stream*))
+  "Print the peak information.
+
+The number of the channels defaults to *NUMBER-OF-OUTPUT-BUS-CHANNELS*.
+
+The output stream is *LOGGER-STREAM* by default."
   (fresh-line stream)
   (format stream "~11Tpeak amps:  ")
   (dochannels (ch channels)
@@ -163,6 +172,7 @@
     (setf (svref *out-of-range-counter* chan) 0)))
 
 (defun reset-peak-meters ()
+  "Reset the peak meters."
   (at 0 #'%reset-peak-meters))
 
 (defun set-number-of-channels (inputs outputs)

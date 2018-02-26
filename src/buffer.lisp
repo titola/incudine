@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
   (defstruct (buffer (:include buffer-base)
                      (:constructor %make-buffer)
                      (:copier nil))
+    "Buffer type."
     (mask 0 :type non-negative-fixnum)
     ;; LOBITS, LOMASK and LODIV used with the oscillators
     ;; that require power-of-two tables
@@ -37,6 +38,23 @@
     (sample-rate *sample-rate* :type sample)
     (file nil :type (or pathname null))
     (textfile-p nil :type boolean)))
+
+(setf
+  (documentation 'buffer-p 'function)
+  "Return T if object is of type BUFFER."
+  (documentation 'buffer-data 'function)
+  "Return the foreign pointer to the buffer data."
+  (documentation 'buffer-size 'function)
+  "Return the buffer size."
+  (documentation 'buffer-frames 'function)
+  "Return the number of the sample frames of the buffer."
+  (documentation 'buffer-channels 'function)
+  "Return the number of the channels of the buffer."
+  (documentation 'buffer-sample-rate 'function)
+  "Return the buffer sample rate."
+  (documentation 'buffer-file 'function)
+  "If the buffer is created with BUFFER-LOAD or MAKE-BUFFER with
+a non-NIL FILE argument, return the pathname.")
 
 (declaim (inline calc-buffer-mask))
 (defun calc-buffer-mask (size)
@@ -90,6 +108,7 @@
 
 (declaim (inline buffer-value))
 (defun buffer-value (buffer index)
+  "Return the buffer value stored at the sample frame INDEX. Setfable."
   (declare (type buffer-base buffer) (type non-negative-fixnum index))
   (smp-ref (buffer-base-data buffer) index))
 
@@ -109,7 +128,7 @@ not valid.
 There is not the parsing of the numbers, a text file is valid if it
 contains numbers separated with spaces, tabs or newlines.
 
-It is possible to use line comments that begin with the `;' char."
+It is possible to use line comments that begin with the ';' character."
   (flet ((valid-char-p (code)
            (or ;; [0-9]
                (< 47 code 58)
@@ -198,6 +217,28 @@ It is possible to use line comments that begin with the `;' char."
 
 (defun buffer-load (path &key (offset 0) frames (channel -1) channels
                     sample-rate headerless-p data-format)
+  "Create a new buffer by loading the file PATH (string or pathname).
+
+If PATH represents a sound file, load that file starting from OFFSET
+sample frame (defaults to 0).
+
+If PATH corresponds to a text file that contains numbers, create a buffer
+with that values. There is not the parsing of the numbers, a text file is
+valid if it contains numbers separated with spaces, tabs or newlines.
+It is possible to use line comments that begin with the ';' character.
+
+If FRAMES is non-NIL, create a buffer with FRAMES sample frames.
+
+If CHANNEL is  greater than or equal to zero, load that channel (zero based)
+of the sound file, otherwise import all the channels (default).
+
+The number of channels is CHANNELS or the number of channels of the
+sound file if CHANNELS is NIL (default).
+
+If HEADERLESS-P is T, load a headerless file with sample type DATA-FORMAT
+(defaults to \"double\")
+
+SAMPLE-RATE is *SAMPLE-RATE* by default."
   (declare (type (or string pathname) path) (type fixnum channel)
            (type non-negative-real offset))
   (let ((offset (floor offset))
@@ -247,6 +288,19 @@ It is possible to use line comments that begin with the `;' char."
 (defun buffer-save (buf path &key (start 0) (end 0) sample-rate
                     textfile-p (header-type *default-header-type*)
                     (data-format *default-data-format*))
+  "Save the buffer data of BUF to the file PATH.
+
+START specifies an offset into the buffer and marks the beginning
+position of that buffer. END marks the position following the last
+value of the buffer.
+
+If SAMPLE-RATE is non-NIL, it replaces the sample rate of the buffer.
+
+If TEXTFILE-P is T, save the buffer data to a text file.
+
+HEADER-TYPE defaults to *DEFAULT-HEADER-TYPE*.
+
+DATA-FORMAT defaults to *DEFAULT-DATA-FORMAT*."
   (declare (type buffer buf) (type (or string pathname) path)
            (type non-negative-real start end)
            (type (or positive-real null) sample-rate))
@@ -284,6 +338,7 @@ It is possible to use line comments that begin with the `;' char."
     (values)))
 
 (defun copy-buffer (buffer)
+  "Return a copy of BUFFER."
   (declare (type buffer buffer))
   (if (free-p buffer)
       (msg error "The buffer is unusable.")
@@ -297,6 +352,10 @@ It is possible to use line comments that begin with the `;' char."
         new)))
 
 (defun resize-buffer (buffer frames &optional channels)
+  "Resize BUFFER to FRAMES sample frames.
+
+If CHANNELS is non-NIL, the resized buffer is created with that number
+of channels."
   (declare (type buffer buffer) (type non-negative-real frames)
            (type (or non-negative-fixnum null) channels))
   (if (or (free-p buffer)
@@ -330,8 +389,10 @@ It is possible to use line comments that begin with the `;' char."
           (lambda () (funcall (buffer-foreign-free buffer) data)))
         buffer)))
 
-;;; FUNCTION has two arguments: the index and the value of the buffer
 (defun map-buffer (function buffer)
+  "Destructively modifies BUFFER to contain the results of applying
+FUNCTION to each buffer value. The function arguments are the index
+and the buffer value."
   (declare (type function function) (type buffer-base buffer))
   (dotimes (i (buffer-base-size buffer) buffer)
     (declare #.*standard-optimize-settings* #.*reduce-warnings*)
@@ -339,6 +400,10 @@ It is possible to use line comments that begin with the `;' char."
 
 ;;; Like MAP-INTO but for the BUFFERs
 (defun map-into-buffer (result-buffer function &rest buffers)
+  "Destructively modifies RESULT-BUFFER to contain the results of
+applying FUNCTION to each element in the argument BUFFERS in turn
+
+FUNCTION is a function of as many arguments as there are buffers."
   (declare (type function function) (type buffer-base result-buffer))
   (let ((size (reduce #'min
                       (mapcar #'buffer-base-size (cons result-buffer buffers)))))
@@ -355,14 +420,16 @@ It is possible to use line comments that begin with the `;' char."
 
 (declaim (inline scale-buffer))
 (defun scale-buffer (buffer mult)
+  "Multiply the buffer values by MULT."
   (declare (type buffer-base buffer) (type real mult))
   (map-buffer (lambda (index value)
                 (declare (ignore index))
                 (* value mult))
               buffer))
 
-(defun normalize-buffer (buffer norm-value)
-  (declare (type buffer-base buffer) (type real norm-value))
+(defun normalize-buffer (buffer value)
+  "Scales the buffer values to be between -value and value."
+  (declare (type buffer-base buffer) (type real value))
   (let ((data (buffer-base-data buffer))
         (size (buffer-base-size buffer)))
     (declare (type positive-fixnum size))
@@ -373,9 +440,10 @@ It is possible to use line comments that begin with the `;' char."
                    max
                    (norm (1+ index)
                          (max (abs (smp-ref data index)) max)))))
-      (scale-buffer buffer (/ norm-value (norm 1 (abs (smp-ref data 0))))))))
+      (scale-buffer buffer (/ value (norm 1 (abs (smp-ref data 0))))))))
 
 (defun rescale-buffer (buffer min max)
+  "Rescale the buffer values to be between MIN and MAX."
   (declare (type buffer-base buffer) (type real min max))
   (let ((data (buffer-base-data buffer))
         (size (buffer-base-size buffer)))
@@ -398,6 +466,7 @@ It is possible to use line comments that begin with the `;' char."
 
 (declaim (inline sort-buffer))
 (defun sort-buffer (buffer)
+  "Destructively sort BUFFER."
   (sort-samples (buffer-base-data buffer) (buffer-base-size buffer))
   buffer)
 
@@ -439,6 +508,8 @@ It is possible to use line comments that begin with the `;' char."
   (quantize-vector obj from start end filter-function aref length obj))
 
 (defun buffer->array (buf)
+  "Create a new array of type (simple-array sample (*)) with the
+content of the buffer."
   (declare (type buffer-base buf))
   (let* ((size (buffer-base-size buf))
          (arr (make-array size :element-type 'sample)))
@@ -447,6 +518,7 @@ It is possible to use line comments that begin with the `;' char."
 
 (declaim (inline buffer->list))
 (defun buffer->list (buf)
+  "Create a new list with the content of the buffer."
   (declare (type buffer-base buf))
   (loop for i below (buffer-base-size buf) collect (buffer-value buf i)))
 
@@ -562,9 +634,36 @@ It is possible to use line comments that begin with the `;' char."
         buffer)
       (nrt-msg error "file ~S not found" (namestring path))))
 
-(defun fill-buffer (buffer values &key (start 0) end (sndfile-start 0)
+(defun fill-buffer (buffer obj &key (start 0) end (sndfile-start 0)
                     channel-map (normalize-p nil normalize-pp)
                     headerless-p data-format)
+  "If OBJ is a function, fill the buffer to contain the results of
+applying OBJ. The function arguments are the foreign pointer to the
+buffer data and the buffer size (i.e. GEN routines are valid functions).
+
+If OBJ is a list, a vector or an ENVELOPE struct, it is used to fill
+the buffer.
+
+If OBJ is of type string or pathname, load that file. If the file is
+a sound file, load OBJ starting from SNDFILE-START sample frame
+(defaults to 0). If HEADERLESS-P is T, load a headerless file with
+sample type DATA-FORMAT (defaults to \"double\").  If OBJ corresponds
+to a text file that contains numbers, fill the buffer with that values.
+There is not the parsing of the numbers, a text file is valid if it
+contains numbers separated with spaces, tabs or newlines. It is
+possible to use line comments that begin with the ';' character.
+
+START specifies an offset into the buffer and marks the beginning
+position of that buffer. END marks the position following the last
+value of the buffer.
+
+CHANNEL-MAP is a list of lists (soundfile-channel buffer-channel)
+used to define the mapping between the sound file channel data and
+the buffer channel data. For example, CHANNEL-MAP '((1 0) (0 1))
+fills the first two buffer channel data with the swapped channels of
+a stereo sound file.
+
+If NORMALIZE-P is T, normalize the buffer data between -1 and 1."
   (declare (type buffer buffer) (type boolean normalize-p)
            (type non-negative-fixnum start sndfile-start))
   (macrolet ((loop-sequence (clause seq)
@@ -585,28 +684,28 @@ It is possible to use line comments that begin with the `;' char."
       (when (and (free-p buffer) (plusp size))
         (setf (buffer-data buffer) (foreign-alloc-sample (buffer-size buffer))))
       (unless (free-p buffer)
-        (cond ((functionp values)
+        (cond ((functionp obj)
                (let ((chunk-size (- (if end (min end size) size) start)))
                  (when (plusp chunk-size)
                    (multiple-value-bind (c-array mult norm-p)
-                       (funcall values (inc-pointer (buffer-data buffer)
-                                                    (* start
-                                                       +foreign-sample-size+))
+                       (funcall obj (inc-pointer (buffer-data buffer)
+                                                 (* start
+                                                    +foreign-sample-size+))
                                 chunk-size)
                      (declare (ignore c-array))
                      (let ((norm-p (if normalize-pp normalize-p norm-p)))
                        (when (and norm-p (numberp mult) (/= mult 1))
                          (scale-buffer buffer mult)))))))
-              ((consp values) (loop-sequence in values))
-              ((or (stringp values) (pathnamep values))
-               (set-buffer-from-sndfile buffer values sndfile-start start
+              ((consp obj) (loop-sequence in obj))
+              ((or (stringp obj) (pathnamep obj))
+               (set-buffer-from-sndfile buffer obj sndfile-start start
                                         (if end
                                             (min end (buffer-frames buffer))
                                             (buffer-frames buffer))
                                         channel-map headerless-p data-format))
-              ((vectorp values) (loop-sequence across values))
-              ((envelope-p values)
-               (fill-buffer buffer (gen:envelope values)
+              ((vectorp obj) (loop-sequence across obj))
+              ((envelope-p obj)
+               (fill-buffer buffer (gen:envelope obj)
                             :start start :end end
                             :normalize-p normalize-p))))
       buffer)))
@@ -615,6 +714,21 @@ It is possible to use line comments that begin with the `;' char."
                     (sample-rate *sample-rate*) real-time-p
                     initial-contents fill-function (start 0) end
                     normalize-p)
+  "Create a new buffer with FRAMES sample frames.
+
+If FILE is non-NIL, copy the sample frames of a soundfile starting from
+OFFSET sample frame.
+
+INITIAL-CONTENTS is used to initialize the contents of the buffer from START
+to END frame.
+
+FILL-FUNCTION is a function used to fill the buffer from START to END frame.
+The function arguments are the foreign pointer to the buffer data and the
+buffer size (i.e. GEN routines are valid functions).
+
+If NORMALIZE-P is T, normalize the initial content of the buffer.
+
+If the buffer is to alloc in real-time, set REAL-TIME-P to T."
   (declare (type non-negative-real frames start offset sample-rate)
            (type (or non-negative-real null) end)
            (type non-negative-fixnum channels)
@@ -642,12 +756,21 @@ It is possible to use line comments that begin with the `;' char."
           buf))))
 
 (defmacro with-buffer ((var frames &rest args) &body body)
+  "Bind VAR to a new allocated BUFFER structure with dynamic extent
+during BODY.
+
+FRAMES and the other keyword arguments ARGS are passed to MAKE-BUFFER."
   `(let ((,var (make-buffer ,frames ,@args)))
      (unwind-protect
           (progn ,@body)
        (free ,var))))
 
 (defmacro with-buffers (bindings &body body)
+    "Create a new allocated BUFFER structures with dynamic extent during BODY.
+
+BINDINGS is a list of lists (var frames &rest args), where VAR is the
+variable bound to a buffer, FRAMES and the other keyword arguments ARGS are
+passed to MAKE-BUFFER."
   (if bindings
       `(with-buffer ,(car bindings)
          (with-buffers ,(cdr bindings)
@@ -657,9 +780,11 @@ It is possible to use line comments that begin with the `;' char."
 ;;; Frequently used waveforms
 
 (defvar *sine-table* (make-buffer *default-table-size*
-                                  :fill-function (gen:partials '(1))))
+                                  :fill-function (gen:partials '(1)))
+  "BUFFER structure with a single cycle sinusoid.")
 (declaim (type buffer *sine-table*))
 
 (defvar *cosine-table* (make-buffer *default-table-size*
-                                    :fill-function (gen:partials '((1 1 .25)))))
+                                    :fill-function (gen:partials '((1 1 .25))))
+  "BUFFER structure with a single cycle cosinusoid.")
 (declaim (type buffer *cosine-table*))
