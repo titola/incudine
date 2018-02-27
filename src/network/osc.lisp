@@ -654,7 +654,7 @@ FLAGS are used with the send and sendto calls."
   (declare (type (signed-byte 64) integer))
   (swap-bytes-i64 integer))
 
-#+(and little-endian (not (and sbcl (or x86 x86-64))))
+#+(and little-endian (not (and sbcl x86-64)))
 (defmacro force-signed-integer (value bits)
   (let ((index (1- bits))
         (n (gensym)))
@@ -674,7 +674,8 @@ FLAGS are used with the send and sendto calls."
 (defun swap-bytes-i64 (integer)
   (declare (type (signed-byte 64) integer)
            (optimize speed (safety 0)))
-  (force-signed-integer (ntohq (ldb (byte 64 0) integer)) 64))
+  (force-signed-integer (incudine.util:reduce-warnings
+                          (ntohq (ldb (byte 64 0) integer))) 64))
 
 #+little-endian
 (defmacro maybe-ntoh (stream ntoh-fname value)
