@@ -23,7 +23,7 @@
      incudine:envelope-data
      incudine::envelope-data-size
      incudine:envelope-points
-     incudine:envelope-max-points
+     incudine::envelope-max-points
      incudine:envelope-loop-node
      incudine:envelope-release-node
      incudine:envelope-restart-level

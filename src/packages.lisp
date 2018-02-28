@@ -428,7 +428,7 @@
    #:midiout #:midiout-sysex #:midi-tuning-sysex #:set-tuning-from-midi
    ;; envelope
    #:envelope #:envelope-p #:make-envelope #:set-envelope #:envelope-points
-   #:envelope-max-points #:envelope-level #:envelope-time #:envelope-curve
+   #:envelope-level #:envelope-time #:envelope-curve
    #:envelope-base->curves #:set-envelope-base #:envelope-data #:envelope-duration
    #:envelope-loop-node #:envelope-release-node
    #:envelope-restart-level #:envelope-at
