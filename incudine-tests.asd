@@ -68,6 +68,7 @@
      (:file "vug/ugen-reinit" :depends-on ("vug/ugen-base"))
      (:file "vug/delay/delay-1" :depends-on ("vug/base"))
      (:file "vug/delay/delay-2" :depends-on ("vug/base"))
+     (:file "vug/with-buffer" :depends-on ("vug/ugen-base"))
      (:file "vug/envelope" :depends-on ("vug/ugen-base"))
      (:file "vug/filter/sharp-t" :depends-on ("vug/base"))
      (:file "vug/filter/svf" :depends-on ("vug/base"))

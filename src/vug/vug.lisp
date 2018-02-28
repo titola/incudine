@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -29,6 +29,8 @@
 (declaim (type hash-table *dsps*))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
+  (import '(incudine:with-buffer incudine:with-buffers))
+
   (defvar *constructors-for-objects-to-free* nil)
   (declaim (type list *constructors-for-objects-to-free*))
 
@@ -1091,6 +1093,19 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
 ;;; avoids the obscure isolated vug-variables in the body of a VUG.
 (defmacro maybe-expand (&body body) `(progn ,@body))
 
+(defun maybe-transform-macro (name def)
+  (macroexpand-1
+    (let ((lambda-list (cdr def)))
+      (cond ((member name '(with-samples with-samples*))
+             ;; The bindings of the initialization are sequential, so
+             ;; there is not difference between WITH-SAMPLES and
+             ;; WITH-SAMPLES* within a definition of a VUG.
+             `(%with-samples ,@lambda-list))
+            ;; WITH-BUFFERS expands to multiple WITH-BUFFER's.
+            ((eq name 'with-buffer)
+             `(%with-buffer ,@lambda-list))
+            (t def)))))
+
 (defun parse-vug-function (def name flist mlist floop-info)
   (cond ((binding-form-p def)
          (parse-binding-form def flist mlist floop-info))
@@ -1154,15 +1169,7 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
               ;; Avoid the expansion of the setter forms.
               ;; This information is used during the code generation.
               (not (setter-form-p name)))
-         (let ((expansion (macroexpand-1
-                            (if (member name '(with-samples
-                                               with-samples*))
-                                ;; The bindings of the initialization are
-                                ;; sequential, so there is not difference
-                                ;; between WITH-SAMPLES and WITH-SAMPLES*
-                                ;; within a definition of a VUG
-                                `(%with-samples ,@(cdr def))
-                                def))))
+         (let ((expansion (maybe-transform-macro name def)))
            (if (vug name)
                `(mark-vug-block
                   ,(parse-vug-def expansion nil flist mlist floop-info))
@@ -1859,6 +1866,9 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
      ,@(when bindings
          `((declare (type sample ,@(argument-names bindings)))))
      ,@body))
+
+(defmacro %with-buffer ((var frames &rest args) &body body)
+  `(with ((,var (make-local-buffer ,frames ,@args))) ,@body))
 
 ;;; Used only inside the definition of a VUG-MACRO to specify the
 ;;; inputs of the VUG.

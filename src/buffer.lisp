@@ -756,7 +756,7 @@ If the buffer is to alloc in real-time, set REAL-TIME-P to T."
           buf))))
 
 (defmacro with-buffer ((var frames &rest args) &body body)
-  "Bind VAR to a new allocated BUFFER structure with dynamic extent
+  "Bind VAR to a newly allocated BUFFER structure with dynamic extent
 during BODY.
 
 FRAMES and the other keyword arguments ARGS are passed to MAKE-BUFFER."
@@ -766,7 +766,8 @@ FRAMES and the other keyword arguments ARGS are passed to MAKE-BUFFER."
        (free ,var))))
 
 (defmacro with-buffers (bindings &body body)
-    "Create a new allocated BUFFER structures with dynamic extent during BODY.
+  "Create bindings to newly allocated BUFFER structures with dynamic extent
+during BODY.
 
 BINDINGS is a list of lists (var frames &rest args), where VAR is the
 variable bound to a buffer, FRAMES and the other keyword arguments ARGS are
