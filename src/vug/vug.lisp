@@ -1690,6 +1690,9 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
 (defun unquoting-spec-p (name)
   (member name '(:pre-hook)))
 
+(defun vug-spec-p (list)
+  (and (consp (car list)) (keywordp (caar list))))
+
 ;;; SBCL VOP style for optional VUG SPEC's.
 (defun extract-vug-specs (code)
   (declare (type list code))
@@ -1697,8 +1700,7 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
                (car code))))
     (do ((l (if doc (cdr code) code) (cdr l))
          (acc nil))
-        ((or (null l) (not (keywordp (caar l))))
-         (values doc acc l))
+        ((not (vug-spec-p l)) (values doc acc l))
       (let ((key (caar l))
             (value (cdar l)))
         (unless (member key '(:constructor :defaults :instance-type

@@ -2,6 +2,8 @@
 
 (compile-vug 'vug-test-1 'sample)
 
+(define-ugen ugen-atom-test fixnum ((x fixnum)) x)
+
 (define-ugen envelope* sample ((env envelope) gate time-scale
                                (done-action function))
   (envelope env gate time-scale done-action))
@@ -174,3 +176,8 @@
 (deftest with-cleanup-ugen-instance.1
     (free-p (with-cleanup (funcall (ugen-test-1 100 123456 30))))
   T)
+
+(with-ugen-test (ugen.9)
+    (with-ugen-instance (u ugen-atom-test 123)
+      (funcall (ugen-perf-function u)))
+  123)

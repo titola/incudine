@@ -459,7 +459,7 @@ to call to get the control value."
           def)
     (do ((specs nil (cons (car l) specs))
          (l form (cdr l)))
-        ((not (keywordp (caar l))) (values doc specs l)))))
+        ((not (vug-spec-p l)) (values doc specs l)))))
 
 (defun get-ugen-spec (name specs)
   (cdr (assoc name specs)))
