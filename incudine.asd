@@ -2,7 +2,7 @@
 ;;;
 ;;; ASDF system definition for INCUDINE.
 ;;;
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@
     (perform 'compile-op c)))
 
 (defsystem "incudine"
-  :version "0.9.14"
+  :version "0.9.15"
   :description "Incudine is a Music/DSP programming environment."
   :licence "GPL v2"
   :author "Tito Latini"
@@ -190,7 +190,8 @@
        (when *incudine-force-compile-p*
          (setf *incudine-force-compile-p* nil))
        (when (symbol-call :incudine.config '#:changed-compiler-options)
-         (symbol-call :incudine.config '#:store-compiler-options))))
+         (symbol-call :incudine.config '#:store-compiler-options))
+       #+swank (symbol-call :incudine.util :set-swank-arglist-interface)))
    (:file "src/save-core" :depends-on ("src"))
    (:static-file "COPYING")
    (:static-file "README")

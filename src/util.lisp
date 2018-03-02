@@ -373,6 +373,15 @@ You can have more than one &rest parameter."
          (declare (ignore ,aux-var))
          ,(defmacro*-body 'optional-keywords args kargs body)))))
 
+(defun lambda-list-to-star-list (arglist)
+  "Return the optional-key arguments of ARGLIST."
+  (let ((aux-pos (position '&aux arglist)))
+    (when aux-pos
+      (let ((arglist (assoc "LAMBDA-LIST" (cdr (subseq arglist aux-pos))
+                            :key #'symbol-name :test #'string=)))
+        (when arglist
+          (cons '&any (cadadr arglist)))))))
+
 (in-package :incudine)
 
 (defvar *init-p* t)

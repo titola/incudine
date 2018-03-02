@@ -130,7 +130,7 @@
    #:with-foreign-array #:with-samples #:with-samples*
    #:with-complex
    #:do-complex
-   #:defun* #:lambda* #:defmacro*
+   #:defun* #:lambda* #:defmacro* #:lambda-list-to-star-list
    #:spinlock #:make-spinlock #:acquire-spinlock #:release-spinlock
    #:with-spinlock-held
    #:cons-pool #:make-cons-pool #:expand-cons-pool #:cons-pool-size

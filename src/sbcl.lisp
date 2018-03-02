@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -153,3 +153,21 @@
   (let ((t0 #1=(sb-ext:get-bytes-consed)))
     (sleep time)
     (- #1# t0)))
+
+;;; SWANK
+
+(defun set-swank-arglist-interface ()
+  (let ((defimpl (and (find-package "SWANK/BACKEND")
+                      (find-symbol "DEFIMPLEMENTATION" "SWANK/BACKEND"))))
+    (when defimpl
+      (let ((arglist (find-symbol "ARGLIST" "SWANK/BACKEND")))
+        (cond (arglist
+               (require 'sb-introspect)
+               (eval
+                 `(,defimpl ,arglist (fname)
+                    (let ((arglist (uiop:symbol-call
+                                     :sb-introspect
+                                     '#:function-lambda-list fname)))
+                      (or (lambda-list-to-star-list arglist) arglist)))))
+              (t
+               (warn "Undefined SWANK ARGLIST interface.")))))))

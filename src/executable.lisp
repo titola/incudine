@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -873,7 +873,8 @@ the argument is parsed with READ-FROM-STRING."
       (let ((sb-ext:*muffled-warnings* 'style-warning))
         (funcall (read-from-string "swank-loader:init"))
         (start-swank-server (toplevel-options-swank-server-port opt)
-                            (toplevel-options-inform-p opt))))
+                            (toplevel-options-inform-p opt))
+        (incudine.util::set-swank-arglist-interface)))
     (unless (toplevel-options-logtime-p opt)
       (setf (logger-time) nil))
     (sb-impl::toplevel-repl (not (toplevel-options-print-p opt)))))
