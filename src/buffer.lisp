@@ -70,6 +70,7 @@ a non-NIL FILE argument, return the pathname.")
 (defun %%make-buffer (frames channels sample-rate real-time-p finalize-p)
   (let* ((frames (max 1 (floor frames)))
          (size (the non-negative-fixnum (* frames channels)))
+         (real-time-p (and real-time-p *allow-rt-memory-pool-p*))
          (data (if real-time-p
                    (foreign-rt-alloc 'sample :count size :zero-p t)
                    (foreign-alloc-sample size)))

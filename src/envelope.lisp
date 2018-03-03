@@ -109,7 +109,7 @@
                        :loop-node (envelope-loop-node envelope)
                        :release-node (envelope-release-node envelope)
                        :%restart-level (envelope-%restart-level envelope)
-                       :real-time-p (rt-thread-p)
+                       :real-time-p (and (rt-thread-p) *allow-rt-memory-pool-p*)
                        :foreign-free free-function)))
             (foreign-copy-samples data (envelope-data envelope) data-size)
             (incudine-finalize new (lambda () (funcall free-function data)))
@@ -426,6 +426,7 @@ point RELEASE-NODE."
   (let* ((size (max (length levels) (1+ (length times))))
          (max-points (max size *envelope-default-max-points*))
          (max-data-size (compute-envelope-data-size max-points))
+         (real-time-p (and real-time-p *allow-rt-memory-pool-p*))
          (data (if real-time-p
                    (foreign-rt-alloc 'sample :count max-data-size)
                    (foreign-alloc-sample max-data-size)))
