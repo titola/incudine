@@ -32,6 +32,7 @@
      (:file "pool" :depends-on ("util"))
      (:file "fifo" :depends-on ("util"))
      (:file "edf" :depends-on ("util"))
+     (:file "graph" :depends-on ("util"))
      (:file "time" :depends-on ("util"))
      (:file "bus" :depends-on ("util"))
      (:file "buffer" :depends-on ("util"))

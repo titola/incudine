@@ -220,9 +220,10 @@
                      (setf (node-prev group) target
                            (node-next group) (node-next target)
                            (node-next target) group))
-                 (when (node-p (node-next group))
-                   (setf (node-funcons group) (node-next-funcons group))
-                   (setf (node-prev (node-next group)) group))
+                 (if (node-p (node-next group))
+                     (setf (node-funcons group) (node-next-funcons group)
+                           (node-prev (node-next group)) group)
+                     (setf (node-funcons group) nil))
                  (when (eq target (node-last (node-parent group)))
                    (setf (node-last (node-parent group)) group))
                  (nrt-msg info "new group ~D" id)))
