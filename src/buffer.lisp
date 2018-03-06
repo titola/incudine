@@ -346,7 +346,7 @@ DATA-FORMAT defaults to *DEFAULT-DATA-FORMAT*."
       (let ((new (make-buffer (buffer-frames buffer)
                               :channels (buffer-channels buffer)
                               :sample-rate (buffer-sample-rate buffer)
-                              :real-time-p (rt-thread-p))))
+                              :real-time-p (allow-rt-memory-p))))
         (foreign-copy-samples (buffer-data new) (buffer-data buffer)
                               (buffer-size buffer))
         (copy-struct-slots buffer (file textfile-p) buffer new)
@@ -369,7 +369,7 @@ of channels."
              (old-size (buffer-size buffer))
              (channels (or channels old-channels))
              (new (%%make-buffer frames channels (buffer-sample-rate buffer)
-                                 (rt-thread-p) nil))
+                                 (allow-rt-memory-p) nil))
              (data (buffer-data new))
              (size (buffer-size new)))
         (declare (type non-negative-fixnum old-channels old-size channels size))
@@ -712,9 +712,8 @@ If NORMALIZE-P is T, normalize the buffer data between -1 and 1."
       buffer)))
 
 (defun make-buffer (frames &key (channels 1) file (offset 0)
-                    (sample-rate *sample-rate*) real-time-p
-                    initial-contents fill-function (start 0) end
-                    normalize-p)
+                    (sample-rate *sample-rate*) (real-time-p (allow-rt-memory-p))
+                    initial-contents fill-function (start 0) end normalize-p)
   "Create a new buffer with FRAMES sample frames.
 
 If FILE is non-NIL, copy the sample frames of a soundfile starting from

@@ -109,7 +109,7 @@
                        :loop-node (envelope-loop-node envelope)
                        :release-node (envelope-release-node envelope)
                        :%restart-level (envelope-%restart-level envelope)
-                       :real-time-p (and (rt-thread-p) *allow-rt-memory-pool-p*)
+                       :real-time-p (allow-rt-memory-p)
                        :foreign-free free-function)))
             (foreign-copy-samples data (envelope-data envelope) data-size)
             (incudine-finalize new (lambda () (funcall free-function data)))
@@ -402,7 +402,8 @@
   (rt-eval () (foreign-rt-free ptr)))
 
 (defun make-envelope (levels times &key curve base (loop-node -1)
-                      (release-node -1) restart-level real-time-p)
+                      (release-node -1) restart-level
+                      (real-time-p (allow-rt-memory-p)))
   "Create and return a new ENVELOPE struct from a list of LEVELS and
 a list of TIMES.
 If BASE is a number, it is the envelope's base in the style of CLM
@@ -764,7 +765,7 @@ point RELEASE-NODE."
 (declaim (inline breakpoints->env))
 (defun breakpoints->env (bp-seq &key curve base scaler offset duration
                          (loop-node -1) (release-node -1)
-                         restart-level real-time-p)
+                         restart-level (real-time-p (allow-rt-memory-p)))
   "Create and return a new ENVELOPE from a sequence of break-point pairs."
   (declare (type (or list array) bp-seq))
   (multiple-value-bind (levels times curve)
@@ -776,7 +777,7 @@ point RELEASE-NODE."
                    :real-time-p real-time-p)))
 
 (defun freq-breakpoints->env (bp-seq &key (freq-max (* *sample-rate* 0.5))
-                              curve base real-time-p)
+                              curve base (real-time-p (allow-rt-memory-p)))
   (declare (type (or list array) bp-seq))
   (multiple-value-bind (bp-seq-p size)
       (breakpoint-sequence-p bp-seq)
@@ -812,7 +813,8 @@ point RELEASE-NODE."
 
 (declaim (inline make-linen))
 (defun make-linen (attack-time sustain-time release-time
-                   &key (level 1) (curve :lin) base restart-level real-time-p)
+                   &key (level 1) (curve :lin) base restart-level
+                   (real-time-p (allow-rt-memory-p)))
   (make-envelope (list 0 level level 0)
                  (list attack-time sustain-time release-time)
                  :curve curve :base base :restart-level restart-level
@@ -827,7 +829,8 @@ point RELEASE-NODE."
 
 (declaim (inline make-perc))
 (defun make-perc (attack-time release-time
-                  &key (level 1) (curve -4) base restart-level real-time-p)
+                  &key (level 1) (curve -4) base restart-level
+                  (real-time-p (allow-rt-memory-p)))
   (make-envelope (list 0 level 0) (list attack-time release-time)
                  :curve curve :base base :restart-level restart-level
                  :real-time-p real-time-p))
@@ -839,7 +842,7 @@ point RELEASE-NODE."
 
 (declaim (inline make-cutoff))
 (defun make-cutoff (release-time &key (level 1) (curve :exp) base restart-level
-                    real-time-p)
+                    (real-time-p (allow-rt-memory-p)))
   (make-envelope (list level 0) (list release-time)
                  :curve curve :base base :release-node 0
                  :restart-level restart-level :real-time-p real-time-p))
@@ -851,7 +854,8 @@ point RELEASE-NODE."
 
 (declaim (inline make-asr))
 (defun make-asr (attack-time sustain-level release-time
-                 &key (curve -4) base restart-level real-time-p)
+                 &key (curve -4) base restart-level
+                 (real-time-p (allow-rt-memory-p)))
   (make-envelope (list 0 sustain-level 0) (list attack-time release-time)
                  :curve curve :base base :release-node 1
                  :restart-level restart-level :real-time-p real-time-p))
@@ -863,7 +867,8 @@ point RELEASE-NODE."
 
 (declaim (inline make-adsr))
 (defun make-adsr (attack-time decay-time sustain-level release-time
-                  &key (peak-level 1) (curve -4) base restart-level real-time-p)
+                  &key (peak-level 1) (curve -4) base restart-level
+                  (real-time-p (allow-rt-memory-p)))
   (make-envelope (list 0 peak-level (* peak-level sustain-level) 0)
                  (list attack-time decay-time release-time)
                  :curve curve :base base :release-node 2
@@ -879,7 +884,7 @@ point RELEASE-NODE."
 (declaim (inline make-dadsr))
 (defun make-dadsr (delay-time attack-time decay-time sustain-level
                    release-time &key (peak-level 1) (curve -4) base
-                   restart-level real-time-p)
+                   restart-level (real-time-p (allow-rt-memory-p)))
   (make-envelope (list 0 0 peak-level (* peak-level sustain-level) 0)
                  (list delay-time attack-time decay-time release-time)
                  :curve curve :base base :release-node 3
