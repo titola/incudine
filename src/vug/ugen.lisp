@@ -289,7 +289,7 @@ to call to get the control value."
        (with-gensyms (smpvecw smpvec init-node f32vecw f32vec f64vecw f64vec
                       i32vecw i32vec i64vecw i64vec ptrvecw ptrvec)
          `(lambda ()
-            (declare #.*standard-optimize-settings*)
+            (declare ,*standard-optimize-settings*)
             (with-foreign-arrays ((,smpvec ,smpvecw 'sample ,,smpvec-size)
                                   (,f32vec ,f32vecw :float ,,f32vec-size)
                                   (,f64vec ,f64vecw :double ,,f64vec-size)

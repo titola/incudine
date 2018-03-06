@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -771,7 +771,7 @@
                       f32vec f64vecw f64vec i32vecw i32vec i64vecw i64vec
                       ptrvecw ptrvec)
          `(lambda (%dsp-node%)
-            (declare #.*standard-optimize-settings*
+            (declare ,*standard-optimize-settings*
                      (type incudine:node %dsp-node%))
             (with-dsp-preamble (,dsp ,',name ,control-table ,free-hook)
               (with-foreign-arrays ((,smpvec ,smpvecw 'sample ,,smpvec-size)
