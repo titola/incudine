@@ -1076,10 +1076,8 @@
                      (dotimes (,i ,new-size)
                        (setf (mem-aref data ,new-type ,i)
                              (cadr ,opts)))))))
-               (t (setf data (foreign-rt-realloc data ,new-type ,@(cddr args)
-                                                 :count ,new-size))
-                  (setf type ,new-type)
-                  (setf size ,new-size)))
+               (t (incudine::realloc-foreign-array
+                    ,vug-varname ,new-type ,@(cddr args) :count ,new-size)))
          ,vug-varname))))
 
 (defun reinit-binding-form (var)

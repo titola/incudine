@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -123,12 +123,13 @@
 
 (declaim (inline make-rt-foreign-array))
 (defun make-rt-foreign-array (dimension element-type zero-p
-                              initial-element initial-contents)
+                              initial-element initial-contents
+                              &optional obj)
   (let* ((data (foreign-rt-alloc element-type :count dimension
                                  :zero-p zero-p
                                  :initial-element initial-element
                                  :initial-contents initial-contents))
-         (obj (fill-foreign-array (rt-foreign-array-pool-pop)
+         (obj (fill-foreign-array (or obj (rt-foreign-array-pool-pop))
                                   data dimension element-type
                                   #'rt-free-foreign-array)))
     (incudine-finalize obj (lambda () (rt-eval () (foreign-rt-free data))))
@@ -149,24 +150,34 @@
         (t (foreign-alloc element-type :count dimension))))
 
 (defun make-nrt-foreign-array (dimension element-type zero-p
-                               initial-element initial-contents)
+                               initial-element initial-contents
+                               &optional obj)
   (let* ((data (make-nrt-foreign-array-data dimension element-type zero-p
                                             initial-element
                                             initial-contents))
-         (obj (fill-foreign-array (nrt-foreign-array-pool-pop)
+         (obj (fill-foreign-array (or obj (nrt-foreign-array-pool-pop))
                                   data dimension element-type
                                   #'nrt-free-foreign-array)))
     (incudine-finalize obj (lambda () (foreign-free data)))
     obj))
 
+(declaim (inline %%make-foreign-array))
+(defun %%make-foreign-array (dimension element-type zero-p
+                             initial-element initial-contents
+                             &optional instance)
+  (if (allow-rt-memory-p)
+      (make-rt-foreign-array dimension element-type zero-p
+                             initial-element initial-contents
+                             instance)
+      (make-nrt-foreign-array dimension element-type zero-p
+                              initial-element initial-contents
+                              instance)))
+
 (declaim (inline make-foreign-array))
 (defun make-foreign-array (dimension element-type &key zero-p
                            initial-element initial-contents)
-  (if (allow-rt-memory-p)
-      (make-rt-foreign-array dimension element-type zero-p
-                             initial-element initial-contents)
-      (make-nrt-foreign-array dimension element-type zero-p
-                              initial-element initial-contents)))
+  (%%make-foreign-array
+    dimension element-type zero-p initial-element initial-contents))
 
 (declaim (inline free-foreign-array))
 (defun free-foreign-array (obj)
@@ -182,6 +193,12 @@
   (free-foreign-array obj)
   (nrt-msg debug "Free ~A" (type-of obj))
   (values))
+
+(declaim (inline realloc-foreign-array))
+(defun realloc-foreign-array (obj type &key zero-p initial-element
+                              initial-contents (count 1))
+  (free obj)
+  (%%make-foreign-array count type zero-p initial-element initial-contents obj))
 
 (in-package :incudine.util)
 
