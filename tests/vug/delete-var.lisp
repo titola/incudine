@@ -29,12 +29,9 @@
 (with-dsp-test (delete-var.1
       :md5 #(53 186 250 177 0 178 241 139 224 231 126 34 95 170 167 51))
   (let ((b (copy-buffer *sine-table*)))
-    (unwind-protect
-         (progn
-           (setf (buffer-sample-rate b) +sample-rate-test+)
-           (delete-var-test-1 b .3 :id 123)
-           (at #[3 s] #'set-control 123 :amp .55))
-      (free b))))
+    (setf (buffer-sample-rate b) +sample-rate-test+)
+    (delete-var-test-1 b .3 :id 123 :free-hook (list (lambda (n) n (free b))))
+    (at #[3 s] #'set-control 123 :amp .55)))
 
 (with-dsp-test (delete-var.2 :channels 2
       :md5 #(115 66 180 157 85 94 218 87 71 84 23 50 2 232 113 74))
