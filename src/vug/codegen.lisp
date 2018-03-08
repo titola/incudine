@@ -664,11 +664,11 @@
           (dolist (par #1# acc)
             (push (vug-parameter-fix-dependences par) acc)))))
 
-(defun dsp-vug-block (arguments &rest rest)
+(defun dsp-vug-block (name arguments &rest rest)
   (multiple-value-bind (args types) (arg-names-and-types arguments)
     `(reduce-vug-variables
        (with-vug-arguments (,args ,types)
-         (vug-block (with-argument-bindings (,args ,types) ,@rest))))))
+         (vug-block ,name (with-argument-bindings (,args ,types) ,@rest))))))
 
 (defmacro with-foreign-variables (specs &body body)
   (let ((ret body))
@@ -757,7 +757,7 @@
     `(let* ((*vug-variables* (make-vug-variables))
             (*variables-to-preserve* nil)
             (*initialization-code* (make-initialization-code-stack))
-            (,vug-body (format-vug-code ,(dsp-vug-block arguments obj)))
+            (,vug-body (format-vug-code ,(dsp-vug-block name arguments obj)))
             (,smpvec-size (add-sample-variables))
             (,f32vec-size (add-float-variables))
             (,f64vec-size (add-double-variables))
@@ -773,7 +773,7 @@
          `(lambda (%dsp-node%)
             (declare ,*standard-optimize-settings*
                      (type incudine:node %dsp-node%))
-            (with-dsp-preamble (,dsp ,',name ,control-table ,free-hook)
+            (with-dsp-preamble (,dsp ',',name ,control-table ,free-hook)
               (with-foreign-arrays ((,smpvec ,smpvecw 'sample ,,smpvec-size)
                                     (,f32vec ,f32vecw :float ,,f32vec-size)
                                     (,f64vec ,f64vecw :double ,,f64vec-size)
@@ -792,7 +792,7 @@
                        (set-controls-form control-table ',arg-names)
                        (reorder-initialization-code)
                        `(progn
-                          (setf (dsp-name ,dsp) ,',name)
+                          (setf (dsp-name ,dsp) ',',name)
                           (setf (node-controls %dsp-node%) ,control-table)
                           (update-free-hook %dsp-node% ,free-hook)
                           ,@(initialization-code)
@@ -1146,10 +1146,21 @@
                     (equal (incudine:control-names ,node) ',arg-names))
            (apply #',name (build-control-list ,node :replace ,node)))))))
 
-(defmacro reuse-dsp-instance (dsp node arg-names)
+(defmacro with-reserved-node ((node id) &body body)
+  `(let ((last-node-id incudine::*last-node-id*))
+     (unwind-protect
+          (progn
+            (setf (incudine:node-id ,node) ,id)
+            (setf incudine::*last-node-id* ,id)
+            ,@body)
+       (setf (incudine:node-id ,node) nil)
+       (setf incudine::*last-node-id* last-node-id))))
+
+(defmacro reuse-dsp-instance (dsp node id arg-names)
   (with-gensyms (obj)
     `(let ((,obj (car ,dsp)))
-       (funcall (dsp-init-function ,obj) ,node ,@arg-names)
+       (with-reserved-node (,node ,id)
+         (funcall (dsp-init-function ,obj) ,node ,@arg-names))
        (lambda (,node)
          (declare (ignore ,node))
          (values (dsp-init-function ,obj)
@@ -1186,7 +1197,7 @@
                (incudine::enqueue-node-function
                  (update-node-hooks ,node ,stop-hook ,free-hook)
                  (if ,dsp
-                     (reuse-dsp-instance ,dsp ,node ,arg-names)
+                     (reuse-dsp-instance ,dsp ,node ,node-id ,arg-names)
                      (,get-dsp-func ,@arg-names))
                  (dsp-init-args ,arg-bindings ,arg-names)
                  ,node-id ',name ,add-action ,target ,action ,fade-time
@@ -1227,7 +1238,7 @@
         (check-default-args args defaults 'dsp)
         `(macrolet ((,get-function ,arg-names
                       `(prog1
-                           ,(generate-dsp-code ',name ,args ,arg-names
+                           ,(generate-dsp-code ,name ,args ,arg-names
                                                (progn ,@form))
                          (nrt-msg info "new alloc for DSP ~A" ',',name))))
            (cond ((vug ',name)

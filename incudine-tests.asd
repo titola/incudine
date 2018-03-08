@@ -2,7 +2,7 @@
 ;;;
 ;;; ASDF system definition for INCUDINE unit tests.
 ;;;
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -67,6 +67,8 @@
      (:file "vug/local-func-over-vug" :depends-on ("vug/base"))
      (:file "vug/shadow-local-functions" :depends-on ("vug/base"))
      (:file "vug/ugen-reinit" :depends-on ("vug/ugen-base"))
+     (:file "vug/free-hook" :depends-on ("vug/ugen-base"))
+     (:file "vug/recursion" :depends-on ("vug/ugen-base"))
      (:file "vug/delay/delay-1" :depends-on ("vug/base"))
      (:file "vug/delay/delay-2" :depends-on ("vug/base"))
      (:file "vug/with-buffer" :depends-on ("vug/ugen-base"))

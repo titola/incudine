@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -39,6 +39,9 @@ when the duration is undefined.")
 
 (defvar *nrt-node-hash* (make-node-hash *max-number-of-nodes*))
 (declaim (type int-hash-table *nrt-node-hash*))
+
+(defvar *nrt-dirty-nodes* (make-array *max-number-of-nodes* :fill-pointer 0))
+(declaim (type vector *nrt-dirty-nodes*))
 
 (defvar *%nrt-input-pointer* (alloc-bus-pointer 'input))
 (declaim (type foreign-pointer *%nrt-input-pointer*))
@@ -139,6 +142,7 @@ when the duration is undefined.")
      (write-snd-buffer ,data ,count ,channels)
      (when (= ,count ,bufsize)
        (write-sample ,snd ,data ,bufsize)
+       (free-dirty-nodes)
        (setf ,count 0))
      (clear-outputs)
      (incf-sample-counter)))
@@ -168,12 +172,12 @@ when the duration is undefined.")
   (foreign-zero-sample *%nrt-output-pointer* *number-of-output-bus-channels*)
   (foreign-zero-sample *nrt-bus-pointer* *number-of-bus-channels*))
 
-(declaim (inline nrt-cleanup))
 (defun nrt-cleanup ()
   (flush-all-fifos)
   ;; Flush the EDF.
   (flush-pending)
   (node-free *node-root*)
+  (free-dirty-nodes)
   (incudine.edf:sched-loop))
 
 (defun write-sf-metadata-plist (sf plist)
@@ -237,6 +241,7 @@ when the duration is undefined.")
            (*allow-rt-memory-pool-p* nil)
            (*node-hash* *nrt-node-hash*)
            (*node-root* *nrt-node-root*)
+           (*dirty-nodes* *nrt-dirty-nodes*)
            (*bus-pointer* *nrt-bus-pointer*)
            (*output-pointer* *nrt-output-pointer*)
            (*input-pointer* *nrt-input-pointer*)

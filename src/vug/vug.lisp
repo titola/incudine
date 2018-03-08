@@ -1648,14 +1648,26 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
        (loop for var being the hash-keys in #1#
              collect (vug-object-name var))))
 
-(defmacro vug-block (&body body)
+(defmacro with-dsp-name (name &body body)
+  (with-gensyms (fun)
+    `(flet ((,fun () (progn ,@body)))
+       (if (and ,name (not (fboundp ,name)))
+           (unwind-protect
+                (progn
+                  ;; Dummy function binding to allow recursive DSP's.
+                  (setf (symbol-function ,name) (constantly nil))
+                  (,fun))
+             (fmakunbound ,name))
+           (,fun)))))
+
+(defmacro vug-block (name &body body)
   `(mark-vug-block
      (update-vug-variables
        (fix-sequence-of-forms
          (remove-wrapped-parens
            (remove-lisp-declaration
              (list ,@(let ((*inlined-ugens* nil))
-                       (parse-vug-def body)))))))))
+                       (with-dsp-name name (parse-vug-def body))))))))))
 
 (declaim (inline fix-sequence-of-forms))
 (defun fix-sequence-of-forms (obj)
@@ -1760,7 +1772,7 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
                                  ,@(and doc `(,doc))
                                  (flet ((,fn ,args
                                           (with-coerce-arguments ,lambda-list
-                                            (vug-block
+                                            (vug-block nil
                                               (with-argument-bindings
                                                   (,args ,types t)
                                                 ,@vug-body)))))

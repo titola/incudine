@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -428,9 +428,27 @@
         (if (group-p last) (find-last-node last) last)
         node)))
 
+(defvar *dirty-nodes* (make-array *max-number-of-nodes* :fill-pointer 0))
+(declaim (type vector *dirty-nodes*))
+
+(declaim (inline save-node))
+(defun save-node (node)
+  (vector-push node *dirty-nodes*))
+
+(declaim (inline restore-node))
+(defun restore-node ()
+  (vector-pop *dirty-nodes*))
+
+(defun free-dirty-nodes ()
+  (declare #.*standard-optimize-settings*)
+  (let ((nodes (fill-pointer *dirty-nodes*)))
+    (when (plusp nodes)
+      (dotimes (i nodes (setf (fill-pointer *dirty-nodes*) 0))
+        (setf (node-id (reduce-warnings (aref *dirty-nodes* i))) nil)))))
+
+;;; Return the function to add a new node in the graph.
 (defun node-add-fn (item add-action target id hash name fn init-args
                     fade-time fade-curve)
-  "Returns the function to add a new node in the graph."
   (declare #.*standard-optimize-settings*
            (type node item target) (type symbol name add-action)
            (type fixnum hash) (type non-negative-fixnum id) (type function fn))
@@ -448,11 +466,19 @@
                (swap-nodes target new-node)
                item))))
         ((null-node-p item)
+         (setf (node-hash item) hash)
+         (setf (node-id item) id)
+         ;; It is possible to recursively call NODE-ADD-FN, so we save the node
+         ;; to avoid nested UNWIND-PROTECT's. If there is an error, the function
+         ;; FREE-DIRTY-NODES frees all the saved nodes.
+         (save-node item)
+         (if (> id 65535)
+             (setf *last-large-node-id* id)
+             (setf *last-node-id* id))
          (multiple-value-bind (init-fn perf-fn) (funcall fn item)
            (declare (type function init-fn perf-fn))
-           (setf (node-id item) id
-                 (node-hash item) hash
-                 (node-name item) name
+           (restore-node)
+           (setf (node-name item) name
                  (smp-ref (node-start-time-ptr item) 0) (now)
                  (node-pause-p item) nil
                  (node-init-function item) init-fn
@@ -466,9 +492,6 @@
                (setf (node-funcons item) (list perf-fn))
                (setf (car (node-funcons item)) perf-fn
                      (cdr (node-funcons item)) nil))
-           (if (> id 65535)
-               (setf *last-large-node-id* id)
-               (setf *last-node-id* id))
            (case add-action
              (:head
               (lambda ()

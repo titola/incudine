@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -210,6 +210,7 @@
                                 (sample (the (unsigned-byte 32) (pt:time)))))))
                   #+jack-midi (jackmidi::process ,frames)
                   (fifo-perform-functions *to-engine-fifo*)
+                  (free-dirty-nodes)
                   (do ((i 0 (+ i ,block-size)))
                       ((>= i ,frames))
                     (declare (type non-negative-fixnum i))

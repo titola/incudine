@@ -410,7 +410,7 @@
    #:all-random-distributions #:rand-args
    ;; node
    #:node #:node-p #:group #:group-p #:make-group #:node-name #:node-id
-   #:node-start-time #:node-uptime
+   #:node-start-time #:node-uptime #:null-node-p
    #:next-node-id #:*node-root* #:node-release-phase-p #:node-gain
    #:node-enable-gain-p #:*node-enable-gain-p* #:node-fade-time
    #:node-fade-curve #:*fade-time* #:node-fade-in #:node-fade-out

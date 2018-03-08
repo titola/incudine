@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014-2017 Tito Latini
+;;; Copyright (c) 2014-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -276,7 +276,7 @@ to call to get the control value."
             (*variables-to-preserve* nil)
             (*ugen-return-value* nil)
             (*initialization-code* (make-initialization-code-stack))
-            (,vug-body (format-vug-code ,(dsp-vug-block arguments obj)))
+            (,vug-body (format-vug-code ,(dsp-vug-block nil arguments obj)))
             (,smpvec-size (add-sample-variables))
             (,f32vec-size (add-float-variables))
             (,f64vec-size (add-double-variables))
@@ -312,7 +312,7 @@ to call to get the control value."
                         (declare (type (or incudine:node null) %dsp-node%))
                         ,@(initialization-code)
                         (,(or ',ugen-instance-constructor 'make-ugen-instance)
-                          :name ,',name
+                          :name ',',name
                           :return-pointer ,(store-ugen-return-pointer)
                           :controls ,(set-parameters-form ,ugen)
                           :init-function
@@ -400,7 +400,7 @@ to call to get the control value."
   (with-gensyms (get-function fn node)
     `(macrolet ((,get-function (,@arg-names ,node)
                   `(prog1
-                     ,(generate-ugen-code ',name ,args ,arg-names
+                     ,(generate-ugen-code ,name ,args ,arg-names
                         ,bindings ,ugen ,node ,ugen-instance-constructor
                         (maybe-store-return-value
                           ,return-type (vug-funcall ',name ,@arg-names)))
