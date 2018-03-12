@@ -107,7 +107,7 @@
              (error +logger-error+)
              (warn +logger-warn+)
              (info +logger-info+)
-             (debug +logger-info+)
+             (debug +logger-debug+)
              (otherwise #.(1+ +logger-debug-mask+)))
            *logger-mask*))
 
@@ -119,7 +119,7 @@
     (fresh-line *logger-stream*)
     (when *logger-time*
       (funcall *logger-time-function*))
-    (unless (string= (symbol-name type) "INFO")
+    (unless (eq type 'info)
       (princ (format nil "~A: " type) *logger-stream*))
     (apply #'format *logger-stream* control-string args)
     (terpri *logger-stream*)
@@ -138,7 +138,7 @@
           (logging)))))
 
 (defmacro msg (type control-string &rest args)
-  `(%msg ',type ,control-string (list ,@args)))
+  `(%msg (ensure-symbol ',type "INCUDINE.UTIL") ,control-string (list ,@args)))
 
 (defmacro nrt-msg (type control-string &rest args)
-  `(%nrt-msg ',type ,control-string ,@args))
+  `(%nrt-msg (ensure-symbol ',type "INCUDINE.UTIL") ,control-string ,@args))
