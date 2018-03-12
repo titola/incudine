@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -101,28 +101,44 @@
          ,@(if time-function `((*logger-time-function* ,time-function))))
      ,@body))
 
-(defmacro logger-active-p (type)
-  `(logtest ,(alexandria:format-symbol :incudine.util "+LOGGER-~A+" type)
-            *logger-mask*))
+(declaim (inline logger-active-p))
+(defun logger-active-p (type)
+  (logtest (case type
+             (error +logger-error+)
+             (warn +logger-warn+)
+             (info +logger-info+)
+             (debug +logger-info+)
+             (otherwise #.(1+ +logger-debug-mask+)))
+           *logger-mask*))
 
-(defmacro msg (type &rest rest)
-  `(when (logger-active-p ,type)
-     (fresh-line *logger-stream*)
-     (when *logger-time* (funcall *logger-time-function*))
-     ,(unless (string= (symbol-name type) "INFO")
-        `(princ ,(format nil "~A: " type) *logger-stream*))
-     (format *logger-stream* ,@rest)
-     (terpri *logger-stream*)
-     (when *logger-force-output* (force-output *logger-stream*))
-     nil))
+(defun %msg (type control-string args)
+  (declare (type (member error warn info debug) type)
+           (type string control-string)
+           (optimize speed (safety 0)))
+  (when (logger-active-p type)
+    (fresh-line *logger-stream*)
+    (when *logger-time*
+      (funcall *logger-time-function*))
+    (unless (string= (symbol-name type) "INFO")
+      (princ (format nil "~A: " type) *logger-stream*))
+    (apply #'format *logger-stream* control-string args)
+    (terpri *logger-stream*)
+    (when *logger-force-output*
+      (force-output *logger-stream*))))
 
-(defmacro nrt-msg (type &rest rest)
-  (with-gensyms (msg-fn)
-    `(when (logger-active-p ,type)
-       (flet ((,msg-fn ()
-                (msg ,type ,@rest)))
-         (if *rt-thread*
-             (incudine.edf:at ,+sample-zero+
-               (lambda () (incudine:nrt-funcall #',msg-fn)))
-             (,msg-fn)))
-       nil)))
+(defun %nrt-msg (type control-string &rest args)
+  (declare (type (member error warn info debug) type)
+           (type string control-string)
+           (optimize speed (safety 0)))
+  (when (logger-active-p type)
+    (flet ((logging ()
+             (%msg type control-string args)))
+      (if (rt-thread-p)
+          (incudine:nrt-funcall #'logging)
+          (logging)))))
+
+(defmacro msg (type control-string &rest args)
+  `(%msg ',type ,control-string (list ,@args)))
+
+(defmacro nrt-msg (type control-string &rest args)
+  `(%nrt-msg ',type ,control-string ,@args))
