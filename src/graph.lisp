@@ -98,7 +98,7 @@
                                       (incf index))))))
 
 (defvar *node-hash* (make-node-hash *max-number-of-nodes*))
-(declaim (int-hash-table *node-hash*))
+(declaim (type int-hash-table *node-hash*))
 
 (defvar *node-root*
   (let ((group (make-node 0 (length (int-hash-table-items *node-hash*)))))
@@ -106,7 +106,7 @@
           (node-funcons group) nil
           (node-last group) :dummy-node)
     group))
-(declaim (node *node-root*))
+(declaim (type node *node-root*))
 
 (declaim (inline node-root-p))
 (defun node-root-p (obj)
@@ -131,6 +131,11 @@
 (defun group-p (obj)
   (declare (type node obj))
   (when (node-last obj) t))
+
+(declaim (inline node))
+(defun node (id)
+  (declare (type fixnum id) #.*standard-optimize-settings*)
+  (if (zerop id) *node-root* (values (getihash id))))
 
 ;;; Previous node not in pause
 (defun unpaused-node-prev (curr)
@@ -178,13 +183,20 @@
   (let ((next (unpaused-node-next node)))
     (when (node-p next) (node-funcons next))))
 
+(defun updated-node (id)
+  (declare (type positive-fixnum id))
+  (multiple-value-bind (node index) (getihash id)
+    (unless (= (node-index node) index)
+      (setf (node-index node) index))
+    node))
+
 (defun make-group (id &optional (add-action :head) (target *node-root*))
   (declare (type fixnum id) (type keyword add-action)
            (type (or node fixnum) target))
   (let ((target (if (numberp target) (node target) target)))
     (declare #.*standard-optimize-settings*)
     (rt-eval ()
-      (let ((group (node id)))
+      (let ((group (updated-node id)))
         (when (and (null-node-p group) (not (null-node-p target)))
           (flet ((common-set (group id)
                    (setf (node-id group) id
@@ -270,12 +282,24 @@
 (defun graph-empty-p ()
   (null (node-funcons *node-root*)))
 
-(defun node (id)
-  (declare (type fixnum id))
-  (locally (declare #.*standard-optimize-settings*)
-    (if (zerop id)
-        *node-root*
-        (getihash id *node-hash* node-hash node-id null-node-p node))))
+(declaim (inline graph-full-p))
+(defun graph-full-p ()
+  (int-hash-table-full-p *node-hash*))
+
+(defun getihash (id)
+  (declare (type fixnum id) #.*standard-optimize-settings*)
+  (%getihash id *node-hash* node-hash node-id null-node-p node
+             incudine-node-error :format-control "No more nodes available."))
+
+(defun fix-collisions-from (node)
+  (declare (type node node) #.*standard-optimize-settings*)
+  (%fix-collisions-from
+    (node-index node) *node-hash* node-hash node-id null-node-p node))
+
+(declaim (inline live-nodes))
+(defun live-nodes ()
+  "Return the number of live nodes."
+  (int-hash-table-count *node-hash*))
 
 (declaim (inline node-start-time))
 (defun node-start-time (obj)
@@ -341,7 +365,6 @@
 
 (defsetf node-current-function set-node-current-function)
 
-(declaim (inline %next-node-id))
 (defun %next-node-id (default limit init)
   (declare (type non-negative-fixnum limit init))
   (labels ((next (id countdown)
@@ -350,7 +373,8 @@
                (declare (type non-negative-fixnum id))
                (cond ((null-node-p (node id)) id)
                      ((zerop countdown)
-                      (incudine-error "There aren't free nodes"))
+                      (error 'incudine-node-error
+                             :format-control "There aren't free nodes."))
                      (t (next (1+ id) (1- countdown)))))))
     (next init 65535)))
 
@@ -368,25 +392,26 @@
         ((eq add-action :replace) (next-large-node-id))
         (t (next-node-id))))
 
-(defun swap-nodes (n1 n2)
-  (declare (type node n1 n2))
-  (unless (or (group-p n1) (group-p n2))
-    (let ((items (int-hash-table-items *node-hash*))
-          (id0 (node-id n1))
-          (hash0 (node-hash n1))
-          (index0 (node-index n1))
-          (items-len (length (int-hash-table-items *node-hash*))))
-      (when (< 0 (node-index n1) items-len)
-        (setf (svref items (node-index n1)) n2))
-      (when (< 0 (node-index n2) items-len)
-        (setf (svref items (node-index n2)) n1))
-      (setf (node-id n1) (node-id n2)
-            (node-id n2) id0            
-            (node-hash n1) (node-hash n2)
-            (node-hash n2) hash0
-            (node-index n1) (node-index n2)
-            (node-index n2) index0)
-      (values))))
+(defun swap-replaced (freed new id)
+  (declare (type node freed new) (type fixnum id))
+  (let ((items (int-hash-table-items *node-hash*))
+        (size (length (int-hash-table-items *node-hash*))))
+    (cond ((and (< 0 (node-index freed) size)
+                (< 0 (node-index new) size))
+           (let ((hash1 (node-hash freed))
+                 (index1 (node-index freed)))
+             ;; Ignore id for freed node.
+             (setf (node-hash freed) (node-hash new)
+                   (node-index freed) (node-index new)
+                   (svref items (node-index freed)) freed
+                   (node-id new) id
+                   (node-hash new) hash1
+                   (node-index new) index1
+                   (svref items (node-index new)) new)))
+          (t
+           (error 'incudine-node-error
+                  :format-control "Node hash-table has been corrupted.")))
+    (values)))
 
 (declaim (inline node-fade-in))
 (defun node-fade-in (obj &optional duration curve)
@@ -428,6 +453,12 @@
         (if (group-p last) (find-last-node last) last)
         node)))
 
+(declaim (inline update-last-node-id))
+(defun update-last-node-id (id)
+  (if (> id 65535)
+      (setf *last-large-node-id* id)
+      (setf *last-node-id* id)))
+
 (defvar *dirty-nodes* (make-array *max-number-of-nodes* :fill-pointer 0))
 (declaim (type vector *dirty-nodes*))
 
@@ -446,178 +477,189 @@
       (dotimes (i nodes (setf (fill-pointer *dirty-nodes*) 0))
         (setf (node-id (reduce-warnings (aref *dirty-nodes* i))) nil)))))
 
-;;; Return the function to add a new node in the graph.
-(defun node-add-fn (item add-action target id hash name fn init-args
-                    fade-time fade-curve)
-  (declare #.*standard-optimize-settings*
-           (type node item target) (type symbol name add-action)
-           (type fixnum hash) (type non-negative-fixnum id) (type function fn))
-  (cond ((eq add-action :replace)
-         (lambda ()
-           (declare #.*reduce-warnings*)
-           (let* ((new-node (node (next-large-node-id)))
-                  (before-fn (node-add-fn new-node :before target
-                                          id hash name fn init-args
-                                          fade-time fade-curve)))
-             (declare (type (or function null) before-fn))
-             (when before-fn
-               (funcall before-fn)
+(defun add-node-to-head (item target fade-time fade-curve)
+  (cond ((and (node-id target) (group-p target))
+         (unless (node-p (node-last target))
+           (setf (node-last target) item))
+         (setf (node-next item) (node-next target)
+               (node-next target) item
+               (node-prev item) target
+               (node-parent item) target)
+         (setf (cdr (node-funcons item))
+               (if (node-pause-p target)
+                   (node-next-funcons item)
+                   (node-funcons target)))
+         (unless (node-pause-p target)
+           (setf (node-funcons target) (node-funcons item))
+           (update-prev-groups target))
+         (when (node-p (node-next item))
+           (setf (node-prev (node-next item)) item))
+         (incf (int-hash-table-count *node-hash*))
+         (start-with-fade-in item fade-time fade-curve)
+         item)
+        (t (setf (node-id item) nil))))
+
+(defun add-node-to-last (item target)
+  ;; TARGET is empty
+  (setf (node-prev item) target
+        (node-next item) (node-next target))
+  (when (node-p (node-next target))
+    (setf (node-prev (node-next target)) item))
+  (setf (node-next target) item)
+  (unless (node-pause-p target)
+    (setf (node-funcons target) (node-funcons item)))
+  (update-prev-groups target))
+
+(defun add-node-to-tail (item target fade-time fade-curve)
+  (if (and (node-id target) (group-p target))
+      (let ((last (find-last-node target)))
+        (cond ((eq target last)
+               (add-node-to-last item target))
+              (t
+               (setf (node-prev item) last
+                     (node-next item) (node-next last)
+                     (node-next last) item)
+               (when (node-p (node-next item))
+                 (setf (node-prev (node-next item)) item)
+                 (setf (cdr (node-funcons item))
+                       (node-funcons (unpaused-node-next item))))
+               (cond ((group-p last)
+                      (setf (node-funcons last)
+                            (node-funcons item))
+                      (link-to-prev item last)
+                      (link-to-unpaused-prev item last))
+                     (t (setf (cdr (node-funcons (node-prev item)))
+                              (node-funcons item))
+                        (link-to-prev item (node-prev item))
+                        (link-to-unpaused-prev item (node-prev item))))))
+        (setf (node-last target) item
+              (node-parent item) target)
+        (incf (int-hash-table-count *node-hash*))
+        (start-with-fade-in item fade-time fade-curve)
+        item)
+      (setf (node-id item) nil)))
+
+(defun add-node-before (item target fade-time fade-curve)
+  (cond ((and (node-id target) (not (node-root-p target)))
+         (setf (node-prev item) (node-prev target)
+               (node-next item) target
+               (node-prev target) item
+               (node-next (node-prev item)) item
+               (node-parent item) (node-parent target))
+         (setf (cdr (node-funcons item))
+               (if (node-pause-p target)
+                   (let ((next (unpaused-node-next target)))
+                     (when (node-p next) (node-funcons next)))
+                   (node-funcons target)))
+         (link-to-prev item (node-prev item))
+         (link-to-unpaused-prev item (node-prev item))
+         (incf (int-hash-table-count *node-hash*))
+         (start-with-fade-in item fade-time fade-curve)
+         item)
+        (t (setf (node-id item) nil))))
+
+(defun add-node-after (item target fade-time fade-curve)
+  (cond ((node-id target)
+         (setf (node-parent item) (node-parent target))
+         (cond ((group-p target)
+                (let ((last (find-last-node target)))
+                  (setf (node-prev item) last
+                        (node-next item) (node-next last)
+                        (node-next last) item)
+                  (link-to-prev item last)
+                  (cond ((node-pause-p target)
+                         (link-to-unpaused-prev item target))
+                        ((node-pause-p last)
+                         (link-to-unpaused-prev item last)))))
+               (t (setf (node-prev item) target
+                        (node-next item) (node-next target)
+                        (node-next target) item)
+                  (setf (cdr (node-funcons target))
+                        (node-funcons item))
+                  (link-to-unpaused-prev item target)))
+         (when (node-p (node-next item))
+           (setf (cdr (node-funcons item))
+                 (node-funcons (unpaused-node-next item)))
+           (setf (node-prev (node-next item)) item))
+         (when (eq target (node-last (node-parent item)))
+           (setf (node-last (node-parent item)) item))
+         (incf (int-hash-table-count *node-hash*))
+         (start-with-fade-in item fade-time fade-curve)
+         item)
+        (t (setf (node-id item) nil))))
+
+(defmacro add-action-case ((add-action-var &rest args) &body body)
+  `(case ,add-action-var
+     ,@(mapcar (lambda (x) `(,(first x) (,(second x) ,@args))) body)
+     (otherwise (error 'incudine-node-error
+                       :format-control "Unknown add-action ~S"
+                       :format-arguments (list ,add-action-var)))))
+
+(defun initialize-node (item name init-fn init-args perf-fn fade-curve)
+  (setf (node-name item) name
+        (smp-ref (node-start-time-ptr item) 0) (now)
+        (node-pause-p item) nil
+        (node-init-function item) init-fn
+        (node-init-args item) init-args
+        (node-function item) perf-fn
+        (node-last item) nil
+        (node-release-phase-p item) nil
+        (node-gain item) (sample 1)
+        (node-fade-curve item) (or fade-curve :lin))
+  (if (null (node-funcons item))
+      (setf (node-funcons item) (list perf-fn))
+      (setf (car (node-funcons item)) perf-fn
+            (cdr (node-funcons item)) nil)))
+
+(defun node-add (item add-action target id hash name fn init-args
+                 fade-time fade-curve)
+  (declare (type node item target) (type symbol name add-action)
+           (type fixnum hash) (type positive-fixnum id) (type function fn)
+           #.*standard-optimize-settings*)
+  (cond ((graph-full-p)
+         (error 'incudine-node-error :format-control "No more nodes availabe."))
+        ((null-node-p target)
+         (error 'incudine-node-error
+           :format-control "Node target doesn't exists, cannot add the node."))
+        ((eq add-action :replace)
+         (let ((new-node (updated-node id)))
+           (declare (type node new-node))
+           (node-add new-node :before target id hash name fn init-args
+                     fade-time fade-curve)
+           (when (node-id new-node)
+             (let ((id (node-id target)))
+               (declare (type fixnum id))
                (node-fade-out target fade-time fade-curve)
-               (swap-nodes target new-node)
-               item))))
+               (swap-replaced target new-node id)
+               new-node))))
         ((null-node-p item)
          (setf (node-hash item) hash)
          (setf (node-id item) id)
-         ;; It is possible to recursively call NODE-ADD-FN, so we save the node
+         ;; It is possible to recursively call NODE-ADD, so we save the node
          ;; to avoid nested UNWIND-PROTECT's. If there is an error, the function
          ;; FREE-DIRTY-NODES frees all the saved nodes.
          (save-node item)
-         (if (> id 65535)
-             (setf *last-large-node-id* id)
-             (setf *last-node-id* id))
+         (update-last-node-id id)
          (multiple-value-bind (init-fn perf-fn) (funcall fn item)
            (declare (type function init-fn perf-fn))
            (restore-node)
-           (setf (node-name item) name
-                 (smp-ref (node-start-time-ptr item) 0) (now)
-                 (node-pause-p item) nil
-                 (node-init-function item) init-fn
-                 (node-init-args item) init-args
-                 (node-function item) perf-fn
-                 (node-last item) nil
-                 (node-release-phase-p item) nil
-                 (node-gain item) (sample 1)
-                 (node-fade-curve item) (or fade-curve :lin))
-           (if (null (node-funcons item))
-               (setf (node-funcons item) (list perf-fn))
-               (setf (car (node-funcons item)) perf-fn
-                     (cdr (node-funcons item)) nil))
-           (case add-action
-             (:head
-              (lambda ()
-                (cond ((and (node-id target) (group-p target))
-                       (unless (node-p (node-last target))
-                         (setf (node-last target) item))
-                       (setf (node-next item) (node-next target)
-                             (node-next target) item
-                             (node-prev item) target
-                             (node-parent item) target)
-                       (setf (cdr (node-funcons item))
-                             (if (node-pause-p target)
-                                 (node-next-funcons item)
-                                 (node-funcons target)))
-                       (unless (node-pause-p target)
-                         (setf (node-funcons target) (node-funcons item))
-                         (update-prev-groups target))
-                       (when (node-p (node-next item))
-                         (setf (node-prev (node-next item)) item))
-                       (incf (int-hash-table-count *node-hash*))
-                       (start-with-fade-in item fade-time fade-curve)
-                       item)
-                      (t (setf (node-id item) nil)))))
-             (:tail
-              (lambda ()
-                (cond ((and (node-id target) (group-p target))
-                       (let ((last (find-last-node target)))
-                         (cond ((eq target last)
-                                ;; TARGET is empty
-                                (setf (node-prev item) target
-                                      (node-next item) (node-next target))
-                                (when (node-p (node-next target))
-                                  (setf (node-prev (node-next target)) item))
-                                (setf (node-next target) item)
-                                (unless (node-pause-p target)
-                                  (setf (node-funcons target)
-                                        (node-funcons item)))
-                                (update-prev-groups target))
-                               (t (setf (node-prev item) last
-                                        (node-next item) (node-next last)
-                                        (node-next last) item)
-                                  (when (node-p (node-next item))
-                                    (setf (node-prev (node-next item)) item)
-                                    (setf (cdr (node-funcons item))
-                                          (node-funcons
-                                           (unpaused-node-next item))))
-                                  (cond ((group-p last)
-                                         (setf (node-funcons last)
-                                               (node-funcons item))
-                                         (link-to-prev item last)
-                                         (link-to-unpaused-prev item last))
-                                        (t (setf (cdr (node-funcons
-                                                       (node-prev item)))
-                                                 (node-funcons item))
-                                           (link-to-prev item (node-prev item))
-                                           (link-to-unpaused-prev
-                                            item (node-prev item))))))
-                         (setf (node-last target) item
-                               (node-parent item) target)
-                         (incf (int-hash-table-count *node-hash*))
-                         (start-with-fade-in item fade-time fade-curve)
-                         item))
-                      (t (setf (node-id item) nil)))))
-             (:before
-              (lambda ()
-                (cond ((and (node-id target) (not (node-root-p target)))
-                       (setf (node-prev item) (node-prev target)
-                             (node-next item) target
-                             (node-prev target) item
-                             (node-next (node-prev item)) item
-                             (node-parent item) (node-parent target))
-                       (setf (cdr (node-funcons item))
-                             (cond ((node-pause-p target)
-                                    (let ((next (unpaused-node-next target)))
-                                      (when (node-p next) (node-funcons next))))
-                                   (t (node-funcons target))))
-                       (link-to-prev item (node-prev item))
-                       (link-to-unpaused-prev item (node-prev item))
-                       (incf (int-hash-table-count *node-hash*))
-                       (start-with-fade-in item fade-time fade-curve)
-                       item)
-                      (t (setf (node-id item) nil)))))
-             (:after
-              (lambda ()
-                (cond ((node-id target)
-                       (setf (node-parent item) (node-parent target))
-                       (cond ((group-p target)
-                              (let ((last (find-last-node target)))
-                                (setf (node-prev item) last
-                                      (node-next item) (node-next last)
-                                      (node-next last) item)
-                                (link-to-prev item last)
-                                (cond ((node-pause-p target)
-                                       (link-to-unpaused-prev item target))
-                                      ((node-pause-p last)
-                                       (link-to-unpaused-prev item last)))))
-                             (t (setf (node-prev item) target
-                                      (node-next item) (node-next target)
-                                      (node-next target) item)
-                                (setf (cdr (node-funcons target))
-                                      (node-funcons item))
-                                (link-to-unpaused-prev item target)))
-                       (when (node-p (node-next item))
-                         (setf (cdr (node-funcons item))
-                               (node-funcons (unpaused-node-next item)))
-                         (setf (node-prev (node-next item)) item))
-                       (when (eq target (node-last (node-parent item)))
-                         (setf (node-last (node-parent item)) item))
-                       (incf (int-hash-table-count *node-hash*))
-                       (start-with-fade-in item fade-time fade-curve)
-                       item)
-                      (t (setf (node-id item) nil)))))
-             (t (nrt-msg error "unknown add-action ~S" add-action)))))))
+           (initialize-node item name init-fn init-args perf-fn fade-curve)
+           (add-action-case (add-action item target fade-time fade-curve)
+             (:head add-node-to-head)
+             (:tail add-node-to-tail)
+             (:before add-node-before)
+             (:after add-node-after))))))
 
-(declaim (inline enqueue-node-function))
 (defun enqueue-node-function (node function init-args id name add-action
                               target action fade-time fade-curve)
   (declare (type node node) (type function function)
            (type non-negative-fixnum id) (type symbol name add-action)
            (type node target) (type (or function null) action))
-  (let ((fn (node-add-fn node add-action target id (int-hash id)
-                         name function init-args fade-time fade-curve)))
-    (when fn
-      (funcall fn)
-      (nrt-msg info "new node ~D" id)
-      (when action (funcall action node)))))
+  (when (node-add node add-action target id (int-hash id)
+                  name function init-args fade-time fade-curve)
+    (unless (eq add-action :replace)
+      (nrt-msg info "new node ~D" id))
+    (when action (funcall action node))))
 
 (defmacro get-add-action-and-target (&rest keywords)
   `(cond ,@(mapcar (lambda (x) `(,x (values ,(make-keyword x) ,x)))
@@ -644,7 +686,7 @@
     (with-add-action (add-action target head tail before after replace)
       (let ((id (or id (get-node-id id add-action))))
         (declare (type non-negative-fixnum id))
-        (enqueue-node-function (node id)
+        (enqueue-node-function (updated-node id)
           (lambda (node)
             (declare (type node node))
             (when free-hook
@@ -772,53 +814,37 @@
   (unlink-neighbors obj)
   (unlink-node obj))
 
-(defun node-free-fn (node)
-  "Returns the function to remove a node from the graph."
-  (declare #.*standard-optimize-settings*
-           (type node node))
+(defun %node-free (node)
+  (declare (type node node) #.*standard-optimize-settings*)
   (cond ((node-root-p node)
          (setf *last-node-id* 1)
-         (cond ((node-next *node-root*)
-                (nrt-msg info "free group 0")
-                (lambda () (unlink-group node) node))
-               (t incudine.util::*dummy-function-without-args*)))
+         (when (node-next *node-root*)
+           (unlink-group node)
+           (nrt-msg info "free group 0")))
         ((temp-node-p node)
-         (lambda ()
-           (foreign-free (node-start-time-ptr node))
-           (foreign-free (node-gain-data node))
-           (tg:cancel-finalization node)
-           (setf (node-id node) nil)
-           (nrt-msg info "free temporary node")))
-        (t (lambda ()
-             (unless (null-node-p node)
-               (let* ((id (node-id node))
-                      (hash (node-hash node))
-                      (nodes (int-hash-table-items *node-hash*))
-                      (index (index-for hash id nodes node *node-hash*
-                                        node-hash node-id null-node-p)))
-                 (declare (type non-negative-fixnum id index)
-                          (type fixnum hash))
-                 (when (eq (svref nodes index) node)
-                   (when (> id 65535)
-                     (setf *last-large-node-id* id)
-                     (setf *last-node-id* id))
-                   (unlink-parent node)
-                   (cond ((group-p node)
-                          (%remove-group node)
-                          (nrt-msg info "free group ~D" id))
-                         (t (%remove-node node)
-                            (fix-collisions-from (node-index node) *node-hash*
-                                                 node-hash node-id null-node-p
-                                                 node)
-                            (nrt-msg info "free node ~D" id)))
-                   node)))))))
+         (foreign-free (node-start-time-ptr node))
+         (foreign-free (node-gain-data node))
+         (tg:cancel-finalization node)
+         (setf (node-id node) nil)
+         (nrt-msg info "free temporary node"))
+        ((node-id node)
+         (let ((id (node-id node)))
+           (declare (type non-negative-fixnum id))
+           (update-last-node-id id)
+           (unlink-parent node)
+           (cond ((group-p node)
+                  (%remove-group node)
+                  (nrt-msg info "free group ~D" id))
+                 (t
+                  (%remove-node node)
+                  (fix-collisions-from node)
+                  (nrt-msg info "free node ~D" id)))))))
 
-(declaim (inline node-free))
 (defun node-free (obj)
   (declare #.*standard-optimize-settings* (type node obj))
   (if (temp-node-p obj)
-      (funcall (the function (node-free-fn obj)))
-      (at 0 (node-free-fn obj)))
+      (%node-free obj)
+      (rt-eval () (%node-free obj)))
   (values))
 
 (defmethod free ((obj node))
@@ -849,7 +875,7 @@
 (defmethod (setf free-hook) ((flist list) (obj integer))
   (setf (free-hook (node obj)) flist))
 
-(defun node-stop-fn (obj)
+(defun %node-stop (obj)
   (declare #.*standard-optimize-settings*
            (type node obj))
   (labels ((rec (node)
@@ -860,12 +886,12 @@
                           (reduce-warnings (funcall fn node)))
                         (node-free node))))
              (values)))
-    (lambda () (rec obj))))
+    (rec obj)))
 
 (declaim (inline node-stop))
 (defun node-stop (obj)
   (declare #.*standard-optimize-settings* (type node obj))
-  (at 0 (node-stop-fn obj))
+  (rt-eval () (%node-stop obj))
   (values))
 
 (defgeneric stop (obj))
@@ -1074,10 +1100,7 @@
   (declare (type (or non-negative-fixnum node) obj)
            (type symbol control-name)
            #.*standard-optimize-settings*)
-  (let ((obj (if (node-p obj)
-                 obj
-                 (getihash obj *node-hash* node-hash node-id null-node-p
-                           node))))
+  (let ((obj (if (node-p obj) obj (getihash obj))))
     (declare (type node obj))
     (unless (null-node-p obj)
       (let ((ht (node-controls obj)))

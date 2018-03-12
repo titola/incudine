@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -16,8 +16,7 @@
 
 (in-package :incudine)
 
-(define-constant +int-hash-table-size+ 1024
-  :documentation "Default size for a new INT-HASH-TABLE object.")
+(define-constant +min-int-hash-table-size+ 1024)
 
 (defstruct (int-hash-table (:constructor %make-int-hash-table)
                            (:copier nil))
@@ -35,17 +34,22 @@
 (defmethod print-object ((obj int-hash-table) stream)
   (format stream "#<~S :COUNT ~D>" (type-of obj) (int-hash-table-count obj)))
 
-(defun make-int-hash-table (&key (size +int-hash-table-size+)
+(defun make-int-hash-table (&key (size +min-int-hash-table-size+)
                             initial-element-fn)
   (let* ((size (next-power-of-two size))
          (double-size (* size 2)))
     (%make-int-hash-table :size size
-                          :mask (1- size)
+                          :mask (1- double-size)
                           :initial-element-fn initial-element-fn
                           :items (make-items double-size initial-element-fn))))
 
-(defmacro index-for (in-hash-id in-key items items-type int-hash-table
-                     get-hash-fn get-key-fn null-item-p-fn)
+(declaim (inline int-hash-table-full-p))
+(defun int-hash-table-full-p (obj)
+  (declare (type int-hash-table obj))
+  (= (int-hash-table-count obj) (int-hash-table-size obj)))
+
+(defmacro %index-for (in-hash-id in-key items items-type int-hash-table
+                      get-hash-fn get-key-fn null-item-p-fn)
   (with-gensyms (index mask item %items hash-id)
     `(let ((,hash-id ,in-hash-id)
            (,%items ,items)
@@ -59,15 +63,22 @@
          (declare (type non-negative-fixnum ,mask ,index))
          ,@(when items-type `((declare (type ,items-type ,item))))))))
 
-(defmacro getihash (key int-hash-table get-hash-fn get-key-fn null-item-p-fn
-                    items-type)
-  `(svref (int-hash-table-items ,int-hash-table)
-          (index-for (the fixnum (int-hash ,key)) ,key
-                     (int-hash-table-items ,int-hash-table) ,items-type
-                     ,int-hash-table ,get-hash-fn ,get-key-fn ,null-item-p-fn)))
+(defmacro %getihash (key int-hash-table get-hash-fn get-key-fn null-item-p-fn
+                     items-type condition &key format-control format-arguments)
+  (with-gensyms (index)
+    `(if (int-hash-table-full-p ,int-hash-table)
+         (or (find ,key (the simple-vector (int-hash-table-items ,int-hash-table))
+                   :key ',get-key-fn)
+             (%simple-error ',condition ,format-control ,@format-arguments))
+         (let ((,index (%index-for (the fixnum (int-hash ,key)) ,key
+                                   (int-hash-table-items ,int-hash-table)
+                                   ,items-type ,int-hash-table ,get-hash-fn
+                                   ,get-key-fn ,null-item-p-fn)))
+           (values (svref (int-hash-table-items ,int-hash-table) ,index)
+                   ,index)))))
 
-(defmacro fix-collisions-from (key int-hash-table get-hash-fn get-key-fn
-                               null-item-p-fn items-type)
+(defmacro %fix-collisions-from (key int-hash-table get-hash-fn get-key-fn
+                                null-item-p-fn items-type)
   (with-gensyms (mask items old-item old-key new-item new-key curr-item)
     `(let ((,mask (int-hash-table-mask ,int-hash-table))
            (,items (int-hash-table-items ,int-hash-table)))
@@ -80,10 +91,10 @@
               ((,null-item-p-fn ,curr-item))
            (declare (type fixnum ,old-key))
            ,@(when items-type `((declare (type ,items-type ,curr-item))))
-           (let ((,new-key (index-for (the fixnum (,get-hash-fn ,old-item))
-                                      (the fixnum (,get-key-fn ,old-item))
-                                      ,items ,items-type ,int-hash-table
-                                      ,get-hash-fn ,get-key-fn
-                                      ,null-item-p-fn)))
+           (let ((,new-key (%index-for (the fixnum (,get-hash-fn ,old-item))
+                                       (the fixnum (,get-key-fn ,old-item))
+                                       ,items ,items-type ,int-hash-table
+                                       ,get-hash-fn ,get-key-fn
+                                       ,null-item-p-fn)))
              (unless (= ,old-key ,new-key)
                (setf ,old-item ,new-item ,new-item ,curr-item))))))))

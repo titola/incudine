@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -166,7 +166,7 @@
           (lambda (&rest args) (declare (ignorable args))))
     (incudine:dograph (n)
       (when (eq (incudine::node-name n) name)
-        (funcall (incudine::node-free-fn n))))
+        (incudine::%node-free n)))
     (free-dsp-instances name)
     (remhash name *dsps*)
     (fmakunbound name)

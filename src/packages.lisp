@@ -364,7 +364,8 @@
   (:import-from #:incudine.gen #:all-random-distributions #:rand-args)
   (:export
    #:incudine-error #:incudine-simple-error #:incudine-compile-error
-   #:incudine-storage-condition #:incudine-network-error #:incudine-missing-arg
+   #:incudine-storage-condition #:incudine-network-error #:incudine-node-error
+   #:incudine-missing-arg
    #:incudine-unknown-time-unit
    #:init #:enable-sharp-t-syntax #:enable-sharp-square-bracket-syntax
    #:dsp-seq
@@ -410,7 +411,7 @@
    #:all-random-distributions #:rand-args
    ;; node
    #:node #:node-p #:group #:group-p #:make-group #:node-name #:node-id
-   #:node-start-time #:node-uptime #:null-node-p
+   #:node-start-time #:node-uptime #:null-node-p #:live-nodes
    #:next-node-id #:*node-root* #:node-release-phase-p #:node-gain
    #:node-enable-gain-p #:*node-enable-gain-p* #:node-fade-time
    #:node-fade-curve #:*fade-time* #:node-fade-in #:node-fade-out

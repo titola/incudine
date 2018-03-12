@@ -28,6 +28,8 @@
 
 (define-condition incudine-network-error (incudine-simple-error) ())
 
+(define-condition incudine-node-error (incudine-simple-error) ())
+
 (define-condition incudine-missing-arg (incudine-simple-error) ())
 
 (defmacro %simple-error (datum format-control &rest format-arguments)

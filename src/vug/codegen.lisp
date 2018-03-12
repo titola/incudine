@@ -1188,10 +1188,10 @@
        (rt-eval ()
          (let* (,@arg-bindings
                 (,node-id (incudine::get-node-id ,node-id ,add-action))
-                (,node (incudine:node ,node-id)))
+                (,node (incudine::updated-node ,node-id)))
            (declare (type non-negative-fixnum ,node-id)
                     (type incudine:node ,node))
-           (when (incudine::null-node-p ,node)
+           (when (incudine:null-node-p ,node)
              (let ((,dsp (get-next-dsp-instance ',name)))
                (declare (type list ,dsp))
                (incudine::enqueue-node-function

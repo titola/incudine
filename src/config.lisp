@@ -18,7 +18,7 @@
 
 (define-constant +incudine-major+ 0)
 (define-constant +incudine-minor+ 9)
-(define-constant +incudine-patch+ 15)
+(define-constant +incudine-patch+ 16)
 
 (in-package :incudine.util)
 
