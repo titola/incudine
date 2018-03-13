@@ -1,6 +1,6 @@
 ;;; incudine.el --- major mode for editing Incudine sources
 
-;; Copyright (c) 2013-2017 Tito Latini
+;; Copyright (c) 2013-2018 Tito Latini
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -181,6 +181,11 @@ If ID is zero, call INCUDINE:FLUSH-PENDING before INCUDINE:FREE."
           (insert result)
           (kill-line -1))))))
 
+(defun incudine-live-nodes ()
+  "Print the number of the live nodes."
+  (interactive)
+  (incudine-eval "(live-nodes)"))
+
 (defun incudine-gc ()
   "Initiate a garbage collection."
   (interactive)
@@ -332,6 +337,7 @@ rego file or call tags-loop-continue."
   (define-key map "\C-cid" 'incudine-dsp/ugen-expand)
   (define-key map "\C-cig" 'incudine-dump-graph)
   (define-key map "\C-cim" 'incudine-rt-memory-free-size)
+  (define-key map "\C-cin" 'incudine-live-nodes)
   (define-key map "\C-cip" 'incudine-peak-info)
   (define-key map "\C-cll" 'incudine-logger-level-choice)
   (define-key map "\C-clt" 'incudine-logger-time-choice))
@@ -381,6 +387,7 @@ rego file or call tags-loop-continue."
               ["Stop Playing" incudine-free-node t]
               ["Pause" incudine-pause-node t]
               ["Unpause" incudine-unpause-node t]
+              ["Number of Live Nodes" incudine-live-nodes t]
               ["Print Graph" incudine-dump-graph t])
         (list "Memory"
               ["Garbage Collection" incudine-gc t]
