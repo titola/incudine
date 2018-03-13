@@ -751,7 +751,7 @@
              collect `(incudine.external:foreign-set
                         ,arr 0 ,(* dim type-size)))))
 
-(defmacro generate-dsp-code (name arguments arg-names obj)
+(defmacro generate-dsp-code (name arguments arg-names optimize obj)
   (with-gensyms (vug-body smpvec-size f32vec-size f64vec-size i32vec-size
                  i64vec-size ptrvec-size)
     `(let* ((*vug-variables* (make-vug-variables))
@@ -771,8 +771,7 @@
                       f32vec f64vecw f64vec i32vecw i32vec i64vecw i64vec
                       ptrvecw ptrvec)
          `(lambda (%dsp-node%)
-            (declare ,*standard-optimize-settings*
-                     (type incudine:node %dsp-node%))
+            (declare ,,optimize (type incudine:node %dsp-node%))
             (with-dsp-preamble (,dsp ',',name ,control-table ,free-hook)
               (with-foreign-arrays ((,smpvec ,smpvecw 'sample ,,smpvec-size)
                                     (,f32vec ,f32vecw :float ,,f32vec-size)
@@ -1225,6 +1224,13 @@
                                                          fixed-keywords)
                                  ,(car values))))))))
 
+(defun optimize-settings (specs &key ugen-spec-p)
+  (let ((spec (funcall (if ugen-spec-p 'get-ugen-spec 'get-vug-spec)
+                       :optimize specs)))
+    (if spec
+        `'(optimize ,@(if ugen-spec-p spec (cadr spec)))
+        '*standard-optimize-settings*)))
+
 ;;; An argument is a symbol or a pair (NAME TYPE), where TYPE is the specifier
 ;;; of NAME. When the argument is a symbol, the default type is SAMPLE.
 (defmacro dsp! (name args &body body)
@@ -1233,12 +1239,13 @@
       (let* ((arg-names (argument-names args))
              (dsp-arg-bindings (dsp-coercing-arguments args))
              (defaults (cadr (get-vug-spec :defaults specs)))
+             (optimize (optimize-settings specs))
              (keywords '(id head tail before after replace action
                          stop-hook free-hook fade-time fade-curve)))
         (check-default-args args defaults 'dsp)
         `(macrolet ((,get-function ,arg-names
                       `(prog1
-                           ,(generate-dsp-code ,name ,args ,arg-names
+                           ,(generate-dsp-code ,name ,args ,arg-names ,optimize
                                                (progn ,@form))
                          (nrt-msg info "new alloc for DSP ~A" ',',name))))
            (cond ((vug ',name)
@@ -1272,18 +1279,20 @@
   (if free-hook (setf (incudine::node-free-hook node) free-hook))
   node)
 
-(defmacro %codegen-debug (name args arg-names codegen-fname rest &body body)
+(defmacro %codegen-debug (name args arg-names optimize codegen-fname rest
+                          &body body)
   (let ((doc (if (stringp (car body)) (car body))))
     `(lambda ,arg-names
        (let ,(dsp-coercing-arguments args)
-         (,codegen-fname ,name ,args ,arg-names ,@rest
+         (,codegen-fname ,name ,args ,arg-names ,optimize ,@rest
                          (progn ,@(if doc (cdr body) body)))))))
 
-(defmacro %%codegen-debug (name args defaults codegen-fname rest &body body)
+(defmacro %%codegen-debug (name args defaults optimize codegen-fname rest
+                           &body body)
   (with-gensyms (fn)
     (let ((lambda-list (argument-names args)))
-      `(let ((,fn (%codegen-debug ,name ,args ,lambda-list ,codegen-fname ,rest
-                    ,@body)))
+      `(let ((,fn (%codegen-debug ,name ,args ,lambda-list ,optimize
+                                  ,codegen-fname ,rest ,@body)))
          (,@(if defaults
                 `(lambda* (,@(mapcar #'list lambda-list defaults) debug-stream))
                 `(lambda (,@lambda-list &optional debug-stream)))
@@ -1299,6 +1308,8 @@
 (defmacro dsp-debug (name args &body body)
   (multiple-value-bind (doc specs form) (get-ugen-specs body)
     (declare (ignore doc))
-    (let ((defaults (get-ugen-spec :defaults specs)))
+    (let ((defaults (get-ugen-spec :defaults specs))
+          (optimize (optimize-settings specs :ugen-spec-p t)))
       (check-default-args args defaults 'ugen)
-      `(%%codegen-debug ,name ,args ,defaults generate-dsp-code nil ,@form))))
+      `(%%codegen-debug ,name ,args ,defaults ,optimize generate-dsp-code nil
+                        ,@form))))

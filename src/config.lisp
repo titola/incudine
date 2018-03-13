@@ -238,6 +238,7 @@
 (declaim (type boolean *allow-rt-memory-pool-p*))
 
 (defvar *standard-optimize-settings* '(optimize speed (safety 0)))
+(declaim (type cons *standard-optimize-settings*))
 
 (in-package :incudine)
 

@@ -1715,7 +1715,7 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
         ((not (vug-spec-p l)) (values doc acc l))
       (let ((key (caar l))
             (value (cdar l)))
-        (unless (member key '(:constructor :defaults :instance-type
+        (unless (member key '(:constructor :defaults :optimize :instance-type
                               :readers :writers :accessors :pre-hook))
           (incudine-error "Unknown SPEC ~S" key))
         (setf acc (list* key (if (unquoting-spec-p key)
