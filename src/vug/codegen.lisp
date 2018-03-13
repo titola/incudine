@@ -1276,7 +1276,7 @@
   (let ((doc (if (stringp (car body)) (car body))))
     `(lambda ,arg-names
        (let ,(dsp-coercing-arguments args)
-         (,codegen-fname ',name ,args ,arg-names ,@rest
+         (,codegen-fname ,name ,args ,arg-names ,@rest
                          (progn ,@(if doc (cdr body) body)))))))
 
 (defmacro %%codegen-debug (name args defaults codegen-fname rest &body body)
