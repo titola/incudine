@@ -44,7 +44,7 @@
   (hash 0 :type fixnum)
   ;; Index in the array of the nodes
   (index (* 2 *max-number-of-nodes*) :type non-negative-fixnum)
-  (name nil :type symbol)
+  (name nil :type (or symbol string))
   (start-time-ptr (foreign-alloc 'sample :initial-element +sample-zero+)
                   :type foreign-pointer)
   ;; List of functions, where the CAR is the function related to the
@@ -613,8 +613,9 @@
 
 (defun node-add (item add-action target id hash name fn init-args
                  fade-time fade-curve)
-  (declare (type node item target) (type symbol name add-action)
-           (type fixnum hash) (type positive-fixnum id) (type function fn)
+  (declare (type node item target) (type symbol add-action)
+           (type (or symbol string) name) (type fixnum hash)
+           (type positive-fixnum id) (type function fn)
            #.*standard-optimize-settings*)
   (cond ((graph-full-p)
          (error 'incudine-node-error :format-control "No more nodes availabe."))
@@ -653,8 +654,9 @@
 (defun enqueue-node-function (node function init-args id name add-action
                               target action fade-time fade-curve)
   (declare (type node node) (type function function)
-           (type non-negative-fixnum id) (type symbol name add-action)
-           (type node target) (type (or function null) action))
+           (type non-negative-fixnum id) (type symbol add-action)
+           (type (or symbol string) name) (type node target)
+           (type (or function null) action))
   (when (node-add node add-action target id (int-hash id)
                   name function init-args fade-time fade-curve)
     (unless (eq add-action :replace)
@@ -680,8 +682,8 @@
   (declare (type compiled-function obj init-function)
            (type (or non-negative-fixnum null) id)
            (type (or node fixnum null) head tail before after replace)
-           (type symbol name) (type (or compiled-function null) action)
-           (type list free-hook))
+           (type (or symbol string) name)
+           (type (or compiled-function null) action) (type list free-hook))
   (rt-eval ()
     (with-add-action (add-action target head tail before after replace)
       (let ((id (or id (get-node-id id add-action))))
