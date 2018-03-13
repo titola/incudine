@@ -18,6 +18,9 @@
 
 (declaim (special *initialization-code*))
 
+(defvar *dsp-node* nil)
+(declaim (type (or null incudine:node) *dsp-node*))
+
 (defvar *common-code-in-local-functions-p* t)
 (declaim (type boolean *common-code-in-local-functions-p*))
 
@@ -709,7 +712,8 @@
 (defmacro with-dsp-preamble ((dsp-var name control-table-var
                               free-hook-var) &body body)
   (with-gensyms (dsp-wrap function-object node)
-    `(let* ((,dsp-wrap (dsp-inst-pool-pop))
+    `(let* ((*dsp-node* %dsp-node%)
+            (,dsp-wrap (dsp-inst-pool-pop))
             (,dsp-var (unwrap-dsp ,dsp-wrap))
             ;; Hash table for the controls of the DSP
             (,control-table-var (dsp-controls ,dsp-var))
@@ -808,6 +812,7 @@
                                   ,ptrvec ,,ptrvec-size ,+pointer-size+)
                                 (setf (node-controls ,node) (dsp-controls ,dsp))
                                 (setf %dsp-node% ,node)
+                                (setf *dsp-node* ,node)
                                 (with-init-frames
                                   ,(reinit-bindings-form)
                                   (update-free-hook ,node ,free-hook)
@@ -828,7 +833,7 @@
                           (values (dsp-init-function ,dsp)
                                   (dsp-perf-function ,dsp)))))))))))))
 
-(defmacro dsp-node () '%dsp-node%)
+(defun dsp-node () *dsp-node*)
 
 (declaim (inline update-free-hook))
 (defun update-free-hook (node hook)

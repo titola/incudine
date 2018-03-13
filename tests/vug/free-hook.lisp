@@ -8,7 +8,12 @@
 (dsp! dsp-free-hook-test-1 ((fn function))
   (initialize (push fn (free-hook (dsp-node)))))
 
+(defun dsp-node-test () (dsp-node))
+
 (dsp! dsp-free-hook-test-2 ((fn function))
+  (initialize (push fn (free-hook (dsp-node-test)))))
+
+(dsp! dsp-free-hook-test-3 ((fn function))
   (ugen-free-hook-test-1 fn))
 
 (defun dsp-free-hook-test (dsp-fn)
@@ -27,4 +32,8 @@
 
 (deftest dsp-free-hook.2
     (dsp-free-hook-test 'dsp-free-hook-test-2)
+  T T)
+
+(deftest dsp-free-hook.3
+    (dsp-free-hook-test 'dsp-free-hook-test-3)
   T T)
