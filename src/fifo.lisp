@@ -208,41 +208,36 @@
 
 (in-package :incudine.util)
 
-(defmacro rt-return-func (varname form)
-  (with-gensyms (c)
-    `(handler-case
-         (let ((,varname (progn ,@form)))
-           (lambda () ,varname))
-       (condition (,c)
-         (progn (nrt-msg error "~A" ,c)
-                incudine.util::*dummy-function-without-args*)))))
+(defun any-to-rt-funcall (function)
+  (declare (type function function))
+  (incudine:fast-nrt-funcall
+    (lambda () (incudine:fast-rt-funcall function))))
 
-(defmacro rt-eval-with-return (&body form)
-  (with-gensyms (fn value)
-    `(let (,fn)
-       (declare (type (or function null) ,fn))
-       (incudine:fast-nrt-funcall
-        (lambda ()
-          (incudine::fast-rt-funcall
-           (lambda () (setf ,fn (rt-return-func ,value ,form))))))
-       (loop until ,fn do (sleep 1e-7))
-       (funcall (the function ,fn)))))
+(defun rt-eval-with-return (function)
+  (declare (type function function))
+  (let ((fn nil))
+    (declare (type (or function null) fn))
+    (any-to-rt-funcall
+      (lambda ()
+        (setf fn (handler-case (let ((res (funcall function)))
+                                 (lambda () res))
+                   (condition (c)
+                     (uiop:symbol-call :incudine.util '#:%nrt-msg 'error "~A" c)
+                     *dummy-function-without-args*)))))
+    (loop until fn do (sleep 1e-7))
+    (funcall (the function fn))))
 
-(defmacro rt-eval-without-return (&body form)
-  `(incudine:fast-nrt-funcall
-    (lambda ()
-      (incudine:fast-rt-funcall
-       (lambda () ,@form nil)))))
+(defun %rt-eval (function return-value-p)
+  (declare (type function function) (type boolean return-value-p)
+           #.*standard-optimize-settings*)
+  (cond ((or (null *rt-thread*) (rt-thread-p))
+         (funcall function))
+        (return-value-p (rt-eval-with-return function))
+        (t (any-to-rt-funcall function))))
 
 (defmacro rt-eval ((&key return-value-p) &body form)
-  (with-gensyms (func)
-    `(flet ((,func () (progn ,@form ,@(unless return-value-p '(nil)))))
-       (if (or (null *rt-thread*) (rt-thread-p))
-           (,func)
-           (,(if return-value-p
-                 'rt-eval-with-return
-                 'rt-eval-without-return)
-            (,func))))))
+  `(%rt-eval (lambda () ,@form ,@(and (not return-value-p) '(nil)))
+             ,return-value-p))
 
 (defmacro rt-eval-if ((predicate) &body body)
   (with-gensyms (func)
