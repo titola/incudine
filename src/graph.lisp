@@ -697,7 +697,7 @@
             (values init-function obj))
           nil id name add-action target action nil nil)))))
 
-;;; Iteration over the nodes of the graph
+;;; Iteration over the nodes of the graph.
 (defmacro dograph ((var &optional node result) &body body)
   (with-gensyms (first-node)
     (let ((node (or node '*node-root*)))
@@ -708,29 +708,38 @@
              (declare (type (or node null) ,var))
              ,@body))))))
 
-;;; Iteration over the nodes of a group
+(defun group-last (group)
+  (declare (type node group))
+  (labels ((rec (curr old parent)
+             (if (or (null curr) (eq (node-parent curr) parent))
+                 old
+                 (rec (node-next curr) curr parent))))
+    (rec (node-next group) nil (node-parent group))))
+
+;;; Iteration over the nodes of a group.
 (defmacro dogroup ((var group &optional result (recursive-p t)) &body body)
-  (with-gensyms (old g)
-    `(let ((,g ,group))
-       (when (node-p (node-last ,g))
-         (do ((,var (node-next ,g) (node-next ,var))
-              (,old nil ,var))
-             ((eq ,old (node-last ,g)) ,result)
-           (declare (type (or node null) ,var ,old))
-           ,@body
-           ,@(unless recursive-p
-               `((when (and (group-p ,var)
-                            (node-p (node-last ,var))
-                            (not (eq ,var (node-last ,g))))
-                   ;; Skip the nodes of the sub-groups
-                   (setf ,var (node-last ,var))))))))))
+  (with-gensyms (g last parent)
+    `(let* ((,g ,group)
+            (,g (if (numberp ,g) (node ,g) ,g)))
+       (declare (type node ,g))
+       (do ((,var (node-next ,g) (node-next ,var))
+            (,parent (node-parent ,g)))
+           ((or (null ,var) (eq (node-parent ,var) ,parent))
+            ,result)
+         (declare (type (or node null) ,var ,parent))
+         ,@body
+         ,@(unless recursive-p
+             `((when (group-p ,var)
+                 (let ((,last (group-last ,var)))
+                   (when ,last
+                     ;; Skip the nodes of the sub-groups.
+                     (setf ,var ,last))))))))))
 
 ;;; Find a group inside another group
 (defun find-group (group group-root)
   (dogroup (g group-root)
-    (when (and (group-p g)
-               (or (eq g group) (find-group group g)))
-        (return t))))
+    (when (and (group-p g) (eq g group))
+      (return t))))
 
 (defun remove-node-from-hash (obj)
   (setf (node-id obj) nil

@@ -59,12 +59,13 @@
   (0 1024 T))
 
 (deftest group.1
-  (progn
-    (make-group 100)
-    (make-group 200 :after 100)
-    (values (incudine::node-funcons (node 200))
-            (live-nodes)
-            (progn (free 0) (live-nodes))))
+    (progn
+      (free 0)
+      (make-group 100)
+      (make-group 200 :after 100)
+      (values (incudine::node-funcons (node 200))
+              (live-nodes)
+              (progn (free 0) (live-nodes))))
   nil 2 0)
 
 (deftest move-node.1
