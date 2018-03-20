@@ -1,4 +1,4 @@
-;;; Copyright (c) 2016-2017 Tito Latini
+;;; Copyright (c) 2016-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -62,9 +62,9 @@
                     (cffi:foreign-free sysex-ptr)
                     (error c)))))
       (when (input-stream-p obj)
-        (tg:finalize obj (lambda ()
-                           (cffi:foreign-free ptr)
-                           (cffi:foreign-free sysex-ptr)))
+        (incudine.util::finalize obj (lambda ()
+                                       (cffi:foreign-free ptr)
+                                       (cffi:foreign-free sysex-ptr)))
         (setf (cffi:mem-ref (input-stream-sysex-pointer* obj) :pointer)
               (cffi:null-pointer))
         obj))))
@@ -84,7 +84,7 @@
                    (cffi:foreign-free ptr)
                    (error c)))))
       (when (output-stream-p obj)
-        (tg:finalize obj (lambda () (cffi:foreign-free ptr)))
+        (incudine.util::finalize obj (lambda () (cffi:foreign-free ptr)))
         obj))))
 
 (defmethod print-object ((obj stream) stream)
@@ -243,14 +243,14 @@ The MIDI messages are aligned to four bytes."
       (incudine::foreign-alloc-error "Jack MIDI pointer allocation."))
     (let ((obj (make-foreign-data-vector :pointer ptr
                  :stream-direction (if input-p :input :output))))
-      (tg:finalize obj (lambda () (jm-free-data-vec ptr)))
+      (incudine.util::finalize obj (lambda () (jm-free-data-vec ptr)))
       obj)))
 
 (defun free-foreign-data-vector (obj)
   (declare (type foreign-data-vector obj))
   (unless (cffi:null-pointer-p (foreign-data-vector-pointer obj))
     (jm-free-data-vec (foreign-data-vector-pointer obj))
-    (tg:cancel-finalization obj)
+    (incudine.util::cancel-finalization obj)
     (setf (foreign-data-vector-pointer obj) (cffi:null-pointer)))
   (values))
 
@@ -403,7 +403,7 @@ port-name of the stream to close."
                    (not (cffi:null-pointer-p (input-stream-sysex-pointer* obj))))
           (cffi:foreign-free (input-stream-sysex-pointer* obj))
           (setf (input-stream-sysex-pointer* obj) (cffi:null-pointer)))
-        (tg:cancel-finalization stream))
+        (incudine.util::cancel-finalization stream))
       (setf (stream-direction stream) :closed)
       (setf (stream-port-name stream) "")
       stream)))

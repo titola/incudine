@@ -211,3 +211,17 @@
 (deftest with-cleanup-empty
     (with-cleanup)
   nil)
+
+(deftest with-cleanup.1
+    (flet ((free-objects ()
+             (incudine.util::incudine-object-pool-size incudine::*buffer-pool*)))
+    (let* ((r0 (free-objects))
+           (r1 0)
+           (allocated (min 123 r0)))
+      (assert (plusp r0))
+      (with-cleanup
+        (let ((lst (loop repeat allocated collect (make-buffer 128))))
+          (setf r1 (free-objects))))
+      (values (= (free-objects) r0)
+              (= (- r0 r1) allocated))))
+  T T)

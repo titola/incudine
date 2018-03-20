@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -309,9 +309,9 @@
   (let* ((gen (cffi:foreign-funcall "gsl_rng_alloc"
                                     :pointer +gsl-rng-mt19937+ :pointer))
          (res (%make-gsl-rng :ptr gen)))
-    (tg:finalize res (lambda ()
-                       (cffi:foreign-funcall "gsl_rng_free" :pointer gen
-                                             :void)))
+    (sb-ext:finalize res
+      (lambda () (cffi:foreign-funcall "gsl_rng_free" :pointer gen :void))
+      :dont-save t)
     res))
 
 (defvar *gsl-random-generator* (make-gsl-rng))

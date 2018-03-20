@@ -472,14 +472,14 @@ instantiated within BODY are invalid beyond the dynamic extent of BODY."
 
 (declaim (inline incudine-finalize))
 (defun incudine-finalize (obj function)
-  (tg:finalize obj function)
+  (incudine.util::finalize obj function)
   (when (dynamic-incudine-finalizer-p)
     (push obj *to-free*))
   obj)
 
 (declaim (inline incudine-cancel-finalization))
 (defun incudine-cancel-finalization (obj)
-  (tg:cancel-finalization obj))
+  (incudine.util::cancel-finalization obj))
 
 (defgeneric quantize (obj from &key)
   (:documentation "Quantize OBJ with respect to a real number, a vector

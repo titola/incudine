@@ -248,12 +248,13 @@ The argument of a function is the OSC:STREAM to close.")
                          :tmp-ptr (cffi:inc-pointer buf-ptr
                                                     (+ buffer-size
                                                        +zero-padding-bytes+)))))
-      (tg:finalize obj (lambda ()
-                         (free-fds fds-ptr direction protocol)
-                         (free-address address)
-                         (mapc #'free-pointer
-                               (list buf-ptr aux-ptr value-vec-ptr
-                                     type-vec-ptr))))
+      (incudine.util::finalize obj
+        (lambda ()
+          (free-fds fds-ptr direction protocol)
+          (free-address address)
+          (mapc #'free-pointer
+                (list buf-ptr aux-ptr value-vec-ptr
+                      type-vec-ptr))))
       (handler-case
           (%open (init-stream obj latency))
         (error (c)
@@ -346,7 +347,7 @@ The argument of a function is the OSC:STREAM to close.")
         (free-stream-pointer stream stream-value-vec-ptr)
         (free-stream-pointer stream stream-type-vec-ptr)
         (free-stream-pointer stream stream-aux-buffer-pointer)
-        (tg:cancel-finalization stream)
+        (incudine.util::cancel-finalization stream)
         (setf (stream-address-ptr stream) (cffi:null-pointer))
         (setf (stream-addrinfo-ptr stream) (cffi:null-pointer))
         (setf (stream-message-pointer stream) (cffi:null-pointer))

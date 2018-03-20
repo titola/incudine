@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -130,6 +130,11 @@ core image starts up.")
       ;; Stop realtime and non-realtime threads
       (rt-stop)
       (nrt-stop)
+      (ensure-incudine-object-pool-size
+        *buffer-pool* +buffer-pool-initial-size+)
+      (ensure-incudine-object-pool-size
+        *rt-buffer-pool* +buffer-pool-initial-size+)
+      (clrhash incudine.analysis::*fft-plan*)
       (values))
     "Function to call before to save a core image.")
 

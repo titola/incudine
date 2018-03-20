@@ -583,7 +583,7 @@
   (rt-eval ()
     (incudine.util::foreign-rt-free-sample #1=(foreign-array-data obj))
     (setf #1# nil)
-    (tg:cancel-finalization obj)
+    (incudine.util::cancel-finalization obj)
     (incudine::rt-foreign-array-pool-push obj)
     (values)))
 
@@ -594,9 +594,10 @@
          (obj (incudine::fill-foreign-array (incudine::rt-foreign-array-pool-pop)
                                             data dimension 'sample
                                             #'rt-free-foreign-array-sample)))
-    (tg:finalize obj (lambda ()
-                       (rt-eval ()
-                         (incudine.util::foreign-rt-free-sample data))))
+    (incudine.util::finalize obj
+      (lambda ()
+        (rt-eval ()
+          (incudine.util::foreign-rt-free-sample data))))
     obj))
 
 (declaim (inline make-foreign-sample-array))

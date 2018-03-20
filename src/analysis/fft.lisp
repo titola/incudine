@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -75,11 +75,11 @@ is the plan for a IFFT."
 (declaim (inline %%new-fft-plan))
 (defun %%new-fft-plan (size flags realtime-p)
   (let ((pair (compute-fft-plan size flags realtime-p)))
-    (tg:finalize (add-fft-plan size (%new-fft-plan :pair pair :size size
-                                                   :flags flags))
-                 (lambda ()
-                   (fft-destroy-plan (car pair))
-                   (fft-destroy-plan (cdr pair))))))
+    (incudine.util::finalize
+      (add-fft-plan size (%new-fft-plan :pair pair :size size :flags flags))
+      (lambda ()
+        (fft-destroy-plan (car pair))
+        (fft-destroy-plan (cdr pair))))))
 
 (defun new-fft-plan (size &optional flags)
   "Calculate and store a new FFT-PLAN with the specified size."

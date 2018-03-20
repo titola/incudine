@@ -69,6 +69,8 @@
                 #:inc-pointer #:foreign-slot-value
                 #:foreign-alloc #:foreign-free)
   (:import-from #:incudine.external #:sample-complex #:foreign-alloc-sample)
+  (:intern #:incudine-object #:incudine-object-pool #:make-incudine-object-pool
+           #:incudine-object-pool-expand #:ensure-incudine-object-pool-size)
   (:export
    #:sample #:positive-sample #:negative-sample #:non-negative-sample
    #:+sample-zero+ #:non-positive-sample #:*sample-type*
@@ -335,6 +337,9 @@
 
 (defpackage :incudine
   (:use :cl :incudine.vug :incudine.util)
+  (:import-from #:incudine.util #:incudine-object #:incudine-object-pool
+                #:make-incudine-object-pool #:incudine-object-pool-expand
+                #:ensure-incudine-object-pool-size)
   (:import-from #:alexandria #:positive-fixnum #:negative-fixnum
                 #:non-negative-fixnum #:non-negative-real #:positive-real
                 #:positive-rational

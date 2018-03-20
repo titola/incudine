@@ -146,6 +146,16 @@
 (defun stdout-fd ()
   (sb-sys:fd-stream-fd sb-sys:*stdout*))
 
+;;; Finalization
+
+(declaim (inline finalize))
+(defun finalize (obj function)
+  (sb-ext:finalize obj function :dont-save t))
+
+(declaim (inline cancel-finalization))
+(defun cancel-finalization (obj)
+  (sb-ext:cancel-finalization obj))
+
 ;;; DEBUG
 
 (defun get-bytes-consed-in (time)

@@ -85,9 +85,9 @@
     (setf (smp-ref (node-gain-data obj) 9) (sample 0.02))
     (let ((start-time-ptr (node-start-time-ptr obj))
           (gain-data-ptr (node-gain-data obj)))
-      (tg:finalize obj (lambda ()
-                         (foreign-free start-time-ptr)
-                         (foreign-free gain-data-ptr)))
+      (incudine.util::finalize obj (lambda ()
+                                     (foreign-free start-time-ptr)
+                                     (foreign-free gain-data-ptr)))
       obj)))
 
 (defun make-node-hash (size)

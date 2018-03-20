@@ -1,4 +1,4 @@
-;;; Copyright (c) 2015-2017 Tito Latini
+;;; Copyright (c) 2015-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -53,6 +53,10 @@
 
 (defvar *default-tuning-description* "12-tone equal temperament")
 
+(declaim (inline tuning-data))
+(defun tuning-data (obj)
+  (buffer-base-data-ptr obj))
+
 (defmacro with-tuning-cents-and-ratios ((cents-var ratios-var length)
                                         &body body)
   (with-gensyms (len)
@@ -87,7 +91,7 @@
                  :description (or description "")
                  :%cents cents
                  :%ratios ratios
-                 :data data
+                 :data-ptr data
                  :aux-data aux-data
                  :sample-ratios smp-ratios
                  :size size
@@ -121,11 +125,15 @@
   (format stream "#<~S ~S>" (type-of obj) (tuning-description obj)))
 
 (defmethod free ((obj tuning))
-  (unless (null-pointer-p (tuning-aux-data obj))
-    (setf (tuning-aux-data obj) (null-pointer)))
-  (unless (null-pointer-p (tuning-sample-ratios obj))
-    (setf (tuning-sample-ratios obj) (null-pointer)))
-  (call-next-method))
+  (unless (free-p obj)
+    (funcall (tuning-foreign-free obj) (tuning-data obj))
+    (incudine-cancel-finalization obj)
+    (setf (tuning-data-ptr obj) (null-pointer))
+    (setf (tuning-aux-data obj) (null-pointer))
+    (setf (tuning-sample-ratios obj) (null-pointer))
+    (setf (tuning-size obj) 0)
+    (nrt-msg debug "Free TUNING")
+    (values)))
 
 (declaim (inline tuning-keynum-base))
 (defun tuning-keynum-base (tuning)

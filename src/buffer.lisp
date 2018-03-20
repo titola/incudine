@@ -16,34 +16,36 @@
 
 (in-package :incudine)
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defstruct buffer-base
-    (data (null-pointer) :type foreign-pointer)
-    (size 0 :type non-negative-fixnum)
-    (real-time-p nil :type boolean)
-    (foreign-free #'foreign-free :type function))
+(defstruct (buffer-base (:include incudine-object))
+  (data-ptr (null-pointer) :type foreign-pointer)
+  (size 0 :type non-negative-fixnum)
+  (real-time-p nil :type boolean)
+  (foreign-free #'foreign-free :type function))
 
-  (defstruct (buffer (:include buffer-base)
-                     (:constructor %make-buffer)
-                     (:copier nil))
-    "Buffer type."
-    (mask 0 :type non-negative-fixnum)
-    ;; LOBITS, LOMASK and LODIV used with the oscillators
-    ;; that require power-of-two tables
-    (lobits 0 :type (integer 0 #.+max-lobits+))
-    (lomask 0 :type non-negative-fixnum)
-    (lodiv (sample 1) :type sample)
-    (frames 0 :type non-negative-fixnum)
-    (channels 1 :type non-negative-fixnum)
-    (sample-rate *sample-rate* :type sample)
-    (file nil :type (or pathname null))
-    (textfile-p nil :type boolean)))
+(defstruct (buffer (:include buffer-base)
+                   (:constructor %make-buffer)
+                   (:copier nil))
+  "Buffer type."
+  (mask 0 :type non-negative-fixnum)
+  ;; LOBITS, LOMASK and LODIV used with the oscillators
+  ;; that require power-of-two tables
+  (lobits 0 :type (integer 0 #.+max-lobits+))
+  (lomask 0 :type non-negative-fixnum)
+  (lodiv (sample 1) :type sample)
+  (frames 0 :type non-negative-fixnum)
+  (channels 1 :type non-negative-fixnum)
+  (sample-rate *sample-rate* :type sample)
+  (file nil :type (or pathname null))
+  (textfile-p nil :type boolean))
+
+(declaim (inline buffer-data))
+(defun buffer-data (obj)
+  "Return the foreign pointer to the buffer data."
+  (buffer-data-ptr obj))
 
 (setf
   (documentation 'buffer-p 'function)
   "Return T if object is of type BUFFER."
-  (documentation 'buffer-data 'function)
-  "Return the foreign pointer to the buffer data."
   (documentation 'buffer-size 'function)
   "Return the buffer size."
   (documentation 'buffer-frames 'function)
@@ -56,6 +58,16 @@
   "If the buffer is created with BUFFER-LOAD or MAKE-BUFFER with
 a non-NIL FILE argument, return the pathname.")
 
+(define-constant +buffer-pool-initial-size+ (* *max-number-of-nodes* 10))
+
+(defvar *buffer-pool*
+  (make-incudine-object-pool +buffer-pool-initial-size+ #'%make-buffer nil))
+(declaim (type incudine-object-pool *buffer-pool*))
+
+(defvar *rt-buffer-pool*
+  (make-incudine-object-pool +buffer-pool-initial-size+ #'%make-buffer t))
+(declaim (type incudine-object-pool *rt-buffer-pool*))
+
 (declaim (inline calc-buffer-mask))
 (defun calc-buffer-mask (size)
   (declare (type non-negative-fixnum size))
@@ -66,36 +78,48 @@ a non-NIL FILE argument, return the pathname.")
             (- size 2)
             (- (next-power-of-two half) 1)))))
 
-(declaim (inline %%make-buffer))
-(defun %%make-buffer (frames channels sample-rate real-time-p finalize-p)
-  (let* ((frames (max 1 (floor frames)))
-         (size (the non-negative-fixnum (* frames channels)))
-         (real-time-p (and real-time-p *allow-rt-memory-pool-p*))
-         (data (if real-time-p
-                   (foreign-rt-alloc 'sample :count size :zero-p t)
-                   (foreign-alloc-sample size)))
-         (lobits (calc-lobits size))
-         (value (ash 1 lobits))
-         (free-function (if real-time-p
-                            #'safe-foreign-rt-free
-                            #'foreign-free))
-         (obj (%make-buffer
-               :data data
-               :size size
-               :mask (calc-buffer-mask size)
-               :lobits lobits
-               :lomask (1- value)
-               :lodiv (if (zerop lobits)
-                          +sample-zero+
-                          (/ (sample 1) value))
-               :frames frames
-               :channels channels
-               :sample-rate (sample sample-rate)
-               :real-time-p real-time-p
-               :foreign-free free-function)))
-    (when finalize-p
-      (incudine-finalize obj (lambda () (funcall free-function data))))
-    obj))
+(defun %%make-buffer (frm chans srate rt-p)
+  (declare (type non-negative-fixnum frm chans)
+           (type alexandria:positive-real srate)
+           (type boolean rt-p))
+  (let ((bufsize (the non-negative-fixnum (* frm chans))))
+    (declare (type non-negative-fixnum bufsize))
+    (multiple-value-bind (%data obj free-fn pool)
+        (reduce-warnings
+          (if rt-p
+              (values (foreign-rt-alloc 'sample :count bufsize :zero-p t)
+                      (incudine.util::alloc-rt-object *rt-buffer-pool*)
+                      #'safe-foreign-rt-free
+                      *rt-buffer-pool*)
+              (values (foreign-alloc-sample bufsize)
+                      (incudine.util::alloc-object *buffer-pool*)
+                      #'foreign-free
+                      *buffer-pool*)))
+      (declare (type foreign-pointer %data) (type buffer obj)
+               (type incudine-object-pool pool))
+      (let* ((%lobits (calc-lobits bufsize))
+             (value (ash 1 %lobits)))
+        (declare (type non-negative-fixnum %lobits value))
+        (incudine.util::with-struct-slots
+            ((data-ptr size real-time-p foreign-free mask lobits lomask lodiv
+              frames channels sample-rate file textfile-p)
+             obj buffer)
+          (setf frames frm
+                channels chans
+                size bufsize
+                sample-rate (reduce-warnings (sample srate))
+                data-ptr %data
+                mask (calc-buffer-mask bufsize)
+                lobits %lobits
+                lomask (1- value)
+                lodiv (if (zerop lobits) +sample-zero+ (/ (sample 1) value))
+                real-time-p (and rt-p *allow-rt-memory-pool-p*)
+                foreign-free free-fn)
+          (incudine-finalize obj
+            (lambda ()
+              (funcall free-fn %data)
+              (incudine-object-pool-expand pool 1)))
+          obj)))))
 
 (defmethod print-object ((obj buffer) stream)
   (format stream "#<~S :FRAMES ~D :CHANNELS ~D :SR ~F>"
@@ -105,19 +129,19 @@ a non-NIL FILE argument, return the pathname.")
           (buffer-sample-rate obj)))
 
 (defmethod free-p ((obj buffer-base))
-  (null-pointer-p (buffer-base-data obj)))
+  (null-pointer-p (buffer-base-data-ptr obj)))
 
 (declaim (inline buffer-value))
 (defun buffer-value (buffer index)
   "Return the buffer value stored at the sample frame INDEX. Setfable."
   (declare (type buffer-base buffer) (type non-negative-fixnum index))
-  (smp-ref (buffer-base-data buffer) index))
+  (smp-ref (buffer-base-data-ptr buffer) index))
 
 (declaim (inline set-buffer-value))
 (defun set-buffer-value (buffer index value)
   (declare (type buffer-base buffer) (type non-negative-fixnum index)
            (type real value))
-  (setf (smp-ref (buffer-base-data buffer) index) (sample value)))
+  (setf (smp-ref (buffer-base-data-ptr buffer) index) (sample value)))
 
 (defsetf buffer-value set-buffer-value)
 
@@ -329,12 +353,15 @@ DATA-FORMAT defaults to *DEFAULT-DATA-FORMAT*."
           (writef-sample sf data frames)))
     buf))
 
-(defmethod free ((obj buffer-base))
+(defmethod free ((obj buffer))
   (unless (free-p obj)
-    (funcall (buffer-base-foreign-free obj) (buffer-base-data obj))
+    (funcall (buffer-base-foreign-free obj) (buffer-base-data-ptr obj))
     (incudine-cancel-finalization obj)
-    (setf (buffer-base-data obj) (null-pointer))
+    (incudine.util::free-object obj
+      (if (buffer-real-time-p obj) *rt-buffer-pool* *buffer-pool*))
+    (setf (buffer-base-data-ptr obj) (null-pointer))
     (setf (buffer-base-size obj) 0)
+    (setf (buffer-file obj) nil)
     (nrt-msg debug "Free ~A" (type-of obj))
     (values)))
 
@@ -365,30 +392,27 @@ of channels."
                    (= (buffer-channels buffer) channels))))
       buffer
       (let* ((old-channels (buffer-channels buffer))
-             (old-data (buffer-data buffer))
              (old-size (buffer-size buffer))
              (channels (or channels old-channels))
-             (new (%%make-buffer frames channels (buffer-sample-rate buffer)
-                                 (allow-rt-memory-p) nil))
-             (data (buffer-data new))
-             (size (buffer-size new)))
+             (size (* frames channels)))
         (declare (type non-negative-fixnum old-channels old-size channels size))
-        (loop for i of-type non-negative-fixnum below size by channels
-              for j of-type non-negative-fixnum below old-size by old-channels do
-             (dochannels (ch channels)
-               (setf (smp-ref data (+ i ch))
-                     (if (< ch old-channels)
-                         (smp-ref old-data (+ j ch))
-                         +sample-zero+))))
-        (funcall (buffer-foreign-free buffer) (buffer-data buffer))
-        (incudine-cancel-finalization buffer)
-        (copy-struct-slots buffer (data size mask lobits lomask lodiv frames
-                                   channels sample-rate real-time-p
-                                   foreign-free)
-                           new buffer)
-        (incudine-finalize buffer
-          (lambda () (funcall (buffer-foreign-free buffer) data)))
-        buffer)))
+        (with-foreign-array (data 'sample size)
+          (loop for i of-type non-negative-fixnum below size by channels
+                for j of-type non-negative-fixnum below old-size by old-channels
+                do (dochannels (ch channels)
+                     (setf (smp-ref data (+ i ch))
+                           (if (< ch old-channels)
+                               (smp-ref (buffer-data buffer) (+ j ch))
+                               +sample-zero+))))
+          (funcall (buffer-foreign-free buffer) (buffer-data buffer))
+          (incudine-cancel-finalization buffer)
+          (incudine-finalize buffer
+            (lambda () (funcall (buffer-foreign-free buffer) data)))
+          (setf (buffer-data-ptr buffer) data
+                (buffer-frames buffer) frames
+                (buffer-channels buffer) channels
+                (buffer-size buffer) size)
+          buffer))))
 
 (defun map-buffer (function buffer)
   "Destructively modifies BUFFER to contain the results of applying
@@ -431,7 +455,7 @@ FUNCTION is a function of as many arguments as there are buffers."
 (defun normalize-buffer (buffer value)
   "Scales the buffer values to be between -value and value."
   (declare (type buffer-base buffer) (type real value))
-  (let ((data (buffer-base-data buffer))
+  (let ((data (buffer-base-data-ptr buffer))
         (size (buffer-base-size buffer)))
     (declare (type positive-fixnum size))
     (labels ((norm (index max)
@@ -446,7 +470,7 @@ FUNCTION is a function of as many arguments as there are buffers."
 (defun rescale-buffer (buffer min max)
   "Rescale the buffer values to be between MIN and MAX."
   (declare (type buffer-base buffer) (type real min max))
-  (let ((data (buffer-base-data buffer))
+  (let ((data (buffer-base-data-ptr buffer))
         (size (buffer-base-size buffer)))
     (declare (type positive-fixnum size))
     (labels ((resc (index old-min old-max)
@@ -468,37 +492,37 @@ FUNCTION is a function of as many arguments as there are buffers."
 (declaim (inline sort-buffer))
 (defun sort-buffer (buffer)
   "Destructively sort BUFFER."
-  (sort-samples (buffer-base-data buffer) (buffer-base-size buffer))
+  (sort-samples (buffer-base-data-ptr buffer) (buffer-base-size buffer))
   buffer)
 
 (defmethod circular-shift ((obj buffer-base) n)
-  (foreign-circular-shift (buffer-base-data obj) 'sample
+  (foreign-circular-shift (buffer-base-data-ptr obj) 'sample
                           (buffer-base-size obj) n)
   obj)
 
 (defmethod quantize ((obj real) (from buffer-base) &key)
   (quantize-from-vector obj from smp-ref buffer-base-size
-                        (buffer-base-data from)))
+                        (buffer-base-data-ptr from)))
 
 (defmethod quantize ((obj buffer-base) (from real)
                      &key (start 0) end filter-function)
   (quantize-vector obj from start end filter-function smp-ref
-                   buffer-base-size (buffer-base-data obj) sample))
+                   buffer-base-size (buffer-base-data-ptr obj) sample))
 
 (defmethod quantize ((obj buffer-base) (from buffer-base)
                      &key (start 0) end filter-function)
   (quantize-vector obj from start end filter-function smp-ref
-                   buffer-base-size (buffer-base-data obj) sample))
+                   buffer-base-size (buffer-base-data-ptr obj) sample))
 
 (defmethod quantize ((obj buffer-base) (from simple-vector)
                      &key (start 0) end filter-function)
   (quantize-vector obj from start end filter-function smp-ref
-                   buffer-base-size (buffer-base-data obj) sample))
+                   buffer-base-size (buffer-base-data-ptr obj) sample))
 
 (defmethod quantize ((obj buffer-base) (from simple-array)
                      &key (start 0) end filter-function)
   (quantize-vector obj from start end filter-function smp-ref
-                   buffer-base-size (buffer-base-data obj) sample))
+                   buffer-base-size (buffer-base-data-ptr obj) sample))
 
 (defmethod quantize ((obj simple-vector) (from buffer-base)
                      &key (start 0) end filter-function)
@@ -682,8 +706,6 @@ If NORMALIZE-P is T, normalize the buffer data between -1 and 1."
                                                 (* (buffer-value buffer ,i)
                                                    ,scale)))))))))
     (let ((size (buffer-size buffer)))
-      (when (and (free-p buffer) (plusp size))
-        (setf (buffer-data buffer) (foreign-alloc-sample (buffer-size buffer))))
       (unless (free-p buffer)
         (cond ((functionp obj)
                (let ((chunk-size (- (if end (min end size) size) start)))
@@ -735,7 +757,7 @@ If the buffer is to alloc in real-time, set REAL-TIME-P to T."
            (type boolean real-time-p normalize-p)
            (type (or function null) fill-function))
   (flet ((new-from-file (frm ch f os sr)
-           (set-buffer-from-sndfile (%%make-buffer frm ch sr real-time-p t)
+           (set-buffer-from-sndfile (%%make-buffer frm ch sr real-time-p)
                                     f os 0 frm)))
     (if file
         (if (zerop frames)
@@ -746,7 +768,7 @@ If the buffer is to alloc in real-time, set REAL-TIME-P to T."
                                  (sf:channels info)
                                  file offset sample-rate)))
             (new-from-file frames channels file offset sample-rate))
-        (let ((buf (%%make-buffer frames channels sample-rate real-time-p t))
+        (let ((buf (%%make-buffer frames channels sample-rate real-time-p))
               (value (or initial-contents fill-function)))
           (when value
             (if normalize-p
