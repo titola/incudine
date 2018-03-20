@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -121,7 +121,6 @@
   (declare (type fifo fifo))
   (setf (fifo-read-head fifo) (fifo-write-head fifo)))
 
-(declaim (inline enqueue))
 (defun enqueue (value fifo)
   "Adds VALUE to the end of FIFO. Returns VALUE."
   (declare (type fifo fifo))
@@ -148,7 +147,6 @@
             (setf (fifo-write-head fifo) next)
             function))))))
 
-(declaim (inline fast-nrt-perform-functions))
 (defun fast-nrt-perform-functions ()
   (let ((fifo *from-world-fifo*))
     (with-spinlock-held (*fast-nrt-spinlock*)
@@ -185,7 +183,6 @@
   (sync-condition-signal *fast-nrt-audio-sync*)
   nil)
 
-(declaim (inline %print-condition-error))
 (defun %print-condition-error (cond)
   (declare (type condition cond))
   (flet ((print-error ()
@@ -193,10 +190,8 @@
            (force-output)))
     (if (rt-thread-p) (nrt-funcall #'print-error) (print-error))))
 
-(declaim (inline fifo-perform-functions))
 (defun fifo-perform-functions (fifo)
-  (declare #.*standard-optimize-settings*
-           (type fifo fifo))
+  (declare (type fifo fifo) #.*standard-optimize-settings*)
   (loop until (fifo-empty-p fifo) do
        (let* ((next (fifo-head-next fifo fifo-read-head))
               (fn (fifo-value fifo next)))

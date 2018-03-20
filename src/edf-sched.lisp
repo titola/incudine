@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -125,7 +125,6 @@
       (node-update (heap-node curr) t0 function args)
       (incf (heap-next-node *heap*)))))
 
-(declaim (inline %at))
 (defun %at (time function args)
   (declare (type sample time) (type function function) (type list args))
   (if (or (null *rt-thread*) (rt-thread-p) (not (rt-heap-p)))
