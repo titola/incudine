@@ -120,7 +120,7 @@
    #:get-bytes-consed-in
    #:thread-priority
    #:seed-random-state
-   #:sample->fixnum #:sample->int
+   #:sample->fixnum #:sample->int #:float->fixnum
    #:without-interrupts #:with-pinned-objects #:with-gc-pending
    #:calc-lobits
    #:rt-thread-p #:rt-eval #:rt-eval-if #:allow-rt-memory-p

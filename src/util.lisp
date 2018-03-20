@@ -179,6 +179,20 @@
     (declare (ignore rem))
     result))
 
+(declaim (inline float->fixnum))
+(defun float->fixnum (x &key roundp)
+  (declare (type (or (single-float
+                      #.(coerce (ash most-negative-fixnum -1) 'single-float)
+                      #.(coerce (ash most-positive-fixnum -1) 'single-float))
+                     (double-float
+                      #.(coerce (ash most-negative-fixnum -1) 'double-float)
+                      #.(coerce (ash most-positive-fixnum -1) 'double-float)))
+                 x)
+           (type boolean roundp))
+  (multiple-value-bind (result rem) (if roundp (round x) (floor x))
+    (declare (ignore rem))
+    result))
+
 (declaim (inline calc-lobits))
 (defun calc-lobits (size)
   (declare (type non-negative-fixnum size))
