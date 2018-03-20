@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014-2017 Tito Latini
+;;; Copyright (c) 2014-2018 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -99,6 +99,16 @@
 (defun has-non-null-slot-p (descriptor slot-name)
   (not (cffi:null-pointer-p (descriptor-slot-value descriptor slot-name))))
 
+(declaim (inline finalize))
+(defun finalize (obj function)
+  #+sbcl (sb-ext:finalize obj function :dont-save t)
+  #-sbcl (tg:finalize obj function))
+
+(declaim (inline cancel-finalization))
+(defun cancel-finalization (obj)
+  #+sbcl (sb-ext:cancel-finalization obj)
+  #-sbcl (tg:cancel-finalization obj))
+
 (defun instantiate (callback descriptor sample-rate)
   (let* ((ptr (cffi:foreign-funcall-pointer callback nil :pointer descriptor
                                             :unsigned-long sample-rate
@@ -107,7 +117,7 @@
          (deleted (make-flag))
          (obj (make-handle :ptr ptr :descriptor descriptor
                            :activated activated :deleted deleted)))
-    (tg:finalize obj (lambda () (%cleanup descriptor ptr activated deleted)))))
+    (finalize obj (lambda () (%cleanup descriptor ptr activated deleted)))))
 
 (declaim (inline connect-port))
 (defun connect-port (callback instance port data-location)
@@ -181,7 +191,7 @@
 
 (declaim (inline cleanup))
 (defun cleanup (instance)
-  (tg:cancel-finalization instance)
+  (cancel-finalization instance)
   (%cleanup (handle-descriptor instance) (handle-ptr instance)
             (handle-activated instance) (handle-deleted instance)))
 

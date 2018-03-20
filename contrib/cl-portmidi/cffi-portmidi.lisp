@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -49,6 +49,16 @@
 (defstruct (output-stream (:include stream) (:copier nil))
   (latency 1 :type non-negative-fixnum :read-only t))
 
+(declaim (inline finalize))
+(defun finalize (obj function)
+  #+sbcl (sb-ext:finalize obj function :dont-save t)
+  #-sbcl (tg:finalize obj function))
+
+(declaim (inline cancel-finalization))
+(defun cancel-finalization (obj)
+  #+sbcl (sb-ext:cancel-finalization obj)
+  #-sbcl (tg:cancel-finalization obj))
+
 (defun make-stream (ptr direction device-id device-interf device-name)
   (declare (type cffi:foreign-pointer ptr)
            (type (member :input :output) direction)
@@ -62,16 +72,16 @@
                                     :device-interf device-interf
                                     :device-name device-name
                                     :sysex-pointer sysex-ptr)))
-        (tg:finalize obj (lambda ()
-                           (cffi:foreign-free sysex-ptr)
-                           (close ptr)))
+        (finalize obj (lambda ()
+                        (cffi:foreign-free sysex-ptr)
+                        (close ptr)))
         obj)
       (let ((obj (make-output-stream :pointer ptr
                                      :direction :output
                                      :device-id device-id
                                      :device-interf device-interf
                                      :device-name device-name)))
-        (tg:finalize obj (lambda () (close ptr)))
+        (finalize obj (lambda () (close ptr)))
         obj)))
 
 (defmethod print-object ((obj stream) stream)

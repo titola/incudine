@@ -2,7 +2,7 @@
 ;;;
 ;;; ASDF system definition for FLUIDSYNTH.
 ;;;
-;;; Copyright (c) 2015-2017 Tito Latini
+;;; Copyright (c) 2015-2018 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -25,7 +25,7 @@
   :version "1.0"
   :author "Tito Latini"
   :licence "LGPL"
-  :depends-on (:cffi :alexandria :trivial-garbage)
+  :depends-on (:cffi :alexandria #-sbcl :trivial-garbage)
   :serial t
   :components ((:static-file "COPYING")
                (:file "package")

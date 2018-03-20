@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -42,12 +42,22 @@
 (defun pointer (obj)
   (pointer-wrapper-pointer obj))
 
+(declaim (inline finalize))
+(defun finalize (obj function)
+  #+sbcl (sb-ext:finalize obj function :dont-save t)
+  #-sbcl (tg:finalize obj function))
+
+(declaim (inline cancel-finalization))
+(defun cancel-finalization (obj)
+  #+sbcl (sb-ext:cancel-finalization obj)
+  #-sbcl (tg:cancel-finalization obj))
+
 (declaim (inline close))
 (defun close (sfile)
   (declare (sndfile sfile))
   (let ((result (%close (sndfile-pointer sfile))))
     (setf (sndfile-pointer sfile) (cffi:null-pointer))
-    (tg:cancel-finalization sfile)
+    (cancel-finalization sfile)
     (unless (zerop result)
       (error-generic result))
     (values)))
@@ -55,13 +65,13 @@
 (declaim (inline make-sndfile))
 (defun make-sndfile (pointer)
   (let ((obj (%make-sndfile :pointer pointer)))
-    (tg:finalize obj (lambda () (%close pointer)))
+    (finalize obj (lambda () (%close pointer)))
     obj))
 
 (declaim (inline make-pointer-wrapper))
 (defun make-pointer-wrapper (pointer)
   (let ((obj (%make-pointer-wrapper :pointer pointer)))
-    (tg:finalize obj (lambda () (cffi:foreign-free pointer)))
+    (finalize obj (lambda () (cffi:foreign-free pointer)))
     obj))
 
 (defun free (obj)
@@ -69,7 +79,7 @@
     (unless (cffi:null-pointer-p ptr)
       (cffi:foreign-free ptr)
       (setf (pointer-wrapper-pointer obj) (cffi:null-pointer))
-      (tg:cancel-finalization obj))
+      (cancel-finalization obj))
     (values)))
 
 (defun sndfile-null-p (sndfile)

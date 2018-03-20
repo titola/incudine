@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -52,9 +52,19 @@
   (:actual-type :pointer)
   (:simple-parser instance))
 
+(declaim (inline finalize))
+(defun finalize (obj function)
+  #+sbcl (sb-ext:finalize obj function :dont-save t)
+  #-sbcl (tg:finalize obj function))
+
+(declaim (inline cancel-finalization))
+(defun cancel-finalization (obj)
+  #+sbcl (sb-ext:cancel-finalization obj)
+  #-sbcl (tg:cancel-finalization obj))
+
 (defmethod cffi:translate-from-foreign (ptr (type world-type))
   (let ((obj (make-world :pointer ptr)))
-    (tg:finalize obj (lambda () (world-free ptr)))
+    (finalize obj (lambda () (world-free ptr)))
     obj))
 
 (defmethod cffi:translate-to-foreign (handle (type world-type))
@@ -62,9 +72,9 @@
 
 (defmethod cffi:translate-from-foreign (ptr (type instance-type))
   (let ((obj (make-lilv-instance :pointer ptr)))
-    (tg:finalize obj (lambda ()
-                       (instance-impl-deactivate ptr)
-                       (instance-free ptr)))
+    (finalize obj (lambda ()
+                    (instance-impl-deactivate ptr)
+                    (instance-free ptr)))
     obj))
 
 (defmethod cffi:translate-to-foreign (handle (type instance-type))

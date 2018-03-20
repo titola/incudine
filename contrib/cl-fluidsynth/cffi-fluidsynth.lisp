@@ -1,4 +1,4 @@
-;;; Copyright (c) 2015 Tito Latini
+;;; Copyright (c) 2015-2018 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -77,17 +77,27 @@
 (cffi:defcfun ("delete_fluid_settings" delete-fluid-settings) :void
   (settings :pointer))
 
+(declaim (inline finalize))
+(defun finalize (obj function)
+  #+sbcl (sb-ext:finalize obj function :dont-save t)
+  #-sbcl (tg:finalize obj function))
+
+(declaim (inline cancel-finalization))
+(defun cancel-finalization (obj)
+  #+sbcl (sb-ext:cancel-finalization obj)
+  #-sbcl (tg:cancel-finalization obj))
+
 (defun %new-settings ()
   (let* ((ptr (new-fluid-settings))
          (obj (make-settings :ptr ptr)))
-    (tg:finalize obj (lambda () (delete-fluid-settings ptr)))
+    (finalize obj (lambda () (delete-fluid-settings ptr)))
     obj))
 
 (defun delete-settings (settings)
   (declare (type settings settings))
   (unless (deleted-p settings)
     (delete-fluid-settings (settings-ptr settings))
-    (tg:cancel-finalization settings)
+    (cancel-finalization settings)
     (setf (settings-ptr settings) (cffi:null-pointer))
     t))
 
@@ -215,14 +225,14 @@
 (defun new (settings)
   (declare (type settings settings))
   (let ((synth (new-fluid-synth (settings-ptr settings))))
-    (tg:finalize synth (lambda () (delete-fluid-synth synth)))
+    (finalize synth (lambda () (delete-fluid-synth synth)))
     (make-synth :ptr synth)))
 
 (defun delete (synth)
   (declare (type synth synth))
   (unless (cffi:null-pointer-p (synth-ptr synth))
     (let ((res (delete-fluid-synth (synth-ptr synth))))
-      (tg:cancel-finalization synth)
+      (cancel-finalization synth)
       (setf (synth-ptr synth) (cffi:null-pointer))
       (zerop res))))
 

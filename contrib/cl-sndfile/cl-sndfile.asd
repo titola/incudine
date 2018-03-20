@@ -1,6 +1,6 @@
 ;;;; -*- Mode: lisp -*-
 ;;;
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -23,7 +23,7 @@
   :description "Wrapper for libsndfile API"
   :licence "LGPL"
   :author "Tito Latini"
-  :depends-on (:alexandria :cffi :trivial-garbage)
+  :depends-on (:alexandria :cffi #-sbcl :trivial-garbage)
   :serial t
   :components ((:static-file "COPYING")
                (:file "package")

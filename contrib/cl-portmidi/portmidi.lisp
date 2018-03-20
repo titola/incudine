@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -84,7 +84,7 @@
   (declare (type non-negative-fixnum size))
   (let* ((ptr (cffi:foreign-alloc '(:struct event) :count size))
          (obj (%make-event-buffer :pointer ptr :size size)))
-    (tg:finalize obj (lambda () (free ptr)))
+    (finalize obj (lambda () (free ptr)))
     obj))
 
 (defmethod print-object ((obj event-buffer) stream)
@@ -97,7 +97,7 @@
   (let ((ptr (event-buffer-pointer evbuf)))
     (unless (cffi:null-pointer-p ptr)
       (cffi:foreign-free ptr)))
-  (tg:cancel-finalization evbuf)
+  (cancel-finalization evbuf)
   (values))
 
 (declaim (inline read))
@@ -125,7 +125,7 @@
                       #1=(input-stream-sysex-pointer stream))))
       (cffi:foreign-free #1#)
       (setf #1# (cffi:null-pointer)))
-    (tg:cancel-finalization stream)
+    (cancel-finalization stream)
     (setf *stream-opened* (remove stream *stream-opened*))
     result))
 
