@@ -41,12 +41,10 @@
   (declare (type (member bus input output) type))
   (foreign-alloc-sample
     (+ (* *max-buffer-size*
-          (case type
-            ;; It is possible to use (AUDIO-IN CURRENT-CHANNEL) without risks.
-            (input (max *number-of-input-bus-channels*
-                        *number-of-output-bus-channels*))
-            (output *number-of-output-bus-channels*)
-            (otherwise *number-of-bus-channels*)))
+          (if (member type '(input output))
+              (max *number-of-input-bus-channels*
+                   *number-of-output-bus-channels*)
+              *number-of-bus-channels*))
        +io-bus-channels-pad+)))
 
 (defvar *%input-pointer* (alloc-bus-pointer 'input))
