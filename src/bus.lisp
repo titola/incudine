@@ -110,7 +110,11 @@
 If AUDIO-IN is used within a VUG definition, FRAME is ignored."
   (declare (type channel-number channel)
            (type non-negative-fixnum frame))
-  (smp-ref (input-pointer) (the non-negative-fixnum (+ frame channel))))
+  (smp-ref (input-pointer)
+           (the non-negative-fixnum
+             (+ (the non-negative-fixnum
+                  (* frame *number-of-input-bus-channels*))
+                channel))))
 
 (declaim (inline audio-out))
 (defun audio-out (channel &optional (frame 0))
@@ -119,15 +123,22 @@ If AUDIO-IN is used within a VUG definition, FRAME is ignored."
 If AUDIO-OUT is used within a VUG definition, FRAME is ignored."
   (declare (type channel-number channel)
            (type non-negative-fixnum frame))
-  (smp-ref (output-pointer) (the non-negative-fixnum (+ frame channel))))
+  (smp-ref (output-pointer)
+           (the non-negative-fixnum
+             (+ (the non-negative-fixnum
+                  (* frame *number-of-output-bus-channels*))
+                channel))))
 
 (declaim (inline set-audio-out))
 (defun set-audio-out (channel frame value)
   (declare (type channel-number channel)
            (type non-negative-fixnum frame)
            (type real value))
-  (setf (smp-ref (output-pointer) (the non-negative-fixnum
-                                       (+ frame channel)))
+  (setf (smp-ref (output-pointer)
+                 (the non-negative-fixnum
+                   (+ (the non-negative-fixnum
+                        (* frame *number-of-output-bus-channels*))
+                      channel)))
         (sample value)))
 
 (defsetf audio-out (channel &optional (frame 0)) (value)
