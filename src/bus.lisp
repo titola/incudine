@@ -40,12 +40,12 @@
 (defun alloc-bus-pointer (type)
   (declare (type (member bus input output) type))
   (foreign-alloc-sample
-    (+ (* *max-buffer-size*
-          (if (member type '(input output))
-              (max *number-of-input-bus-channels*
-                   *number-of-output-bus-channels*)
-              *number-of-bus-channels*))
-       +io-bus-channels-pad+)))
+   (+ (if (member type '(input output))
+          (* *max-buffer-size*
+             (max *number-of-input-bus-channels*
+                  *number-of-output-bus-channels*))
+          *number-of-bus-channels*)
+      +io-bus-channels-pad+)))
 
 (defvar *%input-pointer* (alloc-bus-pointer 'input))
 (declaim (type foreign-pointer *%input-pointer*))
