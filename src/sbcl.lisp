@@ -19,6 +19,7 @@
 (import
  '(sb-int:constant-form-value
    sb-ext:octets-to-string sb-ext:string-to-octets
+   sb-ext:gc
    sb-ext:get-time-of-day))
 
 (define-constant n-machine-word-bits sb-vm:n-machine-word-bits)

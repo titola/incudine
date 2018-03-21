@@ -189,7 +189,7 @@ If ID is zero, call INCUDINE:FLUSH-PENDING before INCUDINE:FREE."
 (defun incudine-gc ()
   "Initiate a garbage collection."
   (interactive)
-  (incudine-eval "(tg:gc :full t)"))
+  (incudine-eval "(incudine.util::gc :full t)"))
 
 (defun incudine-bytes-consed-in (&optional time)
   "Rough estimate of the bytes consed in TIME seconds."

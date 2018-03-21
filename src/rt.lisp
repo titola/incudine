@@ -311,7 +311,7 @@
     (init)
     (setf *after-rt-stop-function* after-stop-function)
     (when preamble-function (funcall preamble-function))
-    (when gc-p (tg:gc :full t))
+    (when gc-p (gc :full t))
     (make-rt-thread thread-name thread-function thread-function-args)
     (sleep .1)
     (setf (rt-params-status *rt-params*)

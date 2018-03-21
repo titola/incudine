@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -62,7 +62,7 @@
 (defmethod free ((obj world))
   (unless (free-p obj)
     (world-free (world-pointer obj))
-    (tg:cancel-finalization obj)
+    (cancel-finalization obj)
     (setf (world-pointer obj) (cffi:null-pointer))
     (values)))
 
@@ -73,6 +73,6 @@
         (instance-deactivate obj)
         (setf (instance-active-p obj) nil))
       (instance-free ptr)
-      (tg:cancel-finalization obj)
+      (cancel-finalization obj)
       (setf (instance-pointer obj) (cffi:null-pointer))
       (values))))

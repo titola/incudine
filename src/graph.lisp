@@ -836,7 +836,7 @@
         ((temp-node-p node)
          (foreign-free (node-start-time-ptr node))
          (foreign-free (node-gain-data node))
-         (tg:cancel-finalization node)
+         (incudine.util::cancel-finalization node)
          (setf (node-id node) nil)
          (nrt-msg info "free temporary node"))
         ((node-id node)

@@ -43,8 +43,7 @@
   :licence "GPL v2"
   :author "Tito Latini"
   :default-component-class incudine-source-file
-  :depends-on (:alexandria :bordeaux-threads :cffi :swap-bytes :trivial-garbage
-               :sb-posix)
+  :depends-on (:alexandria :bordeaux-threads :cffi :swap-bytes :sb-posix)
   :components
   ((:module "contrib/cl-sndfile"
     :serial t
