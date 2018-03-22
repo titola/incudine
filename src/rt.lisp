@@ -279,21 +279,26 @@
 (declaim (type function *default-rt-loop-cb*))
 
 #-dummy-audio
+(defun %set-rt-block-size (value rt-loop-n-fn)
+  (declare (type positive-fixnum value) (type (or function null) rt-loop-n-fn))
+  (unless (eq (rt-status) :stopped)
+    (rt-stop)
+    (msg warn "rt-thread stopped."))
+  (setf *default-rt-loop-cb*
+        (case value
+          (1 #'rt-loop-1)
+          (64 #'rt-loop-64)
+          (otherwise (or rt-loop-n-fn #'rt-loop-64))))
+  (setf *block-input-samples* (* value *number-of-input-bus-channels*))
+  (setf *block-output-samples* (* value *number-of-output-bus-channels*))
+  (msg debug "set realtime block size to ~D" value)
+  (setf *block-size* value))
+
+#-dummy-audio
 (defmacro set-rt-block-size (value)
   "Change the block size and update the default realtime loop callback."
-  `(progn
-     (unless (eq (rt-status) :stopped)
-       (rt-stop)
-       (msg warn "rt-thread stopped."))
-     (setf *default-rt-loop-cb*
-           (case ,value
-             ( 1 #'rt-loop-1)
-             (64 #'rt-loop-64)
-             (otherwise (rt-loop-callback ,value))))
-     (setf *block-input-samples* (* ,value *number-of-input-bus-channels*))
-     (setf *block-output-samples* (* ,value *number-of-output-bus-channels*))
-     (msg debug "set realtime block size to ~D" ,value)
-     (setf *block-size* ,value)))
+  `(%set-rt-block-size ,value ,(unless (member value '(1 64))
+                                 `(rt-loop-callback ,value))))
 
 (defvar *after-rt-stop-function* nil)
 (declaim (type (or function null) *after-rt-stop-function*))
