@@ -1008,8 +1008,11 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
 
 (defmacro foreach-frame-loop (in-ptr out-ptr now-var &body body)
   (declare (ignore in-ptr out-ptr))
-  `(loop for current-sample of-type non-negative-fixnum
-                            below incudine::*block-samples*
+  `(loop for current-input-sample of-type non-negative-fixnum
+                            below incudine::*block-input-samples*
+                            by *number-of-input-bus-channels*
+         for current-sample of-type non-negative-fixnum
+                            below incudine::*block-output-samples*
                             by *number-of-output-bus-channels*
          for current-frame of-type non-negative-fixnum from 0
          do (progn ,@body ,@(if now-var `((incf ,now-var))))))
@@ -1031,7 +1034,7 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
                      (declare (ignore ,frame))
                      `(smp-ref ,',in-ptr
                                (the non-negative-fixnum
-                                    (+ ,,ch current-sample))))
+                                    (+ ,,ch current-input-sample))))
                    (audio-out (,ch &optional ,frame)
                      (declare (ignore ,frame))
                      `(smp-ref ,',out-ptr
@@ -1252,7 +1255,8 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
                                 (incudine.util::var-globally-special-p def)))
          `(make-vug-symbol :name ',def))
         ((and (symbolp def)
-              (member def '(current-channel current-frame current-sample)))
+              (member def '(current-channel current-frame
+                            current-input-sample current-sample)))
          `(make-vug-symbol :name ',def :block-p t))
         (t def)))
 
@@ -1348,13 +1352,16 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
     (let ((fname (vug-function-name obj)))
       (setf (vug-function-name obj) 'smp-ref)
       (setf (vug-function-inputs obj)
-            (list (if (eq fname 'audio-in) in-ptr out-ptr)
-                  (make-vug-function :name 'the
-                    :inputs (list 'non-negative-fixnum
+            (multiple-value-bind (ptr offset)
+                (if (eq fname 'audio-in)
+                    (values in-ptr 'current-input-sample)
+                    (values out-ptr 'current-sample))
+            (list ptr (make-vug-function :name 'the
+                        :inputs (list 'non-negative-fixnum
                                   (make-vug-function :name '+
-                                    :inputs (list* 'current-sample
+                                    :inputs (list* offset
                                                    (vug-function-inputs
-                                                     obj)))))))
+                                                     obj))))))))
       obj)))
 
 ;; Transform `(now)' in `(progn now-var)', where NOW-VAR is the

@@ -168,8 +168,11 @@
                          1))
 (declaim (type positive-fixnum *block-size*))
 
-(defvar *block-samples* (* *block-size* *number-of-output-bus-channels*))
-(declaim (type positive-fixnum *block-samples*))
+(defvar *block-input-samples* (* *block-size* *number-of-input-bus-channels*))
+(declaim (type positive-fixnum *block-input-samples*))
+
+(defvar *block-output-samples* (* *block-size* *number-of-output-bus-channels*))
+(declaim (type positive-fixnum *block-output-samples*))
 
 (declaim (inline block-size))
 (defun block-size () *block-size*)
@@ -189,7 +192,8 @@
              (call-after-stop)
              (return-from nil))))
        (setf *block-size* ,block-size)
-       (setf *block-samples* (* *block-size* *number-of-output-bus-channels*))
+       (setf *block-input-samples* (* *block-size* *number-of-input-bus-channels*))
+       (setf *block-output-samples* (* *block-size* *number-of-output-bus-channels*))
        (setf rt-state 0)
        (reset-sample-counter)
        (let ((,frames ,frames-per-buffer)
@@ -286,7 +290,8 @@
              ( 1 #'rt-loop-1)
              (64 #'rt-loop-64)
              (otherwise (rt-loop-callback ,value))))
-     (setf *block-samples* (* ,value *number-of-output-bus-channels*))
+     (setf *block-input-samples* (* ,value *number-of-input-bus-channels*))
+     (setf *block-output-samples* (* ,value *number-of-output-bus-channels*))
      (msg debug "set realtime block size to ~D" ,value)
      (setf *block-size* ,value)))
 

@@ -176,7 +176,7 @@
    #:get-pointer
    #:dsp! #:dsp-debug #:all-dsp-names #:free-dsp-instances #:destroy-dsp
    #:*update-dsp-instances*
-   #:current-channel #:current-frame #:current-sample
+   #:current-channel #:current-frame #:current-sample #:current-input-sample
    #:make-frame #:frame-ref #:multiple-sample-bind #:samples #:samples-zero
    #:make-i32-array #:make-u32-array #:make-i64-array #:make-u64-array
    #:make-f32-array #:make-f64-array #:make-pointer-array

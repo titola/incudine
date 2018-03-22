@@ -35,6 +35,7 @@
      (:file "graph" :depends-on ("util"))
      (:file "time" :depends-on ("util"))
      (:file "bus" :depends-on ("util"))
+     (:file "channels" :depends-on ("util"))
      (:file "buffer" :depends-on ("util"))
      (:file "tuning" :depends-on ("util"))
      (:file "quantize" :depends-on ("util"))

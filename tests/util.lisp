@@ -70,7 +70,8 @@
 
 (deftest set-rt-block-size
     (let ((incudine::*default-rt-loop-cb* #'incudine::rt-loop-1)
-          (incudine::*block-samples* *number-of-output-bus-channels*)
+          (incudine::*block-input-samples* *number-of-input-bus-channels*)
+          (incudine::*block-output-samples* *number-of-output-bus-channels*)
           (incudine::*block-size* 1)
           (new-block-size 32)
           (*rt-block-size* 1)

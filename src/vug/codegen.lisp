@@ -367,10 +367,13 @@
 (defmacro with-init-frames (&body body)
   `(let ((current-channel 0)
          (current-frame 0)
+         (current-input-sample 0)
          (current-sample 0))
      (declare (type channel-number current-channel)
-              (type non-negative-fixnum current-frame current-sample)
-              (ignorable current-channel current-frame current-sample))
+              (type non-negative-fixnum current-frame current-input-sample
+                    current-sample)
+              (ignorable current-channel current-frame current-input-sample
+                         current-sample))
      ,@body))
 
 ;;; (Re)init time: local bindings

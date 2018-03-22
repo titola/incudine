@@ -348,10 +348,12 @@ to call to get the control value."
                               (declare (type channel-number current-channel)
                                        (ignorable current-channel))
                               (let ((current-frame 0)
+                                    (current-input-sample 0)
                                     (current-sample 0))
                                 (declare (non-negative-fixnum current-frame
-                                                              current-sample)
+                                          current-input-sample current-sample)
                                          (ignorable current-frame
+                                                    current-input-sample
                                                     current-sample))
                                 ,@,vug-body)))))))))))))
 
