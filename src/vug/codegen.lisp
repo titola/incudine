@@ -606,7 +606,7 @@
 (defun make-foreign-sample-array (dimension)
   (if (allow-rt-memory-p)
       (make-rt-foreign-sample-array dimension)
-      (incudine::make-nrt-foreign-array dimension 'sample t nil nil nil)))
+      (incudine::make-nrt-foreign-array dimension 'sample t nil nil nil nil)))
 
 (defmacro with-foreign-symbols ((variables c-vector type) &body body)
   (let ((count 0))
