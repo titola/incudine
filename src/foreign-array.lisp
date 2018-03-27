@@ -151,27 +151,27 @@
 
 (defun make-nrt-foreign-array (dimension element-type zero-p
                                initial-element initial-contents
-                               &optional obj)
+                               &optional obj (dynamic-finalizer-p t))
   (let* ((data (make-nrt-foreign-array-data dimension element-type zero-p
                                             initial-element
                                             initial-contents))
          (obj (fill-foreign-array (or obj (nrt-foreign-array-pool-pop))
                                   data dimension element-type
                                   #'nrt-free-foreign-array)))
-    (incudine-finalize obj (lambda () (foreign-free data)))
+    (incudine-finalize obj (lambda () (foreign-free data))
+                       dynamic-finalizer-p)
     obj))
 
-(declaim (inline %%make-foreign-array))
 (defun %%make-foreign-array (dimension element-type zero-p
                              initial-element initial-contents
-                             &optional instance)
+                             &optional instance (dynamic-finalizer-p t))
   (if (allow-rt-memory-p)
       (make-rt-foreign-array dimension element-type zero-p
                              initial-element initial-contents
                              instance)
       (make-nrt-foreign-array dimension element-type zero-p
                               initial-element initial-contents
-                              instance)))
+                              instance dynamic-finalizer-p)))
 
 (declaim (inline make-foreign-array))
 (defun make-foreign-array (dimension element-type &key zero-p

@@ -603,11 +603,10 @@
           (incudine.util::foreign-rt-free-sample data))))
     obj))
 
-(declaim (inline make-foreign-sample-array))
 (defun make-foreign-sample-array (dimension)
   (if (allow-rt-memory-p)
       (make-rt-foreign-sample-array dimension)
-      (incudine::make-nrt-foreign-array dimension 'sample t nil nil)))
+      (incudine::make-nrt-foreign-array dimension 'sample t nil nil nil)))
 
 (defmacro with-foreign-symbols ((variables c-vector type) &body body)
   (let ((count 0))
@@ -698,7 +697,8 @@
 (defun foreign-array-bindings (array-bindings)
   (flet ((foreign-array-binding (array-var array-wrap-var type size)
            (when (plusp size)
-             `((,array-wrap-var (make-foreign-array ,size ,type :zero-p t))
+             `((,array-wrap-var (incudine::%%make-foreign-array
+                                  ,size ,type t nil nil nil nil))
                (,array-var (foreign-array-data ,array-wrap-var))))))
     (loop for args in array-bindings
           append (apply #'foreign-array-binding args))))

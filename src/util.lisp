@@ -485,9 +485,9 @@ instantiated within BODY are invalid beyond the dynamic extent of BODY."
   (boundp '*to-free*))
 
 (declaim (inline incudine-finalize))
-(defun incudine-finalize (obj function)
+(defun incudine-finalize (obj function &optional (dynamic-p t))
   (incudine.util::finalize obj function)
-  (when (dynamic-incudine-finalizer-p)
+  (when (and dynamic-p (dynamic-incudine-finalizer-p))
     (push obj *to-free*))
   obj)
 
