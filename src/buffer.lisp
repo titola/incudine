@@ -783,9 +783,10 @@ during BODY.
 
 FRAMES and the other keyword arguments ARGS are passed to MAKE-BUFFER."
   `(let ((,var (make-buffer ,frames ,@args)))
-     (unwind-protect
-          (progn ,@body)
-       (free ,var))))
+     (flet ((func () ,@body))
+       (if (dynamic-incudine-finalizer-p)
+           (func)
+           (unwind-protect (func) (free ,var))))))
 
 (defmacro with-buffers (bindings &body body)
   "Create bindings to newly allocated BUFFER structures with dynamic extent
@@ -794,11 +795,12 @@ during BODY.
 BINDINGS is a list of lists (var frames &rest args), where VAR is the
 variable bound to a buffer, FRAMES and the other keyword arguments ARGS are
 passed to MAKE-BUFFER."
-  (if bindings
-      `(with-buffer ,(car bindings)
-         (with-buffers ,(cdr bindings)
-           ,@body))
-      `(progn ,@body)))
+  `(let ,(mapcar (lambda (x) `(,(car x) (make-buffer ,@(cdr x)))) bindings)
+     (flet ((func () ,@body))
+       (if (dynamic-incudine-finalizer-p)
+           (func)
+           (unwind-protect (func)
+             ,@(mapcar (lambda (x) `(free ,(car x))) bindings))))))
 
 ;;; Frequently used waveforms
 

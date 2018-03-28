@@ -1105,9 +1105,10 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
              ;; there is not difference between WITH-SAMPLES and
              ;; WITH-SAMPLES* within a definition of a VUG.
              `(%with-samples ,@lambda-list))
-            ;; WITH-BUFFERS expands to multiple WITH-BUFFER's.
             ((eq name 'with-buffer)
              `(%with-buffer ,@lambda-list))
+            ((eq name 'with-buffers)
+             `(%with-buffers ,@lambda-list))
             (t def)))))
 
 (defun parse-vug-function (def name flist mlist floop-info)
@@ -1892,6 +1893,13 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
 
 (defmacro %with-buffer ((var frames &rest args) &body body)
   `(with ((,var (make-local-buffer ,frames ,@args))) ,@body))
+
+(defmacro %with-buffers (bindings &body body)
+  (if bindings
+      `(%with-buffer ,(car bindings)
+         (%with-buffers ,(cdr bindings)
+           ,@body))
+      `(progn ,@body)))
 
 ;;; Used only inside the definition of a VUG-MACRO to specify the
 ;;; inputs of the VUG.

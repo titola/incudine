@@ -209,7 +209,8 @@
     `(let* ((,array-wrap-p (or (rt-thread-p)
                                (> ,count +fast-nrt-foreign-array-max-size+)))
             (,array-wrap (if ,array-wrap-p
-                             (incudine:make-foreign-array ,count ,type)))
+                             (incudine::%%make-foreign-array
+                               ,count ,type nil nil nil nil nil)))
             (,var (if ,array-wrap-p
                       (incudine:foreign-array-data ,array-wrap)
                       (incudine.util::foreign-nrt-alloc ,type :count ,count))))
