@@ -100,13 +100,5 @@
      (:static-file "rego/t1.rego")
      (:static-file "rego/t2.rego")
      (:static-file "rego/test-1.sco")
-     (:static-file "rego/test-2.sco")))))
-
-(defmethod operation-done-p ((o test-op) (c (eql (find-system :incudine-tests))))
-  nil)
-
-(defmethod perform ((o test-op) (c (eql (find-system :incudine-tests))))
-  (flet ((run-tests (&rest args)
-           (apply (intern (string '#:run-tests) '#:incudine-tests) args)))
-    (run-tests :compiled nil)
-    (run-tests :compiled t)))
+     (:static-file "rego/test-2.sco"))))
+  :perform (test-op (o c) (symbol-call '#:incudine-tests '#:run-tests)))

@@ -1,9 +1,4 @@
 #!/bin/bash
-#
 # Run the unit tests.
-#
 
-exec sbcl "$@" --quit \
-          --eval "(asdf:oos 'asdf:load-op :incudine-tests :force t)" \
-          --eval "(incudine-tests:run-tests)" \
-          --eval "(terpri)"
+exec sbcl "$@" --quit --eval "(asdf:test-system \"incudine-tests\" :force t)"

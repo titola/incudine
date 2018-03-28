@@ -197,4 +197,5 @@
    (:static-file "README")
    (:static-file "INSTALL")
    (:static-file "incudinerc-example")
-   (:static-file "src/features.lisp")))
+   (:static-file "src/features.lisp"))
+  :in-order-to ((test-op (test-op "incudine-tests"))))

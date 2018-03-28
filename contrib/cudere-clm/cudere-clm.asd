@@ -2,7 +2,7 @@
 ;;;
 ;;; ASDF system definition for cudere-clm.
 ;;;
-;;; Copyright (c) 2017 Tito Latini
+;;; Copyright (c) 2017-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -35,4 +35,5 @@
   :perform (load-op :after (o c)
     (load (or (eval (find-symbol "*CLM-INIT*" :cudere-clm))
               (system-relative-pathname "cudere-clm" "clm-init.lisp"))
-          :if-does-not-exist nil)))
+          :if-does-not-exist nil))
+  :in-order-to ((test-op (test-op "cudere-clm-tests"))))

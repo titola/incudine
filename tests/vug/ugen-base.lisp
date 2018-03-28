@@ -60,7 +60,9 @@
               (nh))
     (buzz freq amp nh))
 
-  (defstruct (oscil-test-ugen (:include ugen-instance))))
+  (defstruct (oscil-test-ugen (:include ugen-instance)))
+
+  (setf (symbol-function 'oscil-test) (constantly nil)))
 
 (with-ugen-test (ugen-instance-constructor.1)
     (flet ((value-test (u)
