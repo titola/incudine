@@ -1,4 +1,4 @@
-;;; Copyright (c) 2016-2017 Tito Latini
+;;; Copyright (c) 2016-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -532,7 +532,8 @@ Write the current track if OBJ is of type MIDIFILE:OUTPUT-STREAM."))
                  ;; updated during MIDIFILE:CLOSE.
                  (write-header mf)))
           (incudine-finalize mf
-            (lambda () (cl:close stream) (add-to-buffer-pool buffer)))
+            (lambda () (cl:close stream) (add-to-buffer-pool buffer))
+            nil)
           mf)
       (condition (c)
         (if mf

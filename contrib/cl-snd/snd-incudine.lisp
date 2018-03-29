@@ -1,4 +1,4 @@
-;;; Copyright (c) 2015-2017 Tito Latini
+;;; Copyright (c) 2015-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -242,7 +242,7 @@ SND and CHN default to the currently selected sound."
                                        :sample-type mus-ldouble)))
                  snd *tmpfile* chn)))
       (when buf
-        (unwind-protect
+        (incudine::maybe-unwind-protect
              (let ((vec (map-channel-new-vec buf function beg
                                              (and dur (+ beg dur)))))
                (incudine:with-buffer (new (length vec) :initial-contents vec)

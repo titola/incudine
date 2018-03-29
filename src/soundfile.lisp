@@ -1,4 +1,4 @@
-;;; Copyright (c) 2017 Tito Latini
+;;; Copyright (c) 2017-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -352,7 +352,8 @@ A new sound file is opened BUFFER-SIZE is the size of the internal buffer."
               (:overwrite
                (sf-seek sf 0))))
           (incudine-finalize sf
-            (lambda () (free-foreign-pointers sf-ptr buf-ptr))))
+            (lambda () (free-foreign-pointers sf-ptr buf-ptr))
+            nil))
       (condition (c)
         (free-foreign-pointers sf-ptr buf-ptr)
         (error c)))))

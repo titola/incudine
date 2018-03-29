@@ -608,13 +608,12 @@ to call to get the control value."
 
 (defmacro with-ugen-instance ((var ugen-name &rest args) &body body)
   `(let ((,var (funcall (,ugen-name ,@args))))
-     (unwind-protect
-          (progn ,@body)
-       (incudine:free ,var))))
+     (declare (type ugen-instance ,var))
+     (incudine::maybe-unwind-protect (progn ,@body) (incudine:free ,var))))
 
 (defmacro with-ugen-instances (bindings &body body)
-  (if bindings
-      `(with-ugen-instance ,(car bindings)
-         (with-ugen-instances ,(cdr bindings)
-           ,@body))
-      `(progn ,@body)))
+  (let ((vars (mapcar #'car bindings)))
+    `(let ,(mapcar (lambda (x) `(,(car x) (funcall ,(cdr x)))) bindings)
+       ,(and vars `(declare (type ugen-instance ,@vars)))
+       (incudine::maybe-unwind-protect (progn ,@body)
+         ,@(mapcar (lambda (x) `(incudine:free ,x)) vars)))))

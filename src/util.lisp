@@ -495,6 +495,13 @@ instantiated within BODY are invalid beyond the dynamic extent of BODY."
 (defun incudine-cancel-finalization (obj)
   (incudine.util::cancel-finalization obj))
 
+(defmacro maybe-unwind-protect (protected &body cleanup)
+  (with-gensyms (func)
+    `(flet ((,func () ,protected))
+       (if (dynamic-incudine-finalizer-p)
+           (,func)
+           (unwind-protect (,func) ,@cleanup)))))
+
 (defgeneric quantize (obj from &key)
   (:documentation "Quantize OBJ with respect to a real number, a vector
 or a BUFFER-BASE structure (i.e. BUFFER or TUNING) in sorted order.

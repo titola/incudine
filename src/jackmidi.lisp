@@ -726,9 +726,7 @@ The MIDI messages are aligned to four bytes."
                              &body body)
   `(let ((,var (make-event-buffer ,size)))
      (declare (type event-buffer ,var))
-     (unwind-protect
-          (progn ,@body)
-       (free ,var))))
+     (incudine::maybe-unwind-protect (progn ,@body) (free ,var))))
 
 (defmacro with-receiver ((state-var stream message-var
                           &optional timestamp-var thread-name) &body body)

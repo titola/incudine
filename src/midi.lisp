@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -61,25 +61,23 @@
       (rt-eval () (jackmidi:foreign-write stream msg-ptr size)))
   stream)
 
-(defun sysex-sequence->foreign-array (seq)
+(defun sysex-sequence->foreign-array (seq &optional (dynamic-finalizer-p t))
   (declare (type sequence seq))
   (let* ((size (length seq))
          (fix-last-p (/= (the fixnum (elt seq (1- size))) #xF7))
-         (obj (make-foreign-array (if fix-last-p (1+ size) size)
-                                  :unsigned-char
-                                  :initial-contents seq)))
+         (obj (%%make-foreign-array (if fix-last-p (1+ size) size)
+                                    :unsigned-char nil nil seq nil
+                                    dynamic-finalizer-p)))
     (when fix-last-p
       (setf (u8-ref (foreign-array-data obj) size) #xF7))
     obj))
 
-(declaim (inline midiout-sysex))
 (defun midiout-sysex (seq stream)
   "Send a MIDI SysEx message to a MIDI OUTPUT STREAM."
   (declare (type sequence seq) (type midi-output-stream stream))
-  (let ((obj (sysex-sequence->foreign-array seq)))
+  (let ((obj (sysex-sequence->foreign-array seq nil)))
     (unwind-protect
-         (midi-write-sysex stream (foreign-array-data obj)
-                           (length seq))
+         (midi-write-sysex stream (foreign-array-data obj) (length seq))
       (free obj))))
 
 ;;; MIDI Tuning messages
