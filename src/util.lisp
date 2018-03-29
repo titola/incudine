@@ -478,17 +478,24 @@ instantiated within BODY are invalid beyond the dynamic extent of BODY."
   `(let ((*to-free* nil))
      (unwind-protect
           (progn ,@body)
-       (free (the list *to-free*)))))
+       (when *to-free*
+         (free (the list *to-free*))
+         (if (allow-rt-memory-p)
+             (incudine.util:rt-global-pool-push-list *to-free*)
+             (incudine.util:nrt-global-pool-push-list *to-free*))))))
 
 (declaim (inline dynamic-incudine-finalizer-p))
 (defun dynamic-incudine-finalizer-p ()
   (boundp '*to-free*))
 
-(declaim (inline incudine-finalize))
 (defun incudine-finalize (obj function &optional (dynamic-p t))
   (incudine.util::finalize obj function)
   (when (and dynamic-p (dynamic-incudine-finalizer-p))
-    (push obj *to-free*))
+    (let ((cons (if (allow-rt-memory-p)
+                    (incudine.util:rt-global-pool-pop-cons)
+                    (incudine.util:nrt-global-pool-pop-cons))))
+      (rplaca cons obj)
+      (setf *to-free* (rplacd cons *to-free*))))
   obj)
 
 (declaim (inline incudine-cancel-finalization))
