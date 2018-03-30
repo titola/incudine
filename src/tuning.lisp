@@ -21,10 +21,10 @@
                    (:copier nil))
   (description "" :type string)
   ;; Scale degrees specified as cents.
-  (%cents (incudine-missing-arg "Missign tuning cents.")
+  (%cents (make-array 13 :element-type 'single-float)
           :type (simple-array single-float (*)))
   ;; Scale degrees specified as ratios.
-  (%ratios (incudine-missing-arg "Missing tuning ratios.")
+  (%ratios (make-array 13 :element-type 'positive-rational :initial-element 1)
            :type (simple-array positive-rational (*)))
   ;; Memory reserved for 128 ratios of SAMPLE type plus the reciprocal
   ;; of the first ratio.
@@ -37,8 +37,7 @@
   ;;     TEMP-VALUE-1    SAMPLE type
   ;;     TEMP-VALUE-2    SAMPLE type
   ;;
-  (aux-data (incudine-missing-arg "Missing aux data pointer.")
-            :type foreign-pointer))
+  (aux-data (null-pointer) :type foreign-pointer))
 
 (define-constant +last-sample-ratio-reciprocal-index+ 128)
 
@@ -47,6 +46,16 @@
 (define-constant +tuning-freq-base-index+    1)
 (define-constant +tuning-temp-value-1-index+ 2)
 (define-constant +tuning-temp-value-2-index+ 3)
+
+(define-constant +tuning-pool-initial-size+ 20)
+
+(defvar *tuning-pool*
+  (make-incudine-object-pool +tuning-pool-initial-size+ #'%make-tuning nil))
+(declaim (type incudine-object-pool *tuning-pool*))
+
+(defvar *rt-tuning-pool*
+  (make-incudine-object-pool +tuning-pool-initial-size+ #'%make-tuning t))
+(declaim (type incudine-object-pool *rt-tuning-pool*))
 
 (defvar *default-tuning-notes*
   (loop for i from 100 to 1200 by 100 collect (float i)))
@@ -68,44 +77,60 @@
        ,@body)))
 
 (defun %%make-tuning (notes length keynum-base freq-base degree-index
-                      description real-time-p)
+                      descr real-time-p)
+  (declare (type list notes) (type fixnum length)
+           (type (integer 0 127) keynum-base degree-index)
+           (type (real 0 20000) freq-base) (type string descr)
+           (type boolean real-time-p))
   (multiple-value-bind (cents ratios)
       (with-tuning-cents-and-ratios (cents ratios length)
         (scl-notes-to-cents-and-ratios notes cents ratios))
-    (let* ((size 128)
-           (data-bytes (* size +foreign-sample-size+))
+    (let* ((%size 128)
+           (data-bytes (* %size +foreign-sample-size+))
            ;; DATA: size
            ;; SUM-RATIOS plus last-sample-ratio-reciprocal: (1+ size)
            ;; AUX-DATA: (1- +tuning-number-of-aux-data+)
-           (foreign-size (+ (* size 2) +tuning-number-of-aux-data+))
-           (data (if real-time-p
-                     (foreign-rt-alloc 'sample :count foreign-size :zero-p t)
-                     (foreign-alloc-sample foreign-size)))
-           (smp-ratios (cffi:inc-pointer data data-bytes))
-           (aux-data (cffi:inc-pointer smp-ratios
-                                       (+ data-bytes +foreign-sample-size+)))
-           (free-function (if real-time-p
-                              #'safe-foreign-rt-free
-                              #'foreign-free))
-           (obj (%make-tuning
-                 :description (or description "")
-                 :%cents cents
-                 :%ratios ratios
-                 :data-ptr data
-                 :aux-data aux-data
-                 :sample-ratios smp-ratios
-                 :size size
-                 :real-time-p (and real-time-p (rt-thread-p))
-                 :foreign-free free-function)))
-      (incudine-finalize obj (lambda () (funcall free-function data)))
-      (setf (u8-ref aux-data 0) keynum-base)
-      (setf (u8-ref aux-data 1) (min degree-index (1- (length cents))))
-      (setf (smp-ref aux-data +tuning-freq-base-index+) (sample freq-base))
-      (update-tuning-data (tuning-update-sample-ratios obj))
-      obj)))
+           (foreign-size (+ (* %size 2) +tuning-number-of-aux-data+))
+           (rt-p (and real-time-p *allow-rt-memory-pool-p*)))
+      (declare #.*reduce-warnings*)
+      (multiple-value-bind (%data obj free-fn pool)
+          (if rt-p
+              (values (foreign-rt-alloc 'sample :count foreign-size :zero-p t)
+                      (incudine.util::alloc-rt-object *rt-tuning-pool*)
+                      #'safe-foreign-rt-free
+                      *rt-tuning-pool*)
+              (values (foreign-alloc-sample foreign-size)
+                      (incudine.util::alloc-object *tuning-pool*)
+                      #'foreign-free
+                      *tuning-pool*))
+        (let* ((smp-ratios (cffi:inc-pointer %data data-bytes))
+               (%aux-data (cffi:inc-pointer smp-ratios
+                            (+ data-bytes +foreign-sample-size+))))
+          (incudine.util::with-struct-slots
+              ((data-ptr description %cents %ratios sample-ratios aux-data size
+                real-time-p foreign-free)
+               obj tuning)
+            (setf data-ptr %data
+                  size %size
+                  description descr
+                  %cents cents
+                  %ratios ratios
+                  sample-ratios smp-ratios
+                  aux-data %aux-data
+                  real-time-p rt-p
+                  foreign-free free-fn)
+            (incudine-finalize obj
+              (lambda ()
+                (funcall free-fn %data)
+                (incudine-object-pool-expand pool 1)))
+            (setf (u8-ref aux-data 0) keynum-base)
+            (setf (u8-ref aux-data 1) (min degree-index (1- (length cents))))
+            (setf (smp-ref aux-data +tuning-freq-base-index+) (sample freq-base))
+            (update-tuning-data (tuning-update-sample-ratios obj))
+            obj))))))
 
-(defun make-tuning (&key notes file description (keynum-base 69)
-                    (freq-base 440) (degree-index 9) real-time-p)
+(defun make-tuning (&key notes file description (keynum-base 69) (freq-base 440)
+                    (degree-index 9) (real-time-p (allow-rt-memory-p)))
   (declare (type list notes)
            (type (or null string pathname) file)
            (type (or null string) description)
@@ -132,7 +157,10 @@
     (setf (tuning-aux-data obj) (null-pointer))
     (setf (tuning-sample-ratios obj) (null-pointer))
     (setf (tuning-size obj) 0)
-    (nrt-msg debug "Free TUNING")
+    (if (tuning-real-time-p obj)
+        (incudine.util::free-rt-object obj *rt-tuning-pool*)
+        (incudine.util::free-object obj *tuning-pool*))
+    (nrt-msg debug "Free ~A" (type-of obj))
     (values)))
 
 (declaim (inline tuning-keynum-base))
