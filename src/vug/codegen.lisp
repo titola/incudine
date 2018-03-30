@@ -707,13 +707,26 @@
   (unless (empty-initialization-code-stack-p)
     (list *initialization-code*)))
 
+(defun %free-incudine-objects (lst)
+  (dolist (obj lst)
+    (unless (ugen-instance-p obj)
+      (incudine:free obj)))
+  (if (allow-rt-memory-p)
+      (incudine.util:rt-global-pool-push-list lst)
+      (incudine.util:nrt-global-pool-push-list lst)))
+
+(defmacro free-incudine-objects (to-free)
+  `(when ,to-free
+     (%free-incudine-objects ,to-free)
+     (setf ,to-free nil)))
+
 (declaim (inline vug-variables-foreign-sample-names))
 (defun vug-variables-foreign-sample-names ()
   (nreverse
     (mapcar #'vug-object-name
             (vug-variables-foreign-sample *vug-variables*))))
 
-(defmacro with-dsp-preamble ((dsp-var name control-table-var
+(defmacro with-dsp-preamble ((dsp-var name control-table-var to-free-var
                               free-hook-var) &body body)
   (with-gensyms (dsp-wrap function-object node)
     `(let* ((*dsp-node* %dsp-node%)
@@ -723,16 +736,19 @@
             (,control-table-var (dsp-controls ,dsp-var))
             ;; Function related with the DSP
             (,function-object (symbol-function ,name))
+            (incudine::*to-free* nil)
+            (,to-free-var nil)
             ;; FREE-HOOK for the node
             (,free-hook-var
              (list (lambda (,node)
                      (declare (ignore ,node) #.*reduce-warnings*)
+                     (free-incudine-objects ,to-free-var)
                      (if (eq ,function-object (symbol-function ,name))
                          ;; The instance is reusable the next time
                          (store-dsp-instance ,name ,dsp-wrap)
                          (free-dsp-wrap ,dsp-wrap))))))
        (declare (type cons ,dsp-wrap ,free-hook-var) (type dsp ,dsp-var)
-                (type hash-table ,control-table-var))
+                (type hash-table ,control-table-var) (type list ,to-free-var))
        ,@body)))
 
 (defmacro with-foreign-arrays ((smp-spec f32-spec f64-spec i32-spec i64-spec
@@ -775,12 +791,12 @@
        (debug-deleted-variables)
        (debug-foreign-bytes ,smpvec-size (+ ,f32vec-size ,i32vec-size)
                             (+ ,f64vec-size ,i64vec-size) ,ptrvec-size)
-       (with-gensyms (dsp control-table free-hook node smpvecw smpvec f32vecw
-                      f32vec f64vecw f64vec i32vecw i32vec i64vecw i64vec
+       (with-gensyms (dsp control-table to-free free-hook node smpvecw smpvec
+                      f32vecw f32vec f64vecw f64vec i32vecw i32vec i64vecw i64vec
                       ptrvecw ptrvec)
          `(lambda (%dsp-node%)
             (declare ,,optimize (type incudine:node %dsp-node%))
-            (with-dsp-preamble (,dsp ',',name ,control-table ,free-hook)
+            (with-dsp-preamble (,dsp ',',name ,control-table ,to-free ,free-hook)
               (with-foreign-arrays ((,smpvec ,smpvecw 'sample ,,smpvec-size)
                                     (,f32vec ,f32vecw :float ,,f32vec-size)
                                     (,f64vec ,f64vecw :double ,,f64vec-size)
@@ -803,6 +819,7 @@
                           (setf (node-controls %dsp-node%) ,control-table)
                           (update-free-hook %dsp-node% ,free-hook)
                           ,@(initialization-code)
+                          (setf ,to-free incudine::*to-free*)
                           (set-dsp-object ,dsp
                             :init-function
                               (lambda (,node ,@',arg-names)
@@ -818,9 +835,12 @@
                                 (setf %dsp-node% ,node)
                                 (setf *dsp-node* ,node)
                                 (with-init-frames
-                                  ,(reinit-bindings-form)
-                                  (update-free-hook ,node ,free-hook)
-                                  ,@(initialization-code))
+                                  (free-incudine-objects ,to-free)
+                                  (let ((incudine::*to-free* nil))
+                                    ,(reinit-bindings-form)
+                                    (update-free-hook ,node ,free-hook)
+                                    ,@(initialization-code)
+                                    (setf ,to-free incudine::*to-free*)))
                                 ,node)
                             :free-function
                               ,(to-free-form smpvecw ,smpvec-size
@@ -1056,37 +1076,6 @@
          (setf ,dimensions (list ,dimensions)))
        (unless (equal ,dimensions (array-dimensions ,vug-varname))
          (setf ,vug-varname (make-array ,@args))))))
-
-;;; Dummy FREE method for a lisp-array
-(defmethod incudine:free ((obj array))
-  (declare (ignore obj))
-  (values))
-
-(defmacro update-foreign-array (vug-varname args)
-  (with-gensyms (new-size new-type initial-contents opts i)
-    `(let ((,new-size ,(car args))
-           (,new-type ,(cadr args)))
-       (declare (type positive-fixnum ,new-size))
-       (incudine.util::with-struct-slots
-           ((data size type) ,vug-varname incudine::foreign-array)
-         (cond ((and (equal ,new-type type) (= ,new-size size))
-                (do ((,opts ',(cddr args) (cddr ,opts)))
-                    ((null ,opts))
-                  (case (car ,opts)
-                    (:zero-p (incudine.external:foreign-set data 0
-                               (* ,new-size (foreign-type-size ,new-type))))
-                    (:initial-contents
-                     (let ((,initial-contents (cadr ,opts)))
-                       (dotimes (,i (length ,initial-contents))
-                         (setf (mem-aref data ,new-type ,i)
-                               (elt ,initial-contents ,i)))))
-                    (:initial-element
-                     (dotimes (,i ,new-size)
-                       (setf (mem-aref data ,new-type ,i)
-                             (cadr ,opts)))))))
-               (t (incudine::realloc-foreign-array
-                    ,vug-varname ,new-type ,@(cddr args) :count ,new-size)))
-         ,vug-varname))))
 
 (defun reinit-binding-form (var)
   (declare (type vug-variable var))

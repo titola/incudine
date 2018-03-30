@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -30,20 +30,34 @@
 (define-constant +seg-square-func+ (sample 16e16))
 (define-constant +seg-cubic-func+  (sample 32e16))
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defstruct (envelope (:constructor %make-envelope)
-                       (:copier nil))
-    (data (null-pointer) :type foreign-pointer)
-    (duration +sample-zero+ :type sample)
-    (points 0 :type non-negative-fixnum)
-    (data-size 0 :type non-negative-fixnum)
-    (loop-node -1 :type fixnum)
-    (release-node -1 :type fixnum)
-    ;; The envelope restarts from the current level if RESTART-LEVEL is NIL
-    (%restart-level nil :type (or sample null))
-    (max-points *envelope-default-max-points* :type non-negative-fixnum)
-    (real-time-p nil :type boolean)
-    (foreign-free #'foreign-free :type function)))
+(defstruct (envelope (:include incudine-object)
+                     (:constructor %make-envelope)
+                     (:copier nil))
+  (data-ptr (null-pointer) :type foreign-pointer)
+  (duration +sample-zero+ :type sample)
+  (points 0 :type non-negative-fixnum)
+  (data-size 0 :type non-negative-fixnum)
+  (loop-node -1 :type fixnum)
+  (release-node -1 :type fixnum)
+  ;; The envelope restarts from the current level if RESTART-LEVEL is NIL
+  (%restart-level nil :type (or sample null))
+  (max-points *envelope-default-max-points* :type non-negative-fixnum)
+  (real-time-p nil :type boolean)
+  (foreign-free #'foreign-free :type function))
+
+(define-constant +envelope-pool-initial-size+ (* *max-number-of-nodes* 4))
+
+(defvar *envelope-pool*
+  (make-incudine-object-pool +envelope-pool-initial-size+ #'%make-envelope nil))
+(declaim (type incudine-object-pool *envelope-pool*))
+
+(defvar *rt-envelope-pool*
+  (make-incudine-object-pool +envelope-pool-initial-size+ #'%make-envelope t))
+(declaim (type incudine-object-pool *rt-envelope-pool*))
+
+(declaim (inline envelope-data))
+(defun envelope-data (obj)
+  (envelope-data-ptr obj))
 
 (defmethod print-object ((obj envelope) stream)
   (format stream "#<~S :POINTS ~D :LOOP-NODE ~D :RELEASE-NODE ~D>"
@@ -55,15 +69,18 @@
 
 (defmethod free ((obj envelope))
   (unless (free-p obj)
-    (funcall (envelope-foreign-free obj) #1=(envelope-data obj))
+    (funcall (envelope-foreign-free obj) (envelope-data obj))
     (incudine-cancel-finalization obj)
-    (setf #1# (null-pointer)
+    (setf (envelope-data-ptr obj) (null-pointer)
           (envelope-duration obj) +sample-zero+
           (envelope-points obj) 0
           (envelope-data-size obj) 0
           (envelope-loop-node obj) -1
           (envelope-release-node obj) -1
           (envelope-max-points obj) 0)
+    (if (envelope-real-time-p obj)
+        (incudine.util::free-rt-object obj *rt-envelope-pool*)
+        (incudine.util::free-object obj *envelope-pool*))
     (nrt-msg debug "Free ~A" (type-of obj)))
   (values))
 
@@ -91,28 +108,47 @@
 (defun copy-envelope (envelope)
   (declare (type envelope envelope))
   (if (free-p envelope)
-      (msg error "The envelope is unusable.")
-      (let* ((points (envelope-points envelope))
-             (data-size (compute-envelope-data-size points))
-             (max-points (max points *envelope-default-max-points*))
-             (max-data-size (compute-envelope-data-size max-points)))
-        (declare (type non-negative-fixnum points data-size max-points
-                       max-data-size))
-        (multiple-value-bind (data free-function)
-            (if (rt-thread-p)
-                (values (foreign-rt-alloc 'sample :count max-data-size)
-                        #'safe-foreign-rt-free)
-                (values (foreign-alloc-sample max-data-size) #'foreign-free))
-          (let ((new (%make-envelope :data data :data-size data-size
-                       :duration (envelope-duration envelope)
-                       :points points :max-points max-points
-                       :loop-node (envelope-loop-node envelope)
-                       :release-node (envelope-release-node envelope)
-                       :%restart-level (envelope-%restart-level envelope)
-                       :real-time-p (allow-rt-memory-p)
-                       :foreign-free free-function)))
-            (foreign-copy-samples data (envelope-data envelope) data-size)
-            (incudine-finalize new (lambda () (funcall free-function data)))
+      (incudine-error "The envelope is unusable.")
+      (let* ((%points (envelope-points envelope))
+             (%data-size (compute-envelope-data-size %points))
+             (%max-points (max %points *envelope-default-max-points*))
+             (max-data-size (compute-envelope-data-size %max-points))
+             (rt-p (allow-rt-memory-p)))
+        (declare (type non-negative-fixnum %points %data-size %max-points
+                       max-data-size)
+                 (type boolean rt-p))
+        (multiple-value-bind (%data new free-fn pool)
+            (reduce-warnings
+              (if rt-p
+                  (values (foreign-rt-alloc 'sample :count max-data-size)
+                          (incudine.util::alloc-rt-object *rt-envelope-pool*)
+                          #'safe-foreign-rt-free
+                          *rt-envelope-pool*)
+                  (values (foreign-alloc-sample max-data-size)
+                          (incudine.util::alloc-object *envelope-pool*)
+                          #'foreign-free
+                          *envelope-pool*)))
+          (declare (type foreign-pointer %data) (type envelope new)
+                   (type incudine-object-pool pool))
+          (incudine.util::with-struct-slots
+              ((data-ptr data-size duration points max-points loop-node
+                release-node %restart-level real-time-p foreign-free)
+               new envelope "INCUDINE")
+            (setf data-ptr %data
+                  data-size %data-size
+                  duration (envelope-duration envelope)
+                  points %points
+                  max-points %max-points
+                  loop-node (envelope-loop-node envelope)
+                  release-node (envelope-release-node envelope)
+                  %restart-level (envelope-%restart-level envelope)
+                  real-time-p rt-p
+                  foreign-free free-fn)
+            (foreign-copy-samples %data (envelope-data envelope) %data-size)
+            (incudine-finalize new
+              (lambda ()
+                (funcall free-fn %data)
+                (incudine-object-pool-expand pool 1)))
             new)))))
 
 (defun check-envelope-points (env levels times)
@@ -122,17 +158,24 @@
       (setf (envelope-points env) size
             (envelope-data-size env) (compute-envelope-data-size size)))
     (when (> size (envelope-max-points env))
-      (incudine-cancel-finalization env)
       (let ((real-time-p (envelope-real-time-p env))
             (free-function (envelope-foreign-free env)))
-        (if real-time-p
-            (foreign-rt-realloc (envelope-data env) 'sample
-                                :count (compute-envelope-data-size size))
-            (foreign-realloc-sample (envelope-data env)
-                                    (compute-envelope-data-size size)))
-        (setf (envelope-max-points env) size)
-        (let ((data (envelope-data env)))
-          (incudine-finalize env (lambda () (funcall free-function data))))))
+        (reduce-warnings
+          (if real-time-p
+              (setf (envelope-data-ptr env)
+                    (rt-eval (:return-value-p t)
+                      (foreign-rt-realloc (envelope-data env) 'sample
+                        :count (compute-envelope-data-size size))))
+              (foreign-realloc-sample (envelope-data-ptr env)
+                                      (compute-envelope-data-size size))))
+        (let ((data (envelope-data env))
+              (pool (if real-time-p *rt-envelope-pool* *envelope-pool*)))
+          (incudine-cancel-finalization env)
+          (incudine-finalize env
+            (lambda ()
+              (funcall free-function data)
+              (incudine-object-pool-expand pool 1)))
+          (setf (envelope-max-points env) size))))
     env))
 
 (declaim (inline exponential-curve-p))
@@ -425,24 +468,40 @@ point RELEASE-NODE."
            (type fixnum loop-node release-node)
            (type boolean real-time-p))
   (let* ((size (max (length levels) (1+ (length times))))
-         (max-points (max size *envelope-default-max-points*))
-         (max-data-size (compute-envelope-data-size max-points))
-         (real-time-p (and real-time-p *allow-rt-memory-pool-p*))
-         (data (if real-time-p
-                   (foreign-rt-alloc 'sample :count max-data-size)
-                   (foreign-alloc-sample max-data-size)))
-         (free-function (if real-time-p #'safe-foreign-rt-free #'foreign-free))
-         (env (%make-envelope :data data
-                              :data-size (compute-envelope-data-size size)
-                              :points size :max-points max-points
-                              :%restart-level (if restart-level
-                                                  (sample restart-level))
-                              :real-time-p real-time-p
-                              :foreign-free free-function)))
-    (set-envelope env levels times :curve curve :base base :loop-node loop-node
-                  :release-node release-node)
-    (incudine-finalize env (lambda () (funcall free-function data)))
-    env))
+         (%max-points (max size *envelope-default-max-points*))
+         (max-data-size (compute-envelope-data-size %max-points))
+         (rt-p (and real-time-p *allow-rt-memory-pool-p*)))
+    (declare (type non-negative-fixnum size %max-points max-data-size)
+             #.*reduce-warnings*)
+    (multiple-value-bind (%data env free-fn pool)
+        (if rt-p
+            (values (foreign-rt-alloc 'sample :count max-data-size)
+                    (incudine.util::alloc-rt-object *rt-envelope-pool*)
+                    #'safe-foreign-rt-free
+                    *rt-envelope-pool*)
+            (values (foreign-alloc-sample max-data-size)
+                    (incudine.util::alloc-object *envelope-pool*)
+                    #'foreign-free
+                    *envelope-pool*))
+      (declare (type foreign-pointer %data) (type envelope env)
+               (type incudine-object-pool pool))
+      (incudine.util::with-struct-slots
+          ((data-ptr data-size points max-points %restart-level real-time-p foreign-free)
+           env envelope "INCUDINE")
+        (setf data-ptr %data
+              data-size (compute-envelope-data-size size)
+              points size
+              max-points %max-points
+              %restart-level (and restart-level (sample restart-level))
+              real-time-p rt-p
+              foreign-free free-fn)
+        (incudine-finalize env
+          (lambda ()
+            (funcall free-fn %data)
+            (incudine-object-pool-expand pool 1)))
+        (set-envelope env levels times :curve curve :base base
+                      :loop-node loop-node :release-node release-node)
+        env))))
 
 (declaim (inline check-envelope-node))
 (defun check-envelope-node (env number)
@@ -713,7 +772,7 @@ point RELEASE-NODE."
   (if dur
       (let ((scl (/ (car (last lst 2)) dur)))
         (if (or (= scl 0) (< (car lst) 0))
-            (error "Malformed breakpoint list pairs.")
+            (incudine-error "Malformed breakpoint list pairs.")
             (loop for i on lst by #'cddr
                   collect (/ (car i) scl)
                   collect (cadr i))))

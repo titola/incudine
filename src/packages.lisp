@@ -70,7 +70,7 @@
                 #:foreign-alloc #:foreign-free)
   (:import-from #:incudine.external #:sample-complex #:foreign-alloc-sample)
   (:intern #:incudine-object #:incudine-object-pool #:make-incudine-object-pool
-           #:incudine-object-pool-expand #:ensure-incudine-object-pool-size)
+           #:incudine-object-pool-expand)
   (:export
    #:sample #:positive-sample #:negative-sample #:non-negative-sample
    #:+sample-zero+ #:non-positive-sample #:*sample-type*
@@ -96,6 +96,7 @@
    #:*standard-optimize-settings*
    #:most-positive-sample #:most-negative-sample
    #:least-positive-sample #:least-negative-sample
+   #:ensure-incudine-object-pool-size
    #:incudine-version
    #:exit
    #:next-power-of-two #:power-of-two-p
@@ -195,14 +196,11 @@
    #:done-action #:done-self #:free-self #:free-self-when-done
    #:clip #:nclip #:wrap #:nwrap #:mirror #:nmirror
    ;; buffer
-   #:make-local-buffer #:buffer-read #:buffer-write #:buffer-frame #:buffer-play
+   #:buffer-read #:buffer-write #:buffer-frame #:buffer-play
    ;; oscillator
    #:phasor #:phasor-loop #:osc #:sine #:pulse #:impulse #:buzz #:gbuzz
    #:oscrq #:oscrs #:oscrc #:oscr
    ;; envelope
-   #:make-local-envelope #:make-local-linen #:make-local-perc
-   #:make-local-cutoff #:make-local-asr #:make-local-adsr #:make-local-dadsr
-   #:breakpoints->local-env
    #:line #:expon #:envelope #:node-segment
    ;; noise
    #:white-noise #:pink-noise #:fractal-noise #:crackle

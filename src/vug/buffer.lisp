@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -15,32 +15,6 @@
 ;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 (in-package :incudine.vug)
-
-(defmacro make-local-buffer (&whole whole frames &key (channels 1) file offset
-                             sample-rate initial-contents fill-function)
-  (declare (ignore channels file offset sample-rate initial-contents
-                   fill-function))
-  (with-gensyms (buf)
-    `(with ((,buf (incudine:make-buffer ,frames
-                                        :real-time-p *allow-rt-memory-pool-p*
-                                        ,@(cddr whole))))
-       (declare (type buffer ,buf))
-       ,buf)))
-
-(defmacro update-local-buffer (vug-varname args)
-  (with-gensyms (frames channels)
-    `(let ((,frames ,(car args))
-           (,channels ,(or (getf (cdr args) :channels) 1)))
-       (declare (type non-negative-fixnum ,frames ,channels))
-       (cond ((> (* ,frames ,channels) #1=(buffer-size ,vug-varname))
-              (safe-foreign-rt-free #2=(buffer-data ,vug-varname))
-              (setf ,vug-varname (incudine:make-buffer ,frames ,@(cdr args))))
-             (t ,(unless (do ((pl (cdr args) (cddr pl)))
-                             ((or (null pl)
-                                  (member (car pl) '(:initial-contents
-                                                     :fill-function)))
-                              pl))
-                   `(foreign-zero-sample #2# #1#)))))))
 
 (defmacro make-local-abuffer (analysis-object)
   (with-gensyms (abuf)
@@ -61,7 +35,6 @@
                                      *allow-rt-memory-pool-p*)))))))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (object-to-free incudine:make-buffer update-local-buffer)
   (object-to-free incudine.analysis:make-abuffer update-local-abuffer))
 
 (defmacro %check-phase (phase function)

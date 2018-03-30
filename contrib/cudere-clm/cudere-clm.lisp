@@ -1,5 +1,5 @@
 ;;; Incudine version of CLM
-;;; Copyright (c) 2017 Tito Latini
+;;; Copyright (c) 2017-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -60,8 +60,8 @@
             (object :arg-name gen))
   (:accessors (location :name mus-location :arg-name gen :value-name pos
                         :method-p t))
-  (with ((env (breakpoints->local-env list :base base :scaler scaler
-                                      :offset offset :duration 1.0)))
+  (with ((env (breakpoints->env list :base base :scaler scaler
+                                :offset offset :duration 1.0)))
     (initialize (setf object env))
     (incf location)
     (envelope env 1 duration #'identity location)))

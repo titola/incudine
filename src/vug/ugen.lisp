@@ -16,15 +16,6 @@
 
 (in-package :incudine.vug)
 
-(defstruct (ugen-instance (:copier nil))
-  (name nil :type symbol)
-  (return-pointer nil :type (or foreign-pointer null))
-  ;; Sequence #[c0-ptr-or-func c0-func-or-nil c1-ptr-or-func c1-func-or-nil ...]
-  (controls nil :type (or simple-vector null))
-  (init-function #'dummy-function :type function)
-  (perf-function #'dummy-function :type function)
-  (free-function #'dummy-function :type function))
-
 (defmethod print-object ((obj ugen) stream)
   (format stream "#<UGEN ~A>" (ugen-name obj)))
 

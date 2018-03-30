@@ -112,19 +112,17 @@
     (rt-foreign-array-pool-push obj)
     (values)))
 
-(declaim (inline nrt-free-foreign-array))
 (defun nrt-free-foreign-array (obj)
   (declare (type foreign-array obj))
   (foreign-free #1=(foreign-array-data obj))
-  (setf #1# nil)
   (incudine-cancel-finalization obj)
+  (setf #1# nil)
   (nrt-foreign-array-pool-push obj)
   (values))
 
-(declaim (inline make-rt-foreign-array))
 (defun make-rt-foreign-array (dimension element-type zero-p
                               initial-element initial-contents
-                              &optional obj)
+                              &optional obj (dynamic-finalizer-p t))
   (let* ((data (foreign-rt-alloc element-type :count dimension
                                  :zero-p zero-p
                                  :initial-element initial-element
@@ -132,7 +130,8 @@
          (obj (fill-foreign-array (or obj (rt-foreign-array-pool-pop))
                                   data dimension element-type
                                   #'rt-free-foreign-array)))
-    (incudine-finalize obj (lambda () (rt-eval () (foreign-rt-free data))))
+    (incudine-finalize obj (lambda () (rt-eval () (foreign-rt-free data)))
+                       dynamic-finalizer-p)
     obj))
 
 (defun make-nrt-foreign-array-data (dimension element-type zero-p
@@ -168,7 +167,7 @@
   (if (allow-rt-memory-p)
       (make-rt-foreign-array dimension element-type zero-p
                              initial-element initial-contents
-                             instance)
+                             instance dynamic-finalizer-p)
       (make-nrt-foreign-array dimension element-type zero-p
                               initial-element initial-contents
                               instance dynamic-finalizer-p)))

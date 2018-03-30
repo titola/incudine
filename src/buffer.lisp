@@ -82,7 +82,8 @@ a non-NIL FILE argument, return the pathname.")
   (declare (type non-negative-fixnum frm chans)
            (type alexandria:positive-real srate)
            (type boolean rt-p))
-  (let ((bufsize (the non-negative-fixnum (* frm chans))))
+  (let ((bufsize (the non-negative-fixnum (* frm chans)))
+        (rt-p (and rt-p *allow-rt-memory-pool-p*)))
     (declare (type non-negative-fixnum bufsize))
     (multiple-value-bind (%data obj free-fn pool)
         (reduce-warnings
@@ -113,7 +114,7 @@ a non-NIL FILE argument, return the pathname.")
                 lobits %lobits
                 lomask (1- value)
                 lodiv (if (zerop lobits) +sample-zero+ (/ (sample 1) value))
-                real-time-p (and rt-p *allow-rt-memory-pool-p*)
+                real-time-p rt-p
                 foreign-free free-fn)
           (incudine-finalize obj
             (lambda ()
@@ -236,9 +237,9 @@ It is possible to use line comments that begin with the ';' character."
                ;; Try to load a text file
                (or (buffer-load-textfile ,path ,offset ,frames ,channels
                                          ,sample-rate)
-                   (nrt-msg error (sf:strerror ,var)))
+                   (incudine-error (sf:strerror ,var)))
                ,@body)))
-       (nrt-msg error "file ~S not found" (namestring ,path))))
+       (incudine-error "file ~S not found" (namestring ,path))))
 
 (defun buffer-load (path &key (offset 0) frames (channel -1) channels
                     sample-rate headerless-p data-format)
@@ -357,11 +358,12 @@ DATA-FORMAT defaults to *DEFAULT-DATA-FORMAT*."
   (unless (free-p obj)
     (funcall (buffer-base-foreign-free obj) (buffer-base-data-ptr obj))
     (incudine-cancel-finalization obj)
-    (incudine.util::free-object obj
-      (if (buffer-real-time-p obj) *rt-buffer-pool* *buffer-pool*))
     (setf (buffer-base-data-ptr obj) (null-pointer))
     (setf (buffer-base-size obj) 0)
     (setf (buffer-file obj) nil)
+    (if (buffer-real-time-p obj)
+        (incudine.util::free-rt-object obj *rt-buffer-pool*)
+        (incudine.util::free-object obj *buffer-pool*))
     (nrt-msg debug "Free ~A" (type-of obj))
     (values)))
 
@@ -369,7 +371,7 @@ DATA-FORMAT defaults to *DEFAULT-DATA-FORMAT*."
   "Return a copy of BUFFER."
   (declare (type buffer buffer))
   (if (free-p buffer)
-      (msg error "The buffer is unusable.")
+      (incudine-error "The buffer is unusable.")
       (let ((new (make-buffer (buffer-frames buffer)
                               :channels (buffer-channels buffer)
                               :sample-rate (buffer-sample-rate buffer)
@@ -384,7 +386,7 @@ DATA-FORMAT defaults to *DEFAULT-DATA-FORMAT*."
 
 If CHANNELS is non-NIL, the resized buffer is created with that number
 of channels."
-  (declare (type buffer buffer) (type non-negative-real frames)
+  (declare (type buffer buffer) (type non-negative-fixnum frames)
            (type (or non-negative-fixnum null) channels))
   (if (or (free-p buffer)
           (and (= (buffer-frames buffer) frames)
@@ -394,9 +396,20 @@ of channels."
       (let* ((old-channels (buffer-channels buffer))
              (old-size (buffer-size buffer))
              (channels (or channels old-channels))
-             (size (* frames channels)))
-        (declare (type non-negative-fixnum old-channels old-size channels size))
-        (with-foreign-array (data 'sample size)
+             (size (* frames channels))
+             (free-fn (buffer-foreign-free buffer))
+             (pool (if (buffer-real-time-p buffer)
+                       *rt-buffer-pool*
+                       *buffer-pool*)))
+        (declare (type non-negative-fixnum old-channels old-size channels size)
+                 (type function free-fn) (type incudine-object-pool pool)
+                 #.*standard-optimize-settings*)
+        (let ((data (reduce-warnings
+                      (if (buffer-real-time-p buffer)
+                          (rt-eval (:return-value-p t)
+                            (foreign-rt-alloc 'sample :count size :zero-p t))
+                          (foreign-alloc-sample size)))))
+          (declare (type foreign-pointer data))
           (loop for i of-type non-negative-fixnum below size by channels
                 for j of-type non-negative-fixnum below old-size by old-channels
                 do (dochannels (ch channels)
@@ -404,10 +417,12 @@ of channels."
                            (if (< ch old-channels)
                                (smp-ref (buffer-data buffer) (+ j ch))
                                +sample-zero+))))
-          (funcall (buffer-foreign-free buffer) (buffer-data buffer))
+          (funcall free-fn (buffer-data buffer))
           (incudine-cancel-finalization buffer)
           (incudine-finalize buffer
-            (lambda () (funcall (buffer-foreign-free buffer) data)))
+            (lambda ()
+              (funcall free-fn data)
+              (incudine-object-pool-expand pool 1)))
           (setf (buffer-data-ptr buffer) data
                 (buffer-frames buffer) frames
                 (buffer-channels buffer) channels
@@ -570,19 +585,19 @@ content of the buffer."
   (declare (type list cmap)
            (type positive-fixnum cmap-size sf-channels buf-channels))
   (cond ((> cmap-size sf-channels)
-         (nrt-msg error "channel-map size greater than sndfile channels"))
+         (incudine-error "channel-map size greater than sndfile channels"))
         ((> cmap-size buf-channels)
-         (nrt-msg error "channel-map size greater than buffer channels"))
+         (incudine-error "channel-map size greater than buffer channels"))
         ((some (lambda (x)
                  (cond
                    ((>= (the non-negative-fixnum (first x)) sf-channels)
-                    (nrt-msg error
-                             "wrong channel-map; max value for the source is ~D"
-                             (1- sf-channels)) t)
+                    (incudine-error
+                      "wrong channel-map; max value for the source is ~D"
+                      (1- sf-channels)) t)
                    ((>= (the non-negative-fixnum (second x)) buf-channels)
-                    (nrt-msg error
-                             "wrong channel-map; max value for the destination is ~D"
-                             (1- buf-channels)) t)))
+                    (incudine-error
+                      "wrong channel-map; max value for the destination is ~D"
+                      (1- buf-channels)) t)))
                cmap))
         (t t)))
 
@@ -657,7 +672,7 @@ content of the buffer."
                                *sndfile-buffer-size* channel-map
                                (min channels (buffer-channels buffer))))))))))
         buffer)
-      (nrt-msg error "file ~S not found" (namestring path))))
+      (incudine-error "file ~S not found" (namestring path))))
 
 (defun fill-buffer (buffer obj &key (start 0) end (sndfile-start 0)
                     channel-map (normalize-p nil normalize-pp)

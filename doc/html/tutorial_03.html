@@ -263,7 +263,7 @@ NIL</pre>
 
       <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">oscilla</span> (freq amp pos atk rel)
   (foreach-channel
-    (cout (pan2 (* (envelope (make-local-perc atk rel) 1 1 #'free)
+    (cout (pan2 (* (envelope (make-perc atk rel) 1 1 #'free)
                    (osc *sine-table* freq amp 0 <span style="color: #b0c4de;">:cubic</span>))
                 pos))))
 
@@ -441,7 +441,7 @@ n  simple3  (+ 100 (random 1000))  0.3  (dur 0.5)
       </p>
 
       <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">simple3</span> (freq amp dur)
-  (stereo (* (envelope (make-local-perc .1 .9) 1 dur #'free)
+  (stereo (* (envelope (make-perc .1 .9) 1 dur #'free)
              (sine freq amp 0))))
 
 <span style="color: #ff7f24;">;;; Off-line rendering</span>

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -116,13 +116,29 @@
   "Get the time synchronized to PERIOD."
   (incudine.external::%tempo-sync *sample-counter* (sample period)))
 
-(defstruct (tempo-envelope (:constructor %make-tempo-envelope)
+(defvar *dummy-envelope* (%make-envelope))
+(declaim (type envelope *dummy-envelope*))
+
+(defstruct (tempo-envelope (:include incudine-object)
+                           (:constructor %make-tempo-envelope)
                            (:copier nil))
-  (spb (incudine-missing-arg "Missing SPB envelope.") :type envelope)
+  (spb *dummy-envelope* :type envelope)
   (time-warp (null-pointer) :type foreign-pointer)
   (points 0 :type non-negative-fixnum)
   (max-points *envelope-default-max-points* :type non-negative-fixnum)
   (constant-p t :type boolean))
+
+(define-constant +tempo-envelope-pool-initial-size+ 50)
+
+(defvar *tempo-envelope-pool*
+  (make-incudine-object-pool +tempo-envelope-pool-initial-size+
+                             #'%make-tempo-envelope nil))
+(declaim (type incudine-object-pool *tempo-envelope-pool*))
+
+(defvar *rt-tempo-envelope-pool*
+  (make-incudine-object-pool +tempo-envelope-pool-initial-size+
+                             #'%make-tempo-envelope t))
+(declaim (type incudine-object-pool *rt-tempo-envelope-pool*))
 
 (defmethod print-object ((obj tempo-envelope) stream)
   (let ((spb-env (tempo-envelope-spb obj)))
@@ -135,55 +151,95 @@
 (defun tenv-constant-p (values)
   (apply #'= values))
 
-(defmacro make-tempo-envelope (&whole args bpms beats &key curve (loop-node -1)
-                               (release-node -1) restart-level real-time-p)
-  (declare (ignore beats curve loop-node release-node restart-level
-                   real-time-p))
-  (with-gensyms (tempo-env spb spb-env bpm points max-points twarp-data)
-    `(let* ((,spb (mapcar (lambda (,bpm) (/ ,(sample 60) ,bpm)) ,bpms))
-            (,spb-env (make-envelope ,spb ,@(cddr args)))
-            (,points (envelope-points ,spb-env))
-            (,max-points (max ,points *envelope-default-max-points*))
-            (,twarp-data (foreign-alloc-sample ,max-points))
-            (,tempo-env (%make-tempo-envelope
-                          :spb ,spb-env
-                          :time-warp ,twarp-data
-                          :points ,points
-                          :max-points ,max-points
-                          :constant-p (tenv-constant-p ,spb))))
-       (incudine-finalize ,tempo-env (lambda () (foreign-free ,twarp-data)))
-       (fill-time-warp-data ,twarp-data ,spb-env)
-       ,tempo-env)))
+(defun make-tempo-envelope (bpms beats &key curve (loop-node -1)
+                            (release-node -1) restart-level
+                            (real-time-p (allow-rt-memory-p)))
+  (declare (type list bpms beats) (type fixnum loop-node release-node)
+           (type boolean real-time-p))
+  (let* ((spbs (mapcar (lambda (bpm) (/ (sample 60) bpm)) bpms))
+         (rt-p (and real-time-p *allow-rt-memory-pool-p*))
+         (spb-env (make-envelope spbs beats :curve curve :loop-node loop-node
+                                 :release-node release-node
+                                 :restart-level restart-level
+                                 :real-time-p rt-p))
+         (%points (envelope-points spb-env))
+         (%max-points (max %points *envelope-default-max-points*)))
+    (declare #.*reduce-warnings*)
+    (multiple-value-bind (twarp-data tempo-env free-fn pool)
+        (if rt-p
+            (values (foreign-rt-alloc 'sample :count %max-points)
+                    (incudine.util::alloc-rt-object *rt-tempo-envelope-pool*)
+                    #'safe-foreign-rt-free
+                    *rt-tempo-envelope-pool*)
+            (values (foreign-alloc-sample %max-points)
+                    (incudine.util::alloc-object *tempo-envelope-pool*)
+                    #'foreign-free
+                    *tempo-envelope-pool*))
+      (incudine.util::with-struct-slots
+          ((spb time-warp points max-points constant-p) tempo-env tempo-envelope)
+        (setf spb spb-env
+              time-warp twarp-data
+              points %points
+              max-points %max-points
+              constant-p (tenv-constant-p spbs))
+        (incudine-finalize tempo-env
+          (lambda ()
+            (funcall free-fn twarp-data)
+            (incudine-object-pool-expand pool 1)))
+        (fill-time-warp-data twarp-data spb-env)
+        tempo-env))))
 
 (defmethod free-p ((obj tempo-envelope))
   (null-pointer-p (tempo-envelope-time-warp obj)))
 
 (defmethod free ((obj tempo-envelope))
   (unless (free-p obj)
-    (foreign-free #1=(tempo-envelope-time-warp obj))
-    (incudine-cancel-finalization obj)
-    (setf #1# (null-pointer))
-    (free (tempo-envelope-spb obj))
-    (setf (tempo-envelope-points obj) 0)
-    (nrt-msg debug "Free ~A" (type-of obj)))
+    (let ((env (tempo-envelope-spb obj)))
+      (declare (type envelope env))
+      (funcall (envelope-foreign-free env) (tempo-envelope-time-warp obj))
+      (incudine-cancel-finalization obj)
+      (setf (tempo-envelope-time-warp obj) (null-pointer))
+      (free env)
+      (setf (tempo-envelope-spb obj) *dummy-envelope*)
+      (setf (tempo-envelope-points obj) 0)
+      (if (envelope-real-time-p env)
+          (incudine.util::free-rt-object obj *rt-tempo-envelope-pool*)
+          (incudine.util::free-object obj *tempo-envelope-pool*))
+      (nrt-msg debug "Free ~A" (type-of obj))))
   (values))
 
 (defun copy-tempo-envelope (tenv)
   (declare (type tempo-envelope tenv))
   (if (free-p tenv)
-      (msg error "The temporal envelope is unusable.")
-      (let* ((points (tempo-envelope-points tenv))
-             (max-points (tempo-envelope-max-points tenv))
-             (data (foreign-alloc-sample max-points))
-             (new (%make-tempo-envelope
-                    :spb (copy-envelope (tempo-envelope-spb tenv))
-                    :time-warp data
-                    :points points
-                    :max-points max-points
-                    :constant-p (tempo-envelope-constant-p tenv))))
-        (foreign-copy-samples data (tempo-envelope-time-warp tenv) points)
-        (incudine-finalize new (lambda () (foreign-free data)))
-        new)))
+      (incudine-error "The temporal envelope is unusable.")
+      (let ((%points (tempo-envelope-points tenv))
+            (%max-points (tempo-envelope-max-points tenv))
+            (rt-p (allow-rt-memory-p)))
+        (multiple-value-bind (twarp-data new free-fn pool)
+            (reduce-warnings
+              (if rt-p
+                  (values (foreign-rt-alloc 'sample :count %max-points)
+                          (incudine.util::alloc-rt-object *rt-tempo-envelope-pool*)
+                          #'safe-foreign-rt-free
+                          *rt-tempo-envelope-pool*)
+                  (values (foreign-alloc-sample %max-points)
+                          (incudine.util::alloc-object *tempo-envelope-pool*)
+                          #'foreign-free
+                          *tempo-envelope-pool*)))
+          (incudine.util::with-struct-slots
+              ((spb time-warp points max-points constant-p) new tempo-envelope)
+            (setf spb (copy-envelope (tempo-envelope-spb tenv))
+                  time-warp twarp-data
+                  points %points
+                  max-points %max-points
+                  constant-p (tempo-envelope-constant-p tenv))
+            (incudine-finalize new
+              (lambda ()
+                (funcall free-fn twarp-data)
+                (incudine-object-pool-expand pool 1)))
+            (foreign-copy-samples
+              twarp-data (tempo-envelope-time-warp tenv) %points)
+            new)))))
 
 (declaim (inline integrate-linear-curve))
 (defun integrate-linear-curve (y0 y1 x)
@@ -272,28 +328,41 @@
            (setf (smp-ref twarp-data twdata-index) time)))
     (values)))
 
-(defmacro set-tempo-envelope (&whole args env bpms beats &key curve
-                              (loop-node -1) (release-node -1)
-                              restart-level)
-  (declare (ignore beats curve loop-node release-node restart-level))
-  (with-gensyms (spb-env spb twarp-data bpm points)
-    `(let ((,spb-env (tempo-envelope-spb ,env))
-           (,twarp-data (tempo-envelope-time-warp ,env))
-           (,spb (mapcar (lambda (,bpm) (/ ,(sample 60) ,bpm)) ,bpms)))
-       (set-envelope ,spb-env ,spb ,@(cdddr args))
-       (let ((,points (envelope-points ,spb-env)))
-         (setf (tempo-envelope-constant-p ,env)
-               (tenv-constant-p ,spb))
-         (unless (= ,points #1=(tempo-envelope-points ,env))
-           (setf #1# ,points)
-           (when (> ,points #2=(tempo-envelope-max-points ,env))
-             (setf #2# ,points)
-             (foreign-realloc-sample ,twarp-data ,points)
-             (incudine-cancel-finalization ,env)
-             (incudine-finalize ,env (lambda () (foreign-free ,twarp-data)))
-             (setf (tempo-envelope-time-warp ,env) ,twarp-data)))
-         (fill-time-warp-data ,twarp-data ,spb-env)
-         ,env))))
+(defun set-tempo-envelope (env bpms beats &key curve (loop-node -1)
+                           (release-node -1) restart-level)
+  (declare (type tempo-envelope env) (type list bpms beats)
+           (type fixnum loop-node release-node))
+  (let ((spb-env (tempo-envelope-spb env))
+        (twarp-data (tempo-envelope-time-warp env))
+        (spbs (reduce-warnings
+                (mapcar (lambda (bpm) (/ (sample 60) bpm)) bpms))))
+    (set-envelope spb-env spbs beats :curve curve :loop-node loop-node
+                  :release-node release-node :restart-level restart-level)
+    (setf (tempo-envelope-constant-p env) (tenv-constant-p spbs))
+    (let ((points (envelope-points spb-env)))
+      (unless (= points (tempo-envelope-points env))
+        (when (> points (tempo-envelope-max-points env))
+          (let* ((real-time-p (envelope-real-time-p spb-env))
+                 (free-function (envelope-foreign-free spb-env))
+                 (pool (if real-time-p
+                           *rt-tempo-envelope-pool*
+                           *tempo-envelope-pool*)))
+            (if real-time-p
+                (setf twarp-data
+                      (rt-eval (:return-value-p t)
+                        (foreign-rt-realloc twarp-data 'sample :count points)))
+                (reduce-warnings
+                  (foreign-realloc-sample twarp-data points)))
+            (incudine-cancel-finalization env)
+            (incudine-finalize env
+              (lambda ()
+                (funcall free-function twarp-data)
+                (incudine-object-pool-expand pool 1)))
+            (setf (tempo-envelope-time-warp env) twarp-data)
+            (setf (tempo-envelope-max-points env) points)))
+        (setf (tempo-envelope-points env) points))
+      (fill-time-warp-data twarp-data spb-env)
+      env)))
 
 (defun %time-at (tempo-env beats)
   (declare (type tempo-envelope tempo-env) (type (real 0) beats))

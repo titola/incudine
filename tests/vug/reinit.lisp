@@ -14,7 +14,7 @@
                 amp 0))))
 
 (dsp! reinit-test-3 (amp dur)
-  (stereo (* (envelope (make-local-perc .5 .5) 1 dur
+  (stereo (* (envelope (make-perc .5 .5) 1 dur
                        (reduce-warnings
                          (lambda (node) (reinit node amp dur))))
              (oscr 1000 amp))))

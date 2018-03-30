@@ -4,7 +4,7 @@
                                           (location fixnum))
   (:defaults '(0 0 1 1 2 0) 4 7 0)
   (:accessors (location))
-  (with ((env (breakpoints->local-env list :base base :duration 1.0)))
+  (with ((env (breakpoints->env list :base base :duration 1.0)))
     ;; ENVELOPE inlined to avoid a failure if it is vug-compiled with
     ;; return-type SAMPLE (return-type T is ok in this case because we get
     ;; the values by using MULTIPLE-VALUE-BIND with type declarations).
@@ -22,7 +22,7 @@
                                           (location fixnum))
   (:defaults '(0 0 1 1 2 0) 4 7 0)
   (:accessors (location))
-  (with ((env (breakpoints->local-env list :base base :duration 1.0))
+  (with ((env (breakpoints->env list :base base :duration 1.0))
          ;; Rebinding to inhibit side effects.
          (pos location))
     (declare (fixnum pos) (inline envelope))

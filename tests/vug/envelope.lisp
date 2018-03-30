@@ -7,7 +7,7 @@
 
 (dsp! vug-breakpoint-env-test ((bp cons) gain (base real) dur)
   (out (* (db->lin gain)
-          (envelope (breakpoints->local-env bp :base base :duration 1)
+          (envelope (breakpoints->env bp :base base :duration 1)
                     1 dur #'free))))
 
 (defvar *env-test* (make-envelope '(0 1 0) '(.5 .5)))

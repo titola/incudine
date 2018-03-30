@@ -18,7 +18,7 @@
 
 (define-constant +incudine-major+ 0)
 (define-constant +incudine-minor+ 9)
-(define-constant +incudine-patch+ 16)
+(define-constant +incudine-patch+ 17)
 
 (in-package :incudine.util)
 
@@ -156,13 +156,14 @@
             (*twopi-div-sr* (* 2 *pi-div-sr*)))
        ,@body))
 
-  (defmacro with-struct-slots ((slots instance struct-name) &body body)
+  (defmacro with-struct-slots ((slots instance struct-name &optional package)
+                               &body body)
     (with-gensyms (obj)
       `(let ((,obj ,instance))
          (symbol-macrolet
              ,(mapcar (lambda (slot-name)
                         `(,slot-name (,(alexandria:format-symbol
-                                         (symbol-package struct-name)
+                                         (or package (symbol-package struct-name))
                                          "~A-~A" struct-name slot-name)
                                        ,obj)))
                       slots)

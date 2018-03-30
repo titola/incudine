@@ -62,7 +62,7 @@
       </p>
 
       <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">ugen-test</span> (freq amp atk rel)
-  (stereo (* (envelope (make-local-perc atk rel) 1 1 #'free)
+  (stereo (* (envelope (make-perc atk rel) 1 1 #'free)
              (osc *sine-table* freq amp))))
 
 <span class="prompt">SCRATCH&gt;</span> (ugen-test 440 .3 .01 .5)</pre>
@@ -91,7 +91,7 @@
   (osc buf cps amp 0 <span style="color: #b0c4de;">:linear</span>))
 
 (dsp! <span style="color: #87cefa;">ugen-test2</span> (freq amp atk rel)
-  (stereo (* (envelope (make-local-perc atk rel) 1 1 #'free)
+  (stereo (* (envelope (make-perc atk rel) 1 1 #'free)
              (oscili amp freq *sine-table*))))
 
 <span class="prompt">SCRATCH&gt;</span> (ugen-test2 440 .3 .01 .5)</pre>
@@ -103,7 +103,7 @@
       </p>
 
       <pre class="src src-lisp">(define-ugen <span style="color: #87cefa;">perc-sine</span> sample (freq amp atk rel)
-  (* (envelope (make-local-perc atk rel) 1 1 #'free)
+  (* (envelope (make-perc atk rel) 1 1 #'free)
      (oscili amp freq *sine-table*)))
 
 (dsp! <span style="color: #87cefa;">ugen-test3</span> (freq amp atk rel)
@@ -125,7 +125,7 @@
 
       <pre class="src src-lisp">(define-ugen <span style="color: #87cefa;">perc-sine*</span> sample (freq amp atk rel)
   (declare (inline envelope oscili))
-  (* (envelope (make-local-perc atk rel) 1 1 #'free)
+  (* (envelope (make-perc atk rel) 1 1 #'free)
      (oscili amp freq *sine-table*)))
 
 (dsp! <span style="color: #87cefa;">ugen-test4</span> (freq amp atk rel)

@@ -24,14 +24,14 @@
      (sinosc-1 (expon* f0 f1 dur #'reinit) amp)))
 
 (define-ugen sinosc-perc* sample (amp dur)
-  (* (envelope* (make-local-perc .5 .5) 1 dur
+  (* (envelope* (make-perc .5 .5) 1 dur
                 (reduce-warnings
                   (lambda (node) (reinit node amp dur))))
      (sinosc-2 1000 amp)))
 
 (define-ugen sinosc-perc sample (amp dur)
   (declare (inline envelope* sinosc-2))
-  (* (envelope* (make-local-perc .5 .5) 1 dur
+  (* (envelope* (make-perc .5 .5) 1 dur
                 (reduce-warnings
                   (lambda (node) (reinit node amp dur))))
      (sinosc-2 1000 amp)))

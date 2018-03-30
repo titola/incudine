@@ -24,7 +24,7 @@
       <pre class="src src-lisp">(in-package <span style="color: #b0c4de;">:scratch</span>)
 
 (dsp! <span style="color: #87cefa;">frrr</span> (amp gate)
-  (stereo (* (envelope (make-local-adsr .2 .1 .5 1) gate 1 #'identity)
+  (stereo (* (envelope (make-adsr .2 .1 .5 1) gate 1 #'identity)
              (white-noise amp))))
 
 (defun <span style="color: #87cefa;">retrig</span> (node)
@@ -54,7 +54,7 @@
       </p>
 
       <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">explosions</span> (gain gate-base gate-freq)
-  (stereo (* (tanh (* (envelope (make-local-adsr .001 3 .05 .8)
+  (stereo (* (tanh (* (envelope (make-adsr .001 3 .05 .8)
                                 (+ gate-base
                                    (if (&lt; (phasor gate-freq 0) .5) 1 0))
                                 1 #'identity)

@@ -282,7 +282,6 @@ will be used to initialize the contents of the newly allocated memory."
 (defun %foreign-rt-free (ptr)
   (incudine.external:foreign-rt-free-ex ptr *foreign-rt-memory-pool*))
 
-(declaim (inline foreign-rt-free))
 (defun foreign-rt-free (ptr)
   (if *rt-thread*
       (%foreign-rt-free ptr)

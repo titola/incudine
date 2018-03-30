@@ -8,7 +8,7 @@
 (in-package :scratch)
 
 (dsp! frrr (amp gate)
-  (stereo (* (envelope (make-local-adsr .2 .1 .5 1) gate 1 #'identity)
+  (stereo (* (envelope (make-adsr .2 .1 .5 1) gate 1 #'identity)
              (white-noise amp))))
 
 (defun retrig (node)
@@ -36,7 +36,7 @@
 ;; The follow example shows a simple modulation of the gate:
 
 (dsp! explosions (gain gate-base gate-freq)
-  (stereo (* (tanh (* (envelope (make-local-adsr .001 3 .05 .8)
+  (stereo (* (tanh (* (envelope (make-adsr .001 3 .05 .8)
                                 (+ gate-base
                                    (if (< (phasor gate-freq 0) .5) 1 0))
                                 1 #'identity)

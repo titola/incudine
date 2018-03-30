@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -24,10 +24,10 @@
 ;;;     start-time-in-beats   function-name   [arg1]   [arg2]   ...
 ;;;
 
-(declaim (special *score-objects-to-free*
-                  ;; Stack used to check recursive inclusions of rego files.
-                  *include-rego-stack*)
-         (type list *score-objects-to-free* *include-rego-stack*))
+(declaim (special
+           ;; Stack used to check recursive inclusions of rego files.
+           *include-rego-stack*)
+         (type list *include-rego-stack*))
 
 (defvar *score-statements* (make-hash-table :test #'equal))
 (declaim (type hash-table *score-statements*))
@@ -472,7 +472,7 @@ or IGNORE-SCORE-STATEMENTS."
                          #'end-of-rego))
                     ((rt-thread-p) (nrt-funcall #'end-of-rego))
                     (t (end-of-rego)))))
-          *score-objects-to-free*))))
+          incudine::*to-free*))))
 
 (declaim (inline default-tempo-envelope))
 (defun default-tempo-envelope ()
@@ -507,7 +507,8 @@ or IGNORE-SCORE-STATEMENTS."
   (with-complex-gensyms (c-array)
     (let ((var-names (list t0-var t1-var time-var sched-var last-time-var
                            last-dur-var max-time-var)))
-      `(let* ((,foreign-array-name (make-foreign-array ,(length var-names)
+      `(let* ((incudine::*to-free* nil)
+              (,foreign-array-name (make-foreign-array ,(length var-names)
                                                        'sample :zero-p t))
               (,c-array (foreign-array-data ,foreign-array-name)))
          (symbol-macrolet ,(loop for var in var-names for i from 0
@@ -531,9 +532,7 @@ or IGNORE-SCORE-STATEMENTS."
         (tenv-bind `(,parent-tempo-env ,tempo-env))
         (local-tempo `(progn
                         ,@(and time-offset `((incf ,time ,time-offset-var)))
-                        (setf ,tempo-env (copy-tempo-envelope ,tempo-env))
-                        (unless (dynamic-incudine-finalizer-p)
-                          (push ,tempo-env *score-objects-to-free*))))
+                        (setf ,tempo-env (copy-tempo-envelope ,tempo-env))))
         (decl `(declare (ignorable ,time-offset-var))))
     (if (car local-bindings)
         ;; Update the local bindings.
@@ -675,8 +674,7 @@ or IGNORE-SCORE-STATEMENTS."
            (with-schedule
              (with-rego-samples (,c-array-wrap ,smptime0 ,smptime1 ,smptime
                                  ,sched ,last-time ,last-dur ,max-time)
-               (let ((,tempo-env (default-tempo-envelope))
-                     (*score-objects-to-free* nil))
+               (let ((,tempo-env (default-tempo-envelope)))
                  (flet ((,dur (,beats)
                           (setf ,last-time ,sched)
                           (setf ,last-dur (sample ,beats))
@@ -706,8 +704,6 @@ or IGNORE-SCORE-STATEMENTS."
                      (symbol-macrolet
                          ((,time (rego-time (foreign-array-data ,c-array-wrap)
                                             ,tempo-env)))
-                       (push ,tempo-env *score-objects-to-free*)
-                       (push ,c-array-wrap *score-objects-to-free*)
                        ,(%write-regofile stream sched last-time last-dur max-time
                                          tempo-env))))))))))))
 

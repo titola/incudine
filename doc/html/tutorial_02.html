@@ -330,7 +330,7 @@ T</pre>
 
       <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">env-test-5</span> (freq amp pos gate a d s r)
   (foreach-channel
-    (cout (pan2 (* (envelope (make-local-adsr a d s r) gate 1 #'stop)
+    (cout (pan2 (* (envelope (make-adsr a d s r) gate 1 #'stop)
                    (sine freq amp 0))
                 pos))))
 

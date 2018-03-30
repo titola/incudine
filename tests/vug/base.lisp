@@ -104,7 +104,7 @@
       `(deftest ,name
            (with-local-logger (*standard-output*
                                (if (eq (logger-level) :debug) :debug :info)
-                               :sec)
+                               (or (logger-time) :sec))
              (let ,bindings
                (dsp-test-header ',name)
                (md5sum-buffer-test

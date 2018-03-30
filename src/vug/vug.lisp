@@ -44,7 +44,6 @@
              ',reinit-fname)))
 
   (object-to-free make-array update-lisp-array)
-  (object-to-free make-foreign-array update-foreign-array)
 
   (defvar *numeric-operations*
     '(* + - / 1+ 1- conjugate gcd lcm
@@ -107,6 +106,15 @@
   (arg-types nil :type list)
   (defaults nil :type list)
   (macro-p nil :type boolean :read-only t))
+
+(defstruct (ugen-instance (:copier nil))
+  (name nil :type symbol)
+  (return-pointer nil :type (or foreign-pointer null))
+  ;; Sequence #[c0-ptr-or-func c0-func-or-nil c1-ptr-or-func c1-func-or-nil ...]
+  (controls nil :type (or simple-vector null))
+  (init-function #'dummy-function :type function)
+  (perf-function #'dummy-function :type function)
+  (free-function #'dummy-function :type function))
 
 (defstruct (vug-object (:copier nil))
   (name nil)
@@ -1892,7 +1900,7 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
      ,@body))
 
 (defmacro %with-buffer ((var frames &rest args) &body body)
-  `(with ((,var (make-local-buffer ,frames ,@args))) ,@body))
+  `(with ((,var (incudine:make-buffer ,frames ,@args))) ,@body))
 
 (defmacro %with-buffers (bindings &body body)
   (if bindings

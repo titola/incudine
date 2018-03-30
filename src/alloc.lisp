@@ -95,7 +95,8 @@
   (declare (type incudine-object-pool pool) (type positive-fixnum size))
   (let ((curr-size (incudine-object-pool-size pool)))
     (unless (<= size curr-size)
-      (incudine-object-pool-expand pool (- size curr-size)))))
+      (incudine-object-pool-expand pool (- size curr-size)))
+    (values)))
 
 (defun alloc-object (object-pool)
   (declare (type incudine-object-pool object-pool))
@@ -114,9 +115,9 @@
     (cons-pool-push-cons object-pool (incudine-object-pool-ptr obj))
     (values)))
 
-(declaim (inline free-rt-object))
 (defun free-rt-object (obj object-pool)
   (declare (type incudine-object obj)
            (type incudine-object-pool object-pool))
-  (cons-pool-push-cons object-pool (incudine-object-pool-ptr obj))
+  (rt-eval ()
+    (cons-pool-push-cons object-pool (incudine-object-pool-ptr obj)))
   (values))

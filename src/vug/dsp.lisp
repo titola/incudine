@@ -104,7 +104,6 @@
     (setf (cdr dsp-wrap) #1=(dsp-instances prop))
     (setf #1# dsp-wrap)))
 
-(declaim (inline get-next-dsp-instance))
 (defun get-next-dsp-instance (name)
   (declare (type symbol name))
   (let* ((prop (dsp name))
@@ -124,11 +123,9 @@
 (defmacro set-dummy-functions (&rest functions)
   `(progn ,@(mapcar (lambda (fn) `(setf ,fn #'dummy-function)) functions)))
 
-(declaim (inline all-dsp-names))
 (defun all-dsp-names ()
   (loop for dsp being the hash-keys in *dsps* collect dsp))
 
-(declaim (inline free-dsp-wrap))
 (defun free-dsp-wrap (cons)
   (declare (type cons cons))
   (let ((s (unwrap-dsp cons)))
@@ -152,7 +149,6 @@
         (declare (list inst old))
         (free-dsp-wrap inst)))))
 
-(declaim (inline free-dsp-instances))
 (defun free-dsp-instances (&optional name)
   (if name
       (let ((dsp-prop (dsp name)))
