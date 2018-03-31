@@ -145,7 +145,7 @@ cat > conv.cudo <<'---'
           (t (msg error "Failed to open the IR")
              (exit 1)))))
 
-(defvar *scale* (sample (or (read-arg 2) 1))))
+(defvar *scale* (sample (or (read-arg 2) 1)))
 
 (dsp! convolve ()
   (with-samples ((scale *scale*))
