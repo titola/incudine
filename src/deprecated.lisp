@@ -18,7 +18,7 @@
        (define-compiler-macro ,name (&whole ,form &rest ,rest)
          (declare (ignore ,rest))
          (warn (make-condition 'incudine-deprecation-warning
-                 :format-control "~A is deprecated,~%use ~A instead."
+                 :format-control "~S is deprecated,~%use ~S instead."
                  :format-arguments (list ',name ',replacement)))
          ,form))))
 
@@ -31,14 +31,80 @@
        (pushnew (list ',name :from ,date) *deprecated*)
        (defmacro ,name ,args ,@decl
          (warn (make-condition 'incudine-deprecation-warning
-           :format-control "~A is deprecated,~%use ~A instead."
+           :format-control "~S is deprecated,~%use ~S instead."
            :format-arguments (list ',name ',replacement)))
          ,@form))))
 
 (defun deprecated-msg (old new)
-  (msg warn "~A is deprecated,~%~6Tuse ~A instead." old new))
+  (msg warn "~S is deprecated,~%~6Tuse ~S instead." old new))
 
 ;;;---------------------[ Deprecated symbols ]----------------------
+
+(incudine::deprecated-function
+   (set-envelope (env levels times &key curve base (loop-node -1)
+                  (release-node -1) (restart-level nil restart-level-p))
+     (when restart-level-p
+       (setf (envelope-restart-level env) restart-level))
+     (edit-envelope env levels times :curve curve :base base
+                    :loop-node loop-node :release-node release-node))
+   :date 20180331
+   :package "INCUDINE"
+   :replacement edit-envelope
+   :run-time-message-p t)
+
+(incudine::deprecated-function
+   (linen (obj attack-time sustain-time release-time
+           &key (level 1) (curve :lin) base)
+     (edit-envelope obj :linen (list attack-time sustain-time release-time)
+                    :peak-level level :curve curve :base base))
+   :date 20180331
+   :package "INCUDINE"
+   :run-time-message-p t)
+
+(incudine::deprecated-function
+   (perc (obj attack-time release-time &key (level 1) (curve -4) base)
+     (edit-envelope obj :perc (list attack-time release-time) :peak-level level
+                    :curve curve :base base))
+   :date 20180331
+   :package "INCUDINE"
+   :run-time-message-p t)
+
+(incudine::deprecated-function
+   (cutoff (obj release-time &key (level 1) (curve :exp) base)
+     (edit-envelope obj :cutoff release-time :peak-level level :curve curve
+                    :base base))
+   :date 20180331
+   :package "INCUDINE"
+   :run-time-message-p t)
+
+(incudine::deprecated-function
+   (asr (obj attack-time sustain-level release-time &key (curve -4) base)
+     (edit-envelope obj :asr (list attack-time sustain-level release-time)
+                    :curve curve :base base))
+   :date 20180331
+   :package "INCUDINE"
+   :run-time-message-p t)
+
+(incudine::deprecated-function
+   (adsr (obj attack-time decay-time sustain-level release-time
+          &key (peak-level 1) (curve -4) base)
+     (edit-envelope obj :adsr
+                    (list attack-time decay-time sustain-level release-time)
+                    :peak-level peak-level :curve curve :base base))
+   :date 20180331
+   :package "INCUDINE"
+   :run-time-message-p t)
+
+(incudine::deprecated-function
+   (dadsr (obj delay-time attack-time decay-time sustain-level release-time
+           &key (peak-level 1) (curve -4) base)
+     (edit-envelope obj :dadsr
+                    (list delay-time attack-time decay-time sustain-level
+                          release-time)
+                    :peak-level peak-level :curve curve :base base))
+   :date 20180331
+   :package "INCUDINE"
+   :run-time-message-p t)
 
 (in-package :incudine.util)
 

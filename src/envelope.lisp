@@ -242,10 +242,10 @@
                 and max = (reduce #'max levels)
                collect (log (envelope-base->curve base y0 y1 min max))))))
 
-(defun set-envelope (env levels times &key curve base
-                     (loop-node -1) (release-node -1)
-                     (restart-level nil restart-level-p))
-  (declare (type envelope env) (type list levels times))
+(defun %edit-envelope (env levels times
+                       &optional curve base loop-node release-node)
+  (declare (type envelope env) (type list levels times)
+           (type (or fixnum null) loop-node release-node))
   (let ((data (envelope-data
                 (check-envelope-points env levels times)))
         (curve (cond (base (envelope-base->curves base levels))
@@ -255,11 +255,9 @@
         (first-level (sample (car levels))))
     (setf (smp-ref data 0)
           (envelope-fix-zero first-level (car curve)))
-    (setf (envelope-duration env) +sample-zero+
-          (envelope-loop-node env) loop-node
-          (envelope-release-node env) release-node)
-    (if restart-level-p
-        (setf (envelope-restart-level env) restart-level))
+    (setf (envelope-duration env) +sample-zero+)
+    (when loop-node (setf (envelope-loop-node env) loop-node))
+    (when release-node (setf (envelope-release-node env) release-node))
     (do ((i 1 (1+ i))
          (lev (cdr levels) (or (cdr lev) (cdr levels)))
          (tim times (or (cdr tim) times))
@@ -273,6 +271,80 @@
       (setf (smp-ref data (incf i))
             (seg-function-spec->sample (car cur))))
     env))
+
+(defun* edit-envelope (env levels times linen perc cutoff asr adsr dadsr
+                       (peak-level 1) curve base loop-node release-node
+                       (restart-level nil restart-level-p))
+  "Edit an ENVELOPE structure.
+
+If LEVELS is non-NIL, change the list of LEVELS and the list of TIMES.
+
+CURVE sets the shape of the segments; the possible values are :STEP,
+:LIN or :LINEAR, :EXP or :EXPONENTIAL, :SIN or :SINE, :WEL or :WELCH,
+:SQR or :SQUARE, :CUB or :CUBIC, a number that represents the curvature
+value between two levels for all the segments or a list of the prior
+values to specify the curvature values for each segments. CURVE is
+ignored if BASE is non-NIL.
+
+If the envelope is sustained, RELEASE-NODE specifies the point of the
+release (starting from 0). -1 means 'envelope without sustain'.
+
+If LOOP-NODE is a non-negative value, it is the starting point of the
+loop of the segments during the sustain phase of the envelope. The
+ending point is the point that precedes the release point RELEASE-NODE.
+
+LINEN is NIL or a list (attack-time sustain-time release-time). CURVE
+defaults to :LINEAR.
+
+PERC is NIL or a list (attack-time release-time). CURVE defaults to -4.
+
+CUTOFF is NIL or the release time. CURVE defaults to :EXPONENTIAL and
+RELEASE-NODE is 0.
+
+ASR is NIL or the list (attack-time sustain-level release-time). CURVE
+defaults to -4 and RELEASE-NODE is 1.
+
+ADSR is NIL or the list (attack-time decay-time sustain-level release-time).
+CURVE defaults to -4 and RELEASE-NODE is 2.
+
+DADSR is NIL or the list (delay-time attack-time decay-time sustain-level release-time).
+CURVE defaults to -4 and RELEASE-NODE is 3.
+
+PEAK-LEVEL is the peak level (1 by default) of the envelope when
+LEVELS and ASR are NIL.
+
+If RESTART-LEVEL is NIL, the envelope restarts from the current level
+otherwise it restarts from the value RESTART-LEVEL."
+  (declare (type envelope env)
+           (type list levels times linen perc asr adsr dadsr)
+           (type (or real null) cutoff base)
+           (type real peak-level)
+           (type (or fixnum null) loop-node release-node)
+           (type (or real null) restart-level))
+  (when restart-level-p
+    (setf (envelope-restart-level env) restart-level))
+  (cond (levels
+         (%edit-envelope env levels times curve base loop-node release-node))
+        (linen
+         (%edit-envelope env (list 0 peak-level peak-level 0) linen
+                         (or curve :lin) base))
+        (perc
+         (%edit-envelope env (list 0 peak-level 0) perc (or curve -4) base))
+        (cutoff
+         (%edit-envelope env (list peak-level 0) (list cutoff)
+                         (or curve :exp) base -1 0))
+        (asr
+         (destructuring-bind (a s r) asr
+           (%edit-envelope env (list 0 s 0) (list a r) (or curve -4) base -1 1)))
+        (adsr
+         (destructuring-bind (a d s r) adsr
+           (%edit-envelope env (list 0 peak-level (* peak-level s) 0)
+                           (list a d r) (or curve -4) base -1 2)))
+        (dadsr
+         (destructuring-bind (dt a d s r) dadsr
+           (%edit-envelope env (list 0 0 peak-level (* peak-level s) 0)
+                           (list dt a d r) (or curve -4) base -1 3)))
+        (t env)))
 
 (defmacro curve-case (keyform &body cases)
   (with-gensyms (curve)
@@ -499,8 +571,8 @@ point RELEASE-NODE."
           (lambda ()
             (funcall free-fn %data)
             (incudine-object-pool-expand pool 1)))
-        (set-envelope env levels times :curve curve :base base
-                      :loop-node loop-node :release-node release-node)
+        (edit-envelope env levels times :curve curve :base base
+                       :loop-node loop-node :release-node release-node)
         env))))
 
 (declaim (inline check-envelope-node))
@@ -879,13 +951,6 @@ point RELEASE-NODE."
                  :curve curve :base base :restart-level restart-level
                  :real-time-p real-time-p))
 
-(declaim (inline linen))
-(defun linen (obj attack-time sustain-time release-time
-              &key (level 1) (curve :lin) base)
-  (set-envelope obj `(0 ,level ,level 0)
-                `(,attack-time ,sustain-time ,release-time)
-                :curve curve :base base))
-
 (declaim (inline make-perc))
 (defun make-perc (attack-time release-time
                   &key (level 1) (curve -4) base restart-level
@@ -894,22 +959,12 @@ point RELEASE-NODE."
                  :curve curve :base base :restart-level restart-level
                  :real-time-p real-time-p))
 
-(declaim (inline perc))
-(defun perc (obj attack-time release-time &key (level 1) (curve -4) base)
-  (set-envelope obj `(0 ,level 0) `(,attack-time ,release-time)
-                :curve curve :base base))
-
 (declaim (inline make-cutoff))
 (defun make-cutoff (release-time &key (level 1) (curve :exp) base restart-level
                     (real-time-p (allow-rt-memory-p)))
   (make-envelope (list level 0) (list release-time)
                  :curve curve :base base :release-node 0
                  :restart-level restart-level :real-time-p real-time-p))
-
-(declaim (inline cutoff))
-(defun cutoff (env release-time &key (level 1) (curve :exp) base)
-  (set-envelope env `(,level 0) `(,release-time) :curve curve :base base
-                :release-node 0))
 
 (declaim (inline make-asr))
 (defun make-asr (attack-time sustain-level release-time
@@ -918,11 +973,6 @@ point RELEASE-NODE."
   (make-envelope (list 0 sustain-level 0) (list attack-time release-time)
                  :curve curve :base base :release-node 1
                  :restart-level restart-level :real-time-p real-time-p))
-
-(declaim (inline asr))
-(defun asr (env attack-time sustain-level release-time &key (curve -4) base)
-  (set-envelope env `(0 ,sustain-level 0) `(,attack-time ,release-time)
-                :curve curve :base base :release-node 1))
 
 (declaim (inline make-adsr))
 (defun make-adsr (attack-time decay-time sustain-level release-time
@@ -933,13 +983,6 @@ point RELEASE-NODE."
                  :curve curve :base base :release-node 2
                  :restart-level restart-level :real-time-p real-time-p))
 
-(declaim (inline adsr))
-(defun adsr (env attack-time decay-time sustain-level release-time
-             &key (peak-level 1) (curve -4) base)
-  (set-envelope env `(0 ,peak-level ,(* peak-level sustain-level) 0)
-                `(,attack-time ,decay-time ,release-time) :curve curve
-                :base base :release-node 2))
-
 (declaim (inline make-dadsr))
 (defun make-dadsr (delay-time attack-time decay-time sustain-level
                    release-time &key (peak-level 1) (curve -4) base
@@ -948,10 +991,3 @@ point RELEASE-NODE."
                  (list delay-time attack-time decay-time release-time)
                  :curve curve :base base :release-node 3
                  :restart-level restart-level :real-time-p real-time-p))
-
-(declaim (inline dadsr))
-(defun dadsr (env delay-time attack-time decay-time sustain-level release-time
-              &key (peak-level 1) (curve -4) base)
-  (set-envelope env `(0 0 ,peak-level ,(* peak-level sustain-level) 0)
-                `(,delay-time ,attack-time ,decay-time ,release-time)
-                :curve curve :base base :release-node 3))

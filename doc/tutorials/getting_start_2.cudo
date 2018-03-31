@@ -96,14 +96,8 @@
 
 ;; There are also utilities to edit an existent envelope:
 
-;;   * SET-ENVELOPE
+;;   * EDIT-ENVELOPE
 ;;   * SET-ENVELOPE-BASE
-;;   * LINEN
-;;   * PERC
-;;   * CUTOFF
-;;   * ASR
-;;   * ADSR
-;;   * DADSR
 
 ;; and the follows are setf-able:
 
@@ -113,7 +107,7 @@
 
 ;; For example:
 
-(adsr env1 .15 .09 .85 1.5)
+(edit-envelope env1 :adsr '(.15 .09 .85 1.5))
 ;; #<ENVELOPE :POINTS 4 :LOOP-NODE -1 :RELEASE-NODE 2>
 (mapcar (lambda (point) (envelope-level env1 point)) '(0 1 2 3))
 ;; (9.999999747378752d-6 1.0d0 0.8500000238418579d0 9.999999747378752d-6)

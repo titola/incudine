@@ -431,14 +431,13 @@
    ;; midi
    #:midiout #:midiout-sysex #:midi-tuning-sysex #:set-tuning-from-midi
    ;; envelope
-   #:envelope #:envelope-p #:make-envelope #:set-envelope #:envelope-points
+   #:envelope #:envelope-p #:make-envelope #:edit-envelope #:envelope-points
    #:envelope-level #:envelope-time #:envelope-curve
    #:envelope-base->curves #:set-envelope-base #:envelope-data #:envelope-duration
    #:envelope-loop-node #:envelope-release-node
    #:envelope-restart-level #:envelope-at
    #:breakpoints->env #:freq-breakpoints->env
    #:copy-envelope #:scale-envelope #:normalize-envelope #:rescale-envelope
-   #:linen #:perc #:cutoff #:asr #:adsr #:dadsr
    #:make-linen #:make-perc #:make-cutoff #:make-asr #:make-adsr #:make-dadsr
    ;; nrt
    #:with-nrt #:bounce-to-disk #:bounce-to-buffer

@@ -158,14 +158,8 @@ Slots with <span style="color: #b0c4de;">:INSTANCE</span> allocation:
       </p>
 
       <ul>
-        <li>SET-ENVELOPE</li>
+        <li>EDIT-ENVELOPE</li>
         <li>SET-ENVELOPE-BASE</li>
-        <li>LINEN</li>
-        <li>PERC</li>
-        <li>CUTOFF</li>
-        <li>ASR</li>
-        <li>ADSR</li>
-        <li>DADSR</li>
       </ul>
 
       <p>
@@ -182,7 +176,7 @@ Slots with <span style="color: #b0c4de;">:INSTANCE</span> allocation:
         For example:
       </p>
 
-      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (adsr env1 .15 .09 .85 1.5)
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (edit-envelope env1 <span style="color: #b0c4de;">:adsr</span> '(.15 .09 .85 1.5))
 #&lt;ENVELOPE <span style="color: #b0c4de;">:POINTS</span> 4 <span style="color: #b0c4de;">:LOOP-NODE</span> -1 <span style="color: #b0c4de;">:RELEASE-NODE</span> 2&gt;
 <span class="prompt">SCRATCH&gt;</span> (mapcar (lambda (point) (envelope-level env1 point)) '(0 1 2 3))
 (9.999999747378752d-6 1.0d0 0.8500000238418579d0 9.999999747378752d-6)

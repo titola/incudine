@@ -68,7 +68,7 @@
 
 (deftest envelope-linen.2
     (let ((env (make-linen .5 1 1.5 :level .9)))
-      (envelope-test-1 (linen env .25 3 0.5 :level .5)))
+      (envelope-test-1 (edit-envelope env :linen '(.25 3 0.5) :peak-level .5)))
   (0.0 0.0 0.25 0.5 3.0 0.5 0.5 0.0)
   (:LINEAR :LINEAR :LINEAR))
 
@@ -79,7 +79,7 @@
 
 (deftest envelope-perc.2
     (let ((env (make-perc .01 .25)))
-      (envelope-test-1 (perc env .25 .06)))
+      (envelope-test-1 (edit-envelope env :perc '(.25 .06))))
   (0.0 0.0 0.25 1.0 0.06 0.0)
   (-4.0 -4.0))
 
@@ -90,7 +90,7 @@
 
 (deftest envelope-cutoff.2
     (let ((env (make-cutoff .25 :level .82)))
-      (envelope-test-1 (cutoff env .02)))
+      (envelope-test-1 (edit-envelope env :cutoff .02)))
   (0.0 1.0 0.02 0.0)
   (:EXPONENTIAL))
 
@@ -101,7 +101,7 @@
 
 (deftest envelope-asr.2
     (let ((env (make-asr .16 .9 .35)))
-      (envelope-test-1 (asr env 1.5 4 5)))
+      (envelope-test-1 (edit-envelope env :asr '(1.5 4 5))))
   (0.0 0.0 1.5 4.0 5.0 0.0)
   (-4.0 -4.0))
 
@@ -112,7 +112,7 @@
 
 (deftest envelope-adsr.2
     (let ((env (make-adsr .16 .08 .82 .25)))
-      (envelope-test-1 (adsr env 1.5 .5 .75 3)))
+      (envelope-test-1 (edit-envelope env :adsr '(1.5 .5 .75 3))))
   (0.0 0.0 1.5 1.0 0.5 0.75 3.0 0.0)
   (-4.0 -4.0 -4.0))
 
@@ -123,7 +123,7 @@
 
 (deftest envelope-dadsr.2
     (let ((env (make-dadsr 2.5 .16 .08 .82 .25)))
-      (envelope-test-1 (dadsr env .25 1.4 .04 .75 2.2)))
+      (envelope-test-1 (edit-envelope env :dadsr '(.25 1.4 .04 .75 2.2))))
   (0.0 0.0 0.25 0.0 1.4 1.0 0.04 0.75 2.2 0.0)
   (-4.0 -4.0 -4.0 -4.0))
 

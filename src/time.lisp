@@ -336,8 +336,8 @@
         (twarp-data (tempo-envelope-time-warp env))
         (spbs (reduce-warnings
                 (mapcar (lambda (bpm) (/ (sample 60) bpm)) bpms))))
-    (set-envelope spb-env spbs beats :curve curve :loop-node loop-node
-                  :release-node release-node :restart-level restart-level)
+    (edit-envelope spb-env spbs beats :curve curve :loop-node loop-node
+                   :release-node release-node :restart-level restart-level)
     (setf (tempo-envelope-constant-p env) (tenv-constant-p spbs))
     (let ((points (envelope-points spb-env)))
       (unless (= points (tempo-envelope-points env))
