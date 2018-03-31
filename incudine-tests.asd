@@ -53,6 +53,7 @@
      (:file "vug/base" :depends-on ("util"))
      (:file "vug/ugen-base" :depends-on ("vug/base"))
      (:file "vug/types" :depends-on ("vug/base"))
+     (:file "vug/variables" :depends-on ("vug/base"))
      (:file "vug/binding-lambda" :depends-on ("vug/base"))
      (:file "vug/initialize" :depends-on ("vug/base"))
      (:file "vug/defaults" :depends-on ("vug/base"))
