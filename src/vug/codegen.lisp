@@ -843,7 +843,8 @@
                                     (setf ,to-free incudine::*to-free*)))
                                 ,node)
                             :free-function
-                              ,(to-free-form smpvecw ,smpvec-size
+                              ,(to-free-form nil
+                                             smpvecw ,smpvec-size
                                              f32vecw ,f32vec-size
                                              f64vecw ,f64vec-size
                                              i32vecw ,i32vec-size
@@ -1109,8 +1110,10 @@
              collect (reinit-binding-form var))))
 
 ;;; ARGS is a list (c-array size c-array size ...)
-(defun to-free-form (c-array-sample-wrap sample-size &rest args)
+(defun to-free-form (objects c-array-sample-wrap sample-size &rest args)
   `(lambda ()
+     ,@(when objects
+         `((free-incudine-objects ,objects)))
      ;; Free the foreign arrays
      ,@(when (and #.*use-foreign-sample-p* (plusp sample-size))
          `((incudine:free ,c-array-sample-wrap)))
