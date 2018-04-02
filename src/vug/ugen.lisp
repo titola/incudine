@@ -589,7 +589,7 @@ to call to get the control value."
             ,name ,lambda-list ,defaults ,optimize generate-ugen-code
              (,(dsp-coercing-arguments (get-bindings args types)) nil nil
               ,instance-constructor)
-           (maybe-store-return-value ,return-type ,@form))))))
+           (maybe-store-return-value ,return-type (tick ,@form)))))))
 
 (defmacro with-ugen-instance ((var ugen-name &rest args) &body body)
   `(let ((,var (funcall (,ugen-name ,@args))))
