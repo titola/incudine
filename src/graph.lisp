@@ -748,13 +748,18 @@
   (when (plusp (int-hash-table-count *node-hash*))
     (decf (int-hash-table-count *node-hash*))))
 
-(declaim (inline unlink-node))
 (defun unlink-node (node)
   (declare #.*reduce-warnings*)
-  (when #1=(node-free-hook node)
-    (dolist (fn #1#) (funcall fn node))
-    (setf #1# nil))
-  (when #2=(node-stop-hook node) (setf #2# nil))
+  (when (node-free-hook node)
+    (flet ((free-fn ()
+             (dolist (fn (node-free-hook node))
+               (funcall fn node))))
+      (if (rt-thread-p)
+          ;; Scheduling for DONE-ACTION called from a DSP.
+          (at 0 #'free-fn)
+          (free-fn)))
+    (setf (node-free-hook node) nil))
+  (when #1=(node-stop-hook node) (setf #1# nil))
   (setf (node-done-p node) nil)
   (remove-node-from-hash node))
 
