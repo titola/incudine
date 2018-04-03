@@ -6,8 +6,8 @@
       (+ (* (cos alpha) in1) (* (sin alpha) in2)))))
 
 (dsp! flatness-test ()
-  (with ((fft (make-local-fft 1024 1024 (gen:hanning)))
-         (abuf (make-local-abuffer fft))
+  (with ((fft (make-fft 1024 :window-function (gen:hanning)))
+         (abuf (make-abuffer fft))
          (result +sample-zero+))
     (declare (type sample result))
     (setf (fft-input fft)

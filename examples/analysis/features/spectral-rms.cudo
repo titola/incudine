@@ -1,8 +1,8 @@
 (in-package :scratch)
 
 (dsp! spectral-rms-test ()
-  (with ((fft (make-local-fft 1024 1024 (gen:hanning)))
-         (abuf (make-local-abuffer fft))
+  (with ((fft (make-fft 1024 :window-function (gen:hanning)))
+         (abuf (make-abuffer fft))
          (mult (/ (sample 1.0) (fft-size fft)))
          (rms +sample-zero+))
     (declare (type sample mult rms))

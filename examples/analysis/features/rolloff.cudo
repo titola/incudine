@@ -1,8 +1,8 @@
 (in-package :scratch)
 
 (dsp! rolloff-test (percent)
-  (with ((fft (make-local-fft 1024 1024 (gen:hanning)))
-         (abuf (make-local-abuffer fft))
+  (with ((fft (make-fft 1024 :window-function (gen:hanning)))
+         (abuf (make-abuffer fft))
          (srdiv2 (* *sample-rate* 0.5))
          (perc (sample->fixnum (* percent 100)))
          (result +sample-zero+))

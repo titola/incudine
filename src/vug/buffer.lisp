@@ -16,27 +16,6 @@
 
 (in-package :incudine.vug)
 
-(defmacro make-local-abuffer (analysis-object)
-  (with-gensyms (abuf)
-    `(with ((,abuf (incudine.analysis:make-abuffer ,analysis-object
-                                                   *allow-rt-memory-pool-p*)))
-       ,abuf)))
-
-(defmacro update-local-abuffer (vug-varname args)
-  (with-gensyms (obj)
-    `(let ((,obj ,(car args)))
-       (cond ((eq ,obj (incudine.analysis::abuffer-link ,vug-varname))
-              (setf (incudine.analysis:abuffer-time ,vug-varname) (sample -1))
-              (foreign-zero-sample
-                (incudine.analysis::abuffer-data ,vug-varname)
-                (incudine.analysis::abuffer-size ,vug-varname)))
-             (t (incudine:free ,vug-varname)
-                (setf ,vug-varname (incudine.analysis:make-abuffer ,obj
-                                     *allow-rt-memory-pool-p*)))))))
-
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (object-to-free incudine.analysis:make-abuffer update-local-abuffer))
-
 (defmacro %check-phase (phase function)
   `(progn
      (maybe-expand ,phase)

@@ -1,8 +1,8 @@
 (in-package :scratch)
 
 (dsp! centroid-test ()
-  (with ((fft (make-local-fft 1024 512 (gen:hanning)))
-         (abuf (make-local-abuffer fft))
+  (with ((fft (make-fft 1024 :window-size 512 :window-function (gen:hanning)))
+         (abuf (make-abuffer fft))
          (result +sample-zero+))
     (declare (type sample result))
     (setf (fft-input fft)

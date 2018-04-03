@@ -153,6 +153,57 @@
    #:get-nrt-memory-used-size #:get-nrt-memory-free-size
    #:get-nrt-memory-max-size))
 
+(defpackage :incudine.analysis
+  (:use :cl)
+  (:nicknames :ana)
+  (:import-from #:alexandria #:positive-fixnum #:negative-fixnum
+                #:non-negative-fixnum #:define-constant #:with-gensyms
+                #:ensure-symbol #:format-symbol)
+  (:import-from #:cffi #:mem-ref #:null-pointer #:null-pointer-p #:foreign-free)
+  (:import-from #:incudine.util #:sample #:+sample-zero+ #:+twopi+ #:+half-pi+
+                #:+rtwopi+ #:+log001+ #:+pointer-size+ #:+foreign-sample-size+
+                #:+foreign-complex-size+ #:foreign-rt-alloc #:foreign-rt-free
+                #:safe-foreign-rt-free #:foreign-pointer
+                #:incudine-object #:incudine-object-pool #:make-incudine-object-pool
+                #:incudine-object-pool-expand
+                #:alloc-multi-channel-data #:free-multi-channel-data
+                #:channel-number #:non-negative-fixnum64
+                #:*standard-optimize-settings*
+                #:*reduce-warnings* #:reduce-warnings #:sample->fixnum
+                #:sample->int
+                #:rt-eval #:rt-thread-p)
+  (:import-from #:incudine.external #:foreign-alloc-sample #:foreign-zero-sample
+                #:foreign-realloc-sample #:foreign-alloc-fft #:foreign-free-fft
+                #:make-fft-plan #:make-ifft-plan #:fft-destroy-plan
+                #:sample-complex #:sample-polar #:magnitude #:complex-to-polar
+                #:polar-to-complex
+                #:fft-execute #:ifft-execute
+                #:apply-window #:apply-scaled-window #:apply-scaled-rectwin
+                #:apply-zero-padding
+                #:foreign-copy #:foreign-copy-samples #:%copy-from-ring-buffer
+                #:%copy-to-ring-output-buffer)
+  (:intern #:fft-input-buffer #:fft-output-buffer
+           #:ifft-input-buffer #:ifft-output-buffer #:ifft-plan)
+  (:export #:analysis #:analysis-p #:analysis-time #:touch-analysis
+           #:forget-analysis #:analysis-input #:analysis-data
+           #:window-size #:window-function #:rectangular-window
+           #:abuffer #:make-abuffer #:abuffer-p #:abuffer-data #:abuffer-time
+           #:abuffer-realpart #:abuffer-imagpart #:abuffer-size #:abuffer-link
+           #:abuffer-nbins #:abuffer-normalized-p
+           #:abuffer-polar #:abuffer-complex
+           #:resize-abuffer #:touch-abuffer #:forget-abuffer
+           #:pvbuffer #:buffer->pvbuffer #:pvbuffer-data #:pvbuffer-size
+           #:pvbuffer-frames #:pvbuffer-channels #:pvbuffer-fft-size
+           #:pvbuffer-block-size #:pvbuffer-scale-factor
+           #:fft #:fft-p #:make-fft #:*fft-default-window-function*
+           #:ifft #:ifft-p #:make-ifft
+           #:+fft-plan-optimal+ #:+fft-plan-best+ #:+fft-plan-fast+
+           #:fft-plan #:get-fft-plan #:new-fft-plan #:remove-fft-plan
+           #:fft-plan-list #:fft-input #:ifft-output #:fft-size
+           #:compute-abuffer #:update-linked-object
+           #:compute-fft #:compute-ifft
+           #:dofft #:dofft-polar #:dofft-complex))
+
 (defpackage :incudine.vug
   (:use :cl :incudine.util)
   (:nicknames :vug)
@@ -162,6 +213,14 @@
                 #:maphash-values #:nreversef)
   (:import-from #:cffi #:foreign-type-size #:mem-ref #:mem-aref
                 #:make-pointer #:pointer-address #:inc-pointer)
+  (:import-from #:incudine.analysis #:make-fft #:make-ifft
+                #:fft-input #:ifft-output #:fft-execute #:ifft-execute
+                #:fft-input-buffer #:fft-output-buffer #:fft-plan
+                #:ifft-input-buffer #:ifft-output-buffer #:ifft-plan
+                #:abuffer #:make-abuffer #:abuffer-realpart
+                #:abuffer-imagpart #:abuffer-size #:abuffer-link #:abuffer-nbins
+                #:abuffer-polar #:abuffer-complex #:compute-abuffer
+                #:rectangular-window #:dofft #:dofft-polar #:dofft-complex)
   (:export
    #:vug #:define-vug #:define-vug-macro #:vug-funcall #:destroy-vug
    #:rename-vug #:all-vug-names #:vug-macro-p #:fix-vug
@@ -241,11 +300,8 @@
    #:mouse-start #:mouse-status #:get-mouse-x #:get-mouse-y #:get-mouse-button
    #:mouse-x #:mouse-y #:mouse-button
    #:lin-mouse-x #:lin-mouse-y #:exp-mouse-x #:exp-mouse-y
-   ;; analysis
-   #:make-local-abuffer
    ;; fft
-   #:make-local-fft #:make-local-ifft #:centroid #:flux #:spectral-rms
-   #:rolloff #:flatness))
+   #:centroid #:flux #:spectral-rms #:rolloff #:flatness))
 
 (defpackage :incudine.edf
   (:use :cl)
@@ -262,53 +318,6 @@
            #:last-time
            #:add-flush-pending-hook #:remove-flush-pending-hook
            #:reduce-heap-pool))
-
-(defpackage :incudine.analysis
-  (:use :cl)
-  (:nicknames :ana)
-  (:import-from #:alexandria #:positive-fixnum #:negative-fixnum
-                #:non-negative-fixnum #:define-constant #:with-gensyms
-                #:ensure-symbol #:format-symbol)
-  (:import-from #:cffi #:mem-ref #:null-pointer #:null-pointer-p #:foreign-free)
-  (:import-from #:incudine.util #:sample #:+sample-zero+ #:+twopi+ #:+half-pi+
-                #:+rtwopi+ #:+log001+ #:+pointer-size+ #:+foreign-sample-size+
-                #:+foreign-complex-size+ #:foreign-rt-alloc #:foreign-rt-free
-                #:safe-foreign-rt-free #:foreign-pointer
-                #:alloc-multi-channel-data #:free-multi-channel-data
-                #:channel-number #:non-negative-fixnum64
-                #:*standard-optimize-settings*
-                #:*reduce-warnings* #:reduce-warnings #:sample->fixnum
-                #:sample->int
-                #:rt-eval #:rt-thread-p)
-  (:import-from #:incudine.external #:foreign-alloc-sample #:foreign-zero-sample
-                #:foreign-realloc-sample #:foreign-alloc-fft #:foreign-free-fft
-                #:make-fft-plan #:make-ifft-plan #:fft-destroy-plan
-                #:sample-complex #:sample-polar #:magnitude #:complex-to-polar
-                #:polar-to-complex
-                #:fft-execute #:ifft-execute
-                #:apply-window #:apply-scaled-window #:apply-scaled-rectwin
-                #:apply-zero-padding
-                #:foreign-copy #:foreign-copy-samples #:%copy-from-ring-buffer
-                #:%copy-to-ring-output-buffer)
-  (:export #:analysis #:analysis-p #:analysis-time #:touch-analysis
-           #:forget-analysis #:analysis-input #:analysis-data
-           #:window-size #:window-function #:rectangular-window
-           #:abuffer #:make-abuffer #:abuffer-p #:abuffer-data #:abuffer-time
-           #:abuffer-realpart #:abuffer-imagpart #:abuffer-size #:abuffer-link
-           #:abuffer-nbins #:abuffer-normalized-p
-           #:abuffer-polar #:abuffer-complex
-           #:resize-abuffer #:touch-abuffer #:forget-abuffer
-           #:pvbuffer #:buffer->pvbuffer #:pvbuffer-data #:pvbuffer-size
-           #:pvbuffer-frames #:pvbuffer-channels #:pvbuffer-fft-size
-           #:pvbuffer-block-size #:pvbuffer-scale-factor
-           #:fft #:fft-p #:make-fft #:*fft-default-window-function*
-           #:ifft #:ifft-p #:make-ifft
-           #:+fft-plan-optimal+ #:+fft-plan-best+ #:+fft-plan-fast+
-           #:fft-plan #:get-fft-plan #:new-fft-plan #:remove-fft-plan
-           #:fft-plan-list #:fft-input #:ifft-output #:fft-size
-           #:compute-abuffer #:update-linked-object
-           #:compute-fft #:compute-ifft
-           #:dofft #:dofft-polar #:dofft-complex))
 
 (defpackage :incudine.gen
   (:use :cl)

@@ -109,74 +109,89 @@ is the plan for a IFFT."
     (mapc (analysis-foreign-free obj)
           (list #1=(analysis-input-buffer obj)
                 #2=(analysis-output-buffer obj)
-                #3=(analysis-time-ptr obj)))
-    (setf #1# (null-pointer) #2# (null-pointer) #3# (null-pointer))
+                #3=(fft-common-window-buffer obj)
+                #4=(analysis-time-ptr obj)))
+    (incudine-cancel-finalization obj)
+    (setf (fft-common-size obj) 0)
+    (setf (fft-common-window-size obj) 0)
+    (setf #1# (null-pointer) #2# (null-pointer)
+          #3# (null-pointer) #4# (null-pointer))
     (free (fft-common-ring-buffer obj))
-    (setf (fft-common-size obj) 0))
-  (unless (= (fft-common-window-size obj) 0)
-    (funcall (analysis-foreign-free obj) (fft-common-window-buffer obj))
-    (setf (fft-common-window-buffer obj) (null-pointer))
-    (setf (fft-common-window-size obj) 0))
-  (incudine-cancel-finalization obj)
-  (incudine.util:nrt-msg debug "Free ~A" (type-of obj))
-  (values))
+    (if (fft-common-real-time-p obj)
+        (incudine.util::free-rt-object obj
+          (if (fft-p obj) *rt-fft-pool* *rt-ifft-pool*))
+        (incudine.util::free-object obj
+          (if (fft-p obj) *fft-pool* *ifft-pool*)))
+    (incudine.util:nrt-msg debug "Free ~A" (type-of obj))
+    (values)))
 
 (defmethod print-object ((obj fft) stream)
     (format stream "#<FFT :SIZE ~D :WINDOW-SIZE ~D :NBINS ~D>"
             (fft-size obj) (fft-window-size obj) (fft-nbins obj)))
 
-(declaim (inline rectangular-window))
-(defun rectangular-window (c-array size)
-  (declare (type foreign-pointer c-array) (type non-negative-fixnum size))
-  (dotimes (i size c-array)
-    (setf (smp-ref c-array i) #.(sample 1))))
-
 (defun make-fft (size &key (window-size 0)
                  (window-function *fft-default-window-function*)
-                 flags real-time-p)
-  (declare (type non-negative-fixnum size window-size)
-           (type (or fixnum null) flags) (type function window-function))
-  (flet ((foreign-alloc (size fftw-array-p)
-           (cond (real-time-p (foreign-rt-alloc 'sample :count size))
+                 flags (real-time-p (incudine.util:allow-rt-memory-p)))
+  (declare (type positive-fixnum size) (type non-negative-fixnum window-size)
+           (type (or fixnum null) flags) (type function window-function)
+           #.*reduce-warnings*)
+  (flet ((foreign-alloc (size fftw-array-p rt-p)
+           (cond (rt-p (foreign-rt-alloc 'sample :count size))
                  (fftw-array-p (foreign-alloc-fft size))
                  (t (foreign-alloc-sample size)))))
     (when (or (zerop window-size) (> window-size size))
       (setf window-size size))
-    (let* ((nbins (1+ (ash size -1)))
-           (complex-array-size (* 2 nbins))
-           (input-buffer (foreign-alloc size t))
-           (output-buffer (foreign-alloc complex-array-size t))
-           (window-buffer (fill-window-buffer (foreign-alloc window-size nil)
-                                              window-function window-size))
-           (time-ptr (foreign-alloc 1 nil))
-           (plan-wrap (new-fft-plan size flags))
-           (obj (%make-fft
-                 :size size
-                 :input-buffer input-buffer
-                 :input-size size
-                 :output-buffer output-buffer
-                 :output-size complex-array-size
-                 :ring-buffer (make-ring-input-buffer size real-time-p)
-                 :window-buffer window-buffer
-                 :window-size window-size
-                 :window-function window-function
-                 :nbins nbins
-                 :output-complex-p t
-                 :scale-factor (/ (sample 1) size)
-                 :time-ptr time-ptr
-                 :real-time-p real-time-p
-                 :foreign-free (if real-time-p
-                                   #'safe-foreign-rt-free
-                                   #'foreign-free)
-                 :plan-wrap plan-wrap
-                 :plan (car (fft-plan-pair plan-wrap)))))
-      (setf (analysis-time obj) (sample -1))
-      (foreign-zero-sample input-buffer size)
-      (let ((foreign-free (fft-foreign-free obj)))
-        (incudine-finalize obj (lambda ()
-                                 (mapc foreign-free
-                                       (list input-buffer output-buffer
-                                             window-buffer time-ptr))))))))
+    (let* ((%size size)
+           (winsize window-size)
+           (winfunc window-function)
+           (%nbins (1+ (ash size -1)))
+           (complex-array-size (* 2 %nbins))
+           (rt-p (and real-time-p incudine.util:*allow-rt-memory-pool-p*))
+           (inbuf (foreign-alloc size t rt-p))
+           (outbuf (foreign-alloc complex-array-size t rt-p))
+           (winbuf (fill-window-buffer (foreign-alloc window-size nil rt-p)
+                                       window-function window-size))
+           (tptr (foreign-alloc 1 nil rt-p))
+           (%plan-wrap (new-fft-plan size flags)))
+      (declare (type positive-fixnum %nbins complex-array-size))
+      (multiple-value-bind (obj free-fn pool)
+          (if rt-p
+              (values (incudine.util::alloc-rt-object *rt-fft-pool*)
+                      #'safe-foreign-rt-free
+                      *rt-fft-pool*)
+              (values (incudine.util::alloc-rt-object *fft-pool*)
+                      #'foreign-free
+                      *fft-pool*))
+        (declare (type fft obj) (type incudine-object-pool pool))
+        (incudine-finalize obj
+          (lambda ()
+            (mapc free-fn (list inbuf outbuf winbuf tptr))
+            (incudine-object-pool-expand pool 1)))
+        (incudine.util::with-struct-slots
+            ((size input-buffer input-size output-buffer output-size ring-buffer
+              window-buffer window-size window-function nbins output-complex-p
+              scale-factor time-ptr real-time-p foreign-free plan-wrap plan)
+             obj fft "INCUDINE.ANALYSIS")
+          (setf size %size
+                input-buffer inbuf
+                input-size %size
+                output-buffer outbuf
+                output-size complex-array-size
+                ring-buffer (make-ring-input-buffer %size rt-p)
+                window-buffer winbuf
+                window-size winsize
+                window-function winfunc
+                nbins %nbins
+                output-complex-p t
+                scale-factor (/ (sample 1) %size)
+                time-ptr tptr
+                real-time-p rt-p
+                foreign-free free-fn
+                plan-wrap %plan-wrap
+                plan (car (fft-plan-pair %plan-wrap)))
+          (setf (analysis-time obj) #.(sample -1))
+          (foreign-zero-sample inbuf %size)
+          obj)))))
 
 (defun compute-fft (obj &optional force-p)
   (declare (type fft obj) (type boolean force-p))
@@ -215,48 +230,65 @@ is the plan for a IFFT."
 
 (defun make-ifft (size &key (window-size 0)
                   (window-function *fft-default-window-function*)
-                  flags real-time-p)
-  (declare (type non-negative-fixnum size window-size)
-           (type (or fixnum null) flags) (type function window-function))
-  (flet ((foreign-alloc (size fftw-array-p)
-           (cond (real-time-p (foreign-rt-alloc 'sample :count size))
+                  flags (real-time-p (incudine.util:allow-rt-memory-p)))
+  (declare (type positive-fixnum size) (type non-negative-fixnum window-size)
+           (type (or fixnum null) flags) (type function window-function)
+           #.*reduce-warnings*)
+  (flet ((foreign-alloc (size fftw-array-p rt-p)
+           (cond (rt-p (foreign-rt-alloc 'sample :count size))
                  (fftw-array-p (foreign-alloc-fft size))
                  (t (foreign-alloc-sample size)))))
     (when (or (zerop window-size) (> window-size size))
       (setf window-size size))
-    (let* ((nbins (1+ (ash size -1)))
-           (complex-array-size (* 2 nbins))
-           (input-buffer (foreign-alloc complex-array-size t))
-           (output-buffer (foreign-alloc size t))
-           (window-buffer (fill-window-buffer (foreign-alloc window-size nil)
-                                              window-function window-size))
-           (time-ptr (foreign-alloc 1 nil))
-           (plan-wrap (new-fft-plan size flags))
-           (obj (%make-ifft
-                 :size size
-                 :input-buffer input-buffer
-                 :input-size complex-array-size
-                 :output-buffer output-buffer
-                 :output-size size
-                 :ring-buffer (make-ring-output-buffer size real-time-p)
-                 :window-buffer window-buffer
-                 :window-size window-size
-                 :window-function window-function
-                 :nbins nbins
-                 :time-ptr time-ptr
-                 :real-time-p real-time-p
-                 :foreign-free (if real-time-p
-                                   #'safe-foreign-rt-free
-                                   #'foreign-free)
-                 :plan-wrap plan-wrap
-                 :plan (cdr (fft-plan-pair plan-wrap)))))
-      (setf (analysis-time obj) (sample -1))
-      (foreign-zero-sample input-buffer complex-array-size)
-      (let ((foreign-free (ifft-foreign-free obj)))
-        (incudine-finalize obj (lambda ()
-                                 (mapc foreign-free
-                                       (list input-buffer output-buffer
-                                             window-buffer time-ptr))))))))
+    (let* ((%size size)
+           (winsize window-size)
+           (winfunc window-function)
+           (%nbins (1+ (ash size -1)))
+           (complex-array-size (* 2 %nbins))
+           (rt-p (and real-time-p incudine.util:*allow-rt-memory-pool-p*))
+           (inbuf (foreign-alloc complex-array-size t rt-p))
+           (outbuf (foreign-alloc size t rt-p))
+           (winbuf (fill-window-buffer (foreign-alloc window-size nil rt-p)
+                                       window-function window-size))
+           (tptr (foreign-alloc 1 nil rt-p))
+           (%plan-wrap (new-fft-plan size flags)))
+      (declare (type positive-fixnum %nbins complex-array-size))
+      (multiple-value-bind (obj free-fn pool)
+          (if rt-p
+              (values (incudine.util::alloc-rt-object *rt-ifft-pool*)
+                      #'safe-foreign-rt-free
+                      *rt-ifft-pool*)
+              (values (incudine.util::alloc-rt-object *ifft-pool*)
+                      #'foreign-free
+                      *ifft-pool*))
+        (declare (type ifft obj) (type incudine-object-pool pool))
+        (incudine-finalize obj
+          (lambda ()
+            (mapc free-fn (list inbuf outbuf winbuf tptr))
+            (incudine-object-pool-expand pool 1)))
+        (incudine.util::with-struct-slots
+            ((size input-buffer input-size output-buffer output-size ring-buffer
+              window-buffer window-size window-function nbins time-ptr
+              real-time-p foreign-free plan-wrap plan)
+             obj ifft "INCUDINE.ANALYSIS")
+          (setf size %size
+                input-buffer inbuf
+                input-size complex-array-size
+                output-buffer outbuf
+                output-size %size
+                ring-buffer (make-ring-output-buffer %size rt-p)
+                window-buffer winbuf
+                window-size winsize
+                window-function winfunc
+                nbins %nbins
+                time-ptr tptr
+                real-time-p rt-p
+                foreign-free free-fn
+                plan-wrap %plan-wrap
+                plan (cdr (fft-plan-pair %plan-wrap)))
+          (setf (analysis-time obj) #.(sample -1))
+          (foreign-zero-sample inbuf complex-array-size)
+          obj)))))
 
 (declaim (inline ifft-apply-window))
 (defun ifft-apply-window (obj &optional abuf)

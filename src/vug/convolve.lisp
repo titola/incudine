@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2015 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -128,8 +128,8 @@ of a multichannel finite impulse response."
          (fdl (make-frame fdl-size :zero-p t))
          (fdl-last (- fdl-size block-size))
          (fdl-head 0)
-         (fft (make-local-fft fft-size fft-size #'rectangular-window))
-         (ifft (make-local-ifft fft-size fft-size #'rectangular-window))
+         (fft (make-fft fft-size :window-function #'rectangular-window))
+         (ifft (make-ifft fft-size :window-function #'rectangular-window))
          (fft-inbuf (fft-input-buffer fft))
          (fft-outbuf (fft-output-buffer fft))
          (ifft-inbuf (ifft-input-buffer ifft))

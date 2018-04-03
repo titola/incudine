@@ -206,3 +206,28 @@
    :replacement incudine:breakpoints->env
    :date 20180330
    :package "INCUDINE.VUG")
+
+(incudine::deprecated-macro
+   (make-local-fft (size &optional (window-size size) window-function)
+     `(incudine.analysis:make-fft ,size
+        :window-size ,window-size
+        :window-function ,(or window-function '(gen:sine-window))))
+   :replacement incudine.analysis:make-fft
+   :date 20180403
+   :package "INCUDINE.VUG")
+
+(incudine::deprecated-macro
+   (make-local-ifft (size &optional (window-size size) window-function)
+     `(incudine.analysis:make-ifft ,size
+        :window-size ,window-size
+        :window-function ,(or window-function '(gen:sine-window))))
+   :replacement incudine.analysis:make-ifft
+   :date 20180403
+   :package "INCUDINE.VUG")
+
+(incudine::deprecated-macro
+   (make-local-abuffer (analysis-object)
+     `(incudine.analysis:make-abuffer ,analysis-object))
+   :replacement incudine.analysis:make-abuffer
+   :date 20180403
+   :package "INCUDINE.VUG")

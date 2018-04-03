@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@
   (with-gensyms (flux)
     `(vuglet ((,flux ((abuf1 abuffer))
                 (with-samples (diff result)
-                  (with ((abuf-prev (make-local-abuffer (abuffer-link abuf1))))
+                  (with ((abuf-prev (make-abuffer (abuffer-link abuf1))))
                     (setf result +sample-zero+)
                     (dofft-polar (i nbins (abuf-prev (compute-abuffer abuf1)) ()
                                   :result ,(if l1-norm-p

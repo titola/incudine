@@ -519,9 +519,9 @@ WAVEFORM-1
         (setf mag0 0.0d0))))
 
 (dsp! pv-lp-wall-test ((buf buffer) (size fixnum) (hop-size fixnum) amp)
-  (with ((fft (make-local-fft size))
-         (abuf (make-local-abuffer fft))
-         (ifft (make-local-ifft size))
+  (with ((fft (make-fft size))
+         (abuf (make-abuffer fft))
+         (ifft (make-ifft size))
          (d-nbins (sample (abuffer-nbins abuf))))
     (declare (type sample d-nbins))
     (setf (fft-input fft) (buffer-play buf 1 0 t #'identity))
@@ -606,10 +606,10 @@ WAVEFORM-1
         (setf mag1 mag0 phase1 phase0))))
 
 (dsp! pv-local-max-test ((buf buffer) (size fixnum) (hop-size fixnum) amp)
-  (with ((fft (make-local-fft size))
-         (abuf0 (make-local-abuffer fft))
-         (abuf1 (make-local-abuffer fft))
-         (ifft (make-local-ifft size)))
+  (with ((fft (make-fft size))
+         (abuf0 (make-abuffer fft))
+         (abuf1 (make-abuffer fft))
+         (ifft (make-ifft size)))
     (setf (fft-input fft) (buffer-play buf 1 0 t #'identity))
     (with-control-period (hop-size)
       (compute-ifft ifft (pv-local-max abuf0 abuf1
@@ -627,9 +627,9 @@ WAVEFORM-1
 ;; the HOP-SIZE using the mouse:
 
 (dsp! hop-size-mod ((size fixnum) amp)
-  (with ((fft (make-local-fft size))
-         (abuf (make-local-abuffer fft))
-         (ifft (make-local-ifft size)))
+  (with ((fft (make-fft size))
+         (abuf (make-abuffer fft))
+         (ifft (make-ifft size)))
     (setf (fft-input fft) (sine 440 .5 0))
     (with-control-period ((sample->fixnum (lag (lin-mouse-x 150 10000) .02)))
       (compute-ifft ifft abuf))

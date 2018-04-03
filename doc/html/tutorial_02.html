@@ -649,9 +649,9 @@ BTEST
         (setf mag0 0.0d0))))
 
 (dsp! <span style="color: #87cefa;">pv-lp-wall-test</span> ((buf buffer) (size fixnum) (hop-size fixnum) amp)
-  (with ((fft (make-local-fft size))
-         (abuf (make-local-abuffer fft))
-         (ifft (make-local-ifft size))
+  (with ((fft (make-fft size))
+         (abuf (make-abuffer fft))
+         (ifft (make-ifft size))
          (d-nbins (sample (abuffer-nbins abuf))))
     (declare (type sample d-nbins))
     (setf (fft-input fft) (buffer-play buf 1 0 t #'identity))
@@ -767,10 +767,10 @@ NIL
         (setf mag1 mag0 phase1 phase0))))
 
 (dsp! <span style="color: #87cefa;">pv-local-max-test</span> ((buf buffer) (size fixnum) (hop-size fixnum) amp)
-  (with ((fft (make-local-fft size))
-         (abuf0 (make-local-abuffer fft))
-         (abuf1 (make-local-abuffer fft))
-         (ifft (make-local-ifft size)))
+  (with ((fft (make-fft size))
+         (abuf0 (make-abuffer fft))
+         (abuf1 (make-abuffer fft))
+         (ifft (make-ifft size)))
     (setf (fft-input fft) (buffer-play buf 1 0 t #'identity))
     (with-control-period (hop-size)
       (compute-ifft ifft (pv-local-max abuf0 abuf1
@@ -793,9 +793,9 @@ NIL
       </p>
 
       <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">hop-size-mod</span> ((size fixnum) amp)
-  (with ((fft (make-local-fft size))
-         (abuf (make-local-abuffer fft))
-         (ifft (make-local-ifft size)))
+  (with ((fft (make-fft size))
+         (abuf (make-abuffer fft))
+         (ifft (make-ifft size)))
     (setf (fft-input fft) (sine 440 .5 0))
     (with-control-period ((sample-&gt;fixnum (lag (lin-mouse-x 150 10000) .02)))
       (compute-ifft ifft abuf))

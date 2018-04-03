@@ -138,7 +138,27 @@ core image starts up.")
                      (,*tempo-envelope-pool* ,+tempo-envelope-pool-initial-size+)
                      (,*rt-tempo-envelope-pool* ,+tempo-envelope-pool-initial-size+)
                      (,*tuning-pool* ,+tuning-pool-initial-size+)
-                     (,*rt-tuning-pool* ,+tuning-pool-initial-size+))
+                     (,*rt-tuning-pool* ,+tuning-pool-initial-size+)
+                     (,incudine.analysis::*ring-input-buffer-pool*
+                      ,incudine.analysis::+ring-buffer-pool-initial-size+)
+                     (,incudine.analysis::*rt-ring-input-buffer-pool*
+                      ,incudine.analysis::+ring-buffer-pool-initial-size+)
+                     (,incudine.analysis::*ring-output-buffer-pool*
+                      ,incudine.analysis::+ring-buffer-pool-initial-size+)
+                     (,incudine.analysis::*rt-ring-output-buffer-pool*
+                      ,incudine.analysis::+ring-buffer-pool-initial-size+)
+                     (,incudine.analysis::*fft-pool*
+                      ,incudine.analysis::+fft-pool-initial-size+)
+                     (,incudine.analysis::*rt-fft-pool*
+                      ,incudine.analysis::+fft-pool-initial-size+)
+                     (,incudine.analysis::*ifft-pool*
+                      ,incudine.analysis::+fft-pool-initial-size+)
+                     (,incudine.analysis::*rt-ifft-pool*
+                      ,incudine.analysis::+fft-pool-initial-size+)
+                     (,incudine.analysis::*abuffer-pool*
+                      ,incudine.analysis::+abuffer-pool-initial-size+)
+                     (,incudine.analysis::*rt-abuffer-pool*
+                      ,incudine.analysis::+abuffer-pool-initial-size+))
             do (ensure-incudine-object-pool-size pool size))
       (clrhash incudine.analysis::*fft-plan*)
       (values))

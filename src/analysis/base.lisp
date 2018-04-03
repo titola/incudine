@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -31,86 +31,139 @@
   #+fftw-no-simd
   (format *error-output* "~%WARNING: using planner flag FFTW_NO_SIMD~%"))
 
-(defstruct (ring-buffer (:copier nil))
-  (data (incudine-missing-arg "Missing data for the ring buffer.")
-        :type foreign-pointer)
-  (size (incudine-missing-arg "Missing size for the ring buffer.")
-        :type non-negative-fixnum)
+(defstruct (ring-buffer (:include incudine-object)
+                        (:copier nil))
+  (data (null-pointer) :type foreign-pointer)
+  (size 0 :type non-negative-fixnum)
   (head 0 :type non-negative-fixnum)
   (real-time-p nil :type boolean)
   (foreign-free #'foreign-free :type function))
 
-(defstruct (ring-input-buffer
-             (:include ring-buffer)
-             (:constructor %make-ring-input-buffer (data size real-time-p))
-             (:copier nil)))
+(defmethod print-object ((obj ring-buffer) stream)
+  (format stream "#<~A size ~D head ~D>" (type-of obj) (ring-buffer-size obj)
+          (ring-buffer-head obj)))
 
-(defstruct (ring-output-buffer
-             (:include ring-buffer)
-             (:constructor %make-ring-output-buffer (data size real-time-p))
-             (:copier nil))
+(defstruct (ring-input-buffer (:include ring-buffer)
+                              (:constructor %make-ring-input-buffer)
+                              (:copier nil)))
+
+(defstruct (ring-output-buffer (:include ring-buffer)
+                               (:constructor %make-ring-output-buffer)
+                               (:copier nil))
   ;; The slot TMP is added to avoid consing in RING-OUTPUT-BUFFER-NEXT
   (tmp (null-pointer) :type foreign-pointer))
 
-(defun make-ring-input-buffer (size &optional real-time-p)
-  (declare (type non-negative-fixnum size))
-  (let ((obj (%make-ring-input-buffer
-              (if real-time-p
-                  (foreign-rt-alloc 'sample :count size
-                                    :initial-element +sample-zero+)
-                  (foreign-alloc-sample size))
-              size real-time-p)))
-    (when real-time-p
-      (setf #1=(ring-input-buffer-foreign-free obj)
-            #'safe-foreign-rt-free))
-    (let ((data (ring-input-buffer-data obj))
-          (foreign-free #1#))
-      (incudine-finalize obj (lambda () (funcall foreign-free data)))
-      obj)))
+(define-constant +ring-buffer-pool-initial-size+ 200)
 
-(defun make-ring-output-buffer (size &optional real-time-p)
-  (declare (type non-negative-fixnum size))
-  (flet ((foreign-alloc (size zero-p)
-           (if real-time-p
-               (foreign-rt-alloc 'sample :count size :zero-p zero-p)
-               (foreign-alloc-sample size))))
-    (let ((obj (%make-ring-output-buffer (foreign-alloc size t) size
-                                         real-time-p)))
-      (setf #1=(ring-output-buffer-tmp obj) (foreign-alloc size nil))
-      (when real-time-p
-        (setf #2=(ring-output-buffer-foreign-free obj)
-              #'safe-foreign-rt-free))
-      (let ((data (ring-output-buffer-data obj))
-            (tmp #1#)
-            (foreign-free #2#))
-        (incudine-finalize obj (lambda ()
-                                 (funcall foreign-free data)
-                                 (funcall foreign-free tmp)))
-        obj))))
+(defvar *ring-input-buffer-pool*
+  (make-incudine-object-pool +ring-buffer-pool-initial-size+ #'%make-ring-input-buffer nil))
+(declaim (type incudine-object-pool *ring-input-buffer-pool*))
+
+(defvar *rt-ring-input-buffer-pool*
+  (make-incudine-object-pool +ring-buffer-pool-initial-size+ #'%make-ring-input-buffer t))
+(declaim (type incudine-object-pool *rt-ring-input-buffer-pool*))
+
+(defvar *ring-output-buffer-pool*
+  (make-incudine-object-pool +ring-buffer-pool-initial-size+ #'%make-ring-output-buffer nil))
+(declaim (type incudine-object-pool *ring-output-buffer-pool*))
+
+(defvar *rt-ring-output-buffer-pool*
+  (make-incudine-object-pool +ring-buffer-pool-initial-size+ #'%make-ring-output-buffer t))
+(declaim (type incudine-object-pool *rt-ring-output-buffer-pool*))
+
+(defvar *dummy-ring-buffer* (make-ring-buffer))
+(declaim (type ring-buffer *dummy-ring-buffer*))
+
+(defun make-ring-input-buffer (bufsize
+                               &optional (real-time-p (incudine.util:allow-rt-memory-p)))
+  (declare (type non-negative-fixnum bufsize))
+  (let ((rt-p (and real-time-p incudine.util:*allow-rt-memory-pool-p*)))
+    (multiple-value-bind (data-ptr buf free-fn pool)
+        (if rt-p
+            (values (foreign-rt-alloc 'sample :count bufsize :zero-p t)
+                    (incudine.util::alloc-rt-object *rt-ring-input-buffer-pool*)
+                    #'safe-foreign-rt-free
+                    *rt-ring-input-buffer-pool*)
+            (values (foreign-alloc-sample bufsize)
+                    (incudine.util::alloc-object *ring-input-buffer-pool*)
+                    #'foreign-free
+                    *ring-input-buffer-pool*))
+      (declare (type foreign-pointer data-ptr) (type ring-input-buffer buf)
+               (type incudine-object-pool pool))
+      (incudine-finalize buf
+        (lambda ()
+          (funcall free-fn data-ptr)
+          (incudine-object-pool-expand pool 1)))
+      (incudine.util::with-struct-slots
+          ((data size real-time-p foreign-free)
+           buf ring-input-buffer "INCUDINE.ANALYSIS")
+        (setf data data-ptr
+              size bufsize
+              real-time-p rt-p
+              foreign-free free-fn)
+        buf))))
+
+(defun make-ring-output-buffer (bufsize
+                                &optional (real-time-p (incudine.util:allow-rt-memory-p)))
+  (declare (type non-negative-fixnum bufsize))
+  (flet ((foreign-alloc (bufsize zero-p rt-p)
+           (if rt-p
+               (foreign-rt-alloc 'sample :count bufsize :zero-p zero-p)
+               (foreign-alloc-sample bufsize))))
+    (let* ((rt-p (and real-time-p incudine.util:*allow-rt-memory-pool-p*))
+           (data-ptr (foreign-alloc bufsize t rt-p))
+           (tmp-ptr (foreign-alloc bufsize nil rt-p)))
+      (declare (type foreign-pointer data-ptr tmp-ptr))
+      (multiple-value-bind (buf free-fn pool)
+          (if rt-p
+              (values (incudine.util::alloc-rt-object *rt-ring-output-buffer-pool*)
+                      #'safe-foreign-rt-free
+                      *rt-ring-output-buffer-pool*)
+              (values (incudine.util::alloc-object *ring-output-buffer-pool*)
+                      #'foreign-free
+                      *ring-output-buffer-pool*))
+        (declare (type ring-output-buffer buf) (type incudine-object-pool pool))
+        (incudine-finalize buf
+          (lambda ()
+            (funcall free-fn data-ptr)
+            (funcall free-fn tmp-ptr)
+            (incudine-object-pool-expand pool 1)))
+        (incudine.util::with-struct-slots
+            ((data tmp size real-time-p foreign-free)
+             buf ring-output-buffer "INCUDINE.ANALYSIS")
+          (setf data data-ptr
+                tmp tmp-ptr
+                size bufsize
+                real-time-p rt-p
+                foreign-free free-fn)
+          buf)))))
 
 (defmethod free-p ((obj ring-buffer))
-  (null-pointer-p (ring-buffer-data obj)))
+  (zerop (ring-buffer-size obj)))
 
 (defmethod free ((obj ring-buffer))
   (unless (free-p obj)
-    (let ((foreign-free (ring-buffer-foreign-free obj)))
+    (let ((foreign-free (ring-buffer-foreign-free obj))
+          (outbuf-p (ring-output-buffer-p obj)))
       (funcall foreign-free #1=(ring-buffer-data obj))
+      (setf (ring-buffer-size obj) 0)
       (setf #1# (null-pointer))
-      (when (ring-output-buffer-p obj)
+      (when outbuf-p
         (funcall foreign-free #2=(ring-output-buffer-tmp obj))
-        (setf #2# (null-pointer))))
-    (incudine-cancel-finalization obj)
-    (incudine.util:nrt-msg debug "Free ~A" (type-of obj)))
-  (setf (ring-buffer-head obj) 0
-        (ring-buffer-size obj) 0)
+        (setf #2# (null-pointer)))
+      (incudine-cancel-finalization obj)
+      (setf (ring-buffer-head obj) 0)
+      (if (ring-buffer-real-time-p obj)
+          (incudine.util::free-rt-object obj
+            (if outbuf-p
+              *rt-ring-output-buffer-pool*
+              *rt-ring-input-buffer-pool*))
+          (incudine.util::free-object obj
+            (if outbuf-p
+                *ring-output-buffer-pool*
+                *ring-input-buffer-pool*)))
+      (incudine.util:nrt-msg debug "Free ~A" (type-of obj))))
   (values))
-
-(declaim (inline inc-ring-buffer))
-(defun inc-ring-buffer (buf delta)
-  (incf (ring-buffer-head buf) delta)
-  (loop while (>= (ring-buffer-head buf) (ring-buffer-size buf))
-        do (decf (ring-buffer-head buf) (ring-buffer-size buf)))
-  buf)
 
 (declaim (inline ring-input-buffer-put))
 (defun ring-input-buffer-put (value buf)
@@ -138,25 +191,6 @@
                                c-array (ring-output-buffer-size buf)
                                (ring-output-buffer-head buf) items))
 
-(defun resize-ring-buffer (obj new-size)
-  (declare (type ring-buffer obj) (type positive-fixnum new-size))
-  (unless (= (ring-input-buffer-size obj) new-size)
-    (let ((new-data (if (ring-buffer-real-time-p obj)
-                        (foreign-rt-alloc 'sample :count new-size)
-                        (foreign-alloc-sample new-size)))
-          (new-offset 0))
-      (declare (type foreign-pointer new-data)
-               (type non-negative-fixnum new-offset))
-      (cond ((< new-size (ring-buffer-size obj))
-             (copy-from-ring-buffer new-data obj new-size))
-            (t (copy-from-ring-buffer new-data obj (ring-buffer-size obj))
-               (setf new-offset (ring-buffer-size obj))))
-      (foreign-free (ring-buffer-data obj))
-      (setf (ring-buffer-data obj) new-data
-            (ring-buffer-head obj) new-offset
-            (ring-buffer-size obj) new-size)))
-  new-size)
-
 (declaim (inline ring-output-buffer-next))
 (defun ring-output-buffer-next (buf)
   (declare (type ring-output-buffer buf))
@@ -170,19 +204,17 @@
     (setf (ring-output-buffer-head buf) 0))
   (smp-ref (ring-output-buffer-tmp buf) 0))
 
-(defstruct (analysis (:copier nil))
+(defstruct (analysis (:include incudine-object) (:copier nil))
   (size 0 :type non-negative-fixnum)
-  (input-buffer (incudine-missing-arg "Missing INPUT-BUFFER")
-                :type foreign-pointer)
+  (input-buffer (null-pointer) :type foreign-pointer)
   (input-size 0 :type non-negative-fixnum)
   (input-changed-p nil :type boolean)
-  (output-buffer (incudine-missing-arg "Missing OUTPUT-BUFFER")
-                 :type foreign-pointer)
+  (output-buffer (null-pointer) :type foreign-pointer)
   (output-size 0 :type non-negative-fixnum)
   (output-complex-p nil :type boolean)
   (nbins 0 :type non-negative-fixnum)
   (scale-factor (sample 1) :type sample)
-  (time-ptr (incudine-missing-arg "Missing TIME-PTR") :type foreign-pointer)
+  (time-ptr (null-pointer) :type foreign-pointer)
   (real-time-p nil :type boolean)
   (foreign-free #'foreign-free :type function))
 
@@ -260,23 +292,47 @@ ANALYSIS-INPUT-SIZE samples."
   :documentation "Fast computation of a reasonable FFT plan.")
 
 (defstruct (fft-plan (:constructor %new-fft-plan))
-  (pair (incudine-missing-arg "Missing FFT plans.") :type cons)
+  (pair (list nil) :type cons)
   (size 8 :type positive-fixnum)
   (flags +fft-plan-best+ :type fixnum))
 
+(defvar *dummy-fft-plan* (%new-fft-plan))
+(declaim (type fft-plan *dummy-fft-plan*))
+
+(defun rectangular-window (c-array size)
+  (declare (type foreign-pointer c-array) (type non-negative-fixnum size))
+  (dotimes (i size c-array)
+    (setf (smp-ref c-array i) #.(sample 1))))
+
 (defstruct (fft-common (:include analysis) (:copier nil))
-  (ring-buffer (incudine-missing-arg "Missing RING-BUFFER") :type ring-buffer)
-  (window-buffer (incudine-missing-arg "Missing WINDOW-BUFFER")
-                 :type foreign-pointer)
+  (ring-buffer *dummy-ring-buffer* :type ring-buffer)
+  (window-buffer (null-pointer) :type foreign-pointer)
   (window-size 0 :type non-negative-fixnum)
-  (window-function (incudine-missing-arg "Missing WINDOW-FUNCTION")
-                   :type function)
-  (plan-wrap (incudine-missing-arg "Missing FFT plan wrapper.") :type fft-plan)
-  (plan (incudine-missing-arg "Missing FFT plan.") :type foreign-pointer))
+  (window-function #'rectangular-window :type function)
+  (plan-wrap *dummy-fft-plan* :type fft-plan)
+  (plan (null-pointer) :type foreign-pointer))
 
 (defstruct (fft (:include fft-common) (:constructor %make-fft) (:copier nil)))
 
 (defstruct (ifft (:include fft-common) (:constructor %make-ifft) (:copier nil)))
+
+(define-constant +fft-pool-initial-size+ 200)
+
+(defvar *fft-pool*
+  (make-incudine-object-pool +fft-pool-initial-size+ #'%make-fft nil))
+(declaim (type incudine-object-pool *fft-pool*))
+
+(defvar *rt-fft-pool*
+  (make-incudine-object-pool +fft-pool-initial-size+ #'%make-fft t))
+(declaim (type incudine-object-pool *rt-fft-pool*))
+
+(defvar *ifft-pool*
+  (make-incudine-object-pool +fft-pool-initial-size+ #'%make-ifft nil))
+(declaim (type incudine-object-pool *ifft-pool*))
+
+(defvar *rt-ifft-pool*
+  (make-incudine-object-pool +fft-pool-initial-size+ #'%make-ifft t))
+(declaim (type incudine-object-pool *rt-ifft-pool*))
 
 (defgeneric window-function (obj))
 
@@ -309,66 +365,92 @@ ANALYSIS-INPUT-SIZE samples."
     (let* ((input-buffer (fft-common-input-buffer obj))
            (output-buffer (fft-common-output-buffer obj))
            (time-ptr (fft-common-time-ptr obj))
-           (foreign-free (fft-common-foreign-free obj))
-           (window-buffer (if (fft-common-real-time-p obj)
-                              (foreign-rt-alloc 'sample :count size)
-                              (foreign-alloc-sample size)))
-           (cleanup-fn (lambda ()
-                         (mapc foreign-free
-                               (list input-buffer output-buffer
-                                     window-buffer time-ptr)))))
-      (incudine-cancel-finalization obj)
-      (incudine-finalize obj cleanup-fn)
-      (funcall foreign-free (fft-common-window-buffer obj))
-      (setf (fft-common-window-buffer obj) window-buffer)
-      (fill-window-buffer window-buffer (fft-common-window-function obj) size)
-      (setf (fft-common-window-size obj) size)))
+           (foreign-free (fft-common-foreign-free obj)))
+      (multiple-value-bind (window-buffer pool)
+          (if (rt-thread-p)
+              (values (foreign-rt-alloc 'sample :count size)
+                      (if (fft-p obj) *rt-fft-pool* *rt-ifft-pool*))
+              (values (foreign-alloc-sample size)
+                      (if (fft-p obj) *fft-pool* *ifft-pool*)))
+        (incudine-cancel-finalization obj)
+        (incudine-finalize obj
+          (lambda ()
+            (mapc foreign-free (list input-buffer output-buffer
+                                     window-buffer time-ptr))
+            (incudine-object-pool-expand pool 1)))
+        (funcall foreign-free (fft-common-window-buffer obj))
+        (setf (fft-common-window-buffer obj) window-buffer)
+        (fill-window-buffer window-buffer (fft-common-window-function obj) size)
+        (setf (fft-common-window-size obj) size))))
   size)
 
-(defstruct (abuffer (:constructor %make-abuffer)
+(defstruct (abuffer (:include incudine-object)
+                    (:constructor %make-abuffer)
                     (:copier nil))
-  (data (incudine-missing-arg "Missing data for the abuffer.")
-        :type foreign-pointer)
+  (data (null-pointer) :type foreign-pointer)
   (size 0 :type non-negative-fixnum)
   (nbins 0 :type non-negative-fixnum)
   (scale-factor (sample 1) :type sample)
-  (time-ptr (incudine-missing-arg "Missing time-ptr pointer for the abuffer.")
-            :type foreign-pointer)
+  (time-ptr (null-pointer) :type foreign-pointer)
   (link nil :type (or analysis null))
   (coord-complex-p nil :type boolean)
   (normalized-p nil :type boolean)
   (real-time-p nil :type boolean)
   (foreign-free #'foreign-free :type function))
 
-(defun make-abuffer (analysis-object &optional real-time-p)
+(define-constant +abuffer-pool-initial-size+ 400)
+
+(defvar *abuffer-pool*
+  (make-incudine-object-pool +abuffer-pool-initial-size+ #'%make-abuffer nil))
+(declaim (type incudine-object-pool *abuffer-pool*))
+
+(defvar *rt-abuffer-pool*
+  (make-incudine-object-pool +abuffer-pool-initial-size+ #'%make-abuffer t))
+(declaim (type incudine-object-pool *rt-abuffer-pool*))
+
+(defun make-abuffer (analysis-object
+                     &optional (real-time-p (incudine.util:allow-rt-memory-p)))
   (declare (type analysis analysis-object))
-  (flet ((foreign-alloc (size zero-p)
-           (if real-time-p
+  (flet ((foreign-alloc (size zero-p rt-p)
+           (if rt-p
                (foreign-rt-alloc 'sample :count size :zero-p zero-p)
                (foreign-alloc-sample size))))
     (let* ((coord-complex-p (analysis-output-complex-p analysis-object))
-           (nbins (analysis-nbins analysis-object))
-           (size (if coord-complex-p
-                     (* 2 nbins)
-                     (analysis-size analysis-object)))
-           (time-ptr (foreign-alloc 1 nil))
-           (data (foreign-alloc size t)))
-      (setf (smp-ref time-ptr 0) (sample -1))
-      (let ((obj (%make-abuffer :data data
-                    :size size
-                    :nbins nbins
-                    :scale-factor (analysis-scale-factor analysis-object)
-                    :time-ptr time-ptr
-                    :link analysis-object
-                    :coord-complex-p coord-complex-p
-                    :real-time-p real-time-p)))
-        (when real-time-p
-          (setf #1=(abuffer-foreign-free obj)
-                #'safe-foreign-rt-free))
-        (let ((foreign-free #1#))
-          (incudine-finalize obj (lambda ()
-                                   (funcall foreign-free data)
-                                   (funcall foreign-free time-ptr)))
+           (%nbins (analysis-nbins analysis-object))
+           (%size (if coord-complex-p
+                      (* 2 %nbins)
+                      (analysis-size analysis-object)))
+           (rt-p (and real-time-p incudine.util:*allow-rt-memory-pool-p*))
+           (data-ptr (foreign-alloc %size t rt-p))
+           (tptr (foreign-alloc 1 nil rt-p)))
+      (multiple-value-bind (obj free-fn pool)
+          (if rt-p
+              (values (incudine.util::alloc-rt-object *rt-abuffer-pool*)
+                      #'safe-foreign-rt-free
+                      *rt-abuffer-pool*)
+              (values (incudine.util::alloc-object *abuffer-pool*)
+                      #'foreign-free
+                      *abuffer-pool*))
+        (declare (type abuffer obj) (type incudine-object-pool pool))
+        (incudine-finalize obj
+          (lambda ()
+            (funcall free-fn data-ptr)
+            (funcall free-fn tptr)
+            (incudine-object-pool-expand pool 1)))
+        (incudine.util::with-struct-slots
+            ((data size nbins scale-factor time-ptr link coord-complex-p
+              real-time-p foreign-free)
+             obj abuffer "INCUDINE.ANALYSIS")
+          (setf data data-ptr
+                size %size
+                nbins %nbins
+                scale-factor (analysis-scale-factor analysis-object)
+                time-ptr tptr
+                link analysis-object
+                coord-complex-p coord-complex-p
+                real-time-p rt-p
+                foreign-free free-fn)
+          (setf (smp-ref time-ptr 0) #.(sample -1))
           obj)))))
 
 (defmethod free-p ((obj abuffer))
@@ -378,12 +460,15 @@ ANALYSIS-INPUT-SIZE samples."
   (unless (free-p obj)
     (mapc (abuffer-foreign-free obj)
           (list (abuffer-data obj) (abuffer-time-ptr obj)))
+    (setf (abuffer-size obj) 0)
+    (incudine-cancel-finalization obj)
     (setf (abuffer-data obj) (null-pointer)
           (abuffer-time-ptr obj) (null-pointer)
-          (abuffer-size obj) 0
           (abuffer-nbins obj) 0
           (abuffer-link obj) nil)
-    (incudine-cancel-finalization obj)
+    (if (abuffer-real-time-p obj)
+        (incudine.util::free-rt-object obj *rt-abuffer-pool*)
+        (incudine.util::free-object obj *abuffer-pool*))
     (incudine.util:nrt-msg debug "Free ~A" (type-of obj)))
   (values))
 
