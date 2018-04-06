@@ -152,7 +152,7 @@
                  (set-dsp-dummy-functions (unwrap-dsp curr))
                  (dsp-inst-pool-push curr))))
         (if (rt-thread-p)
-            (incudine.edf:schedule-at (1+ (now)) #'cleanup lst)
+            (incudine.edf:schedule-at (1+ (now)) #'cleanup (list lst))
             (cleanup lst))))))
 
 (defun free-dsp-instances (&optional name)
