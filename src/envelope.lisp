@@ -45,7 +45,7 @@
   (real-time-p nil :type boolean)
   (foreign-free #'foreign-free :type function))
 
-(define-constant +envelope-pool-initial-size+ (* *max-number-of-nodes* 4))
+(define-constant +envelope-pool-initial-size+ 4000)
 
 (defvar *envelope-pool*
   (make-incudine-object-pool +envelope-pool-initial-size+ #'%make-envelope nil))

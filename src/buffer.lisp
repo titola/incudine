@@ -58,7 +58,7 @@
   "If the buffer is created with BUFFER-LOAD or MAKE-BUFFER with
 a non-NIL FILE argument, return the pathname.")
 
-(define-constant +buffer-pool-initial-size+ (* *max-number-of-nodes* 10))
+(define-constant +buffer-pool-initial-size+ 4000)
 
 (defvar *buffer-pool*
   (make-incudine-object-pool +buffer-pool-initial-size+ #'%make-buffer nil))
