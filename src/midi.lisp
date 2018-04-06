@@ -66,7 +66,7 @@
   (let* ((size (length seq))
          (fix-last-p (/= (the fixnum (elt seq (1- size))) #xF7))
          (obj (%%make-foreign-array (if fix-last-p (1+ size) size)
-                                    :unsigned-char nil nil seq nil
+                                    :unsigned-char nil nil seq
                                     dynamic-finalizer-p)))
     (when fix-last-p
       (setf (u8-ref (foreign-array-data obj) size) #xF7))
@@ -121,7 +121,6 @@
 ;;;
 ;;;     F0 7E DEVICE-ID 08 01 PROGRAM TUNINGNAME (XX YY ZZ)x128 CHECKSUM F7
 ;;;
-(declaim (inline prepare-midi-bulk-tuning-dump-buffer))
 (defun prepare-midi-bulk-tuning-dump-buffer (buffer device-id program)
   (declare (type foreign-pointer buffer)
            (type (unsigned-byte 8) device-id program))

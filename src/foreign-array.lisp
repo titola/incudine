@@ -16,123 +16,57 @@
 
 (in-package :incudine)
 
-(define-constant +rt-foreign-array-pool-size+ 500)
-
-(define-constant +rt-foreign-array-pool-grow+ 10)
-
-(define-constant +nrt-foreign-array-pool-size+ 500)
-
-(define-constant +nrt-foreign-array-pool-grow+
-    (floor (* +nrt-foreign-array-pool-size+ 0.1)))
-
-(defstruct (foreign-array (:constructor %make-foreign-array)
+(defstruct (foreign-array (:include incudine-object)
+                          (:constructor %make-foreign-array)
                           (:copier nil))
   (data nil :type (or foreign-pointer null))
   (type 'sample)
-  (size 1 :type positive-fixnum)
-  (free-func #'foreign-free :type function))
+  (size 0 :type non-negative-fixnum)
+  (free-func #'foreign-free :type function)
+  (real-time-p nil :type boolean))
 
-(declaim (inline expand-foreign-array-pool))
-(defun expand-foreign-array-pool (pool &optional (delta 1))
-  (expand-cons-pool pool delta (%make-foreign-array)))
+(define-constant +foreign-array-pool-initial-size+ 2000)
+
+(defvar *foreign-array-pool*
+  (make-incudine-object-pool +foreign-array-pool-initial-size+
+                             #'%make-foreign-array nil))
+(declaim (type incudine-object-pool *foreign-array-pool*))
 
 (defvar *rt-foreign-array-pool*
-  (make-cons-pool :data (loop repeat +rt-foreign-array-pool-size+
-                              collect (%make-foreign-array))
-                  :size +rt-foreign-array-pool-size+
-                  :expand-func #'expand-foreign-array-pool
-                  :grow +rt-foreign-array-pool-grow+))
-(declaim (type cons-pool *rt-foreign-array-pool*))
-
-(defvar *nrt-foreign-array-pool*
-  (make-cons-pool :data (loop repeat +nrt-foreign-array-pool-size+
-                              collect (%make-foreign-array))
-                  :size +nrt-foreign-array-pool-size+
-                  :expand-func #'expand-foreign-array-pool
-                  :grow +nrt-foreign-array-pool-grow+))
-(declaim (type cons-pool *nrt-foreign-array-pool*))
-
-(defvar *nrt-foreign-array-pool-spinlock* (make-spinlock "NRT-FOREIGN-ARRAY"))
-(declaim (type spinlock *nrt-foreign-array-pool-spinlock*))
-
-(declaim (inline rt-foreign-array-pool-pop))
-(defun rt-foreign-array-pool-pop ()
-  (let* ((cons (cons-pool-pop-cons *rt-foreign-array-pool*))
-         (value (car cons)))
-    (rt-global-pool-push-cons cons)
-    value))
-
-(declaim (inline rt-foreign-array-pool-push))
-(defun rt-foreign-array-pool-push (obj)
-  (declare (type foreign-array obj))
-  (let ((cons (rt-global-pool-pop-cons)))
-    (setf (car cons) obj)
-    (cons-pool-push-cons *rt-foreign-array-pool* cons)))
-
-(defun nrt-foreign-array-pool-pop ()
-  (let* ((cons (with-spinlock-held (*nrt-foreign-array-pool-spinlock*)
-                 (cons-pool-pop-cons *nrt-foreign-array-pool*)))
-         (value (car cons)))
-    (nrt-global-pool-push-cons cons)
-    value))
-
-(defun nrt-foreign-array-pool-push (obj)
-  (declare (type foreign-array obj))
-  (let ((cons (nrt-global-pool-pop-cons)))
-    (setf (car cons) obj)
-    (with-spinlock-held (*nrt-foreign-array-pool-spinlock*)
-      (cons-pool-push-cons *nrt-foreign-array-pool* cons))))
-
-(declaim (inline foreign-array-pool-pop))
-(defun foreign-array-pool-pop ()
-  (if (allow-rt-memory-p)
-      (rt-foreign-array-pool-pop)
-      (nrt-foreign-array-pool-pop)))
-
-(declaim (inline foreign-array-pool-push))
-(defun foreign-array-pool-push (obj)
-   (if (allow-rt-memory-p)
-       (rt-foreign-array-pool-push obj)
-       (nrt-foreign-array-pool-push obj)))
+  (make-incudine-object-pool +foreign-array-pool-initial-size+
+                             #'%make-foreign-array t))
+(declaim (type incudine-object-pool *rt-foreign-array-pool*))
 
 (declaim (inline fill-foreign-array))
-(defun fill-foreign-array (obj data size type free-func)
+(defun fill-foreign-array (obj data size type free-func real-time-p)
   (setf (foreign-array-data obj) data
         (foreign-array-size obj) size
         (foreign-array-type obj) type
-        (foreign-array-free-func obj) free-func)
+        (foreign-array-free-func obj) free-func
+        (foreign-array-real-time-p obj) real-time-p)
   obj)
 
-(defun rt-free-foreign-array (obj)
-  (declare (type foreign-array obj))
-  (rt-eval () 
-    (foreign-rt-free #1=(foreign-array-data obj))
-    (setf #1# nil)
-    (incudine-cancel-finalization obj)
-    (rt-foreign-array-pool-push obj)
-    (values)))
-
-(defun nrt-free-foreign-array (obj)
-  (declare (type foreign-array obj))
-  (foreign-free #1=(foreign-array-data obj))
-  (incudine-cancel-finalization obj)
-  (setf #1# nil)
-  (nrt-foreign-array-pool-push obj)
-  (values))
+(declaim (inline safe-foreign-rt-free))
+(defun safe-foreign-rt-free (ptr)
+  ;; We use a realtime memory allocator without lock, and the memory
+  ;; is (de)allocated in realtime from a single rt-thread.
+  (rt-eval () (foreign-rt-free ptr)))
 
 (defun make-rt-foreign-array (dimension element-type zero-p
                               initial-element initial-contents
-                              &optional obj (dynamic-finalizer-p t))
-  (let* ((data (foreign-rt-alloc element-type :count dimension
-                                 :zero-p zero-p
-                                 :initial-element initial-element
-                                 :initial-contents initial-contents))
-         (obj (fill-foreign-array (or obj (rt-foreign-array-pool-pop))
-                                  data dimension element-type
-                                  #'rt-free-foreign-array)))
-    (incudine-finalize obj (lambda () (rt-eval () (foreign-rt-free data)))
-                       dynamic-finalizer-p)
-    obj))
+                              &optional (dynamic-finalizer-p t))
+  (let ((data (foreign-rt-alloc element-type :count dimension
+                                :zero-p zero-p
+                                :initial-element initial-element
+                                :initial-contents initial-contents)))
+    (incudine-finalize
+      (fill-foreign-array
+        (incudine.util::alloc-rt-object *rt-foreign-array-pool*)
+        data dimension element-type #'safe-foreign-rt-free t)
+      (lambda ()
+        (safe-foreign-rt-free data)
+        (incudine-object-pool-expand *rt-foreign-array-pool* 1))
+      dynamic-finalizer-p)))
 
 (defun make-nrt-foreign-array-data (dimension element-type zero-p
                                     initial-element initial-contents)
@@ -150,54 +84,50 @@
 
 (defun make-nrt-foreign-array (dimension element-type zero-p
                                initial-element initial-contents
-                               &optional obj (dynamic-finalizer-p t))
-  (let* ((data (make-nrt-foreign-array-data dimension element-type zero-p
-                                            initial-element
-                                            initial-contents))
-         (obj (fill-foreign-array (or obj (nrt-foreign-array-pool-pop))
-                                  data dimension element-type
-                                  #'nrt-free-foreign-array)))
-    (incudine-finalize obj (lambda () (foreign-free data))
-                       dynamic-finalizer-p)
-    obj))
+                               &optional (dynamic-finalizer-p t))
+  (let ((data (make-nrt-foreign-array-data dimension element-type zero-p
+                                           initial-element
+                                           initial-contents)))
+    (incudine-finalize
+      (fill-foreign-array
+        (incudine.util::alloc-object *foreign-array-pool*)
+        data dimension element-type #'foreign-free nil)
+      (lambda ()
+        (foreign-free data)
+        (incudine-object-pool-expand *foreign-array-pool* 1))
+      dynamic-finalizer-p)))
 
+(declaim (inline %%make-foreign-array))
 (defun %%make-foreign-array (dimension element-type zero-p
                              initial-element initial-contents
-                             &optional instance (dynamic-finalizer-p t))
+                             &optional (dynamic-finalizer-p t))
   (if (allow-rt-memory-p)
       (make-rt-foreign-array dimension element-type zero-p
                              initial-element initial-contents
-                             instance dynamic-finalizer-p)
+                             dynamic-finalizer-p)
       (make-nrt-foreign-array dimension element-type zero-p
                               initial-element initial-contents
-                              instance dynamic-finalizer-p)))
+                              dynamic-finalizer-p)))
 
-(declaim (inline make-foreign-array))
 (defun make-foreign-array (dimension element-type &key zero-p
                            initial-element initial-contents)
   (%%make-foreign-array
     dimension element-type zero-p initial-element initial-contents))
 
-(declaim (inline free-foreign-array))
-(defun free-foreign-array (obj)
-  (declare (type foreign-array obj))
-  (when (foreign-array-data obj)
-    (funcall (foreign-array-free-func obj) obj)
-    (values)))
-
 (defmethod free-p ((obj foreign-array))
   (null (foreign-array-data obj)))
 
 (defmethod free ((obj foreign-array))
-  (free-foreign-array obj)
-  (nrt-msg debug "Free ~A" (type-of obj))
+  (unless (free-p obj)
+    (funcall (foreign-array-free-func obj) (foreign-array-data obj))
+    (incudine-cancel-finalization obj)
+    (setf (foreign-array-data obj) nil)
+    (setf (foreign-array-size obj) 0)
+    (if (foreign-array-real-time-p obj)
+        (incudine.util::free-rt-object obj *rt-foreign-array-pool*)
+        (incudine.util::free-object obj *foreign-array-pool*))
+    (nrt-msg debug "Free ~A" (type-of obj)))
   (values))
-
-(declaim (inline realloc-foreign-array))
-(defun realloc-foreign-array (obj type &key zero-p initial-element
-                              initial-contents (count 1))
-  (free obj)
-  (%%make-foreign-array count type zero-p initial-element initial-contents obj))
 
 (in-package :incudine.util)
 
@@ -209,7 +139,7 @@
                                (> ,count +fast-nrt-foreign-array-max-size+)))
             (,array-wrap (if ,array-wrap-p
                              (incudine::%%make-foreign-array
-                               ,count ,type nil nil nil nil nil)))
+                               ,count ,type nil nil nil nil)))
             (,var (if ,array-wrap-p
                       (incudine:foreign-array-data ,array-wrap)
                       (incudine.util::foreign-nrt-alloc ,type :count ,count))))
@@ -217,7 +147,7 @@
        (unwind-protect (progn ,@body)
          (reduce-warnings
            (if ,array-wrap-p
-               (incudine::free-foreign-array ,array-wrap)
+               (incudine:free ,array-wrap)
                (incudine.util::foreign-nrt-free ,var)))))))
 
 (defmacro %with-samples ((bindings set let) &body body)

@@ -510,12 +510,6 @@ otherwise it restarts from the value RESTART-LEVEL."
        (otherwise (setf ,b1 (* ,b1 ,grow)
                         ,level (- ,a2 ,b1))))))
 
-(declaim (inline safe-foreign-rt-free))
-(defun safe-foreign-rt-free (ptr)
-  ;; We use a realtime memory allocator without lock, and the memory
-  ;; is (de)allocated in realtime from a single rt-thread.
-  (rt-eval () (foreign-rt-free ptr)))
-
 (defun make-envelope (levels times &key curve base (loop-node -1)
                       (release-node -1) restart-level
                       (real-time-p (allow-rt-memory-p)))

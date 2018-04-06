@@ -581,32 +581,26 @@
   (define-add-*-variables int64)
   (define-add-*-variables pointer))
 
-(defun rt-free-foreign-array-sample (obj)
-  (declare (type foreign-array obj))
-  (rt-eval ()
-    (incudine.util::foreign-rt-free-sample #1=(foreign-array-data obj))
-    (setf #1# nil)
-    (incudine.util::cancel-finalization obj)
-    (incudine::rt-foreign-array-pool-push obj)
-    (values)))
+(declaim (inline safe-foreign-rt-free-sample))
+(defun safe-foreign-rt-free-sample (ptr)
+  (rt-eval () (incudine.util::foreign-rt-free-sample ptr)))
 
-(declaim (inline make-rt-foreign-sample-array))
 (defun make-rt-foreign-sample-array (dimension)
   ;; Use a separate memory pool for the SAMPLE type
-  (let* ((data (incudine.util::foreign-rt-alloc-sample dimension t))
-         (obj (incudine::fill-foreign-array (incudine::rt-foreign-array-pool-pop)
-                                            data dimension 'sample
-                                            #'rt-free-foreign-array-sample)))
-    (incudine.util::finalize obj
+  (let ((data (incudine.util::foreign-rt-alloc-sample dimension t)))
+    (incudine.util::finalize
+      (incudine::fill-foreign-array
+        (incudine.util::alloc-rt-object incudine::*rt-foreign-array-pool*)
+        data dimension 'sample #'safe-foreign-rt-free-sample t)
       (lambda ()
-        (rt-eval ()
-          (incudine.util::foreign-rt-free-sample data))))
-    obj))
+        (safe-foreign-rt-free-sample data)
+        (incudine.util::incudine-object-pool-expand
+          incudine::*rt-foreign-array-pool* 1)))))
 
 (defun make-foreign-sample-array (dimension)
   (if (allow-rt-memory-p)
       (make-rt-foreign-sample-array dimension)
-      (incudine::make-nrt-foreign-array dimension 'sample t nil nil nil nil)))
+      (incudine::make-nrt-foreign-array dimension 'sample t nil nil nil)))
 
 (defmacro with-foreign-symbols ((variables c-vector type) &body body)
   (let ((count 0))
@@ -698,7 +692,7 @@
   (flet ((foreign-array-binding (array-var array-wrap-var type size)
            (when (plusp size)
              `((,array-wrap-var (incudine::%%make-foreign-array
-                                  ,size ,type t nil nil nil nil))
+                                  ,size ,type t nil nil nil))
                (,array-var (foreign-array-data ,array-wrap-var))))))
     (loop for args in array-bindings
           append (apply #'foreign-array-binding args))))
