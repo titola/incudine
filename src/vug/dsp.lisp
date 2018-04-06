@@ -131,11 +131,16 @@
   (set-dummy-functions
     (dsp-init-function obj) (dsp-perf-function obj) (dsp-free-function obj)))
 
+(declaim (inline call-dsp-free-function))
+(defun call-dsp-free-function (obj)
+  (funcall (dsp-free-function obj))
+  (incudine.util::cancel-finalization (dsp-init-function obj)))
+
 (defun free-dsp-wrap (cons)
   (declare (type cons cons))
   (let ((s (unwrap-dsp cons)))
     (clrhash (dsp-controls s))
-    (funcall (dsp-free-function s))
+    (call-dsp-free-function s)
     (set-dsp-dummy-functions s)
     ;; push/pop in the rt thread
     (dsp-inst-pool-push cons)))
@@ -144,7 +149,7 @@
   (let ((lst instances))
     (rt-eval ()
       (dolist (inst lst)
-        (funcall (dsp-free-function inst)))
+        (call-dsp-free-function inst))
       (flet ((cleanup (lst)
                (do ((curr lst old)
                     (old (cdr lst) (cdr old)))

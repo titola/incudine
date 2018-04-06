@@ -849,6 +849,11 @@
                                 (with-init-frames
                                   ,@,vug-body
                                   (values))))
+                          ;; There is a pool of instances of DSP, so the
+                          ;; free-function is called if the init-function is
+                          ;; accidentally garbage collected (probably never).
+                          (incudine.util::finalize (dsp-init-function ,dsp)
+                            (lambda () (funcall (dsp-free-function ,dsp))))
                           (values (dsp-init-function ,dsp)
                                   (dsp-perf-function ,dsp)))))))))))))
 
