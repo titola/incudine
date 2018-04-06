@@ -482,13 +482,12 @@ or IGNORE-SCORE-STATEMENTS."
 ;;; *PRINT-GENSYM* is NIL in REGOFILE->LISPFILE
 (defmacro with-complex-gensyms (names &body forms)
   `(let ,(mapcar (lambda (name)
-                   `(,name (gensym ,(format nil "%%%~A%%%" name))))
+                   `(,name (gensym ,(format nil "__~A__" name))))
                  names)
      ,@forms))
 
-(declaim (inline ensure-complex-gensym))
 (defun ensure-complex-gensym (name)
-  (ensure-symbol (symbol-name (gensym (format nil "%%%~A%%%" (string name))))))
+  (ensure-symbol (symbol-name (gensym (format nil "__~A__" (string name))))))
 
 (defmacro with-rego-function ((fname compile-rego-p) &body body)
   (let ((maybe-compile (if compile-rego-p
@@ -670,7 +669,8 @@ or IGNORE-SCORE-STATEMENTS."
           (*include-rego-stack* nil))
       (with-complex-gensyms (smptime0 smptime1 smptime beats last-time
                              last-dur max-time c-array-wrap)
-        `(with-rego-function (,function-name ,compile-rego-p)
+        (prog1
+         `(with-rego-function (,function-name ,compile-rego-p)
            (with-schedule
              (with-rego-samples (,c-array-wrap ,smptime0 ,smptime1 ,smptime
                                  ,sched ,last-time ,last-dur ,max-time)
@@ -705,7 +705,8 @@ or IGNORE-SCORE-STATEMENTS."
                          ((,time (rego-time (foreign-array-data ,c-array-wrap)
                                             ,tempo-env)))
                        ,(%write-regofile stream sched last-time last-dur max-time
-                                         tempo-env))))))))))))
+                                         tempo-env))))))))
+        (mapc #'unintern (list %sched sched)))))))
 
 (defun regofile->sexp (path &optional function-name compile-rego-p)
   (with-open-file (score path)
