@@ -127,6 +127,7 @@ core image starts up.")
 
   (defvar *core-save-function*
     (lambda ()
+      (free-dsp-instances)
       ;; Stop realtime and non-realtime threads
       (rt-stop)
       (nrt-stop)

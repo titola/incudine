@@ -414,7 +414,8 @@
            (dsp-properties (gethash func-name incudine.vug::*dsps*)))
       (if dsp-properties
           `(let (,@(mapcar (lambda (arg value) `(,arg ,value))
-                           #1=(incudine.vug::dsp-arguments dsp-properties)
+                           #1=(incudine.vug::dsp-properties-arguments
+                                dsp-properties)
                            (cdr obj))
                  (,voicer ,(or old-voicer `(make-voicer ,polyphony))))
              (setf (voicer-object-free-function ,voicer)
@@ -426,7 +427,7 @@
                              (incudine:set-control id :gate 0))))
                        (lambda (id) (when id (incudine:free id)))))
              (init-voicer-arguments
-               ,(incudine.vug::dsp-arguments dsp-properties)
+               ,(incudine.vug::dsp-properties-arguments dsp-properties)
                (voicer-arguments ,voicer))
              (%set-default-trigger-function ,voicer ,func-name ,#1#)
              ,@(if old-voicer `((unless (null ',#1#)

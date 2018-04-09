@@ -16,103 +16,74 @@
 
 (in-package :incudine.vug)
 
-(defstruct (dsp (:copier nil))
+(defstruct (dsp (:include incudine-object) (:copier nil))
   (name nil)
   (init-function #'dummy-function :type function)
   (perf-function #'dummy-function :type function)
   (free-function #'dummy-function :type function)
-  (controls (make-hash-table :size 16 :test #'equal) :type hash-table))
+  (controls (make-hash-table :size 16 :test #'equal) :type hash-table)
+  (real-time-p nil :type boolean))
 
-(defstruct (dsp-properties (:conc-name dsp-) (:copier nil))
-  (instances nil :type list)
-  (arguments nil :type list)
-  (redefine-hook nil :type list)
-  (remove-hook nil :type list)
-  (fade-time 0 :type (real 0))
-  (fade-curve :lin :type (or symbol real)))
+(defmethod print-object ((obj dsp) stream)
+  (format stream "#<DSP ~A>" (dsp-name obj)))
 
-(declaim (inline expand-dsp-pool))
-(defun expand-dsp-pool (pool &optional (delta 1))
-  (expand-cons-pool pool delta (make-dsp-properties)))
+(defstruct (dsp-properties (:include incudine-object) (:copier nil))
+  (rt-instances nil :type list)
+  (nrt-instances nil :type list)
+  (arguments nil :type list))
 
-(define-constant +dsp-pool-size+ 200)
-(define-constant +dsp-pool-grow+ 50)
+(define-constant +dsp-properties-pool-initial-size+ 200)
 
-(defvar *dsp-pool*
-  (make-cons-pool :data (loop repeat +dsp-pool-size+
-                              collect (make-dsp-properties))
-                  :size +dsp-pool-size+
-                  :expand-func #'expand-dsp-pool
-                  :grow +dsp-pool-grow+))
-(declaim (type cons-pool *dsp-pool*))
+(defvar *dsp-properties-pool*
+  (make-incudine-object-pool +dsp-properties-pool-initial-size+
+                             #'make-dsp-properties nil))
+(declaim (type incudine-object-pool *dsp-properties-pool*))
 
-(declaim (inline unwrap-dsp))
-(defun unwrap-dsp (cons)
-  (declare (type cons cons))
-  (car cons))
-
-(declaim (inline dsp-pool-pop))
-(defun dsp-pool-pop ()
-  #+(or cmu sbcl) (declare (values dsp-properties))
-  (let* ((cons (cons-pool-pop-cons *dsp-pool*))
-         (value (unwrap-dsp cons)))
-    (rt-global-pool-push-cons cons)
-    value))
-
-(declaim (inline dsp-pool-push))
-(defun dsp-pool-push (obj)
-  (declare (type dsp-properties obj))
-  (let ((cons (rt-global-pool-pop-cons)))
-    (setf (car cons) obj)
-    (cons-pool-push-cons *dsp-pool* cons)))
-
-(declaim (inline get-dsp-properties))
 (defun get-dsp-properties (name)
   (or (dsp name)
-      (setf (gethash name *dsps*) (dsp-pool-pop))))
+      (setf (gethash name *dsps*)
+            (incudine.util::alloc-object *dsp-properties-pool*))))
 
-(declaim (inline expand-dsp-inst-pool))
-(defun expand-dsp-inst-pool (pool &optional (delta 1))
-  (expand-cons-pool pool delta (make-dsp)))
+(define-constant +dsp-instance-pool-initial-size+ *max-number-of-nodes*)
 
-(define-constant +dsp-instance-pool-grow+ 128)
+(defun make-rt-dsp () (make-dsp :real-time-p t))
 
 (defvar *dsp-instance-pool*
-  (make-cons-pool :data (loop repeat *max-number-of-nodes*
-                              collect (make-dsp))
-                  :size *max-number-of-nodes*
-                  :expand-func #'expand-dsp-inst-pool
-                  :grow +dsp-instance-pool-grow+))
-(declaim (type cons-pool *dsp-instance-pool*))
+  (make-incudine-object-pool +dsp-instance-pool-initial-size+ #'make-dsp nil))
+(declaim (type incudine-object-pool *dsp-instance-pool*))
 
-(declaim (inline dsp-inst-pool-pop))
-(defun dsp-inst-pool-pop ()
-  (cons-pool-pop-cons *dsp-instance-pool*))
+(defvar *rt-dsp-instance-pool*
+  (make-incudine-object-pool +dsp-instance-pool-initial-size+ #'make-rt-dsp t))
+(declaim (type incudine-object-pool *rt-dsp-instance-pool*))
 
-(declaim (inline dsp-inst-pool-push))
-(defun dsp-inst-pool-push (cons)
-  (cons-pool-push-cons *dsp-instance-pool* cons))
+(defvar *nrt-dsp-spinlock* (make-spinlock "NRT-DSP"))
+(declaim (type spinlock *nrt-dsp-spinlock*))
 
-(declaim (inline dsp-inst-pool-push-list))
-(defun dsp-inst-pool-push-list (lst)
-  (cons-pool-push-list *dsp-instance-pool* lst))
+(declaim (inline make-dsp-instance))
+(defun make-dsp-instance ()
+  (if (allow-rt-memory-p)
+      (incudine.util::alloc-rt-object *rt-dsp-instance-pool*)
+      (incudine.util::alloc-object *dsp-instance-pool*)))
 
-(declaim (inline store-dsp-instance))
-(defun store-dsp-instance (name dsp-wrap)
-  (declare (type symbol name) (type cons dsp-wrap))
-  (let ((prop (dsp name)))
-    (setf (cdr dsp-wrap) #1=(dsp-instances prop))
-    (setf #1# dsp-wrap)))
+(defun store-dsp-instance (name obj)
+  (declare (type symbol name) (type dsp obj))
+  (let ((prop (dsp name))
+        (cons (dsp-pool-ptr obj)))
+    (if (dsp-real-time-p obj)
+        (setf (cdr cons) (dsp-properties-rt-instances prop)
+              (dsp-properties-rt-instances prop) cons)
+        (with-spinlock-held (*nrt-dsp-spinlock*)
+          (setf (cdr cons) (dsp-properties-nrt-instances prop)
+                (dsp-properties-nrt-instances prop) cons)))
+    obj))
 
 (defun get-next-dsp-instance (name)
   (declare (type symbol name))
-  (let* ((prop (dsp name))
-         (dsp-wrap #1=(dsp-instances prop)))
-    (declare (type list dsp-wrap))
-    (when dsp-wrap
-      (setf #1# (cdr dsp-wrap)
-            (cdr dsp-wrap) nil))
-    dsp-wrap))
+  (let ((prop (dsp name)))
+    (if (allow-rt-memory-p)
+        (pop (dsp-properties-rt-instances prop))
+        (with-spinlock-held (*nrt-dsp-spinlock*)
+          (pop (dsp-properties-nrt-instances prop))))))
 
 (defmacro set-dsp-object (dsp &rest keys-values)
   `(progn
@@ -136,46 +107,78 @@
   (funcall (dsp-free-function obj))
   (incudine.util::cancel-finalization (dsp-init-function obj)))
 
-(defun free-dsp-wrap (cons)
-  (declare (type cons cons))
-  (let ((s (unwrap-dsp cons)))
-    (clrhash (dsp-controls s))
-    (call-dsp-free-function s)
-    (set-dsp-dummy-functions s)
-    ;; push/pop in the rt thread
-    (dsp-inst-pool-push cons)))
+(declaim (inline %%free-dsp-instance))
+(defun %%free-dsp-instance (obj)
+  (if (dsp-real-time-p obj)
+      (incudine.util::free-rt-object obj *rt-dsp-instance-pool*)
+      (incudine.util::free-object obj *dsp-instance-pool*)))
 
-(defun dsp-free-functions (instances)
+(defun %free-dsp-instance (obj)
+  (set-dsp-dummy-functions obj)
+  (%%free-dsp-instance obj))
+
+(defun free-dsp-instance (obj)
+  (declare (type dsp obj))
+  (clrhash (dsp-controls obj))
+  (call-dsp-free-function obj)
+  (%free-dsp-instance obj)
+  (values))
+
+(defun dealloc-dsp-instances (function lst)
+  (declare (type function function) (type list lst))
+  (do ((curr lst old)
+       ;; FUNCTION changes the CDR because the cons cell is part
+       ;; of a cons pool.
+       (old (cdr lst) (cdr old)))
+      ((null curr))
+    (funcall function (car curr))))
+
+(defun rt-dsp-free-functions (instances)
   (let ((lst instances))
     (rt-eval ()
       (dolist (inst lst)
         (call-dsp-free-function inst))
-      (flet ((cleanup (lst)
-               (do ((curr lst old)
-                    (old (cdr lst) (cdr old)))
-                   ((null curr))
-                 (set-dsp-dummy-functions (unwrap-dsp curr))
-                 (dsp-inst-pool-push curr))))
-        (if (rt-thread-p)
-            (incudine.edf:schedule-at (1+ (now)) #'cleanup (list lst))
-            (cleanup lst))))))
+      (if (rt-thread-p)
+          (incudine.edf:schedule-at (1+ (now)) #'dealloc-dsp-instances
+                                    (list #'%free-dsp-instance lst))
+          (dealloc-dsp-instances #'%free-dsp-instance lst)))))
 
-(defun free-dsp-instances (&optional name)
+(defun free-rt-dsp-instances (name)
   (flet ((free-instances (dsp-prop)
            (declare (type dsp-properties dsp-prop))
-           (let ((instances (dsp-instances dsp-prop)))
+           (let ((instances (dsp-properties-rt-instances dsp-prop)))
              (declare (type list instances))
              (when instances
-               (setf (dsp-instances dsp-prop) nil)
+               (setf (dsp-properties-rt-instances dsp-prop) nil)
                (dolist (inst instances)
                  (clrhash (dsp-controls inst)))
-               (dsp-free-functions instances))
+               (rt-dsp-free-functions instances))
              (values))))
     (if name
         (let ((dsp-prop (dsp name)))
           (when dsp-prop (free-instances dsp-prop)))
         (maphash-values #'free-instances *dsps*))
     (values)))
+
+(defun free-nrt-dsp-instances (name)
+  (flet ((free-instances (dsp-prop)
+           (declare (type dsp-properties dsp-prop))
+           (let ((instances (dsp-properties-nrt-instances dsp-prop)))
+             (declare (type list instances))
+             (when instances
+               (setf (dsp-properties-nrt-instances dsp-prop) nil)
+               (dealloc-dsp-instances #'free-dsp-instance instances))
+             (values))))
+    (if name
+        (let ((dsp-prop (dsp name)))
+          (when dsp-prop (free-instances dsp-prop)))
+        (maphash-values #'free-instances *dsps*))
+    (values)))
+
+(defun free-dsp-instances (&optional name)
+  (with-spinlock-held (*nrt-dsp-spinlock*)
+    (free-nrt-dsp-instances name))
+  (free-rt-dsp-instances name))
 
 (defun destroy-dsp (name)
   (when (dsp name)
@@ -185,6 +188,9 @@
         (when (eq (incudine::node-name n) name)
           (incudine::%node-free n))))
     (free-dsp-instances name)
-    (remhash name *dsps*)
+    (let ((obj (gethash name *dsps*)))
+      (when obj
+        (incudine.util::free-object obj *dsp-properties-pool*)
+        (remhash name *dsps*)))
     (fmakunbound name)
     (values)))

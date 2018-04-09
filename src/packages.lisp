@@ -213,6 +213,8 @@
                 #:maphash-values #:nreversef)
   (:import-from #:cffi #:foreign-type-size #:mem-ref #:mem-aref
                 #:make-pointer #:pointer-address #:inc-pointer)
+  (:import-from #:incudine.util #:incudine-object #:incudine-object-pool
+                #:make-incudine-object-pool #:incudine-object-pool-expand)
   (:import-from #:incudine.analysis #:make-fft #:make-ifft
                 #:fft-input #:ifft-output #:fft-execute #:ifft-execute
                 #:fft-input-buffer #:fft-output-buffer #:fft-plan

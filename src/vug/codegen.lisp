@@ -722,10 +722,9 @@
 
 (defmacro with-dsp-preamble ((dsp-var name control-table-var to-free-var
                               free-hook-var) &body body)
-  (with-gensyms (dsp-wrap function-object node)
+  (with-gensyms (function-object node)
     `(let* ((*dsp-node* %dsp-node%)
-            (,dsp-wrap (dsp-inst-pool-pop))
-            (,dsp-var (unwrap-dsp ,dsp-wrap))
+            (,dsp-var (make-dsp-instance))
             ;; Hash table for the controls of the DSP
             (,control-table-var (dsp-controls ,dsp-var))
             ;; Function related with the DSP
@@ -737,11 +736,14 @@
              (list (lambda (,node)
                      (declare (ignore ,node) #.*reduce-warnings*)
                      (free-incudine-objects ,to-free-var)
-                     (if (eq ,function-object (symbol-function ,name))
-                         ;; The instance is reusable the next time
-                         (store-dsp-instance ,name ,dsp-wrap)
-                         (free-dsp-wrap ,dsp-wrap))))))
-       (declare (type cons ,dsp-wrap ,free-hook-var) (type dsp ,dsp-var)
+                     (if (and (eq ,function-object (symbol-function ,name))
+                              ;; Error during the initialization.
+                              (not (eq (dsp-free-function ,dsp-var)
+                                       #'dummy-function)))
+                         ;; The instance is reusable the next time.
+                         (store-dsp-instance ,name ,dsp-var)
+                         (free-dsp-instance ,dsp-var))))))
+       (declare (type cons ,free-hook-var) (type dsp ,dsp-var)
                 (type hash-table ,control-table-var) (type list ,to-free-var))
        ,@body)))
 
@@ -853,7 +855,9 @@
                           ;; free-function is called if the init-function is
                           ;; accidentally garbage collected (probably never).
                           (incudine.util::finalize (dsp-init-function ,dsp)
-                            (lambda () (funcall (dsp-free-function ,dsp))))
+                            (lambda ()
+                              (funcall (dsp-free-function ,dsp))
+                              (%%free-dsp-instance ,dsp)))
                           (values (dsp-init-function ,dsp)
                                   (dsp-perf-function ,dsp)))))))))))))
 
@@ -1157,7 +1161,7 @@
 
 (defmacro reuse-dsp-instance (dsp node id arg-names)
   (with-gensyms (obj)
-    `(let ((,obj (car ,dsp)))
+    `(let ((,obj ,dsp))
        (with-reserved-node (,node ,id)
          (funcall (dsp-init-function ,obj) ,node ,@arg-names))
        (lambda (,node)
@@ -1167,7 +1171,7 @@
 
 (declaim (inline set-dsp-arg-names))
 (defun set-dsp-arg-names (dsp-name arg-names)
-  (setf (dsp-arguments (get-dsp-properties dsp-name)) arg-names))
+  (setf (dsp-properties-arguments (get-dsp-properties dsp-name)) arg-names))
 
 ;;; Returns the function to parse the arguments of a DSP.
 (defmacro parse-dsp-args-func (bindings args)
@@ -1192,7 +1196,7 @@
                     (type incudine:node ,node))
            (when (incudine:null-node-p ,node)
              (let ((,dsp (get-next-dsp-instance ',name)))
-               (declare (type list ,dsp))
+               (declare (type (or null dsp) ,dsp))
                ;; If the DSP is recursive, it is necessary to call and
                ;; reset the FREE-HOOK after an error.
                (incudine::call-free-hook ,node)
