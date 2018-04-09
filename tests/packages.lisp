@@ -11,9 +11,13 @@
 
 (in-package :incudine-tests)
 
+(defvar *test-hook* nil)
+(declaim (type list *test-hook*))
+
 (defun run-tests (&key ((:compiled *compile-tests*)))
   (let ((rt-p (eq (rt-status) :started)))
     (if rt-p (rt-stop) (init))
+    (incudine::call-hooks 'test *test-hook*)
     (multiple-value-prog1 (do-tests)
       (when rt-p (rt-start)))))
 

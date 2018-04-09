@@ -2,6 +2,13 @@
 
 (enable-sharp-square-bracket-syntax)
 
+(defvar *env-test* (make-envelope '(0 1 0) '(.5 .5)))
+
+(pushnew (lambda ()
+           (edit-envelope *env-test* '(0 1 0) '(.5 .5) :curve :lin
+                          :loop-node -1 :release-node -1))
+         *test-hook*)
+
 (dsp! vug-envelope-test ((env envelope) gain gate dur)
   (out (* (db->lin gain) (envelope env gate dur #'free))))
 
@@ -9,12 +16,6 @@
   (out (* (db->lin gain)
           (envelope (breakpoints->env bp :base base :duration 1)
                     1 dur #'free))))
-
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (if (boundp '*env-test*)
-      (free *env-test*)
-      (defvar *env-test*))
-  (setf *env-test* (make-envelope '(0 1 0) '(.5 .5))))
 
 (with-dsp-test (vug-envelope.1
       :md5 #(27 133 61 38 244 95 113 211 23 61 48 224 246 123 132 13))
