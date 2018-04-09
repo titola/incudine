@@ -26,13 +26,11 @@
              (:include cons-pool)
              (:constructor %make-incudine-object-pool)
              (:copier nil))
-  (real-time-p nil :type boolean))
+  (real-time-p nil :type boolean)
+  (spinlock nil :type (or null spinlock)))
 
 (defmethod print-object ((obj incudine-object-pool) stream)
   (format stream "#<INCUDINE-OBJECT-POOL ~D>" (incudine-object-pool-size obj)))
-
-(defvar *live-objects-spinlock* (make-spinlock "LIVE-OBJECTS"))
-(declaim (type spinlock *live-objects-spinlock*))
 
 (defun new-incudine-object-pointer (constructor &optional object-list)
   (let ((ptr (cons (funcall constructor) object-list)))
@@ -62,14 +60,15 @@
                                 (new-incudine-object-pointer constructor #1#))
                      (incf (incudine-object-pool-size pool))))
     :grow 1
-    :real-time-p real-time-p))
+    :real-time-p real-time-p
+    :spinlock (unless real-time-p (make-spinlock))))
 
 (defun incudine-object-pool-expand-1 (pool)
   (flet ((expand ()
            (funcall (cons-pool-expand-func pool) pool 1)))
     (if (and (incudine-object-pool-real-time-p pool) *rt-thread*)
         (rt-eval () (expand))
-        (with-spinlock-held (*live-objects-spinlock*) (expand)))))
+        (with-spinlock-held ((incudine-object-pool-spinlock pool)) (expand)))))
 
 (defun incudine-object-pool-expand (pool delta)
   (declare (type incudine-object-pool pool) (type positive-fixnum delta))
@@ -87,7 +86,7 @@
              ((= i delta)
               (if (and (incudine-object-pool-real-time-p pool) *rt-thread*)
                   (rt-eval () (expand lst last))
-                  (with-spinlock-held (*live-objects-spinlock*)
+                  (with-spinlock-held ((incudine-object-pool-spinlock pool))
                     (expand lst last))))
           (declare (type fixnum i) (type cons last lst))))))
 
@@ -100,7 +99,7 @@
 
 (defun alloc-object (object-pool)
   (declare (type incudine-object-pool object-pool))
-  (with-spinlock-held (*live-objects-spinlock*)
+  (with-spinlock-held ((incudine-object-pool-spinlock object-pool))
     (car (cons-pool-pop-cons object-pool))))
 
 (declaim (inline alloc-rt-object))
@@ -111,7 +110,7 @@
 (defun free-object (obj object-pool)
   (declare (type incudine-object obj)
            (type incudine-object-pool object-pool))
-  (with-spinlock-held (*live-objects-spinlock*)
+  (with-spinlock-held ((incudine-object-pool-spinlock object-pool))
     (cons-pool-push-cons object-pool (incudine-object-pool-ptr obj))
     (values)))
 
