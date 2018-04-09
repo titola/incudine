@@ -1193,6 +1193,9 @@
            (when (incudine:null-node-p ,node)
              (let ((,dsp (get-next-dsp-instance ',name)))
                (declare (type list ,dsp))
+               ;; If the DSP is recursive, it is necessary to call and
+               ;; reset the FREE-HOOK after an error.
+               (incudine::call-free-hook ,node)
                (incudine::enqueue-node-function
                  (update-node-hooks ,node ,stop-hook ,free-hook)
                  (if ,dsp

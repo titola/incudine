@@ -475,7 +475,9 @@
   (let ((nodes (fill-pointer *dirty-nodes*)))
     (when (plusp nodes)
       (dotimes (i nodes (setf (fill-pointer *dirty-nodes*) 0))
-        (setf (node-id (reduce-warnings (aref *dirty-nodes* i))) nil)))))
+        (let ((n (reduce-warnings (aref *dirty-nodes* i))))
+          (call-free-hook n)
+          (setf (node-id n) nil))))))
 
 (defun add-node-to-head (item target fade-time fade-curve)
   (cond ((and (node-id target) (group-p target))
@@ -748,8 +750,7 @@
   (when (plusp (int-hash-table-count *node-hash*))
     (decf (int-hash-table-count *node-hash*))))
 
-(defun unlink-node (node)
-  (declare #.*reduce-warnings*)
+(defun call-free-hook (node)
   (when (node-free-hook node)
     (flet ((free-fn (hook)
              (dolist (fn hook)
@@ -758,7 +759,11 @@
           ;; Scheduling for DONE-ACTION called from a DSP.
           (at 0 #'free-fn (node-free-hook node))
           (free-fn (node-free-hook node))))
-    (setf (node-free-hook node) nil))
+    (setf (node-free-hook node) nil)))
+
+(defun unlink-node (node)
+  (declare #.*reduce-warnings*)
+  (call-free-hook node)
   (when #1=(node-stop-hook node) (setf #1# nil))
   (setf (node-done-p node) nil)
   (remove-node-from-hash node))
