@@ -20,7 +20,7 @@
   (pool-ptr nil :type list))
 
 (defmethod print-object ((obj incudine-object) stream)
-  (format stream "#<INCUDINE-OBJECT>"))
+  (format stream "#<INCUDINE-OBJECT ~A>" (type-of obj)))
 
 (defstruct (incudine-object-pool
              (:include cons-pool)
