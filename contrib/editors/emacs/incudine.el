@@ -306,6 +306,33 @@ rego file or call tags-loop-continue."
             (switch-to-buffer to)))
         (tags-loop-continue))))
 
+(defun incudine-regofile-to-sexp ()
+  "Display the expansion of the edited rego file."
+  (interactive)
+  (when (buffer-modified-p)
+    (save-buffer))
+  (let ((form (format "(incudine:regofile->sexp %S)" (buffer-file-name))))
+    (slime-eval-async `(swank:interactive-eval ,form)
+      #'slime-initialize-macroexpansion-buffer)))
+
+(defun incudine-regofile-to-list ()
+  "Display the list of events obtained from the edited rego file."
+  (interactive)
+  (when (buffer-modified-p)
+    (save-buffer))
+  (let ((form (format "(incudine:regofile->list %S)" (buffer-file-name))))
+    (slime-eval-async `(swank:interactive-eval ,form)
+      #'slime-initialize-macroexpansion-buffer)))
+
+(defun incudine-regofile-to-scheduled-events ()
+  "Display the scheduled events obtained from the edited rego file."
+  (interactive)
+  (when (buffer-modified-p)
+    (save-buffer))
+  (let ((form (format "`(with-schedule ,@(mapcar (lambda (x) `(at (* ,(car x) *sample-rate*) #',(cadr x) ,@(cddr x))) (incudine:regofile->list %S)))" (buffer-file-name))))
+    (slime-eval-async `(swank:interactive-eval ,form)
+      #'slime-initialize-macroexpansion-buffer)))
+
 (font-lock-add-keywords
   'incudine-mode
   '((;; define-vug define-vug-macro define-ugen define-ugen-control-setter
@@ -365,6 +392,9 @@ rego file or call tags-loop-continue."
   (let ((map (make-sparse-keymap "Incudine Rego")))
     (incudine-mode-common-map map)
     (define-key map [f9] 'incudine-play-regofile)
+    (define-key map "\C-cRe" 'incudine-regofile-to-scheduled-events)
+    (define-key map "\C-cRl" 'incudine-regofile-to-list)
+    (define-key map "\C-cRs" 'incudine-regofile-to-sexp)
     (define-key map "\M-." 'incudine-find-name)
     (define-key map "\M-," 'incudine-find-name-retract)
     map)
@@ -406,10 +436,16 @@ rego file or call tags-loop-continue."
 (easy-menu-define incudine-rego-mode-menu incudine-rego-mode-map
   "Menu used in Incudine Rego mode."
   (let* ((l (copy-sequence incudine-mode-menu-list))
-         (entry (assoc "Realtime" (cdr l))))
-    (setf (nthcdr 3 entry)
+         (rt-entry (assoc "Realtime" (cdr l)))
+         (debug-entry (assoc "Debugging" (cdr l))))
+    (setf (nthcdr 3 rt-entry)
           (cons ["Play Rego File" incudine-play-regofile t]
-                (nthcdr 3 entry)))
+                (nthcdr 3 rt-entry)))
+    (setf (cdr debug-entry)
+          (list ["Rego File to List of Events" incudine-regofile-to-list t]
+                ["Rego File to Scheduled Events"
+                 incudine-regofile-to-scheduled-events t]
+                ["Rego File to Sexp" incudine-regofile-to-sexp t]))
     l))
 
 (defvar incudine-rego-font-lock-keywords
