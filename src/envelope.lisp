@@ -33,6 +33,7 @@
 (defstruct (envelope (:include incudine-object)
                      (:constructor %make-envelope)
                      (:copier nil))
+  "Envelope type."
   (data-ptr (null-pointer) :type foreign-pointer)
   (duration +sample-zero+ :type sample)
   (points 0 :type non-negative-fixnum)
@@ -44,6 +45,20 @@
   (max-points *envelope-default-max-points* :type non-negative-fixnum)
   (real-time-p nil :type boolean)
   (foreign-free #'foreign-free :type function))
+
+(setf
+  (documentation 'envelope-p 'function)
+  "Return T if object is of type ENVELOPE."
+  (documentation 'envelope-duration 'function)
+  "Return the duration of the envelope."
+  (documentation 'envelope-points 'function)
+  "Return the number of envelope points."
+  (documentation 'envelope-loop-node 'function)
+  "Return a non-negative value if it is the starting point of the
+loop of the segments during the sustain phase of the envelope."
+  (documentation 'envelope-release-node 'function)
+  "Return the point of the release (starting from 0) or -1 if the
+envelope is without sustain.")
 
 (define-constant +envelope-pool-initial-size+ 4000)
 
@@ -57,6 +72,7 @@
 
 (declaim (inline envelope-data))
 (defun envelope-data (obj)
+  "Return the foreign pointer to the envelope data."
   (envelope-data-ptr obj))
 
 (defmethod print-object ((obj envelope) stream)
@@ -86,6 +102,8 @@
 
 (declaim (inline envelope-restart-level))
 (defun envelope-restart-level (instance)
+  "Return the restart level of the envelope or NIL if it is the value
+of the level before to restart. Setfable."
   (envelope-%restart-level instance))
 
 (declaim (inline set-envelope-restart-level))
@@ -106,6 +124,7 @@
   (max (length levels) (1+ (length times))))
 
 (defun copy-envelope (envelope)
+  "Return a copy of ENVELOPE."
   (declare (type envelope envelope))
   (if (free-p envelope)
       (incudine-error "The envelope is unusable.")
@@ -231,6 +250,8 @@
        (+ (* lev0 b1) b2))))
 
 (defun envelope-base->curves (base levels)
+  "Return the list of curvature values for the CURVE keyword in
+MAKE-ENVELOPE related to an envelope's base in the style of CLM."
   (cond ((< base 0)
          (incudine-error "Envelope's base ~A less than zero." base))
         ((= base 0) (list :step))
@@ -513,23 +534,33 @@ otherwise it restarts from the value RESTART-LEVEL."
 (defun make-envelope (levels times &key curve base (loop-node -1)
                       (release-node -1) restart-level
                       (real-time-p (allow-rt-memory-p)))
-  "Create and return a new ENVELOPE struct from a list of LEVELS and
+  "Create and return a new ENVELOPE structure from a list of LEVELS and
 a list of TIMES.
+
 If BASE is a number, it is the envelope's base in the style of CLM
 (Common Lisp Music), where BASE is e^k and the curvature depends on
 the highest and lowest levels.
-CURVE sets the shape of the segments; the possible values are
-:STEP, :LIN or :LINEAR (default), :SIN or :SINE, :WEL or :WELCH,
-:SQR or :SQUARE, :CUB or :CUBIC, a number that represents the
-curvature value between two levels for all the segments or a list of the
-prior values to specify the curvature values for each segments.
+
+CURVE sets the shape of the segments; the possible values are :STEP,
+:LIN or :LINEAR (default), :EXP or :EXPONENTIAL, :SIN or :SINE, :WEL
+or :WELCH, :SQR or :SQUARE, :CUB or :CUBIC, a number that represents
+the curvature value between two levels for all the segments or a list
+of the prior values to specify the curvature values for each segments.
 CURVE is ignored if BASE is non-NIL.
+
 If the envelope is sustained, RELEASE-NODE specifies the point of the
 release (starting from 0). The default is -1 that means 'envelope
-without sustain'. If LOOP-NODE is a non-negative value, it is the
-starting point of the loop of the segments during the sustain phase of
-the envelope. The ending point is the point that precedes the release
-point RELEASE-NODE."
+without sustain'.
+
+If LOOP-NODE is a non-negative value, it is the starting point of the
+loop of the segments during the sustain phase of the envelope. The
+ending point is the point that precedes the release point
+RELEASE-NODE.
+
+If RESTART-LEVEL is NIL (default), the envelope restarts from the
+current level otherwise it restarts from the value RESTART-LEVEL.
+
+Set REAL-TIME-P to NIL to disallow real-time memory pools."
   (declare (type list levels times)
            (type fixnum loop-node release-node)
            (type boolean real-time-p))
@@ -576,6 +607,7 @@ point RELEASE-NODE."
 
 (declaim (inline envelope-level))
 (defun envelope-level (env node-number)
+  "Return the level of the envelope ENV at NODE-NUMBER. Setfable."
   (declare (type envelope env) (type non-negative-fixnum node-number))
   (smp-ref (envelope-data env)
            (reduce-warnings
@@ -614,6 +646,7 @@ point RELEASE-NODE."
 
 (declaim (inline envelope-time))
 (defun envelope-time (env node-number)
+  "Return the time of the envelope ENV at NODE-NUMBER. Setfable."
   (declare (type envelope env) (type non-negative-fixnum node-number))
   (if (< 0 node-number (envelope-points env))
       (smp-ref (envelope-data env)
@@ -635,6 +668,7 @@ point RELEASE-NODE."
 
 (declaim (inline envelope-curve))
 (defun envelope-curve (env node-number)
+  "Return the curvature of the envelope ENV at NODE-NUMBER. Setfable."
   (declare (type envelope env) (type non-negative-fixnum node-number)
            #+(or cmu sbcl) (values (or symbol sample)))
   (locally (declare #.*standard-optimize-settings* #.*reduce-warnings*)
@@ -680,6 +714,8 @@ point RELEASE-NODE."
   (loop for i below (envelope-points env) collect (envelope-level env i)))
 
 (defun set-envelope-base (env base)
+  "Set the curvature of the envelope in the style of CLM, where BASE
+is e^k and the curvature depends on the highest and lowest levels."
   (declare (type envelope env) (type real base))
   (let ((curves (envelope-base->curves base (envelope-levels env))))
     (declare #.*standard-optimize-settings*)
@@ -755,6 +791,7 @@ point RELEASE-NODE."
             (look 1 3))))))
 
 (defun scale-envelope (env mult)
+  "Multiply the levels of the envelope by MULT."
   (declare (type envelope env) (type real mult))
   (let ((points (envelope-points env))
         (data (envelope-data env)))
@@ -764,8 +801,9 @@ point RELEASE-NODE."
                (* (smp-ref data (1- (* i 3))) mult)))
     env))
 
-(defun normalize-envelope (env norm-value)
-  (declare (type envelope env) (type real norm-value))
+(defun normalize-envelope (env value)
+  "Scale the levels of the envelope to be between -VALUE and VALUE."
+  (declare (type envelope env) (type real value))
   (let ((points (envelope-points env)))
     (declare (type positive-fixnum points))
     (labels ((norm (index maxval)
@@ -775,9 +813,10 @@ point RELEASE-NODE."
                    maxval
                    (norm (1+ index)
                          (max (abs (envelope-level env index)) maxval)))))
-      (scale-envelope env (/ norm-value (norm 1 (abs (envelope-level env 0))))))))
+      (scale-envelope env (/ value (norm 1 (abs (envelope-level env 0))))))))
 
 (defun rescale-envelope (env min max)
+  "Rescale the levels of the envelope to be between MIN and MAX."
   (declare (type envelope env) (type real min max))
   (let ((points (envelope-points env)))
     (declare (type non-negative-fixnum points))
@@ -887,11 +926,40 @@ point RELEASE-NODE."
             (values levels times (and (null base) curve))))
         (incudine-error "Wrong breakpoint sequence: ~A" bp-seq))))
 
-(declaim (inline breakpoints->env))
 (defun breakpoints->env (bp-seq &key curve base scaler offset duration
                          (loop-node -1) (release-node -1)
                          restart-level (real-time-p (allow-rt-memory-p)))
-  "Create and return a new ENVELOPE from a sequence of break-point pairs."
+  "Create and return a new ENVELOPE from a sequence of break-point pairs.
+
+If BASE is a number, it is e^k and the curvature depends on the highest
+and lowest levels.
+
+If SCALER is non-NIL, the levels of the envelope are scaled by that value.
+
+If OFFSET is non-NIL, it is the value added to the levels of the envelope.
+
+If DURATION is non-NIL, it is the duration of the envelope in seconds.
+
+CURVE sets the shape of the segments; the possible values are :STEP,
+:LIN or :LINEAR (default), :EXP or :EXPONENTIAL, :SIN or :SINE, :WEL
+or :WELCH, :SQR or :SQUARE, :CUB or :CUBIC, a number that represents
+the curvature value between two levels for all the segments or a list
+of the prior values to specify the curvature values for each segments.
+CURVE is ignored if BASE is non-NIL.
+
+If the envelope is sustained, RELEASE-NODE specifies the point of the
+release (starting from 0). The default is -1 that means 'envelope
+without sustain'.
+
+If LOOP-NODE is a non-negative value, it is the starting point of the
+loop of the segments during the sustain phase of the envelope. The
+ending point is the point that precedes the release point
+RELEASE-NODE.
+
+If RESTART-LEVEL is NIL (default), the envelope restarts from the
+current level otherwise it restarts from the value RESTART-LEVEL.
+
+Set REAL-TIME-P to NIL to disallow real-time memory pools."
   (declare (type (or list array) bp-seq))
   (multiple-value-bind (levels times curve)
       (breakpoints->env-arguments bp-seq curve base scaler offset duration)
@@ -903,6 +971,22 @@ point RELEASE-NODE."
 
 (defun freq-breakpoints->env (bp-seq &key (freq-max (* *sample-rate* 0.5))
                               curve base (real-time-p (allow-rt-memory-p)))
+  "Create and return a new ENVELOPE from a sequence of break-point
+pairs interpreted as frequency response.
+
+FREQ-MAX is the highest frequency and defaults to the half of *SAMPLE-RATE*.
+
+If BASE is a number, it is e^k and the curvature depends on the
+highest and lowest levels.
+
+CURVE sets the shape of the segments; the possible values are :STEP,
+:LIN or :LINEAR (default), :EXP or :EXPONENTIAL, :SIN or :SINE, :WEL
+or :WELCH, :SQR or :SQUARE, :CUB or :CUBIC, a number that represents
+the curvature value between two levels for all the segments or a list
+of the prior values to specify the curvature values for each segments.
+CURVE is ignored if BASE is non-NIL.
+
+Set REAL-TIME-P to NIL to disallow real-time memory pools."
   (declare (type (or list array) bp-seq))
   (multiple-value-bind (bp-seq-p size)
       (breakpoint-sequence-p bp-seq)
@@ -937,18 +1021,23 @@ point RELEASE-NODE."
 ;;; Frequently used envelope shapes
 
 (declaim (inline make-linen))
-(defun make-linen (attack-time sustain-time release-time
-                   &key (level 1) (curve :lin) base restart-level
-                   (real-time-p (allow-rt-memory-p)))
+(defun make-linen (attack-time sustain-time release-time &key (level 1)
+                   restart-level (real-time-p (allow-rt-memory-p)))
+  "Create and return a new ENVELOPE structure with peak LEVEL and a
+straight line rise and decay pattern by default."
   (make-envelope (list 0 level level 0)
                  (list attack-time sustain-time release-time)
-                 :curve curve :base base :restart-level restart-level
+                 :curve :lin :restart-level restart-level
                  :real-time-p real-time-p))
 
 (declaim (inline make-perc))
 (defun make-perc (attack-time release-time
                   &key (level 1) (curve -4) base restart-level
                   (real-time-p (allow-rt-memory-p)))
+    "Create and return a new ENVELOPE structure with peak LEVEL,
+ATTACK-TIME and RELEASE-TIME.
+
+The curvature CURVE defaults to -4."
   (make-envelope (list 0 level 0) (list attack-time release-time)
                  :curve curve :base base :restart-level restart-level
                  :real-time-p real-time-p))
@@ -956,6 +1045,9 @@ point RELEASE-NODE."
 (declaim (inline make-cutoff))
 (defun make-cutoff (release-time &key (level 1) (curve :exp) base restart-level
                     (real-time-p (allow-rt-memory-p)))
+  "Create and return a new ENVELOPE structure with peak LEVEL and RELEASE-TIME.
+
+The curvature CURVE defaults to :EXPONENTIAL."
   (make-envelope (list level 0) (list release-time)
                  :curve curve :base base :release-node 0
                  :restart-level restart-level :real-time-p real-time-p))
@@ -964,6 +1056,10 @@ point RELEASE-NODE."
 (defun make-asr (attack-time sustain-level release-time
                  &key (curve -4) base restart-level
                  (real-time-p (allow-rt-memory-p)))
+  "Create and return a new ENVELOPE structure with ATTACK-TIME, SUSTAIN-LEVEL
+and RELEASE-TIME.
+
+The curvature CURVE defaults to -4."
   (make-envelope (list 0 sustain-level 0) (list attack-time release-time)
                  :curve curve :base base :release-node 1
                  :restart-level restart-level :real-time-p real-time-p))
@@ -972,6 +1068,10 @@ point RELEASE-NODE."
 (defun make-adsr (attack-time decay-time sustain-level release-time
                   &key (peak-level 1) (curve -4) base restart-level
                   (real-time-p (allow-rt-memory-p)))
+    "Create and return a new ENVELOPE structure with ATTACK-TIME,
+PEAK-LEVEL, DECAY-TIME, SUSTAIN-LEVEL and RELEASE-TIME.
+
+The curvature CURVE defaults to -4."
   (make-envelope (list 0 peak-level (* peak-level sustain-level) 0)
                  (list attack-time decay-time release-time)
                  :curve curve :base base :release-node 2
@@ -981,6 +1081,10 @@ point RELEASE-NODE."
 (defun make-dadsr (delay-time attack-time decay-time sustain-level
                    release-time &key (peak-level 1) (curve -4) base
                    restart-level (real-time-p (allow-rt-memory-p)))
+      "Create and return a new ENVELOPE structure with DELAY-TIME,
+ATTACK-TIME, PEAK-LEVEL, DECAY-TIME, SUSTAIN-LEVEL and RELEASE-TIME.
+
+The curvature CURVE defaults to -4."
   (make-envelope (list 0 0 peak-level (* peak-level sustain-level) 0)
                  (list delay-time attack-time decay-time release-time)
                  :curve curve :base base :release-node 3

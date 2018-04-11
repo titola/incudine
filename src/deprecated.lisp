@@ -139,9 +139,8 @@
 
 (incudine::deprecated-macro
    (make-local-linen (&whole whole attack-time sustain-time release-time
-                      &key (level 1) (curve :lin) base restart-level)
-     (declare (ignore attack-time sustain-time release-time level curve base
-                      restart-level))
+                      &key (level 1) restart-level)
+     (declare (ignore attack-time sustain-time release-time level restart-level))
      `(incudine:make-linen ,@(cdr whole)))
    :replacement incudine:make-linen
    :date 20180330

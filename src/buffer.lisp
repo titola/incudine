@@ -468,7 +468,7 @@ FUNCTION is a function of as many arguments as there are buffers."
               buffer))
 
 (defun normalize-buffer (buffer value)
-  "Scales the buffer values to be between -value and value."
+  "Scale the buffer values to be between -VALUE and VALUE."
   (declare (type buffer-base buffer) (type real value))
   (let ((data (buffer-base-data-ptr buffer))
         (size (buffer-base-size buffer)))
@@ -765,7 +765,7 @@ buffer size (i.e. GEN routines are valid functions).
 
 If NORMALIZE-P is T, normalize the initial content of the buffer.
 
-If the buffer is to alloc in real-time, set REAL-TIME-P to T."
+Set REAL-TIME-P to NIL to disallow real-time memory pools."
   (declare (type non-negative-real frames start offset sample-rate)
            (type (or non-negative-real null) end)
            (type non-negative-fixnum channels)
@@ -818,10 +818,10 @@ passed to MAKE-BUFFER."
 
 (defvar *sine-table* (make-buffer *default-table-size*
                                   :fill-function (gen:partials '(1)))
-  "BUFFER structure with a single cycle sinusoid.")
+  "BUFFER structure of size *DEFAULT-TABLE-SIZE* with a single cycle sinusoid.")
 (declaim (type buffer *sine-table*))
 
 (defvar *cosine-table* (make-buffer *default-table-size*
                                     :fill-function (gen:partials '((1 1 .25))))
-  "BUFFER structure with a single cycle cosinusoid.")
+  "BUFFER structure of size *DEFAULT-TABLE-SIZE* with a single cycle cosinusoid.")
 (declaim (type buffer *cosine-table*))
