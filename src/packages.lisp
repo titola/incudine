@@ -415,8 +415,8 @@
    #:rt-time-offset #:rt-silent-errors
    #:portaudio-device-info #:portaudio-set-device
    #:at #:aat #:with-schedule #:flush-pending #:flush-all-fifos
-   #:tempo #:*tempo* #:make-tempo #:bpm #:bps #:spb #:now #:tempo-sync
-   #:tempo-envelope #:make-tempo-envelope #:set-tempo-envelope
+   #:tempo #:*tempo* #:make-tempo #:tempo-p #:bpm #:bps #:spb #:now #:tempo-sync
+   #:tempo-envelope #:make-tempo-envelope #:tempo-envelope-p #:set-tempo-envelope
    #:copy-tempo-envelope
    #:time-at #:bps-at #:bpm-at #:spb-at
    #:timestamp
