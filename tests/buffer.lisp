@@ -218,3 +218,21 @@
               (let ((b0 (make-buffer 8)))
                 (list b0 (copy-buffer b0)))))
   (T T))
+
+(deftest resize-buffer.1
+    (flet ((check (b0 b1 &optional size)
+             (list (= (buffer-size b0) (or size (buffer-size b1)))
+                   (= (buffer-mask b0) (buffer-mask b1))
+                   (= (buffer-lobits b0) (buffer-lobits b1))
+                   (= (buffer-lomask b0) (buffer-lomask b1))
+                   (= (buffer-lodiv b0) (buffer-lodiv b1)))))
+      (with-buffers ((b0 40000)
+                     (b1 2048)
+                     (b2 65536))
+        (every #'identity
+               (append (check (resize-buffer b0 2048) b1)
+                       (check (resize-buffer b0 3000) b1 3000)
+                       (check (resize-buffer b0 65536) b2)
+                       (check (resize-buffer b0 9000) (resize-buffer b1 16383) 9000)
+                       (check (resize-buffer b0 16384) (resize-buffer b1 30000) 16384)))))
+  t)

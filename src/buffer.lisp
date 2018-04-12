@@ -68,7 +68,6 @@ a non-NIL FILE argument, return the pathname.")
   (make-incudine-object-pool +buffer-pool-initial-size+ #'%make-buffer t))
 (declaim (type incudine-object-pool *rt-buffer-pool*))
 
-(declaim (inline calc-buffer-mask))
 (defun calc-buffer-mask (size)
   (declare (type non-negative-fixnum size))
   (if (power-of-two-p size)
@@ -77,6 +76,28 @@ a non-NIL FILE argument, return the pathname.")
         (if (power-of-two-p half)
             (- size 2)
             (- (next-power-of-two half) 1)))))
+
+(defun update-buffer (obj frm chans bufsize data &optional sr rt-p free-fn)
+  (let* ((%lobits (calc-lobits bufsize))
+         (value (ash 1 %lobits)))
+    (declare (type non-negative-fixnum %lobits value))
+    (incudine.util::with-struct-slots
+        ((data-ptr size mask lobits lomask lodiv frames channels
+          sample-rate real-time-p foreign-free)
+         obj buffer)
+      (setf frames frm
+            channels chans
+            size bufsize
+            data-ptr data
+            mask (calc-buffer-mask bufsize)
+            lobits %lobits
+            lomask (1- value)
+            lodiv (if (zerop %lobits) +sample-zero+ (/ (sample 1) value)))
+      (when sr
+        (setf sample-rate (reduce-warnings (sample sr))
+              real-time-p rt-p
+              foreign-free free-fn))
+      obj)))
 
 (defun %%make-buffer (frm chans srate rt-p)
   (declare (type non-negative-fixnum frm chans)
@@ -98,29 +119,11 @@ a non-NIL FILE argument, return the pathname.")
                       *buffer-pool*)))
       (declare (type foreign-pointer %data) (type buffer obj)
                (type incudine-object-pool pool))
-      (let* ((%lobits (calc-lobits bufsize))
-             (value (ash 1 %lobits)))
-        (declare (type non-negative-fixnum %lobits value))
-        (incudine.util::with-struct-slots
-            ((data-ptr size real-time-p foreign-free mask lobits lomask lodiv
-              frames channels sample-rate file textfile-p)
-             obj buffer)
-          (setf frames frm
-                channels chans
-                size bufsize
-                sample-rate (reduce-warnings (sample srate))
-                data-ptr %data
-                mask (calc-buffer-mask bufsize)
-                lobits %lobits
-                lomask (1- value)
-                lodiv (if (zerop lobits) +sample-zero+ (/ (sample 1) value))
-                real-time-p rt-p
-                foreign-free free-fn)
-          (incudine-finalize obj
-            (lambda ()
-              (funcall free-fn %data)
-              (incudine-object-pool-expand pool 1)))
-          obj)))))
+      (update-buffer obj frm chans bufsize %data srate rt-p free-fn)
+      (incudine-finalize obj
+        (lambda ()
+          (funcall free-fn %data)
+          (incudine-object-pool-expand pool 1))))))
 
 (defmethod print-object ((obj buffer) stream)
   (format stream "#<~S :FRAMES ~D :CHANNELS ~D :SR ~F>"
@@ -423,11 +426,7 @@ of channels."
             (lambda ()
               (funcall free-fn data)
               (incudine-object-pool-expand pool 1)))
-          (setf (buffer-data-ptr buffer) data
-                (buffer-frames buffer) frames
-                (buffer-channels buffer) channels
-                (buffer-size buffer) size)
-          buffer))))
+          (update-buffer buffer frames channels size data)))))
 
 (defun map-buffer (function buffer)
   "Destructively modifies BUFFER to contain the results of applying
