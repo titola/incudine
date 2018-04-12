@@ -424,6 +424,7 @@ You can have more than one &rest parameter."
 
 (declaim (inline now))
 (defun now ()
+  "Return the current time in samples."
   (mem-ref *sample-counter* 'sample))
 
 (defvar *portmidi-time* (foreign-alloc 'sample :initial-element +sample-zero+))

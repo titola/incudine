@@ -17,11 +17,18 @@
 (in-package :incudine)
 
 (defstruct (tempo (:constructor %make-tempo) (:copier nil))
+  "Tempo type."
   (ptr (incudine-missing-arg "Missing foreign pointer.") :type foreign-pointer))
+
+(setf (documentation 'tempo-p 'function) "Return T if object is of type TEMPO.")
 
 (defun make-tempo (value &optional (unit :bpm))
   (declare (type alexandria:positive-real value)
            (type (member :bpm :spb :bps) unit))
+  "Create and return a new TEMPO structure.
+
+UNIT is :BPM (default), :SPB or :BPS to set the tempo VALUE in beats
+per minute, seconds per beat or beats per second respectively."
   (let* ((x (sample value))
          (ptr (foreign-alloc 'sample :count 3
                 :initial-contents (case unit
@@ -44,12 +51,15 @@
     (values)))
 
 ;;; Default tempo
-(defvar *tempo* (make-tempo *default-bpm*))
+(defvar *tempo* (make-tempo *default-bpm*)
+  "Default TEMPO structure.
+
+The value is initially *DEFAULT-BPM* beats per minute.")
 (declaim (type tempo *tempo*))
 
 (declaim (inline bpm))
 (defun bpm (tempo)
-  "Beats Per Minute."
+  "Return the tempo in beats per minute. Setfable."
   (smp-ref (tempo-ptr tempo) 0))
 
 (declaim (inline set-bpm))
@@ -64,7 +74,7 @@
 
 (declaim (inline spb))
 (defun spb (tempo)
-  "Seconds Per Beat."
+  "Return the tempo in seconds per beat. Setfable."
   (smp-ref (tempo-ptr tempo) 1))
 
 (declaim (inline set-spb))
@@ -79,7 +89,7 @@
 
 (declaim (inline bps))
 (defun bps (tempo)
-  "Beats Per Second."
+  "Return the tempo in beats per second. Setfable."
   (smp-ref (tempo-ptr tempo) 2))
 
 (declaim (inline set-bps))
@@ -116,11 +126,15 @@
 (defstruct (tempo-envelope (:include incudine-object)
                            (:constructor %make-tempo-envelope)
                            (:copier nil))
+  "Temporal envelope type."
   (spb *dummy-envelope* :type envelope)
   (time-warp (null-pointer) :type foreign-pointer)
   (points 0 :type non-negative-fixnum)
   (max-points *envelope-default-max-points* :type non-negative-fixnum)
   (constant-p t :type boolean))
+
+(setf (documentation 'tempo-envelope-p 'function)
+      "Return T if object is of type TEMPO-ENVELOPE.")
 
 (define-constant +tempo-envelope-pool-initial-size+ 50)
 
@@ -148,6 +162,29 @@
 (defun make-tempo-envelope (bpms beats &key curve (loop-node -1)
                             (release-node -1) restart-level
                             (real-time-p (allow-rt-memory-p)))
+  "Create and return a new TEMPO-ENVELOPE structure from a list of
+tempo values in beats per minute and a list of times in beats.
+
+CURVE sets the shape of the segments; the possible values are :STEP,
+:LIN or :LINEAR (default), :EXP or :EXPONENTIAL, :SIN or :SINE, :WEL
+or :WELCH, :SQR or :SQUARE, :CUB or :CUBIC, a number that represents
+the curvature value between two levels for all the segments or a list
+of the prior values to specify the curvature values for each segments.
+CURVE is ignored if BASE is non-NIL.
+
+If the envelope is sustained, RELEASE-NODE specifies the point of the
+release (starting from 0). The default is -1 that means 'envelope
+without sustain'.
+
+If LOOP-NODE is a non-negative value, it is the starting point of the
+loop of the segments during the sustain phase of the envelope. The
+ending point is the point that precedes the release point
+RELEASE-NODE.
+
+If RESTART-LEVEL is NIL (default), the envelope restarts from the
+current level otherwise it restarts from the value RESTART-LEVEL.
+
+Set REAL-TIME-P to NIL to disallow real-time memory pools."
   (declare (type list bpms beats) (type fixnum loop-node release-node)
            (type boolean real-time-p))
   (let* ((spbs (mapcar (lambda (bpm) (/ (sample 60) bpm)) bpms))
@@ -203,6 +240,7 @@
   (values))
 
 (defun copy-tempo-envelope (tenv)
+  "Return a copy of a TEMPO-ENVELOPE structure."
   (declare (type tempo-envelope tenv))
   (if (free-p tenv)
       (incudine-error "The temporal envelope is unusable.")
@@ -324,6 +362,30 @@
 
 (defun set-tempo-envelope (env bpms beats &key curve (loop-node -1)
                            (release-node -1) restart-level)
+  "Change a TEMPO-ENVELOPE structure.
+
+BPMS is a list of tempo values in beats per minute.
+
+BEATS is a list of times in beats.
+
+CURVE sets the shape of the segments; the possible values are :STEP,
+:LIN or :LINEAR (default), :EXP or :EXPONENTIAL, :SIN or :SINE, :WEL
+or :WELCH, :SQR or :SQUARE, :CUB or :CUBIC, a number that represents
+the curvature value between two levels for all the segments or a list
+of the prior values to specify the curvature values for each segments.
+CURVE is ignored if BASE is non-NIL.
+
+If the envelope is sustained, RELEASE-NODE specifies the point of the
+release (starting from 0). The default is -1 that means 'envelope
+without sustain'.
+
+If LOOP-NODE is a non-negative value, it is the starting point of the
+loop of the segments during the sustain phase of the envelope. The
+ending point is the point that precedes the release point
+RELEASE-NODE.
+
+If RESTART-LEVEL is NIL (default), the envelope restarts from the
+current level otherwise it restarts from the value RESTART-LEVEL."
   (declare (type tempo-envelope env) (type list bpms beats)
            (type fixnum loop-node release-node))
   (let ((spb-env (tempo-envelope-spb env))
@@ -393,6 +455,8 @@
 
 (declaim (inline time-at))
 (defun time-at (tempo-env beats &optional (offset 0))
+  "Return the time related to a TEMPO-ENVELOPE structure, starting
+from time OFFSET (zero by default)."
   (if (or (zerop offset) (tempo-envelope-constant-p tempo-env))
       (%time-at tempo-env beats)
       (- (%time-at tempo-env (+ offset beats))
@@ -400,16 +464,22 @@
 
 (declaim (inline spb-at))
 (defun spb-at (tempo-env beats)
+  "Return the tempo in seconds per beat of a TEMPO-ENVELOPE structure
+at time BEATS."
   (declare (type tempo-envelope tempo-env) (type (real 0) beats))
   (envelope-at (tempo-envelope-spb tempo-env) beats))
 
 (declaim (inline bpm-at))
 (defun bpm-at (tempo-env beats)
+  "Return the tempo in beats per minute of a TEMPO-ENVELOPE structure
+at time BEATS."
   (declare (type tempo-envelope tempo-env) (type (real 0) beats))
   (/ 60.0 (spb-at tempo-env beats)))
 
 (declaim (inline bps-at))
 (defun bps-at (tempo-env beats)
+  "Return the tempo in beats per second of a TEMPO-ENVELOPE structure
+at time BEATS."
   (declare (type tempo-envelope tempo-env) (type (real 0) beats))
   (/ (spb-at tempo-env beats)))
 
@@ -496,6 +566,38 @@
 (pushnew #'add-sharp-square-bracket-syntax *initialize-hook*)
 
 (defmacro enable-sharp-square-bracket-syntax ()
+  "Enable the reader syntax #[...] to enter the time in samples by
+using different units. The syntax is
+
+    #[number unit]
+
+    #[number-of-beats b.*]
+
+    #[number-of-beats b.* tempo]
+
+    #[number-of-beats b.* tempo-envelope offset-in-beats]
+
+The number of beats depends on a TEMPO or TEMPO-ENVELOPE structure.
+The default is *TEMPO*.
+
+The possible units are:
+
+|-------------+------------------------+--------------------------|
+| unit        | the symbol starts with | examples                 |
+|-------------+------------------------+--------------------------|
+| sample      | sa                     | sa, samp, samps, samples |
+| millisecond | ms                     | ms, msec                 |
+| second      | s                      | s, sec, seconds          |
+| minute      | mi                     | mi, min, minutes         |
+| hour        | h                      | h, hours                 |
+| day         | d                      | d, days                  |
+| week        | w                      | w, weeks                 |
+| beat        | b                      | b, beats                 |
+| meter       | m                      | m, meters                |
+|-------------+------------------------+--------------------------|
+
+The number of meters depends on the velocity of the sound in m/s at
+22°C, 1 atmosfera (the default is *SOUND-VELOCITY*)."
   `(eval-when (:compile-toplevel :execute)
      (add-sharp-square-bracket-syntax)))
 
