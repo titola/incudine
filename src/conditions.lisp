@@ -32,6 +32,12 @@
 
 (define-condition incudine-missing-arg (incudine-simple-error) ())
 
+(define-condition incudine-unknown-time-unit (incudine-error)
+  ((name :initarg :name :reader time-unit-name))
+  (:report (lambda (condition stream)
+             (format stream "Unknown time unit ~S"
+                     (time-unit-name condition)))))
+
 (defmacro %simple-error (datum format-control &rest format-arguments)
   `(error ,datum :format-control ,format-control
           ,@(if format-arguments `(:format-arguments (list ,@format-arguments)))))

@@ -16,12 +16,6 @@
 
 (in-package :incudine)
 
-(define-condition incudine-unknown-time-unit (incudine-error)
-  ((name :initarg :name :reader time-unit-name))
-  (:report (lambda (condition stream)
-             (format stream "Unknown time unit ~S"
-                     (time-unit-name condition)))))
-
 (defstruct (tempo (:constructor %make-tempo) (:copier nil))
   (ptr (incudine-missing-arg "Missing foreign pointer.") :type foreign-pointer))
 
