@@ -41,14 +41,7 @@
 (define-vug-macro cout (&rest values)
   (let ((node-value `(%cout ,@values)))
     `(progn
-       ,(when incudine:*node-enable-gain-p*
-          `(initialize
-            (setf (incudine::node-enable-gain-p (dsp-node)) t)))
-       (incf (incudine:audio-out current-channel)
-             ,(if incudine:*node-enable-gain-p*
-                  `(* (mem-aref (incudine::node-gain-data (dsp-node)) 'sample)
-                      ,node-value)
-                  node-value))
+       (incf (incudine:audio-out current-channel) ,node-value)
        (values))))
 
 (define-vug-macro node-out (&rest values)

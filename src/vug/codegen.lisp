@@ -1153,6 +1153,7 @@
   `(let ((last-node-id incudine::*last-node-id*))
      (unwind-protect
           (progn
+            (setf (incudine:node-enable-gain-p ,node) nil)
             (setf (incudine:node-id ,node) ,id)
             (setf incudine::*last-node-id* ,id)
             ,@body)

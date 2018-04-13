@@ -20,7 +20,8 @@
  '(sb-int:constant-form-value
    sb-ext:octets-to-string sb-ext:string-to-octets
    sb-ext:gc
-   sb-ext:get-time-of-day))
+   sb-ext:get-time-of-day
+   sb-ext:truly-the))
 
 (define-constant n-machine-word-bits sb-vm:n-machine-word-bits)
 

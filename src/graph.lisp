@@ -74,15 +74,18 @@
   ;; The last node of a group. It is NIL if the node is not a group
   (last nil))
 
+(defun reset-gain-data (node)
+  ;; Default level.
+  (setf (smp-ref (node-gain-data node) 0) #.(sample 1))
+  ;; Default curve.
+  (setf (smp-ref (node-gain-data node) 3) +seg-lin-func+)
+  ;; Default fade-time.
+  (setf (smp-ref (node-gain-data node) 9) +sample-zero+))
+
 (defun make-node (id index)
   (let ((obj (%make-node :id id :index index)))
     (when id (setf (node-hash obj) (int-hash id)))
-    ;; default level
-    (setf (smp-ref (node-gain-data obj) 0) (sample 1))
-    ;; default curve
-    (setf (smp-ref (node-gain-data obj) 3) +seg-lin-func+)
-    ;; default fade-time
-    (setf (smp-ref (node-gain-data obj) 9) (sample 0.02))
+    (reset-gain-data obj)
     (let ((start-time-ptr (node-start-time-ptr obj))
           (gain-data-ptr (node-gain-data obj)))
       (incudine.util::finalize obj (lambda ()
@@ -314,8 +317,9 @@
 
 (defun node-gain (obj)
   (declare (type (or node fixnum) obj))
-  (rt-eval (:return-value-p t)
-    (smp-ref (node-gain-data (if (node-p obj) obj (node obj))) 0)))
+  (incudine.util::truly-the sample
+    (rt-eval (:return-value-p t)
+      (smp-ref (node-gain-data (if (node-p obj) obj (node obj))) 0))))
 
 (defun set-node-gain (obj value)
   (declare (type (or node fixnum) obj) (type real value))
@@ -413,28 +417,30 @@
                   :format-control "Node hash-table has been corrupted.")))
     (values)))
 
-(declaim (inline node-fade-in))
 (defun node-fade-in (obj &optional duration curve)
   (let ((obj (if (node-p obj) obj (node obj))))
-    (setf (node-gain obj) +sample-zero+)
-    (node-segment obj (sample 1) (or duration (node-fade-time obj))
-                  +sample-zero+ curve #'identity)))
+    (cond ((null-node-p obj) obj)
+          (t
+           (setf (node-gain obj) +sample-zero+)
+           (node-segment obj (sample 1) (or duration (node-fade-time obj))
+                         +sample-zero+ (or curve (node-fade-curve obj))
+                         #'identity)))))
 
-(declaim (inline node-fade-out))
 (defun node-fade-out (obj &optional duration curve)
   (let ((obj (if (node-p obj) obj (node obj))))
     (node-segment obj +sample-zero+ (or duration (node-fade-time obj))
                   nil curve #'free)))
 
-(declaim (inline start-with-fade-in))
 (defun start-with-fade-in (node fade-time fade-curve)
-  (declare (type node node) #.*reduce-warnings*)
+  (declare (type node node))
   (when (or *node-enable-gain-p* (node-enable-gain-p node))
-    (setf (node-fade-time node)
-          (or fade-time
-              (let ((time (node-fade-time node)))
-                (if (plusp time) time *fade-time*))))
-    (node-fade-in node (node-fade-time node) fade-curve)))
+    (let ((fade-time (or fade-time
+                         (let ((time (node-fade-time node)))
+                           (reduce-warnings
+                             (if (plusp time) time *fade-time*))))))
+      (setf (node-fade-time node) fade-time)
+      (setf (node-fade-curve node) (or fade-curve *fade-curve*))
+      (node-fade-in node fade-time fade-curve))))
 
 (defun update-prev-groups (node)
   (declare (type node node))
@@ -477,7 +483,9 @@
       (dotimes (i nodes (setf (fill-pointer *dirty-nodes*) 0))
         (let ((n (reduce-warnings (aref *dirty-nodes* i))))
           (call-free-hook n)
-          (setf (node-id n) nil))))))
+          (reset-gain-data n)
+          (setf (node-enable-gain-p n) nil
+                (node-id n) nil))))))
 
 (defun add-node-to-head (item target fade-time fade-curve)
   (cond ((and (node-id target) (group-p target))
@@ -627,7 +635,8 @@
            (let ((new-node (updated-node id)))
              (declare (type node new-node))
              (node-add new-node :before target id hash name fn init-args
-                       fade-time fade-curve)
+                       (or fade-time (node-fade-time target))
+                       (or fade-curve (node-fade-curve target)))
              (when (node-id new-node)
                (let ((id (node-id target)))
                  (declare (type fixnum id))
@@ -859,6 +868,7 @@
                   (nrt-msg info "free group ~D" id))
                  (t
                   (%remove-node node)
+                  (reset-gain-data node)
                   (fix-collisions-from node)
                   (nrt-msg info "free node ~D" id)))))))
 
@@ -1398,18 +1408,14 @@
                  (setf (node-release-phase-p obj) t))
                (%segment-init start0 end0 samples curve0 grow a2 b1 y1 y2)
                (setf (node-current-function obj)
-                     (lambda (chan)
-                       (declare (type non-negative-fixnum chan))
+                     (lambda ()
                        (cond ((plusp remain)
-                              (when (zerop chan)
-                                (%segment-update-level level curve0 grow a2 b1
-                                                       y1 y2)
-                                (decf remain))
-                              (funcall (node-function obj) chan))
+                              (%segment-update-level level curve0 grow a2 b1 y1 y2)
+                              (decf remain)
+                              (funcall (node-function obj)))
                              (t (funcall (setf (node-current-function obj)
-                                               (node-function obj))
-                                         chan)
+                                               (node-function obj)))
                                 (funcall done-action obj)))
                        (values)))
                obj)))
-          (t (funcall done-action obj)))))
+          (t (funcall done-action obj) obj))))
