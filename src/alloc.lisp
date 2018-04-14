@@ -26,6 +26,7 @@
              (:include cons-pool)
              (:constructor %make-incudine-object-pool)
              (:copier nil))
+  (constructor (lambda ()) :type function)
   (real-time-p nil :type boolean)
   (spinlock nil :type (or null spinlock)))
 
@@ -60,6 +61,7 @@
                                 (new-incudine-object-pointer constructor #1#))
                      (incf (incudine-object-pool-size pool))))
     :grow 1
+    :constructor constructor
     :real-time-p real-time-p
     :spinlock (unless real-time-p (make-spinlock))))
 
@@ -80,9 +82,11 @@
                (incf (incudine-object-pool-size pool) delta)
                (values)))
         (do* ((i 1 (1+ i))
-              (last (new-incudine-object-pointer #'incudine::%make-buffer))
+              (last (new-incudine-object-pointer
+                      (incudine-object-pool-constructor pool)))
               (lst last (new-incudine-object-pointer
-                          #'incudine::%make-buffer lst)))
+                          (incudine-object-pool-constructor pool)
+                          lst)))
              ((= i delta)
               (if (and (incudine-object-pool-real-time-p pool) *rt-thread*)
                   (rt-eval () (expand lst last))
