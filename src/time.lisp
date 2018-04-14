@@ -16,11 +16,25 @@
 
 (in-package :incudine)
 
-(defstruct (tempo (:constructor %make-tempo) (:copier nil))
+(defstruct (tempo (:include incudine-object)
+                  (:constructor %make-tempo)
+                  (:copier nil))
   "Tempo type."
-  (ptr (incudine-missing-arg "Missing foreign pointer.") :type foreign-pointer))
+  (ptr (null-pointer) :type foreign-pointer)
+  (real-time-p nil :type boolean)
+  (foreign-free #'foreign-free :type function))
 
 (setf (documentation 'tempo-p 'function) "Return T if object is of type TEMPO.")
+
+(define-constant +tempo-pool-initial-size+ 20)
+
+(defvar *tempo-pool*
+  (make-incudine-object-pool +tempo-pool-initial-size+ #'%make-tempo nil))
+(declaim (type incudine-object-pool *tempo-pool*))
+
+(defvar *rt-tempo-pool*
+  (make-incudine-object-pool +tempo-pool-initial-size+ #'%make-tempo t))
+(declaim (type incudine-object-pool *rt-tempo-pool*))
 
 (defun make-tempo (value &optional (unit :bpm))
   (declare (type alexandria:positive-real value)
@@ -29,24 +43,46 @@
 
 UNIT is :BPM (default), :SPB or :BPS to set the tempo VALUE in beats
 per minute, seconds per beat or beats per second respectively."
-  (let* ((x (sample value))
-         (ptr (foreign-alloc 'sample :count 3
-                :initial-contents (case unit
-                                    (:bpm (list x (/ 60 x) (/ x 60)))
-                                    (:spb (list (/ 60 x) x (/ x)))
-                                    (:bps (list (* 60 x) (/ x) x)))))
-         (obj (%make-tempo :ptr ptr)))
-    (incudine-finalize obj (lambda () (foreign-free ptr)))
-    obj))
+  (let ((rt-p (allow-rt-memory-p)))
+    (multiple-value-bind (data obj free-fn pool)
+        (if rt-p
+            (values (foreign-rt-alloc 'sample :count 3)
+                    (incudine.util::alloc-rt-object *rt-tempo-pool*)
+                    #'safe-foreign-rt-free
+                    *rt-tempo-pool*)
+            (values (foreign-alloc 'sample :count 3)
+                    (incudine.util::alloc-object *tempo-pool*)
+                    #'foreign-free
+                    *tempo-pool*))
+      (declare (type foreign-pointer data) (type tempo obj))
+      (incudine-finalize obj
+        (lambda ()
+          (funcall free-fn data)
+          (incudine-object-pool-expand pool 1)))
+      (symbol-macrolet ((a (smp-ref data 0))
+                        (b (smp-ref data 1))
+                        (c (smp-ref data 2)))
+        (let ((x (reduce-warnings (sample value))))
+          (case unit
+            (:bpm (setf a x b (/ 60 x) c (* x #.(/ (sample 60)))))
+            (:spb (setf a (/ 60 x) b x c (/ x)))
+            (:bps (setf a (* 60 x) b (/ x) c x)))))
+      (setf (tempo-ptr obj) data
+            (tempo-real-time-p obj) rt-p
+            (tempo-foreign-free obj) free-fn)
+      obj)))
 
 (defmethod free-p ((obj tempo))
   (null-pointer-p (tempo-ptr obj)))
 
 (defmethod free ((obj tempo))
   (unless (free-p obj)
-    (foreign-free (tempo-ptr obj))
+    (funcall (tempo-foreign-free obj) (tempo-ptr obj))
     (incudine-cancel-finalization obj)
     (setf (tempo-ptr obj) (null-pointer))
+    (if (tempo-real-time-p obj)
+        (incudine.util::free-rt-object obj *rt-tempo-pool*)
+        (incudine.util::free-object obj *tempo-pool*))
     (nrt-msg debug "Free ~A" (type-of obj))
     (values)))
 
@@ -62,12 +98,10 @@ The value is initially *DEFAULT-BPM* beats per minute.")
   "Return the tempo in beats per minute. Setfable."
   (smp-ref (tempo-ptr tempo) 0))
 
-(declaim (inline set-bpm))
 (defun set-bpm (tempo bpm)
-  (rt-eval ()
-    (setf #1=(smp-ref (tempo-ptr tempo) 0) (sample bpm))
-    (setf (smp-ref (tempo-ptr tempo) 1) (/ (sample 60) #1#))
-    (setf (smp-ref (tempo-ptr tempo) 2) (/ #1# (sample 60))))
+  (setf #1=(smp-ref (tempo-ptr tempo) 0) (sample bpm))
+  (setf (smp-ref (tempo-ptr tempo) 1) (/ 60 #1#))
+  (setf (smp-ref (tempo-ptr tempo) 2) (* #1# #.(/ (sample 60))))
   bpm)
 
 (defsetf bpm set-bpm)
@@ -77,12 +111,10 @@ The value is initially *DEFAULT-BPM* beats per minute.")
   "Return the tempo in seconds per beat. Setfable."
   (smp-ref (tempo-ptr tempo) 1))
 
-(declaim (inline set-spb))
 (defun set-spb (tempo spb)
-  (rt-eval ()
-    (setf #1=(smp-ref (tempo-ptr tempo) 1) (sample spb))
-    (setf (smp-ref (tempo-ptr tempo) 0) (/ 60 #1#))
-    (setf (smp-ref (tempo-ptr tempo) 2) (/ #1#)))
+  (setf #1=(smp-ref (tempo-ptr tempo) 1) (sample spb))
+  (setf (smp-ref (tempo-ptr tempo) 0) (/ 60 #1#))
+  (setf (smp-ref (tempo-ptr tempo) 2) (/ #1#))
   spb)
 
 (defsetf spb set-spb)
@@ -92,12 +124,10 @@ The value is initially *DEFAULT-BPM* beats per minute.")
   "Return the tempo in beats per second. Setfable."
   (smp-ref (tempo-ptr tempo) 2))
 
-(declaim (inline set-bps))
 (defun set-bps (tempo bps)
-  (rt-eval ()
-    (setf #1=(smp-ref (tempo-ptr tempo) 2) (sample bps))
-    (setf (smp-ref (tempo-ptr tempo) 0) (* #1# 60))
-    (setf (smp-ref (tempo-ptr tempo) 1) (/ #1#)))
+  (setf #1=(smp-ref (tempo-ptr tempo) 2) (sample bps))
+  (setf (smp-ref (tempo-ptr tempo) 0) (* #1# 60))
+  (setf (smp-ref (tempo-ptr tempo) 1) (/ #1#))
   bps)
 
 (defsetf bps set-bps)

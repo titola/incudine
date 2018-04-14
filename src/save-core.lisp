@@ -145,6 +145,8 @@ core image starts up.")
                      (,*rt-tuning-pool* ,+tuning-pool-initial-size+)
                      (,*foreign-array-pool* ,+foreign-array-pool-initial-size+)
                      (,*rt-foreign-array-pool* ,+foreign-array-pool-initial-size+)
+                     (,*tempo-pool* ,+tempo-pool-initial-size+)
+                     (,*rt-tempo-pool* ,+tempo-pool-initial-size+)
                      (,incudine.analysis::*ring-input-buffer-pool*
                       ,incudine.analysis::+ring-buffer-pool-initial-size+)
                      (,incudine.analysis::*rt-ring-input-buffer-pool*
