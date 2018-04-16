@@ -147,8 +147,11 @@
 ;; Initial tempo in beats per minute.
 (setq *default-bpm* 60)
 
-;;; Curve for fade in/out.
+;;; Default curve for fade in/out.
 (setq *fade-curve* :lin)
+
+;;; Default duration for fade in/out.
+(setq *fade-time* 0)
 
 ;;; Velocity of the sound at 22°C, 1 atmosfera.
 (setq *sound-velocity* 345)

@@ -23,7 +23,8 @@
    #:*number-of-output-bus-channels* #:*number-of-bus-channels*
    #:*rt-edf-heap-size* #:*nrt-edf-heap-size* #:*rt-priority*
    #:*nrt-priority* #:*receiver-default-priority* #:*max-number-of-nodes*
-   #:*default-table-size* #:*default-bpm* #:*fade-curve* #:*midi-input-timeout*
+   #:*default-table-size* #:*default-bpm* #:*fade-curve* #:*fade-time*
+   #:*midi-input-timeout*
    #:*standard-optimize-settings*
    #:*foreign-sample-pool-size* #:*foreign-rt-memory-pool-size*
    #:*foreign-nrt-memory-pool-size*
@@ -90,7 +91,8 @@
    #:*nrt-priority* #:*fast-nrt-priority* #:*receiver-default-priority*
    #:*sndfile-buffer-size*
    #:*bounce-to-disk-guard-size* #:*default-header-type* #:*default-data-format*
-   #:*max-number-of-nodes* #:*default-table-size* #:*default-bpm* #:*fade-curve*
+   #:*max-number-of-nodes* #:*default-table-size* #:*default-bpm*
+   #:*fade-curve* #:*fade-time*
    #:*midi-input-timeout*
    #:*allow-rt-memory-pool-p*
    #:*standard-optimize-settings*
@@ -428,7 +430,7 @@
    #:node-start-time #:node-uptime #:null-node-p #:live-nodes
    #:next-node-id #:*node-root* #:node-release-phase-p #:node-gain
    #:node-enable-gain-p #:*node-enable-gain-p* #:node-fade-time
-   #:node-fade-curve #:*fade-time* #:node-fade-in #:node-fade-out
+   #:node-fade-curve #:node-fade-in #:node-fade-out
    #:pause #:unpause #:pause-p #:move #:before-p #:after-p #:head-p #:tail-p
    #:node-free-all #:stop-hook #:free-hook #:dograph #:dogroup #:dump
    #:set-control #:set-controls #:control-value #:control-getter
