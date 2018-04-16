@@ -30,16 +30,20 @@
 (defvar *last-large-node-id* +default-large-node-id+)
 (declaim (type non-negative-fixnum *last-large-node-id*))
 
-(defvar *node-enable-gain-p* nil)
+(defvar *node-enable-gain-p* nil
+  "Whether node output is enabled for all the nodes.")
 (declaim (type boolean *node-enable-gain-p*))
 
-(defvar *fade-time* 0)
+(defvar *fade-time* 0
+  "Default fade-time.")
 (declaim (type (real 0) *fade-time*))
 
-(defvar *fade-curve* :lin)
+(defvar *fade-curve* :lin
+  "Default curve of the ENVELOPE structure used for fade in/out.")
 (declaim (type (or symbol real) *fade-curve*))
 
 (defstruct (node (:constructor %make-node) (:copier nil))
+  "Node type."
   (id nil :type (or fixnum null))
   (hash 0 :type fixnum)
   ;; Index in the array of the nodes
@@ -73,6 +77,18 @@
   (next nil :type (or node null))
   ;; The last node of a group. It is NIL if the node is not a group
   (last nil))
+
+(setf
+  (documentation 'node-p 'function)
+  "Return T if object is of type NODE."
+  (documentation 'node-id 'function)
+  "Return the integer identifier of the node or NIL if the node is null."
+  (documentation 'node-name 'function)
+  "Return the name of the node."
+  (documentation 'node-enable-gain-p 'function)
+  "Return T if node output is enabled. Setfable."
+  (documentation 'node-release-phase-p 'function)
+  "Return T if the node is related to a released object (i.e. DSP instance).")
 
 (defun reset-gain-data (node)
   ;; Default level.
@@ -108,7 +124,8 @@
     (setf (node-prev group) :dummy-node
           (node-funcons group) nil
           (node-last group) :dummy-node)
-    group))
+    group)
+  "The root node of the node tree.")
 (declaim (type node *node-root*))
 
 (declaim (inline node-root-p))
@@ -128,15 +145,18 @@
 
 (declaim (inline null-node-p))
 (defun null-node-p (obj)
+  "Return T if the node is null."
   (null (node-id obj)))
 
 (declaim (inline group-p))
 (defun group-p (obj)
+  "Return T if OBJ is a group node."
   (declare (type node obj))
   (when (node-last obj) t))
 
 (declaim (inline node))
 (defun node (id)
+  "Return the node with integer identifier ID."
   (declare (type fixnum id) #.*standard-optimize-settings*)
   (if (zerop id) *node-root* (values (getihash id))))
 
@@ -194,6 +214,17 @@
     node))
 
 (defun make-group (id &optional (add-action :head) (target *node-root*))
+  "Create a group node.
+
+If ADD-ACTION is :HEAD (default), add the group at the head of the group node TARGET.
+
+If ADD-ACTION is :TAIL, add the group at the tail of the group node TARGET.
+
+If ADD-ACTION is :BEFORE, add the group immediately before the node TARGET.
+
+If ADD-ACTION is :AFTER, add the group immediately after the node TARGET.
+
+TARGET defaults to *NODE-ROOT*."
   (declare (type fixnum id) (type keyword add-action)
            (type (or node fixnum) target))
   (let ((target (if (numberp target) (node target) target)))
@@ -275,6 +306,7 @@
 
 (declaim (inline group))
 (defun group (obj)
+  "Return the parent group of the node OBJ."
   (declare (type (or node fixnum)))
   (node-parent (if (node-p obj) obj (node obj))))
 
@@ -306,16 +338,18 @@
 
 (declaim (inline node-start-time))
 (defun node-start-time (obj)
+  "Return the start time of the node in samples."
   (smp-ref (node-start-time-ptr (if (node-p obj) obj (node obj))) 0))
 
-(declaim (inline node-uptime))
 (defun node-uptime (obj)
+  "How long the node has been running. The returned time is in samples."
   (let ((n (if (node-p obj) obj (node obj))))
     (if (null-node-p n)
         +sample-zero+
         (- (now) (node-start-time n)))))
 
 (defun node-gain (obj)
+  "Return the current value of the node-gain. Setfable."
   (declare (type (or node fixnum) obj))
   (incudine.util::truly-the sample
     (rt-eval (:return-value-p t)
@@ -331,6 +365,7 @@
 (defsetf node-gain set-node-gain)
 
 (defun node-fade-time (obj)
+  "Return the duration of the fade in/out of the node output. Setfable."
   (declare (type (or node fixnum) obj))
   (rt-eval (:return-value-p t)
     (smp-ref (node-gain-data (if (node-p obj) obj (node obj))) 9)))
@@ -345,6 +380,8 @@
 (defsetf node-fade-time set-node-fade-time)
 
 (defun node-fade-curve (obj)
+  "Return the curve of the ENVELOPE structure used to fade in/out
+the node output. Setfable."
   (declare (type (or node fixnum) obj))
   (rt-eval (:return-value-p t)
     (sample->seg-function-spec
@@ -384,6 +421,7 @@
 
 (declaim (inline next-node-id))
 (defun next-node-id ()
+  "Return the next avalaible integer identifier for a node."
   (%next-node-id 1 65535 *last-node-id*))
 
 (declaim (inline next-large-node-id))
@@ -418,6 +456,11 @@
     (values)))
 
 (defun node-fade-in (obj &optional duration curve)
+  "If *NODE-ENABLE-GAIN-P* is T or NODE-ENABLE-GAIN-P returns T, change
+the node-gain from 0 to 1 in DURATION or NODE-FADE-TIME seconds.
+
+The fade CURVE is the curve of an ENVELOPE structure or NIL to use the
+curve returned by NODE-FADE-CURVE."
   (let ((obj (if (node-p obj) obj (node obj))))
     (cond ((null-node-p obj) obj)
           (t
@@ -427,6 +470,12 @@
                          #'identity)))))
 
 (defun node-fade-out (obj &optional duration curve)
+  "If *NODE-ENABLE-GAIN-P* is T or NODE-ENABLE-GAIN-P returns T, change
+the node-gain from the current value to zero in DURATION or NODE-FADE-TIME
+seconds.
+
+The fade CURVE is the curve of an ENVELOPE structure or NIL to use the
+curve returned by NODE-FADE-CURVE."
   (let ((obj (if (node-p obj) obj (node obj))))
     (node-segment obj +sample-zero+ (or duration (node-fade-time obj))
                   nil curve #'free)))
@@ -686,7 +735,26 @@
      (let ((,target (if (numberp ,target) (node ,target) ,target)))
        ,@body)))
 
-(defgeneric play (obj &key))
+(defgeneric play (obj &key)
+  (:documentation "Start playing.
+
+INIT-FUNCTION is the one-argument initialization function called on
+the object. INIT-FUNCTION defaults to #'IDENTITY.
+
+ID is an integer identifier or NIL to use the next available id.
+
+The keywords HEAD, TAIL, BEFORE and AFTER specify the add-action to
+add the new node. The value is the target node or node-id. By default
+the new node is added at the head of the root node.
+
+If NAME is non-NIL, it is the name of OBJ.
+
+If ACTION is non-NIL, it is a one-argument function called on the
+object after the initialization.
+
+FREE-HOOK is a list of function designators which are called in an
+unspecified order at the time the object OBJ is freed. The function
+argument is the object to free."))
 
 (defmethod play ((obj function) &key (init-function #'identity) id head tail
                  before after replace name action free-hook)
@@ -710,6 +778,10 @@
 
 ;;; Iteration over the nodes of the graph.
 (defmacro dograph ((var &optional node result) &body body)
+  "Iterate over the live nodes with VAR bound to each node and
+execute the body once for each node, then RESULT form is evaluated.
+
+The first node is NODE or *NODE-ROOT*."
   (with-gensyms (first-node)
     (let ((node (or node '*node-root*)))
       `(let ((,first-node ,node))
@@ -727,8 +799,12 @@
                  (rec (node-next curr) curr parent))))
     (rec (node-next group) nil (node-parent group))))
 
-;;; Iteration over the nodes of a group.
 (defmacro dogroup ((var group &optional result (recursive-p t)) &body body)
+  "Iterate over the nodes of the GROUP node with VAR bound to each node
+and execute the body once for each node, then RESULT form is evaluated.
+
+If RECURSIVE-P is T (default), iterate over the nodes of the sub-groups
+of GROUP."
   (with-gensyms (g last parent)
     `(let* ((,g ,group)
             (,g (if (numberp ,g) (node ,g) ,g)))
@@ -887,9 +963,13 @@
 
 (declaim (inline node-free-all))
 (defun node-free-all ()
+  "Free all the nodes."
   (node-free *node-root*))
 
-(defgeneric free-hook (obj))
+(defgeneric free-hook (obj)
+  (:documentation "A list of function designators which are called in
+an unspecified order at the time the object OBJ is freed. The function
+argument is the object to free."))
 
 (defmethod free-hook ((obj node))
   (rt-eval (:return-value-p t) (node-free-hook obj)))
@@ -926,7 +1006,8 @@
   (rt-eval () (%node-stop obj))
   (values))
 
-(defgeneric stop (obj))
+(defgeneric stop (obj)
+  (:documentation "Stop playing."))
 
 (defmethod stop ((obj node))
   (node-stop obj))
@@ -934,7 +1015,10 @@
 (defmethod stop ((obj integer))
   (node-stop (node obj)))
 
-(defgeneric stop-hook (obj))
+(defgeneric stop-hook (obj)
+  (:documentation "A list of function designators which are called in
+an unspecified order at the time the object OBJ is stopped by calling
+the STOP method. The function argument is the object to stop."))
 
 (defmethod stop-hook ((obj node))
   (rt-eval (:return-value-p t) (node-stop-hook obj)))
@@ -1093,12 +1177,20 @@
          (move src :after (node-last dest)))
         (t (move src :head dest))))
 
-(defun move (src move-action dest)
-  "Move a node of the graph."
-  (declare (type (or node fixnum) src dest)
+(defun move (node move-action target)
+  "Move a live node of the node tree.
+
+If MOVE-ACTION is :HEAD, move NODE at the head of the group node TARGET.
+
+If MOVE-ACTION is :TAIL, move NODE at the tail of the group node TARGET.
+
+If MOVE-ACTION is :BEFORE, move NODE immediately before TARGET.
+
+If MOVE-ACTION is :AFTER, move NODE immediately after TARGET."
+  (declare (type (or node fixnum) node target)
            (type (member :head :tail :before :after) move-action))
-  (let ((src (if (numberp src) (node src) src))
-        (dest (if (numberp dest) (node dest) dest)))
+  (let ((src (if (numberp node) (node node) node))
+        (dest (if (numberp target) (node target) target)))
     (declare (type node src dest) #.*standard-optimize-settings*)
     (rt-eval ()
       (unless (or (null-node-p src) (null-node-p dest))
@@ -1112,22 +1204,25 @@
               (:head move-node-head)
               (:tail move-node-tail)))))))
 
-(defun before-p (n1 n2)
+(defun before-p (node0 node1)
+  "Return T if NODE0 precedes NODE1."
   (declare (type (or node fixnum)))
-  (let ((n1 (if (numberp n1) (node n1) n1))
-        (n2 (if (numberp n2) (node n2) n2))
+  (let ((n0 (if (numberp node0) (node node0) node0))
+        (n1 (if (numberp node1) (node node1) node1))
         (result nil))
     (rt-eval (:return-value-p t)
-      (unless (or (null-node-p n1) (null-node-p n2))
+      (unless (or (null-node-p n0) (null-node-p n1))
         (dograph (curr)
-          (cond ((eq curr n2) (return result))
-                ((eq curr n1) (setf result t))))))))
+          (cond ((eq curr n1) (return result))
+                ((eq curr n0) (setf result t))))))))
 
 (declaim (inline after-p))
-(defun after-p (n1 n2)
-  (before-p n2 n1))
+(defun after-p (node0 node1)
+  "Return T if NODE1 precedes NODE0."
+  (before-p node1 node0))
 
 (defun head-p (node group)
+  "Return T if NODE is at the head of GROUP."
   (declare (type (or node fixnum) node group))
   (let ((group (if (numberp group) (node group) group)))
     (rt-eval (:return-value-p t)
@@ -1136,6 +1231,7 @@
           (eq (node-next group) node))))))
 
 (defun tail-p (node group)
+  "Return T if NODE is at the tail of GROUP."
   (declare (type (or node fixnum) node group))
   (let ((group (if (numberp group) (node group) group)))
     (rt-eval (:return-value-p t)
@@ -1156,12 +1252,20 @@
 
 (declaim (inline control-getter))
 (defun control-getter (obj control-name)
+  "Return the getter function to get the control parameter CONTROL-NAME
+related to the node OBJ.
+
+OBJ is a NODE structure or the integer identifier of the node."
   (declare (type (or non-negative-fixnum node) obj) (type symbol control-name)
            #+(or cmu sbcl) (values (or function null)))
   (cdr (control-functions obj control-name)))
 
 (declaim (inline control-setter))
 (defun control-setter (obj control-name)
+  "Return the setter function to set the control parameter CONTROL-NAME
+related to the node OBJ.
+
+OBJ is a NODE structure or the integer identifier of the node."
   (declare (type (or non-negative-fixnum node) obj) (type symbol control-name)
            #+(or cmu sbcl) (values (or function null)))
   (let ((fn (car (control-functions obj control-name))))
@@ -1178,6 +1282,10 @@
 
 (declaim (inline control-value))
 (defun control-value (obj control-name)
+  "Return the value of the control parameter CONTROL-NAME related
+to the node OBJ. Setfable.
+
+OBJ is a NODE structure or the integer identifier of the node."
   (declare (type (or non-negative-fixnum node) obj) (type symbol control-name))
   (rt-eval (:return-value-p t)
     (locally (declare #.*standard-optimize-settings*)
@@ -1189,6 +1297,9 @@
 
 (declaim (inline set-control))
 (defun set-control (obj control-name value)
+  "Set the VALUE of the control parameter CONTROL-NAME related to the node OBJ.
+
+OBJ is a NODE structure or the integer identifier of the node."
   (declare (type (or non-negative-fixnum node) obj) (type symbol control-name))
   (rt-eval ()
     (locally (declare #.*standard-optimize-settings*)
@@ -1204,6 +1315,12 @@
 (defsetf control-value set-control)
 
 (defun set-controls (obj &rest plist)
+  "Set one or more control parameters related to the node OBJ.
+
+OBJ is a NODE structure or the integer identifier of the node.
+
+The rest is an even number of arguments that are alternating control
+parameter names and values."
   (declare (type (or non-negative-fixnum node) obj))
   (rt-eval ()
     (locally (declare #.*standard-optimize-settings*)
@@ -1221,11 +1338,15 @@
 
 (declaim (inline control-list))
 (defun control-list (obj)
+  "Return the list of the values of the control parameters related to
+the node OBJ."
   (declare (type (or non-negative-fixnum node) obj))
   (rt-eval (:return-value-p t) (control-value obj :%control-list%)))
 
 (declaim (inline control-names))
 (defun control-names (obj)
+  "Return the list of the names of the control parameters related to
+the node OBJ."
   (declare (type (or non-negative-fixnum node) obj))
   (rt-eval (:return-value-p t) (control-value obj :%control-names%)))
 
@@ -1234,6 +1355,8 @@
   (the function (car (node-init-args node))))
 
 (defun reinit (node &rest args)
+  "Reinitialize NODE by calling the initialization function with
+arguments ARGS."
   (declare (type (or node positive-fixnum) node))
   (at 0
       (lambda ()
@@ -1251,7 +1374,8 @@
               (setf #1# free-hook)))
           node))))
 
-(defgeneric pause (obj))
+(defgeneric pause (obj)
+  (:documentation "Pause the object."))
 
 (defmethod pause ((obj node))
   (rt-eval (:return-value-p t)
@@ -1284,7 +1408,8 @@
 (defmethod pause ((obj integer))
   (pause (node obj)))
 
-(defgeneric unpause (obj))
+(defgeneric unpause (obj)
+  (:documentation "Unpause the object."))
 
 (defmethod unpause ((obj node))
   (rt-eval (:return-value-p t)
@@ -1328,7 +1453,8 @@
 (defmethod unpause ((obj integer))
   (unpause (node obj)))
 
-(defgeneric pause-p (obj))
+(defgeneric pause-p (obj)
+  (:documentation "Return T if object is paused."))
 
 (defmethod pause-p ((obj node))
   (node-pause-p obj))
@@ -1336,7 +1462,8 @@
 (defmethod pause-p ((obj integer))
   (node-pause-p (node obj)))
 
-(defgeneric dump (obj &optional stream))
+(defgeneric dump (obj &optional stream)
+  (:documentation "Dump information about OBJ to STREAM."))
 
 (defmethod dump ((obj node) &optional (stream *logger-stream*))
   (declare (type stream stream))
