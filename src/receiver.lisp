@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 
 (defstruct (receiver (:constructor %make-receiver)
                      (:copier nil))
+  "Receiver type."
   stream
   (functions nil :type list)
   (status nil :type boolean))
@@ -41,21 +42,36 @@
 
 (declaim (inline receiver))
 (defun receiver (stream)
+  "Return the receiver related to STREAM if it exists. Otherwise,
+return NIL."
   (values (gethash stream *receiver-hash*)))
 
-(defgeneric recv-start (stream &key))
+(defgeneric recv-start (stream &key)
+  (:documentation "Start receiving from STREAM.
 
-(defgeneric recv-stop (stream))
+PRIORITY is the priority of the receiver-thread that defaults to
+*RECEIVER-DEFAULT-PRIORITY*.
+
+If UPDATE-MIDI-TABLE-P is T (default), update the MIDI table used by
+DSP and UGEN instances.
+
+PortMidi receiver is started with polling TIMEOUT that defaults to
+*MIDI-INPUT-TIMEOUT*."))
+
+(defgeneric recv-stop (stream)
+  (:documentation "Stop receiving from STREAM."))
 
 (declaim (inline recv-status))
 (defun recv-status (stream)
+  "Receiver status for STREAM. Return :RUNNING, :STOPPED or :UNKNOWN."
   (let ((recv (receiver stream)))
     (if recv
         (if (receiver-status recv) :RUNNING :STOPPED)
         :UNKNOWN)))
 
-(declaim (inline recv-functions))
 (defun recv-functions (stream)
+  "Return the list of the receiver-functions called whenever there is
+input available from STREAM."
   (let ((recv (receiver stream)))
     (when recv (receiver-functions recv))))
 
@@ -72,6 +88,7 @@
 
 (declaim (inline remove-receiver))
 (defun remove-receiver (stream)
+  "Remove the receiver related to STREAM."
   (when stream
     (recv-stop stream)
     (remhash stream *receiver-hash*)))
@@ -82,7 +99,6 @@
 
 (defmethod valid-input-stream-p ((obj portmidi:output-stream)) nil)
 
-(declaim (inline midi-recv-funcall-all))
 (defun midi-recv-funcall-all (recv status data1 data2)
   (declare (type receiver recv)
            (type (unsigned-byte 8) status data1 data2))
@@ -141,6 +157,12 @@
 (defmethod valid-input-stream-p ((obj incudine.osc:output-stream)) nil)
 
 (defmacro make-osc-responder (stream address types function)
+  "Create and return a responder for a OSC:INPUT-STREAM that responds
+to an OSC message with ADDRESS and TYPES.
+
+FUNCTION is added to the list of receiver-functions for STREAM.
+
+The function takes the stream as argument."
   (let ((function (if (eq (car function) 'function)
                       (cadr function)
                       function)))
@@ -235,6 +257,7 @@
 
 (declaim (inline all-responders))
 (defun all-responders (stream)
+  "Return the list of the responders for STREAM."
   (values (gethash stream *responder-hash*)))
 
 (defun %add-responder (resp stream)
@@ -250,6 +273,8 @@
   resp)
 
 (defun add-responder (resp)
+  "Add the function of the responder RESP to the list of the
+receiver-functions."
   (declare (type responder resp))
   (let ((recv (responder-receiver resp)))
     (let ((resp-list (gethash (receiver-stream recv) *responder-hash*)))
@@ -257,6 +282,16 @@
         (%add-responder resp (receiver-stream recv))))))
 
 (defun make-responder (stream function)
+  "Create and return a responder for STREAM.
+
+FUNCTION is added to the list of receiver-functions called whenever
+there is input available from STREAM.
+
+If STREAM is a MIDI input stream, the function requires three
+arguments: status byte and two data bytes.
+
+If STREAM is a NET:INPUT-STREAM, the function takes the stream as
+argument."
   (declare (type function function))
   (let ((recv (or (receiver stream)
                   (add-receiver stream (make-receiver stream) #'identity
@@ -266,9 +301,11 @@
         (%add-responder resp stream)))))
 
 (defun remove-responder (resp)
+  "Remove the function of the responder RESP from the list of the
+receiver-functions."
   (declare (type responder resp))
   (let ((recv (responder-receiver resp)))
-    (let ((resp-list #1=(gethash (receiver-stream recv) *responder-hash*)))
+    (let ((resp-list (gethash (receiver-stream recv) *responder-hash*)))
       (when resp-list
         (let* ((old-functions (receiver-functions recv))
                (new-functions (remove (responder-function resp)
@@ -278,11 +315,13 @@
                     old-functions)
             (let ((new-list (delete resp resp-list)))
               (if new-list
-                  (setf #1# new-list)
+                  (setf (gethash (receiver-stream recv) *responder-hash*)
+                        new-list)
                   (remhash (receiver-stream recv) *responder-hash*)))))
         (values)))))
 
 (defun remove-all-responders (&optional stream)
+  "Remove the responders for STREAM or all the responders if STREAM is NIL."
   (if stream
       (dolist (resp (all-responders stream))
         (remove-responder resp))

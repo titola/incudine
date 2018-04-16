@@ -231,21 +231,21 @@
 
 #-dummy-audio
 (defun rt-loop-1 (frames-per-buffer)
-  "Realtime loop callback for sample by sample computation."
+  "Real-time loop callback for sample by sample computation."
   (declare #.*standard-optimize-settings*
            (type non-negative-fixnum frames-per-buffer))
   (rt-loop-form frames-per-buffer 1))
 
 #-dummy-audio
 (defun rt-loop-64 (frames-per-buffer)
-  "Realtime loop callback with a block size of 64 frames."
+  "Real-time loop callback with a block size of 64 frames."
   (declare #.*standard-optimize-settings*
            (type non-negative-fixnum frames-per-buffer))
   (rt-loop-form frames-per-buffer 64))
 
 #-dummy-audio
 (defmacro rt-loop-callback (block-size)
-  "Return a realtime loop callback with an arbitrary BLOCK-SIZE."
+  "Return a real-time loop callback with an arbitrary BLOCK-SIZE."
   (with-gensyms (%block-size)
     `(lambda (frames-per-buffer)
        (declare #.*standard-optimize-settings*
@@ -312,6 +312,22 @@
                  (after-stop-function #-dummy-audio #'after-rt-stop
                                       #+dummy-audio nil)
                  (gc-p t))
+  "Create the real-time thread named THREAD-NAME and return :STARTED
+if no error has occured.
+
+PREAMBLE-FUNCTION is called before to create the thread. By default
+it starts the auxiliary non-real-time threads and set the client name.
+
+THREAD-NAME defaults to \"audio-rt-thread\".
+
+THREAD-FUNCTION is called on the arguments THREAD-FUNCTION-ARGS for
+the initialisation and to call the real-time loop callback.
+
+AFTER-STOP-FUNCTION is called by RT-STOP and it terminates the audio loop
+by default.
+
+If GC-P is T (default), initiate a garbage collection before to create
+the thread."
   (declare (type string thread-name)
            (type (or function null) preamble-function after-stop-function)
            (type function thread-function)
@@ -332,6 +348,7 @@
                    :stopped)))))
 
 (defun rt-status ()
+  "Real-time thread status. Return :STARTED or :STOPPED."
   (rt-params-status *rt-params*))
 
 (defun call-after-stop ()
@@ -342,6 +359,7 @@
                    (msg debug "after realtime stop")))))
 
 (defun rt-stop ()
+  "Stop the real-time thread and return :STOPPED."
   (unless (eq (rt-status) :stopped)
     (cond ((rt-thread-p) (nrt-funcall #'rt-stop))
           (t (when *rt-thread*
