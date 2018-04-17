@@ -17,8 +17,8 @@
 (in-package :incudine)
 
 (defvar *bounce-to-disk-guard-size* 300
-  "Max size in seconds of the sndfile bounced to disk
-when the duration is undefined.")
+  "Max size in seconds of the written sound file when the duration is
+undefined.")
 
 (defvar *sample-size* 4)
 (declaim (type (integer 0 15) *sample-size*))
@@ -232,6 +232,12 @@ when the duration is undefined.")
                ,@body)))))))
 
 (defmacro with-nrt ((channels sample-rate &key (bpm *default-bpm*)) &body body)
+  "Execute BODY without to interfere with the real-time context.
+
+CHANNELS and SAMPLE-RATE are the number of the output channels and the
+sample rate respectively.
+
+BPM is the tempo in beats per minute and defaults to *DEFAULT-BPM*."
   `(incudine.util::with-local-sample-rate (,sample-rate)
      (let ((*to-engine-fifo* *nrt-fifo*)
            (*from-engine-fifo* *nrt-fifo*)
@@ -403,6 +409,95 @@ when the duration is undefined.")
                            duration (pad 2) (sample-rate *sample-rate*)
                            header-type data-format metadata)
                           &body body)
+  "Write the audio frames generated during BODY to the sound file
+OUTPUT-FILENAME.
+
+The execution of BODY doesn't interfere with the real-time context.
+
+If INPUT-FILENAME is a sound file, it represents the audio input
+accessible via AUDIO-IN.
+
+CHANNELS is the number of output channels and defaults to
+*NUMBER-OF-OUTPUT-BUS-CHANNELS*.
+
+If DURATION is non-NIL, it is the duration in seconds of the sound data.
+
+If the duration is undefined, i.e. the code in BODY schedules infinite
+events, the duration is *BOUNCE-TO-DISK-GUARD-SIZE*.
+
+PAD is the duration of the silence to add at the end of the produced
+sound. PAD is 2 by default but it is ignored if DURATION is non-NIL.
+
+SAMPLE-RATE defaults to *SAMPLE-RATE*.
+
+The string HEADER-TYPE specifies the type of the header (*) for the
+output file and defaults to *DEFAULT-HEADER-TYPE*.
+
+|-------+------------------------------------|
+| Type  | Description                        |
+|-------+------------------------------------|
+| wav   | WAV (Microsoft)                    |
+| aiff  | AIFF (Apple/SGI)                   |
+| au    | AU (Sun/NeXT)                      |
+| raw   | RAW (header-less)                  |
+| paf   | PAF (Ensoniq PARIS)                |
+| svx   | IFF (Amiga IFF/SVX8/SV16)          |
+| nist  | WAV (NIST Sphere)                  |
+| voc   | VOC (Creative Labs)                |
+| ircam | SF (Berkeley/IRCAM/CARL)           |
+| w64   | W64 (SoundFoundry WAVE 64)         |
+| mat4  | MAT4 (GNU Octave 2.0 / Matlab 4.2) |
+| mat5  | MAT5 (GNU Octave 2.1 / Matlab 5.0) |
+| pvf   | PVF (Portable Voice Format)        |
+| xi    | XI (FastTracker 2)                 |
+| htk   | HTK (HMM Tool Kit)                 |
+| sds   | SDS (Midi Sample Dump Standard)    |
+| avr   | AVR (Audio Visual Research)        |
+| wavex | WAVEX (Microsoft)                  |
+| sd2   | SD2 (Sound Designer II)            |
+| flac  | FLAC (Free Lossless Audio Codec)   |
+| caf   | CAF (Apple Core Audio File)        |
+| wve   | WVE (Psion Series 3)               |
+| ogg   | OGG (OGG Container format)         |
+| mpc2k | MPC (Akai MPC 2k)                  |
+| rf64  | RF64 (RIFF 64)                     |
+|-------+------------------------------------|
+
+The string DATA-FORMAT is the format (*) of the sample for the output
+file and defaults to *DEFAULT-DATA-FORMAT*.
+
+|-----------+--------------------|
+| Format    | Description        |
+|-----------+--------------------|
+| pcm-s8    | Signed 8 bit PCM   |
+| pcm-16    | Signed 16 bit PCM  |
+| pcm-24    | Signed 24 bit PCM  |
+| pcm-32    | Signed 32 bit PCM  |
+| pcm-u8    | Unsigned 8 bit PCM |
+| float     | 32 bit float       |
+| double    | 64 bit float       |
+| ulaw      | U-Law              |
+| alaw      | A-Law              |
+| ima-adpcm | IMA ADPCM          |
+| ms-adpcm  | Microsoft ADPCM    |
+| gsm610    | GSM 6.10           |
+| vox-adpcm | VOX ADPCM          |
+| g721-32   | 32kbs G721 ADPCM   |
+| g723-24   | 24kbs G723 ADPCM   |
+| dwvw-12   | 12 bit DWVW        |
+| dwvw-16   | 16 bit DWVW        |
+| dwvw-24   | 24 bit DWVW        |
+| dpcm-8    | 8 bit DPCM         |
+| dpcm-16   | 16 bit DPCM        |
+| vorbis    | Vorbis             |
+|-----------+--------------------|
+
+(*) The recognized headers and formats depend on the version of libsndfile.
+
+METADATA is a property list to set string metadata in OUTPUT-FILENAME.
+Not all file types support metadata. The valid properties are: title,
+copyright, software, artist, comment, date, album, license, tracknumber
+and genre."
   `(,@(if input-filename
           `(%bounce-to-disk-with-infile ,input-filename)
           '(%bounce-to-disk))
@@ -496,5 +591,18 @@ when the duration is undefined.")
 
 (defmacro bounce-to-buffer ((output-buffer &key input-buffer (start 0) frames
                             (sample-rate *sample-rate*) mix-p) &body body)
+  "Write the audio frames generated during BODY to the BUFFER structure
+OUTPUT-BUFFER, starting from the buffer frame START (0 by default).
+
+The execution of BODY doesn't interfere with the real-time context.
+
+If FRAMES is non-NIL, it is the number of frames to write.
+
+If INPUT-BUFFER is a BUFFER structure, it represents the audio input
+accessible via AUDIO-IN.
+
+SAMPLE-RATE defaults to *SAMPLE-RATE*.
+
+If MIX-P is T, mix the new data with the old content of the buffer."
   `(%bounce-to-buffer ,output-buffer ,input-buffer ,start ,frames ,sample-rate
                       ,mix-p (bounce-function ,body)))

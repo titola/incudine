@@ -104,24 +104,24 @@ score block to ignore."
                       "LATEX" "ABSTRACT" "PROOF" "ASCII" "BEAMER" "HTML"
                       "VIDEO" "ODT" "TEXINFO")))))
 
-;;; Define an arbitrary score statement.
-;;; The name of the score statement is a symbol or a string.
-;;; The statement is formed by the elements of the returned list.
-;;;
-;;; Example:
-;;;
-;;;     (defscore-statement i1 (time dur freq amp)
-;;;       `(,time my-func (dur ,dur) ,freq ,amp))
-;;;
-;;; where the Csound score statement
-;;;
-;;;     i1 3.4 1.75 440 .3
-;;;
-;;; will be expanded in a time tagged lisp function
-;;;
-;;;     3.4 my-func (dur 1.75) 440 0.3
-;;;
 (defmacro defscore-statement (name args &rest body)
+  "Define an arbitrary score statement named NAME, formed by the
+elements of the returned list.
+
+The name of the score statement is a symbol or a string.
+
+Example:
+
+    (defscore-statement i1 (time dur freq amp)
+      `(,time my-func (dur ,dur) ,freq ,amp))
+
+where the Csound score statement
+
+    i1 3.4 1.75 440 .3
+
+will be expanded in a time tagged lisp function
+
+    3.4 my-func (dur 1.75) 440 0.3"
   (multiple-value-bind (decl rest)
       (incudine.util::separate-declaration body)
     `(progn
@@ -709,14 +709,34 @@ or IGNORE-SCORE-STATEMENTS."
         (mapc #'unintern (list %sched sched)))))))
 
 (defun regofile->sexp (path &optional function-name compile-rego-p)
+  "From a rego file PATH, return the corresponding lisp form inside the
+definition of a function optionally named FUNCTION-NAME.
+
+If COMPILE-REGO-P is NIL (default), use an interpreter to evaluate the
+event list at runtime when this function is called."
   (with-open-file (score path)
     (rego-stream->sexp score function-name compile-rego-p)))
 
 (declaim (inline regofile->function))
-(defun regofile->function (path &optional fname compile-rego-p)
-  (eval (regofile->sexp path fname compile-rego-p)))
+(defun regofile->function (path &optional function-name compile-rego-p)
+  "From a rego file PATH, define a function optionally named
+FUNCTION-NAME to evaluate the corresponding lisp form.
 
-(defun regofile->lispfile (path &optional fname lisp-file compile-rego-p)
+If COMPILE-REGO-P is NIL (default), use an interpreter to evaluate the
+event list at runtime."
+  (eval (regofile->sexp path function-name compile-rego-p)))
+
+(defun regofile->lispfile (path &optional function-name lisp-file compile-rego-p)
+  "Convert from a rego file to a lisp file.
+
+The lisp file contains the definition of a function optionally named
+FUNCTION-NAME.
+
+If LISP-FILE is NIL, the name of the lisp file is the name of the rego
+file PATH with file extension \"cudo\".
+
+If COMPILE-REGO-P is NIL (default), use an interpreter to evaluate the
+event list at runtime when the function is called."
   (declare (type (or pathname string null) path lisp-file))
   (let ((lisp-file (or lisp-file (make-pathname :defaults path
                                                 :type "cudo"))))
@@ -780,9 +800,13 @@ or IGNORE-SCORE-STATEMENTS."
   (dolist (l list list) (format stream "~{~S~^ ~}~%" l)))
 
 (defun regofile->list (path)
+  "From a rego file PATH, return the corresponding event list as a
+list of lists (time function-name &rest arguments)."
   (with-open-file (f path) (stream->regolist f)))
 
 (defun regolist->file (list path)
+  "Write a rego file PATH with the event list obtained from a list of
+lists (time function-name &rest arguments)."
   (with-open-file (f path :direction :output :if-exists :supersede)
     (write-regolist list f)
     path))
