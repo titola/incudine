@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -27,7 +27,8 @@
 (define-condition error-generic (lilv-error)
   ((errno :reader errno :initarg :errno))
   (:report (lambda (condition stream)
-             (princ (get-error-text (errno condition))
+             (princ (cffi:foreign-funcall "strerror" :int (errno condition)
+                                          :string)
                     stream))))
 
 (defmacro allocation-error (obj-type)

@@ -18,6 +18,11 @@
 
 (defvar *world* (make-world))
 
+(declaim (inline free-p))
+(defun free-p (obj)
+  (declare (type pointer-wrap))
+  (cffi:null-pointer-p (pointer-wrap-pointer obj)))
+
 (defun init-world ()
   (when (free-p *world*)
     (setf *world* (world-new))
@@ -51,11 +56,6 @@
          (lilv:plugins-get-by-uri
            (lilv:world-get-all-plugins lilv:*world*) node)
       (lilv:node-free node))))
-
-(declaim (inline free-p))
-(defun free-p (obj)
-  (declare (type pointer-wrap))
-  (cffi:null-pointer-p (pointer-wrap-pointer obj)))
 
 (defgeneric free (obj))
 
