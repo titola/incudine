@@ -741,7 +741,7 @@ event list at runtime when the function is called."
   (let ((lisp-file (or lisp-file (make-pathname :defaults path
                                                 :type "cudo"))))
     (with-open-file (lfile lisp-file :direction :output :if-exists :supersede)
-      (write (regofile->sexp path fname compile-rego-p)
+      (write (regofile->sexp path function-name compile-rego-p)
              :stream lfile :gensym nil)
       (terpri lfile)
       (msg debug "convert ~A -> ~A" path lisp-file)
