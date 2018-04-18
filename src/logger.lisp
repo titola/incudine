@@ -32,14 +32,18 @@
 (defvar *logger-time* nil)
 (declaim (type (member :sec :samp nil) *logger-time*))
 
-(defvar *logger-stream* *error-output*)
+(defvar *logger-stream* *error-output*
+  "Stream for log messages.")
 (declaim (type stream *logger-stream*))
 
-(defvar *logger-force-output-p* t)
+(defvar *logger-force-output-p* t
+  "Whether FORCE-OUTPUT is called after a log message.")
 (declaim (type boolean *logger-force-output-p*))
 
 (declaim (inline logger-level))
 (defun logger-level ()
+  "Return the log level. Should be one of :ERROR, :WARN (default),
+:INFO or :DEBUG. Setfable."
   (cond ((= *logger-mask* +logger-error-mask+) :error)
         ((= *logger-mask* +logger-warn-mask+) :warn)
         ((= *logger-mask* +logger-info-mask+) :info)
@@ -62,7 +66,10 @@
 (defsetf logger-level set-logger-level)
 
 (declaim (inline logger-time))
-(defun logger-time () *logger-time*)
+(defun logger-time ()
+  "Return the time unit used for the log messages. Should be one
+of :SEC, :SAMP or NIL (default). Setfable."
+  *logger-time*)
 
 (declaim (inline set-logger-time))
 (defun set-logger-time (unit)
@@ -71,8 +78,8 @@
 
 (defsetf logger-time set-logger-time)
 
-(declaim (inline default-logger-time-function))
 (defun default-logger-time-function ()
+  "Default function to format the timestamp used for the log messages."
   (let ((seconds-p (eq *logger-time* :sec)))
     (format *logger-stream* "~:[~,1F~;~,3F~] " seconds-p
             (if seconds-p
@@ -83,7 +90,10 @@
 (declaim (type function  *logger-time-function*))
 
 (declaim (inline logger-time-function))
-(defun logger-time-function () *logger-time-function*)
+(defun logger-time-function ()
+  "Return the function of no arguments to format the timestamp used
+for the log messages. Setfable."
+  *logger-time-function*)
 
 (declaim (inline set-logger-time-function))
 (defun set-logger-time-function (function)
@@ -93,12 +103,15 @@
 
 (defsetf logger-time-function set-logger-time-function)
 
-(defmacro with-local-logger ((&optional stream level (time nil time-p)
-                              time-function) &body body)
+(defmacro with-local-logger ((&optional stream level (time-unit nil time-unit-p)
+                              time-format-function) &body body)
+  "Log LEVEL, TIME-UNIT and TIME-FORMAT-FUNCTION to log messages
+inside BODY."
   `(let (,@(if stream `((*logger-stream* ,stream)))
          ,@(if level `((*logger-mask* (get-logger-mask ,level))))
-         ,@(if time-p `((*logger-time* ,time)))
-         ,@(if time-function `((*logger-time-function* ,time-function))))
+         ,@(if time-unit-p `((*logger-time* ,time-unit)))
+         ,@(if time-format-function
+               `((*logger-time-function* ,time-format-function))))
      ,@body))
 
 (declaim (inline logger-active-p))
@@ -137,8 +150,18 @@
           (incudine:nrt-funcall #'logging)
           (logging)))))
 
-(defmacro msg (type control-string &rest args)
-  `(%msg (ensure-symbol ',type "INCUDINE.UTIL") ,control-string (list ,@args)))
+(defmacro msg (type format-control &rest format-arguments)
+  "Produce a formatted log message controlled by FORMAT-CONTROL and
+FORMAT-ARGUMENTS.
 
-(defmacro nrt-msg (type control-string &rest args)
-  `(%nrt-msg (ensure-symbol ',type "INCUDINE.UTIL") ,control-string ,@args))
+TYPE should be one of ERROR, WARN, INFO or DEBUG."
+  `(%msg (ensure-symbol ',type "INCUDINE.UTIL")
+         ,format-control (list ,@format-arguments)))
+
+(defmacro nrt-msg (type format-control &rest format-arguments)
+  "Produce a formatted log message in nrt-thread controlled by
+FORMAT-CONTROL and FORMAT-ARGUMENTS.
+
+TYPE should be one of ERROR, WARN, INFO or DEBUG."
+  `(%nrt-msg (ensure-symbol ',type "INCUDINE.UTIL")
+             ,format-control ,@format-arguments))

@@ -40,7 +40,8 @@
     :element-type :default
     :serve-events nil
     :auto-close t
-    :external-format (stream-external-format sb-sys:*stdout*)))
+    :external-format (stream-external-format sb-sys:*stdout*))
+  "Output stream for null output.")
 
 (defmacro var-globally-special-p (symbol)
   `(sb-walker:var-globally-special-p ,symbol))

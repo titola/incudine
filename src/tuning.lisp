@@ -19,6 +19,7 @@
 (defstruct (tuning (:include buffer-base)
                    (:constructor %make-tuning)
                    (:copier nil))
+  "Tuning type."
   (description "" :type string)
   ;; Scale degrees specified as cents.
   (%cents (make-array 13 :element-type 'single-float)
@@ -38,6 +39,10 @@
   ;;     TEMP-VALUE-2    SAMPLE type
   ;;
   (aux-data (null-pointer) :type foreign-pointer))
+
+(setf
+  (documentation 'tuning-description 'function)
+  "Return the description of the tuning.")
 
 (define-constant +last-sample-ratio-reciprocal-index+ 128)
 
@@ -64,6 +69,7 @@
 
 (declaim (inline tuning-data))
 (defun tuning-data (obj)
+  "Return the foreign pointer to the tuning data."
   (buffer-base-data-ptr obj))
 
 (defmacro with-tuning-cents-and-ratios ((cents-var ratios-var length)
@@ -131,6 +137,21 @@
 
 (defun make-tuning (&key notes file description (keynum-base 69) (freq-base 440)
                     (degree-index 9) (real-time-p (allow-rt-memory-p)))
+  "Create and return a new TUNING structure with optional DESCRIPTION.
+
+If NOTES is non-NIL, it is a list of pitch values that are ratios
+and/or floating point values (cents). The first note 1/1 (or 0.0) is
+implicit. This format is compatible with the Scale file format
+described at http://www.huygens-fokker.org/scala/scl_format.html.
+
+If FILE is non-NIL, get the scale from a Scala file.
+
+If NOTES and FILE are NIL, create a 12-tone equal tempered scale.
+
+The reference frequency FREQ-BASE, the related key number KEYNUM-BASE
+and DEGREE-INDEX default to 440, 69 and 9 respectively.
+
+Set REAL-TIME-P to NIL to disallow real-time memory pools."
   (declare (type list notes)
            (type (or null string pathname) file)
            (type (or null string) description)
@@ -165,19 +186,22 @@
 
 (declaim (inline tuning-keynum-base))
 (defun tuning-keynum-base (tuning)
+  "Return the key number of TUNING used as reference."
   (u8-ref (tuning-aux-data tuning) 0))
 
 (declaim (inline tuning-degree-index))
 (defun tuning-degree-index (tuning)
+  "Return the scale degree of TUNING used as reference."
   (u8-ref (tuning-aux-data tuning) 1))
 
 (declaim (inline tuning-freq-base))
 (defun tuning-freq-base (tuning)
+  "Return the reference frequency of TUNING."
   (smp-ref (tuning-aux-data tuning) +tuning-freq-base-index+))
 
 (defun set-tuning-reference (tuning keynum-base freq-base degree-index)
   "Change KEYNUM-BASE, FREQ-BASE and DEGREE-INDEX used as reference
-to generate the TUNING frequencies."
+to generate the frequencies of the TUNING."
   (declare (type tuning tuning)
            (type (integer 0 127) keynum-base degree-index)
            (type (real 0 20000) freq-base))
@@ -191,14 +215,18 @@ to generate the TUNING frequencies."
 
 (declaim (inline tuning-cents))
 (defun tuning-cents (tuning)
+  "Return the list of pitch values of the TUNING in cents."
   (tuning-%cents tuning))
 
 (declaim (inline tuning-ratios))
 (defun tuning-ratios (tuning)
+  "Return the list of pitch values of the TUNING as ratios."
   (tuning-%ratios tuning))
 
 (declaim (inline tuning-cps))
 (defun tuning-cps (tuning keynum)
+  "Return the frequency of the key number KEYNUM in a TUNING.
+Setfable."
   (declare (type tuning tuning) (type (integer 0 127) keynum))
   (buffer-value tuning keynum))
 
@@ -284,8 +312,11 @@ to generate the TUNING frequencies."
 
 (defun set-tuning (tuning notes-or-file &optional description keynum-base
                    freq-base degree-index)
-  "Change the notes of a TUNING structure. If NOTES-OR-FILE is the
-path of a .scl file, import the notes from this file."
+  "Change the notes and optionally the DESCRIPTION, the reference
+frequency FREQ-BASE, KEYNUM-BASE and DEGREE-INDEX of a TUNING structure.
+
+If NOTES-OR-FILE is the path of a Scala file, import the notes from
+that file."
   (declare (type tuning tuning)
            (type (or list string pathname) notes-or-file)
            (type (or string null) description)
@@ -310,16 +341,16 @@ path of a .scl file, import the notes from this file."
           (declare (type (unsigned-byte 8) len))
           (set-tuning-notes tuning notes len descr)))))
 
-;;; We can use the ears to directly set the frequencies in a TUNING
+;;; We can use the ears to directly set the frequencies of a TUNING
 ;;; from the keynum START to the keynum END. Then we call TUNING-NOTES-FROM-DATA
 ;;; to update the TUNING (cents, ratios and all the other frequencies).
 (defun tuning-notes-from-data (tuning start end &optional description
                                (significand-error 5.e-6))
   "Compute the notes of the scale from the frequencies stored in a
-TUNING structure, starting from the keynum START and ending to the
-keynum END. The ratio between the frequencies in START and END is the
-last TUNING ratio. If SIGNIFICAND-ERROR is non-zero (default), try to
-minimize the TUNING ratios by introducing an error (default 0.0005%)
+TUNING structure, starting from the key number START and ending to the
+key number END. The ratio between the frequencies in START and END is
+the last TUNING ratio. If SIGNIFICAND-ERROR is non-zero (default), try
+to minimize the TUNING ratios by introducing an error (default 0.0005%)
 in the significand of the floating point numbers."
   (declare (type tuning tuning) (type (integer 0 127) start end)
            (type (or null string) description))
@@ -336,7 +367,7 @@ in the significand of the floating point numbers."
             with data = (tuning-data tuning) do
               (setf (aref (tuning-ratios tuning) i)
                     (reduce-warnings
-                      (rationalize*
+                      (incudine.util:rationalize*
                         ;; Integers too large with double precision.
                         (coerce (/ (smp-ref data k) (smp-ref data start))
                                 'single-float)
@@ -351,10 +382,11 @@ in the significand of the floating point numbers."
   "Try to minimize the TUNING ratios by introducing an error in the
 significand of the floating point numbers. The error is 0.0005% by default."
   (declare (type tuning tuning))
-  (set-tuning tuning (mapcar (lambda (x)
-                               (rationalize* x (coerce significand-error
-                                                       'single-float)))
-                             (cdr (coerce (tuning-ratios tuning) 'list)))
+  (set-tuning tuning
+              (mapcar (lambda (x)
+                        (incudine.util:rationalize*
+                          x (coerce significand-error 'single-float)))
+                      (cdr (coerce (tuning-ratios tuning) 'list)))
               (tuning-description tuning)))
 
 (declaim (inline scl-string))
@@ -407,11 +439,11 @@ significand of the floating point numbers. The error is 0.0005% by default."
           (when (zerop (decf num-of-notes))
             (return (nreverse acc))))))))
 
-(defun load-sclfile (filespec)
+(defun load-sclfile (path)
   "Return the pitch values, the number of notes and the description of
-a scale stored in FILESPEC in scale file format."
-  (declare (type (or string pathname) filespec))
-  (with-open-file (scl filespec)
+the scale stored in the Scala file PATH."
+  (declare (type (or string pathname) path))
+  (with-open-file (scl path)
     (let ((descr (scl-description scl)))
       (when descr
         (let ((n (scl-num-of-notes scl)))
@@ -462,7 +494,8 @@ a scale stored in FILESPEC in scale file format."
           (t (format nil "~A" r)))))
 
 (defun tuning-save (tuning path)
-  "Save the notes of a TUNING structure in scale file format."
+  "Save pitch values and description of a TUNING structure to the file PATH
+in Scale file format."
   (declare (type tuning tuning) (type (or string pathname) path))
   (with-open-file (scl path :direction :output :if-exists :supersede)
     (let ((degrees (1- (length (tuning-cents tuning)))))
@@ -476,7 +509,7 @@ a scale stored in FILESPEC in scale file format."
       (pathname path))))
 
 (defun copy-tuning (tuning)
-  "Return a copy of TUNING structure."
+  "Return a copy of TUNING."
   (declare (type tuning tuning))
   (if (free-p tuning)
       (msg error "Unusable tuning.")
@@ -495,7 +528,8 @@ a scale stored in FILESPEC in scale file format."
 (defvar *tuning-et12* (make-tuning))
 (declaim (type tuning *tuning-et12*))
 
-(defvar *default-tuning* *tuning-et12*)
+(defvar *default-tuning* *tuning-et12*
+  "Default TUNING structure.")
 (declaim (type tuning *default-tuning*))
 
 (declaim (inline tuning-keynum-base-range))
@@ -547,16 +581,17 @@ for second.  Example: octave 8 starts with 256 Hz (about middle C)."
       (values oct index frac))))
 
 (defun pch->keynum (pitch-class &optional (tuning *default-tuning*))
-  "Convert from PITCH-CLASS value to keynum.  The second returned value is
-the fractional part.  PITCH-CLASS is a floating point number xx.yy[z]* where
+  "Convert from PITCH-CLASS value to key number. The second returned
+value is the fractional part. PITCH-CLASS is a floating point number
+xx.yy[z]* where
 
     xx  = octave number from 0 to 14
     yy  = scale degree from 0 to 99
     z*  = fractional part 0.z* to interpolate between yy and (+ yy 1)
 
-Note: if the returned keynum is used without the fractional part, it is
-necessary to avoid round off problems by adding 1e-6 to PITCH-CLASS before
-the conversion.
+Note: if the returned key number is used without the fractional part, it
+is necessary to avoid round off problems by adding 1e-6 to PITCH-CLASS
+before the conversion.
 
 Example with ET12 scale:
 
@@ -611,7 +646,7 @@ Example with ET12 scale:
 (defun pch->cps (pitch-class &optional (tuning *default-tuning*))
   "Convert from PITCH-CLASS value to cycles-per-second.  If TUNING is NIL,
 the table lookup is the same used by Csound's cpspch opcode.  If TUNING is
-a TUNING struct, PITCH-CLASS is a floating point number xx.yy[z]* where
+a TUNING structure, PITCH-CLASS is a floating point number xx.yy[z]* where
 
     xx  = octave number from 0 to 14
     yy  = scale degree from 0 to 99
@@ -657,7 +692,9 @@ Example with ET12 scale:
 
 (declaim (inline keynum->pch))
 (defun keynum->pch (keynum &optional (tuning *default-tuning*))
-  "Convert from KEYNUM to pitch class value."
+  "Convert from key number KEYNUM to pitch class value.
+
+The TUNING structure defaults to *DEFAULT-TUNING*."
   (declare (type (integer 0 127) keynum) (type tuning tuning))
   (multiple-value-bind (oct degree) (%keynum->pch keynum tuning)
     (+ oct (* degree .01))))
@@ -689,7 +726,9 @@ Example with ET12 scale:
             (t (tquantize 64 32))))))
 
 (defun cps->pch (freq &optional (tuning *default-tuning*))
-  "Convert from FREQ cycles-per-second to pitch class value."
+  "Convert from FREQ cycles-per-second to pitch class value.
+
+The TUNING structure defaults to *DEFAULT-TUNING*."
   (declare (type real freq) (type tuning tuning))
   (multiple-value-bind (keynum round-up-p) (tuning-nearest-keynum freq tuning)
     (declare (type (integer 0 127) keynum) (type boolean round-up-p))
