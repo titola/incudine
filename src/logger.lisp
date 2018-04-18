@@ -35,8 +35,8 @@
 (defvar *logger-stream* *error-output*)
 (declaim (type stream *logger-stream*))
 
-(defvar *logger-force-output* t)
-(declaim (type boolean *logger-force-output*))
+(defvar *logger-force-output-p* t)
+(declaim (type boolean *logger-force-output-p*))
 
 (declaim (inline logger-level))
 (defun logger-level ()
@@ -123,7 +123,7 @@
       (princ (format nil "~A: " type) *logger-stream*))
     (apply #'format *logger-stream* control-string args)
     (terpri *logger-stream*)
-    (when *logger-force-output*
+    (when *logger-force-output-p*
       (force-output *logger-stream*))))
 
 (defun %nrt-msg (type control-string &rest args)

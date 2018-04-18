@@ -116,7 +116,7 @@
    #:limited-sample #:maybe-limited-sample
    #:channel-number #:bus-number
    #:*reduce-warnings* #:reduce-warnings
-   #:*logger-stream* #:*null-output* #:*logger-force-output*
+   #:*logger-stream* #:*null-output* #:*logger-force-output-p*
    #:msg #:nrt-msg #:logger-level #:with-local-logger
    #:logger-time #:logger-time-function #:default-logger-time-function
    #:compare-and-swap #:barrier

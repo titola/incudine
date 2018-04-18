@@ -350,7 +350,7 @@
 ;; LOGGER-LEVEL is :ERROR, only the error messages are enabled. The
 ;; default is :WARN.
 
-;; *LOGGER-STREAM* is *STANDARD-OUTPUT* and LOGGER-FORCE-OUTPUT* is T
+;; *LOGGER-STREAM* is *STANDARD-OUTPUT* and *LOGGER-FORCE-OUTPUT-P* is T
 ;; *by default.
 
 ;; Some examples:
