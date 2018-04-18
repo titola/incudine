@@ -203,6 +203,26 @@
           ((plusp (logand i +table-maxlen+)) lobits)
         (declare (type non-negative-fixnum i lobits)))))
 
+(defun rationalize* (x &optional (significand-error 5.e-6))
+  "Convert reals to rationals and try to minimize the ratios by
+introducing an error in the significand of the floating point number.
+The error is 0.0005% by default."
+  (declare (type real x) (type single-float significand-error))
+  (if (zerop significand-error)
+      (rationalize x)
+      (let ((x (coerce x 'single-float)))
+        (multiple-value-bind (m e s) (integer-decode-float x)
+          (let ((e (expt 2.0 e)))
+            (labels ((rat (i r)
+                       (declare (type fixnum i) (type rational r))
+                       (if (>= i (floor (* m (+ 1.0 significand-error))))
+                           r
+                           (rat (1+ i)
+                                (let ((n (rationalize (* i e s))))
+                                  (if (< (numerator n) (numerator r)) n r))))))
+              (rat (floor (* m (- 1.0 significand-error)))
+                   (rationalize x))))))))
+
 (declaim (inline declare-form-p))
 (defun declare-form-p (lst)
   (eq (car lst) 'declare))

@@ -101,6 +101,7 @@
    #:ensure-incudine-object-pool-size
    #:incudine-version
    #:exit
+   #:without-interrupts #:with-pinned-objects #:with-gc-pending
    #:next-power-of-two #:power-of-two-p
    #:apply-sample-coerce
    #:alloc-multi-channel-data #:free-multi-channel-data
@@ -123,9 +124,7 @@
    #:get-bytes-consed-in
    #:thread-priority
    #:seed-random-state
-   #:sample->fixnum #:sample->int #:float->fixnum
-   #:without-interrupts #:with-pinned-objects #:with-gc-pending
-   #:calc-lobits
+   #:sample->fixnum #:sample->int #:float->fixnum #:rationalize* #:calc-lobits
    #:rt-thread-p #:rt-eval #:rt-eval-if #:allow-rt-memory-p
    #:foreign-pointer
    #:smp-ref #:i8-ref #:u8-ref #:i16-ref #:u16-ref #:i32-ref #:u32-ref
