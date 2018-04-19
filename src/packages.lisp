@@ -72,7 +72,8 @@
   (:import-from #:incudine.external #:sample-complex #:foreign-alloc-sample)
   (:intern #:incudine-object #:incudine-object-pool #:make-incudine-object-pool
            #:incudine-object-pool-expand
-           #:alloc-multi-channel-data #:free-multi-channel-data)
+           #:alloc-multi-channel-data #:free-multi-channel-data
+           #:apply-sample-coerce)
   (:export
    #:sample #:positive-sample #:negative-sample #:non-negative-sample
    #:+sample-zero+ #:non-positive-sample #:*sample-type*
@@ -104,7 +105,6 @@
    #:exit
    #:without-interrupts #:with-pinned-objects #:with-gc-pending
    #:next-power-of-two #:power-of-two-p
-   #:apply-sample-coerce
    #:dochannels
    #:pow
    #:lin->db #:db->lin
@@ -349,7 +349,8 @@
   (:use :cl :incudine.vug :incudine.util)
   (:import-from #:incudine.util #:incudine-object #:incudine-object-pool
                 #:make-incudine-object-pool #:incudine-object-pool-expand
-                #:ensure-incudine-object-pool-size)
+                #:ensure-incudine-object-pool-size
+                #:apply-sample-coerce)
   (:import-from #:alexandria #:positive-fixnum #:negative-fixnum
                 #:non-negative-fixnum #:non-negative-real #:positive-real
                 #:positive-rational
