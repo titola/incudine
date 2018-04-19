@@ -71,7 +71,7 @@
                                     *number-of-output-bus-channels*
                                     (rt-params-frames-per-buffer *rt-params*)
                                     *foreign-client-name*
-                                    #+jack-audio *sample-counter*))
+                                    *sample-counter*))
               (zerop (rt-audio-start)))
          (let ((buffer-size (rt-buffer-size)))
            (setf (rt-params-frames-per-buffer *rt-params*) buffer-size)

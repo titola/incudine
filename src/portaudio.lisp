@@ -25,7 +25,8 @@
   (input-channels :unsigned-int)
   (output-channels :unsigned-int)
   (frames-per-buffer :unsigned-long)
-  (client-name :pointer))
+  (client-name :pointer)
+  (sample-counter-ptr :pointer))
 
 (cffi:defcfun ("pa_start" rt-audio-start) :int)
 
@@ -42,6 +43,10 @@
 (declaim (inline rt-cycle-end))
 (cffi:defcfun ("pa_cycle_end" rt-cycle-end) :void
   (nframes :unsigned-long))
+
+(cffi:defcfun ("pa_get_cycle_start_time" rt-cycle-start-time) sample)
+
+(cffi:defcfun ("pa_get_time_offset" rt-time-offset) :double)
 
 (cffi:defcfun ("pa_stream" rt-client) :pointer)
 

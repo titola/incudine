@@ -98,7 +98,8 @@ SAMPLE pa_get_sample_rate(void)
 }
 
 int pa_initialize(unsigned int input_channels, unsigned int output_channels,
-                  unsigned long nframes, const char* client_name)
+                  unsigned long nframes, const char* client_name,
+                  SAMPLE *sample_counter)
 {
         double srate = -1.0;
         PaStreamParameters input_param, *iparam = NULL;
@@ -120,7 +121,9 @@ int pa_initialize(unsigned int input_channels, unsigned int output_channels,
         }
         pa_in_channels = input_channels;
         pa_out_channels = output_channels;
-
+        pa_cycle_start_time_sec = (PaTime) 0.0;
+        pa_cycle_start_time_smp = (SAMPLE) 0.0;
+        pa_sample_counter = sample_counter;
         count = Pa_GetDeviceCount();
         if (pa_output_id >= 0 && pa_output_id < count)
                 output_param.device = pa_output_id;
@@ -188,6 +191,7 @@ int pa_initialize(unsigned int input_channels, unsigned int output_channels,
         }
         stream_info = (PaStreamInfo *) Pa_GetStreamInfo(stream);
         pa_sample_rate = (SAMPLE) stream_info->sampleRate;
+        pa_sample_duration = 1.0 / pa_sample_rate;
         frames_per_buffer = nframes;
         pa_inputs_anchor = pa_inputs;
         pa_outputs_anchor = pa_outputs;
@@ -239,6 +243,8 @@ int pa_stop(void *arg)
                 free(pa_outputs_anchor);
                 pa_outputs_anchor = NULL;
         }
+        pa_cycle_start_time_smp = (SAMPLE) 0.0;
+        pa_cycle_start_time_sec = (PaTime) 0.0;
         return err;
 }
 
@@ -268,6 +274,8 @@ unsigned long pa_cycle_begin(void)
         tmp = lisp_input;
         for (i = 0; i < nframes * pa_in_channels; i++)
                 *tmp++ = (SAMPLE) *pa_inputs++;
+        pa_cycle_start_time_sec = Pa_GetStreamTime(stream);
+        pa_cycle_start_time_smp = *pa_sample_counter;
         return nframes;
 }
 
@@ -287,6 +295,27 @@ void pa_cycle_end(unsigned long nframes)
                 *tmp++ = (SAMPLE) 0.0;
         }
         Pa_WriteStream(stream, pa_outputs_anchor, frames_per_buffer);
+}
+
+SAMPLE pa_get_cycle_start_time(void)
+{
+        return pa_cycle_start_time_smp;
+}
+
+double pa_get_time_offset(void)
+{
+        if (stream != NULL) {
+                PaTime time_from_cycle_start;
+                SAMPLE frames_to_seconds;
+
+                time_from_cycle_start =
+                        Pa_GetStreamTime(stream) - pa_cycle_start_time_sec;
+                frames_to_seconds =
+                        (*pa_sample_counter - pa_cycle_start_time_smp) * pa_sample_duration;
+                if (frames_to_seconds > time_from_cycle_start)
+                        return (double) (frames_to_seconds - time_from_cycle_start);
+        }
+        return 0.0;
 }
 
 PaStream *pa_stream(void)
