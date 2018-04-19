@@ -55,7 +55,7 @@
    #:rt-set-output #:rt-cycle-start-time #:rt-time-offset
    #:rt-condition-wait #:rt-transfer-to-c-thread #:rt-cycle-begin #:rt-cycle-end
    #:rt-set-busy-state #:rt-buffer-size #:rt-sample-rate #:rt-set-io-buffers
-   #:rt-xruns #:rt-get-error-msg #:portaudio-device-info #:portaudio-set-device
+   #:rt-xruns #:rt-get-error-msg
    #:rt-silent-errors
    #:mouse-event #:mouse-init #:mouse-loop-start #:mouse-stop
    #:get-mouse-status))
@@ -373,8 +373,7 @@
                 #:rt-set-io-buffers
                 #:rt-condition-wait #:rt-transfer-to-c-thread
                 #:rt-time-offset #:rt-set-busy-state #:rt-silent-errors
-                #:rt-buffer-size #:rt-sample-rate #:rt-xruns #:rt-get-error-msg
-                #:portaudio-device-info #:portaudio-set-device)
+                #:rt-buffer-size #:rt-sample-rate #:rt-xruns #:rt-get-error-msg)
   (:import-from #:incudine.edf #:at #:aat #:with-schedule #:flush-pending
                 #:add-flush-pending-hook #:remove-flush-pending-hook)
   (:import-from #:incudine.gen #:all-random-distributions #:rand-args)
@@ -415,7 +414,6 @@
    #:rt-start #:rt-stop #:rt-status #:rt-buffer-size #:rt-sample-rate #:rt-xruns
    #:rt-loop-callback #:set-rt-block-size #:block-size
    #:rt-time-offset #:rt-silent-errors
-   #:portaudio-device-info #:portaudio-set-device
    #:at #:aat #:with-schedule #:flush-pending #:flush-all-fifos
    #:tempo #:*tempo* #:make-tempo #:tempo-p #:bpm #:bps #:spb #:now #:tempo-sync
    #:tempo-envelope #:make-tempo-envelope #:tempo-envelope-p #:set-tempo-envelope

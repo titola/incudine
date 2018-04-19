@@ -14,6 +14,11 @@
 ;;; along with this program; if not, write to the Free Software
 ;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+(in-package :incudine)
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (export '(portaudio-device-info portaudio-set-device)))
+
 (in-package :incudine.external)
 
 (cffi:defcfun ("pa_initialize" rt-audio-init) :int
@@ -75,7 +80,8 @@
    (cffi:foreign-funcall "Pa_GetDeviceInfo" :int id :pointer)
    '(:struct pa-device-info) 'name))
 
-(defun portaudio-device-info (&optional (stream incudine.util:*logger-stream*))
+(defun incudine::portaudio-device-info (&optional
+                                        (stream incudine.util:*logger-stream*))
   (flet ((devinfo ()
            (let ((count (cffi:foreign-funcall "Pa_GetDeviceCount" :int)))
              (when (plusp count)
