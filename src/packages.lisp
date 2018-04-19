@@ -34,6 +34,11 @@
 
 (defpackage :incudine.external
   (:use :cl)
+  (:intern
+   #:rt-set-io-buffers #:rt-set-output #:rt-audio-stop #:rt-audio-init
+   #:rt-audio-start #:rt-transfer-to-c-thread #:rt-cycle-start-time
+   #:rt-set-busy-state #:rt-cycle-end #:rt-condition-wait #:rt-get-error-msg
+   #:rt-get-input #:rt-cycle-begin)
   (:export
    #:errno-to-string #:pthread-set-priority #:sndfile-to-buffer
    #:foreign-alloc-sample #:foreign-zero-sample #:foreign-set
@@ -50,13 +55,8 @@
    #:pconv-multiply-partitions
    #:foreign-copy #:foreign-copy-samples
    #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
-   #:qsort
-   #:rt-audio-init #:rt-audio-start #:rt-audio-stop #:rt-get-input #:rt-client
-   #:rt-set-output #:rt-cycle-start-time #:rt-time-offset
-   #:rt-condition-wait #:rt-transfer-to-c-thread #:rt-cycle-begin #:rt-cycle-end
-   #:rt-set-busy-state #:rt-buffer-size #:rt-sample-rate #:rt-set-io-buffers
-   #:rt-xruns #:rt-get-error-msg
-   #:rt-silent-errors
+   #:rt-client #:rt-time-offset #:rt-buffer-size #:rt-sample-rate
+   #:rt-xruns #:rt-silent-errors
    #:mouse-event #:mouse-init #:mouse-loop-start #:mouse-stop
    #:get-mouse-status))
 

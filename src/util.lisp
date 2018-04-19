@@ -579,8 +579,8 @@ function are the vector index and the quantized value."))
 
 (declaim (inline sort-samples))
 (defun sort-samples (pointer size)
-  (incudine.external:qsort pointer size +foreign-sample-size+
-                           (cffi:callback incudine.external::sample-cmp)))
+  (incudine.external::qsort pointer size +foreign-sample-size+
+                            (cffi:callback incudine.external::sample-cmp)))
 
 (defmacro quantize-vector (vec from start end filter-function fget flen data
                            &optional type)
