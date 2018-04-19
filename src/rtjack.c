@@ -221,6 +221,7 @@ static void ja_terminate(void *arg)
                 for (i = 0; i < ja_out_channels; i++)
                         free(output_port_names[i]);
                 ja_free(output_port_names);
+                *ja_sample_counter = (SAMPLE) 0.0;
                 ja_cycle_start_time = (SAMPLE) 0.0;
         }
 }

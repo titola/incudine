@@ -243,6 +243,7 @@ int pa_stop(void *arg)
                 free(pa_outputs_anchor);
                 pa_outputs_anchor = NULL;
         }
+        *pa_sample_counter = (SAMPLE) 0.0;
         pa_cycle_start_time_smp = (SAMPLE) 0.0;
         pa_cycle_start_time_sec = (PaTime) 0.0;
         return err;
