@@ -125,7 +125,7 @@
    #:thread-priority
    #:seed-random-state
    #:sample->fixnum #:sample->int #:float->fixnum #:rationalize* #:calc-lobits
-   #:rt-thread-p #:rt-eval #:rt-eval-if #:allow-rt-memory-p
+   #:rt-thread-p #:rt-eval #:allow-rt-memory-p
    #:foreign-pointer
    #:smp-ref #:i8-ref #:u8-ref #:i16-ref #:u16-ref #:i32-ref #:u32-ref
    #:i64-ref #:u64-ref #:f32-ref #:f64-ref

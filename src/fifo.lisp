@@ -234,11 +234,6 @@
   `(%rt-eval (lambda () ,@form ,@(and (not return-value-p) '(nil)))
              ,return-value-p))
 
-(defmacro rt-eval-if ((predicate) &body body)
-  (with-gensyms (func)
-    `(flet ((,func () (progn ,@body)))
-       (if ,predicate (rt-eval () (,func)) (,func)))))
-
 (declaim (inline exit))
 (defun exit (&optional (code 0))
   (if (eq (bt:current-thread) *rt-thread*)
