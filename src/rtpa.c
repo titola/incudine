@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014 Tito Latini
+ * Copyright (c) 2013-2018 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -229,6 +229,7 @@ int pa_stop(void *arg)
                 pa_set_error_msg("PA_CloseStream failed");
 
         Pa_Terminate();
+        stream = NULL;
 
         if (pa_inputs_anchor != NULL) {
                 free(pa_inputs_anchor);
@@ -286,6 +287,11 @@ void pa_cycle_end(unsigned long nframes)
                 *tmp++ = (SAMPLE) 0.0;
         }
         Pa_WriteStream(stream, pa_outputs_anchor, frames_per_buffer);
+}
+
+PaStream *pa_stream(void)
+{
+        return stream;
 }
 
 void pa_set_devices (PaDeviceIndex input, PaDeviceIndex output)

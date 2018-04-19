@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -42,6 +42,8 @@
 (declaim (inline rt-cycle-end))
 (cffi:defcfun ("pa_cycle_end" rt-cycle-end) :void
   (nframes :unsigned-long))
+
+(cffi:defcfun ("pa_stream" rt-client) :pointer)
 
 (declaim (inline rt-condition-wait))
 (cffi:defcfun ("pa_condition_wait" rt-condition-wait) :void)

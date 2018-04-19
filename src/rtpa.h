@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014 Tito Latini
+ * Copyright (c) 2013-2018 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -84,6 +84,7 @@ int pa_stop(void *arg);
 void pa_set_lisp_io(SAMPLE *input, SAMPLE *output);
 unsigned long pa_cycle_begin(void);
 void pa_cycle_end(unsigned long nframes);
+PaStream *pa_stream(void);
 void pa_set_devices(PaDeviceIndex input, PaDeviceIndex output);
 
 #endif  /* __RTPA_H */
