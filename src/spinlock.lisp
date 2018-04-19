@@ -18,20 +18,26 @@
 
 (defstruct (spinlock (:constructor make-spinlock (&optional name))
                      (:copier nil))
+  "Spinlock type."
   (name "Anonymous spinlock" :type string)
   (state 0 :type fixnum))
+
+(setf (documentation 'make-spinlock 'function)
+      "Create and return a SPINLOCK with optional NAME.")
 
 (defmethod print-object ((obj spinlock) stream)
   (format stream "#<~A ~S>" (type-of obj) (spinlock-name obj)))
 
 (declaim (inline acquire-spinlock))
 (defun acquire-spinlock (spinlock)
+  "Acquire the SPINLOCK."
   (declare (type spinlock spinlock))
   (loop if (zerop (compare-and-swap (spinlock-state spinlock) 0 1))
         return t))
 
 (declaim (inline release-spinlock))
 (defun release-spinlock (spinlock)
+  "Release the SPINLOCK."
   (declare (type spinlock spinlock))
   (barrier (:memory)
     (setf (spinlock-state spinlock) 0))
@@ -52,14 +58,16 @@
           (when got-it
             (release-spinlock spinlock))))))
 
-  (defmacro with-spinlock-held ((place) &body body)
+  (defmacro with-spinlock-held ((spinlock) &body body)
+    "Acquire SPINLOCK for the dynamic scope of BODY."
     `(sb-int:dx-flet ((with-spinlock-thunk () ,@body))
-       (call-with-spinlock #'with-spinlock-thunk ,place))))
+       (call-with-spinlock #'with-spinlock-thunk ,spinlock))))
 
 #-sbcl
-(defmacro with-spinlock-held ((place) &body body)
+(defmacro with-spinlock-held ((spinlock) &body body)
+  "Acquire SPINLOCK for the dynamic scope of BODY."
   `(unwind-protect
         (progn
-          (acquire-spinlock ,place)
+          (acquire-spinlock ,spinlock)
           ,@body)
-     (release-spinlock ,place)))
+     (release-spinlock ,spinlock)))

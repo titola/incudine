@@ -231,6 +231,9 @@
         (t (any-to-rt-funcall function))))
 
 (defmacro rt-eval ((&key return-value-p) &body form)
+  "Evaluate FORM in real-time thread.
+
+If RETURN-VALUE-P is T, return the results of FORM."
   `(%rt-eval (lambda () ,@form ,@(and (not return-value-p) '(nil)))
              ,return-value-p))
 

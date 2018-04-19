@@ -77,7 +77,8 @@
   (defvar *enable-portmidi-output-sample-offset*
     (not (eq *audio-driver* :jack)))
 
-  (defvar incudine.util:*audio-driver* *audio-driver*)
+  (defvar incudine.util:*audio-driver* *audio-driver*
+    "Driver for real-time audio.")
 
   (defvar incudine.util:*sample-type*
     (if (eq *sample-type* 'single-float)

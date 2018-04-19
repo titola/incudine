@@ -205,13 +205,16 @@
 (defvar *max-number-of-channels* 1024)
 (declaim (type non-negative-fixnum *max-number-of-channels*))
 
-(defvar *rt-priority*  68)
+(defvar *rt-priority*  68
+  "Priority of the realtime thread.")
 
-(defvar *nrt-priority* 60)
+(defvar *nrt-priority* 60
+  "Priority of the non-realtime thread.")
 
 (defvar *fast-nrt-priority*
   (let ((prio (1+ *nrt-priority*)))
-    (if (= prio *rt-priority*) *nrt-priority* prio)))
+    (if (= prio *rt-priority*) *nrt-priority* prio))
+  "Priority of the fast non-realtime thread.")
 
 (defvar *receiver-default-priority* 63)
 
@@ -226,16 +229,20 @@
 
 (defvar *default-data-format* "pcm-24")
 
-(defvar *rt-thread* nil)
+(defvar *rt-thread* nil
+  "Realtime thread or NIL.")
 (declaim (type (or bt:thread null) *rt-thread*))
 
-(defvar *nrt-thread* nil)
+(defvar *nrt-thread* nil
+  "Non-realtime thread or NIL.")
 (declaim (type (or bt:thread null) *nrt-thread*))
 
-(defvar *fast-nrt-thread* nil)
+(defvar *fast-nrt-thread* nil
+  "Fast-non-realtime thread or NIL.")
 (declaim (type (or bt:thread null) *fast-nrt-thread*))
 
-(defvar *allow-rt-memory-pool-p* t)
+(defvar *allow-rt-memory-pool-p* t
+  "Whether the real-time memory pool is usable.")
 (declaim (type boolean *allow-rt-memory-pool-p*))
 
 (defvar *standard-optimize-settings* '(optimize speed (safety 0)))

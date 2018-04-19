@@ -28,7 +28,8 @@
 (define-constant n-fixnum-bits sb-vm:n-fixnum-bits)
 
 (defvar *reduce-warnings*
-  '(sb-ext:muffle-conditions sb-ext:compiler-note))
+  '(sb-ext:muffle-conditions sb-ext:compiler-note)
+  "Declaration to muffle compiler-notes.")
 
 (defvar *null-output*
   (sb-sys:make-fd-stream
@@ -47,6 +48,7 @@
   `(sb-walker:var-globally-special-p ,symbol))
 
 (defmacro reduce-warnings (&body body)
+  "Execute BODY by muffling compiler-notes."
   `(locally (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
      ,@body))
 
@@ -70,9 +72,11 @@
   (sb-int:file-name stream))
 
 (defmacro compare-and-swap (place old new)
+  "See documentation for SB-EXT:COMPARE-AND-SWAP."
   `(sb-ext:compare-and-swap ,place ,old ,new))
 
 (defmacro barrier ((kind) &body body)
+  "See documentation for SB-THREAD:BARRIER."
   `(sb-thread:barrier (,kind) ,@body))
 
 (defun thread-pointer (thread)

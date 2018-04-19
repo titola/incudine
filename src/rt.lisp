@@ -175,7 +175,9 @@
 (declaim (type positive-fixnum *block-output-samples*))
 
 (declaim (inline block-size))
-(defun block-size () *block-size*)
+(defun block-size ()
+  "Return the block size."
+  *block-size*)
 
 #-dummy-audio
 (defmacro rt-loop-form (frames-per-buffer block-size)
@@ -383,3 +385,41 @@ the thread."
     (setf incudine.config::*portaudio-output-device* output
           incudine.config::*portaudio-input-device* input))
   (values output input))
+
+#-dummy-audio
+(setf
+  (documentation 'rt-buffer-size 'function)
+  "Return the number of frames passed to the real-time callback function."
+  (documentation 'rt-sample-rate 'function)
+  "Return the sample rate of the real-time audio system."
+  (documentation 'rt-time-offset 'function)
+  "Return the time in seconds from the start of the current real-time
+process cycle.
+
+Example:
+
+    ;;; How to fix a relative OSC time in real-time thread.
+
+    (in-package :scratch)
+
+    (rt-start)
+
+    (defvar *oscout* (osc:open :direction :output))
+
+    (defun osc-test (time)
+      (let ((os (rt-time-offset)))
+        ;; osc-time is (+ (timestamp) os .3)
+        (osc:simple-bundle *oscout* (+ os .3) \"/time/test\" \"d\" os)
+        (aat (+ time #[1/3 s]) #'osc-test it)
+        (nrt-msg info \"~A\" os)))
+
+    (setf (logger-level) :info)
+    (rt-eval () (osc-test (now)))
+
+    (flush-pending)
+    (rt-stop)"
+  (documentation 'incudine.external:rt-cycle-start-time 'function)
+  "Return the time in samples of the start of the current real-time
+process cycle."
+  (documentation 'incudine.external:rt-client 'function)
+  "Return the foreign pointer to the JACK client or PortAudio stream.")

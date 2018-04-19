@@ -23,10 +23,10 @@
       #+linux "SCHED_FIFO"
       #-linux "SCHED_RR")
 
-;; Priority for the realtime thread.
+;; Priority of the realtime thread.
 (setq *rt-priority* 68)
 
-;; Priority for the non-realtime thread.
+;; Priority of the non-realtime thread.
 (setq *nrt-priority* 60)
 
 ;; Priority for the threads of the receivers (i.e. MIDI input)

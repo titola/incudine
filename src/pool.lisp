@@ -19,6 +19,7 @@
 ;;; CONS-POOL
 
 (defstruct (cons-pool (:copier nil))
+  "Cons pool type."
   (data nil :type list)
   (size 0 :type non-negative-fixnum)
   (expand-func #'identity :type function)
@@ -283,6 +284,7 @@ will be used to initialize the contents of the newly allocated memory."
   (incudine.external:foreign-rt-free-ex ptr *foreign-rt-memory-pool*))
 
 (defun foreign-rt-free (ptr)
+  "Free PTR previously allocated by FOREIGN-RT-ALLOC."
   (if *rt-thread*
       (%foreign-rt-free ptr)
       (bt:with-lock-held (*rt-memory-lock*)

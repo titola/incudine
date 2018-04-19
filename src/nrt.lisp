@@ -93,6 +93,7 @@ undefined.")
         (incudine.edf:sched-loop)))
 
 (defun flush-all-fifos ()
+  "Clear the buffers of the real-time FIFO's."
   (rt-eval ()
     (dolist (f (list *to-engine-fifo* incudine::*from-engine-fifo*
                      *from-world-fifo* *fast-from-engine-fifo*

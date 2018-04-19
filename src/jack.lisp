@@ -78,6 +78,7 @@ the last xrun. If RESET-P is non-NIL, set the number of JACK xruns to zero."
 (cffi:defcfun ("ja_get_error_msg" rt-get-error-msg) :string)
 
 (cffi:defcfun ("ja_silent_errors" rt-silent-errors) :void
+  "If SILENT-P is NIL, display JACK error messages."
   (silent-p :boolean))
 
 (defun silent-jack-errors ()
