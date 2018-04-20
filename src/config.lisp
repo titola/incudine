@@ -66,6 +66,14 @@
 
   (deftype frame () 'foreign-pointer)
 
+  (defun sample (number)
+    (coerce number 'sample))
+
+  (define-compiler-macro sample (number)
+    (if (constantp number)
+        (coerce (eval number) 'sample)
+        `(coerce ,number 'sample)))
+
   (defun force-sample-format (x)
     (declare (type real x))
     (cond ((typep x 'sample) x)

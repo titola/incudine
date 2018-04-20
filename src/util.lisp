@@ -58,11 +58,6 @@
                  names)
      ,@forms))
 
-;;; Defined as macro to reduce the inlined functions inside the
-;;; definition of a DSP
-(defmacro sample (number)
-  `(coerce ,number 'sample))
-
 (defun apply-sample-coerce (form)
   (if (atom form)
       (cond ((and (numberp form) (floatp form))
@@ -246,26 +241,45 @@ The error is 0.0005% by default."
 real-time memory pool is usable."
   (and (rt-thread-p) *allow-rt-memory-pool-p*))
 
-(defmacro smp-ref (samples index)
-  `(mem-ref ,samples 'sample (the non-negative-fixnum
-                                  (* ,index +foreign-sample-size+))))
-
-(macrolet ((define-*-ref (name type)
-             `(defmacro ,name (ptr index)
-                `(mem-ref ,ptr ,',type
-                          (the non-negative-fixnum
-                               (* ,index ,(cffi:foreign-type-size ,type)))))))
-  (define-*-ref i8-ref :int8)
-  (define-*-ref u8-ref :uint8)
-  (define-*-ref i16-ref :int16)
-  (define-*-ref u16-ref :uint16)
-  (define-*-ref i32-ref :int32)
-  (define-*-ref u32-ref :uint32)
-  (define-*-ref i64-ref :int64)
-  (define-*-ref u64-ref :uint64)
-  (define-*-ref f32-ref :float)
-  (define-*-ref f64-ref :double)
-  (define-*-ref ptr-ref :pointer))
+(macrolet
+  ((define-*-ref (getter setter type)
+     (let ((type-size (cffi:foreign-type-size type)))
+       `(progn
+          (defun ,getter (ptr &optional (index 0))
+            ,(format nil "Access the foreign array element of type ~S ~
+                          specified by INDEX. Setfable." type)
+            (mem-ref ptr ',type
+                     (the non-negative-fixnum (* index ,type-size))))
+          (define-compiler-macro ,getter (ptr &optional (index 0))
+            (if (constantp index)
+                `(mem-ref ,ptr ',',type ,(* (eval index) ,type-size))
+                `(mem-ref ,ptr ',',type
+                          (the non-negative-fixnum (* ,index ,,type-size)))))
+          (defun ,setter (ptr index value)
+            (setf (mem-ref ptr ',type (the non-negative-fixnum
+                                        (* index ,type-size)))
+                  value))
+          (define-compiler-macro ,setter (ptr index value)
+            (if (constantp index)
+                `(setf (mem-ref ,ptr ',',type ,(* (eval index) ,type-size))
+                       ,value)
+                `(setf (mem-ref ,ptr ',',type (the non-negative-fixnum
+                                                (* ,index ,,type-size)))
+                       ,value)))
+          (defsetf ,getter (ptr &optional (index 0)) (value)
+            `(,',setter ,ptr ,index ,value))))))
+  (define-*-ref smp-ref smp-set sample)
+  (define-*-ref i8-ref i8-set :int8)
+  (define-*-ref u8-ref u8-set :uint8)
+  (define-*-ref i16-ref i16-set :int16)
+  (define-*-ref u16-ref u16-set :uint16)
+  (define-*-ref i32-ref i32-set :int32)
+  (define-*-ref u32-ref u32-set :uint32)
+  (define-*-ref i64-ref i64-set :int64)
+  (define-*-ref u64-ref u64-set :uint64)
+  (define-*-ref f32-ref f32-set :float)
+  (define-*-ref f64-ref f64-set :double)
+  (define-*-ref ptr-ref ptr-set :pointer))
 
 (defmacro with-complex (real-and-imag-vars pointer &body body)
   `(symbol-macrolet ((,(car real-and-imag-vars) (smp-ref ,pointer 0))
