@@ -167,15 +167,15 @@
 (cffi:defcfun ("get_max_size" get-foreign-max-size) :unsigned-int
   (pool :pointer))
 
-(cffi:defcfun ("malloc_ex" foreign-rt-alloc-ex) :pointer
+(cffi:defcfun ("malloc_ex" foreign-alloc-ex) :pointer
   (size :unsigned-int)
   (pool :pointer))
 
-(cffi:defcfun ("free_ex" foreign-rt-free-ex) :void
+(cffi:defcfun ("free_ex" foreign-free-ex) :void
   (ptr :pointer)
   (pool :pointer))
 
-(cffi:defcfun ("realloc_ex" foreign-rt-realloc-ex) :pointer
+(cffi:defcfun ("realloc_ex" foreign-realloc-ex) :pointer
   (ptr :pointer)
   (size :unsigned-int)
   (pool :pointer))

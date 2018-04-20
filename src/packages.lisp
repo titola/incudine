@@ -45,7 +45,7 @@
    #:foreign-realloc-sample
    #:init-foreign-memory-pool #:destroy-foreign-memory-pool
    #:get-foreign-used-size #:get-foreign-max-size
-   #:foreign-rt-alloc-ex #:foreign-rt-free-ex #:foreign-rt-realloc-ex
+   #:foreign-alloc-ex #:foreign-free-ex #:foreign-realloc-ex
    #:foreign-alloc-fft #:foreign-free-fft #:make-fft-plan #:make-ifft-plan
    #:fft-destroy-plan #:sample-complex #:sample-polar #:magnitude
    #:complex-to-polar #:polar-to-complex

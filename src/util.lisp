@@ -606,7 +606,7 @@ function are the vector index and the quantized value."))
                      (cffi:foreign-funcall "circular_lshift" :pointer ptr
                        :pointer tmp :unsigned-int bytes :unsigned-int len :void))))
           (if (rt-thread-p)
-              (let ((tmp (incudine.external:foreign-rt-alloc-ex bytes
+              (let ((tmp (incudine.external:foreign-alloc-ex bytes
                            incudine.util::*foreign-rt-memory-pool*)))
                 (unwind-protect (circshift ptr tmp bytes len n)
                   (foreign-rt-free tmp)))
