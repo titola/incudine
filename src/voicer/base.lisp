@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -46,17 +46,19 @@
   (expand-cons-pool pool delta (make-node)))
 
 (defvar *node-pool*
-  (make-cons-pool :data (loop repeat +node-pool-size+ collect (make-node))
-                  :size +node-pool-size+
-                  :expand-func #'expand-node-pool
-                  :grow +node-pool-grow+))
+  (make-cons-pool
+    :data (loop repeat +node-pool-size+ collect (make-node))
+    :size +node-pool-size+
+    :expand-function #'expand-node-pool
+    :grow +node-pool-grow+))
 (declaim (type cons-pool *node-pool*))
 
 (defvar *voicer-pool*
-  (make-cons-pool :data (make-list +voicer-pool-size+)
-                  :size +voicer-pool-size+
-                  :expand-func #'expand-voicer-pool
-                  :grow +voicer-pool-grow+))
+  (make-cons-pool
+    :data (make-list +voicer-pool-size+)
+    :size +voicer-pool-size+
+    :expand-function #'expand-voicer-pool
+    :grow +voicer-pool-grow+))
 (declaim (type cons-pool *voicer-pool*))
 
 (defstruct (voicer (:constructor %make-voicer)
@@ -85,15 +87,15 @@
            (gpool (cons-pool-pop-list *voicer-pool* gpool-size)))
       (%make-voicer :polyphony polyphony
                     :node-pool (make-cons-pool
-                                :data npool
-                                :size polyphony
-                                :expand-func #'expand-local-node-pool
-                                :grow 1)
+                                 :data npool
+                                 :size polyphony
+                                 :expand-function #'expand-local-node-pool
+                                 :grow 1)
                     :generic-pool (make-cons-pool
-                                   :data gpool
-                                   :size gpool-size
-                                   :expand-func #'expand-local-pool
-                                   :grow 12)
+                                    :data gpool
+                                    :size gpool-size
+                                    :expand-function #'expand-local-pool
+                                    :grow 12)
                     :objects (cons-pool-pop-cons *voicer-pool*)
                     :available-nodes polyphony))))
 
@@ -130,8 +132,8 @@
     (let ((delta (- value (voicer-available-nodes voicer)))
           (node-pool (voicer-node-pool voicer))
           (generic-pool (voicer-generic-pool voicer)))
-      (funcall (incudine.util::cons-pool-expand-func node-pool) node-pool delta)
-      (funcall (incudine.util::cons-pool-expand-func generic-pool) generic-pool
+      (funcall (incudine.util::cons-pool-expand-function node-pool) node-pool delta)
+      (funcall (incudine.util::cons-pool-expand-function generic-pool) generic-pool
                (* delta 3))
       (setf (voicer-available-nodes voicer) value)))
   (setf (voicer-polyphony voicer) value))

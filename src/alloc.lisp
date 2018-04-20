@@ -55,11 +55,11 @@
   (%make-incudine-object-pool
     :data (make-incudine-object-list size constructor)
     :size size
-    :expand-func (lambda (pool &optional delta)
-                   (declare (type incudine-object-pool pool) (ignore delta))
-                   (prog1 (setf #1=(incudine-object-pool-data pool)
-                                (new-incudine-object-pointer constructor #1#))
-                     (incf (incudine-object-pool-size pool))))
+    :expand-function (lambda (pool &optional delta)
+                       (declare (type incudine-object-pool pool) (ignore delta))
+                       (prog1 (setf #1=(incudine-object-pool-data pool)
+                                    (new-incudine-object-pointer constructor #1#))
+                         (incf (incudine-object-pool-size pool))))
     :grow 1
     :constructor constructor
     :real-time-p real-time-p
@@ -67,7 +67,7 @@
 
 (defun incudine-object-pool-expand-1 (pool)
   (flet ((expand ()
-           (funcall (cons-pool-expand-func pool) pool 1)))
+           (funcall (cons-pool-expand-function pool) pool 1)))
     (if (and (incudine-object-pool-real-time-p pool) *rt-thread*)
         (rt-eval () (expand))
         (with-spinlock-held ((incudine-object-pool-spinlock pool)) (expand)))))

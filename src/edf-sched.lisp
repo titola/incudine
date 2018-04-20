@@ -285,7 +285,7 @@ forced every TIME-STEP samples."
   (incudine.util:make-cons-pool
     :data (loop repeat +heap-pool-size+ collect (make-heap *rt-edf-heap-size*))
     :size +heap-pool-size+
-    :expand-func #'expand-heap-pool
+    :expand-function #'expand-heap-pool
     :grow +heap-pool-grow+)
   "Pool of EDFs.")
 (declaim (type incudine.util:cons-pool *heap-pool*))

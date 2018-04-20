@@ -12,10 +12,11 @@
 (defmacro with-cons-pool-test ((var size &optional (grow 4)
                                 (expand-func #'cons-pool-default-expand-func))
                                &body body)
-  `(let ((,var (make-cons-pool :data (make-list ,size)
-                               :size ,size
-                               :expand-func ,expand-func
-                               :grow ,grow)))
+  `(let ((,var (make-cons-pool
+                 :data (make-list ,size)
+                 :size ,size
+                 :expand-function ,expand-func
+                 :grow ,grow)))
      ,@body))
 
 (deftest cons-pool.1

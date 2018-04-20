@@ -22,7 +22,7 @@
   "Cons pool type."
   (data nil :type list)
   (size 0 :type non-negative-fixnum)
-  (expand-func #'identity :type function)
+  (expand-function #'identity :type function)
   (grow 128 :type non-negative-fixnum))
 
 (defmethod print-object ((obj cons-pool) stream)
@@ -57,9 +57,9 @@
   (with-gensyms (p result)
     `(let ((,p ,pool))
        (declare (type cons-pool ,p))
-       (with-struct-slots ((data size expand-func) ,p cons-pool)
+       (with-struct-slots ((data size expand-function) ,p cons-pool)
          (when (zerop size)
-           (funcall expand-func ,p))
+           (funcall expand-function ,p))
          (let ((,result data))
            (decf size)
            (setf data (cdr data)
@@ -87,7 +87,7 @@
                 (type cons-pool ,p))
        (with-struct-slots ((data size) ,p cons-pool)
          (when (< size ,lsize)
-           (funcall (cons-pool-expand-func ,p) ,p ,lsize))
+           (funcall (cons-pool-expand-function ,p) ,p ,lsize))
          (do ((,i 1 (1+ ,i))
               (,lst data (cdr ,lst)))
              ((= ,i ,lsize)
@@ -103,10 +103,12 @@
 (defun expand-global-pool (pool &optional (delta 1))
   (expand-cons-pool pool delta nil))
 
-(defvar *nrt-global-pool* (make-cons-pool :data (make-list 2048)
-                                          :size 2048
-                                          :expand-func #'expand-global-pool
-                                          :grow 2048))
+(defvar *nrt-global-pool*
+  (make-cons-pool
+    :data (make-list 2048)
+    :size 2048
+    :expand-function #'expand-global-pool
+    :grow 2048))
 (declaim (type cons-pool *nrt-global-pool*))
 
 (defvar *nrt-global-pool-spinlock* (make-spinlock "NRT-GLOBAL-POOL"))
@@ -130,10 +132,12 @@
 
 ;;; RT GLOBAL CONS-POOL (used in rt-thread)
 
-(defvar *rt-global-pool* (make-cons-pool :data (make-list 2048)
-                                         :size 2048
-                                         :expand-func #'expand-global-pool
-                                         :grow 2048))
+(defvar *rt-global-pool*
+  (make-cons-pool
+    :data (make-list 2048)
+    :size 2048
+    :expand-function #'expand-global-pool
+    :grow 2048))
 (declaim (type cons-pool *rt-global-pool*))
 
 (declaim (inline rt-global-pool-push-cons))
