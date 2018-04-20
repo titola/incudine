@@ -72,7 +72,7 @@
                 #:foreign-alloc #:foreign-free)
   (:import-from #:incudine.external #:sample-complex #:foreign-alloc-sample)
   (:intern #:incudine-object #:incudine-object-pool #:make-incudine-object-pool
-           #:incudine-object-pool-expand
+           #:incudine-object-pool-expand #:ensure-incudine-object-pool-size
            #:alloc-multi-channel-data #:free-multi-channel-data
            #:apply-sample-coerce)
   (:export
@@ -101,10 +101,9 @@
    #:*standard-optimize-settings*
    #:most-positive-sample #:most-negative-sample
    #:least-positive-sample #:least-negative-sample
-   #:ensure-incudine-object-pool-size
    #:incudine-version
    #:exit
-   #:without-interrupts #:with-pinned-objects #:with-gc-pending
+   #:without-interrupts #:with-pinned-objects
    #:next-power-of-two #:power-of-two-p
    #:dochannels
    #:pow
