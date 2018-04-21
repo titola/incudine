@@ -18,11 +18,14 @@
 
 ;;; CONS-POOL
 
-(defstruct (cons-pool (:copier nil))
+(defstruct (cons-pool
+             (:constructor make-cons-pool (&key data (size (length data))
+                                           expand-function grow))
+             (:copier nil))
   "Cons pool type."
   (data nil :type list)
   (size 0 :type non-negative-fixnum)
-  (expand-function #'identity :type function)
+  (expand-function #'default-expand-cons-pool :type function)
   (grow 128 :type non-negative-fixnum))
 
 (defmethod print-object ((obj cons-pool) stream)
@@ -43,6 +46,9 @@
            (let ((,exp-size (max ,d grow)))
              (incf size ,exp-size)
              (setf data (expand data ,exp-size))))))))
+
+(defun default-expand-cons-pool (pool &optional (delta 1))
+  (expand-cons-pool pool delta nil))
 
 (defmacro cons-pool-push-cons (pool cons)
   (with-gensyms (p x)
@@ -99,15 +105,10 @@
 
 ;;; NRT GLOBAL CONS-POOL (used in nrt-thread)
 
-(declaim (inline expand-global-pool))
-(defun expand-global-pool (pool &optional (delta 1))
-  (expand-cons-pool pool delta nil))
-
 (defvar *nrt-global-pool*
   (make-cons-pool
     :data (make-list 2048)
     :size 2048
-    :expand-function #'expand-global-pool
     :grow 2048))
 (declaim (type cons-pool *nrt-global-pool*))
 
@@ -136,7 +137,6 @@
   (make-cons-pool
     :data (make-list 2048)
     :size 2048
-    :expand-function #'expand-global-pool
     :grow 2048))
 (declaim (type cons-pool *rt-global-pool*))
 
