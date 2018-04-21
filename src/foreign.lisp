@@ -133,23 +133,32 @@
 
 (declaim (inline foreign-zero-sample))
 (cffi:defcfun "foreign_zero_sample" :pointer
+  "Set the first SIZE samples of the area starting at PTR to zero."
   (ptr :pointer)
   (size :unsigned-int))
 
 (declaim (inline foreign-set))
 (cffi:defcfun ("memset" foreign-set) :pointer
+  "Fills the first SIZE bytes of the foreign memory area pointed to by
+PTR with the byte C.
+
+Return the pointer to the memory area PTR."
   (ptr :pointer)
   (c :int)
   (size :unsigned-int))
 
 (declaim (inline foreign-copy))
 (cffi:defcfun ("memcpy" foreign-copy) :void
+  "Copy BYTES bytes from foreign memory area SRC to foreign memory
+area DEST. The memory areas must not overlap."
   (dest :pointer)
   (src :pointer)
   (bytes :unsigned-int))
 
 (declaim (inline foreign-copy-samples))
 (defun foreign-copy-samples (dest src size)
+  "Copy SIZE samples from foreign memory area SRC to foreign memory
+area DEST. The memory areas must not overlap."
   (declare (type cffi:foreign-pointer dest src)
            (type alexandria:non-negative-fixnum size))
   (foreign-copy dest src (the alexandria:non-negative-fixnum
