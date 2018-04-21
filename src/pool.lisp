@@ -273,7 +273,7 @@ will be used to initialize the contents of the newly allocated memory."
           (setq count contents-length)))
     (let* ((size (* (foreign-type-size type) count))
            (ptr (incudine.external:foreign-alloc-ex
-                   size *foreign-rt-memory-pool*)))
+                  size *foreign-rt-memory-pool*)))
       (cond (zero-p (incudine.external:foreign-set ptr 0 size))
             (initial-contents
              (dotimes (i contents-length)
@@ -282,6 +282,22 @@ will be used to initialize the contents of the newly allocated memory."
              (dotimes (i count)
                (setf (mem-aref ptr type i) initial-element))))
       ptr)))
+
+(define-compiler-macro foreign-rt-alloc (&whole form type &rest args
+                                         &key (count 1 count-p)
+                                         &allow-other-keys)
+  (if (or (and count-p (<= (length args) 2)) (null args))
+      (cond
+        ((and (constantp type) (constantp count))
+         `(incudine.external:foreign-alloc-ex
+            ,(* (eval count) (foreign-type-size (eval type)))
+            *foreign-rt-memory-pool*))
+        ((constantp type)
+         `(incudine.external:foreign-alloc-ex
+            (* ,count ,(foreign-type-size (eval type)))
+            *foreign-rt-memory-pool*))
+        (t form))
+      form))
 
 (declaim (inline %foreign-rt-free))
 (defun %foreign-rt-free (ptr)
@@ -319,6 +335,22 @@ reallocated memory."
              (dotimes (i count)
                (setf (mem-aref ptr type i) initial-element))))
       ptr)))
+
+(define-compiler-macro foreign-rt-realloc (&whole form ptr type &rest args
+                                           &key (count 1 count-p)
+                                           &allow-other-keys)
+  (if (or (and count-p (<= (length args) 2)) (null args))
+      (cond
+        ((and (constantp type) (constantp count))
+         `(incudine.external:foreign-realloc-ex
+            ,ptr ,(* (eval count) (cffi:foreign-type-size (eval type)))
+            *foreign-rt-memory-pool*))
+        ((constantp type)
+         `(incudine.external:foreign-realloc-ex
+            ,ptr (* ,count ,(cffi:foreign-type-size (eval type)))
+            *foreign-rt-memory-pool*))
+        (t form))
+      form))
 
 (declaim (inline foreign-rt-alloc-sample))
 (defun foreign-rt-alloc-sample (size &optional zerop)
