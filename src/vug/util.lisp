@@ -42,9 +42,9 @@
      incudine:smp-ref
      incudine:*sine-table*
      incudine:*cosine-table*
-     incudine:foreign-array
-     incudine:make-foreign-array
-     incudine:foreign-array-data
+     incudine::foreign-array
+     incudine::make-foreign-array
+     incudine::foreign-array-data
      incudine::node-controls
      incudine.util::declare-form-p
      incudine.util::separate-declaration

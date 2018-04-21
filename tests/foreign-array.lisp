@@ -3,23 +3,23 @@
 (deftest foreign-array.1
     (let* ((pool-size (get-rt-memory-free-size))
            (*rt-thread* (bt:current-thread))
-           (arr (vug::make-foreign-array 8 'sample :zero-p t))
+           (arr (incudine::make-foreign-array 8 'sample :zero-p t))
            (test1 (= pool-size (get-rt-memory-free-size))))
       (free arr)
       (values test1 (= pool-size (get-rt-memory-free-size))))
   NIL T)
 
 (deftest foreign-array.2
-    (let ((arr (make-foreign-array 8 'sample :zero-p t))
+    (let ((arr (incudine::make-foreign-array 8 'sample :zero-p t))
           (x0 (coerce 0 'sample))
           (x1 (coerce 0.12345 'sample)))
-      (setf (smp-ref (foreign-array-data arr) 1) x1)
-      (let ((y0 (smp-ref (foreign-array-data arr) 0))
-            (y1 (smp-ref (foreign-array-data arr) 1)))
+      (setf (smp-ref (incudine::foreign-array-data arr) 1) x1)
+      (let ((y0 (smp-ref (incudine::foreign-array-data arr) 0))
+            (y1 (smp-ref (incudine::foreign-array-data arr) 1)))
         (free arr)
         (values (= y0 x0) (= y1 x1))))
   T T)
 
 (deftest with-cleanup-foreign-array.1
-    (free-p (with-cleanup (make-foreign-array 8 'sample)))
+    (free-p (with-cleanup (incudine::make-foreign-array 8 'sample)))
   T)

@@ -398,8 +398,6 @@
    #:tuning-degree-index #:minimize-tuning-ratios #:tuning-save #:copy-tuning
    #:load-sclfile
    #:pch->cps #:cps->pch #:pch->keynum #:keynum->pch
-   #:foreign-array #:make-foreign-array #:foreign-array-data
-   #:foreign-array-type
    #:free #:free-p
    #:with-cleanup #:incudine-finalize #:incudine-cancel-finalization
    #:dynamic-incudine-finalizer-p

@@ -142,7 +142,7 @@
                              (incudine::%%make-foreign-array
                                ,count ,type nil nil nil nil)))
             (,var (if ,array-wrap-p
-                      (incudine:foreign-array-data ,array-wrap)
+                      (incudine::foreign-array-data ,array-wrap)
                       (incudine.util::foreign-nrt-alloc ,type :count ,count))))
        (declare (ignorable ,array-wrap))
        (unwind-protect (progn ,@body)
