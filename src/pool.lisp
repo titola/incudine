@@ -296,7 +296,7 @@ will be used to initialize the contents of the newly allocated memory."
 
 (defun foreign-rt-realloc (ptr type &key zero-p initial-element initial-contents
                            (count 1 count-p))
-  "Changes the size of the memory block pointed to by ptr to hold COUNT
+  "Change the size of the memory block pointed to by ptr to hold COUNT
 objects of type TYPE. If ZEROP is T, the memory is initialized with zeros.
 If INITIAL-ELEMENT is supplied, each element of the newly reallocated
 memory is initialized with its value. If INITIAL-CONTENTS is supplied,
@@ -346,6 +346,46 @@ reallocated memory."
                  ptr dsize *foreign-sample-pool*)))
     (when zerop (incudine.external:foreign-set ptr 0 dsize))
     ptr))
+
+;;; Based on CFFI:FOREIGN-ALLOC.
+(defun foreign-realloc (ptr type &key zero-p initial-element initial-contents
+                        (count 1 count-p))
+  "Change the size of the memory block pointed to by ptr to hold COUNT
+objects of type TYPE. If ZEROP is T, the memory is initialized with zeros.
+If INITIAL-ELEMENT is supplied, each element of the newly reallocated
+memory is initialized with its value. If INITIAL-CONTENTS is supplied,
+each of its elements will be used to initialize the contents of the newly
+reallocated memory."
+  (let (contents-length)
+    (when initial-contents
+      (setq contents-length (length initial-contents))
+      (if count-p
+          (assert (>= count contents-length))
+          (setq count contents-length)))
+    (let* ((size (* count (cffi:foreign-type-size type)))
+           (ptr (incudine.external::%foreign-realloc ptr size)))
+      (cond (zero-p
+             (incudine.external:foreign-set ptr 0 size))
+            (initial-contents
+             (dotimes (i contents-length)
+               (setf (cffi:mem-aref ptr type i) (elt initial-contents i))))
+            (initial-element
+             (dotimes (i count)
+               (setf (cffi:mem-aref ptr type i) initial-element))))
+      ptr)))
+
+(define-compiler-macro foreign-realloc (&whole form ptr type &rest args
+                                        &key (count 1 count-p) &allow-other-keys)
+  (if (or (and count-p (<= (length args) 2)) (null args))
+      (cond
+        ((and (constantp type) (constantp count))
+         `(incudine.external::%foreign-realloc
+            ,ptr ,(* (eval count) (cffi:foreign-type-size (eval type)))))
+        ((constantp type)
+         `(incudine.external::%foreign-realloc
+            ,ptr (* ,count ,(cffi:foreign-type-size (eval type)))))
+        (t form))
+      form))
 
 ;;; Based on CFFI:FOREIGN-ALLOC to use TLSF Memory Storage allocator.
 ;;; The NULL-TERMINATED-P keyword is removed.

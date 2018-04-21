@@ -180,13 +180,13 @@ of the level before to restart. Setfable."
       (let ((real-time-p (envelope-real-time-p env))
             (free-function (envelope-foreign-free env)))
         (reduce-warnings
-          (if real-time-p
-              (setf (envelope-data-ptr env)
+          (setf (envelope-data-ptr env)
+                (if real-time-p
                     (rt-eval (:return-value-p t)
                       (foreign-rt-realloc (envelope-data env) 'sample
-                        :count (compute-envelope-data-size size))))
-              (foreign-realloc-sample (envelope-data-ptr env)
-                                      (compute-envelope-data-size size))))
+                        :count (compute-envelope-data-size size)))
+                    (foreign-realloc (envelope-data-ptr env) 'sample
+                      :count (compute-envelope-data-size size)))))
         (let ((data (envelope-data env))
               (pool (if real-time-p *rt-envelope-pool* *envelope-pool*)))
           (incudine-cancel-finalization env)

@@ -42,7 +42,6 @@
   (:export
    #:errno-to-string #:pthread-set-priority #:sndfile-to-buffer
    #:foreign-alloc-sample #:foreign-zero-sample #:foreign-set
-   #:foreign-realloc-sample
    #:init-foreign-memory-pool #:destroy-foreign-memory-pool
    #:get-foreign-used-size #:get-foreign-max-size
    #:foreign-alloc-ex #:foreign-free-ex #:foreign-realloc-ex
@@ -147,7 +146,7 @@
    #:make-tlist #:tlist-left #:tlist-right #:tlist-empty-p
    #:tlist-add-left #:tlist-add-right #:tlist-remove-left
    #:foreign-rt-alloc #:foreign-rt-free #:safe-foreign-rt-free
-   #:foreign-rt-realloc
+   #:foreign-realloc #:foreign-rt-realloc
    #:get-foreign-sample-used-size #:get-foreign-sample-free-size
    #:get-foreign-sample-max-size #:get-rt-memory-used-size
    #:get-rt-memory-free-size #:get-rt-memory-max-size
@@ -174,7 +173,7 @@
                 #:sample->int
                 #:rt-eval #:rt-thread-p)
   (:import-from #:incudine.external #:foreign-alloc-sample #:foreign-zero-sample
-                #:foreign-realloc-sample #:foreign-alloc-fft #:foreign-free-fft
+                #:foreign-alloc-fft #:foreign-free-fft
                 #:make-fft-plan #:make-ifft-plan #:fft-destroy-plan
                 #:sample-complex #:sample-polar #:magnitude #:complex-to-polar
                 #:polar-to-complex
@@ -361,7 +360,7 @@
                 #:mem-ref #:mem-aref #:inc-pointer #:incf-pointer)
   (:import-from #:incudine.external #:pthread-set-priority #:sndfile-to-buffer
                 #:foreign-alloc-sample #:foreign-zero-sample
-                #:foreign-realloc-sample #:foreign-alloc-fft #:foreign-free-fft
+                #:foreign-alloc-fft #:foreign-free-fft
                 #:sample-complex #:sample-polar #:magnitude
                 #:complex-to-polar #:polar-to-complex
                 #:fft-execute #:ifft-execute

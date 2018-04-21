@@ -214,6 +214,7 @@ The output stream is *LOGGER-STREAM* by default."
         (unless (= outputs old-outputs)
           (realloc-audio-bus-pointer output)
           (msg info "Realloc the foreign array for the output peak values")
-          (foreign-realloc-sample *output-peak-values* outputs)
+          (setf *output-peak-values*
+                (foreign-realloc *output-peak-values* 'sample :count outputs))
           (setf *out-of-range-counter* (make-array outputs :initial-element 0))))
       (and rt-started-p (rt-status)))))

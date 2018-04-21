@@ -433,12 +433,12 @@ current level otherwise it restarts from the value RESTART-LEVEL."
                  (pool (if real-time-p
                            *rt-tempo-envelope-pool*
                            *tempo-envelope-pool*)))
-            (if real-time-p
-                (setf twarp-data
+            (reduce-warnings
+              (setf twarp-data
+                    (if real-time-p
                       (rt-eval (:return-value-p t)
-                        (foreign-rt-realloc twarp-data 'sample :count points)))
-                (reduce-warnings
-                  (foreign-realloc-sample twarp-data points)))
+                        (foreign-rt-realloc twarp-data 'sample :count points))
+                      (foreign-realloc twarp-data 'sample :count points))))
             (incudine-cancel-finalization env)
             (incudine-finalize env
               (lambda ()

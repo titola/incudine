@@ -125,10 +125,10 @@
         (incudine::foreign-alloc-error "FOREIGN-ALLOC-SAMPLE failed.")
         ptr)))
 
-(defmacro foreign-realloc-sample (ptr size)
-  `(progn
-     (cffi:foreign-free ,ptr)
-     (setf ,ptr (foreign-alloc-sample ,size))))
+(declaim (inline %foreign-realloc))
+(cffi:defcfun ("realloc" %foreign-realloc) :pointer
+  (ptr :pointer)
+  (size :unsigned-int))
 
 (declaim (inline foreign-zero-sample))
 (cffi:defcfun "foreign_zero_sample" :pointer
