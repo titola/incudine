@@ -28,10 +28,24 @@
   (expand-function #'default-expand-cons-pool :type function)
   (grow 128 :type non-negative-fixnum))
 
+(setf
+ (documentation 'make-cons-pool 'function)
+ "Create and return a new CONS-POOL structure initialized with the
+list DATA of length SIZE.
+
+The function EXPAND-FUNCTION is used to add new conses to the pool.
+
+The pool is incremented by GROW if more conses are required."
+ (documentation 'cons-pool-size 'function)
+ "Return the cons pool size.")
+
 (defmethod print-object ((obj cons-pool) stream)
   (format stream "#<CONS-POOL ~D>" (cons-pool-size obj)))
 
-(defmacro expand-cons-pool (pool delta new)
+(defmacro expand-cons-pool (pool delta new-form)
+  "Add DELTA cons cells to the POOL.
+
+NEW-FORM is evaluated to set the CAR of a CONS."
   (with-gensyms (lst p d i exp-size)
     `(let ((,p ,pool)
            (,d ,delta))
@@ -41,7 +55,7 @@
                            (type list ,lst))
                   (if (zerop ,i)
                       ,lst
-                      (expand (cons ,new ,lst) (1- ,i)))))
+                      (expand (cons ,new-form ,lst) (1- ,i)))))
          (with-struct-slots ((data size grow) ,p cons-pool)
            (let ((,exp-size (max ,d grow)))
              (incf size ,exp-size)
@@ -51,6 +65,7 @@
   (expand-cons-pool pool delta nil))
 
 (defmacro cons-pool-push-cons (pool cons)
+  "Return the CONS cell to the POOL."
   (with-gensyms (p x)
     `(let ((,p ,pool)
            (,x ,cons))
@@ -60,6 +75,7 @@
          (setf (cdr ,x) data data ,x)))))
 
 (defmacro cons-pool-pop-cons (pool)
+  "Get a cons cell from POOL."
   (with-gensyms (p result)
     `(let ((,p ,pool))
        (declare (type cons-pool ,p))
@@ -73,6 +89,7 @@
            ,result)))))
 
 (defmacro cons-pool-push-list (pool list)
+  "Return the LIST to the POOL."
   (with-gensyms (lst p i l)
     `(let ((,p ,pool)
            (,lst ,list))
@@ -86,6 +103,7 @@
          (declare (type positive-fixnum ,i) (type list ,l))))))
 
 (defmacro cons-pool-pop-list (pool list-size)
+  "Get a list of length LIST-SIZE from POOL."
   (with-gensyms (lsize p i lst)
     `(let ((,lsize ,list-size)
            (,p ,pool))
@@ -116,18 +134,30 @@
 (declaim (type spinlock *nrt-global-pool-spinlock*))
 
 (defun nrt-global-pool-push-cons (cons)
+  "Return the CONS cell to the global pool.
+
+This function has to be called from any non-real-time thread."
   (with-spinlock-held (*nrt-global-pool-spinlock*)
     (cons-pool-push-cons *nrt-global-pool* cons)))
 
 (defun nrt-global-pool-pop-cons ()
+  "Return a preallocated cons cell.
+
+This function has to be called from any non-real-time thread."
   (with-spinlock-held (*nrt-global-pool-spinlock*)
     (cons-pool-pop-cons *nrt-global-pool*)))
 
 (defun nrt-global-pool-push-list (lst)
+  "Return the LIST to the global pool.
+
+This function has to be called from any non-real-time thread."
   (with-spinlock-held (*nrt-global-pool-spinlock*)
     (cons-pool-push-list *nrt-global-pool* lst)))
 
 (defun nrt-global-pool-pop-list (list-size)
+  "Return a preallocated list of length LIST-SIZE.
+
+This function has to be called from any non-real-time thread."
   (with-spinlock-held (*nrt-global-pool-spinlock*)
     (cons-pool-pop-list *nrt-global-pool* list-size)))
 
@@ -142,18 +172,30 @@
 
 (declaim (inline rt-global-pool-push-cons))
 (defun rt-global-pool-push-cons (cons)
+  "Return the CONS cell to the global pool.
+
+This function has to be called from the real-time thread."
   (cons-pool-push-cons *rt-global-pool* cons))
 
 (declaim (inline rt-global-pool-pop-cons))
 (defun rt-global-pool-pop-cons ()
+  "Return a preallocated cons cell.
+
+This function has to be called from the real-time thread."
   (cons-pool-pop-cons *rt-global-pool*))
 
 (declaim (inline rt-global-pool-push-list))
 (defun rt-global-pool-push-list (lst)
+  "Return the LIST to the global pool.
+
+This function has to be called from the real-time thread."
   (cons-pool-push-list *rt-global-pool* lst))
 
 (declaim (inline rt-global-pool-pop-list))
 (defun rt-global-pool-pop-list (list-size)
+  "Return a preallocated list of length LIST-SIZE.
+
+This function has to be called from the real-time thread."
   (cons-pool-pop-list *rt-global-pool* list-size))
 
 ;;; TLIST
@@ -164,24 +206,32 @@
   (setf (car cons) new-car
         (cdr cons) new-cdr))
 
-(declaim (inline make-tlist))
 (defun make-tlist (pool)
+  "Get a cons cell from POOL and return an empty tlist."
   (declare (type cons-pool pool))
   (let ((entry (cons-pool-pop-cons pool)))
     (set-cons entry nil nil)
     entry))
 
 (declaim (inline tlist-left))
-(defun tlist-left (tl) (caar tl))
+(defun tlist-left (tl)
+  "Return the left element of the tlist TL."
+  (caar tl))
 
 (declaim (inline tlist-right))
-(defun tlist-right (tl) (cadr tl))
+(defun tlist-right (tl)
+  "Return the right element of the tlist TL."
+  (cadr tl))
 
 (declaim (inline tlist-empty-p))
-(defun tlist-empty-p (tl) (null (car tl)))
+(defun tlist-empty-p (tl)
+  "Returns T if TL is the empty tlist; otherwise, returns NIL."
+  (null (car tl)))
 
 (declaim (inline tlist-add-left))
 (defun tlist-add-left (tl obj pool)
+  "Get a cons cell from the cons POOL and add OBJ to the left of
+the tlist TL."
   (declare (type cons tl) (type cons-pool pool))
   (let ((entry (cons-pool-pop-cons pool)))
     (set-cons entry obj (car tl))
@@ -191,6 +241,8 @@
 
 (declaim (inline tlist-add-right))
 (defun tlist-add-right (tl obj pool)
+  "Get a cons cell from the cons POOL and add OBJ to the right of
+the tlist TL."
   (declare (type cons tl) (type cons-pool pool))
   (let ((entry (cons-pool-pop-cons pool)))
     (set-cons entry obj nil)
@@ -201,6 +253,9 @@
 
 (declaim (inline tlist-remove-left))
 (defun tlist-remove-left (tl pool)
+  "Remove the left element of the tlist TL and return it.
+
+Return the cons cell to the cons POOL."
   (declare (type cons tl) (type cons-pool pool))
   (unless (tlist-empty-p tl)
     (let ((entry (car tl)))
@@ -264,7 +319,9 @@
 ZEROP is T, the memory is initialized with zeros. If INITIAL-ELEMENT
 is supplied, each element of the newly allocated memory is initialized
 with its value. If INITIAL-CONTENTS is supplied, each of its elements
-will be used to initialize the contents of the newly allocated memory."
+will be used to initialize the contents of the newly allocated memory.
+
+This function has to be called from the real-time thread."
   (let (contents-length)
     (when initial-contents
       (setq contents-length (length initial-contents))
@@ -304,7 +361,9 @@ will be used to initialize the contents of the newly allocated memory."
   (incudine.external:foreign-free-ex ptr *foreign-rt-memory-pool*))
 
 (defun foreign-rt-free (ptr)
-  "Free PTR previously allocated by FOREIGN-RT-ALLOC."
+  "Free PTR previously allocated by FOREIGN-RT-ALLOC.
+
+This function has to be called from the real-time thread."
   (if *rt-thread*
       (%foreign-rt-free ptr)
       (bt:with-lock-held (*rt-memory-lock*)
@@ -317,7 +376,9 @@ objects of type TYPE. If ZEROP is T, the memory is initialized with zeros.
 If INITIAL-ELEMENT is supplied, each element of the newly reallocated
 memory is initialized with its value. If INITIAL-CONTENTS is supplied,
 each of its elements will be used to initialize the contents of the newly
-reallocated memory."
+reallocated memory.
+
+This function has to be called from the real-time thread."
   (let (contents-length)
     (when initial-contents
       (setq contents-length (length initial-contents))
@@ -453,36 +514,57 @@ will be used to initialize the contents of the newly allocated memory."
 
 (declaim (inline get-foreign-sample-used-size))
 (defun get-foreign-sample-used-size ()
+  "Return the number of bytes allocated from the foreign memory pool
+used to allocate arrays of samples in DSP and UGEN instances from the
+real-time thread."
   (incudine.external:get-foreign-used-size *foreign-sample-pool*))
 
 (declaim (inline get-foreign-sample-free-size))
 (defun get-foreign-sample-free-size ()
+  "Return the number of bytes that can be allocated from the foreign
+memory pool used to allocate arrays of samples in DSP and UGEN instances
+from the real-time thread."
   (- *foreign-sample-pool-size* (get-foreign-sample-used-size)))
 
 (declaim (inline get-foreign-sample-max-size))
 (defun get-foreign-sample-max-size ()
+  "Return the maximum size of the foreign memory pool used to allocate
+arrays of samples in DSP and UGEN instances from the real-time thread."
   (incudine.external:get-foreign-max-size *foreign-sample-pool*))
 
 (declaim (inline get-rt-memory-used-size))
 (defun get-rt-memory-used-size ()
+  "Return the number of bytes allocated from the foreign memory pool
+used from the real-time thread."
   (incudine.external:get-foreign-used-size *foreign-rt-memory-pool*))
 
 (declaim (inline get-rt-memory-free-size))
 (defun get-rt-memory-free-size ()
+  "Return the the number of bytes that can be allocated from the
+foreign memory pool used from the real-time thread."
   (- *foreign-rt-memory-pool-size* (get-rt-memory-used-size)))
 
 (declaim (inline get-rt-memory-max-size))
 (defun get-rt-memory-max-size ()
+  "Return the maximum size of the foreign memory pool used from the
+real-time thread."
   (incudine.external:get-foreign-max-size *foreign-rt-memory-pool*))
 
 (declaim (inline get-nrt-memory-used-size))
 (defun get-nrt-memory-used-size ()
+  "Return the number of bytes allocated from the foreign memory pool
+used to allocate temporary foreign arrays from any non-real-time thread."
   (incudine.external:get-foreign-used-size *foreign-nrt-memory-pool*))
 
 (declaim (inline get-nrt-memory-free-size))
 (defun get-nrt-memory-free-size ()
+  "Return the number of bytes that can be allocated from the foreign
+memory pool used to allocate temporary foreign arrays from any
+non-real-time thread."
   (- *foreign-nrt-memory-pool-size* (get-nrt-memory-used-size)))
 
 (declaim (inline get-nrt-memory-max-size))
 (defun get-nrt-memory-max-size ()
+  "Return the maximum size of the foreign memory pool used to allocate
+temporary foreign arrays from any non-real-time thread."
   (incudine.external:get-foreign-max-size *foreign-nrt-memory-pool*))

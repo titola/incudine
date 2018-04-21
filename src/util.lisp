@@ -238,7 +238,7 @@ The error is 0.0005% by default."
 (declaim (inline allow-rt-memory-p))
 (defun allow-rt-memory-p ()
   "Return T if the current thread is the real-time thread and the
-real-time memory pool is usable."
+related foreign memory pool is usable."
   (and (rt-thread-p) *allow-rt-memory-pool-p*))
 
 (macrolet

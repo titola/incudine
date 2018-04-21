@@ -120,6 +120,7 @@
 
 (declaim (inline foreign-alloc-sample))
 (defun foreign-alloc-sample (size)
+  "Allocate enough foreign memory to hold SIZE samples."
   (let ((ptr (%foreign-alloc-sample size)))
     (if (cffi:null-pointer-p ptr)
         (incudine::foreign-alloc-error "FOREIGN-ALLOC-SAMPLE failed.")
@@ -155,27 +156,47 @@
                            (* size +foreign-sample-size+))))
 
 (cffi:defcfun ("init_memory_pool" init-foreign-memory-pool) :unsigned-int
+  "Initialize the foreign memory pool of size SIZE pointed to by PTR.
+
+Example:
+
+    ;; Pool size of 10 MB
+    (define-constant +mem-pool-size+ (* 10 1024 1024))
+
+    (defvar *mem-pool* (cffi:foreign-alloc :char :count +mem-pool-size+))
+    (declaim (type foreign-pointer *mem-pool*))
+
+    (incudine.external:init-foreign-memory-pool +mem-pool-size+ *mem-pool*)"
   (size :unsigned-int)
   (ptr :pointer))
 
 (cffi:defcfun ("destroy_memory_pool" destroy-foreign-memory-pool) :void
+  "Destroy the foreign memory pool pointed to by POOL."
   (pool :pointer))
 
 (cffi:defcfun ("get_used_size" get-foreign-used-size) :unsigned-int
+  "Return the number of bytes allocated from the foreign memory POOL."
   (pool :pointer))
 
 (cffi:defcfun ("get_max_size" get-foreign-max-size) :unsigned-int
+  "Return the maximum size of the foreign memory POOL."
   (pool :pointer))
 
 (cffi:defcfun ("malloc_ex" foreign-alloc-ex) :pointer
+  "Allocate SIZE bytes from the foreign memory POOL and return a
+pointer to the allocated memory."
   (size :unsigned-int)
   (pool :pointer))
 
 (cffi:defcfun ("free_ex" foreign-free-ex) :void
+  "Free PTR previously allocated by FOREIGN-ALLOC-EX."
   (ptr :pointer)
   (pool :pointer))
 
 (cffi:defcfun ("realloc_ex" foreign-realloc-ex) :pointer
+  "Change the size of the foreign memory block of POOL to SIZE bytes.
+
+Return a pointer to the newly allocated memory."
   (ptr :pointer)
   (size :unsigned-int)
   (pool :pointer))

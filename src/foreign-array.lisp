@@ -48,6 +48,7 @@
 
 (declaim (inline safe-foreign-rt-free))
 (defun safe-foreign-rt-free (ptr)
+  "Call FOREIGN-RT-FREE from the real-time thread."
   ;; We use a realtime memory allocator without lock, and the memory
   ;; is (de)allocated in realtime from a single rt-thread.
   (rt-eval () (foreign-rt-free ptr)))
