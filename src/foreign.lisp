@@ -73,6 +73,16 @@
   (thread :pointer)
   (priority :int))
 
+(cffi:defcfun "pthread_getaffinity_np" :int
+  (thread :pointer)
+  (size :unsigned-int)
+  (cpuset :pointer))
+
+(cffi:defcfun "pthread_setaffinity_np" :int
+  (thread :pointer)
+  (size :unsigned-int)
+  (cpuset :pointer))
+
 ;;; SNDFILE
 
 (cffi:defcfun "sndfile_to_buffer" :void

@@ -83,6 +83,7 @@
   (cffi:make-pointer (sb-thread::thread-os-thread thread)))
 
 (defun thread-priority (thread)
+  "Return the thread priority. Setfable."
   (declare (type sb-thread:thread thread))
   (when (bt:threadp thread)
     (incudine.external::pthread-priority (thread-pointer thread))))
@@ -96,6 +97,76 @@
         (warn "failed to set scheduling priority ~D" priority))))
 
 (defsetf thread-priority set-thread-priority)
+
+(define-constant +max-number-of-cpus+ 1024)
+
+(defun affinity-mask-ptr-to-integer (ptr size)
+  (loop for i from (1- size) downto 0
+        for res = (cffi:mem-aref ptr :unsigned-char i)
+                then (logior (ash res 8) (cffi:mem-aref ptr :unsigned-char i))
+        finally (return res)))
+
+(defun affinity-mask-integer-to-ptr (ptr size mask)
+  (loop for i below size
+        while (plusp mask) do
+          (setf (cffi:mem-aref ptr :unsigned-char i) (logand mask #xff))
+          (setf mask (ash mask -8))))
+
+(defun thread-affinity (thread)
+  "Return the CPU affinity mask of THREAD. Setfable.
+
+It is also possible to specify a list of zero-based processors to set
+the thread affinity.
+
+For more details on CPU affinity masks, see taskset and/or
+sched_setaffinity man page.
+
+Example: 8 processors
+
+    (rt-stop)
+
+    (mapcar (lambda (thr)
+              ;; Exclude processor 0. The list is equivalent
+              ;; to the affinity mask #b11111110.
+              (setf (thread-affinity thr) '(1 2 3 4 5 6 7)))
+            (bt:all-threads))
+
+    (rt-start)
+
+    ;; Dedicate processor 0 to real-time thread.
+    (setf (thread-affinity *rt-thread*) '(0))
+    ;; => 1
+
+    ;; Verify affinity mask.
+    (mapcar #'thread-affinity (bt:all-threads))
+    ;; => (1 254 254 254)"
+  (declare (type sb-thread:thread thread))
+  (assert (bt:threadp thread))
+  (let ((size #.(ash +max-number-of-cpus+ -3)))
+    (cffi:with-foreign-object (ptr :char size)
+      (incudine.external:foreign-set ptr 0 size)
+      (if (zerop (incudine.external::pthread-getaffinity-np
+                   (thread-pointer thread) size ptr))
+          (affinity-mask-ptr-to-integer ptr size)
+          (incudine:incudine-error "pthread_getaffinity_np failed")))))
+
+(defun set-thread-affinity (thread value)
+  (declare (type sb-thread:thread thread) (type (or integer cons) value))
+  (assert (bt:threadp thread))
+  (let* ((mask (if (listp value)
+                   (loop for i in (remove-duplicates value) sum (ash 1 i))
+                   value))
+         (size (max 1 (ceiling (* (integer-length mask) 1/8)))))
+    (cffi:with-foreign-object (ptr :char size)
+      (incudine.external:foreign-set ptr 0 size)
+      (affinity-mask-integer-to-ptr ptr size mask)
+      (if (zerop (incudine.external::pthread-setaffinity-np
+                   (thread-pointer thread) size ptr))
+          mask
+          (incudine:incudine-error
+            "failed to set thread affinity ~A" value)))))
+
+(defsetf thread-affinity set-thread-affinity)
 
 (declaim (inline seed-from-random-state))
 (defun seed-from-random-state (state)

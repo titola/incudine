@@ -121,7 +121,7 @@
    #:logger-time #:logger-time-function #:default-logger-time-function
    #:compare-and-swap #:barrier
    #:get-bytes-consed-in
-   #:thread-priority
+   #:thread-affinity #:thread-priority
    #:seed-random-state
    #:sample->fixnum #:sample->int #:float->fixnum #:rationalize* #:calc-lobits
    #:rt-thread-p #:rt-eval #:allow-rt-memory-p
