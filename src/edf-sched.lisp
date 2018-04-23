@@ -18,18 +18,25 @@
 
 ;;; Earliest Deadline First scheduling (EDF)
 
-(defstruct (node (:copier nil))
+(defstruct (node (:constructor make-node ()) (:copier nil))
+  "Heap node type."
   (time +sample-zero+ :type sample)
   (function #'corrupted-heap :type function)
   (args nil :type list))
 
-(define-constant +node-root+    1)
+(setf (documentation 'make-node 'function)
+      "Create and return a new heap NODE structure.")
+
+(define-constant +root-node+ 1
+  :documentation "Integer identifier for the root node of the EDF heap.")
+
 (define-constant +first-parent+ 2)
 
 (defstruct (heap (:constructor %make-heap))
+  "Heap type."
   (data (incudine:incudine-missing-arg "EDF heap data required.")
         :type simple-vector)
-  (next-node +node-root+ :type positive-fixnum)
+  (next-node +root-node+ :type positive-fixnum)
   (temp-node (make-node) :type node)
   (time-offset +sample-zero+ :type sample))
 
@@ -49,10 +56,14 @@
         (if (power-of-two-p *rt-edf-heap-size*)
             *rt-edf-heap-size*
             (next-power-of-two *rt-edf-heap-size*))
-        1024))
+        1024)
+    "Max number of scheduled events. It is assumed to be a power of two.")
   (declaim (type non-negative-fixnum *heap-size*)))
 
 (defun make-heap (&optional (size *heap-size*))
+  "Create and return a new HEAP structure to schedule at maximum SIZE events.
+
+SIZE defaults to *heap-size*."
   (declare (type non-negative-fixnum size))
   (let ((size (next-power-of-two size)))
     (%make-heap
@@ -60,7 +71,8 @@
                         :initial-contents (loop repeat size
                                                 collect (make-node))))))
 
-(defvar *heap* (make-heap))
+(defvar *heap* (make-heap)
+  "Default EDF heap.")
 (declaim (type heap *heap*))
 
 (defvar *rt-heap* *heap*)
@@ -72,10 +84,12 @@
 
 (declaim (inline heap-empty-p))
 (defun heap-empty-p ()
-  (= (heap-next-node *heap*) +node-root+))
+  "Whether the EDF heap is empty."
+  (= (heap-next-node *heap*) +root-node+))
 
 (declaim (inline heap-count))
 (defun heap-count ()
+  "Return the number of entries in the EDF heap."
   (1- (heap-next-node *heap*)))
 
 (declaim (inline heap-node))
@@ -108,6 +122,7 @@
 
 (declaim (inline schedule-at))
 (defun schedule-at (time function args)
+  "Schedule FUNCTION to be called with the supplied ARGUMENTS at TIME samples."
   (declare (type sample time) (type function function)
            (type list args))
   (unless (>= (heap-next-node *heap*) *heap-size*)
@@ -115,7 +130,7 @@
           (t0 (sample time)))
       (declare #.*standard-optimize-settings*
                (type positive-fixnum curr) (type sample t0))
-      (loop while (> curr +node-root+) do
+      (loop while (> curr +root-node+) do
            (let ((parent (ash curr -1)))
              (declare (type positive-fixnum parent))
              (cond ((< t0 (node-time (heap-node parent)))
@@ -136,26 +151,35 @@
   (values))
 
 (declaim (inline at))
-(defun at (time function &rest args)
-  (%at (sample time) function args))
+(defun at (time function &rest arguments)
+  "Schedule FUNCTION to be called with the supplied ARGUMENTS from the
+real-time thread at TIME samples."
+  (%at (sample time) function arguments))
 
 ;;; Anaphoric macro for AT.
-;;; The variable IT is bound to the time, the first argument of AT.
-(defmacro aat (time function &rest args)
+(defmacro aat (time function &rest arguments)
+  "Like AT, except bind the TIME to IT for the scope of the rest of
+the ARGUMENTS.
+
+Example:
+
+    (defun simple-test (time)
+      (set-controls 1 :freq (+ 100 (random 1000)))
+      (aat (+ time #[1 beat]) #'simple-test it))"
   (let ((it (intern "IT")))
     `(let ((,it ,time))
-       (at ,it ,function ,@args))))
+       (at ,it ,function ,@arguments))))
 
 (defun get-heap ()
   (declare #.*standard-optimize-settings*
            #+(or cmu sbcl) (values node))
-  (cond ((> (heap-next-node *heap*) +node-root+)
+  (cond ((> (heap-next-node *heap*) +root-node+)
          ;; node 0 used for the result
-         (node-copy (heap-node +node-root+) (heap-node 0))
+         (node-copy (heap-node +root-node+) (heap-node 0))
          (decf (heap-next-node *heap*))
-         (node-move (heap-node (heap-next-node *heap*)) (heap-node +node-root+))
-         (node-copy (heap-node +node-root+) (heap-temp-node *heap*))
-         (let ((parent +node-root+)
+         (node-move (heap-node (heap-next-node *heap*)) (heap-node +root-node+))
+         (node-copy (heap-node +root-node+) (heap-temp-node *heap*))
+         (let ((parent +root-node+)
                (curr +first-parent+))
            (declare (type positive-fixnum parent curr))
            (loop while (< curr (heap-next-node *heap*)) do
@@ -184,12 +208,15 @@
            (lambda () (format *error-output* "ERROR: ~A~%" ,c)))))))
 
 (defmacro sched-loop ()
-  `(loop while (and (> (heap-next-node *heap*) ,+node-root+)
+  "Earliest Deadline First scheduling loop to call the functions
+scheduled at the current time."
+  `(loop while (and (> (heap-next-node *heap*) ,+root-node+)
                     (>= (+ (incudine:now) ,(sample 0.5))
-                        (node-time (heap-node ,+node-root+))))
+                        (node-time (heap-node ,+root-node+))))
          do (call-node-function (get-heap))))
 
 (defun last-time ()
+  "Return the time of the last scheduled function to call."
   (declare #.*standard-optimize-settings* #.incudine.util:*reduce-warnings*)
   (labels ((rec (i t0)
              (declare (type non-negative-fixnum i) (type sample t0))
@@ -212,11 +239,13 @@ The list is empty after FLUSH-PENDING.")
 (declaim (type incudine.util:spinlock *flush-pending-spinlock*))
 
 (defun add-flush-pending-hook (function)
+  "Regiter a hook FUNCTION to be run when FLUSH-PENDING is called."
   (incudine.util:with-spinlock-held (*flush-pending-spinlock*)
     (push function *flush-pending-hook*)
     function))
 
 (defun remove-flush-pending-hook (function)
+  "Unregister the flush-pending hook FUNCTION."
   (incudine.util:with-spinlock-held (*flush-pending-spinlock*)
     (setf *flush-pending-hook*
           (delete function *flush-pending-hook* :test #'eq))
@@ -228,7 +257,7 @@ The list is empty after FLUSH-PENDING.")
 
 (defun force-pending-events (time-step)
   (declare (type non-negative-real time-step))
-  (when (> (heap-next-node *heap*) +node-root+)
+  (when (> (heap-next-node *heap*) +root-node+)
     (call-node-function (get-heap))
     (schedule-at (+ (incudine:now) time-step) #'force-pending-events
                  (list time-step)))
@@ -297,7 +326,7 @@ forced every TIME-STEP samples."
   (incudine.util:with-spinlock-held (*heap-pool-spinlock*)
     (let ((cons (incudine.util:cons-pool-pop-cons *heap-pool*)))
       (prog1 (car cons)
-        (setf (heap-next-node (car cons)) +node-root+)
+        (setf (heap-next-node (car cons)) +root-node+)
         (incudine.util:nrt-global-pool-push-cons cons)))))
 
 (defun heap-pool-push (heap)
@@ -308,6 +337,8 @@ forced every TIME-STEP samples."
       (incudine.util:cons-pool-push-cons *heap-pool* cons))))
 
 (defun reduce-heap-pool ()
+  "Reset the heap-pool size to the value of the configuration variable
+*EDF-HEAP-POOL-SIZE*."
   (incudine.util:with-spinlock-held (*heap-pool-spinlock*)
     (let ((len (incudine.util:cons-pool-size *heap-pool*)))
       (when (> len +heap-pool-size+)
@@ -344,9 +375,9 @@ forced every TIME-STEP samples."
     (let ((rt-heap *heap*)
           (*heap* heap))
       (declare (special *heap*))
-      (loop while (and (> (heap-next-node heap) +node-root+)
+      (loop while (and (> (heap-next-node heap) +root-node+)
                        (>= (+ (the sample (incudine:now)) (sample 0.5))
-                           (+ (node-time (heap-node +node-root+))
+                           (+ (node-time (heap-node +root-node+))
                               (heap-time-offset heap)))) do
               (let ((curr-node (get-heap)))
                 (declare (type node curr-node))

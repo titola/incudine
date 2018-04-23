@@ -313,7 +313,7 @@
                 #:*rt-edf-heap-size* #:*rt-thread* #:sample #:+sample-zero+
                 #:next-power-of-two #:power-of-two-p #:with-spinlock-held
                 #:rt-thread-p)
-  (:export #:+node-root+ #:*heap* #:*heap-size*
+  (:export #:+root-node+ #:*heap* #:*heap-size*
            #:node #:make-node #:heap #:make-heap #:schedule-at
            #:at #:aat #:sched-loop #:flush-pending #:heap-empty-p #:heap-count
            #:with-schedule

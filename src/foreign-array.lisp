@@ -135,6 +135,8 @@
 (define-constant +fast-nrt-foreign-array-max-size+ 64)
 
 (defmacro with-foreign-array ((var type &optional (count 1)) &body body)
+  "Bind VAR to a newly allocated foreign array of type TYPE and size COUNT
+with dynamic extent during BODY."
   (with-gensyms (array-wrap array-wrap-p)
     `(let* ((,array-wrap-p (or (rt-thread-p)
                                (> ,count +fast-nrt-foreign-array-max-size+)))
@@ -189,10 +191,17 @@
                                     bindings)))
            ,@body))))
 
-;;; The expansion within the definition of a VUG is different
-;;; (see %WITH-SAMPLES in `vug/vug.lisp')
 (defmacro with-samples (bindings &body body)
+  "Create new variable bindings to sample values by allocating foreign
+memory with dynamic extent during BODY.
+
+With the exception of the initializations of UGEN or DSP instances,
+WITH-SAMPLES performs the bindings in parallel."
   `(%with-samples (,bindings psetf let) ,@body))
 
 (defmacro with-samples* (bindings &body body)
+  "Create new variable bindings to sample values by allocating foreign
+memory with dynamic extent during BODY.
+
+WITH-SAMPLES* performs the bindings sequentially."
   `(%with-samples (,bindings setf let*) ,@body))
