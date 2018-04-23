@@ -29,13 +29,13 @@ undefined.")
 (defvar *nrt-from-world-fifo* (make-fifo))
 (declaim (type fifo *nrt-from-world-fifo*))
 
-(defvar *nrt-node-root*
+(defvar *nrt-root-node*
   (let ((group (make-node 0 *max-number-of-nodes*)))
     (setf (node-prev group) :dummy-node
           (node-funcons group) nil
           (node-last group) :dummy-node)
     group))
-(declaim (type node *nrt-node-root*))
+(declaim (type node *nrt-root-node*))
 
 (defvar *nrt-node-hash* (make-node-hash *max-number-of-nodes*))
 (declaim (type int-hash-table *nrt-node-hash*))
@@ -177,7 +177,7 @@ undefined.")
   (flush-all-fifos)
   ;; Flush the EDF.
   (flush-pending)
-  (node-free *node-root*)
+  (node-free *root-node*)
   (free-dirty-nodes)
   (incudine.edf:sched-loop))
 
@@ -248,7 +248,7 @@ BPM is the tempo in beats per minute and defaults to *DEFAULT-BPM*."
            (*rt-thread* (bt:current-thread))
            (*allow-rt-memory-pool-p* nil)
            (*node-hash* *nrt-node-hash*)
-           (*node-root* *nrt-node-root*)
+           (*root-node* *nrt-root-node*)
            (*dirty-nodes* *nrt-dirty-nodes*)
            (*bus-pointer* *nrt-bus-pointer*)
            (*output-pointer* *nrt-output-pointer*)
@@ -284,7 +284,7 @@ BPM is the tempo in beats per minute and defaults to *DEFAULT-BPM*."
          (write-to-disk-loop (,frame-var ,remain) ,form)
          (when (plusp ,count)
            (write-sample ,snd ,data-var ,count))
-         (node-free *node-root*)
+         (node-free *root-node*)
          (incudine.edf:sched-loop)
          (perform-fifos)
          (nrt-cleanup)))))
@@ -578,7 +578,7 @@ and genre."
                   (nrt-write-buffer-loop in-data out-data in-count out-count
                                          in-channels out-channels in-size
                                          mix-p))
-                (node-free *node-root*)
+                (node-free *root-node*)
                 (incudine.edf:sched-loop)
                 (perform-fifos)
                 (nrt-cleanup)))

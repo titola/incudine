@@ -119,19 +119,19 @@
 (defvar *node-hash* (make-node-hash *max-number-of-nodes*))
 (declaim (type int-hash-table *node-hash*))
 
-(defvar *node-root*
+(defvar *root-node*
   (let ((group (make-node 0 (length (int-hash-table-items *node-hash*)))))
     (setf (node-prev group) :dummy-node
           (node-funcons group) nil
           (node-last group) :dummy-node)
     group)
   "The root node of the node tree.")
-(declaim (type node *node-root*))
+(declaim (type node *root-node*))
 
 (declaim (inline node-root-p))
 (defun node-root-p (obj)
   (declare #.*standard-optimize-settings*)
-  (eq obj *node-root*))
+  (eq obj *root-node*))
 
 (defmacro make-temp-node (&rest rest)
   `(prog1 (%make-node :id -1 ,@rest)
@@ -158,7 +158,7 @@
 (defun node (id)
   "Return the node with integer identifier ID."
   (declare (type fixnum id) #.*standard-optimize-settings*)
-  (if (zerop id) *node-root* (values (getihash id))))
+  (if (zerop id) *root-node* (values (getihash id))))
 
 ;;; Previous node not in pause
 (defun unpaused-node-prev (curr)
@@ -167,7 +167,7 @@
     (when (node-p prev)
       (unless (or (eq (node-parent curr) prev)
                   (eq (node-parent prev) (node-parent curr)))
-        (when (and (not (eq prev *node-root*))
+        (when (and (not (eq prev *root-node*))
                    (node-pause-p (node-parent prev)))
           ;; Skip the nodes of the paused group
           (setf prev (node-parent prev))))
@@ -213,7 +213,7 @@
       (setf (node-index node) index))
     node))
 
-(defun make-group (id &optional (add-action :head) (target *node-root*))
+(defun make-group (id &optional (add-action :head) (target *root-node*))
   "Create a group node.
 
 If ADD-ACTION is :HEAD (default), add the group at the head of the group node TARGET.
@@ -224,7 +224,7 @@ If ADD-ACTION is :BEFORE, add the group immediately before the node TARGET.
 
 If ADD-ACTION is :AFTER, add the group immediately after the node TARGET.
 
-TARGET defaults to *NODE-ROOT*."
+TARGET defaults to *ROOT-NODE*."
   (declare (type fixnum id) (type keyword add-action)
            (type (or node fixnum) target))
   (let ((target (if (numberp target) (node target) target)))
@@ -241,7 +241,7 @@ TARGET defaults to *NODE-ROOT*."
                    (incf (int-hash-table-count *node-hash*))))
             (case add-action
               (:before
-               (unless (eq target *node-root*)
+               (unless (eq target *root-node*)
                  (common-set group id)
                  (setf (node-next group) target
                        (node-prev group) (node-prev target)
@@ -255,7 +255,7 @@ TARGET defaults to *NODE-ROOT*."
                  (link-to-unpaused-prev group (node-prev group))
                  (nrt-msg info "new group ~D" id)))
               (:after
-               (unless (eq target *node-root*)
+               (unless (eq target *root-node*)
                  (common-set group id)
                  (setf (node-parent group) (node-parent target))
                  (if (group-p target)
@@ -315,7 +315,7 @@ TARGET defaults to *NODE-ROOT*."
 
 (declaim (inline graph-empty-p))
 (defun graph-empty-p ()
-  (null (node-funcons *node-root*)))
+  (null (node-funcons *root-node*)))
 
 (declaim (inline graph-full-p))
 (defun graph-full-p ()
@@ -726,7 +726,7 @@ curve returned by NODE-FADE-CURVE."
 (defmacro get-add-action-and-target (&rest keywords)
   `(cond ,@(mapcar (lambda (x) `(,x (values ,(make-keyword x) ,x)))
                    keywords)
-         (t (values :head *node-root*))))
+         (t (values :head *root-node*))))
 
 (defmacro with-add-action ((add-action target head tail before after replace)
                            &body body)
@@ -781,9 +781,9 @@ argument is the object to free."))
   "Iterate over the live nodes with VAR bound to each node and
 execute the body once for each node, then RESULT form is evaluated.
 
-The first node is NODE or *NODE-ROOT*."
+The first node is NODE or *ROOT-NODE*."
   (with-gensyms (first-node)
-    (let ((node (or node '*node-root*)))
+    (let ((node (or node '*root-node*)))
       `(let ((,first-node ,node))
          (unless (null-node-p ,first-node)
            (do ((,var ,first-node (node-next ,var)))
@@ -925,7 +925,7 @@ of GROUP."
   (declare (type node node) #.*standard-optimize-settings*)
   (cond ((node-root-p node)
          (setf *last-node-id* 1)
-         (when (node-next *node-root*)
+         (when (node-next *root-node*)
            (unlink-group node)
            (nrt-msg info "free group 0")))
         ((temp-node-p node)
@@ -964,7 +964,7 @@ of GROUP."
 (declaim (inline node-free-all))
 (defun node-free-all ()
   "Free all the nodes."
-  (node-free *node-root*))
+  (node-free *root-node*))
 
 (defgeneric free-hook (obj)
   (:documentation "A list of function designators which are called in
@@ -1048,7 +1048,7 @@ the STOP method. The function argument is the object to stop."))
 
 (defun move-node-before (src dest)
   (declare (type node src dest))
-  (cond ((eq dest *node-root*)
+  (cond ((eq dest *root-node*)
          (error 'incudine-node-error
                 :format-control "Cannot add a node before the root."))
         ((neighbor-after-p dest src) nil)
@@ -1083,7 +1083,7 @@ the STOP method. The function argument is the object to stop."))
 
 (defun move-node-after (src dest)
   (declare (type node src dest))
-  (cond ((eq dest *node-root*)
+  (cond ((eq dest *root-node*)
          (error 'incudine-node-error
                 :format-control "Cannot add a node after the root."))
         ((neighbor-after-p src dest) nil)
@@ -1417,13 +1417,13 @@ arguments ARGS."
       (when (and (node-pause-p obj) (not (null-node-p obj)))
         (let ((prev (unpaused-node-prev obj)))
           (setf (node-pause-p obj) nil)
-          (cond ((eq obj *node-root*)
+          (cond ((eq obj *root-node*)
                  (let ((next (if (node-p (node-next obj))
                                  (if (node-pause-p (node-next obj))
                                      (unpaused-node-next (node-next obj))
                                      (node-next obj)))))
                    (when next
-                     (setf (node-funcons *node-root*) (node-funcons next))))
+                     (setf (node-funcons *root-node*) (node-funcons next))))
                  (nrt-msg info "unpause node ~D" (node-id obj)))
                 ((group-p obj)
                  (let ((last (find-last-node obj)))

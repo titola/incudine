@@ -112,7 +112,7 @@
 
 (defmacro compute-tick (&optional (update-peak-p t))
   (with-gensyms (funcons flist fn dummy-fn c n chan)
-    `(let ((,funcons (node-funcons *node-root*)))
+    `(let ((,funcons (node-funcons *root-node*)))
        (do ((,flist ,funcons (cdr ,flist)))
            ((null ,flist))
          (declare (type list ,flist))

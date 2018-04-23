@@ -5,7 +5,7 @@
 
 (defun node-test-list ()
   (let ((acc nil))
-    (dograph (n *node-root* (cdr (nreverse acc)))
+    (dograph (n *root-node* (cdr (nreverse acc)))
       (push (list (node-id n) (node-name n) (group-p n)) acc))))
 
 (defun node-test-list-id ()
@@ -163,7 +163,7 @@
       (bounce-to-buffer (*buffer-test-c1* :frames 1)
         (flet ((node-test (max-nodes)
                  (node-test-loop (i 1 max-nodes)
-                   (play (lambda ()) :id i :tail *node-root* :name "foo"))))
+                   (play (lambda ()) :id i :tail *root-node* :name "foo"))))
           (node-test (1- *max-number-of-nodes*))
           (let ((n (ash *max-number-of-nodes* -1)))
             (play (lambda ()) :replace n :name "bar")

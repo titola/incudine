@@ -423,7 +423,7 @@
    ;; node
    #:node #:node-p #:group #:group-p #:make-group #:node-name #:node-id
    #:node-start-time #:node-uptime #:null-node-p #:live-nodes
-   #:next-node-id #:*node-root* #:node-release-phase-p #:node-gain
+   #:next-node-id #:*root-node* #:node-release-phase-p #:node-gain
    #:node-enable-gain-p #:*node-enable-gain-p* #:node-fade-time
    #:node-fade-curve #:node-fade-in #:node-fade-out
    #:pause #:unpause #:pause-p #:move #:before-p #:after-p #:head-p #:tail-p

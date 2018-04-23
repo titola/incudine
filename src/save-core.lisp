@@ -63,7 +63,7 @@
             (foreign-alloc 'sample :initial-element +sample-zero+))
       ;; graph
       (setf *node-hash* (make-node-hash *max-number-of-nodes*))
-      (setf *node-root*
+      (setf *root-node*
             (let ((group (make-node 0
                            (length (int-hash-table-items *node-hash*)))))
               (setf (node-prev group) :dummy-node
@@ -71,7 +71,7 @@
                     (node-last group) :dummy-node)
               group))
       ;; nrt
-      (setf *nrt-node-root*
+      (setf *nrt-root-node*
             (let ((group (make-node 0 *max-number-of-nodes*)))
               (setf (node-prev group) :dummy-node
                     (node-funcons group) nil
