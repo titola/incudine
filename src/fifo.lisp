@@ -157,30 +157,73 @@
              (funcall fn)
              (setf (fifo-read-head fifo) next))))))
 
-(declaim (inline rt-funcall))
-(defun rt-funcall (function)
-  (enqueue-function function *to-engine-fifo*)
-  nil)
-
-(declaim (inline fast-rt-funcall))
-(defun fast-rt-funcall (function)
-  (enqueue-function function *fast-to-engine-fifo*)
-  nil)
-
 (declaim (inline nrt-funcall))
 (defun nrt-funcall (function)
+  "Use a lock-free FIFO to run FUNCTION from \"audio-nrt-thread\".
+
+This function has to be called from the real-time thread.
+See also RT-FUNCALL.
+
+Example:
+
+    (in-package :scratch)
+
+    (rt-start)
+
+    (rt-eval ()
+      ;; From rt-thread to nrt-thread.
+      (nrt-funcall
+        (lambda ()
+          (msg warn \"[~A] sleeping...\"
+               (bt:thread-name (bt:current-thread)))
+          ;; Block in nrt-thread.
+          (sleep 1)
+          (msg warn \"[~A] ... and real-time funcall\"
+               (bt:thread-name (bt:current-thread)))
+          (rt-funcall
+            (lambda ()
+              ;; From rt-thread to nrt-thread.
+              (nrt-funcall
+                (lambda ()
+                  (msg warn \"hello from ~S.\"
+                       (bt:thread-name (bt:current-thread))))))))))
+    ;; => WARN: [audio-nrt-thread] sleeping...
+    ;;    WARN: [audio-nrt-thread] ... and real-time funcall
+    ;;    WARN: hello from \"audio-nrt-thread\"."
   (enqueue-function function *from-engine-fifo*)
   (sync-condition-signal *nrt-audio-sync*)
   nil)
 
 (declaim (inline fast-nrt-funcall))
 (defun fast-nrt-funcall (function)
+  "Use a lock-free FIFO to run FUNCTION from \"audio-fast-nrt-thread\".
+
+This function has to be called from the real-time thread.
+See also FAST-RT-FUNCALL."
   (if (rt-thread-p)
       ;; From rt-thread to fast-nrt-thread
       (enqueue-function function *fast-from-engine-fifo*)
       ;; From any (non rt) thread to fast-nrt-thread
       (fast-nrt-enqueue-function function))
   (sync-condition-signal *fast-nrt-audio-sync*)
+  nil)
+
+(declaim (inline rt-funcall))
+(defun rt-funcall (function)
+  "Use a lock-free FIFO to run FUNCTION from the real-time thread.
+
+This function has to be called from \"audio-nrt-thread\".
+See also NRT-FUNCALL."
+  (enqueue-function function *to-engine-fifo*)
+  nil)
+
+(declaim (inline fast-rt-funcall))
+(defun fast-rt-funcall (function)
+  "Use a lock-free FIFO to run FUNCTION from the real-time thread.
+
+This function has to be called from \"audio-fast-nrt-thread\".
+See also FAST-NRT-FUNCALL."
+  (enqueue-function function *fast-to-engine-fifo*)
   nil)
 
 (defun %print-condition-error (cond)

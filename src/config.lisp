@@ -246,7 +246,10 @@
 (declaim (type (or bt:thread null) *nrt-thread*))
 
 (defvar *fast-nrt-thread* nil
-  "Fast-non-real-time thread or NIL.")
+  "Fast-non-real-time thread or NIL.
+
+The fast-non-real-time thread is used for fast communication with the
+real-time thread.")
 (declaim (type (or bt:thread null) *fast-nrt-thread*))
 
 (defvar *allow-rt-memory-pool-p* t
