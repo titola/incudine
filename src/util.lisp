@@ -732,25 +732,6 @@ function are the vector index and the quantized value."))
                      `(setf (,name ,to) ,src)))
                  slot-names))))
 
-;;; The read macro #T is useful to apply a filter multiple times.
-;;; Example: apply a pole filter four times (4t)
-;;;
-;;;     #4t(pole in coef)
-;;;
-;;; is equivalent to
-;;;
-;;;     (pole (pole (pole (pole in coef) coef) coef) coef)
-;;;
-;;; Often the input of a filter is the first argument, but if it is
-;;; not the case, a number after sharp-t is the position of the input
-;;; in the list of the arguments starting from zero. Example:
-;;;
-;;;     #4t1(fname x in y)
-;;;
-;;; is equivalent to
-;;;
-;;;     (fname x (fname x (fname x (fname x in y) y) y) y)
-;;;
 (defun |#t-reader| (stream subchar arg)
   (declare (type stream stream) (ignore subchar))
   (let* ((arg-index (or (car (read-delimited-list #\( stream t))
@@ -774,6 +755,24 @@ function are the vector index and the quantized value."))
 (pushnew #'add-sharp-t-syntax *initialize-hook*)
 
 (defmacro enable-sharp-t-syntax ()
-  "Enable sharp-t reader syntax."
+  "Enable sharp-t reader syntax, useful to apply a filter multiple times.
+
+Example: apply a pole filter four times (4t)
+
+    #4t(pole in coef)
+
+is equivalent to
+
+    (pole (pole (pole (pole in coef) coef) coef) coef)
+
+Often the input of a filter is the first argument, but if it is not
+the case, an integer after sharp-t specifies the position of the input
+in the argument list starting from zero. Example:
+
+    #4t1(fname x in y)
+
+is equivalent to
+
+    (fname x (fname x (fname x (fname x in y) y) y) y)"
   `(eval-when (:compile-toplevel :execute)
      (add-sharp-t-syntax)))
