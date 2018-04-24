@@ -47,7 +47,7 @@
 (counts 12)
 ;; (4 0 1 2 3 4 0 1 2 3 4 0)
 
-;; The follow line defines a setter called INCR-EDULA-FROM to change
+;; The following line defines a setter called INCR-EDULA-FROM to change
 ;; the START value:
 
 (define-ugen-control-setter incr-edula start incr-edula-from)

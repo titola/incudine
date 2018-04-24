@@ -28,7 +28,7 @@
 ;; FLOAT with arbitrary range between -2^63 and 2^63.
 ;; Used in SBCL on X86 with SIN, COS and TAN.
 (deftype limited-sample () (let ((high (force-sample-format 4.0e18)))
-                             `(,*sample-type* ,(- high) ,high)))
+                             `(,incudine.config:*sample-type* ,(- high) ,high)))
 
 (deftype maybe-limited-sample () #+(and sbcl x86) 'limited-sample
                                  #-(and sbcl x86) 'sample)
@@ -46,8 +46,8 @@
   '(:title :copyright :software :artist :comment
     :date :album :license :tracknumber :genre))
 
-(declaim (inline incudine-version))
 (defun incudine-version ()
+  "Return a string that identifies the Incudine version."
   #.(format nil "~D.~D.~D"
             incudine.config::+incudine-major+
             incudine.config::+incudine-minor+
@@ -85,32 +85,39 @@
 
 (defmacro dochannels ((var channels &optional (result nil))
                       &body body)
+  "Iterate over the CHANNELS with VAR bound to each number of channel
+and execute the body once for each channel, then RESULT form is evaluated."
   `(do ((,var 0 (1+ ,var)))
        ((>= ,var ,channels) ,result)
      (declare (type channel-number ,var))
      ,@body))
 
 (declaim (inline lin->db))
-(defun lin->db (x)
-  (let ((in (if (zerop x) least-positive-sample x)))
+(defun lin->db (value)
+  "Convert the linear VALUE to dB."
+  (let ((in (if (zerop value) least-positive-sample value)))
     (* (log in) #.(/ (sample 20) (log (sample 10))))))
 
 (declaim (inline db->lin))
-(defun db->lin (x)
-  (expt (sample 10) (* x (sample 0.05))))
+(defun db->lin (value)
+  "Convert VALUE dB to linear value."
+  (expt (sample 10) (* value (sample 0.05))))
 
 (declaim (inline linear-interp))
 (defun linear-interp (in y0 y1)
+  "Linear interpolation between Y0 and Y1 by IN."
   (+ y0 (* in (- y1 y0))))
 
 (declaim (inline cos-interp))
 (defun cos-interp (in y0 y1)
+  "Sinusoidal interpolation between Y0 and Y1 by IN."
   (linear-interp (* (- 1 (cos (the limited-sample (* in (sample pi)))))
                     0.5) y0 y1))
 
 ;;; Catmull-Rom spline
 (declaim (inline cubic-interp))
 (defun cubic-interp (in y0 y1 y2 y3)
+  "Four-point interpolation."
   (let ((a0 (+ (* -0.5 y0) (* 1.5 y1) (* -1.5 y2) (* 0.5 y3)))
         (a1 (+ y0 (* -2.5 y1) (* 2.0 y2) (* -0.5 y3)))
         (a2 (+ (* -0.5 y0) (* 0.5 y2))))
@@ -134,69 +141,81 @@
       (cosh (the limited-sample
               (* order (the limited-sample (acosh x)))))))
 
-(declaim (inline set-sample-rate))
 (defun set-sample-rate (value)
+  "Set the sample rate to VALUE and run the hook *SAMPLE-RATE-HOOK*.
+
+The following variables are updated: *SAMPLE-RATE*, *SAMPLE-DURATION*,
+*TWOPI-DIV-SR*, *PI-DIV-SR*, *MINUS-PI-DIV-SR* and *CPS2INC*."
   (setf *sample-rate* (sample value)
         *sample-duration* (/ 1.0 *sample-rate*))
-  (mapc #'funcall sample-rate-hook)
-  (mapc #'funcall sample-duration-hook)
+  (incudine::call-hooks "set-sample-rate" *sample-rate-hook*)
   *sample-rate*)
 
-(declaim (inline set-sample-duration))
 (defun set-sample-duration (value)
+  "Set the sample duration to VALUE and run the hook *SAMPLE-RATE-HOOK*.
+
+The following variables are updated: *SAMPLE-RATE*, *SAMPLE-DURATION*,
+*TWOPI-DIV-SR*, *PI-DIV-SR*, *MINUS-PI-DIV-SR* and *CPS2INC*."
   (setf *sample-duration* (sample value)
         *sample-rate* (/ 1.0 *sample-duration*))
-  (mapc #'funcall sample-rate-hook)
-  (mapc #'funcall sample-duration-hook)
+  (incudine::call-hooks "set-sample-duration" *sample-rate-hook*)
   *sample-duration*)
 
-(declaim (inline set-sound-velocity))
 (defun set-sound-velocity (value)
-  (setf *sound-velocity*   (sample value)
+  "Set the the velocity of the sound in m/s at 22°C, 1 atmosfera and
+run the hook *SOUND-VELOCITY-HOOK*."
+  (setf *sound-velocity* (sample value)
         *r-sound-velocity* (/ 1.0 *sound-velocity*))
-  (mapc #'funcall sound-velocity-hook)
+  (incudine::call-hooks "set-sound-velocity" *sound-velocity-hook*)
   *sound-velocity*)
 
 (declaim (inline sample->fixnum))
-(defun sample->fixnum (x &key roundp)
+(defun sample->fixnum (value &key roundp)
+  "Coerce VALUE from type SAMPLE to type FIXNUM.
+
+If ROUNDP is T, round VALUE to the nearest integer.
+
+VALUE has to be between MOST-NEGATIVE-FIXNUM and MOST-POSITIVE-FIXNUM."
   (declare (type (sample
                   #.(coerce (ash most-negative-fixnum -1) 'sample)
-                  #.(coerce (ash most-positive-fixnum -1) 'sample)) x)
+                  #.(coerce (ash most-positive-fixnum -1) 'sample)) value)
            (type boolean roundp))
-  (multiple-value-bind (result rem) (if roundp (round x) (floor x))
+  (multiple-value-bind (result rem) (if roundp (round value) (floor value))
     (declare (ignore rem))
     result))
 
 (declaim (inline sample->int))
-(defun sample->int (x)
-  (declare (type sample x))
-  (multiple-value-bind (result rem) (floor x)
+(defun sample->int (value)
+  "Coerce VALUE from type SAMPLE to type INTEGER."
+  (declare (type sample value))
+  (multiple-value-bind (result rem) (floor value)
     (declare (ignore rem))
     result))
 
 (declaim (inline float->fixnum))
-(defun float->fixnum (x &key roundp)
+(defun float->fixnum (value &key roundp)
+  "Coerce VALUE from type SINGLE-FLOAT or DOUBLE-FLOAT to type FIXNUM.
+
+If ROUNDP is T, round VALUE to the nearest integer.
+
+VALUE has to be between MOST-NEGATIVE-FIXNUM and MOST-POSITIVE-FIXNUM."
   (declare (type (or (single-float
                       #.(coerce (ash most-negative-fixnum -1) 'single-float)
                       #.(coerce (ash most-positive-fixnum -1) 'single-float))
                      (double-float
                       #.(coerce (ash most-negative-fixnum -1) 'double-float)
                       #.(coerce (ash most-positive-fixnum -1) 'double-float)))
-                 x)
+                 value)
            (type boolean roundp))
-  (multiple-value-bind (result rem) (if roundp (round x) (floor x))
+  (multiple-value-bind (result rem) (if roundp (round value) (floor value))
     (declare (ignore rem))
     result))
 
-(declaim (inline calc-lobits))
-(defun calc-lobits (size)
-  (declare (type non-negative-fixnum size))
-  (if (>= size +table-maxlen+)
-      0
-      (do ((i size (ash i 1))
-           (lobits 0 (1+ lobits)))
-          ((plusp (logand i +table-maxlen+)) lobits)
-        (declare (type non-negative-fixnum i lobits)))))
+(declaim (inline sort-samples))
+(defun sort-samples (pointer size)
+  "Sort a foreign array of SIZE samples pointed to by POINTER."
+  (incudine.external::qsort pointer size +foreign-sample-size+
+                            (cffi:callback incudine.external::sample-cmp)))
 
 (defun rationalize* (x &optional (significand-error 5.e-6))
   "Convert reals to rationals and try to minimize the ratios by
@@ -280,25 +299,6 @@ related foreign memory pool is usable."
   (define-*-ref f32-ref f32-set :float)
   (define-*-ref f64-ref f64-set :double)
   (define-*-ref ptr-ref ptr-set :pointer))
-
-(defmacro with-complex (real-and-imag-vars pointer &body body)
-  `(symbol-macrolet ((,(car real-and-imag-vars) (smp-ref ,pointer 0))
-                     (,(cadr real-and-imag-vars) (smp-ref ,pointer 1)))
-     ,@body))
-
-(defmacro do-complex ((realpart-var imagpart-var pointer size) &body body)
-  (with-gensyms (i addr)
-    `(do ((,i 0 (1+ ,i))
-          (,addr (pointer-address ,pointer)
-                 (pointer-address (inc-pointer (make-pointer ,addr)
-                                               +foreign-complex-size+))))
-         ((>= ,i ,size))
-       (declare (type unsigned-byte ,i))
-       (symbol-macrolet ((,realpart-var (foreign-slot-value (make-pointer ,addr)
-                                          '(:struct sample-complex) 'realpart))
-                         (,imagpart-var (foreign-slot-value (make-pointer ,addr)
-                                          '(:struct sample-complex) 'imagpart)))
-         ,@body))))
 
 (defmacro with-doc-string ((var form) &body body)
   `(multiple-value-bind (,var ,form)
@@ -612,12 +612,6 @@ function are the vector index and the quantized value."))
                   (foreign-rt-free tmp)))
               (cffi:with-foreign-pointer (tmp bytes)
                 (circshift ptr tmp bytes len n))))))))
-
-(declaim (inline sort-samples))
-(defun sort-samples (pointer size)
-  "Sort a foreign array of SIZE samples pointed to by POINTER."
-  (incudine.external::qsort pointer size +foreign-sample-size+
-                            (cffi:callback incudine.external::sample-cmp)))
 
 (defmacro quantize-vector (vec from start end filter-function fget flen data
                            &optional type)

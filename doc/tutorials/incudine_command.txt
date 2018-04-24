@@ -96,7 +96,7 @@ In my case, jackd is run with `-R -P70'.
 incudine foo.cudo -d 6.5 -R -s quux.rego
 
 We can use multiple files and switch from realtime (-R) to non-rt (-N)
-and vice versa. In the follow example, quux is in realtime and bar
+and vice versa. In the following example, quux is in realtime and bar
 writes a soundfile to disk.
 
 cp quux.rego bar.rego
@@ -111,7 +111,7 @@ incudine --data-format-list
 Header type and format of the sample are respectively `wav' (`aiff' on
 big endian machines) and `pcm-24'.
 
-The follow example produces a flac file quux.flac
+The following example produces a flac file quux.flac
 
 incudine foo.cudo --pad 1.2 -H flac -s quux.rego
 

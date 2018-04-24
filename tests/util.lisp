@@ -55,7 +55,7 @@
 (deftest calc-lobits
     (loop for i = +table-maxlen+ then (ash i -1)
           while (> i 0)
-          collect (calc-lobits i))
+          collect (incudine::calc-lobits i))
   #.(loop for i to +max-lobits+ collect i))
 
 (deftest dochannels

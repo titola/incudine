@@ -33,7 +33,8 @@
                      (when foreign-name
                        `(progn
                           (declaim (inline ,lisp-name))
-                          ,(if (and (eq incudine::*sample-type* 'double-float)
+                          ,(if (and (eq incudine.config:*sample-type*
+                                        'double-float)
                                     (eq return-type :double))
                                `(cffi:defcfun (,lisp-name ,foreign-name)
                                   ,return-type (rng-type :pointer)

@@ -57,7 +57,7 @@
                                                            result))))
                       ;; We don't want the symbols MAG0 and MAG1 in INCUDINE.VUG
                       ;; package because they are interned during the expansion
-                      ;; of DOFFT-POLAR. The follow bindings are needed only
+                      ;; of DOFFT-POLAR. The following bindings are needed only
                       ;; within a VUG-MACRO that uses DOFFT.
                       ,(symbol-macrolet ((prev (intern "MAG0"))
                                          (curr (intern "MAG1")))

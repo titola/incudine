@@ -109,7 +109,7 @@ osc:*max-values*
 ;; We'll use it.
 (defvar *msg1* (osc:buffer-to-octets *oscout*))
 
-;; The follow example shows a simple and fast way to control a
+;; The following example shows a simple and fast way to control a
 ;; parameter of an external synth:
 
 (osc:start-message *oscout* "/synth/test" "f")
@@ -221,7 +221,7 @@ osc:*max-values*
 
 (osc:close *oscout*)
 
-;; The simplest way to receive a OSC message is the follow:
+;; The simplest way to receive a OSC message is the following:
 
 (defvar *oscin* (osc:open))
 

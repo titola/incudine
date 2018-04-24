@@ -18,7 +18,9 @@
   (:use :cl)
   (:import-from #:alexandria #:define-constant)
   (:export
-   #:*use-foreign-sample-p* #:*max-buffer-size* #:*frames-per-buffer*
+   #:*audio-driver*
+   #:*use-foreign-sample-p* #:*sample-type*
+   #:*max-buffer-size* #:*frames-per-buffer*
    #:*client-name* #:*max-number-of-channels* #:*number-of-input-bus-channels*
    #:*number-of-output-bus-channels* #:*number-of-bus-channels*
    #:*rt-edf-heap-size* #:*nrt-edf-heap-size* #:*rt-priority*
@@ -73,10 +75,10 @@
   (:intern #:incudine-object #:incudine-object-pool #:make-incudine-object-pool
            #:incudine-object-pool-expand #:ensure-incudine-object-pool-size
            #:alloc-multi-channel-data #:free-multi-channel-data
-           #:apply-sample-coerce)
+           #:apply-sample-coerce #:with-ensure-symbols)
   (:export
    #:sample #:positive-sample #:negative-sample #:non-negative-sample
-   #:+sample-zero+ #:non-positive-sample #:*sample-type*
+   #:+sample-zero+ #:non-positive-sample
    #:*use-foreign-sample-p*
    #:frame
    #:+twopi+ #:+half-pi+ #:+rtwopi+ #:+log001+ #:+sqrt2+
@@ -85,7 +87,8 @@
    #:+pointer-size+ #:+foreign-sample-size+ #:+foreign-complex-size+
    #:+pointer-address-type+
    #:*sample-rate* #:*sample-duration* #:*sound-velocity* #:*r-sound-velocity*
-   #:*max-number-of-channels* #:*audio-driver* #:*client-name*
+   #:*sample-rate-hook* #:*sound-velocity-hook*
+   #:*max-number-of-channels* #:*client-name*
    #:*number-of-input-bus-channels* #:*number-of-output-bus-channels*
    #:*number-of-bus-channels* #:*rt-edf-heap-size* #:*nrt-edf-heap-size*
    #:*max-buffer-size*
@@ -111,7 +114,6 @@
    #:t60->pole
    #:cheb
    #:set-sample-rate #:set-sample-duration #:set-sound-velocity
-   #:sample-rate-hook #:sample-duration-hook #:sound-velocity-hook
    #:non-negative-fixnum64 #:most-positive-fixnum64
    #:limited-sample #:maybe-limited-sample
    #:channel-number #:bus-number
@@ -123,16 +125,14 @@
    #:get-bytes-consed-in
    #:thread-affinity #:thread-priority
    #:seed-random-state
-   #:sample->fixnum #:sample->int #:float->fixnum #:rationalize* #:calc-lobits
+   #:sample->fixnum #:sample->int #:float->fixnum #:rationalize*
+   #:sort-samples
    #:rt-thread-p #:rt-eval #:allow-rt-memory-p
    #:foreign-pointer
    #:smp-ref #:i8-ref #:u8-ref #:i16-ref #:u16-ref #:i32-ref #:u32-ref
    #:i64-ref #:u64-ref #:f32-ref #:f64-ref
    #:ptr-ref
-   #:with-ensure-symbols
    #:with-foreign-array #:with-samples #:with-samples*
-   #:with-complex
-   #:do-complex
    #:defun* #:lambda* #:defmacro* #:lambda-list-to-star-list
    #:spinlock #:make-spinlock #:acquire-spinlock #:release-spinlock
    #:with-spinlock-held
@@ -349,7 +349,7 @@
   (:import-from #:incudine.util #:incudine-object #:incudine-object-pool
                 #:make-incudine-object-pool #:incudine-object-pool-expand
                 #:ensure-incudine-object-pool-size
-                #:apply-sample-coerce)
+                #:apply-sample-coerce #:with-ensure-symbols)
   (:import-from #:alexandria #:positive-fixnum #:negative-fixnum
                 #:non-negative-fixnum #:non-negative-real #:positive-real
                 #:positive-rational
@@ -403,7 +403,6 @@
    #:dynamic-incudine-finalizer-p
    #:play #:stop #:quantize
    #:circular-shift
-   #:sort-samples
    #:bus #:audio-in #:audio-out
    #:peak-info #:print-peak-info #:reset-peak-meters
    #:set-number-of-channels

@@ -743,8 +743,8 @@ the object. INIT-FUNCTION defaults to #'IDENTITY.
 
 ID is an integer identifier or NIL to use the next available id.
 
-The keywords HEAD, TAIL, BEFORE and AFTER specify the add-action to
-add the new node. The value is the target node or node-id. By default
+The keywords HEAD, TAIL, BEFORE, AFTER and REPLACE specify the add-action
+to add the new node. The value is the target node or node-id. By default
 the new node is added at the head of the root node.
 
 If NAME is non-NIL, it is the name of OBJ.

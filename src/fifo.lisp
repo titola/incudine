@@ -282,6 +282,9 @@ If RETURN-VALUE-P is T, return the results of FORM."
 
 (declaim (inline exit))
 (defun exit (&optional (code 0))
+  "Exit lisp with CODE from a non-real-time thread.
+
+CODE defaults to 0."
   (if (eq (bt:current-thread) *rt-thread*)
       (incudine::nrt-funcall (lambda () (%exit code)))
       (%exit code)))

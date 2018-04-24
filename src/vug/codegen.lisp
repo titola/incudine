@@ -606,7 +606,7 @@
   (let ((count 0))
     `(symbol-macrolet
          ,(mapcar (lambda (var-name)
-                    ;; Memo: GET-POINTER depends on the follow line
+                    ;; Memo: GET-POINTER depends on the following line.
                     (prog1 `(,var-name (mem-aref ,c-vector ,type ,count))
                       (incf count)))
                   variables)

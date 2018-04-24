@@ -41,7 +41,7 @@
 ;; the argument. However, we often use arguments with type SAMPLE, so
 ;; it is the default when we use directly the name of the argument
 ;; instead of the list (name type). For example, we can also define
-;; the PHASOR VUG in the follow way:
+;; the PHASOR VUG in the following way:
 
 ;; (define-vug phasor ((freq sample) (init sample))
 ;;   ...

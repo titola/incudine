@@ -77,6 +77,12 @@ a non-NIL FILE argument, return the pathname.")
             (- size 2)
             (- (next-power-of-two half) 1)))))
 
+(defun calc-lobits (size)
+  (declare (type non-negative-fixnum size))
+  (if (>= size +table-maxlen+)
+      0
+      (- #.(integer-length +table-maxlen+) (integer-length size))))
+
 (defun update-buffer (obj frm chans bufsize data &optional sr rt-p free-fn)
   (let* ((%lobits (calc-lobits bufsize))
          (value (ash 1 %lobits)))
@@ -192,7 +198,7 @@ It is possible to use line comments that begin with the ';' character."
       (loop for frame from 0
             while (< frame offset) do
            (loop repeat channels do (read f nil nil))))
-    (let ((*read-default-float-format* *sample-type*))
+    (let ((*read-default-float-format* incudine.config:*sample-type*))
       (loop with count = buffer-start
             while (< count size) do
            (loop repeat channels do
@@ -505,8 +511,9 @@ FUNCTION is a function of as many arguments as there are buffers."
 
 (declaim (inline sort-buffer))
 (defun sort-buffer (buffer)
-  "Destructively sort BUFFER."
-  (sort-samples (buffer-base-data-ptr buffer) (buffer-base-size buffer))
+  "Destructively sort BUFFER and return it."
+  (incudine.util:sort-samples
+    (buffer-base-data-ptr buffer) (buffer-base-size buffer))
   buffer)
 
 (defmethod circular-shift ((obj buffer-base) n)

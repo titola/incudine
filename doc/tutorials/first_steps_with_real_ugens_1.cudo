@@ -60,7 +60,7 @@
 (ugen-test2 440 .3 .01 .5)
 
 ;; where UGEN-TEST2 is defined with the two UGENs ENVELOPE and
-;; OSCILI. The follow example shows the use of nested UGENs:
+;; OSCILI. The following example shows the use of nested UGENs:
 
 (define-ugen perc-sine sample (freq amp atk rel)
   (* (envelope (make-perc atk rel) 1 1 #'free)

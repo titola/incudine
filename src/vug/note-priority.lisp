@@ -17,7 +17,7 @@
 (in-package :incudine.vug)
 
 ;;; Lowest and highest note priority for a monosynth synthesizer.
-;;; The follow algorithm uses three (64bit arch) or six (32bit arch)
+;;; The following algorithm uses three (64bit arch) or six (32bit arch)
 ;;; fixnums instead of an array to store the status of 128 keynums.
 
 (eval-when (:compile-toplevel :load-toplevel :execute)

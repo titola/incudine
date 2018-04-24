@@ -172,8 +172,8 @@ Example: 8 processors
 (defun seed-from-random-state (state)
   (aref (sb-kernel::random-state-state state) 3))
 
-(declaim (inline seed-random-state))
 (defun seed-random-state (&optional state)
+  "Set the current random state."
   (setf *random-state* (sb-ext:seed-random-state state))
   (incudine.external::gsl-seed-random-state
     (if (numberp state) state (seed-from-random-state *random-state*)))
@@ -183,9 +183,11 @@ Example: 8 processors
   `(sb-sys:without-gcing ,@body))
 
 (defmacro without-interrupts (&body body)
+  "See documentation for SB-SYS:WITHOUT-INTERRUPTS."
   `(sb-sys:without-interrupts ,@body))
 
 (defmacro with-pinned-objects ((&rest objects) &body body)
+  "See documentation for SB-SYS:WITH-PINNED-OBJECTS."
   `(sb-sys:with-pinned-objects (,@objects) ,@body))
 
 (defmacro with-stop-for-gc-pending (&body body)

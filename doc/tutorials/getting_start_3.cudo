@@ -78,7 +78,7 @@
 ;; :WARN
 (recv-stop *midiin*)
 
-;; The follow example shows the steps to use a VOICER in Incudine:
+;; The following example shows the steps to use a VOICER in Incudine:
 
 (dsp! simple (freq amp pos (env envelope) gate)
   (foreach-channel

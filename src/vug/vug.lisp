@@ -65,7 +65,7 @@
 
   (defvar *incudine-non-destructive-operations*
     '(sample next-power-of-two power-of-two-p lin->db db->lin linear-interp
-      cos-interp cubic-interp t60->pole sample->fixnum sample->int calc-lobits))
+      cos-interp cubic-interp t60->pole sample->fixnum sample->int))
 
   (defvar *known-non-destructive-functions*
     (let ((ht (make-hash-table)))
@@ -1036,9 +1036,9 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
         (set-local-io-pointer ,in-ptr (incudine::input-pointer))
         (set-local-io-pointer ,out-ptr (incudine::output-pointer))
         (set-local-now ,now (smp-ref incudine::*sample-counter* 0))
-        ;; The follow macros work outside the nested VUGs that are updated
-        ;; during the walking in UPDATE-VARIABLES-INIT-TIME-SETTER and
-        ;; REDUCE-VUG-VARIABLES.
+        ;; The following macros work outside the nested VUGs that are
+        ;; updated during the walking in UPDATE-VARIABLES-INIT-TIME-SETTER
+        ;; and REDUCE-VUG-VARIABLES.
         (macrolet ((audio-in (,ch &optional ,frame)
                      (declare (ignore ,frame))
                      `(smp-ref ,',in-ptr
@@ -1068,7 +1068,7 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
                             :inputs (list ,@floop-info ,form))
         form)))
 
-;;; The follow functions are only "tags":
+;;; The following functions are just "tags":
 
 (defun tick (&rest forms) forms)
 

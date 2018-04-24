@@ -390,5 +390,8 @@ Return a pointer to the newly allocated memory."
 (declaim (inline incudine.util:pow))
 (defun incudine.util:pow (base power)
   "Return BASE raised to the POWER.
-The returned value is of type DOUBLE-FLOAT."
+The returned value is of type DOUBLE-FLOAT.
+
+If BASE is a negative value and POWER is not an integer,
+FLOATING-POINT-INVALID-OPERATION is signalled."
   (%pow (coerce base 'double-float) (coerce power 'double-float)))

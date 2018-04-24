@@ -70,20 +70,13 @@
   ;;;
   (defvar *audio-driver*
     #+(or linux jack-audio) :jack
-    #-(or linux jack-audio) :portaudio)
+    #-(or linux jack-audio) :portaudio
+    "Driver for real-time audio.")
 
   (defvar *enable-jack-midi* nil)
 
   (defvar *enable-portmidi-output-sample-offset*
     (not (eq *audio-driver* :jack)))
-
-  (defvar incudine.util:*audio-driver* *audio-driver*
-    "Driver for real-time audio.")
-
-  (defvar incudine.util:*sample-type*
-    (if (eq *sample-type* 'single-float)
-        'single-float
-        'double-float))  ; default
 
   ;; The default is "cc" but if it is not available, it will be changed
   ;; with "gcc" in CHECK-C-COMPILER
@@ -118,7 +111,7 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
   (defvar *c-compiler-flags*
     (concatenate 'string "-O3 -Wall"
                  #-(or darwin cygwin) " -fPIC"
-                 (if (eq incudine.util:*sample-type* 'double-float)
+                 (if (eq *sample-type* 'double-float)
                      " -D__INCUDINE_USE_64_BIT_SAMPLE__")
                  #+little-endian " -DLITTLE_ENDIAN"
                  (format nil " -D__INCUDINE_~A__" *sched-policy*)
@@ -310,19 +303,19 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
   (defun get-audio-driver ()
     (flet ((no-jack-or-pa ()
              (info "Jack or PortAudio not installed; using dummy audio driver")
-             (setf incudine.util:*audio-driver* :dummy)))
-      (case incudine.util:*audio-driver*
+             (setf *audio-driver* :dummy)))
+      (case *audio-driver*
         (:jack
          (cond ((probe-c-library "jack") :jack)
                ((probe-c-library "portaudio")
                 (info "Jack not installed; audio driver changed to PortAudio.")
-                (setf incudine.util:*audio-driver* :portaudio))
+                (setf *audio-driver* :portaudio))
                (t (no-jack-or-pa))))
         (:portaudio
          (cond ((probe-c-library "portaudio") :portaudio)
                ((probe-c-library "jack")
                 (info "PortAudio not installed; audio driver changed to Jack")
-                (setf incudine.util:*audio-driver* :jack))
+                (setf *audio-driver* :jack))
                (t (no-jack-or-pa))))
         (:portaudio-jack
          (cond ((probe-c-library "portaudio")
@@ -331,18 +324,18 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
                     (progn
                       (info "Jack not installed; ~
                              no JACK-specific extensions for PortAudio.")
-                      (setf incudine.util:*audio-driver* :portaudio))))
+                      (setf *audio-driver* :portaudio))))
                ((probe-c-library "jack")
                 (info "PortAudio not installed; audio driver changed to Jack")
-                (setf incudine.util:*audio-driver* :jack))
+                (setf *audio-driver* :jack))
                (t (no-jack-or-pa))))
         (:dummy :dummy)
-        (t (unless (null incudine.util:*audio-driver*)
+        (t (unless (null *audio-driver*)
              (info "~S is unknown; *AUDIO-DRIVER* must be ~
                     :JACK, :PORTAUDIO, :PORTAUDIO-JACK or :DUMMY"
-                   incudine.util:*audio-driver*))
+                   *audio-driver*))
            ;; The default is Jack for Linux and PortAudio for the other OS.
-           (setf incudine.util:*audio-driver*
+           (setf *audio-driver*
                  (cond
            #+linux ((probe-c-library "jack") :jack)
                    ((probe-c-library "portaudio") :portaudio)

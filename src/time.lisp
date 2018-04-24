@@ -574,7 +574,7 @@ at time BEATS."
 (defun parse-time-string (stream subchar arg)
   (declare #.*standard-optimize-settings*
            (type stream stream) (ignore subchar arg))
-  (let* ((*read-default-float-format* *sample-type*)
+  (let* ((*read-default-float-format* incudine.config:*sample-type*)
          (l (read-delimited-list #\] stream t)))
     (if l
         (let ((mult (first l)))

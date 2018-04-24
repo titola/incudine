@@ -33,7 +33,7 @@
 (set-control 42 :gate 0)
 (free 42)
 
-;; The follow example shows a simple modulation of the gate:
+;; The following example shows a simple modulation of the gate:
 
 (dsp! explosions (gain gate-base gate-freq)
   (stereo (* (tanh (* (envelope (make-adsr .001 3 .05 .8)

@@ -2,8 +2,8 @@
 ;;; Play SoundFonts with FluidSynth
 
 ;; In the contrib/cl-fluidsynth directory there is a wrapper for
-;; FluidSynth SoundFont synthesizer. The follow example shows how to
-;; use it with Incudine:
+;; FluidSynth SoundFont synthesizer. The following example shows
+;; how to use it with Incudine:
 
 (in-package :scratch)
 

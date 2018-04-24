@@ -147,7 +147,7 @@
   (has-non-null-slot-p descriptor 'run-adding))
 
 ;;; Note: the RUN-ADDING slot of the descriptor is optional and we
-;;; can use the follow function only when HAS-RUN-ADDING-P is T.
+;;; can use the following function only when HAS-RUN-ADDING-P is T.
 (declaim (inline run-adding))
 (defun run-adding (callback instance sample-count)
   (cffi:foreign-funcall-pointer callback nil :pointer (handle-ptr instance)
@@ -159,7 +159,7 @@
        (has-non-null-slot-p descriptor 'set-run-adding-gain)))
 
 ;;; Note: the SET-RUN-ADDING-GAIN slot of the descriptor is optional and we
-;;; can use the follow function only when HAS-SET-RUN-ADDING-GAIN-P is T.
+;;; can use the following function only when HAS-SET-RUN-ADDING-GAIN-P is T.
 (declaim (inline set-run-adding-gain))
 (defun set-run-adding-gain (callback instance gain)
   (cffi:foreign-funcall-pointer callback nil :pointer (handle-ptr instance)

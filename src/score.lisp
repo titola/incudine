@@ -389,7 +389,7 @@ or IGNORE-SCORE-STATEMENTS."
                             `(,at-fname ,@(cdr args) t ,time)))))))
       (let ((line (or (expand-score-statement line) (org-table-filter line)))
             (*readtable* *score-readtable*)
-            (*read-default-float-format* *sample-type*))
+            (*read-default-float-format* incudine.config:*sample-type*))
         (declare (type string line))
         (if (time-tagged-function-p line)
             (score-expand-parallel-functions

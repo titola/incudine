@@ -3,7 +3,7 @@
 
 ;; The read macro sharp-t is useful to apply a filter multiple times.
 
-;; The follow code shows an implementation of the Moog VCF written by
+;; The following code shows an implementation of the Moog VCF written by
 ;; Julius O. Smith in Faust (effect.lib):
 
 ;; moog_vcf(res,fr) = (+ : seq(i,4,pole(p)) : *(unitygain(p))) ~ *(mk)

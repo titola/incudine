@@ -23,11 +23,10 @@
 (in-package :incudine.util)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (defvar *use-foreign-sample-p* (eq *sample-type* 'double-float))
+  (defvar *use-foreign-sample-p*
+    (eq incudine.config:*sample-type* 'double-float))
 
-  (unless *use-foreign-sample-p* (setf *foreign-sample-pool-size* 1))
-
-  (cond ((eq *sample-type* 'double-float)
+  (cond (*use-foreign-sample-p*
          (defvar *foreign-sample-type* :double)
          (cffi:defctype sample :double)
          (pushnew :double-samples *features*)
@@ -37,6 +36,7 @@
          (define-constant least-positive-sample least-positive-double-float))
         (t
          (defvar *foreign-sample-type* :float)
+         (setf *foreign-sample-pool-size* 1)
          (cffi:defctype sample :float)
          (pushnew :float-samples *features*)
          (define-constant most-negative-sample most-negative-single-float)
@@ -44,7 +44,7 @@
          (define-constant least-negative-sample least-negative-single-float)
          (define-constant least-positive-sample least-positive-single-float)))
 
-  (pushnew (case *audio-driver*
+  (pushnew (case incudine.config:*audio-driver*
              (:jack :jack-audio)
              (:dummy :dummy-audio)
              (otherwise :portaudio))
@@ -52,9 +52,11 @@
 
   (pushnew :incudine *features*)
 
-  (deftype sample (&optional min max) `(,*sample-type* ,min ,max))
+  (deftype sample (&optional min max)
+    `(,incudine.config:*sample-type* ,min ,max))
 
-  (define-constant +sample-zero+ (coerce 0 'sample))
+  (define-constant +sample-zero+ (coerce 0 'sample)
+    :documentation "Zero coerced to SAMPLE.")
 
   (deftype positive-sample () `(sample ,least-positive-sample))
 
@@ -67,6 +69,7 @@
   (deftype frame () 'foreign-pointer)
 
   (defun sample (number)
+    "Coerce NUMBER to type SAMPLE."
     (coerce number 'sample))
 
   (define-compiler-macro sample (number)
@@ -80,64 +83,96 @@
           ((floatp x)
            ;; Avoid coercing from SINGLE-FLOAT to DOUBLE-FLOAT
            (let ((str (write-to-string x))
-                 (*read-default-float-format* *sample-type*))
+                 (*read-default-float-format* incudine.config:*sample-type*))
              (values (read-from-string str))))
           (t (coerce x 'sample))))
 
-  (define-constant +twopi+ (coerce (* 2 pi) 'sample))
-  (define-constant +half-pi+ (coerce (* 0.5 pi) 'sample))
-  (define-constant +rtwopi+ (/ 1.0 +twopi+))
-  (define-constant +log001+ (log (force-sample-format 0.001)))
-  (define-constant +sqrt2+ (sqrt (force-sample-format 2.0)))
+  (define-constant +twopi+ (coerce (* 2 pi) 'sample)
+    :documentation "Two PI coerced to SAMPLE.")
 
-  (define-constant +pointer-size+ (foreign-type-size :pointer))
-  (define-constant +foreign-sample-size+ (foreign-type-size 'sample))
-  (define-constant +foreign-complex-size+ (* 2 (foreign-type-size 'sample)))
+  (define-constant +half-pi+ (coerce (* 0.5 pi) 'sample)
+    :documentation "Half PI coerced to SAMPLE")
+
+  (define-constant +rtwopi+ (/ 1.0 +twopi+)
+    :documentation "The inverse of two PI coerced to SAMPLE.")
+
+  (define-constant +log001+ (log (force-sample-format 0.001))
+    :documentation "Natural logarithm of 0.001 coerced to SAMPLE.")
+
+  (define-constant +sqrt2+ (sqrt (force-sample-format 2.0))
+    :documentation "Square root of two coerced to SAMPLE.")
+
+  (define-constant +pointer-size+ (foreign-type-size :pointer)
+    :documentation "Size in bytes of the foreign pointer.")
+
+  (define-constant +foreign-sample-size+ (foreign-type-size 'sample)
+    :documentation "Size in bytes of the foreign type SAMPLE.")
+
+  (define-constant +foreign-complex-size+ (* 2 (foreign-type-size 'sample))
+    :documentation "Size in bytes of a foreign complex number.")
 
   (define-constant +pointer-address-type+
       (alexandria:make-keyword (format nil "INT~D"
-                                       (* +pointer-size+ 8))))
+                                       (* +pointer-size+ 8)))
+    :documentation "Foreign address type. Should be one of :INT32, :INT64.")
 
-  (define-constant +table-maxlen+ #x1000000)
-  (define-constant +max-lobits+ (floor (log +table-maxlen+ 2)))
-  (define-constant +phase-mask+ (1- +table-maxlen+))
-  (define-constant +rad2inc+ (* +table-maxlen+ +rtwopi+))
+  (define-constant +table-maxlen+ #x1000000
+    :documentation "Maximum table length. It is assumed to be a power of two.")
 
-  (defvar *sample-rate* (force-sample-format incudine.config::*sample-rate*))
+  (define-constant +max-lobits+ (integer-length (1- +table-maxlen+))
+    :documentation "Number of bits needed to represent the bitmask +PHASE-MASK+.")
+
+  (define-constant +phase-mask+ (1- +table-maxlen+)
+    :documentation "The bitmask (- +TABLE-MAXLEN+ 1).")
+
+  (define-constant +rad2inc+ (* +table-maxlen+ +rtwopi+)
+    :documentation "Division of +TABLE-MAXLEN+ by two PI.")
+
+  (defvar *sample-rate* (force-sample-format incudine.config::*sample-rate*)
+    "Sample rate in Hz.")
   (declaim (type sample *sample-rate*))
 
-  (defvar *sample-duration* (/ 1.0 *sample-rate*))
+  (defvar *sample-duration* (/ 1.0 *sample-rate*)
+    "Duration of one sample in seconds.")
   (declaim (type sample *sample-duration*))
 
   (defvar *sample-duration-msec* (* *sample-duration* 1000))
   (declaim (type sample *sample-duration-msec*))
 
   (defvar *sound-velocity*
-    (force-sample-format incudine.config::*sound-velocity*))
+    (force-sample-format incudine.config::*sound-velocity*)
+    "Velocity of the sound in m/s at 22°C, 1 atmosfera.")
   (declaim (type sample *sound-velocity*))
 
-  (defvar *r-sound-velocity* (/ 1.0 *sound-velocity*))
+  (defvar *r-sound-velocity* (/ 1.0 *sound-velocity*)
+    "The inverse of the sound velocity in s/m at 22°C, 1 atmosfera.")
   (declaim (type sample *r-sound-velocity*))
 
-  (defvar sample-rate-hook nil)
-  (declaim (type list sample-rate-hook))
+  (defvar *sample-rate-hook* nil
+    "A list of function designators which are called in an unspecified
+order when the sample rate is changed via SET-SAMPLE-RATE or
+SET-SAMPLE-DURATION.")
+  (declaim (type list *sample-rate-hook*))
 
-  (defvar sample-duration-hook nil)
-  (declaim (type list sample-duration-hook))
+  (defvar *sound-velocity-hook* nil
+    "A list of function designators which are called in an unspecified
+order when the sound velocity is changed via SET-SOUND-VELOCITY.")
+  (declaim (type list *sound-velocity-hook*))
 
-  (defvar sound-velocity-hook nil)
-  (declaim (type list sound-velocity-hook))
-
-  (defvar *cps2inc* (* +table-maxlen+ *sample-duration*))
+  (defvar *cps2inc* (* +table-maxlen+ *sample-duration*)
+    "Division of +TABLE-MAXLEN+ by the sample rate.")
   (declaim (type sample *cps2inc*))
 
-  (defvar *pi-div-sr* (coerce (* pi *sample-duration*) 'sample))
+  (defvar *pi-div-sr* (coerce (* pi *sample-duration*) 'sample)
+    "Division of PI by the sample rate.")
   (declaim (type sample *pi-div-sr*))
 
-  (defvar *minus-pi-div-sr* (- *pi-div-sr*))
+  (defvar *minus-pi-div-sr* (- *pi-div-sr*)
+    "Division of minus PI by the sample rate.")
   (declaim (type sample *minus-pi-div-sr*))
 
-  (defvar *twopi-div-sr* (* 2 *pi-div-sr*))
+  (defvar *twopi-div-sr* (* 2 *pi-div-sr*)
+    "Division of two PI by the sample rate.")
   (declaim (type sample *twopi-div-sr*))
 
   (defvar *sample-rate-deps-to-hook-p* nil)
@@ -150,7 +185,7 @@
                        *pi-div-sr* (coerce (* pi *sample-duration*) 'sample)
                        *minus-pi-div-sr* (- *pi-div-sr*)
                        *twopi-div-sr* (* 2 *pi-div-sr*)))
-               sample-duration-hook)
+               *sample-rate-hook*)
       (setf *sample-rate-deps-to-hook-p* t)))
 
   (sample-rate-deps-update-to-hook)
@@ -179,12 +214,13 @@
 
   (declaim (inline next-power-of-two))
   (defun next-power-of-two (n)
+    "Return the next power of two of the positive integer N."
     (declare (type positive-fixnum n))
     (the positive-fixnum (ash 1 (integer-length (1- n)))))
 
   (declaim (inline power-of-two-p))
   (defun power-of-two-p (n)
-    "Is the number N a power of two?"
+    "Whether the positive integer N is a power of two."
     (declare (type positive-fixnum n))
     (zerop (logand n (1- n))))
 
@@ -262,7 +298,7 @@ real-time thread.")
 (in-package :incudine)
 
 (defstruct (rt-params (:copier nil))
-  (driver *audio-driver*)
+  (driver incudine.config:*audio-driver*)
   (priority *rt-priority*)
   (frames-per-buffer incudine.util::*frames-per-buffer*)
   (status :stopped))

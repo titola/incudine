@@ -98,7 +98,7 @@
                           (mult 1d7) (byte-order :little-endian) md5)
                          &body body)
   ;; Tested only with double float samples.
-  (when (eq *sample-type* 'double-float)
+  (when (eq incudine.config:*sample-type* 'double-float)
     (let ((output-buffer (format-symbol *package* "*BUFFER-TEST-C~D*"
                                         channels)))
       `(deftest ,name

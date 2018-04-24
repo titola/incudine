@@ -145,8 +145,8 @@
            (declare (type fixnum ,phs-num ,index))
            (%osc-select-interpolation ,interpolation ,buffer ,data ,phs-num
                                       ,index))
-        ;; The follow calc of the index is better for a lookup table
-        ;; without interpolation
+        ;; The following computation of the index is better for a lookup table
+        ;; without interpolation.
         `(let ((,index (logand (the fixnum
                                  (* (the fixnum (ash ,phs ,minus-lobits))
                                     (the fixnum ,two-nh-plus-one)))

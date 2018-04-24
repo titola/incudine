@@ -296,7 +296,7 @@
 ;;                  (VALUES (INCUDINE.VUG::DSP-INIT-FUNCTION #:DSP912)
 ;;                          (INCUDINE.VUG::DSP-PERF-FUNCTION #:DSP912)))))))))))
 
-;; The generated code is divided in the follow parts:
+;; The generated code is divided in the following parts:
 
 ;;   * Initialization
 ;;   * Set the hash-table for the controls

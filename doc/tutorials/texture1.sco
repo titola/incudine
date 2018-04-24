@@ -1,6 +1,6 @@
 ;;; texture1.sco: score file generated with CMask 0.31
 ;;;
-;;; Example: the follow command
+;;; Example: the following command
 ;;;
 ;;;     incudine texture.cudo -v -s texture1.sco
 ;;;
