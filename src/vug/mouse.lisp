@@ -71,13 +71,15 @@
     "Stop the mouse-loop thread and return :STOPPED."
     #+x11
     (unless (eq (mouse-status) :stopped)
-      (cond ((rt-thread-p) (nrt-funcall #'mouse-stop))
-            ((zerop (mouse-loop-stop))
-             (sleep .05)
-             (loop while (bt:thread-alive-p *mouse-thread*))
-             :STOPPED)
-            (t
-             (incudine-error "Failed to stop the mouse-loop thread."))))
+      (if (rt-thread-p)
+          (nrt-funcall #'mouse-stop)
+          (with-spinlock-held (*mouse-spinlock*)
+            (cond ((zerop (mouse-loop-stop))
+                   (sleep .05)
+                   (loop while (bt:thread-alive-p *mouse-thread*))
+                   :STOPPED)
+                  (t
+                   (incudine-error "Failed to stop the mouse-loop thread."))))))
     #-x11
     (nrt-msg warn "Mouse pointer support requires X window system."))
 
