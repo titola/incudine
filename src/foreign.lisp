@@ -234,7 +234,7 @@ Return a pointer to the newly allocated memory."
 
   (cffi:defcfun "mouse_loop_start" :int (ev :pointer))
 
-  (cffi:defcfun ("mouse_loop_stop" mouse-stop) :int)
+  (cffi:defcfun "mouse_loop_stop" :int)
 
   (cffi:defcfun "get_mouse_status" :int))
 

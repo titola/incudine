@@ -51,11 +51,11 @@
      incudine.util::force-sample-format
      incudine.external:foreign-alloc-sample
      incudine.external:foreign-zero-sample
-     incudine.external:mouse-event
-     incudine.external:mouse-init
-     incudine.external:mouse-loop-start
-     incudine.external:mouse-stop
-     incudine.external:get-mouse-status
+     incudine.external::mouse-event
+     incudine.external::mouse-init
+     incudine.external::mouse-loop-start
+     incudine.external::mouse-loop-stop
+     incudine.external::get-mouse-status
      incudine.external:complex-to-polar
      incudine.external:polar-to-complex)
    (find-package :incudine.vug)))

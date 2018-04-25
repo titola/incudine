@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Tito Latini
+ * Copyright (c) 2013-2018 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -48,6 +48,11 @@ int mouse_loop_start(struct mouse_event *ev)
                 ev->button = (int)(mask_ret & Button1Mask) > 0;
                 nanosleep(&req_time, &rem_time);
         }
+        XCloseDisplay(disp);
+        disp = NULL;
+        ev->x = (SAMPLE) 0.0;
+        ev->y = (SAMPLE) 0.0;
+        ev->button = 0;
         return 0;
 }
 

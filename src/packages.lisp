@@ -58,9 +58,7 @@
    #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
    #:rt-client #:rt-buffer-size #:rt-sample-rate
    #:rt-cycle-start-time #:rt-time-offset
-   #:rt-xruns #:rt-silent-errors
-   #:mouse-event #:mouse-init #:mouse-loop-start #:mouse-stop
-   #:get-mouse-status))
+   #:rt-xruns #:rt-silent-errors))
 
 (defpackage :incudine.util
   (:use :cl :incudine.config)
@@ -151,7 +149,9 @@
    #:get-foreign-sample-max-size #:get-rt-memory-used-size
    #:get-rt-memory-free-size #:get-rt-memory-max-size
    #:get-nrt-memory-used-size #:get-nrt-memory-free-size
-   #:get-nrt-memory-max-size))
+   #:get-nrt-memory-max-size
+   #:mouse-start #:mouse-stop #:mouse-status
+   #:get-mouse-x #:get-mouse-y #:get-mouse-button))
 
 (defpackage :incudine.analysis
   (:use :cl)
@@ -299,7 +299,6 @@
    #:lin-midi-global-aftertouch #:exp-midi-global-aftertouch
    #:lin-midi-pitch-bend #:exp-midi-pitch-bend
    ;; mouse
-   #:mouse-start #:mouse-status #:get-mouse-x #:get-mouse-y #:get-mouse-button
    #:mouse-x #:mouse-y #:mouse-button
    #:lin-mouse-x #:lin-mouse-y #:exp-mouse-x #:exp-mouse-y
    ;; fft

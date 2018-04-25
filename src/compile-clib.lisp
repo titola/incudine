@@ -369,6 +369,11 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
                   (t (compile-error "Command ~S or ~S not found"
                                     *c-compiler* cc)))))))
 
+  (defun update-features ()
+    (when (probe-c-library "X11")
+      (pushnew :x11 *features*))
+    (values))
+
   ;;; Test for FFTW and unaligned stack pointer with SBCL on x86.
   ;;;
   ;;;     https://bugs.launchpad.net/sbcl/+bug/539632
@@ -427,6 +432,7 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
             ;; Mouse support
             (when (probe-c-library "X11")
               (push "X11" libs-dep)
+              (pushnew :x11 *features*)
               (add-c-object-to-link :mouse ofiles))
             ;; Open Sound Control
             (add-c-object-to-link :osc ofiles)

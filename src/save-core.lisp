@@ -131,6 +131,7 @@ core image starts up.")
       ;; Stop realtime and non-realtime threads
       (rt-stop)
       (nrt-stop)
+      (mouse-stop)
       (unless (null-pointer-p *foreign-client-name*)
         (foreign-free *foreign-client-name*)
         (setf *foreign-client-name* (null-pointer)))

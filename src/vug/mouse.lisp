@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2015 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -22,7 +22,6 @@
     (y sample)
     (button :int))
 
-  (declaim (inline alloc-mouse-event))
   (defun alloc-mouse-event ()
     (let ((ptr (cffi:foreign-alloc '(:struct mouse-event))))
       (cffi:with-foreign-slots ((x y button) ptr (:struct mouse-event))
@@ -38,71 +37,109 @@
   (defvar *mouse-thread* nil)
 
   (declaim (inline mouse-status))
-  (defun mouse-status ()
-    (case (get-mouse-status)
-      (-1 :no-init)
-      (0 :stopped)
-      (1 :started)))
+  (defun incudine.util:mouse-status ()
+    "Mouse-loop thread status. Return :STARTED or :STOPPED."
+    (if (= (get-mouse-status) 1) :started :stopped))
 
-  #+linux
-  (defun mouse-start ()
-    (nrt-funcall
-     (lambda ()
-       (with-spinlock-held (*mouse-spinlock*)
-         (flet ((start ()
-                  (unless (and *mouse-thread*
-                               (bt:thread-alive-p *mouse-thread*))
-                    (setf *mouse-thread*
-                          (bt:make-thread (lambda ()
-                                            (mouse-loop-start *mouse-event*))
-                                          :name "mouse-loop")))))
-           (case (mouse-status)
-             (:started nil)
-             (:no-init (if (minusp (mouse-init))
-                           (nrt-msg warn "MOUSE-START failed")
-                           (start)))
-             (otherwise (start))))))))
+  (defun incudine.util:mouse-start ()
+    "Create the mouse-loop thread and return :STARTED if no error has occured."
+    #+x11
+    (labels ((start-thread ()
+               (unless (and *mouse-thread*
+                            (bt:thread-alive-p *mouse-thread*))
+                 (setf *mouse-thread*
+                       (bt:make-thread
+                         (lambda ()
+                           (if (minusp (mouse-init))
+                               (incudine-error "Mouse initialization failed.")
+                               (mouse-loop-start *mouse-event*)))
+                         :name "mouse-loop"))
+                 (loop do (sleep .05)
+                       until (bt:thread-alive-p *mouse-thread*))
+                 :started))
+             (start ()
+               (with-spinlock-held (*mouse-spinlock*)
+                 (unless (eq (incudine.util:mouse-status) :started)
+                   (start-thread)))))
+      (if (rt-thread-p)
+          (nrt-funcall #'start)
+          (start)))
+    #-x11
+    (nrt-msg warn "Mouse pointer support requires X window system."))
 
-  #-linux
-  (defun mouse-start ()
-    (nrt-msg warn "MOUSE-START failed"))
+  (defun incudine.util:mouse-stop ()
+    "Stop the mouse-loop thread and return :STOPPED."
+    #+x11
+    (unless (eq (mouse-status) :stopped)
+      (cond ((rt-thread-p) (nrt-funcall #'mouse-stop))
+            ((zerop (mouse-loop-stop))
+             (sleep .05)
+             (loop while (bt:thread-alive-p *mouse-thread*))
+             :STOPPED)
+            (t
+             (incudine-error "Failed to stop the mouse-loop thread."))))
+    #-x11
+    (nrt-msg warn "Mouse pointer support requires X window system."))
 
-  (declaim (inline get-mouse-x get-mouse-y get-mouse-button))
-  (defun get-mouse-x ()
+  (declaim (inline incudine.util:get-mouse-x))
+  (defun incudine.util:get-mouse-x ()
+    "Return the coordinate x of the mouse pointer position.
+This value is of type SAMPLE in the range [0,1]."
     (cffi:foreign-slot-value *mouse-event* '(:struct mouse-event) 'x))
 
-  (defun get-mouse-y ()
+  (declaim (inline incudine.util:get-mouse-y))
+  (defun incudine.util:get-mouse-y ()
+    "Return the coordinate y of the mouse pointer position.
+This value is of type SAMPLE in the range [0,1]."
     (cffi:foreign-slot-value *mouse-event* '(:struct mouse-event) 'y))
 
-  (defun get-mouse-button ()
-    (cffi:foreign-slot-value *mouse-event* '(:struct mouse-event) 'button))
+  (declaim (inline incudine.util:get-mouse-button))
+  (defun incudine.util:get-mouse-button ()
+    "Return the mouse button state. 1 means the button has been pressed,
+0 means it hasn't."
+    (incudine.util::truly-the bit
+      (cffi:foreign-slot-value *mouse-event* '(:struct mouse-event) 'button)))
 
   (define-vug mouse-x ()
-    (:pre-hook #'mouse-start)
+    "Return the coordinate x of the mouse pointer position.
+This value is of type SAMPLE in the range [0,1]."
+    (:pre-hook #'incudine.util:mouse-start)
     ;; :PRE-HOOK makes sense only during the compilation. A check during
     ;; the initialization is safe, especially if we use a DSP compiled
     ;; in a fasl file.
-    (initialize (mouse-start))
-    (get-mouse-x))
+    (initialize (incudine.util:mouse-start))
+    (incudine.util:get-mouse-x))
 
   (define-vug mouse-y ()
-    (:pre-hook #'mouse-start)
-    (initialize (mouse-start))
-    (get-mouse-y)))
+    "Return the coordinate y of the mouse pointer position.
+This value is of type SAMPLE in the range [0,1]."
+    (:pre-hook #'incudine.util:mouse-start)
+    (initialize (incudine.util:mouse-start))
+    (incudine.util:get-mouse-y)))
 
 (define-vug mouse-button ()
-  (:pre-hook #'mouse-start)
-  (initialize (mouse-start))
-  (get-mouse-button))
+  "Return the mouse button state. 1 means the button has been pressed,
+0 means it hasn't."
+  (:pre-hook #'incudine.util:mouse-start)
+  (initialize (incudine.util:mouse-start))
+  (incudine.util:get-mouse-button))
 
 (define-vug lin-mouse-x (min max)
+  "Return the coordinate x of the mouse pointer position, linearly
+rescaled to be between MIN and MAX."
   (lin->lin (mouse-x) 0 1 min max))
 
 (define-vug lin-mouse-y (min max)
+  "Return the coordinate y of the mouse pointer position, linearly
+rescaled to be between MIN and MAX."
   (lin->lin (mouse-y) 0 1 min max))
 
 (define-vug exp-mouse-x (min max)
+  "Return the coordinate x of the mouse pointer position,
+exponentially rescaled to be between MIN and MAX."
   (lin->exp (mouse-x) 0 1 min max))
 
 (define-vug exp-mouse-y (min max)
+  "Return the coordinate y of the mouse pointer position,
+exponentially rescaled to be between MIN and MAX."
   (lin->exp (mouse-y) 0 1 min max))

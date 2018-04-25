@@ -94,10 +94,12 @@
                  #+(and sbcl x86 (not darwin))
                  (symbol-call :incudine.config '#:fftw-stack-align-test))
       :perform (load-op (o c)
-                 (when (symbol-call :incudine.config '#:changed-compiler-options
-                                    :exclude '(:lisp-features))
-                   (setf *incudine-force-compile-p* t)
-                   (symbol-call :incudine.config '#:compile-c-library))
+                 (cond ((symbol-call :incudine.config '#:changed-compiler-options
+                                     :exclude '(:lisp-features))
+                        (setf *incudine-force-compile-p* t)
+                        (symbol-call :incudine.config '#:compile-c-library))
+                       (t
+                        (symbol-call :incudine.config '#:update-features)))
                  (symbol-call :cffi '#:load-foreign-library
                               (output-file 'compile-op c))))
      (:file "config" :depends-on ("compile-clib"))
