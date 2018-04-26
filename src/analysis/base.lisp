@@ -176,19 +176,19 @@
   value)
 
 (declaim (inline copy-from-ring-buffer))
-(defun copy-from-ring-buffer (c-array ring-buffer items)
-  (declare (type ring-buffer ring-buffer) (type foreign-pointer c-array)
+(defun copy-from-ring-buffer (foreign-array ring-buffer items)
+  (declare (type ring-buffer ring-buffer) (type foreign-pointer foreign-array)
            (type non-negative-fixnum items))
-  (%copy-from-ring-buffer c-array (ring-buffer-data ring-buffer)
+  (%copy-from-ring-buffer foreign-array (ring-buffer-data ring-buffer)
                           (ring-buffer-size ring-buffer)
                           (ring-buffer-head ring-buffer) items))
 
 (declaim (inline copy-to-ring-output-buffer))
-(defun copy-to-ring-output-buffer (buf c-array items)
-  (declare (type ring-output-buffer buf) (type foreign-pointer c-array)
+(defun copy-to-ring-output-buffer (buf foreign-array items)
+  (declare (type ring-output-buffer buf) (type foreign-pointer foreign-array)
            (type non-negative-fixnum items))
   (%copy-to-ring-output-buffer (ring-output-buffer-data buf)
-                               c-array (ring-output-buffer-size buf)
+                               foreign-array (ring-output-buffer-size buf)
                                (ring-output-buffer-head buf) items))
 
 (declaim (inline ring-output-buffer-next))
@@ -205,12 +205,13 @@
   (smp-ref (ring-output-buffer-tmp buf) 0))
 
 (defstruct (analysis (:include incudine-object) (:copier nil))
+  "Analysis type."
   (size 0 :type non-negative-fixnum)
   (input-buffer (null-pointer) :type foreign-pointer)
-  (input-size 0 :type non-negative-fixnum)
+  (input-buffer-size 0 :type non-negative-fixnum)
   (input-changed-p nil :type boolean)
   (output-buffer (null-pointer) :type foreign-pointer)
-  (output-size 0 :type non-negative-fixnum)
+  (output-buffer-size 0 :type non-negative-fixnum)
   (output-complex-p nil :type boolean)
   (nbins 0 :type non-negative-fixnum)
   (scale-factor (sample 1) :type sample)
@@ -218,59 +219,42 @@
   (real-time-p nil :type boolean)
   (foreign-free #'foreign-free :type function))
 
-(declaim (inline analysis-input))
-(defun analysis-input (obj &optional bytes offset)
-  "Return the input buffer of OBJ after OFFSET bytes (zero by default)."
-  (declare (type analysis obj) (ignore bytes)
-           (type (or non-negative-fixnum null) offset))
-  (let ((in (analysis-input-buffer obj)))
-    (if offset (cffi:inc-pointer in offset) in)))
-
-(declaim (inline set-analysis-input))
-(defun set-analysis-input (obj data &optional bytes offset)
-  "Copy BYTES bytes from DATA to the input buffer of OBJ starting
-after OFFSET bytes (zero by default).  If BYTES is NIL, copy
-ANALYSIS-INPUT-SIZE samples."
-  (declare (type analysis obj) (type foreign-pointer data)
-           (type (or non-negative-fixnum null) bytes offset))
-  (let ((in (analysis-input-buffer obj)))
-    (foreign-copy (if offset (cffi:inc-pointer in offset) in)
-                  data (or bytes (the non-negative-fixnum
-                                   (* (analysis-input-size obj)
-                                      +foreign-sample-size+))))
-    (setf (analysis-input-changed-p obj) t)
-    data))
-
-(defsetf analysis-input (obj &optional bytes offset) (data)
-  `(set-analysis-input ,obj ,data ,bytes ,offset))
-
-(declaim (inline analysis-data))
-(defun analysis-data (obj)
-  (declare (type analysis obj))
-  (analysis-output-buffer obj))
+(setf
+  (documentation 'analysis-p 'function)
+  "Return T if object is of type ANALYSIS."
+  (documentation 'analysis-input-buffer 'function)
+  "Return the foreign pointer to the analysis input buffer."
+  (documentation 'analysis-input-buffer-size 'function)
+  "Return the analysis input buffer size."
+  (documentation 'analysis-output-buffer 'function)
+  "Return the foreign pointer to the analysis output buffer."
+  (documentation 'analysis-output-buffer-size 'function)
+  "Return the analysis output buffer size.")
 
 (declaim (inline analysis-time))
 (defun analysis-time (obj)
+  "Return the time in samples of the last analysis. Setfable."
   (declare (type analysis obj))
   (smp-ref (analysis-time-ptr obj) 0))
 
 (declaim (inline set-analysis-time))
 (defun set-analysis-time (obj time)
   (declare (type analysis obj) (type sample time))
-  (setf (smp-ref (analysis-time-ptr obj) 0) time))
+  (setf (smp-ref (analysis-time-ptr obj)) time))
 
 (defsetf analysis-time set-analysis-time)
 
-(declaim (inline touch-analysis))
 (defun touch-analysis (obj)
+  "Update the modification time of the analysis."
   (declare (type analysis obj))
   (if (< (analysis-time obj) (now))
       (setf (analysis-time obj) (now)))
   (setf (analysis-input-changed-p obj) t)
   obj)
 
-(declaim (inline forget-analysis))
-(defun forget-analysis (obj)
+(declaim (inline discard-analysis))
+(defun discard-analysis (obj)
+  "Discard the analysis."
   (declare (type analysis obj))
   (setf (analysis-time obj) (1- (now)))
   (setf (analysis-input-changed-p obj) nil)
@@ -292,6 +276,7 @@ ANALYSIS-INPUT-SIZE samples."
   :documentation "Fast computation of a reasonable FFT plan.")
 
 (defstruct (fft-plan (:constructor %new-fft-plan))
+  "FFT planner type."
   (pair (list nil) :type cons)
   (size 8 :type positive-fixnum)
   (flags +fft-plan-best+ :type fixnum))
@@ -299,10 +284,12 @@ ANALYSIS-INPUT-SIZE samples."
 (defvar *dummy-fft-plan* (%new-fft-plan))
 (declaim (type fft-plan *dummy-fft-plan*))
 
-(defun rectangular-window (c-array size)
-  (declare (type foreign-pointer c-array) (type non-negative-fixnum size))
-  (dotimes (i size c-array)
-    (setf (smp-ref c-array i) #.(sample 1))))
+(defun rectangular-window (foreign-array size)
+  "Fill a FOREIGN-ARRAY of the given SIZE and type SAMPLE with a
+rectangular window."
+  (declare (type foreign-pointer foreign-array) (type non-negative-fixnum size))
+  (dotimes (i size foreign-array)
+    (setf (smp-ref foreign-array i) #.(sample 1))))
 
 (defstruct (fft-common (:include analysis) (:copier nil))
   (ring-buffer *dummy-ring-buffer* :type ring-buffer)
@@ -312,9 +299,27 @@ ANALYSIS-INPUT-SIZE samples."
   (plan-wrap *dummy-fft-plan* :type fft-plan)
   (plan (null-pointer) :type foreign-pointer))
 
-(defstruct (fft (:include fft-common) (:constructor %make-fft) (:copier nil)))
+(defstruct (fft (:include fft-common) (:constructor %make-fft) (:copier nil))
+  "FFT type.")
 
-(defstruct (ifft (:include fft-common) (:constructor %make-ifft) (:copier nil)))
+(setf
+  (documentation 'fft-p 'function)
+  "Return T if object is of type FFT."
+  (documentation 'fft-size 'function)
+  "Return the FFT size."
+  (documentation 'fft-plan 'function)
+  "Return the planner of the FFT instance.")
+
+(defstruct (ifft (:include fft-common) (:constructor %make-ifft) (:copier nil))
+  "IFFT type.")
+
+(setf
+  (documentation 'ifft-p 'function)
+  "Return T if object is of type IFFT."
+  (documentation 'ifft-size 'function)
+  "Return the IFFT size."
+  (documentation 'ifft-plan 'function)
+  "Return the planner of the IFFT instance.")
 
 (define-constant +fft-pool-initial-size+ 200)
 
@@ -334,11 +339,15 @@ ANALYSIS-INPUT-SIZE samples."
   (make-incudine-object-pool +fft-pool-initial-size+ #'%make-ifft t))
 (declaim (type incudine-object-pool *rt-ifft-pool*))
 
-(defgeneric window-function (obj))
+(defgeneric window-function (obj)
+  (:documentation "Function of two arguments called to fill an analysis data window.
+The function arguments are the foreign pointer to the data window of
+type SAMPLE and the window size respectively. Setfable."))
 
 (defgeneric (setf window-function) (fn obj))
 
-(defgeneric window-size (obj))
+(defgeneric window-size (obj)
+  (:documentation "Return the analysis window size. Setfable."))
 
 (defgeneric (setf window-size) (size obj))
 
@@ -387,6 +396,7 @@ ANALYSIS-INPUT-SIZE samples."
 (defstruct (abuffer (:include incudine-object)
                     (:constructor %make-abuffer)
                     (:copier nil))
+  "Abuffer (Analysis Buffer) type."
   (data (null-pointer) :type foreign-pointer)
   (size 0 :type non-negative-fixnum)
   (nbins 0 :type non-negative-fixnum)
@@ -397,6 +407,20 @@ ANALYSIS-INPUT-SIZE samples."
   (normalized-p nil :type boolean)
   (real-time-p nil :type boolean)
   (foreign-free #'foreign-free :type function))
+
+(setf
+ (documentation 'abuffer-p 'function)
+ "Return T if object is of type ABUFFER."
+ (documentation 'abuffer-data 'function)
+ "Return the foreign pointer to the abuffer data."
+ (documentation 'abuffer-size 'function)
+ "Return the abuffer data size."
+ (documentation 'abuffer-nbins 'function)
+ "Return the number of analysis bins of the abuffer."
+ (documentation 'abuffer-link 'function)
+ "Return the analysis object linked to the abuffer."
+ (documentation 'abuffer-normalized-p 'function)
+ "Whether the abuffer is normalized.")
 
 (define-constant +abuffer-pool-initial-size+ 400)
 
@@ -410,6 +434,9 @@ ANALYSIS-INPUT-SIZE samples."
 
 (defun make-abuffer (analysis-object
                      &optional (real-time-p (incudine.util:allow-rt-memory-p)))
+  "Create and return a new ABUFFER structure linked to ANALYSIS-OBJECT.
+
+Set REAL-TIME-P to NIL to disallow real-time memory pools."
   (declare (type analysis analysis-object))
   (flet ((foreign-alloc (size zero-p rt-p)
            (if rt-p
@@ -472,40 +499,57 @@ ANALYSIS-INPUT-SIZE samples."
     (incudine.util:nrt-msg debug "Free ~A" (type-of obj)))
   (values))
 
-(declaim (inline abuffer-polar))
 (defun abuffer-polar (obj)
+  "Convert the representation of the abuffer data from complex to
+polar if necessary."
   (when (abuffer-coord-complex-p obj)
     (complex-to-polar (abuffer-data obj) (abuffer-nbins obj))
     (setf (abuffer-coord-complex-p obj) nil)))
 
-(declaim (inline abuffer-complex))
 (defun abuffer-complex (obj)
+  "Convert the representation of the abuffer data from polar to
+complex if necessary."
   (unless (abuffer-coord-complex-p obj)
     (polar-to-complex (abuffer-data obj) (abuffer-nbins obj))
     (setf (abuffer-coord-complex-p obj) t)))
 
-(defmacro abuffer-time (obj)
-  `(smp-ref (abuffer-time-ptr ,obj) 0))
+(declaim (inline abuffer-time))
+(defun abuffer-time (obj)
+  "Return the modification time in samples of the abuffer OBJ. Setfable."
+  (smp-ref (abuffer-time-ptr obj) 0))
+
+(declaim (inline set-abuffer-time))
+(defun set-abuffer-time (obj time)
+  (declare (type abuffer obj) (type sample time))
+  (setf (smp-ref (abuffer-time-ptr obj)) time))
+
+(defsetf abuffer-time set-abuffer-time)
 
 (defmacro abuffer-realpart (obj nbin)
+  "Return the real part of the analysis bin NBIN of the abuffer OBJ."
   `(mem-ref (abuffer-data ,obj) 'sample
             (the non-negative-fixnum (* ,nbin +foreign-complex-size+))))
 
 (defmacro abuffer-imagpart (obj nbin)
+  "Return the imaginary part of the analysis bin NBIN of the abuffer OBJ."
   `(mem-ref (abuffer-data ,obj) 'sample
             (the non-negative-fixnum
               (+ (the non-negative-fixnum (* ,nbin +foreign-complex-size+))
                  +foreign-sample-size+))))
 
 (defgeneric update-linked-object (obj force-p)
-  (:documentation "Utility function used within COMPUTE-ABUFFER to update
-the linked object."))
+  (:documentation "Called within COMPUTE-ABUFFER to update the linked object."))
 
 (defmethod update-linked-object ((obj t) force-p)
   (declare (ignore obj force-p))
   nil)
 
 (defun compute-abuffer (abuf &optional force-p)
+  "Fill the abuffer with the updated analysis data of the linked
+analysis object.
+
+If FORCE-P is NIL (default), the abuffer is updated once for the
+current time."
   (declare (type abuffer abuf) (type boolean force-p))
   (when (or force-p (< (abuffer-time abuf) (now)))
     (let ((link (abuffer-link abuf)))
@@ -518,28 +562,45 @@ the linked object."))
 
 (declaim (inline touch-abuffer))
 (defun touch-abuffer (obj)
+  "Update the modification time of the abuffer data."
   (declare (type abuffer obj))
-  (if (< (abuffer-time obj) (now))
-      (setf (abuffer-time obj) (now)))
+  (when (< (abuffer-time obj) (now))
+    (setf (abuffer-time obj) (now)))
   obj)
 
-(declaim (inline forget-abuffer))
-(defun forget-abuffer (obj)
+(declaim (inline discard-abuffer))
+(defun discard-abuffer (obj)
+  "Discard the retrieved data of the ABUFFER object OBJ."
   (declare (type abuffer obj))
   (setf (abuffer-time obj) (1- (now)))
   obj)
 
-;;; Iterate over the values of one or more ABUFFERs.
-;;; There are two lists of ABUFFER objects: ABUFFER-SRC-LIST and
-;;; ABUFFER-DEST-LIST. The only difference is that the values of
-;;; the ABUFFERs in ABUFFER-SRC-LIST are converted from polar/complex
-;;; to complex/polar if COORD-CHECK-P is T, and the times of the
-;;; destinations are updated after the process.
-;;; We can use the keyword :INIT to insert code before the loop.
 (defmacro dofft ((index-var nbins-var abuffer-src-list abuffer-dest-list
                   x-var-prefix y-var-prefix &key coord-complex-p
                   (index-start 0) index-end (coord-check-p t) init result)
                  &body body)
+  "Iterate over the complex values of one or more ABUFFER structures
+in ABUFFER-SRC-LIST and ABUFFER-DEST-LIST with INDEX-VAR bound to each
+number of analysis bin from INDEX-START to INDEX-END, then RESULT form
+is evaluated.
+
+NBINS-VAR is bound to the number of analysis bins that it is supposed
+to be the same for all the abuffer's.
+
+INDEX-START and INDEX-END default to 0 and the number of analysis bins.
+
+The strings X-VAR-PREFIX and Y-VAR-PREFIX are the prefixes of the real
+and imaginary parts of a complex number, respectively. For example, if
+X-VAR-PREFIX is \"MAG\", the variables MAG0, MAG1 and MAG2 are bound
+to the real parts of each complex value related to the first three
+abuffer's.
+
+If COORD-CHECK-P is T (default), the representation of the data for
+the abuffer's in ABUFFER-SRC-LIST is converted if necessary.
+
+The optional INIT form is inserted before the loop.
+
+The modification time of the abuffer's in ABUFFER-DEST-LIST is updated."
   (with-gensyms (start end)
     (let* ((abuffer-src-vars (loop for i below (length abuffer-src-list)
                                    collect (gensym "ABUF")))
@@ -599,20 +660,72 @@ the linked object."))
            ,@(mapcar (lambda (abuf) `(touch-abuffer ,abuf)) abuffer-dest-vars)
            ,result)))))
 
-;;; Iterate over the values of one or more ABUFFERs using the polar coordinates
 (defmacro dofft-polar ((index-var nbins-var abuffer-src-list abuffer-dest-list
                         &key (index-start 0) index-end (coord-check-p t)
                         init result) &body body)
+  "Iterate over the complex values of one or more ABUFFER structures
+in ABUFFER-SRC-LIST and ABUFFER-DEST-LIST by using polar coordinates,
+with INDEX-VAR bound to each number of analysis bin from INDEX-START
+to INDEX-END, then RESULT form is evaluated.
+
+NBINS-VAR is bound to the number of analysis bins that it is supposed
+to be the same for all the abuffer's.
+
+INDEX-START and INDEX-END default to 0 and the number of analysis bins.
+
+\"MAG\" and \"PHASE\" are the prefixes of the variables bound to the
+real and imaginary parts of each complex value of the abuffer's: MAG0
+and PHASE0 for the first abuffer, MAG1 and PHASE1 for the second, etc.
+
+If COORD-CHECK-P is T (default), the representation of the data for
+the abuffer's in ABUFFER-SRC-LIST is converted if necessary.
+
+The optional INIT form is inserted before the loop.
+
+The modification time of the abuffer's in ABUFFER-DEST-LIST is updated.
+
+Examples:
+
+    (dofft-polar (i nbins ((compute-abuffer abuf)) () :result abuf)
+      (when (>= i threshold)
+        (setf mag0 +sample-zero+)))
+
+    (dofft-polar (i nbins ((compute-abuffer abuf-src)) (abuf-dest)
+                  :result abuf-dest :index-start 1 :index-end (1- nbins))
+      (if (or (< mag0 threshold)
+              (< (abuffer-realpart abuf-src (1- i)) threshold)
+              (< (abuffer-realpart abuf-src (1+ i)) threshold))
+          (setf mag1 +sample-zero+ phase1 +sample-zero+)
+          (setf mag1 mag0 phase1 phase0)))"
   `(dofft (,index-var ,nbins-var ,abuffer-src-list ,abuffer-dest-list
            "MAG" "PHASE" :coord-complex-p nil :index-start ,index-start
            :index-end ,index-end :coord-check-p ,coord-check-p :init ,init
            :result ,result)
      ,@body))
 
-;;; Iterate over the values of one or more ABUFFERs using the complex coordinates
 (defmacro dofft-complex ((index-var nbins-var abuffer-src-list abuffer-dest-list
                           &key (index-start 0) index-end (coord-check-p t)
                           init result) &body body)
+  "Iterate over the complex values of one or more ABUFFER structures
+in ABUFFER-SRC-LIST and ABUFFER-DEST-LIST by using complex coordinates,
+with INDEX-VAR bound to each number of analysis bin from INDEX-START
+to INDEX-END, then RESULT form is evaluated.
+
+NBINS-VAR is bound to the number of analysis bins that it is supposed
+to be the same for all the abuffer's.
+
+INDEX-START and INDEX-END default to 0 and the number of analysis bins.
+
+\"RE\" and \"IM\" are the prefixes of the variables bound to the real
+and imaginary parts of each complex value of the abuffer's: RE0 and
+IM0 for the first abuffer, RE1 and IM1 for the second, etc.
+
+If COORD-CHECK-P is T (default), the representation of the data for
+the abuffer's in ABUFFER-SRC-LIST is converted if necessary.
+
+The optional INIT form is inserted before the loop.
+
+The modification time of the abuffer's in ABUFFER-DEST-LIST is updated."
   `(dofft (,index-var ,nbins-var ,abuffer-src-list ,abuffer-dest-list "RE" "IM"
            :coord-complex-p t :index-start ,index-start :index-end ,index-end
            :coord-check-p ,coord-check-p :init ,init :result ,result)

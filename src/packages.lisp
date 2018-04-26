@@ -40,20 +40,20 @@
    #:rt-set-io-buffers #:rt-set-output #:rt-get-input #:rt-get-error-msg
    #:rt-condition-wait #:rt-set-busy-state #:rt-transfer-to-c-thread
    #:rt-audio-init #:rt-audio-start #:rt-audio-stop
-   #:rt-cycle-begin #:rt-cycle-end)
+   #:rt-cycle-begin #:rt-cycle-end
+   #:foreign-alloc-fft #:foreign-free-fft #:make-fft-plan #:make-ifft-plan
+   #:fft-destroy-plan #:fft-execute #:ifft-execute
+   #:apply-window #:apply-scaled-window #:apply-scaled-rectwin
+   #:apply-zero-padding
+   #:pconv-multiply-partitions)
   (:export
    #:errno-to-string #:pthread-set-priority #:sndfile-to-buffer
    #:foreign-alloc-sample #:foreign-zero-sample #:foreign-set
    #:init-foreign-memory-pool #:destroy-foreign-memory-pool
    #:get-foreign-used-size #:get-foreign-max-size
    #:foreign-alloc-ex #:foreign-free-ex #:foreign-realloc-ex
-   #:foreign-alloc-fft #:foreign-free-fft #:make-fft-plan #:make-ifft-plan
-   #:fft-destroy-plan #:sample-complex #:sample-polar #:magnitude
+   #:sample-complex #:sample-polar #:magnitude
    #:complex-to-polar #:polar-to-complex
-   #:fft-execute #:ifft-execute
-   #:apply-window #:apply-scaled-window #:apply-scaled-rectwin
-   #:apply-zero-padding
-   #:pconv-multiply-partitions
    #:foreign-copy #:foreign-copy-samples
    #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
    #:rt-client #:rt-buffer-size #:rt-sample-rate
@@ -183,23 +183,25 @@
                 #:foreign-copy #:foreign-copy-samples #:%copy-from-ring-buffer
                 #:%copy-to-ring-output-buffer)
   (:intern #:fft-input-buffer #:fft-output-buffer
-           #:ifft-input-buffer #:ifft-output-buffer #:ifft-plan)
-  (:export #:analysis #:analysis-p #:analysis-time #:touch-analysis
-           #:forget-analysis #:analysis-input #:analysis-data
+           #:ifft-input-buffer #:ifft-output-buffer)
+  (:export #:analysis #:analysis-p
+           #:analysis-input-buffer #:analysis-input-buffer-size
+           #:analysis-output-buffer #:analysis-output-buffer-size
+           #:analysis-time #:touch-analysis #:discard-analysis
            #:window-size #:window-function #:rectangular-window
            #:abuffer #:make-abuffer #:abuffer-p #:abuffer-data #:abuffer-time
            #:abuffer-realpart #:abuffer-imagpart #:abuffer-size #:abuffer-link
            #:abuffer-nbins #:abuffer-normalized-p
            #:abuffer-polar #:abuffer-complex
-           #:resize-abuffer #:touch-abuffer #:forget-abuffer
+           #:touch-abuffer #:discard-abuffer
            #:pvbuffer #:buffer->pvbuffer #:pvbuffer-data #:pvbuffer-size
            #:pvbuffer-frames #:pvbuffer-channels #:pvbuffer-fft-size
            #:pvbuffer-block-size #:pvbuffer-scale-factor
-           #:fft #:fft-p #:make-fft #:*fft-default-window-function*
-           #:ifft #:ifft-p #:make-ifft
+           #:*fft-default-window-function*
+           #:fft #:fft-p #:make-fft #:fft-size #:fft-plan #:fft-input
+           #:ifft #:ifft-p #:make-ifft #:ifft-size #:ifft-plan #:ifft-output
            #:+fft-plan-optimal+ #:+fft-plan-best+ #:+fft-plan-fast+
-           #:fft-plan #:get-fft-plan #:new-fft-plan #:remove-fft-plan
-           #:fft-plan-list #:fft-input #:ifft-output #:fft-size
+           #:get-fft-plan #:new-fft-plan #:remove-fft-plan #:fft-plan-list
            #:compute-abuffer #:update-linked-object
            #:compute-fft #:compute-ifft
            #:dofft #:dofft-polar #:dofft-complex))
@@ -216,7 +218,7 @@
   (:import-from #:incudine.util #:incudine-object #:incudine-object-pool
                 #:make-incudine-object-pool #:incudine-object-pool-expand)
   (:import-from #:incudine.analysis #:make-fft #:make-ifft
-                #:fft-input #:ifft-output #:fft-execute #:ifft-execute
+                #:fft-input #:ifft-output
                 #:fft-input-buffer #:fft-output-buffer #:fft-plan
                 #:ifft-input-buffer #:ifft-output-buffer #:ifft-plan
                 #:abuffer #:make-abuffer #:abuffer-realpart
@@ -359,11 +361,8 @@
                 #:mem-ref #:mem-aref #:inc-pointer #:incf-pointer)
   (:import-from #:incudine.external #:pthread-set-priority #:sndfile-to-buffer
                 #:foreign-alloc-sample #:foreign-zero-sample
-                #:foreign-alloc-fft #:foreign-free-fft
                 #:sample-complex #:sample-polar #:magnitude
                 #:complex-to-polar #:polar-to-complex
-                #:fft-execute #:ifft-execute
-                #:apply-window #:apply-scaled-window #:apply-zero-padding
                 #:foreign-copy #:foreign-copy-samples
                 #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
                 #:rt-audio-init #:rt-audio-start #:rt-audio-stop

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2015 Tito Latini
+;;; Copyright (c) 2015-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -24,8 +24,8 @@
           (if (incudine.analysis:abuffer-p obj)
               (values (incudine.analysis:abuffer-data obj)
                       (incudine.analysis:abuffer-size obj))
-              (values (incudine.analysis:analysis-data obj)
-                      (incudine.analysis::analysis-output-size obj)))
+              (values (incudine.analysis:analysis-output-buffer obj)
+                      (incudine.analysis:analysis-output-buffer-size obj)))
         (incudine.external:foreign-copy-samples c-array src-ptr
                                                 (min size src-size))))
     c-array))

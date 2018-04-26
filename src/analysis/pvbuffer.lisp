@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -16,8 +16,10 @@
 
 (in-package :incudine.analysis)
 
-;;; Buffer to store a sequence of FFTs.
 (defstruct (pvbuffer (:copier nil))
+  "PVbuffer type.
+
+A PVBUFFER contains a sequence of spectral data."
   (data (null-pointer) :type foreign-pointer)
   (size 0 :type non-negative-fixnum)
   (frames 0 :type non-negative-fixnum)
@@ -25,6 +27,22 @@
   (fft-size 0 :type non-negative-fixnum)
   (scale-factor (sample 1) :type sample)
   (block-size 0 :type non-negative-fixnum))
+
+(setf
+  (documentation 'pvbuffer-data 'function)
+  "Return the foreign pointer to the pvbuffer data."
+  (documentation 'pvbuffer-size 'function)
+  "Return the pvbuffer size."
+  (documentation 'pvbuffer-channels 'function)
+  "Return the number of the channels of the pvbuffer."
+  (documentation 'pvbuffer-frames 'function)
+  "Return the number of the spectral frames of the pvbuffer."
+  (documentation 'pvbuffer-fft-size 'function)
+  "Return the FFT size used to compute the spectral data of the pvbuffer."
+  (documentation 'pvbuffer-scale-factor 'function)
+  "Return the scale factor of the pvbuffer."
+  (documentation 'pvbuffer-block-size 'function)
+  "Return the block size of the pvbuffer.")
 
 (defmethod incudine:free ((obj pvbuffer))
   (let ((data (pvbuffer-data obj)))
@@ -105,7 +123,7 @@
          (fft (make-fft fft-size :window-function #'rectangular-window))
          (fft-inbuf (fft-input-buffer fft))
          (fft-outbuf (fft-output-buffer fft))
-         (block-size (fft-output-size fft))
+         (block-size (fft-output-buffer-size fft))
          (size (* partitions block-size))
          (data (alloc-multi-channel-data channels size))
          (obj (reduce-warnings

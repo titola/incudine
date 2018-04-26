@@ -1,4 +1,4 @@
-;;; Copyright (c) 2017 Tito Latini
+;;; Copyright (c) 2017-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
      incudine:freq-breakpoints->env
      incudine.analysis:rectangular-window
      incudine.analysis:make-ifft
-     incudine.analysis:analysis-input
+     incudine.analysis:analysis-input-buffer
      incudine.analysis:compute-ifft)))
 
 (defun fir (breakpoints &key (sample-rate *sample-rate*) (base 1.0) curve
@@ -46,8 +46,10 @@
                    c-array size))
         (loop for i of-type non-negative-fixnum below size
               for j of-type non-negative-fixnum = (* i 2) do
-                (setf (smp-ref (analysis-input ifft) j) (smp-ref c-array i))
-                (setf (smp-ref (analysis-input ifft) (1+ j)) +sample-zero+))
+                (setf (smp-ref (analysis-input-buffer ifft) j)
+                      (smp-ref c-array i))
+                (setf (smp-ref (analysis-input-buffer ifft) (1+ j))
+                      +sample-zero+))
         (funcall (gen:analysis
                    (circular-shift (compute-ifft ifft nil t) (ash size -1)))
                  c-array size)

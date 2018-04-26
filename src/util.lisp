@@ -23,15 +23,22 @@
 ;; at least with SBCL and CCL.
 (define-constant most-positive-fixnum64 (1- (ash 1 59)))
 
-(deftype non-negative-fixnum64 () '(integer 0 #.(1- (ash 1 59))))
+(deftype non-negative-fixnum64 ()
+  "Non negative FIXNUM on 64-bit platforms."
+  '(integer 0 #.(1- (ash 1 59))))
 
-;; FLOAT with arbitrary range between -2^63 and 2^63.
-;; Used in SBCL on X86 with SIN, COS and TAN.
-(deftype limited-sample () (let ((high (force-sample-format 4.0e18)))
-                             `(,incudine.config:*sample-type* ,(- high) ,high)))
+(deftype limited-sample ()
+  "A LIMITED-SAMPLE is a SAMPLE between -4e18 and 4e18.
 
-(deftype maybe-limited-sample () #+(and sbcl x86) 'limited-sample
-                                 #-(and sbcl x86) 'sample)
+SIN, COS and TAN are optimized on x86 if the argument type is
+LIMITED-SAMPLE."
+  (let ((high (force-sample-format 4.0e18)))
+    `(,incudine.config:*sample-type* ,(- high) ,high)))
+
+(deftype maybe-limited-sample ()
+  "Correspond to LIMITED-SAMPLE on SBCL x86."
+  #+(and sbcl x86) 'limited-sample
+  #-(and sbcl x86) 'sample)
 
 (deftype channel-number () '(integer 0 1023))
 

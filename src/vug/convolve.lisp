@@ -61,7 +61,9 @@ stored in a buffer."
      incudine.analysis:pvbuffer-fft-size
      incudine.analysis:pvbuffer-block-size
      incudine.analysis:pvbuffer-scale-factor
-     incudine.external:pconv-multiply-partitions)))
+     incudine.external::fft-execute
+     incudine.external::ifft-execute
+     incudine.external::pconv-multiply-partitions)))
 
 (defmacro pconv-update-frame (frame output-index-var outbuf
                               channels mult)

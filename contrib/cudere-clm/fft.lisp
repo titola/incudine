@@ -1,5 +1,5 @@
 ;;; Incudine version of CLM
-;;; Copyright (c) 2017 Tito Latini
+;;; Copyright (c) 2017-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -51,14 +51,14 @@
         for ptr = (cffi:mem-aref pointers :pointer i) do
           (unless (cffi:null-pointer-p ptr)
             (if (< i 2)
-                (incudine.external:foreign-free-fft ptr)
-                (incudine.external:fft-destroy-plan ptr)))))
+                (incudine.external::foreign-free-fft ptr)
+                (incudine.external::fft-destroy-plan ptr)))))
 
 (defun alloc-fft-data (pointers fftsize)
   (setf (cffi:mem-aref pointers :pointer 0)
-        (incudine.external:foreign-alloc-fft (* 2 fftsize)))
+        (incudine.external::foreign-alloc-fft (* 2 fftsize)))
   (setf (cffi:mem-aref pointers :pointer 1)
-        (incudine.external:foreign-alloc-fft (* 2 fftsize)))
+        (incudine.external::foreign-alloc-fft (* 2 fftsize)))
   (let ((in-data (cffi:mem-aref pointers :pointer 0))
         (out-data (cffi:mem-aref pointers :pointer 1)))
     (setf (cffi:mem-aref pointers :pointer 2)

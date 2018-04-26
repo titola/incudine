@@ -16,7 +16,12 @@
 
 (in-package :incudine.analysis)
 
-(defvar *fft-default-window-function* (incudine.gen:sine-window))
+(defvar *fft-default-window-function* (incudine.gen:sine-window)
+  "Default function of two arguments called to fill an analysis data window.
+The function arguments are the foreign pointer to the data window of type
+SAMPLE and the window size respectively.
+
+Initially this is set to (GEN:SINE-WINDOW).")
 (declaim (type function *fft-default-window-function*))
 
 (defvar *fft-plan* (make-hash-table :size 16))
@@ -24,6 +29,8 @@
 
 (declaim (inline get-fft-plan))
 (defun get-fft-plan (size)
+  "Return the cached FFT-PLAN with the specified SIZE if it exists.
+Otherwise, return NIL."
   (values (gethash size *fft-plan*)))
 
 (declaim (inline add-fft-plan))
@@ -32,6 +39,7 @@
 
 (declaim (inline remove-fft-plan))
 (defun remove-fft-plan (size)
+  "Remove the cached FFT-PLAN with the specified SIZE."
   (remhash size *fft-plan*))
 
 (defmethod print-object ((obj fft-plan) stream)
@@ -39,8 +47,9 @@
           (fft-plan-size obj) (fft-plan-flags obj)))
 
 (defun fft-plan-list (&optional only-size-p)
-  "Return the list of the stored FFT-PLANs. If ONLY-SIZE-P is T,
-the values of the list are the sizes of the plans."
+  "Return the list of the cached FFT-PLAN instances.
+
+If ONLY-SIZE-P is T, return the sizes of these planners."
   (if only-size-p
       (sort (loop for size being the hash-keys in *fft-plan*
                   collect size)
@@ -49,9 +58,9 @@ the values of the list are the sizes of the plans."
                   collect plan)
             #'< :key #'fft-plan-size)))
 
+;;; Return a CONS where the CAR is the plan for a FFT and the CDR is
+;;; the plan for a IFFT.
 (defun compute-fft-plan (size flags realtime-p)
-  "Return a CONS where the CAR is the plan for a FFT and the CDR
-is the plan for a IFFT."
   (declare (type positive-fixnum size) (type fixnum flags)
            (type boolean realtime-p))
   (flet ((alloc-buffer (size)
@@ -82,7 +91,14 @@ is the plan for a IFFT."
         (fft-destroy-plan (cdr pair))))))
 
 (defun new-fft-plan (size &optional flags)
-  "Calculate and store a new FFT-PLAN with the specified size."
+  "Calculate and cache a new FFT-PLAN structure with the specified size
+if necessary.
+
+FLAGS is usually +FFT-PLAN-OPTIMAL+, +FFT-PLAN-BEST+ or +FFT-PLAN-FAST+.
+If a cached FFT-PLAN with the same size already exists, return it if the
+current thread is the real-time thread, otherwise recompute the plan if
+FLAGS is non-NIL or the cached FFT-PLAN is not the best. Without a cached
+FFT-PLAN, FLAGS defaults to +FFT-PLAN-FAST+."
   (declare (type positive-fixnum size) (type (or fixnum null) flags))
   (let ((plan (get-fft-plan size))
         (realtime-p (rt-thread-p)))
@@ -132,6 +148,22 @@ is the plan for a IFFT."
 (defun make-fft (size &key (window-size 0)
                  (window-function *fft-default-window-function*)
                  flags (real-time-p (incudine.util:allow-rt-memory-p)))
+  "Create and return a new FFT structure with the specified SIZE.
+
+WINDOW-SIZE is the size of the analysis window and defaults to SIZE.
+
+WINDOW-FUNCTION is a function of two arguments called to fill the FFT data
+window. The function arguments are the foreign pointer to the data window
+of type SAMPLE and the window size respectively.
+WINDOW-FUNCTION defaults to *FFT-DEFAULT-WINDOW-FUNCTION*.
+
+The argument FLAGS for the FFT planner is usually +FFT-PLAN-OPTIMAL+,
++FFT-PLAN-BEST+ or +FFT-PLAN-FAST+. If a cached FFT-PLAN with the same size
+already exists, return it if the current thread is the real-time thread,
+otherwise recompute the plan if FLAGS is non-NIL or the cached FFT-PLAN is
+not the best. Without a cached FFT-PLAN, FLAGS defaults to +FFT-PLAN-FAST+.
+
+Set REAL-TIME-P to NIL to disallow real-time memory pools."
   (declare (type positive-fixnum size) (type non-negative-fixnum window-size)
            (type (or fixnum null) flags) (type function window-function)
            #.*reduce-warnings*)
@@ -168,15 +200,16 @@ is the plan for a IFFT."
             (mapc free-fn (list inbuf outbuf winbuf tptr))
             (incudine-object-pool-expand pool 1)))
         (incudine.util::with-struct-slots
-            ((size input-buffer input-size output-buffer output-size ring-buffer
-              window-buffer window-size window-function nbins output-complex-p
-              scale-factor time-ptr real-time-p foreign-free plan-wrap plan)
+            ((size input-buffer input-buffer-size output-buffer output-buffer-size
+              ring-buffer window-buffer window-size window-function nbins
+              output-complex-p scale-factor time-ptr real-time-p foreign-free
+              plan-wrap plan)
              obj fft "INCUDINE.ANALYSIS")
           (setf size %size
                 input-buffer inbuf
-                input-size %size
+                input-buffer-size %size
                 output-buffer outbuf
-                output-size complex-array-size
+                output-buffer-size complex-array-size
                 ring-buffer (make-ring-input-buffer %size rt-p)
                 window-buffer winbuf
                 window-size winsize
@@ -194,6 +227,11 @@ is the plan for a IFFT."
           obj)))))
 
 (defun compute-fft (obj &optional force-p)
+  "Compute a fast Fourier transform on the input data of the FFT
+structure OBJ and write the results into the FFT output buffer.
+
+If FORCE-P is NIL (default), the transform is computed once for the
+current time."
   (declare (type fft obj) (type boolean force-p))
   (when (or force-p (fft-input-changed-p obj))
     (let ((fftsize (fft-size obj))
@@ -213,6 +251,7 @@ is the plan for a IFFT."
 
 (declaim (inline fft-input))
 (defun fft-input (fft)
+  "Return the sample value of the current FFT input. Setfable."
   (let ((buf (fft-ring-buffer fft)))
     (smp-ref (ring-input-buffer-data buf)
              (ring-input-buffer-head buf))))
@@ -231,6 +270,22 @@ is the plan for a IFFT."
 (defun make-ifft (size &key (window-size 0)
                   (window-function *fft-default-window-function*)
                   flags (real-time-p (incudine.util:allow-rt-memory-p)))
+  "Create and return a new IFFT structure with the specified SIZE.
+
+WINDOW-SIZE is the size of the analysis window and defaults to SIZE.
+
+WINDOW-FUNCTION is a function of two arguments called to fill the FFT data
+window. The function arguments are the foreign pointer to the data window
+of type SAMPLE and the window size respectively.
+WINDOW-FUNCTION defaults to *FFT-DEFAULT-WINDOW-FUNCTION*.
+
+The argument FLAGS for the FFT planner is usually +FFT-PLAN-OPTIMAL+,
++FFT-PLAN-BEST+ or +FFT-PLAN-FAST+. If a cached FFT-PLAN with the same size
+already exists, return it if the current thread is the real-time thread,
+otherwise recompute the plan if FLAGS is non-NIL or the cached FFT-PLAN is
+not the best. Without a cached FFT-PLAN, FLAGS defaults to +FFT-PLAN-FAST+.
+
+Set REAL-TIME-P to NIL to disallow real-time memory pools."
   (declare (type positive-fixnum size) (type non-negative-fixnum window-size)
            (type (or fixnum null) flags) (type function window-function)
            #.*reduce-warnings*)
@@ -267,15 +322,16 @@ is the plan for a IFFT."
             (mapc free-fn (list inbuf outbuf winbuf tptr))
             (incudine-object-pool-expand pool 1)))
         (incudine.util::with-struct-slots
-            ((size input-buffer input-size output-buffer output-size ring-buffer
-              window-buffer window-size window-function nbins time-ptr
-              real-time-p foreign-free plan-wrap plan)
+            ((size input-buffer input-buffer-size output-buffer
+              output-buffer-size ring-buffer window-buffer window-size
+              window-function nbins time-ptr real-time-p foreign-free
+              plan-wrap plan)
              obj ifft "INCUDINE.ANALYSIS")
           (setf size %size
                 input-buffer inbuf
-                input-size complex-array-size
+                input-buffer-size complex-array-size
                 output-buffer outbuf
-                output-size %size
+                output-buffer-size %size
                 ring-buffer (make-ring-output-buffer %size rt-p)
                 window-buffer winbuf
                 window-size winsize
@@ -290,7 +346,6 @@ is the plan for a IFFT."
           (foreign-zero-sample inbuf complex-array-size)
           obj)))))
 
-(declaim (inline ifft-apply-window))
 (defun ifft-apply-window (obj &optional abuf)
   (declare (type ifft obj) (type (or abuffer null) abuf))
   (let ((outbuf (ifft-output-buffer obj))
@@ -305,6 +360,14 @@ is the plan for a IFFT."
                                   (abuffer-scale-factor abuf))))))
 
 (defun compute-ifft (obj &optional abuffer force-p)
+  "Compute an inverse fast Fourier transform on the input data of the
+IFFT structure OBJ and write the results into the IFFT output buffer.
+
+If ABUFFER is non-NIL, update that abuffer and copy the results into
+the IFFT input buffer before to calculate the transform.
+
+If FORCE-P is NIL (default), the transform is computed once for the
+current time."
   (declare (type ifft obj) (type (or abuffer null) abuffer)
            (type boolean force-p))
   (when (or force-p
@@ -314,7 +377,7 @@ is the plan for a IFFT."
       (compute-abuffer abuffer)
       (abuffer-complex abuffer)
       (foreign-copy-samples (ifft-input-buffer obj) (abuffer-data abuffer)
-                            (ifft-input-size obj)))
+                            (ifft-input-buffer-size obj)))
     (ifft-execute (ifft-plan obj) (ifft-input-buffer obj)
                   (ifft-output-buffer obj))
     (ifft-apply-window obj abuffer)
@@ -328,11 +391,12 @@ is the plan for a IFFT."
 
 (declaim (inline ifft-output))
 (defun ifft-output (ifft)
+  "Return the sample value of the current IFFT output."
   (ring-output-buffer-next (ifft-ring-buffer ifft)))
 
 (defmethod circular-shift ((obj ifft) n)
   ;; Shifting the ring buffer head is also faster but GEN:ANALYSIS
   ;; does a copy of the output buffer.
   (incudine::foreign-circular-shift (ifft-output-buffer obj) 'sample
-                                    (ifft-output-size obj) n)
+                                    (ifft-output-buffer-size obj) n)
   obj)
