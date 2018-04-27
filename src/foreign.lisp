@@ -62,14 +62,18 @@
 (cffi:defcvar "errno" :int)
 
 (defun errno-to-string (&optional (errno *errno*))
+  "Return a string that describes the error code ERRNO.
+
+ERRNO defaults to the foreign integer variable errno. See errno man
+page for details."
   (cffi:foreign-funcall "strerror" :int errno :string))
 
 ;;; THREADS
 
-(cffi:defcfun "pthread_priority" :int
+(cffi:defcfun ("pthread_priority" thread-priority) :int
   (thread :pointer))
 
-(cffi:defcfun "pthread_set_priority" :int
+(cffi:defcfun ("pthread_set_priority" thread-set-priority) :int
   (thread :pointer)
   (priority :int))
 
@@ -228,7 +232,7 @@ Return a pointer to the newly allocated memory."
 
 ;;; MOUSE
 
-#+linux
+#+x11
 (progn
   (cffi:defcfun "mouse_init" :int)
 
@@ -238,7 +242,7 @@ Return a pointer to the newly allocated memory."
 
   (cffi:defcfun "get_mouse_status" :int))
 
-#-linux
+#-x11
 (progn
   (defun mouse-init () 0)
   (defun mouse-stop () 0)
@@ -283,20 +287,19 @@ Return a pointer to the newly allocated memory."
 
 ;;; COMPLEX TYPES
 
-(cffi:defcstruct sample-complex
-  (realpart sample)
-  (imagpart sample))
-
-(cffi:defcstruct sample-polar
-  (magnitude sample)
-  (phase sample))
-
-;; Destructive conversions
 (cffi:defcfun "complex_to_polar" :void
+  "Convert the representation of the complex sample data from complex
+to polar.
+
+PTR is the foreign pointer to SIZE complex samples."
   (ptr :pointer)
   (size :unsigned-long))
 
 (cffi:defcfun "polar_to_complex" :void
+  "Convert the representation of the complex sample data from polar
+to complex.
+
+PTR is the foreign pointer to SIZE complex samples."
   (ptr :pointer)
   (size :unsigned-long))
 

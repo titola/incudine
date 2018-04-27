@@ -41,21 +41,22 @@
    #:rt-condition-wait #:rt-set-busy-state #:rt-transfer-to-c-thread
    #:rt-audio-init #:rt-audio-start #:rt-audio-stop
    #:rt-cycle-begin #:rt-cycle-end
+   #:thread-set-priority
+   #:sndfile-to-buffer
+   #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
    #:foreign-alloc-fft #:foreign-free-fft #:make-fft-plan #:make-ifft-plan
    #:fft-destroy-plan #:fft-execute #:ifft-execute
    #:apply-window #:apply-scaled-window #:apply-scaled-rectwin
    #:apply-zero-padding
    #:pconv-multiply-partitions)
   (:export
-   #:errno-to-string #:pthread-set-priority #:sndfile-to-buffer
+   #:errno-to-string
    #:foreign-alloc-sample #:foreign-zero-sample #:foreign-set
    #:init-foreign-memory-pool #:destroy-foreign-memory-pool
    #:get-foreign-used-size #:get-foreign-max-size
    #:foreign-alloc-ex #:foreign-free-ex #:foreign-realloc-ex
-   #:sample-complex #:sample-polar #:magnitude
    #:complex-to-polar #:polar-to-complex
    #:foreign-copy #:foreign-copy-samples
-   #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
    #:rt-client #:rt-buffer-size #:rt-sample-rate
    #:rt-cycle-start-time #:rt-time-offset
    #:rt-xruns #:rt-silent-errors))
@@ -69,7 +70,7 @@
                 #:mem-ref #:mem-aref #:make-pointer #:pointer-address
                 #:inc-pointer #:foreign-slot-value
                 #:foreign-alloc #:foreign-free)
-  (:import-from #:incudine.external #:sample-complex #:foreign-alloc-sample)
+  (:import-from #:incudine.external #:foreign-alloc-sample)
   (:intern #:incudine-object #:incudine-object-pool #:make-incudine-object-pool
            #:incudine-object-pool-expand #:ensure-incudine-object-pool-size
            #:alloc-multi-channel-data #:free-multi-channel-data
@@ -175,8 +176,7 @@
   (:import-from #:incudine.external #:foreign-alloc-sample #:foreign-zero-sample
                 #:foreign-alloc-fft #:foreign-free-fft
                 #:make-fft-plan #:make-ifft-plan #:fft-destroy-plan
-                #:sample-complex #:sample-polar #:magnitude #:complex-to-polar
-                #:polar-to-complex
+                #:complex-to-polar #:polar-to-complex
                 #:fft-execute #:ifft-execute
                 #:apply-window #:apply-scaled-window #:apply-scaled-rectwin
                 #:apply-zero-padding
@@ -359,12 +359,10 @@
   (:import-from #:cffi #:foreign-type-size #:foreign-alloc #:foreign-free
                 #:null-pointer #:null-pointer-p
                 #:mem-ref #:mem-aref #:inc-pointer #:incf-pointer)
-  (:import-from #:incudine.external #:pthread-set-priority #:sndfile-to-buffer
+  (:import-from #:incudine.external #:sndfile-to-buffer
                 #:foreign-alloc-sample #:foreign-zero-sample
-                #:sample-complex #:sample-polar #:magnitude
                 #:complex-to-polar #:polar-to-complex
                 #:foreign-copy #:foreign-copy-samples
-                #:%copy-from-ring-buffer #:%copy-to-ring-output-buffer
                 #:rt-audio-init #:rt-audio-start #:rt-audio-stop
                 #:rt-get-input #:rt-set-output #:rt-cycle-begin #:rt-cycle-end
                 #:rt-set-io-buffers

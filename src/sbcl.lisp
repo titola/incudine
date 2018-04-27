@@ -86,12 +86,12 @@
   "Return the thread priority. Setfable."
   (declare (type sb-thread:thread thread))
   (when (bt:threadp thread)
-    (incudine.external::pthread-priority (thread-pointer thread))))
+    (incudine.external::thread-priority (thread-pointer thread))))
 
 (defun set-thread-priority (thread priority)
   (declare (type sb-thread:thread thread) (type fixnum priority))
   (when (bt:threadp thread)
-    (if (zerop (incudine.external:pthread-set-priority
+    (if (zerop (incudine.external::thread-set-priority
                  (thread-pointer thread) priority))
         priority
         (warn "failed to set scheduling priority ~D" priority))))
