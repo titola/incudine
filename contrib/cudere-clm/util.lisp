@@ -964,7 +964,7 @@
       (sb-ext:process-wait *dac-pid*))
     (setf *dac-pid* nil)))
 
-(setf (symbol-function 'dac) (symbol-function 'play))
+(setf (symbol-function 'dac) (symbol-function 'clm:play))
 (setf (symbol-function 'stop-dac) (symbol-function 'stop-playing))
 
 (defun print-statistics (stats out-chans
