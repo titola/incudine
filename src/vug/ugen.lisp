@@ -138,8 +138,10 @@ to call to get the control value."
              (type (if ptr-p
                        (if (subtypep utype 'sample) utype :pointer)
                        utype))
-             (new-value (ugen-control-new-value value type value-type
-                                                value-type))
+             (new-value (if (eq type :pointer)
+                            value
+                            (ugen-control-new-value
+                              value type value-type value-type)))
              (ctrl (gensym "CTRL")))
         `(progn
            ,@(when (or (and inline-p (not method-p))
