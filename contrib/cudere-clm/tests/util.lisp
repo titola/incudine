@@ -1,8 +1,11 @@
 (in-package :cudere-clm-tests)
 
-(defvar *test-file-name* "/tmp/test.wav")
-(defvar *test-filter-file* "/tmp/filter.wav")
-(defvar *test-input-file* "/tmp/input.wav")
+(defun test-file-pathname (file)
+  (namestring (asdf:compile-file-pathname* file :output-file file)))
+
+(defvar *test-file-name* (test-file-pathname "test.wav"))
+(defvar *test-filter-file* (test-file-pathname "filter.wav"))
+(defvar *test-input-file* (test-file-pathname "input.wav"))
 (defvar *test-srate* 48000)
 (defvar *test-length* (* *test-srate* 5))
 (defvar *test-header-type* mus-riff)
@@ -19,3 +22,7 @@
                      unless (member k keys)
                        collect k and collect v)))
     `(md5sum-file (with-sound (,@args ,@opts) ,@body))))
+
+(defun delete-test-files ()
+  (dolist (f (list *test-file-name* *test-filter-file* *test-input-file*))
+    (when (probe-file f) (delete-file f))))

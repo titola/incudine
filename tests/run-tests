@@ -1,4 +1,9 @@
 #!/bin/bash
 # Run the unit tests.
 
-exec sbcl "$@" --quit --eval "(asdf:test-system \"incudine-tests\" :force t)"
+exec sbcl "$@" --quit \
+          --eval "(asdf:load-system \"incudine-tests\" :force t)" \
+          --eval "(asdf:load-system \"cudere-clm-tests\" :force t)" \
+          --eval "(incudine-tests:run-tests)" \
+          --eval "(cudere-clm-tests::delete-test-files)" \
+          --eval "(fresh-line)"
