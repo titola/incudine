@@ -2385,8 +2385,11 @@
                   (incudine.external:foreign-zero-sample
                     (buffer-data data2) fftsize))
           (normalize-buffer out maxamp)
-          (buffer-save out output-file :end (+ len1 len2)
-                       :sample-rate (soundfile:sample-rate file1))
+          (buffer-save
+            out output-file :end (+ len1 len2)
+            :sample-rate (soundfile:sample-rate file1)
+            :header-type #.(mus-to-sf-header-type *clm-tempfile-header-type*)
+            :data-format #.(mus-to-sf-data-format *clm-tempfile-data-format*))
           output-file)))))
 
 (defmethod mus-reset ((gen convolve-instance))

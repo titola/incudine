@@ -6,10 +6,11 @@
 (defvar *test-file-name* (test-file-pathname "test.wav"))
 (defvar *test-filter-file* (test-file-pathname "filter.wav"))
 (defvar *test-input-file* (test-file-pathname "input.wav"))
+(defvar *test-tmpfile-name* (test-file-pathname "tmp.wav"))
 (defvar *test-srate* 48000)
 (defvar *test-length* (* *test-srate* 5))
 (defvar *test-header-type* mus-riff)
-(defvar *test-data-format* mus-ldouble)
+(defvar *test-data-format* mus-l24int)
 
 (defmacro with-sound-test ((&rest args) &body body)
   (let* ((keys (loop for (k v) on args by #'cddr collect k))
@@ -24,5 +25,6 @@
     `(md5sum-file (with-sound (,@args ,@opts) ,@body))))
 
 (defun delete-test-files ()
-  (dolist (f (list *test-file-name* *test-filter-file* *test-input-file*))
+  (dolist (f (list *test-file-name* *test-filter-file* *test-input-file*
+                   *test-tmpfile-name*))
     (when (probe-file f) (delete-file f))))

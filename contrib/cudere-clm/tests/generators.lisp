@@ -35,7 +35,7 @@
       (let ((os (make-oscil 440)))
         (dotimes (i *test-length*)
           (outa i (* .8 (oscil os))))))
-  #(106 252 29 148 249 14 247 24 145 143 147 46 83 121 114 153))
+    #(145 117 149 183 28 61 207 223 180 128 13 44 86 167 147 101))
 
 (deftest oscil.2
     (with-sound-test ()
@@ -43,14 +43,14 @@
         (dotimes (i *test-length*)
           (outa i (* .8 (oscil os (hz->radians
                                     (* (/ i *test-length*) 20000))))))))
-  #(232 104 214 255 251 27 25 134 220 98 177 90 194 173 164 151))
+  #(103 172 5 158 92 211 188 75 145 83 9 63 122 170 215 77))
 
 (deftest oscil.3
     (with-sound-test ()
       (let ((os (make-oscil 1 (* pi .25))))
         (dotimes (i (min (floor *srate*) *test-length*))
           (outa i (oscil os)))))
-  #(37 177 232 103 52 151 227 51 55 154 237 196 15 163 123 132))
+  #(126 56 160 28 136 117 248 233 31 21 91 104 138 202 8 91))
 
 ;;; ENV
 
@@ -58,7 +58,7 @@
     (with-sound-test ()
       (let ((e (make-env '(0 0 1 1 2 0) :end (1- *test-length*))))
         (dotimes (i *test-length*) (outa i (env e)))))
-  #(245 164 30 11 187 83 119 168 91 3 247 74 146 187 66 109))
+  #(149 251 9 59 96 194 16 49 123 189 198 141 232 199 22 130))
 
 (deftest env.2
     (with-sound-test ()
@@ -69,7 +69,7 @@
         (assert (= (mus-scaler e) amp))
         (assert (= (mus-increment e) base))
         (dotimes (i *test-length*) (outa i (env e)))))
-  #(0 22 172 137 245 117 227 55 91 173 32 30 112 206 99 217))
+  #(26 53 83 173 86 104 110 113 193 157 180 122 109 170 138 130))
 
 (deftest env.3
     (with-sound-test ()
@@ -85,7 +85,7 @@
           (when (>= (mus-location e) len)
             (mus-reset e))
           (outa i (env e)))))
-  #(159 187 152 206 44 161 235 31 9 249 59 90 192 46 87 234))
+  #(158 211 128 57 54 46 1 44 196 103 119 108 94 71 211 40))
 
 ;;; TABLE-LOOKUP
 
@@ -104,7 +104,7 @@
             (setf lim *test-length*)
             (setf (mus-frequency tab) (* freq 2)))
           (outa i (* .8 (table-lookup tab))))))
-  #(40 58 164 206 0 192 244 2 16 54 242 204 84 90 43 35))
+  #(211 206 84 170 213 147 10 158 49 94 129 150 74 65 188 201))
 
 (deftest table-lookup.2
     (with-sound-test ()
@@ -116,7 +116,7 @@
         (assert (= (mus-length tab) *clm-table-size*))
         (dotimes (i *test-length*)
           (outa i (* .8 (table-lookup tab))))))
-  #(156 243 171 15 170 61 182 83 106 52 129 47 20 9 213 22))
+  #(158 127 152 25 62 221 8 28 40 222 170 138 74 240 123 66))
 
 (deftest table-lookup.3
     (with-sound-test ()
@@ -125,7 +125,7 @@
         (dotimes (i *test-length*)
           (outa i (* .8 (table-lookup tab
                           (hz->radians (* (/ i *test-length*) 10000))))))))
-  #(102 101 116 183 171 124 252 233 27 142 16 217 204 85 108 201))
+  #(11 74 106 147 106 196 41 107 96 45 209 153 140 159 108 244))
 
 ;;; POLYWAVE
 
@@ -136,7 +136,7 @@
         (assert (equal (coerce (mus-data w) 'list) '(0d0 1d0 .5d0 .25d0)))
         (dotimes (i *test-length*)
           (outa i (* .5 (polywave w))))))
-  #(189 203 143 180 122 5 92 143 69 103 254 208 214 141 17 11))
+  #(209 150 4 33 34 70 176 5 48 22 110 141 121 173 116 247))
 
 (deftest polywave.2
     (with-sound-test ()
@@ -144,7 +144,7 @@
         (dotimes (i *test-length*)
           (outa i (* .25 (polywave w
                           (hz->radians (* (/ i *test-length*) 10000))))))))
-  #(225 162 209 196 56 87 38 234 68 30 196 242 180 233 112 169))
+  #(190 239 97 100 42 31 35 15 164 26 241 223 152 82 18 116))
 
 ;;; POLYSHAPE
 
@@ -155,14 +155,14 @@
         (assert (equal (coerce (mus-data w) 'list) '(0d0 1d0 .5d0 .25d0)))
         (dotimes (i *test-length*)
           (outa i (* .5 (polyshape w))))))
-  #(189 203 143 180 122 5 92 143 69 103 254 208 214 141 17 11))
+  #(209 150 4 33 34 70 176 5 48 22 110 141 121 173 116 247))
 
 (deftest polyshape.2
     (with-sound-test ()
       (let ((w (make-polyshape 440 :partials '(1 1 2 .5 3 .25))))
         (dotimes (i *test-length*)
           (outa i (* .25 (polyshape w (/ i *test-length*)))))))
-  #(65 36 61 64 179 85 152 101 81 160 220 152 218 111 225 50))
+  #(210 128 220 121 34 85 75 171 34 114 242 105 150 223 56 21))
 
 ;;; TRIANGLE-WAVE
 
@@ -171,7 +171,7 @@
       (let ((s (make-triangle-wave 440 .8)))
         (dotimes (i *test-length*)
           (outa i (triangle-wave s)))))
-  #(124 153 65 27 94 244 236 171 202 188 27 25 196 68 8 213))
+  #(36 76 37 193 208 124 223 132 188 214 0 23 204 236 126 254))
 
 (deftest triangle-wave.2
     (with-sound-test ()
@@ -179,7 +179,7 @@
         (dotimes (i *test-length*)
           (outa i (triangle-wave s
                     (hz->radians (* (/ i *test-length*) 2000)))))))
-  #(196 73 148 119 197 209 175 224 49 92 172 49 254 248 39 59))
+  #(27 146 114 203 245 41 71 56 101 225 206 211 23 255 16 30))
 
 ;;; SQUARE-WAVE
 
@@ -189,7 +189,7 @@
              (s (make-square-wave 440 (* amp 2))))
         (dotimes (i *test-length*)
           (outa i (- (square-wave s) amp)))))
-  #(51 77 146 44 159 22 27 17 216 45 161 192 188 71 246 180))
+  #(144 49 127 128 55 102 211 255 230 30 63 63 123 95 0 154))
 
 (deftest square-wave.2
     (with-sound-test ()
@@ -198,7 +198,7 @@
         (dotimes (i *test-length*)
           (outa i (- (square-wave s (hz->radians (* (/ i *test-length*) 2000)))
                      amp)))))
-  #(64 252 145 171 245 180 245 9 34 156 149 195 9 156 117 131))
+  #(156 85 90 7 238 69 95 244 147 112 74 223 230 13 68 147))
 
 ;;; SAWTOOTH-WAVE
 
@@ -210,7 +210,7 @@
           (when (= i half)
             (setf (mus-frequency s) -440))
           (outa i (sawtooth-wave s)))))
-  #(70 33 21 106 252 9 115 96 6 231 107 87 198 127 227 134))
+  #(188 126 82 24 128 194 217 57 20 51 54 182 39 157 152 117))
 
 (deftest sawtooth-wave.2
     (with-sound-test ()
@@ -218,7 +218,7 @@
         (dotimes (i *test-length*)
           (outa i (sawtooth-wave s
                     (hz->radians (* (/ i *test-length*) 2000)))))))
-  #(55 74 161 173 9 160 90 11 90 121 5 5 114 74 211 57))
+  #(225 90 109 20 41 83 74 191 36 244 181 206 227 187 169 37))
 
 ;;; PULSE-TRAIN
 
@@ -227,7 +227,7 @@
       (let ((s (make-pulse-train 100 .8)))
         (dotimes (i *test-length*)
           (outa i (pulse-train s)))))
-  #(22 21 180 4 232 24 226 3 60 100 4 183 85 160 117 64))
+  #(127 77 144 210 173 122 58 64 59 83 11 2 49 127 187 134))
 
 (deftest pulse-train.2
     (with-sound-test ()
@@ -235,7 +235,7 @@
         (dotimes (i *test-length*)
           (outa i (pulse-train s
                     (hz->radians (* (/ i *test-length*) 100)))))))
-  #(236 252 137 58 121 21 2 44 198 23 21 244 118 33 116 23))
+  #(17 217 157 49 94 32 193 73 168 18 89 140 26 144 5 128))
 
 ;;; NCOS
 
@@ -251,7 +251,7 @@
             (setf (mus-frequency cs) 50)
             (setf (mus-scaler cs) 1/40))
           (outa i (ncos cs)))))
-  #(218 189 53 159 102 157 8 96 44 9 154 217 11 174 129 218))
+  #(84 173 13 178 195 52 72 79 108 85 168 22 153 95 247 214))
 
 (deftest ncos.2
     (with-sound-test ()
@@ -259,7 +259,7 @@
         (dotimes (i *test-length*)
           (outa i (ncos cs
                     (hz->radians (* (/ i *test-length*) 4000)))))))
-  #(176 225 132 182 59 173 218 12 0 16 170 141 189 46 40 11))
+  #(28 29 134 152 159 37 39 210 212 14 49 198 151 200 174 190))
 
 ;;; NSIN
 
@@ -275,7 +275,7 @@
             (setf (mus-frequency cs) 50)
             (setf (mus-scaler cs) 1/40))
           (outa i (nsin cs)))))
-  #(104 183 52 230 70 238 217 188 181 25 28 23 172 53 53 90))
+  #(35 205 31 176 19 160 222 67 127 37 130 218 6 83 15 58))
 
 (deftest nsin.2
     (with-sound-test ()
@@ -283,7 +283,7 @@
         (dotimes (i *test-length*)
           (outa i (nsin cs
                     (hz->radians (* (/ i *test-length*) 4000)))))))
-  #(244 62 60 74 253 102 54 192 51 95 113 102 133 12 113 135))
+  #(235 30 202 104 178 161 105 99 242 95 90 36 89 171 73 17))
 
 ;;; WAVE-TRAIN
 
@@ -298,7 +298,7 @@
                 (* (cos (- (* i 1/64 pi) (* .5 pi))) (ncos cs))))
         (dotimes (i *test-length*)
           (outa i (wave-train w)))))
-  #(185 13 3 141 52 170 248 69 179 232 238 127 132 195 8 30))
+  #(241 37 7 216 113 117 195 249 1 163 236 6 47 195 40 220))
 
 (deftest wave-train.2
     (with-sound-test ()
@@ -312,7 +312,7 @@
         (dotimes (i *test-length*)
           (outa i (* .5 (wave-train w
                           (hz->radians (* (/ i *test-length*) 5000))))))))
-  #(187 99 12 144 90 138 123 90 215 21 120 5 8 122 53 15))
+  #(194 36 86 126 197 78 79 21 135 180 22 254 206 177 86 184))
 
 ;;; RAND
 
@@ -326,7 +326,7 @@
             (setf (mus-frequency r) 13)
             (mus-reset r))
           (outa i (rand r)))))
-  #(178 8 138 38 173 175 231 31 131 239 72 99 215 161 107 207))
+  #(168 168 62 173 131 103 164 196 41 78 207 71 3 54 87 83))
 
 (deftest rand.2
     (with-sound-test ()
@@ -339,7 +339,7 @@
             (setf (mus-increment r) (hz->radians 8))
             (setf (mus-scaler r) 1))
           (outa i (rand r)))))
-  #(155 202 196 205 248 78 29 169 47 207 185 220 37 246 149 181))
+  #(74 119 65 220 59 97 34 167 170 208 6 49 16 219 71 110))
 
 ;;; RAND-INTERP
 
@@ -353,7 +353,7 @@
             (setf (mus-frequency r) 13)
             (mus-reset r))
           (outa i (rand-interp r)))))
-  #(83 200 110 243 186 46 92 90 252 33 177 16 24 224 0 248))
+  #(252 54 120 27 139 177 39 16 255 191 125 19 221 118 145 71))
 
 (deftest rand-interp.2
     (with-sound-test ()
@@ -366,7 +366,7 @@
             (setf (mus-increment r) (hz->radians 8))
             (setf (mus-scaler r) 1))
           (outa i (rand-interp r)))))
-  #(107 104 50 10 26 181 142 57 180 69 103 11 32 5 133 42))
+  #(47 201 216 157 13 157 125 157 2 94 183 96 216 49 166 96))
 
 ;;; ONE-POLE
 
@@ -378,7 +378,7 @@
         (dotimes (i *test-length*)
           (setf (mus-ycoeff f 1) (* -.9999 i k))
           (outa i (one-pole f (ncos cs))))))
-  #(220 125 25 108 88 200 154 214 49 143 91 236 140 4 14 92))
+  #(174 148 186 174 184 169 108 242 60 148 231 202 113 30 64 182))
 
 ;;; ONE-ZERO
 
@@ -388,7 +388,7 @@
             (cs (make-ncos 100 200)))
         (dotimes (i *test-length*)
           (outa i (one-zero f (ncos cs))))))
-  #(188 247 160 1 101 94 26 211 211 184 204 67 14 38 155 115))
+  #(218 108 74 41 183 220 184 223 13 117 228 152 116 83 212 207))
 
 ;;; TWO-POLE
 
@@ -398,7 +398,7 @@
             (cs (make-ncos 10 2000)))
         (dotimes (i *test-length*)
           (outa i (* .15 (two-pole f (ncos cs)))))))
-  #(184 49 143 116 66 183 157 233 49 118 54 138 162 118 39 106))
+  #(184 63 120 205 241 82 59 20 239 81 116 170 104 143 130 126))
 
 (deftest two-pole.2
     (with-sound-test ()
@@ -409,7 +409,7 @@
           (setf (mus-frequency f) (+ 20 (* i k)))
           (outa i (* (* 6e-5 i k)
                      (two-pole f (ncos cs)))))))
-  #(147 62 199 251 50 238 45 55 165 208 135 123 147 158 100 19))
+  #(133 154 102 97 129 19 146 182 72 6 25 34 149 46 124 248))
 
 ;;; TWO-ZERO
 
@@ -421,7 +421,7 @@
         (assert (= (round (mus-frequency f)) 2000))
         (dotimes (i *test-length*)
           (outa i (* .15 (two-zero f (rand cs)))))))
-  #(4 15 131 249 156 32 67 124 43 21 64 8 70 42 81 150))
+  #(24 152 240 54 23 248 54 132 162 113 215 66 128 220 201 69))
 
 (deftest two-zero.2
     (with-sound-test ()
@@ -432,7 +432,7 @@
         (dotimes (i *test-length*)
           (setf (mus-frequency f) (+ 20 (* i k)))
           (outa i (* .25 (two-zero f (rand cs)))))))
-  #(137 23 163 116 38 110 46 66 18 232 48 24 112 141 223 13))
+  #(30 135 14 49 121 233 226 87 18 242 196 246 73 170 150 0))
 
 ;;; FORMANT
 
@@ -443,7 +443,7 @@
             (cs (make-rand (* .5 *srate*))))
         (dotimes (i *test-length*)
           (outa i (formant f (rand cs))))))
-  #(72 71 196 243 70 149 134 238 212 211 243 76 135 31 252 244))
+  #(170 52 240 252 20 235 253 236 106 149 251 241 29 80 144 134))
 
 (deftest formant.2
     (with-sound-test ()
@@ -454,7 +454,7 @@
         (dotimes (i *test-length*)
           (setf (mus-frequency f) (+ 20 (* i k)))
           (outa i (* 8 (formant f (rand cs)))))))
-  #(235 115 54 90 159 138 22 11 92 186 85 174 223 68 201 208))
+  #(128 106 99 159 31 118 15 252 148 220 66 68 110 79 102 182))
 
 ;;; FIRMANT
 
@@ -465,7 +465,7 @@
             (cs (make-rand (* .5 *srate*))))
         (dotimes (i *test-length*)
           (outa i (firmant f (rand cs))))))
-  #(208 92 203 145 251 182 135 36 65 165 205 41 47 57 149 251))
+  #(58 214 29 116 74 222 138 19 218 125 17 47 118 24 66 50))
 
 (deftest firmant.2
     (with-sound-test ()
@@ -476,9 +476,9 @@
         (dotimes (i *test-length*)
           (setf (mus-frequency f) (+ 20 (* i k)))
           (outa i (* 8 (firmant f (rand cs)))))))
-  #(80 192 143 32 37 25 155 104 147 230 196 219 153 44 234 254))
+  #(76 68 58 23 16 164 226 198 184 11 138 18 107 64 50 55))
 
-;;; CONVOLVE-FILES
+;;; CONVOLVE-FILES and READIN
 
 (deftest convolve-files.1
     (progn
@@ -489,6 +489,10 @@
       (with-sound-test (:output *test-input-file*)
         (let ((os (make-oscil 440)))
           (dotimes (i 10000) (outa i (oscil os)))))
-      (md5sum-file
-        (convolve-files *test-input-file* *test-filter-file* 1 *test-file-name*)))
-  #(93 51 198 75 225 49 136 235 210 41 124 7 83 50 170 62))
+       (convolve-files *test-input-file* *test-filter-file* 1
+                       *test-tmpfile-name*)
+       (with-sound-test ()
+         (let ((rd (make-readin *test-tmpfile-name*)))
+           (dotimes (i *test-length*)
+             (outa i (readin rd))))))
+  #(29 152 233 110 54 120 174 233 9 27 96 185 37 239 23 125))
