@@ -1807,7 +1807,7 @@
 
 (define-clm-ugen readin sample ((sf soundfile:input-stream)
                                 (location #+64-bit non-negative-fixnum
-                                          #-64-bit uint64)
+                                          #-64-bit (unsigned-byte 64))
                                 (channel non-negative-fixnum)
                                 (direction fixnum))
   (:instance-type readin-instance)
