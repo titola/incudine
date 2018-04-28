@@ -45,6 +45,7 @@
      (:file "midifile" :depends-on ("envelope"))
      (:file "osc" :depends-on ("util"))
      (:file "gen-partials" :depends-on ("util"))
+     (:file "gen-envelope" :depends-on ("util"))
      (:file "gen-polynomial" :depends-on ("util"))
      (:file "gen-random" :depends-on ("util"))
      (:file "gen-window" :depends-on ("util"))
