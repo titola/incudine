@@ -199,7 +199,7 @@ CURVE sets the shape of the segments; the possible values are :STEP,
 :LIN or :LINEAR (default), :EXP or :EXPONENTIAL, :SIN or :SINE, :WEL
 or :WELCH, :SQR or :SQUARE, :CUB or :CUBIC, a number that represents
 the curvature value between two levels for all the segments or a list
-of the prior values to specify the curvature values for each segments.
+of the prior values to specify the curvature values for each segment.
 CURVE is ignored if BASE is non-NIL.
 
 If the envelope is sustained, RELEASE-NODE specifies the point of the
@@ -402,7 +402,7 @@ CURVE sets the shape of the segments; the possible values are :STEP,
 :LIN or :LINEAR (default), :EXP or :EXPONENTIAL, :SIN or :SINE, :WEL
 or :WELCH, :SQR or :SQUARE, :CUB or :CUBIC, a number that represents
 the curvature value between two levels for all the segments or a list
-of the prior values to specify the curvature values for each segments.
+of the prior values to specify the curvature values for each segment.
 CURVE is ignored if BASE is non-NIL.
 
 If the envelope is sustained, RELEASE-NODE specifies the point of the

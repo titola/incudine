@@ -25,11 +25,22 @@
      incudine::%segment-update-level)))
 
 (defun envelope (env &key (periodic-p t) normalize-p)
+  "Return a function called to fill a foreign array with the envelope
+defined in the passed ENVELOPE structure ENV.
+
+The returned function takes two arguments, the foreign pointer to the
+sample data and the data size, and returns three values: the foreign
+array, the scale factor to normalize the samples and the boolean
+NORMALIZE-P to specify whether the normalization is necessary.
+
+If PERIODIC-P is T (default), the resultant envelope is a cycle of a
+periodic waveform."
   (declare (type incudine:envelope env) (type boolean periodic-p normalize-p))
-  (lambda (c-array size)
-    (declare (type foreign-pointer c-array) (type non-negative-fixnum size))
+  (lambda (foreign-array size)
+    (declare (type foreign-pointer foreign-array)
+             (type non-negative-fixnum size))
     (let* ((size (if periodic-p size (1- size)))
-           ;; Used at the end of the envelope to fix roundoff errors
+           ;; Used at the end of the envelope to fix roundoff errors.
            (size-remained size)
            (env-data (envelope-data env))
            (data-size (envelope-data-size env))
@@ -52,7 +63,7 @@
                       (y2 0.0)
                       (curve incudine::+seg-lin-func+))
         (dotimes (i size)
-          (setf (smp-ref c-array i)
+          (setf (smp-ref foreign-array i)
                 (if (zerop remain)
                     (cond ((>= (incf index) data-size)
                            (nrt-msg error "the envelope ~A is corrupted" env)
@@ -76,8 +87,8 @@
                     (progn (decf remain)
                            (%segment-update-level level curve grow a2 b1 y1 y2)
                            level))))
-        (unless periodic-p (setf (smp-ref c-array size) end))
-        (values c-array
+        (unless periodic-p (setf (smp-ref foreign-array size) end))
+        (values foreign-array
                 ;; Factor to scale the amplitude
                 (/ max)
                 normalize-p)))))

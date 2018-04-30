@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2015 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -16,17 +16,40 @@
 
 (in-package :incudine.gen)
 
-(defmacro defwindow (name (c-array-var size-var &rest args) &body body)
+(defmacro defwindow (name (foreign-array-var size-var &rest args) &body body)
+  "Define a new GEN routine named NAME with lambda-list ARGS to
+generate window functions.
+
+The variables FOREIGN-ARRAY-VAR and SIZE-VAR are bound to the window
+function arguments.
+
+Example:
+
+    (gen:defwindow hanning (foreign-array size)
+      (with-samples ((delta (/ +twopi+ (1- size)))
+                     (phase +sample-zero+))
+        (gen:symmetric-loop (i j size foreign-array)
+          (gen:symmetric-set foreign-array i j
+            (* 0.5 (- 1.0 (cos (the limited-sample phase)))))
+          (incf phase delta))))"
   (multiple-value-bind (decl rest)
       (incudine.util::separate-declaration body)
     `(defun ,name ,args ,@decl
-       (lambda (,c-array-var ,size-var)
-         (declare (type foreign-pointer ,c-array-var)
+       (lambda (,foreign-array-var ,size-var)
+         (declare (type foreign-pointer ,foreign-array-var)
                   (type positive-fixnum ,size-var))
          (locally (declare #.*standard-optimize-settings*)
            ,@rest)))))
 
 (defmacro symmetric-loop ((var0 var1 count &optional (result nil)) &body body)
+  "Iterate over the integer from 0 up to but not including the half of COUNT,
+execute BODY with VAR0 bound to each integer and VAR1 bound to the integers
+from COUNT minus 1 to the half of COUNT, then RESULT form is evaluated.
+
+Example:
+
+    (gen:symmetric-loop (i j 8) (princ (list i j)))
+    ;; => (0 7)(1 6)(2 5)(3 4)"
   (with-gensyms (half-count)
     `(do* ((,half-count (ash (1- ,count) -1))
            (,var0 0 (1+ ,var0))
@@ -35,47 +58,47 @@
        (declare (type non-negative-fixnum ,var0 ,var1 ,half-count))
        ,@body)))
 
-(defmacro symmetric-set (c-array index0 index1 value)
-  `(setf (smp-ref ,c-array ,index0) ,value
-         (smp-ref ,c-array ,index1) (smp-ref ,c-array ,index0)))
+(defmacro symmetric-set (foreign-array index0 index1 value)
+  `(setf (smp-ref ,foreign-array ,index0) ,value
+         (smp-ref ,foreign-array ,index1) (smp-ref ,foreign-array ,index0)))
 
-(defwindow bartlett (c-array size)
+(defwindow bartlett (foreign-array size)
   (with-samples ((half-recip (/ (sample 2) (1- size))))
-    (symmetric-loop (i j size c-array)
-      (symmetric-set c-array i j (* i half-recip)))))
+    (symmetric-loop (i j size foreign-array)
+      (symmetric-set foreign-array i j (* i half-recip)))))
 
-(defwindow blackman (c-array size)
+(defwindow blackman (foreign-array size)
   (with-samples ((delta (/ +twopi+ (1- size)))
                  (phase +sample-zero+))
-    (symmetric-loop (i j size c-array)
-      (symmetric-set c-array i j
+    (symmetric-loop (i j size foreign-array)
+      (symmetric-set foreign-array i j
                      (+ (- 0.42 (* 0.5 (cos (the limited-sample phase))))
                         (* 0.08 (cos (the limited-sample (* 2 phase))))))
       (incf phase delta))))
 
-(defwindow gaussian (c-array size &optional (beta 4.5))
+(defwindow gaussian (foreign-array size &optional (beta 4.5))
   (declare (type alexandria:non-negative-real beta)
            #.*reduce-warnings*)
   (with-samples ((c (sample (* -0.5 beta beta)))
                  (k (/ (sample (- 1 size)) size))
                  (inc (/ (sample 2) size)))
-    (symmetric-loop (i j size c-array)
-      (symmetric-set c-array i j (exp (* c k k)))
+    (symmetric-loop (i j size foreign-array)
+      (symmetric-set foreign-array i j (exp (* c k k)))
       (incf k inc))))
 
-(defwindow hamming (c-array size)
+(defwindow hamming (foreign-array size)
   (with-samples ((delta (/ +twopi+ (1- size)))
                  (phase +sample-zero+))
-    (symmetric-loop (i j size c-array)
-      (symmetric-set c-array i j
+    (symmetric-loop (i j size foreign-array)
+      (symmetric-set foreign-array i j
                      (- 0.54 (* 0.46 (cos (the limited-sample phase)))))
       (incf phase delta))))
 
-(defwindow hanning (c-array size)
+(defwindow hanning (foreign-array size)
   (with-samples ((delta (/ +twopi+ (1- size)))
                  (phase +sample-zero+))
-    (symmetric-loop (i j size c-array)
-      (symmetric-set c-array i j
+    (symmetric-loop (i j size foreign-array)
+      (symmetric-set foreign-array i j
                      (* 0.5 (- 1.0 (cos (the limited-sample phase)))))
       (incf phase delta))))
 
@@ -85,20 +108,20 @@
                         :double (coerce beta 'double-float)
                         :double))
 
-(defwindow kaiser (c-array size &optional (beta 12))
+(defwindow kaiser (foreign-array size &optional (beta 12))
   (declare (type alexandria:non-negative-real beta)
            #.*reduce-warnings*)
   (if (= size 1)
-      (setf (smp-ref c-array 0) (sample 1))
+      (setf (smp-ref foreign-array 0) (sample 1))
       (with-samples ((bessel-i0-beta-r (sample (/ (bessel-i0 beta)))))
         (let* ((len (1- size))
                (c (/ (* 2 beta) len)))
-          (symmetric-loop (i j size c-array)
-            (symmetric-set c-array i j
+          (symmetric-loop (i j size foreign-array)
+            (symmetric-set foreign-array i j
                            (* (sample (bessel-i0 (* c (sqrt (* i (- len i))))))
                               bessel-i0-beta-r)))))))
 
-(defwindow sinc (c-array size &optional (beta 1))
+(defwindow sinc (foreign-array size &optional (beta 1))
   (declare (type alexandria:non-negative-real beta)
            #.*reduce-warnings*)
   (with-samples ((delta (sample (/ (* +twopi+ beta) (1- size))))
@@ -109,16 +132,16 @@
             (i 0 (1+ i))
             (j (1- size) (1- j)))
            ((= i half-count)
-            (setf (smp-ref c-array i)
+            (setf (smp-ref foreign-array i)
                   (if (zerop phase) (sample 1) (%sinc phase)))
             (unless (= i j)
-              (setf (smp-ref c-array j) (smp-ref c-array i)))
-            c-array)
+              (setf (smp-ref foreign-array j) (smp-ref foreign-array i)))
+            foreign-array)
         (declare (type non-negative-fixnum i j half-count))
-        (symmetric-set c-array i j (%sinc phase))
+        (symmetric-set foreign-array i j (%sinc phase))
         (incf phase delta)))))
 
-(defwindow dolph-chebyshev (c-array size &optional (attenuation 120))
+(defwindow dolph-chebyshev (foreign-array size &optional (attenuation 120))
   (declare (type real attenuation))
   (let* ((m (ash size -1))
          (n (* m 2)))
@@ -139,16 +162,16 @@
                               (cos (the limited-sample (* k p))))))
         (setf sum (- (/ sum (cheb n beta)) 0.5))
         (when (> sum max) (setf max sum))
-        (setf (smp-ref c-array i) sum))
+        (setf (smp-ref foreign-array i) sum))
       (unless (zerop (- size n))
-        (setf (smp-ref c-array n) +sample-zero+))
+        (setf (smp-ref foreign-array n) +sample-zero+))
       (unless (or (zerop max) (= max 1))
         (setf max (/ max))
         (dotimes (i n)
-          (setf #1=(smp-ref c-array i) (* #1# max))))
-      c-array)))
+          (setf #1=(smp-ref foreign-array i) (* #1# max))))
+      foreign-array)))
 
-(defwindow sine-window (c-array size)
+(defwindow sine-window (foreign-array size)
   (with-samples ((winc (/ pi (1- size))))
-    (symmetric-loop (i j size c-array)
-      (symmetric-set c-array i j (sin (the limited-sample (* i winc)))))))
+    (symmetric-loop (i j size foreign-array)
+      (symmetric-set foreign-array i j (sin (the limited-sample (* i winc)))))))

@@ -50,7 +50,7 @@
 ;;   * a number that represents the curvature value
 ;;     for all the segments
 ;;   * a list of the prior values to specify the
-;;     curvature values for each segments
+;;     curvature values for each segment
 
 ;; The :BASE keyword is an alternative to :CURVE. If BASE is a number,
 ;; it is the envelope's base in the style of CLM (Common Lisp Music),

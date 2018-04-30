@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -16,12 +16,21 @@
 
 (in-package :incudine.gen)
 
-;;;
-;;; Example: x^2 - 3      with x in [-1, 1]
-;;;
-;;;   (polynomial '(2 0 -3))
-;;;
 (defun polynomial (coefficients &key (xmin -1) (xmax 1) (normalize-p t))
+  "Return a function called to fill a foreign array by evaluating a
+nth-order polynomial in x between XMIN and XMAX (-1 and 1 by default)
+with COEFFICIENTS
+
+          (cN ... c2 c1 c0)
+
+The returned function takes two arguments, the foreign pointer to the
+sample data and the data size, and returns three values: the foreign
+array, the scale factor to normalize the samples and the boolean
+NORMALIZE-P to specify whether the normalization is necessary.
+
+Example: 2 x^2 - 3, with x in [-1, 1]
+
+    (gen:polynomial '(2 0 -3))"
   (declare (type list coefficients) (type real xmin xmax)
            (type boolean normalize-p))
   (let* ((xmin (sample xmin))
@@ -29,8 +38,9 @@
          (coeffs (or (mapcar (lambda (x) (sample x)) coefficients)
                      `(,+sample-zero+))))
     (declare (type sample xmin range) (type cons coeffs))
-    (lambda (c-array size)
-      (declare (type foreign-pointer c-array) (type non-negative-fixnum size))
+    (lambda (foreign-array size)
+      (declare (type foreign-pointer foreign-array)
+               (type non-negative-fixnum size))
       (locally (declare #.*standard-optimize-settings* #.*reduce-warnings*)
         (with-samples* ((scale (/ range size))
                         (xloc (sample->fixnum (/ xmin scale)))
@@ -40,10 +50,10 @@
             (setf x (* xloc scale))
             (incf xloc)
             (setf sum (car coeffs))
-            (setf (smp-ref c-array i)
+            (setf (smp-ref foreign-array i)
                   (dolist (c (cdr coeffs) sum)
                     (setf sum (+ (* sum x) (the sample c)))
                     (setf abs-value (abs sum))
                     (when (< max-value abs-value)
                       (setf max-value abs-value)))))
-          (values c-array (/ max-value) normalize-p))))))
+          (values foreign-array (/ max-value) normalize-p))))))

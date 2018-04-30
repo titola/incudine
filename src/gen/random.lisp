@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -164,12 +164,21 @@
           (incudine:incudine-error "Random number distribution ~A not found"
                                    type)))
 
-    (declaim (inline random-distribution-list))
     (defun all-random-distributions ()
-      *random-distribution-list*)
+      "Return the list of the available random number distributions.
+
+The keyword names of a sublist are aliases for the same distribution."
+*random-distribution-list*)
 
     (declaim (inline rand-args))
     (defun rand-args (distribution)
+      "Return the list of arguments
+
+    (return-type [((param0 param-type) . default)
+                  ((param1 param-type) . default)
+                  ...])
+
+for GEN:RAND used with the random number DISTRIBUTION."
       (cddr (assoc distribution *random-number-distributions* :key #'car)))
 
     (declaim (inline ran-low-pass))
@@ -189,8 +198,16 @@
 
 (defmacro rand (&whole whole distribution
                 &key a b c n n1 n2 p alpha beta mu nu nu1 nu2 sigma tt zeta seed)
+  "Return a function called to fill a foreign array with random numbers from
+a random number DISTRIBUTION.
+
+The returned function takes two arguments, the foreign pointer to the
+sample data and the data size, and returns the foreign array.
+
+See ALL-RANDOM-DISTRIBUTIONS for the list of the available random
+number distributions and RAND-ARGS for the related keyword arguments."
   (declare (ignorable a b c n n1 n2 p alpha beta mu nu nu1 nu2 sigma tt zeta))
-  (with-gensyms (rng i c-array size)
+  (with-gensyms (rng i foreign-array size)
     (let ((spec (find-rand-func-spec distribution))
           (pl (cddr whole)))
       (destructuring-bind (type-list (lisp-name foreign-name) return-type
@@ -209,10 +226,10 @@
                                    ,(if (eq (cadar arg) :double)
                                         `(coerce ,value 'double-float)
                                         value))))
-             (lambda (,c-array ,size)
-               (declare (type foreign-pointer ,c-array)
+             (lambda (,foreign-array ,size)
+               (declare (type foreign-pointer ,foreign-array)
                         (type non-negative-fixnum ,size))
-               (dotimes (,i ,size)
+               (dotimes (,i ,size ,foreign-array)
                  (declare #.*standard-optimize-settings*)
-                 (setf (smp-ref ,c-array ,i)
+                 (setf (smp-ref ,foreign-array ,i)
                        (,lisp-name ,rng ,@(mapcar #'caar args)))))))))))
