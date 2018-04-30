@@ -127,7 +127,8 @@ to call to get the control value."
              (utype (ugen-arg-type u index))
              (ptr-p (ctrl-foreign-object-p flag))
              (id (* index 2))
-             (name (or setter-name
+             (name (if setter-name
+                       (if method-p `(setf ,setter-name) setter-name)
                        (format-symbol *package* "SET-~A-~A"
                                       ugen-name control-name)))
              (ugen-instance (ensure-symbol (if arg-name
@@ -151,7 +152,7 @@ to call to get the control value."
                                 (subtypep value-type 'foreign-pointer))))
                `((declaim (inline ,name))))
            (,@(if method-p
-                  `(defmethod (setf ,name)
+                  `(defmethod ,name
                        (,(if value-type `(,value ,value-type) value)
                         (,ugen-instance ,ugen-type)))
                   `(defun ,name (,ugen-instance ,value)
