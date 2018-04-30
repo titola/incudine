@@ -34,17 +34,18 @@ Example:
           (incf phase delta))))"
   (multiple-value-bind (decl rest)
       (incudine.util::separate-declaration body)
-    `(defun ,name ,args ,@decl
-       (lambda (,foreign-array-var ,size-var)
-         (declare (type foreign-pointer ,foreign-array-var)
-                  (type positive-fixnum ,size-var))
-         (locally (declare #.*standard-optimize-settings*)
-           ,@rest)))))
+    (let ((doc (and (stringp (car rest)) (car rest))))
+      `(defun ,name ,args ,@(and doc `(,doc)) ,@decl
+         (lambda (,foreign-array-var ,size-var)
+           (declare (type foreign-pointer ,foreign-array-var)
+                    (type positive-fixnum ,size-var))
+           (locally (declare #.*standard-optimize-settings*)
+             ,@(if doc (cdr rest) rest)))))))
 
 (defmacro symmetric-loop ((var0 var1 count &optional (result nil)) &body body)
   "Iterate over the integer from 0 up to but not including the half of COUNT,
 execute BODY with VAR0 bound to each integer and VAR1 bound to the integers
-from COUNT minus 1 to the half of COUNT, then RESULT form is evaluated.
+from COUNT minus 1 down to the half of COUNT, then RESULT form is evaluated.
 
 Example:
 
@@ -59,15 +60,25 @@ Example:
        ,@body)))
 
 (defmacro symmetric-set (foreign-array index0 index1 value)
+  "Companion of SYMMETRIC-LOOP, set the symmetric elements of
+FOREIGN-ARRAY specified by INDEX0 and INDEX1 to VALUE."
   `(setf (smp-ref ,foreign-array ,index0) ,value
          (smp-ref ,foreign-array ,index1) (smp-ref ,foreign-array ,index0)))
 
 (defwindow bartlett (foreign-array size)
+  "Return a function called to fill a foreign array with a Bartlett window.
+
+The returned function takes two arguments, the foreign pointer to the
+sample data and the data size, and returns the foreign array."
   (with-samples ((half-recip (/ (sample 2) (1- size))))
     (symmetric-loop (i j size foreign-array)
       (symmetric-set foreign-array i j (* i half-recip)))))
 
 (defwindow blackman (foreign-array size)
+  "Return a function called to fill a foreign array with a Blackman window.
+
+The returned function takes two arguments, the foreign pointer to the
+sample data and the data size, and returns the foreign array."
   (with-samples ((delta (/ +twopi+ (1- size)))
                  (phase +sample-zero+))
     (symmetric-loop (i j size foreign-array)
@@ -77,6 +88,11 @@ Example:
       (incf phase delta))))
 
 (defwindow gaussian (foreign-array size &optional (beta 4.5))
+  "Return a function called to fill a foreign array with a Gaussian window
+using BETA (4.5 by default) as the window parameter.
+
+The returned function takes two arguments, the foreign pointer to the
+sample data and the data size, and returns the foreign array."
   (declare (type alexandria:non-negative-real beta)
            #.*reduce-warnings*)
   (with-samples ((c (sample (* -0.5 beta beta)))
@@ -87,6 +103,10 @@ Example:
       (incf k inc))))
 
 (defwindow hamming (foreign-array size)
+  "Return a function called to fill a foreign array with a Hamming window.
+
+The returned function takes two arguments, the foreign pointer to the
+sample data and the data size, and returns the foreign array."
   (with-samples ((delta (/ +twopi+ (1- size)))
                  (phase +sample-zero+))
     (symmetric-loop (i j size foreign-array)
@@ -95,6 +115,10 @@ Example:
       (incf phase delta))))
 
 (defwindow hanning (foreign-array size)
+  "Return a function called to fill a foreign array with a Hanning window.
+
+The returned function takes two arguments, the foreign pointer to the
+sample data and the data size, and returns the foreign array."
   (with-samples ((delta (/ +twopi+ (1- size)))
                  (phase +sample-zero+))
     (symmetric-loop (i j size foreign-array)
@@ -109,6 +133,11 @@ Example:
                         :double))
 
 (defwindow kaiser (foreign-array size &optional (beta 12))
+  "Return a function called to fill a foreign array with a Kaiser window
+using BETA (12 by default) as the window parameter.
+
+The returned function takes two arguments, the foreign pointer to the
+sample data and the data size, and returns the foreign array."
   (declare (type alexandria:non-negative-real beta)
            #.*reduce-warnings*)
   (if (= size 1)
@@ -122,6 +151,11 @@ Example:
                               bessel-i0-beta-r)))))))
 
 (defwindow sinc (foreign-array size &optional (beta 1))
+  "Return a function called to fill a foreign array with a sinc window
+using BETA (1 by default) as the window parameter.
+
+The returned function takes two arguments, the foreign pointer to the
+sample data and the data size, and returns the foreign array."
   (declare (type alexandria:non-negative-real beta)
            #.*reduce-warnings*)
   (with-samples ((delta (sample (/ (* +twopi+ beta) (1- size))))
@@ -142,6 +176,11 @@ Example:
         (incf phase delta)))))
 
 (defwindow dolph-chebyshev (foreign-array size &optional (attenuation 120))
+  "Return a function called to fill a foreign array with a Dolph-Chebyshev
+window using ATTENUATION (120 dB by default) as the window parameter.
+
+The returned function takes two arguments, the foreign pointer to the
+sample data and the data size, and returns the foreign array."
   (declare (type real attenuation))
   (let* ((m (ash size -1))
          (n (* m 2)))
@@ -172,6 +211,10 @@ Example:
       foreign-array)))
 
 (defwindow sine-window (foreign-array size)
+  "Return a function called to fill a foreign array with a sine window.
+
+The returned function takes two arguments, the foreign pointer to the
+sample data and the data size, and returns the foreign array."
   (with-samples ((winc (/ pi (1- size))))
     (symmetric-loop (i j size foreign-array)
       (symmetric-set foreign-array i j (sin (the limited-sample (* i winc)))))))
