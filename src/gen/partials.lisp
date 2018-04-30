@@ -35,6 +35,8 @@
     (declare (type list par-list acc) (type non-negative-fixnum i))
     (cond ((and (numberp par) (>= par 0))
            (push `(,i ,par ,+sample-zero+ ,+sample-zero+) acc))
+          ((numberp par)
+           (push `(,i ,(abs par) ,0.5d0 ,+sample-zero+) acc))
           ((and (consp par) (every #'numberp par))
            (push `(,(car par)
                    ,(or (second par) (sample 1))

@@ -51,6 +51,17 @@
    -89 -93 -96 -99 -100 -100 -100 -99 -96 -93 -89 -84 -78 -71 -64 -56
    -48 -39 -30 -20 -10))
 
+(deftest gen-partials.7
+    (with-cleanup
+      (flet ((partest (lst)
+               (mapcar #'sample->fixnum
+                 (buffer->list
+                   (make-buffer 16
+                     :fill-function (gen:partials lst :normalize-p nil))))))
+        (equal (partest '(1000 -1000 1000 -1000))
+               (partest '(1000 (2 1000 .5) 1000 (4 1000 .5))))))
+  t)
+
 (defun quasi-sawtooth-test (partials)
   (loop for i from 1 to partials
         with s = #(1 1 -1 -1)
