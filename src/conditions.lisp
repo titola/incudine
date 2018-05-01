@@ -22,6 +22,8 @@
 
 (define-condition incudine-compile-error (incudine-simple-error) ())
 
+(define-condition incudine-memory-fault-error (incudine-simple-error) ())
+
 (define-condition incudine-storage-condition (storage-condition
                                               incudine-simple-error)
   ())

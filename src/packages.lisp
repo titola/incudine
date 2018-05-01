@@ -374,8 +374,8 @@
   (:import-from #:incudine.gen #:all-random-distributions #:rand-args)
   (:export
    #:incudine-error #:incudine-simple-error #:incudine-compile-error
-   #:incudine-storage-condition #:incudine-network-error #:incudine-node-error
-   #:incudine-missing-arg
+   #:incudine-memory-fault-error #:incudine-storage-condition
+   #:incudine-network-error #:incudine-node-error #:incudine-missing-arg
    #:incudine-unknown-time-unit
    #:init #:enable-sharp-t-syntax #:enable-sharp-square-bracket-syntax
    #:dsp-seq
