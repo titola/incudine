@@ -28,10 +28,11 @@
   "Return a function called to fill a foreign array with the envelope
 defined in the passed ENVELOPE structure ENV.
 
-The returned function takes two arguments, the foreign pointer to the
-sample data and the data size, and returns three values: the foreign
-array, the scale factor to normalize the samples and the boolean
-NORMALIZE-P to specify whether the normalization is necessary.
+The returned function always refers to the same ENVELOPE structure.
+It takes two arguments, the foreign pointer to the sample data and the
+data size, and returns three values: the foreign array, the scale
+factor to normalize the samples and the boolean NORMALIZE-P to specify
+whether the normalization is necessary.
 
 If PERIODIC-P is T (default), the resultant envelope is a cycle of a
 periodic waveform."
@@ -39,6 +40,9 @@ periodic waveform."
   (lambda (foreign-array size)
     (declare (type foreign-pointer foreign-array)
              (type non-negative-fixnum size))
+    (when (incudine:free-p env)
+      (error 'incudine:incudine-memory-fault-error
+             :format-control "Reference to a freed ENVELOPE."))
     (let* ((size (if periodic-p size (1- size)))
            ;; Used at the end of the envelope to fix roundoff errors.
            (size-remained size)
