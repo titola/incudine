@@ -238,4 +238,6 @@ NORMALIZE-P to specify whether the normalization is necessary."
           (setf abs-value (abs (smp-ref foreign-array i)))
           (when (> abs-value max-value)
             (setf max-value abs-value)))
-        (values foreign-array (/ max-value) normalize-p)))))
+        (values foreign-array
+                (if (zerop max-value) max-value (/ max-value))
+                normalize-p)))))

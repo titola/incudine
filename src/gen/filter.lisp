@@ -78,4 +78,6 @@ and lowest levels."
           (dotimes (i size)
             (setf tmp (abs (smp-ref foreign-array i)))
             (when (> tmp max) (setf max tmp)))
-          (values foreign-array (/ max) normalize-p))))))
+          (values foreign-array
+                  (if (zerop max) max (/ max))
+                  normalize-p))))))

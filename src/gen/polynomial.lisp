@@ -56,4 +56,6 @@ Example: 2 x^2 - 3, with x in [-1, 1]
                     (setf abs-value (abs sum))
                     (when (< max-value abs-value)
                       (setf max-value abs-value)))))
-          (values foreign-array (/ max-value) normalize-p))))))
+          (values foreign-array
+                  (if (zerop max-value) max-value (/ max-value))
+                  normalize-p))))))

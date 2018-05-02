@@ -93,6 +93,5 @@ periodic waveform."
                            level))))
         (unless periodic-p (setf (smp-ref foreign-array size) end))
         (values foreign-array
-                ;; Factor to scale the amplitude
-                (/ max)
+                (if (zerop max) max (/ max))
                 normalize-p)))))
