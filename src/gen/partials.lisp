@@ -29,22 +29,24 @@
   (declare (type list lst))
   (do* ((i 1 (1+ i))
         (par-list lst (cdr par-list))
-        (par #1=(car par-list) #1#)
+        (par (car par-list) (car par-list))
         (acc nil))
        ((null par) (nreverse acc))
-    (declare (type list par-list acc) (type non-negative-fixnum i))
-    (cond ((and (numberp par) (>= par 0))
-           (push `(,i ,par ,+sample-zero+ ,+sample-zero+) acc))
-          ((numberp par)
-           (push `(,i ,(abs par) ,(sample 0.5) ,+sample-zero+) acc))
-          ((and (consp par) (every #'numberp par))
-           (push `(,(car par)
-                   ,(or (second par) (sample 1))
-                   ,(or (third par) +sample-zero+)
-                   ,(or (fourth par) +sample-zero+))
-                 acc)
-           (setf i (floor (car par))))
-          (t (decf i)))))
+    (declare (type list par-list acc) (type non-negative-fixnum i)
+             (type (or real list) par))
+    (if (numberp par)
+        (if (minusp par)
+            (push `(,i ,(- par) ,(sample 0.5) ,+sample-zero+) acc)
+            (push `(,i ,par ,+sample-zero+ ,+sample-zero+) acc))
+        (destructuring-bind (n &optional (amp (sample 1)) (ph +sample-zero+)
+                             (os +sample-zero+))
+            par
+          (if (and (numberp n) (numberp amp) (numberp ph) (numberp os))
+              (push (list n amp ph os) acc)
+              (error 'incudine:incudine-memory-fault-error
+                     :format-control "Malformed list of partials ~A"
+                     :format-arguments (list par)))
+          (setf i (floor (car par)))))))
 
 ;;; Inspired by GEN09, GEN10 and GEN19 of Csound.
 (defun partials (lst &key (periodic-p t) (normalize-p t))
@@ -102,8 +104,7 @@ NORMALIZE-P to specify whether the normalization is necessary."
             (unless periodic-p
               (setf (smp-ref foreign-pointer size) (smp-ref foreign-pointer 0)))
             (values foreign-pointer
-                    ;; Factor to scale the amplitude
-                    (/ max)
+                    (if (zerop max) max (/ max))
                     normalize-p)))))))
 
 ;;; BUZZ and GBUZZ are inspired by GEN11 of Csound.
