@@ -37,7 +37,8 @@
 
 (declaim (inline midiout))
 (defun midiout (status data1 data2 stream)
-  "Send a generic MIDI message to a MIDI output stream."
+  "Send three bytes STATUS, DATA1 and DATA2 of a generic MIDI message
+to a MIDI output STREAM."
   (declare (type (unsigned-byte 8) status data1 data2)
            (type midi-output-stream stream))
   #-jack-midi
@@ -73,7 +74,9 @@
     obj))
 
 (defun midiout-sysex (seq stream)
-  "Send a MIDI SysEx message to a MIDI OUTPUT STREAM."
+  "Send a MIDI SysEx message to a MIDI output STREAM.
+
+SEQ is of type SEQUENCE."
   (declare (type sequence seq) (type midi-output-stream stream))
   (let ((obj (sysex-sequence->foreign-array seq nil)))
     (unwind-protect
@@ -231,9 +234,11 @@
   "Send a bulk tuning dump message to a MIDI output STREAM. The new
 frequencies are related to a TUNING structure. If SINGLE-NOTE-TUNING-P
 is non-NIL, send 128 single note tuning change messages instead.
-The optional CHECKSUM-FUNCTION requires two arguments, the foreign
-buffer used for the MIDI SysEx message and the buffer size. It is
-useful if the manufacturer implements a different checksum."
+The optional CHECKSUM-FUNCTION requires two arguments: the foreign
+buffer containing the MIDI SysEx message and the buffer size in bytes.
+It is useful if the manufacturer implements a different checksum.
+
+DEVICE-ID and PROGRAM default to 0."
   (if single-note-tuning-p
       (midi-128-single-note-tuning tuning stream device-id program)
       (midi-bulk-tuning-dump tuning stream device-id program
