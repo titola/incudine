@@ -465,17 +465,12 @@
                 #:tlist-add-right #:tlist-remove-left
                 #:spinlock #:make-spinlock #:with-spinlock-held
                 #:msg)
-  (:export #:voicer #:create #:update #:node #:empty-p #:full-p
-           #:steal-first-voice #:steal-last-voice #:trigger #:release
-           #:polyphony #:control-value #:get-controls #:set-controls
-           #:define-map #:remove-map #:remove-all-maps #:mapvoicer #:panic
-           #:unsafe-trigger #:unsafe-release #:unsafe-set-polyphony
-           #:unsafe-control-value #:unsafe-get-controls #:unsafe-set-controls
-           #:unsafe-define-map #:unsafe-remove-map #:unsafe-mapvoicer
-           #:unsafe-panic #:midi-event #:fill-freq-table #:fill-amp-table
-           #:midi-bind #:scale-midi-amp
-           #:keynum->cps #:velocity->amp #:set-midi-freq-function
-           #:set-midi-amp-function))
+  (:export #:voicer #:create #:update #:empty-p #:full-p
+           #:polyphony #:steal-voice-mode #:trigger #:release
+           #:control-value #:set-controls #:control-list #:control-names
+           #:define-map #:remove-map #:remove-all-maps #:panic
+           #:midi-event #:midi-bind
+           #:scale-midi-amp #:fill-freq-table #:fill-amp-table))
 
 (defpackage :incudine.vug-foreign
   (:use :cl :incudine.util :incudine.vug)

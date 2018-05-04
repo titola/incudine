@@ -78,6 +78,7 @@
      (:file "vug/delay/delay-2" :depends-on ("vug/base"))
      (:file "vug/with-buffer" :depends-on ("vug/ugen-base"))
      (:file "vug/envelope" :depends-on ("vug/ugen-base"))
+     (:file "vug/voicer" :depends-on ("vug/base"))
      (:file "vug/filter/sharp-t" :depends-on ("vug/base"))
      (:file "vug/filter/svf" :depends-on ("vug/base"))
      (:file "vug/filter/convolve" :depends-on ("vug/base"))

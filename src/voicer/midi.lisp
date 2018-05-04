@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (unless (fboundp 'keynum->cps)
-    ;;; Function used by default to fill the table of the frequencies (12-tET).
+    ;;; Default function to fill the table of the frequencies (12-tET).
     (setf (symbol-function 'keynum->cps)
           (lambda (k &optional (tuning incudine:*default-tuning*))
             (coerce (incudine:tuning-cps tuning k) 'single-float)))))
@@ -30,13 +30,14 @@
                 collect (* i r-midi-velocity-max)) 'vector))
 (declaim (type simple-vector *default-midi-amplitude-array*))
 
-;;; Function used by default to fill the table of the amplitudes.
+;;; Default function to fill the table of the amplitudes.
 (declaim (inline velocity->amp))
 (defun velocity->amp (velocity)
   (declare (type (integer 0 127) velocity))
   (svref *default-midi-amplitude-array* velocity))
 
 (defstruct (midi-event (:include event) (:copier nil))
+  "MIDI event type for voice management."
   (channel 0 :type (integer 0 15))
   (lokey 0 :type (integer 0 127))
   (hikey 127 :type (integer 0 127))
@@ -52,27 +53,6 @@
 (defmethod print-object ((obj midi-event) stream)
   (format stream "#<MIDI-EVENT :VOICER ~A~%~13t:RESPONDER ~A>"
           (event-voicer obj) (event-responder obj)))
-
-(defmacro %fill-table (table-getter obj-var ev-var)
-  (with-gensyms (i len)
-    `(let ((,len (if (functionp ,obj-var)
-                     128
-                     (min (incudine::buffer-base-size ,obj-var) 128))))
-       (declare (type positive-fixnum ,len))
-       (dotimes (,i ,len ,ev-var)
-         (setf (aref (,table-getter ,ev-var) ,i)
-               (coerce (if (functionp ,obj-var)
-                           (funcall ,obj-var ,i)
-                           (incudine:buffer-value ,obj-var ,i))
-                       'single-float))))))
-
-(defun fill-freq-table (obj midi-event)
-  "Fill the table of the frequencies with the content of a INCUDINE:TUNING,
-the content of a INCUDINE:BUFFER or by calling a function with the key number
-as argument."
-  (declare (type (or function incudine:tuning incudine:buffer) obj)
-           (type midi-event midi-event))
-  (%fill-table midi-event-freq-table obj midi-event))
 
 (defun set-freq-table-from-portmidi (ev stream)
   (declare (type midi-event ev) (type pm:input-stream stream))
@@ -119,28 +99,52 @@ as argument."
       (set-freq-table-from-portmidi ev stream)
       (set-freq-table-from-jackmidi ev stream)))
 
-(defun fill-amp-table (obj midi-event)
-  "Fill the table of the frequencies with the content of a INCUDINE:BUFFER
-or by calling a function with the key number as argument."
-  (declare (type (or function incudine:buffer) obj)
+(defun %fill-table (ev obj table-getter)
+  (declare (type (or function incudine:tuning incudine:buffer) obj))
+  (let ((len (if (functionp obj)
+                 128
+                 (min (incudine::buffer-base-size obj) 128))))
+    (declare (type positive-fixnum len))
+    (dotimes (i len ev)
+      (setf (aref (funcall table-getter ev) i)
+            (coerce (if (functionp obj)
+                        (funcall obj i)
+                        (incudine:buffer-value obj i))
+                    'single-float)))))
+
+(defun fill-freq-table (midi-event obj)
+  "Fill the table of the frequencies of MIDI-EVENT with the content of
+a INCUDINE:TUNING, INCUDINE:BUFFER or by calling a function with the
+key number as argument.
+
+If OBJ is NIL, use the default function."
+  (declare (type (or function incudine:tuning incudine:buffer null) obj)
            (type midi-event midi-event))
-  (%fill-table midi-event-amp-table obj midi-event))
+  (%fill-table midi-event (or obj (event-freq-function midi-event))
+               #'midi-event-freq-table))
 
-(declaim (inline update-freq-table))
-(defun update-freq-table (midi-event)
-  (declare (type midi-event midi-event))
-  (fill-freq-table (event-freq-function midi-event) midi-event))
+(defun fill-amp-table (midi-event obj)
+  "Fill the table of the amplitudes of MIDI-EVENT with the content of
+a INCUDINE:BUFFER or by calling a function with the key number as
+argument.
 
-(declaim (inline update-amp-table))
-(defun update-amp-table (midi-event)
-  (declare (type midi-event midi-event))
-  (fill-amp-table (lambda (vel)
+If OBJ is NIL, use the default function."
+  (declare (type (or function incudine:buffer null) obj)
+           (type midi-event midi-event))
+  (%fill-table midi-event
+               (or obj
+                   (lambda (vel)
                      (* (funcall (event-amp-function midi-event) vel)
-                        (event-amp-mult midi-event)))
-                   midi-event))
+                        (event-amp-mult midi-event))))
+               #'midi-event-amp-table))
 
-;;; If NOTE-OFF-P is T, a note-on message (status byte 9) with velocity 0
-;;; is interpreted as a note-off message.
+(defun scale-midi-amp (midi-event mult)
+  "Scale the table of the amplitudes of MIDI-EVENT by MULT."
+  (declare (type midi-event midi-event) (type real mult))
+  (setf (event-amp-mult midi-event) mult)
+  (fill-amp-table midi-event nil)
+  mult)
+
 (defmacro responder-noteon-form ((voicer note-off-p keynum velocity) &body body)
   `(progn
      ,(if note-off-p
@@ -154,6 +158,27 @@ or by calling a function with the key number as argument."
                      (freq-keyword :freq) freq-function (amp-keyword :amp)
                      (amp-mult 0.2) amp-function (gate-keyword :gate)
                      (gate-value 1) (note-off-p t))
+  "Create and return a new MIDI-EVENT structure bound to VOICER and MIDI
+input STREAM.
+
+Allocate a new voice if the received MIDI channel is CHANNEL (0 by default)
+and the MIDI key number is an integer between LOKEY and HIKEY (0 and 127 by
+default).
+
+The keywords FREQ-KEYWORD, AMP-KEYWORD and GATE-KEYWORD related to the
+control parameters to set the DSP frequency, amplitude and gate, default to
+:FREQ, :AMP and :GATE respectively.
+
+GATE-VALUE is the value of the control parameter gate and defaults to 1.
+
+If FREQ-FUNCTION is a function of one argument, it is used to convert
+from MIDI key number to frequency value in Hz.
+
+If AMP-FUNCTION is a function of one argument, it is used to convert
+from MIDI velocity to amplitude value.
+
+If NOTE-OFF-P is T (default), a note-on message (status byte 9) with
+velocity 0 is interpreted as a note-off message."
   (with-gensyms (event status data1 data2 typ)
     `(let ((,event (make-midi-event :voicer ,voicer :channel ,channel
                      :lokey ,lokey :hikey ,hikey :freq-keyword ,freq-keyword
@@ -162,7 +187,7 @@ or by calling a function with the key number as argument."
                      :amp-function ,(or amp-function `(function velocity->amp))
                      :gate-keyword ,gate-keyword :gate-value ,gate-value
                      :note-off-p ,note-off-p)))
-       (update-freq-table (update-amp-table ,event))
+       (fill-freq-table (fill-amp-table ,event nil) nil)
        (setf (event-responder ,event)
              (incudine:make-responder ,stream
               (compile nil
@@ -178,7 +203,7 @@ or by calling a function with the key number as argument."
                           ((pm:sysex-message-p ,status)
                            (set-freq-table-from-midi ,event ,stream))
                           ((= ,typ 9)
-                           (with-safe-change (,voicer)
+                           (with-lock (,voicer)
                              (responder-noteon-form (,voicer ,note-off-p ,data1
                                                      ,data2)
                                (unsafe-set-controls ,voicer
@@ -199,21 +224,3 @@ or by calling a function with the key number as argument."
                                 `(((= ,typ 8) (release ,voicer ,data1)))))))
                     (values))))))
        ,event)))
-
-(defun scale-midi-amp (midi-event mult)
-  (declare (type midi-event midi-event) (type real mult))
-  (setf (event-amp-mult midi-event) mult)
-  (update-amp-table midi-event)
-  mult)
-
-(defun set-midi-freq-function (midi-event function)
-  (declare (type midi-event midi-event) (type function function))
-  (setf (event-freq-function midi-event) function)
-  (update-freq-table midi-event)
-  function)
-
-(defun set-midi-amp-function (midi-event function)
-  (declare (type midi-event midi-event) (type function function))
-  (setf (event-amp-function midi-event) function)
-  (update-amp-table midi-event)
-  function)
