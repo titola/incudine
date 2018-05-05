@@ -23,7 +23,8 @@
                                            expand-function grow))
              (:copier nil))
   "Cons pool type."
-  (data nil :type list)
+  (data (incudine:incudine-missing-arg "CONS-POOL without initial contents.")
+        :type list)
   (size 0 :type non-negative-fixnum)
   (expand-function #'default-expand-cons-pool :type function)
   (grow 128 :type non-negative-fixnum))
