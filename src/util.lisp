@@ -60,6 +60,9 @@ LIMITED-SAMPLE."
             incudine.config::+incudine-minor+
             incudine.config::+incudine-patch+))
 
+(defmacro incudine-optimize (&body body)
+  `(locally (declare ,*standard-optimize-settings*) ,@body))
+
 (defmacro with-ensure-symbols (names &body forms)
   `(let ,(mapcar (lambda (name) `(,name (ensure-symbol ,(symbol-name name))))
                  names)

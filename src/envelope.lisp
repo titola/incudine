@@ -657,7 +657,7 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
 (defun set-envelope-time (env node-number time)
   (declare (type envelope env) (type non-negative-fixnum node-number)
            (type number time))
-  (locally (declare #.*standard-optimize-settings*)
+  (incudine-optimize
     (if (< 0 node-number (envelope-points env))
         (setf (smp-ref (envelope-data env)
                        (the positive-fixnum (- (* node-number 3) 2)))
@@ -671,7 +671,8 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
   "Return the curvature of the envelope ENV at NODE-NUMBER. Setfable."
   (declare (type envelope env) (type non-negative-fixnum node-number)
            #+(or cmu sbcl) (values (or symbol sample)))
-  (locally (declare #.*standard-optimize-settings* #.*reduce-warnings*)
+  (incudine-optimize
+    (declare #.*reduce-warnings*)
     (when (< 0 node-number (envelope-points env))
       (sample->seg-function-spec
         (smp-ref (envelope-data env)
@@ -681,7 +682,7 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
   (declare (type envelope env) (type non-negative-fixnum node-number)
            (type (or symbol real) curve)
            #+(or cmu sbcl) (values (or symbol real)))
-  (locally (declare #.*standard-optimize-settings*)
+  (incudine-optimize
     (macrolet ((segment-fix-zero (ptr new-zero old-zero)
                  `(when (= (smp-ref ,ptr 0) ,old-zero)
                     (setf (smp-ref ,ptr 0) ,new-zero)))

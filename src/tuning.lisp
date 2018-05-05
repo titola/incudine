@@ -205,7 +205,7 @@ to generate the frequencies of the TUNING."
   (declare (type tuning tuning)
            (type (integer 0 127) keynum-base degree-index)
            (type (real 0 20000) freq-base))
-  (locally (declare #.*standard-optimize-settings*)
+  (incudine-optimize
     (setf (u8-ref (tuning-aux-data tuning) 0) keynum-base)
     (setf (u8-ref (tuning-aux-data tuning) 1) degree-index)
     (reduce-warnings
@@ -322,7 +322,7 @@ that file."
            (type (or string null) description)
            (type (or (integer 0 127) null) keynum-base degree-index)
            (type (or (real 0 20000) null) freq-base))
-  (locally (declare #.*standard-optimize-settings*)
+  (incudine-optimize
     (when keynum-base
       (setf (u8-ref (tuning-aux-data tuning) 0) keynum-base))
     (when degree-index

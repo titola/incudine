@@ -73,6 +73,7 @@
   (:import-from #:incudine.external #:foreign-alloc-sample)
   (:intern #:incudine-object #:incudine-object-pool #:make-incudine-object-pool
            #:incudine-object-pool-expand #:ensure-incudine-object-pool-size
+           #:incudine-optimize
            #:alloc-multi-channel-data #:free-multi-channel-data
            #:apply-sample-coerce #:with-ensure-symbols)
   (:export
@@ -329,7 +330,7 @@
                 #:non-negative-fixnum #:with-gensyms #:make-keyword)
   (:import-from #:cffi #:mem-ref #:mem-aref #:foreign-funcall)
   (:import-from :incudine.util #:*standard-optimize-settings*
-                #:*reduce-warnings* #:reduce-warnings
+                #:*reduce-warnings* #:reduce-warnings #:incudine-optimize
                 #:*sample-rate* #:+twopi+ #:+half-pi+
                 #:+foreign-sample-size+
                 #:foreign-pointer #:with-foreign-array
@@ -349,7 +350,7 @@
   (:use :cl :incudine.vug :incudine.util)
   (:import-from #:incudine.util #:incudine-object #:incudine-object-pool
                 #:make-incudine-object-pool #:incudine-object-pool-expand
-                #:ensure-incudine-object-pool-size
+                #:ensure-incudine-object-pool-size #:incudine-optimize
                 #:apply-sample-coerce #:with-ensure-symbols)
   (:import-from #:alexandria #:positive-fixnum #:negative-fixnum
                 #:non-negative-fixnum #:non-negative-real #:positive-real
@@ -456,6 +457,7 @@
                 #:non-negative-fixnum #:with-gensyms #:define-constant
                 #:ensure-symbol)
   (:import-from #:incudine.util #:*standard-optimize-settings* #:reduce-warnings
+                #:incudine-optimize
                 #:cons-pool #:make-cons-pool #:expand-cons-pool #:cons-pool-size
                 #:cons-pool-pop-cons #:cons-pool-push-cons
                 #:cons-pool-pop-list #:cons-pool-push-list
@@ -548,7 +550,7 @@
                 #:incudine-finalize #:incudine-cancel-finalization)
   (:import-from #:incudine.util #:*sndfile-buffer-size* #:*sample-rate*
                 #:*default-header-type* #:*default-data-format*
-                #:*standard-optimize-settings*
+                #:*standard-optimize-settings* #:incudine-optimize
                 #:*reduce-warnings* #:reduce-warnings
                 #:non-negative-fixnum64 #:next-power-of-two #:db->lin)
   (:export

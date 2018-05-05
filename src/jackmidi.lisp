@@ -21,7 +21,8 @@
   (:import-from #:alexandria #:define-constant #:with-gensyms #:positive-fixnum
                 #:non-negative-fixnum)
   (:import-from #:incudine.external #:rt-client)
-  (:import-from #:incudine.util #:rt-eval #:msg #:nrt-msg #:u8-ref)
+  (:import-from #:incudine.util #:rt-eval #:msg #:nrt-msg #:u8-ref
+                #:incudine-optimize)
   (:import-from #:incudine #:free #:free-p
                 #:incudine-finalize #:incudine-cancel-finalization)
   (:export #:data #:event-buffer #:open #:close #:stream
@@ -422,7 +423,7 @@ port-name of the stream to close."
 (defun decode-message (msg)
   "Decode a MIDI message encoded into a (UNSIGNED-BYTE 32)."
   (declare (type (unsigned-byte 32) msg))
-  (locally (declare #.incudine.util:*standard-optimize-settings*)
+  (incudine-optimize
     #+little-endian
     (let* ((msg (logand msg #xFFFFFF))
            (ash-8 (ldb (byte 16 8) msg)))

@@ -194,7 +194,7 @@ velocity 0 is interpreted as a note-off message."
                 (lambda (,status ,data1 ,data2)
                   (declare (type (integer 0 255) ,status)
                            (type (integer 0 127) ,data1 ,data2))
-                  (locally (declare #.*standard-optimize-settings*)
+                  (incudine-optimize
                     (when (and (= (ldb (byte 4 0) ,status) ,channel)
                                (<= ,lokey ,data1)
                                (<= ,data1 ,hikey))

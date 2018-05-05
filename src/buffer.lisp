@@ -651,7 +651,7 @@ content of the buffer."
               (declare (type non-negative-fixnum channels)
                        (type fixnum selected-frames))
               (when (plusp selected-frames)
-                (locally (declare #.*standard-optimize-settings*)
+                (incudine-optimize
                   (sf:seek sf start 0)
                   (cond (channel-map
                          (let ((channel-map-size (length channel-map)))

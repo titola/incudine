@@ -114,8 +114,8 @@
 
 (defun set-position (sf pos)
   (declare (type soundfile:stream sf) (type non-negative-fixnum64 pos))
-  (locally (declare #.*standard-optimize-settings*
-                    #-64-bit #.*reduce-warnings*)
+  (incudine-optimize
+    #-64-bit (declare #.*reduce-warnings*)
     (when (soundfile:output-stream-p sf)
       (write-buffered-data sf)
       (when (< pos (output-stream-frame-threshold sf))
@@ -584,8 +584,8 @@ if FORWARD-P is NIL."
            (type (or null non-negative-fixnum64) frame)
            (type non-negative-fixnum channel)
            (type boolean forward-p peek-p))
-  (locally (declare #.*standard-optimize-settings*
-                    #-64-bit #.*reduce-warnings*)
+  (incudine-optimize
+    #-64-bit (declare #.*reduce-warnings*)
     (cond ((or (not (open-p sf))
                (>= channel (stream-channels sf)))
            0d0)
@@ -749,8 +749,7 @@ DATA-FORMAT. The sound file OUTFILE is the output.
 The result is possibly normalized to NORMALIZE dB or SCALE-TO [0.0,1.0],
 or scaled by SCALE-BY."
   (flet ((r-maxamp (in)
-           (locally (declare #.*standard-optimize-settings*)
-             (/ (the double-float (maxamp in))))))
+           (incudine-optimize (/ (the double-float (maxamp in))))))
     (let ((mult (or (and scale-by (coerce scale-by 'double-float))
                     (and normalize (* (db->lin normalize) (r-maxamp infile)))
                     (and scale-to (* scale-to (r-maxamp infile))))))

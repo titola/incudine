@@ -673,7 +673,7 @@ curve returned by NODE-FADE-CURVE."
            (type (member :head :tail :before :after :replace) add-action)
            (type (or symbol string) name) (type fixnum hash)
            (type positive-fixnum id) (type function fn))
-  (locally (declare #.*standard-optimize-settings*)
+  (incudine-optimize
     (cond ((graph-full-p)
            (error 'incudine-node-error
                   :format-control "No more nodes availabe."))
@@ -1288,7 +1288,7 @@ to the node OBJ. Setfable.
 OBJ is a NODE structure or the integer identifier of the node."
   (declare (type (or non-negative-fixnum node) obj) (type symbol control-name))
   (rt-eval (:return-value-p t)
-    (locally (declare #.*standard-optimize-settings*)
+    (incudine-optimize
       (let ((fn (control-getter obj control-name)))
         (declare (type (or function null) fn))
         (if fn
@@ -1302,7 +1302,7 @@ OBJ is a NODE structure or the integer identifier of the node."
 OBJ is a NODE structure or the integer identifier of the node."
   (declare (type (or non-negative-fixnum node) obj) (type symbol control-name))
   (rt-eval ()
-    (locally (declare #.*standard-optimize-settings*)
+    (incudine-optimize
       (let ((fn (control-setter obj control-name)))
         (declare (type (or function null) fn))
         (when fn
@@ -1323,7 +1323,7 @@ The rest is an even number of arguments that are alternating control
 parameter names and values."
   (declare (type (or non-negative-fixnum node) obj))
   (rt-eval ()
-    (locally (declare #.*standard-optimize-settings*)
+    (incudine-optimize
       (let ((node (if (numberp obj) (node obj) obj)))
         (declare (type node node))
         (do ((pl plist (cdr pl)))
@@ -1332,8 +1332,7 @@ parameter names and values."
           (let ((control-name (car pl)))
             (declare (type symbol control-name))
             (setf pl (cdr pl))
-            (locally (declare (optimize (speed 1)))
-              (set-control node control-name (car pl))))))))
+            (set-control node control-name (car pl)))))))
   (values))
 
 (declaim (inline control-list))
@@ -1379,7 +1378,7 @@ arguments ARGS."
 
 (defmethod pause ((obj node))
   (rt-eval (:return-value-p t)
-    (locally (declare #.*standard-optimize-settings*)
+    (incudine-optimize
       (unless (or (null-node-p obj) (node-pause-p obj))
         (let ((prev (unpaused-node-prev obj)))
           (cond ((group-p obj)
@@ -1413,7 +1412,7 @@ arguments ARGS."
 
 (defmethod unpause ((obj node))
   (rt-eval (:return-value-p t)
-    (locally (declare #.*standard-optimize-settings*)
+    (incudine-optimize
       (when (and (node-pause-p obj) (not (null-node-p obj)))
         (let ((prev (unpaused-node-prev obj)))
           (setf (node-pause-p obj) nil)

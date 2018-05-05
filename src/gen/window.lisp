@@ -39,7 +39,7 @@ Example:
          (lambda (,foreign-array-var ,size-var)
            (declare (type foreign-pointer ,foreign-array-var)
                     (type positive-fixnum ,size-var))
-           (locally (declare #.*standard-optimize-settings*)
+           (incudine-optimize
              ,@(if doc (cdr rest) rest)))))))
 
 (defmacro symmetric-loop ((var0 var1 count &optional (result nil)) &body body)

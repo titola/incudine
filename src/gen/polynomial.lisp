@@ -41,7 +41,8 @@ Example: 2 x^2 - 3, with x in [-1, 1]
     (lambda (foreign-array size)
       (declare (type foreign-pointer foreign-array)
                (type non-negative-fixnum size))
-      (locally (declare #.*standard-optimize-settings* #.*reduce-warnings*)
+      (incudine-optimize
+        (declare #.*reduce-warnings*)
         (with-samples* ((scale (/ range size))
                         (xloc (sample->fixnum (/ xmin scale)))
                         (max-value 0.0)

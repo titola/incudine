@@ -382,7 +382,7 @@ Should be one of :FIRST, :LAST or NIL. Setfable."
 
 (defun unsafe-trigger (voicer tag)
   (declare (type voicer voicer))
-  (locally (declare #.*standard-optimize-settings*)
+  (incudine-optimize
     (when (full-p voicer)
       (if (voicer-steal-function voicer)
           (funcall (the function (voicer-steal-function voicer)) voicer)
@@ -404,7 +404,7 @@ Should be one of :FIRST, :LAST or NIL. Setfable."
 
 (declaim (inline unsafe-release))
 (defun unsafe-release (voicer tag &optional (object-free-p t))
-  (locally (declare #.*standard-optimize-settings*)
+  (incudine-optimize
     (funcall (voicer-release-function voicer) voicer tag object-free-p)))
 
 (defun %release (voicer tag &optional (object-free-p t) free-function)

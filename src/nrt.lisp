@@ -275,8 +275,8 @@ BPM is the tempo in beats per minute and defaults to *DEFAULT-BPM*."
   `(progn
      (write-sf-metadata-plist ,snd ,metadata)
      (with-foreign-array (,data-var 'sample ,bufsize)
-       (locally (declare #.*standard-optimize-settings*
-                         #.*reduce-warnings*)
+       (incudine-optimize
+         (declare #.*reduce-warnings*)
          (write-to-disk-loop (,frame-var ,max-frames)
            ,(if stop-if-empty-p `(,@form ,padding-p) form))
          (when ,padding-p
@@ -567,7 +567,7 @@ and genre."
         (handler-case
             (progn
               (funcall function)
-              (locally (declare #.*standard-optimize-settings*)
+              (incudine-optimize
                 (do ((i 0 (1+ i))
                      (in-count 0)
                      (out-count begin))

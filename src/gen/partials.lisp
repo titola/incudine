@@ -155,7 +155,7 @@ the sample data and the data size, and returns the foreign array."
         (lambda (foreign-pointer size)
           (declare (type foreign-pointer foreign-pointer)
                    (type non-negative-fixnum size))
-          (locally (declare #.*standard-optimize-settings*)
+          (incudine-optimize
             (with-samples* ((abs-mul (abs mul))
                             (two-mul (+ mul mul))
                             (squared-mul-plus-one (+ (* mul mul) (sample 1)))
@@ -208,7 +208,8 @@ NORMALIZE-P to specify whether the normalization is necessary."
   (lambda (foreign-array size)
     (declare (type foreign-pointer foreign-array)
              (type non-negative-fixnum size))
-    (locally (declare #.*standard-optimize-settings* #.*reduce-warnings*)
+    (incudine-optimize
+      (declare #.*reduce-warnings*)
       (with-samples ((phase-init (sample xmin))
                      (phase 0.0)
                      (phase-inc 0.0)
