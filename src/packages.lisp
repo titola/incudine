@@ -578,7 +578,7 @@
            #:stream #:input-stream #:input-stream-p
            #:output-stream #:output-stream-p
            #:open #:open-p #:close #:with-open-midifile
-           #:clear-buffer-pool
+           #:release-cached-buffers
            #:read-header #:write-header
            #:read-event #:write-event #:write-short-event #:write-tempo-track
            #:next-track #:current-track

@@ -198,15 +198,15 @@
    (11520 11.96 176 (176 7 80))
    (11520 11.96 255 (255 47 0))))
 
-;; MIDIFILE:STRING-MESSAGE test, MIDIFILE:CLEAR-BUFFER-POOL test and
-;; delete the temporary file.
+;; MIDIFILE:STRING-MESSAGE test, MIDIFILE:RELEASE-CACHED-BUFFERS test
+;; and delete the temporary file.
 (deftest midifile-last-test
     (let ((str "End of MIDI File tests"))
       (with-output-midifile-test (mf)
         (midifile:write-event mf 0 (midifile:string-message 1 str)))
       (let ((bytes (alexandria:read-file-into-byte-vector *test-midi-file*)))
         (delete-file *test-midi-file*)
-        (midifile:clear-buffer-pool)
+        (midifile:release-cached-buffers)
         (values #+sbcl
                 (incudine.util::octets-to-string
                   bytes :start 26 :end (+ 26 (length str)))

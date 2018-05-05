@@ -19,6 +19,7 @@
 (define-condition soundfile-error (incudine-simple-error file-error) ())
 
 (defstruct (stream (:copier nil))
+  "Sound file stream type."
   (sf-pointer (incudine-missing-arg "Missing sndfile pointer.")
               :type cffi:foreign-pointer :read-only t)
   (sf-position 0 :type non-negative-fixnum64)
@@ -41,9 +42,11 @@
   (data-format *default-data-format* :type string :read-only t)
   (open-p nil :type boolean))
 
-(defstruct (input-stream (:include stream) (:copier nil)))
+(defstruct (input-stream (:include stream) (:copier nil))
+  "Sound file input stream type.")
 
 (defstruct (output-stream (:include stream) (:copier nil))
+  "Sound file output stream type."
   (dirty-p nil :type boolean)
   (buffer-written-frames 0 :type non-negative-fixnum)
   (mix-p nil :type boolean)
@@ -54,6 +57,12 @@
   ;; MIX-P is always NIL in overwrite mode.
   (frame-threshold 0 :type non-negative-fixnum64)
   (sf-position-offset 0 :type non-negative-fixnum64))
+
+(setf
+  (documentation 'input-stream-p 'function)
+  "Return T if object is of type SOUNDFILE:INPUT-STREAM."
+  (documentation 'output-stream-p 'function)
+  "Return T if object is of type SOUNDFILE:OUTPUT-STREAM.")
 
 (defmethod print-object ((obj soundfile:stream) stream)
   (let ((type (type-of obj)))
@@ -79,6 +88,10 @@
                          sf:sf-count pos :int SF:SEEK-SET sf:sf-count))
 
 (defun read-into-buffer (sf &optional (update-status-p t))
+  "Fill the internal stream buffer of SOUNDFILE:STREAM SF by reading
+the next data samples.
+
+If UPDATE-STATUS-P is T (default), update the status of SF."
   (let ((frames (cffi:foreign-funcall "sf_readf_double"
                                       :pointer (stream-sf-pointer sf)
                                       :pointer (stream-buffer-pointer sf)
@@ -110,6 +123,8 @@
 
 (declaim (inline position))
 (defun position (sf)
+  "Return the current position in frames of SOUNDFILE:STREAM SF.
+Setfable."
   (stream-sf-position sf))
 
 (defun set-position (sf pos)
@@ -143,6 +158,8 @@
 
 (declaim (inline offset))
 (defun offset (sf)
+  "Return the stream position offset in frames of SOUNDFILE:STREAM SF.
+Setfable."
   (output-stream-sf-position-offset sf))
 
 (declaim (inline set-offset))
@@ -156,25 +173,32 @@
 
 (declaim (inline buffer-size))
 (defun buffer-size (sf)
+  "Return the data size of the sample data of SOUNDFILE:STREAM SF."
   (stream-buffer-size sf))
 
 (declaim (inline buffer-data))
 (defun buffer-data (sf)
+  "Return the foreign pointer to the sample data of SOUNDFILE:STREAM SF."
   (stream-buffer-pointer sf))
 
 (declaim (inline buffer-index))
 (defun buffer-index (sf)
+  "Return the stream buffer index of SOUNDFILE:STREAM SF for the first
+channel of the current frame."
   (stream-buffer-index sf))
 
 (declaim (inline current-frame))
 (defun current-frame (sf)
+  "Return the current frame of SOUNDFILE:STREAM SF."
   (stream-curr-frame sf))
 
 (declaim (inline path))
 (defun path (sf)
+  "Return the pathname of the SOUNDFILE:STREAM MF."
   (stream-pathname sf))
 
 (defun data-location (filename)
+  "Return the data location of the sound file FILENAME."
   (with-open-file (f filename)
     (let ((fd (incudine.util::stream-fd f)))
       (cffi:with-foreign-object (info '(:struct sf:info))
@@ -224,7 +248,10 @@
               (condition (c) (sf-close sf) (error c)))
             (values sf sample-rate 0 chans header-type data-format))))))
 
-(defgeneric read-header (obj))
+(defgeneric read-header (obj)
+  (:documentation "Read the header of a sound file and return five values:
+sampling rate, number of frames, number of channels, header type and
+data format."))
 
 (defmethod read-header ((obj soundfile:stream))
   (values (stream-sample-rate obj) (stream-frames obj) (stream-channels obj)
@@ -246,13 +273,28 @@
        (declare (ignore ,@(remove value lst)))
        (values ,value))))
 
-(defun sample-rate (obj) (values (read-header obj)))
-(defun frames (obj) (header-value obj 1))
-(defun channels (obj) (header-value obj 2))
-(defun header-type (obj) (header-value obj 3))
-(defun data-format (obj) (header-value obj 4))
+(defun sample-rate (obj)
+  "Return the sampling rate of the sound file."
+  (values (read-header obj)))
+
+(defun frames (obj)
+  "Return the number of frames of the sound file."
+  (header-value obj 1))
+
+(defun channels (obj)
+  "Return the number of channels of the sound file."
+  (header-value obj 2))
+
+(defun header-type (obj)
+  "Return the header type of the sound file."
+  (header-value obj 3))
+
+(defun data-format (obj)
+  "Return the data format of the sound file."
+  (header-value obj 4))
 
 (defun duration (obj)
+  "Return the duration in seconds of the sound data in sound file."
   (multiple-value-bind (sr frames) (read-header obj)
     (declare (type positive-fixnum sr) (type non-negative-fixnum64 frames))
     (float (/ frames sr))))
@@ -288,15 +330,20 @@
              (output-stream-constructor #'make-output-stream))
   "Create, open and return a SOUNDFILE:STREAM that is connected to the
 file specified by FILENAME.
-If DIRECTION is :INPUT, return a SOUNDFILE:INPUT-STREAM.
-If DIRECTION is :OUTPUT, return a SOUNDFILE:OUTPUT-STREAM. The actions
-for IF-EXISTS are: :APPEND, :ERROR (default), :MIX, :OVERWRITE and
-:SUPERSEDE (if the action is :SUPERSEDE and there is a jump back of the
-file position during the output operations on the stream, the writing
-continues in mix mode).
+
+DIRECTION is :INPUT (default) or :OUTPUT to return a SOUNDFILE:INPUT-STREAM
+or a SOUNDFILE:OUTPUT-STREAM respectively.
+
+IF-EXISTS should be one of :APPEND, :ERROR (default), :MIX, :OVERWRITE or
+:SUPERSEDE. If it is :SUPERSEDE and there is a jump back of the file position
+during the output operations on the stream, the writing continues in mix mode).
+
 SAMPLE-RATE, CHANNELS, HEADER-TYPE and DATA-FORMAT determine the header of
-the new sound file.
-A new sound file is opened BUFFER-SIZE is the size of the internal buffer."
+the new sound file and default to *SAMPLE-RATE*, 1, *DEFAULT-HEADER-TYPE*
+and *DEFAULT-DATA-FORMAT*, respectively.
+
+BUFFER-SIZE is the size of the internal stream buffer and defaults to
+*SNDFILE-BUFFER-SIZE*."
   (declare (type (or string pathname) filename)
            (type (member :input :output) direction)
            (type (member :append :error :mix :overwrite :supersede) if-exists)
@@ -360,6 +407,7 @@ A new sound file is opened BUFFER-SIZE is the size of the internal buffer."
 
 (declaim (inline open-p))
 (defun open-p (sf)
+  "Whether SF is an open SOUNDFILE:STREAM."
   (stream-open-p sf))
 
 (defun close (sf)
@@ -379,17 +427,25 @@ A new sound file is opened BUFFER-SIZE is the size of the internal buffer."
   (soundfile:close obj))
 
 (defmacro with-open-soundfile ((stream filespec &rest options) &body body)
-  "Use SOUNDFILE:OPEN to create a SOUNDFILE:STREAM. When control leaves the body,
-either normally or abnormally, the SOUNDFILE:STREAM is automatically closed."
+  "Use SOUNDFILE:OPEN to create a SOUNDFILE:STREAM. When control leaves
+the body, either normally or abnormally, the SOUNDFILE:STREAM is
+automatically closed."
   `(let ((,stream (open ,filespec ,@options)))
      (unwind-protect (progn ,@body) (close ,stream))))
 
 (declaim (inline eof-p))
 (defun eof-p (sf)
+  "Whether end of file for SOUNDFILE:STREAM SF is reached."
   #-64-bit (declare #.*reduce-warnings*)
   (>= (stream-curr-frame sf) (stream-frames sf)))
 
-(defgeneric metadata (obj type))
+(defgeneric metadata (obj type)
+  (:documentation "Return the string metadata TYPE of the sound file.
+
+TYPE is of type SYMBOL or STRING and should be one of title, copyright,
+software, artist, comment, date, album, license, tracknumber or genre.
+
+Setfable."))
 
 (defgeneric (setf metadata) (string obj type))
 
@@ -438,24 +494,24 @@ either normally or abnormally, the SOUNDFILE:STREAM is automatically closed."
     (the non-negative-fixnum (* frames (stream-channels sf)))))
 
 (defun write-buffered-data (sf)
-  (declare (type soundfile:output-stream sf)
-           #.*standard-optimize-settings*
-           #-64-bit #.*reduce-warnings*)
-  (if (output-stream-dirty-p sf)
-      (let ((frames (cffi:foreign-funcall "sf_writef_double"
-                      :pointer (stream-sf-pointer sf)
-                      :pointer (stream-buffer-pointer sf)
-                      sf:sf-count (1+ (output-stream-buffer-written-frames sf))
-                      sf:sf-count)))
-        (declare (type non-negative-fixnum frames))
-        (when (> frames 0)
-          (incf (stream-sf-position sf) frames)
-          (setf (stream-buffer-index sf) 0)
-          (clear-buffer sf (1+ (output-stream-buffer-written-frames sf)))
-          (setf (output-stream-dirty-p sf) nil)
-          (setf (output-stream-buffer-written-frames sf) 0))
-        frames)
-      0))
+  (declare (type soundfile:output-stream sf))
+  (incudine-optimize
+    #-64-bit (declare #.*reduce-warnings*)
+    (if (output-stream-dirty-p sf)
+        (let ((frames (cffi:foreign-funcall "sf_writef_double"
+                        :pointer (stream-sf-pointer sf)
+                        :pointer (stream-buffer-pointer sf)
+                        sf:sf-count (1+ (output-stream-buffer-written-frames sf))
+                        sf:sf-count)))
+          (declare (type non-negative-fixnum frames))
+          (when (> frames 0)
+            (incf (stream-sf-position sf) frames)
+            (setf (stream-buffer-index sf) 0)
+            (clear-buffer sf (1+ (output-stream-buffer-written-frames sf)))
+            (setf (output-stream-dirty-p sf) nil)
+            (setf (output-stream-buffer-written-frames sf) 0))
+          frames)
+        0)))
 
 (defmacro maybe-read-before-test (sf test)
   `(progn
@@ -463,73 +519,105 @@ either normally or abnormally, the SOUNDFILE:STREAM is automatically closed."
        (read-into-buffer ,sf))
      ,test))
 
-(defmacro buffer-value (sf index)
-  `(cffi:mem-ref (stream-buffer-pointer ,sf) :double
-                 (the non-negative-fixnum
-                   (* ,index #.(cffi:foreign-type-size :double)))))
+(defun buffer-value (sf index)
+  "Return the stream buffer value of SOUNDFILE:STREAM SF specified by INDEX."
+  (cffi:mem-ref (stream-buffer-pointer sf) :double
+                (the non-negative-fixnum
+                  (* index #.(cffi:foreign-type-size :double)))))
+
+(define-compiler-macro buffer-value (sf index)
+  (let ((type-size #.(cffi:foreign-type-size :double)))
+    (if (constantp index)
+        `(cffi:mem-ref (stream-buffer-pointer ,sf) :double
+                       ,(* (eval index) type-size))
+        `(cffi:mem-ref (stream-buffer-pointer ,sf) :double
+                       (* ,index ,type-size)))))
+
+(defun set-buffer-value (sf index value)
+  (setf (cffi:mem-ref (stream-buffer-pointer sf) :double
+                      (the non-negative-fixnum
+                        (* index #.(cffi:foreign-type-size :double))))
+        (coerce value 'double-float)))
+
+(define-compiler-macro set-buffer-value (sf index value)
+  (let ((type-size #.(cffi:foreign-type-size :double)))
+    (if (constantp index)
+        `(setf (cffi:mem-ref (stream-buffer-pointer ,sf) :double
+                             ,(* (eval index) type-size))
+               ,(if (constantp value)
+                    (coerce (eval value) 'double-float)
+                    `(coerce ,value 'double-float)))
+        `(setf (cffi:mem-ref (stream-buffer-pointer ,sf) :double
+                             (the non-negative-fixnum
+                               (* ,index ,type-size)))
+             (coerce ,value 'double-float)))))
+
+(defsetf buffer-value set-buffer-value)
 
 (defmacro current-buffer-value (sf channel)
   `(buffer-value ,sf (+ (stream-buffer-index ,sf) ,channel)))
 
 (defun read-forward (sf &optional (channel 0) peek-p)
   (declare (type soundfile:stream sf) (type non-negative-fixnum channel)
-           (type boolean peek-p)
-           #.*standard-optimize-settings*)
-  (let ((channels (stream-channels sf)))
-    (declare (type non-negative-fixnum channels))
-    (if (or (not (open-p sf))
-            (>= channel channels)
-            (eof-p sf)
-            (maybe-read-before-test sf (= (stream-buffer-frames sf) 0))
-            (and (>= (stream-buffer-index sf) (stream-buffer-end sf))
-                 (= (the non-negative-fixnum64 (read-into-buffer sf)) 0)))
-        0d0
-        (let ((res (current-buffer-value sf channel)))
-          (declare #.*reduce-warnings*)
-          (unless peek-p
-            (incf (stream-curr-frame sf))
-            (incf (stream-buffer-index sf) channels))
-          res))))
+           (type boolean peek-p))
+  (incudine-optimize
+    (let ((channels (stream-channels sf)))
+      (declare (type non-negative-fixnum channels))
+      (if (or (not (open-p sf))
+              (>= channel channels)
+              (eof-p sf)
+              (maybe-read-before-test sf (= (stream-buffer-frames sf) 0))
+              (and (>= (stream-buffer-index sf) (stream-buffer-end sf))
+                   (= (the non-negative-fixnum64 (read-into-buffer sf)) 0)))
+          0d0
+          (let ((res (current-buffer-value sf channel)))
+            (declare #.*reduce-warnings*)
+            (unless peek-p
+              (incf (stream-curr-frame sf))
+              (incf (stream-buffer-index sf) channels))
+            res)))))
 
 (defun read-backward (sf &optional (channel 0) peek-p)
   (declare (type soundfile:stream sf) (type non-negative-fixnum channel)
-           (type boolean peek-p)
-           #.*standard-optimize-settings*
-           #-64-bit #.*reduce-warnings*)
-  (let ((channels (stream-channels sf)))
-    (declare (type non-negative-fixnum channels))
-    (if (or (not (open-p sf))
-            (>= channel channels)
-            (maybe-read-before-test sf (< (position sf) channels)))
-        0d0
-        (let ((res (current-buffer-value sf channel))
-              (curr-frame (stream-curr-frame sf))
-              (max-frames (stream-buffer-max-frames sf))
-              (delta (if peek-p 0 1)))
-          (cond
-            ((= curr-frame 0)
-             (setf (position sf) 0))
-            ((< (stream-buffer-index sf) channels)
-             (multiple-value-bind (pos buffer-frame)
-                 (if (> curr-frame max-frames)
-                     (values (1+ (- curr-frame max-frames))
-                             (- (stream-buffer-frames sf) 1 delta))
-                     (values 0 (- curr-frame delta)))
-               (setf (position sf) pos)
-               (read-into-buffer sf)
-               (setf (stream-curr-frame sf) (- curr-frame delta))
-               (setf (stream-buffer-index sf) (* buffer-frame channels))))
-            ((not peek-p)
-             (decf (stream-curr-frame sf))
-             (decf (stream-buffer-index sf) channels)))
-          (reduce-warnings res)))))
+           (type boolean peek-p))
+  (incudine-optimize
+    #-64-bit (declare #.*reduce-warnings*)
+    (let ((channels (stream-channels sf)))
+      (declare (type non-negative-fixnum channels))
+      (if (or (not (open-p sf))
+              (>= channel channels)
+              (maybe-read-before-test sf (< (position sf) channels)))
+          0d0
+          (let ((res (current-buffer-value sf channel))
+                (curr-frame (stream-curr-frame sf))
+                (max-frames (stream-buffer-max-frames sf))
+                (delta (if peek-p 0 1)))
+            (cond
+              ((= curr-frame 0)
+               (setf (position sf) 0))
+              ((< (stream-buffer-index sf) channels)
+               (multiple-value-bind (pos buffer-frame)
+                   (if (> curr-frame max-frames)
+                       (values (1+ (- curr-frame max-frames))
+                               (- (stream-buffer-frames sf) 1 delta))
+                       (values 0 (- curr-frame delta)))
+                 (setf (position sf) pos)
+                 (read-into-buffer sf)
+                 (setf (stream-curr-frame sf) (- curr-frame delta))
+                 (setf (stream-buffer-index sf) (* buffer-frame channels))))
+              ((not peek-p)
+               (decf (stream-curr-frame sf))
+               (decf (stream-buffer-index sf) channels)))
+            (reduce-warnings res))))))
 
 (declaim (inline read-next))
 (defun read-next (sf &optional (channel 0) peek-p (forward-p t))
-  "If PEEK-P is NIL (default), read the next value of a sound file SF
-at CHANNEL (default 0). If PEEK-P is T, return the value of the current
-frame. If PEEK-P is NIL (default), read forward if FORWARD-P is T
-(default) or backward if FORWARD-P is NIL."
+  "If PEEK-P is NIL (default), read and return the next value from
+SOUNDFILE:STREAM SF at CHANNEL (default 0). If PEEK-P is T, return the
+value of the current frame.
+
+If PEEK-P is NIL, read forward if FORWARD-P is T (default) or backward
+if FORWARD-P is NIL."
   (declare (type soundfile:stream sf) (type non-negative-fixnum channel)
            (type boolean forward-p peek-p))
   (the double-float
@@ -575,8 +663,9 @@ frame. If PEEK-P is NIL (default), read forward if FORWARD-P is T
     sf))
 
 (defun read (sf &optional frame (channel 0) (peek-p t) (forward-p t))
-  "Read a value at FRAME (default is current) and CHANNEL (0 by default)
-from a sound file SF.
+  "Read and return a value from SOUNDFILE:STREAM SF at FRAME (current
+by default) and CHANNEL (0 by default).
+
 If PEEK-P is T (default), don't increment the frame counter.
 If PEEK-P is NIL, read forward if FORWARD-P is T (default) or backward
 if FORWARD-P is NIL."
@@ -614,31 +703,33 @@ if FORWARD-P is NIL."
   (declare (type soundfile:output-stream sf)
            (type non-negative-fixnum64 frame)
            (type double-float data)
-           (type non-negative-fixnum channel)
-           #.*standard-optimize-settings*)
-  (when (and (open-p sf) (< channel (stream-channels sf)))
-    (update-frame-threshold
-      (move-to-frame sf frame (stream-buffer-size sf)) frame)
-    (when (< (stream-buffer-index sf) (stream-buffer-size sf))
-      (if (output-stream-mix-p sf)
-          (incf (buffer-value sf (+ (stream-buffer-index sf) channel)) data)
-          (setf (buffer-value sf (+ (stream-buffer-index sf) channel)) data)))
-    sf))
+           (type non-negative-fixnum channel))
+  (incudine-optimize
+    (when (and (open-p sf) (< channel (stream-channels sf)))
+      (update-frame-threshold
+        (move-to-frame sf frame (stream-buffer-size sf)) frame)
+      (when (< (stream-buffer-index sf) (stream-buffer-size sf))
+        (if (output-stream-mix-p sf)
+            (incf (buffer-value sf (+ (stream-buffer-index sf) channel)) data)
+            (setf (buffer-value sf (+ (stream-buffer-index sf) channel)) data)))
+      sf)))
 
 (declaim (inline write))
-(defun write (sf frame data &optional (channel 0))
-  "Write DATA to a sound file SF at FRAME and CHANNEL (default 0)."
+(defun write (sf frame value &optional (channel 0))
+  "Write VALUE to SOUNDFILE:OUTPUT-STREAM SF at FRAME and CHANNEL
+(0 by default)."
   (declare (type soundfile:output-stream sf)
            (type non-negative-fixnum64 frame)
-           (type real data)
+           (type real value)
            (type non-negative-fixnum channel))
-  (write-double sf frame (coerce data 'double-float) channel))
+  (write-double sf frame (coerce value 'double-float) channel))
 
 (declaim (inline foreign-read))
 (defun foreign-read (sf buffer-pointer buffer-size
                      &optional update-position-p)
-  "A foreign buffer of type double float pointed to by BUFFER-POINTER
-is filled with the next BUFFER-SIZE items read from SF.
+  "A foreign buffer of type double float pointed to by BUFFER-POINTER is
+filled with the next BUFFER-SIZE items read from the SOUNDFILE:STREAM SF.
+
 Return the number of items read."
   (declare (type soundfile:stream sf)
            (type cffi:foreign-pointer buffer-pointer)
@@ -658,8 +749,9 @@ Return the number of items read."
 
 (declaim (inline foreign-write))
 (defun foreign-write (sf buffer-pointer buffer-size)
-  "Write to SF BUFFER-SIZE values stored into a foreign buffer of type
-double float pointed to by BUFFER-POINTER.
+  "Write BUFFER-SIZE values stored into a foreign buffer of type double
+float pointed to by BUFFER-POINTER to the SOUNDFILE:OUTPUT-STREAM SF.
+
 Return the number of the items written."
   (declare (type soundfile:output-stream sf)
            (type cffi:foreign-pointer buffer-pointer)
@@ -724,6 +816,11 @@ Return the number of the items written."
     (values (cffi:mem-ref max :double) (cffi:mem-ref pos :uint64))))
 
 (defun maxamp (infile &optional channel)
+  "Return the maximum amplitude of the sound file INFILE.
+
+INFILE is of type PATHNAME or STRING.
+
+If CHANNEL is an integer, return the maximum amplitude of that CHANNEL."
   (declare (type (or pathname string) infile)
            (type (or boolean non-negative-fixnum) channel))
   (if channel
@@ -744,9 +841,11 @@ Return the number of the items written."
            (type (or pathname string) outfile)
            (type string header-type data-format)
            (type (or null real) normalize scale-by scale-to))
-  "Convert the sound file INFILE to another format with HEADER-TYPE and
-DATA-FORMAT. The sound file OUTFILE is the output.
-The result is possibly normalized to NORMALIZE dB or SCALE-TO [0.0,1.0],
+  "Convert the sound file INFILE to another format with HEADER-TYPE
+and DATA-FORMAT. The resultant sound file OUTFILE is overwritten if it
+already exists.
+
+The sample data is possibly normalized to NORMALIZE dB or SCALE-TO [0.0,1.0],
 or scaled by SCALE-BY."
   (flet ((r-maxamp (in)
            (incudine-optimize (/ (the double-float (maxamp in))))))
@@ -758,7 +857,8 @@ or scaled by SCALE-BY."
       (with-open-soundfile (in infile)
         (let ((channels (stream-channels in)))
           (declare (type non-negative-fixnum channels))
-          (with-open-soundfile (out outfile :direction :output :if-exists :supersede
+          (with-open-soundfile (out outfile :direction :output
+                                :if-exists :supersede
                                 :sample-rate (stream-sample-rate in)
                                 :channels channels :header-type header-type
                                 :data-format data-format)
@@ -792,10 +892,15 @@ or scaled by SCALE-BY."
                     (data-format *default-data-format*)
                     (buffer-size *sndfile-buffer-size*))
   "OUTPUT-FILE is the concatenation of the sound files INPUT-FILES.
+
 The input files must have the same sampling rate and number of channels.
-OUTPUT-FILE is written with HEADER-TYPE and DATA-FORMAT.
-The action for IF-EXISTS is :ERROR by default.
-BUFFER-SIZE is the size of the internal buffer."
+
+OUTPUT-FILE is written with HEADER-TYPE and DATA-FORMAT that default to
+*DEFAULT-HEADER-TYPE* and *DEFAULT-DATA-FORMAT*.
+
+IF-EXISTS is :ERROR by default. See SOUNDFILE:OPEN for details.
+
+BUFFER-SIZE is the size of the internal stream buffer."
   (declare (type non-negative-fixnum buffer-size))
   (multiple-value-bind (sr chans) (check-soundfiles-to-combine input-files)
     (cffi:with-foreign-object (buf :double buffer-size)
@@ -815,13 +920,19 @@ BUFFER-SIZE is the size of the internal buffer."
               (data-format *default-data-format*)
               (buffer-size *sndfile-buffer-size*)
               normalize scale-by scale-to)
-    "OUTPUT-FILE is the mix of the sound files INPUT-FILES.
+  "OUTPUT-FILE is the mix of the sound files INPUT-FILES.
+
 The input files must have the same sampling rate and number of channels.
-OUTPUT-FILE is written with HEADER-TYPE and DATA-FORMAT.
-The action for IF-EXISTS is :ERROR by default.
+
+OUTPUT-FILE is written with HEADER-TYPE and DATA-FORMAT that default to
+*DEFAULT-HEADER-TYPE* and *DEFAULT-DATA-FORMAT*.
+
+IF-EXISTS is :ERROR by default. See SOUNDFILE:OPEN for details.
+
 The mix is possibly normalized to NORMALIZE dB or SCALE-TO [0.0,1.0],
 or scaled by SCALE-BY.
-BUFFER-SIZE is the size of the internal buffer."
+
+BUFFER-SIZE is the size of the internal stream buffer."
     (declare (type non-negative-fixnum buffer-size))
     (multiple-value-bind (sr chans) (check-soundfiles-to-combine input-files)
       (multiple-value-bind (temp-file-p file ht df)

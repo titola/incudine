@@ -19,11 +19,14 @@
 (defvar *write-buffer-expand-size* 4000)
 (declaim (type non-negative-fixnum *write-buffer-expand-size*))
 
-(deftype data () '(simple-array (unsigned-byte 8) (*)))
+(deftype data ()
+  "Type designator for a vector of octets."
+  '(simple-array (unsigned-byte 8) (*)))
 
 (declaim (inline data))
-(defun data (&rest values)
-  (coerce values 'data))
+(defun data (&rest octets)
+  "Return a vector of OCTETS."
+  (coerce octets 'data))
 
 (define-condition midifile-error (incudine-simple-error) ())
 
@@ -50,7 +53,7 @@
 
 (define-condition invalid-variable-length-quantity (midifile-parse-error) ())
 
-(defmacro midifile-error (format-control &rest format-arguments)
+(defmacro %midifile-error (format-control &rest format-arguments)
   `(incudine::%simple-error 'midifile-error ,format-control ,@format-arguments))
 
 (declaim (inline read-two-bytes))
@@ -96,8 +99,8 @@
 (defun variable-length-quantity-bytes (value)
   (max 1 (ceiling (integer-length value) 7)))
 
-(defvar *buffer-pool* nil
-  "Pool of adjustable buffers for MIDIFILE:STREAM.")
+;;; Pool of adjustable buffers for MIDIFILE:STREAM.
+(defvar *buffer-pool* nil)
 (declaim (type list *buffer-pool*))
 
 (defvar *buffer-pool-lock* (bt:make-lock "MIDIFILE-BUFFER-POOL"))
@@ -134,16 +137,19 @@
   (bt:with-lock-held (*buffer-pool-lock*)
     (setf *buffer-pool* (cons buf *buffer-pool*))))
 
-(defun clear-buffer-pool ()
+(defun release-cached-buffers ()
+  "Release the cached adjustable buffers for MIDIFILE:STREAM."
   (bt:with-lock-held (*buffer-pool-lock*)
     (setf *buffer-pool* nil)))
 
 (defstruct tempo
+  "MIDI file tempo type."
   (time 0 :type non-negative-fixnum)
   (seconds 0.0d0 :type double-float)
   (microseconds-per-quarter-note 500000 :type non-negative-fixnum))
 
 (defstruct stream
+  "MIDI file stream type."
   (fd-stream (incudine-missing-arg "Missing stream.") :type cl:stream)
   (open-p nil :type boolean)
   (pathname (incudine-missing-arg "Missing pathname.") :type pathname)
@@ -159,6 +165,7 @@
   (buffer (make-buffer 8) :type (vector (unsigned-byte 8))))
 
 (defstruct (input-stream (:include stream))
+  "MIDI file input stream type."
   (position 0 :type non-negative-fixnum)
   (track-bytes-remain 0 :type non-negative-fixnum)
   (last-message-length 0 :type non-negative-fixnum)
@@ -170,8 +177,15 @@
   (next-tempo-time 0 :type non-negative-fixnum))
 
 (defstruct (output-stream (:include stream))
+  "MIDI file output stream type."
   (buffer-index 0 :type non-negative-fixnum)
   (last-status 0 :type (unsigned-byte 8)))
+
+(setf
+  (documentation 'input-stream-p 'function)
+  "Return T if object is of type MIDIFILE:INPUT-STREAM."
+  (documentation 'output-stream-p 'function)
+  "Return T if object is of type MIDIFILE:OUTPUT-STREAM.")
 
 (defmethod print-object ((obj stream) stream)
   (multiple-value-bind (k v)
@@ -183,44 +197,61 @@
 
 (declaim (inline open-p))
 (defun open-p (mf)
+  "Whether MF is an open MIDIFILE:STREAM."
   (stream-open-p mf))
 
 (declaim (inline path))
 (defun path (mf)
+  "Return the pathname of the MIDIFILE:STREAM MF."
   (stream-pathname mf))
 
 (declaim (inline current-track))
 (defun current-track (mf)
+  "Return the current track of the MIDIFILE:STREAM MF."
   (stream-current-track mf))
 
 ;;; Utilities to get the MIDI data after MIDIFILE:READ-EVENT
 
 (declaim (inline event-delta-time))
 (defun event-delta-time (mf)
+  "Return the delta time in pulses of the last event read from the
+MIDIFILE:INPUT-STREAM MF."
   (input-stream-last-delta-time mf))
 
 (declaim (inline event-time))
 (defun event-time (mf)
+  "Return the time in pulses of the last event read from a
+MIDIFILE:INPUT-STREAM."
   (stream-track-time mf))
 
 (declaim (inline message-length))
 (defun message-length (mf)
+  "Return the length of the MIDI message read from the
+MIDIFILE:INPUT-STREAM MF."
   (input-stream-last-message-length mf))
 
 (declaim (inline message-buffer))
 (defun message-buffer (mf)
+  "Return the buffer that contains the MIDI message read from the
+MIDIFILE:INPUT-STREAM MF and the length of that message in bytes."
   (values (stream-buffer mf) (input-stream-last-message-length mf)))
 
 (declaim (inline message-status))
 (defun message-status (mf)
+  "Return the status byte of the MIDI message read from the
+MIDIFILE:INPUT-STREAM MF."
   (aref (input-stream-buffer mf) 0))
 
 (declaim (inline message-data1))
 (defun message-data1 (mf)
+  "Return the first data byte of the MIDI message read from the
+MIDIFILE:INPUT-STREAM MF."
   (aref (input-stream-buffer mf) 1))
 
 (declaim (inline message-data2))
 (defun message-data2 (mf)
+  "Return the second data byte of the MIDI message read from the
+MIDIFILE:INPUT-STREAM MF."
   (aref (input-stream-buffer mf) 2))
 
 ;;; Utilities to simplify the creation of a MIDI message.
@@ -228,7 +259,7 @@
 ;; Copy of JACMIDI:MESSAGE.
 (declaim (inline message))
 (defun message (status data1 data2)
-  "Encode a short MIDI message into a (UNSIGNED-BYTE 32)."
+  "Encode a short MIDI message into four bytes."
   (declare (type (unsigned-byte 8) status data1 data2))
   (the (unsigned-byte 32)
     #+little-endian
@@ -271,7 +302,7 @@
         (setf (aref octets i) (logior #x80 (ldb (byte 7 pos) slen)))))))
 
 (defgeneric read-header (obj)
-  (:documentation "Read the header of a MIDI file and returns four values:
+  (:documentation "Read the header of a MIDI file and return four values:
 format, number of tracks, ppqn-or-smpte-format and ticks-per-frame."))
 
 ;;; MIDI file header: "MThd" 0x00000006 <format> <ntracks> <division>
@@ -389,7 +420,13 @@ format, number of tracks, ppqn-or-smpte-format and ticks-per-frame."))
       (and (meta-event-p mf) (= (aref (input-stream-buffer mf) 1) #x2f))))
 
 (defgeneric write-header (obj &key)
-  (:documentation "Write the header-chunk of a MIDI file."))
+  (:documentation "Write the header-chunk of a MIDI file.
+
+Default values for defined keywords:
+    :FORMAT 0
+    :NUMBER-OF-TRACKS 1
+    :PPQN-OR-SMPTE-FORMAT 480
+    :TICKS-PER-FRAME 0"))
 
 (defmethod write-header ((obj cl:stream) &key (format 0) (number-of-tracks 1)
                          (ppqn-or-smpte-format 480) (ticks-per-frame 0))
@@ -419,12 +456,13 @@ format, number of tracks, ppqn-or-smpte-format and ticks-per-frame."))
                 :ticks-per-frame (stream-ticks-per-frame obj)))
 
 (defun end-of-track (mf &optional (beats 0))
-  "Write a MIDI End of Track (EOT) Meta event.
-BEATS is the absolute time in beats. If BEATS is 0 (default), write the
-event with delta time zero.
-End of Track Meta event is automatically added if necessary before to
-write a track with MIDIFILE:NEXT-TRACK or MIDIFILE:CLOSE.
-Multiple EOT events are ignored."
+  "Write a MIDI End Of Track Meta event with absolute time BEATS.
+If BEATS is 0 (default), write the event with delta time zero.
+
+End Of Track Meta event is automatically added if necessary before to
+write a track by calling MIDIFILE:NEXT-TRACK or MIDIFILE:CLOSE.
+
+Multiple End Of Track Meta events are ignored."
   (declare (type midifile:output-stream mf) (type non-negative-real beats))
   (if (end-of-track-p mf)
       (output-stream-buffer-index mf)
@@ -494,7 +532,16 @@ Write the current track if OBJ is of type MIDIFILE:OUTPUT-STREAM."))
 
 (defun open (filename &key (direction :input) (if-exists :error)
              format (ppqn 480) (buffer-size *write-buffer-expand-size*))
-  "Create and return a new MIDIFILE:STREAM."
+  "Create and return a new MIDIFILE:STREAM.
+
+DIRECTION is :INPUT (default) or :OUTPUT to return a MIDIFILE:INPUT-STREAM
+or a MIDIFILE:OUTPUT-STREAM respectively.
+
+IF-EXISTS should be one of :ERROR, :NEW-VERSION, :RENAME, :RENAME-AND-DELETE,
+:OVERWRITE, :APPEND, :SUPERSEDE or NIL. The default is :ERROR.
+
+If DIRECTION is :OUTPUT, the MIDI file FORMAT defaults to 0 and PPQN (Pulses
+Per Quarter Note) defaults to 480."
   (declare (type (or pathname string) filename)
            (type (member :input :output) direction)
            (type (or (integer 0 2) null) format)
@@ -698,15 +745,19 @@ either normally or abnormally, the MIDIFILE:STREAM is automatically closed."
 
 (declaim (inline event-beats))
 (defun event-beats (mf &optional (output-type-spec 'double-float))
-  "Return the time of the last event in beats."
+  "Return the time in beats of the last event read from a
+MIDIFILE:INPUT-STREAM.
+
+OUTPUT-TYPE-SPEC is the type of the returned value and defaults to
+DOUBLE-FLOAT."
   (declare (type midifile:input-stream mf))
   (assert (plusp (stream-ppqn mf)))
   (coerce (/ (stream-track-time mf) (stream-ppqn mf))
           output-type-spec))
 
-(declaim (inline event-seconds))
 (defun event-seconds (mf)
-  "Return the time of the last event in seconds."
+  "Return the time in seconds of the last event read from a
+MIDIFILE:INPUT-STREAM."
   (declare (type midifile:input-stream mf))
   (assert (plusp (stream-ppqn mf)))
   (let ((te (current-tempo mf)))
@@ -810,8 +861,11 @@ status byte."
     (setf (aref octets j) (ldb (byte 8 pos) value))))
 
 (defun write-short-event (mf beats msg size)
-  "Write a MIDI event with the message encoded into four bytes.
-If the event precedes the last event, it is added with delta-time zero."
+  "Write a MIDI event with the message MSG of size SIZE encoded into
+four bytes to the MIDIFILE:OUTPUT-STREAM MF.
+
+BEATS is the absolute time of the message in beats. If the event
+precedes the last event, it is added with delta-time zero."
   (declare (type midifile:output-stream mf)
            (type non-negative-real beats)
            (type (unsigned-byte 32) msg)
@@ -835,8 +889,13 @@ If the event precedes the last event, it is added with delta-time zero."
                                    size))))
 
 (defun write-event (mf beats data &key (start 0) end)
-  "Write a MIDI event with the message stored into the octets DATA.
-If the event precedes the last event, it is added with delta-time zero."
+  "Write a MIDI event with the message stored into the octets DATA
+to the MIDIFILE:OUTPUT-STREAM MF.
+
+BEATS is the absolute time of the message in beats. If the event
+precedes the last event, it is added with delta-time zero.
+
+The octets DATA are optionally bounded by START and END."
   (declare (type midifile:output-stream mf)
            (type non-negative-real beats)
            (type data data)
@@ -857,9 +916,11 @@ If the event precedes the last event, it is added with delta-time zero."
           (t (output-stream-buffer-index mf)))))
 
 (defun write-tempo-track (mf tempo-envelope)
-  "Write a track of a MIDIFILE:OUTPUT-STREAM with the tempo changes
-obtained from a INCUDINE:TEMPO-ENVELOPE.
+  "Write a tempo track to a MIDIFILE:OUTPUT-STREAM MF with the tempo
+changes obtained from a INCUDINE:TEMPO-ENVELOPE.
+
 It fails if the current track contains events at non-zero time.
+
 An error is thrown if a curve of TEMPO-ENVELOPE is not a step function."
   (declare (type midifile:output-stream mf)
            (type incudine:tempo-envelope tempo-envelope))
@@ -867,12 +928,12 @@ An error is thrown if a curve of TEMPO-ENVELOPE is not a step function."
          (points (incudine:envelope-points spb-env)))
     ;; Allowing meta-events just at time zero before the tempo changes.
     (unless (zerop (stream-track-time mf))
-      (midifile-error "WRITE-TEMPO-TRACK works from time zero."))
+      (%midifile-error "WRITE-TEMPO-TRACK works from time zero."))
     (do ((i 1 (1+ i)))
         ((>= i points))
       (unless (eq (incudine:envelope-curve spb-env i) :step)
-        (midifile-error "WRITE-TEMPO-TRACK requires a TEMPO-ENVELOPE structure ~
-                         with step function curves.")))
+        (%midifile-error "WRITE-TEMPO-TRACK requires a TEMPO-ENVELOPE structure ~
+                          with step function curves.")))
     (do* ((i 0 (1+ i))
           (beats 0 (+ beats (incudine:envelope-time spb-env i))))
          ((>= i points))
