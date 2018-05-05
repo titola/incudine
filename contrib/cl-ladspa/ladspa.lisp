@@ -52,11 +52,6 @@
 (defun deleted-p (instance)
   (flag-value (handle-deleted instance)))
 
-(defmethod print-object ((obj handle) stream)
-  (format stream "#<~S ~S :ACTIVE-P ~A :DELETED-P ~A>"
-          (type-of obj) (label (descriptor obj)) (active-p obj)
-          (deleted-p obj)))
-
 (macrolet ((descriptor-slot-simple-readers (names)
              `(progn
                 (declaim (inline ,@names))
@@ -66,6 +61,11 @@
                           names))))
   (descriptor-slot-simple-readers (unique-id label properties name maker
                                    copyright port-count implementation-data)))
+
+(defmethod print-object ((obj handle) stream)
+  (format stream "#<~S ~S :ACTIVE-P ~A :DELETED-P ~A>"
+          (type-of obj) (label (descriptor obj)) (active-p obj)
+          (deleted-p obj)))
 
 (defun port-descriptors (descriptor)
   (let ((ptr (descriptor-slot-value descriptor 'port-descriptors)))
@@ -125,18 +125,6 @@
                                 :unsigned-long port :pointer data-location
                                 :void))
 
-(declaim (inline has-activate-p))
-(defun has-activate-p (descriptor)
-  (has-non-null-slot-p descriptor 'activate))
-
-(defun activate (instance)
-  (let ((descriptor (handle-descriptor instance)))
-    (when (and (has-activate-p descriptor) (not (deleted-p instance)))
-      (when (active-p instance)
-        (deactivate instance))
-      (ladspa-funcall descriptor activate :pointer (handle-ptr instance) :void)
-      (setf (flag-value (handle-activated instance)) t))))
-
 (declaim (inline run))
 (defun run (callback instance sample-count)
   (cffi:foreign-funcall-pointer callback nil :pointer (handle-ptr instance)
@@ -181,6 +169,18 @@
     (unless (deleted-p instance)
       (%deactivate descriptor (handle-ptr instance)
                    (handle-activated instance)))))
+
+(declaim (inline has-activate-p))
+(defun has-activate-p (descriptor)
+  (has-non-null-slot-p descriptor 'activate))
+
+(defun activate (instance)
+  (let ((descriptor (handle-descriptor instance)))
+    (when (and (has-activate-p descriptor) (not (deleted-p instance)))
+      (when (active-p instance)
+        (deactivate instance))
+      (ladspa-funcall descriptor activate :pointer (handle-ptr instance) :void)
+      (setf (flag-value (handle-activated instance)) t))))
 
 (defun %cleanup (descriptor instance-ptr activated deleted)
   (unless (flag-value deleted)
