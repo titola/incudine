@@ -373,6 +373,7 @@
   (:import-from #:incudine.edf #:at #:aat #:with-schedule #:flush-pending
                 #:add-flush-pending-hook #:remove-flush-pending-hook)
   (:import-from #:incudine.gen #:all-random-distributions #:rand-args)
+  (:intern #:network-error)
   (:export
    #:incudine-error #:incudine-simple-error #:incudine-compile-error
    #:incudine-memory-fault-error #:incudine-storage-condition
@@ -497,7 +498,7 @@
   (:import-from #:alexandria #:define-constant #:positive-fixnum
                 #:non-negative-fixnum #:with-gensyms)
   (:import-from #:swap-bytes #:htonl #:htonq #:ntohl #:ntohq)
-  (:import-from #:incudine #:incudine-optimize)
+  (:import-from #:incudine #:incudine-optimize #:network-error)
   (:shadow #:open #:close #:stream #:input-stream-p #:output-stream-p)
   (:export
    #:+default-msg-flags+

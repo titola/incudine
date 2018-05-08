@@ -207,7 +207,7 @@ a socket stream may grow.")
              (max-values *max-values*) message-encoding
              (input-stream-constructor #'make-input-stream)
              (output-stream-constructor #'make-output-stream))
-    "Create and return a new OSC:STREAM.
+  "Create and return a new OSC:STREAM.
 
 The HOST address/name and PORT default to \"localhost\" and 32126
 (aka #36ROSE).
@@ -291,8 +291,8 @@ MESSAGE-ENCODING is NIL (default) or :SLIP."
           (%open (init-stream obj latency))
         (error (c)
           (close obj)
-          (incudine.util:msg error "OSC:OPEN ~A (~A)" c
-                             (incudine.external:errno-to-string)))))))
+          (network-error "OSC:OPEN ~A (~A)" c
+                         (incudine.external:errno-to-string)))))))
 
 (defun alloc-fds (buf-ptr bufsize direction protocol)
   (if (and (eq direction :input) (eq protocol :tcp))
@@ -319,7 +319,7 @@ MESSAGE-ENCODING is NIL (default) or :SLIP."
               :int (addrinfo-value stream 'ai-socktype)
               :int (addrinfo-value stream 'ai-protocol) :int)))
     (when (= fd -1)
-      (incudine::network-error "Failed to create the socket."))
+      (network-error "Failed to create the socket."))
     (unless (and (input-stream-p stream) (protocolp stream :tcp))
       ;; Info for the finalizer.
       (setf (cffi:mem-ref (stream-fds-ptr stream) :int) fd))
@@ -332,11 +332,11 @@ MESSAGE-ENCODING is NIL (default) or :SLIP."
                             :int fd :pointer (addrinfo-value stream 'ai-addr)
                             #.+socklen-type+ (addrinfo-value stream 'ai-addrlen)
                             :int))
-             (incudine::network-error "Failed to assign the address."))
+             (network-error "Failed to assign the address."))
            (when (protocolp stream :tcp)
              (unless (zerop (cffi:foreign-funcall "listen" :int fd
                                                   :int *listen-backlog* :int))
-               (incudine::network-error "listen call failed."))
+               (network-error "listen call failed."))
              (set-server-fd (stream-fds-ptr stream) fd)))
           ((protocolp stream :tcp)
            (unless (zerop (cffi:foreign-funcall "connect"
@@ -965,7 +965,7 @@ type tag (m)."
 then index the required values."
   (let ((typetag-len (length types)))
     (when (> typetag-len (stream-max-values stream))
-      (incudine::network-error
+      (network-error
         "The length of the OSC type tag is ~D but the limit ~%~
          for this OSC:STREAM is ~D"
         typetag-len (stream-max-values stream))))
@@ -1033,7 +1033,7 @@ STREAM buffer are ADDRESS and TYPES."
     (#\i :int32)
     ((#\s #\S) :string)
     (otherwise
-     (incudine::network-error
+     (network-error
        "Known conversion from typetag '~A' to foreign type." character))))
 
 (defun typetag-to-lisp-value (character)
@@ -1116,7 +1116,7 @@ Example:
     (with-gensyms (%stream)
       `(let ((,%stream ,stream))
          (when (> ,typetag-len (stream-max-values ,%stream))
-           (incudine::network-error
+           (network-error
              "The length of the OSC type tag is ~D but the limit ~%~
               for this OSC:STREAM is ~D"
              ,typetag-len (stream-max-values ,%stream)))
