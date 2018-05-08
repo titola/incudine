@@ -27,12 +27,12 @@ osc:*max-values*
 ;; It's enlightening to show the expansion of the OSC:MESSAGE macro:
 
 (macroexpand-1 '(osc:message *oscout* "/osc/test" "isf" 1 "two" 3.0))
-;; (PROGN
-;;  (INCUDINE.OSC:START-MESSAGE *OSCOUT* "/osc/test" "isf")
-;;  (INCUDINE.OSC::SET-VALUE *OSCOUT* 0 1)
-;;  (INCUDINE.OSC::SET-VALUE *OSCOUT* 1 "two")
-;;  (INCUDINE.OSC::SET-VALUE *OSCOUT* 2 3.0)
-;;  (INCUDINE.OSC:SEND *OSCOUT*))
+;; (LET ((#:S505 *OSCOUT*))
+;;   (INCUDINE.OSC:START-MESSAGE #:S505 "/osc/test" "isf")
+;;   (INCUDINE.OSC::SET-VALUE #:S505 0 1)
+;;   (INCUDINE.OSC::SET-VALUE #:S505 1 "two")
+;;   (INCUDINE.OSC::SET-VALUE #:S505 2 3.0)
+;;   (INCUDINE.OSC:SEND #:S505))
 
 ;; OSC:START-MESSAGE writes the OSC address pattern and the OSC type
 ;; tag on the stream buffer, then it updates the pointers to the
@@ -268,27 +268,32 @@ osc:*max-values*
 ;; received values. Under the hood:
 
 (macroexpand-1 '(incudine.osc:with-values (a b c) (*oscin* "iii")
-                 (msg warn "~d ~d ~d" a b c)))
-;; (LET ((#:STREAM875 *OSCIN*))
-;;   (INCUDINE.OSC:INDEX-VALUES #:STREAM875 NIL T)
+                 (msg warn "~D ~D ~D" a b c)))
+;; (LET ((#:%STREAM522 *OSCIN*))
+;;   (WHEN (> 3 (INCUDINE.OSC::STREAM-MAX-VALUES #:%STREAM522))
+;;     (INCUDINE::NETWORK-ERROR
+;;      "The length of the OSC type tag is ~D but the limit ~%~
+;;               for this OSC:STREAM is ~D"
+;;      3 (INCUDINE.OSC::STREAM-MAX-VALUES #:%STREAM522)))
+;;   (INCUDINE.OSC:INDEX-VALUES #:%STREAM522 NIL T)
 ;;   (SYMBOL-MACROLET ((A
-;;                      (CFFI:MEM-REF (INCUDINE.OSC::ARG-POINTER #:STREAM875 2)
+;;                      (CFFI:MEM-REF (INCUDINE.OSC::ARG-POINTER #:%STREAM522 2)
 ;;                                    :INT32))
 ;;                     (B
-;;                      (CFFI:MEM-REF (INCUDINE.OSC::ARG-POINTER #:STREAM875 3)
+;;                      (CFFI:MEM-REF (INCUDINE.OSC::ARG-POINTER #:%STREAM522 3)
 ;;                                    :INT32))
 ;;                     (C
-;;                      (CFFI:MEM-REF (INCUDINE.OSC::ARG-POINTER #:STREAM875 4)
+;;                      (CFFI:MEM-REF (INCUDINE.OSC::ARG-POINTER #:%STREAM522 4)
 ;;                                    :INT32)))
-;;     (MSG WARN "~d ~d ~d" A B C)))
+;;     (MSG WARN "~D ~D ~D" A B C)))
 
 ;; Excellent! It calls OSC:INDEX-VALUES with the option to force the
 ;; conversion from network byte order on little-endian machines, then
 ;; we get the values with automatic coercing.
 
 ;; If we use OSC:WITH-VALUES or OSC:INDEX-VALUES in other responders,
-;; OSC:INDEX-VALUES is smart because it updates the pointers only one
-;; time after the reception of a OSC message.
+;; OSC:INDEX-VALUES is smart because it updates the pointers only once
+;; after the reception of a OSC message.
 
 ;; (SETF BUS) is faster than SET-CONTROL to change a parameter of a
 ;; DSP. For example:

@@ -111,7 +111,6 @@ int osc_setsock_broadcast(int sockfd, const struct addrinfo *info, int is_set);
 int osc_getsock_nonblock(int sockfd);
 int osc_setsock_nonblock(int sockfd, int is_nonblock);
 int osc_setsock_reuseaddr(int sockfd);
-unsigned int osc_strsize(const char *s);
 unsigned int sizeof_socklen(void);
 
 #endif  /* __INCUDINE_OSC_H */

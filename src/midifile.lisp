@@ -889,7 +889,7 @@ precedes the last event, it is added with delta-time zero."
                                    size))))
 
 (defun write-event (mf beats data &key (start 0) end)
-  "Write a MIDI event with the message stored into the octets DATA
+  "Write a MIDI event with the message stored in the octets DATA
 to the MIDIFILE:OUTPUT-STREAM MF.
 
 BEATS is the absolute time of the message in beats. If the event

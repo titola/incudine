@@ -630,12 +630,6 @@ int osc_setsock_reuseaddr(int sockfd)
         return setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
 }
 
-unsigned int osc_strsize(const char *s)
-{
-        unsigned int len = strlen(s);
-        return osc_fix_size(len);
-}
-
 unsigned int sizeof_socklen(void)
 {
         return sizeof(socklen_t);

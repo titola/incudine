@@ -50,12 +50,12 @@
       </p>
 
       <pre class="src src-lisp">(macroexpand-1 '(osc:message *oscout* <span style="color: #ffa07a;">"/osc/test"</span> <span style="color: #ffa07a;">"isf"</span> 1 <span style="color: #ffa07a;">"two"</span> 3.0))
-(PROGN
- (INCUDINE.OSC:START-MESSAGE *OSCOUT* <span style="color: #ffa07a;">"/osc/test"</span> <span style="color: #ffa07a;">"isf"</span>)
- (INCUDINE.OSC::SET-VALUE *OSCOUT* 0 1)
- (INCUDINE.OSC::SET-VALUE *OSCOUT* 1 <span style="color: #ffa07a;">"two"</span>)
- (INCUDINE.OSC::SET-VALUE *OSCOUT* 2 3.0)
- (INCUDINE.OSC:SEND *OSCOUT*))</pre>
+(LET ((#:S505 *OSCOUT*))
+  (INCUDINE.OSC:START-MESSAGE #:S505 <span style="color: #ffa07a;">"/osc/test"</span> <span style="color: #ffa07a;">"isf"</span>)
+  (INCUDINE.OSC::SET-VALUE #:S505 0 1)
+  (INCUDINE.OSC::SET-VALUE #:S505 1 <span style="color: #ffa07a;">"two"</span>)
+  (INCUDINE.OSC::SET-VALUE #:S505 2 3.0)
+  (INCUDINE.OSC:SEND #:S505))</pre>
 
       <p>
         <code>OSC:START-MESSAGE</code> writes the OSC address pattern and
@@ -350,18 +350,23 @@ T</pre>
 
       <pre class="src src-lisp">(macroexpand-1 '(incudine.osc:with-values (a b c) (*oscin* <span style="color: #ffa07a;">"iii"</span>)
                   (msg warn <span style="color: #ffa07a;">"~d ~d ~d"</span> a b c)))
-(LET ((#<span style="color: #b0c4de;">:STREAM875</span> *OSCIN*))
-  (INCUDINE.OSC:INDEX-VALUES #<span style="color: #b0c4de;">:STREAM875</span> NIL T)
+(LET ((#:%STREAM522 *OSCIN*))
+  (WHEN (> 3 (INCUDINE.OSC::STREAM-MAX-VALUES #:%STREAM522))
+    (INCUDINE::NETWORK-ERROR
+      <span style="color: #ffa07a;">"The length of the OSC type tag is ~D but the limit ~%~
+       for this OSC:STREAM is ~D"</span>
+      3 (INCUDINE.OSC::STREAM-MAX-VALUES #:%STREAM522)))
+  (INCUDINE.OSC:INDEX-VALUES #:%STREAM522 NIL T)
   (SYMBOL-MACROLET ((A
-                     (CFFI:MEM-REF (INCUDINE.OSC::ARG-POINTER #<span style="color: #b0c4de;">:STREAM875</span> 2)
+                     (CFFI:MEM-REF (INCUDINE.OSC::ARG-POINTER #:%STREAM522 2)
                                    <span style="color: #b0c4de;">:INT32</span>))
                     (B
-                     (CFFI:MEM-REF (INCUDINE.OSC::ARG-POINTER #<span style="color: #b0c4de;">:STREAM875</span> 3)
+                     (CFFI:MEM-REF (INCUDINE.OSC::ARG-POINTER #:%STREAM522 3)
                                    <span style="color: #b0c4de;">:INT32</span>))
                     (C
-                     (CFFI:MEM-REF (INCUDINE.OSC::ARG-POINTER #<span style="color: #b0c4de;">:STREAM875</span> 4)
+                     (CFFI:MEM-REF (INCUDINE.OSC::ARG-POINTER #:%STREAM522 4)
                                    <span style="color: #b0c4de;">:INT32</span>)))
-    (MSG WARN <span style="color: #ffa07a;">"~d ~d ~d"</span> A B C)))</pre>
+    (MSG WARN <span style="color: #ffa07a;">"~D ~D ~D"</span> A B C)))</pre>
 
       <p>
         Excellent! It calls <code>OSC:INDEX-VALUES</code> with the option to
@@ -372,7 +377,7 @@ T</pre>
       <p>
         If we use <code>OSC:WITH-VALUES</code> or <code>OSC:INDEX-VALUES</code>
         in other responders, <code>OSC:INDEX-VALUES</code> is smart because it
-        updates the pointers only one time after the reception of a OSC message.
+        updates the pointers only once after the reception of a OSC message.
       </p>
 
       <p>

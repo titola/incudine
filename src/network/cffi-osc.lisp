@@ -20,7 +20,11 @@
 (define-constant MSG-NOSIGNAL #x4000)  ; Don't generate SIGPIPE.
 
 (define-constant +default-msg-flags+ #+linux MSG-NOSIGNAL
-                                     #-linux 0)
+                                     #-linux 0
+  :documentation
+    "Default flags for the C functions send, sendto, recv and recvfrom.
+It defaults to MSG_NOSIGNAL (don't generate a SIGPIPE signal) on Linux.
+See the manual pages of the C functions and bits/socket.h for details.")
 
 (define-constant +socklen-type+
     (if (> (cffi:foreign-funcall "sizeof_socklen" :unsigned-int) 4)
@@ -171,6 +175,3 @@
 
 (cffi:defcfun ("osc_setsock_reuseaddr" setsock-reuseaddr) :int
   (sockfd :int))
-
-(cffi:defcfun ("osc_strsize" string-size) :unsigned-int
-  (string :string))

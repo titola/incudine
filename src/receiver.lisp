@@ -150,7 +150,13 @@ input available from STREAM."
 
 ;;; Open Sound Control
 
-(pushnew 'remove-receiver-and-responders incudine.osc:*before-close-hook*)
+(defun net-remove-receiver-and-responders (stream)
+  (when (osc:input-stream-p stream)
+    (remove-receiver-and-responders stream))
+  stream)
+
+;; Also for generic networking.
+(pushnew #'net-remove-receiver-and-responders incudine.osc:*before-close-hook*)
 
 (defmethod valid-input-stream-p ((obj incudine.osc:input-stream)) t)
 
@@ -332,4 +338,4 @@ receiver-functions."
   (recv-stop stream)
   (remove-receiver stream)
   (remove-all-responders stream)
-  (values))
+  stream)

@@ -497,6 +497,7 @@
   (:import-from #:alexandria #:define-constant #:positive-fixnum
                 #:non-negative-fixnum #:with-gensyms)
   (:import-from #:swap-bytes #:htonl #:htonq #:ntohl #:ntohq)
+  (:import-from #:incudine #:incudine-optimize)
   (:shadow #:open #:close #:stream #:input-stream-p #:output-stream-p)
   (:export
    #:+default-msg-flags+
@@ -512,7 +513,7 @@
    #:value #:value-pointer
    #:midi #:address-pattern #:check-pattern #:index-values #:with-values
    #:required-values #:buffer-to-octets #:octets-to-buffer
-   #:fix-size #:string-size))
+   #:fix-size))
 
 (defpackage :incudine.net
   (:use :cl)
@@ -520,7 +521,9 @@
   (:shadowing-import-from #:incudine.osc #:close)
   (:shadow #:open #:read #:write #:stream #:input-stream-p #:output-stream-p)
   (:import-from :alexandria #:positive-fixnum #:non-negative-fixnum)
+  (:import-from #:incudine #:incudine-optimize)
   (:import-from #:incudine.osc #:+default-msg-flags+ #:*listen-backlog*
+                #:*before-close-hook*
                 #:with-stream #:open-p #:block-p #:without-block #:broadcast
                 #:connect #:reject #:close-connections #:connections
                 #:connections-fd #:last-recv-fd #:host #:port
@@ -530,7 +533,8 @@
                 #:buffer-to-octets #:octets-to-buffer)
   (:export
    #:+default-msg-flags+
-   #:*listen-backlog* #:*buffer-size* #:stream #:input-stream #:input-stream-p
+   #:*listen-backlog* #:*buffer-size* #:*before-close-hook*
+   #:stream #:input-stream #:input-stream-p
    #:output-stream #:output-stream-p #:with-stream #:open #:open-p #:close
    #:read #:write #:foreign-read #:foreign-write
    #:block-p #:without-block #:broadcast #:connect #:reject #:close-connections

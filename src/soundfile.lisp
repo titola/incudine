@@ -749,7 +749,7 @@ Return the number of items read."
 
 (declaim (inline foreign-write))
 (defun foreign-write (sf buffer-pointer buffer-size)
-  "Write BUFFER-SIZE values stored into a foreign buffer of type double
+  "Write BUFFER-SIZE values stored in a foreign buffer of type double
 float pointed to by BUFFER-POINTER to the SOUNDFILE:OUTPUT-STREAM SF.
 
 Return the number of the items written."
