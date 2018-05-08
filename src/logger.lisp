@@ -155,7 +155,7 @@ inside BODY."
 FORMAT-ARGUMENTS.
 
 TYPE should be one of ERROR, WARN, INFO or DEBUG."
-  `(%msg (ensure-symbol ',type "INCUDINE.UTIL")
+  `(%msg ',(ensure-symbol type "INCUDINE.UTIL")
          ,format-control (list ,@format-arguments)))
 
 (defmacro nrt-msg (type format-control &rest format-arguments)
@@ -163,5 +163,5 @@ TYPE should be one of ERROR, WARN, INFO or DEBUG."
 FORMAT-CONTROL and FORMAT-ARGUMENTS.
 
 TYPE should be one of ERROR, WARN, INFO or DEBUG."
-  `(%nrt-msg (ensure-symbol ',type "INCUDINE.UTIL")
+  `(%nrt-msg ',(ensure-symbol type "INCUDINE.UTIL")
              ,format-control ,@format-arguments))
