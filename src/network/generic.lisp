@@ -151,30 +151,35 @@ send and sendto for details on the FLAGS argument."
   "Send the octets from OBJ into a STREAM socket and return the number
 of octets written.
 
-OBJ is a vector of octets or a string.
+OBJ is one of NIL, a vector of octets or a string. If NIL, send the
+octets stored in the STREAM buffer.
 
 START and END are the bounding index designators of the array.
 
 FLAGS defaults to NET:+DEFAULT-MSG-FLAGS+. See the manual pages for
 send and sendto for details on the FLAGS argument."
   (declare (type incudine.osc:stream stream)
-           (type (or (simple-array (unsigned-byte 8)) string) obj)
+           (type (or (simple-array (unsigned-byte 8)) string null) obj)
            (type non-negative-fixnum start)
            (type (or positive-fixnum null) end))
   (incudine-optimize
-    (if (stringp obj)
-        (let ((len (length obj)))
-          (when (< len (buffer-size stream))
-            (setf (incudine.osc::stream-message-length stream) len)
-            (cffi:lisp-string-to-foreign obj
-              (message-pointer stream) (1+ len))
-            (send stream (message-pointer stream) len flags)))
-        (let ((end (or end (length obj))))
-          (declare (type non-negative-fixnum end))
-          (unless (or (>= start end) (> end (length obj)))
-            (cffi:with-pointer-to-vector-data (ptr obj)
-              (foreign-write stream (cffi:inc-pointer ptr start)
-                             (- end start) flags)))))))
+    (cond ((null obj)
+           (send stream (message-pointer stream)
+                 (message-length stream) flags))
+          ((stringp obj)
+           (let ((len (length obj)))
+             (when (< len (buffer-size stream))
+               (setf (incudine.osc::stream-message-length stream) len)
+               (cffi:lisp-string-to-foreign obj
+                 (message-pointer stream) (1+ len))
+               (send stream (message-pointer stream) len flags))))
+          (t
+           (let ((end (or end (length obj))))
+             (declare (type non-negative-fixnum end))
+             (unless (or (>= start end) (> end (length obj)))
+               (cffi:with-pointer-to-vector-data (ptr obj)
+                 (foreign-write stream (cffi:inc-pointer ptr start)
+                                (- end start) flags))))))))
 
 (defun buffer-to-string (stream)
   "Return the string stored in the buffer of the STREAM socket."
