@@ -202,7 +202,24 @@ If OFFSET-P is T (default), the center value of the wavetable is zero.
 The returned function takes two arguments, the foreign pointer to the
 sample data and the data size, and returns three values: the foreign
 array, the scale factor to normalize the samples and the boolean
-NORMALIZE-P to specify whether the normalization is necessary."
+NORMALIZE-P to specify whether the normalization is necessary.
+
+Example:
+
+    (in-package :scratch)
+
+    (define-vug shaper (in (buf buffer))
+      (with ((n (ash (buffer-frames buf) -1)))
+        (declare (fixnum n))
+        (buffer-read buf (+ (* in n) n) :interpolation :linear)))
+
+    (defvar *cheb*
+      (make-buffer
+        512 :fill-function (gen:chebyshev-1 '(1 1/2 1/3 1/4 1/5))))
+
+    (dsp! cheby-test (freq amp dur)
+      (:defaults 440 .3 4)
+      (out (* amp (shaper (sine freq (line 0 .99 dur #'free) 0) *cheb*))))"
   (declare (type list strength-list) (type real xmin xmax)
            (type boolean offset-p normalize-p))
   (lambda (foreign-array size)
