@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -112,7 +112,7 @@
   (defvar *linear-midi-table*
     (incudine:make-buffer 128 :initial-contents (loop for i below 128
                                                       collect (/ i 127)))
-    "Linear mapping from [0, 0x7F] to [0.0, 1.0]")
+    "Linear mapping from [0, 127] to [0.0, 1.0]")
   (declaim (inline *linear-midi-table*))
 
   (declaim (inline midi-note-off-p midi-note-on-p midi-note-p

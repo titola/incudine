@@ -1132,8 +1132,10 @@
   (declare (type incudine:node node))
   (append (incudine:control-list node) options))
 
-(defvar *update-dsp-instances* t)
-(declaim (type boolean *update-dsp-instances*))
+(defvar *update-dsp-instances-p* t
+  "Whether the running DSP instances are updated when a DSP is redefined.
+The default is T.")
+(declaim (type boolean *update-dsp-instances-p*))
 
 (defun dsp-coercing-arguments (args)
   (mapcar (lambda (x)
@@ -1213,7 +1215,7 @@
                       (list ,@(loop for i in arg-names append `(',i ,i))))))))))
 
 (defmacro maybe-update-dsp-instances (dsp-name arg-names)
-  `(when *update-dsp-instances*
+  `(when *update-dsp-instances-p*
      (update-dsp-instances ,dsp-name ,arg-names)))
 
 (defun dsp-optional-keywords (arg-names defaults fixed-keywords)

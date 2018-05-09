@@ -227,20 +227,20 @@
                 #:abuffer-polar #:abuffer-complex #:compute-abuffer
                 #:rectangular-window #:dofft #:dofft-polar #:dofft-complex)
   (:export
-   #:vug #:define-vug #:define-vug-macro #:vug-funcall #:destroy-vug
-   #:rename-vug #:all-vug-names #:vug-macro-p #:fix-vug
+   #:vug #:vug-p #:define-vug #:vug-macro #:vug-macro-p #:define-vug-macro
+   #:destroy-vug #:rename-vug #:all-vug-names #:fix-vug
    #:ugen #:ugen-instance #:with-ugen-instance #:with-ugen-instances
    #:define-ugen #:ugen-debug #:compile-vug #:compiled-vug-p
    #:ugen-perf-function #:ugen-reinit-function #:ugen-return-pointer
    #:ugen-control-pointer
    #:define-ugen-control-getter #:define-ugen-control-setter
-   #:ugen-funcall #:destroy-ugen #:rename-ugen #:fix-ugen #:all-ugen-names
+   #:destroy-ugen #:rename-ugen #:fix-ugen #:all-ugen-names
    #:*eval-some-specials-p* #:*specials-to-eval*
    #:with
    #:with-coerce-arguments #:with-vug-inputs #:vug-input
    #:get-pointer
    #:dsp! #:dsp-debug #:all-dsp-names #:free-dsp-instances #:destroy-dsp
-   #:*update-dsp-instances*
+   #:*update-dsp-instances-p*
    #:current-channel #:current-frame #:current-sample #:current-input-sample
    #:make-frame #:frame-ref #:multiple-sample-bind #:samples #:samples-zero
    #:make-i32-array #:make-u32-array #:make-i64-array #:make-u64-array

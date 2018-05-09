@@ -86,10 +86,14 @@
     *twopi-div-sr* *sound-velocity* *r-sound-velocity*))
 (declaim (type list *default-specials-to-eval*))
 
-(defvar *specials-to-eval* *default-specials-to-eval*)
+(defvar *specials-to-eval* *default-specials-to-eval*
+  "List of the dynamic variables to eval during the compilation of a
+UGEN or DSP if *EVAL-SOME-SPECIALS-P* is T.")
 (declaim (type list *specials-to-eval*))
 
-(defvar *eval-some-specials-p* nil)
+(defvar *eval-some-specials-p* nil
+  "Whether the dynamic variables in *SPECIALS-TO-EVAL* are evaluated
+during the compilation of a UGEN or DSP. The default is NIL.")
 (declaim (type boolean *eval-some-specials-p*))
 
 (declaim (inline special-var-to-eval-p))
@@ -100,12 +104,21 @@
 
 ;;; Virtual Unit Generator
 (defstruct (vug (:copier nil))
+  "Virtual Unit Generator type."
   (name nil :type symbol)
   (callback nil :type (or function null))
   (args nil :type list)
   (arg-types nil :type list)
-  (defaults nil :type list)
-  (macro-p nil :type boolean :read-only t))
+  (defaults nil :type list))
+
+(defstruct (vug-macro (:include vug) (:copier nil))
+  "Virtual Unit Generator Macro type.")
+
+(setf
+  (documentation 'vug-p 'function)
+  "Return T if object is of type VUG or VUG-MACRO."
+  (documentation 'vug-macro-p 'function)
+  "Return T if object is of type VUG-MACRO.")
 
 (defstruct (ugen-instance (:copier nil))
   (name nil :type symbol)
@@ -191,6 +204,7 @@
   (spec nil))
 
 (defstruct (ugen (:copier nil))
+  "Unit Generator type."
   (name nil :type symbol)
   (callback nil :type (or function null))
   (inline-callback #'dummy-function :type function)
@@ -236,17 +250,16 @@
 (defun vug-variable-to-expand-multiple-times-p (var)
   (member var (vug-variables-to-expand-multiple-times *vug-variables*)))
 
-(declaim (inline vug))
 (defun vug (name)
+  "Return the VUG or VUG-MACRO named NAME if it exists."
   (declare (type symbol name))
   (values (gethash name *vugs*)))
 
-(declaim (inline ugen))
 (defun ugen (name)
+  "Return the UGEN named NAME if it exists."
   (declare (type symbol name))
   (values (gethash name *ugens*)))
 
-(declaim (inline dsp))
 (defun dsp (name)
   (declare (type symbol name))
   (values (gethash name *dsps*)))
@@ -1084,7 +1097,10 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
 
 (defmacro without-follow (parameters &body body) parameters body)
 
-(defun vug-input (arg) arg)
+(defun vug-input (arg)
+  "Used within the body of DEFINE-VUG-MACRO to declare and return the VUG
+input ARG (not all macro arguments are necessarily control parameters)."
+  arg)
 
 (defun store-ugen-return-value (form) form)
 
@@ -1761,9 +1777,9 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
     (values (nreverse names) (nreverse types))))
 
 (defun add-vug (name args arg-types defaults callback &optional macro-p)
-  (let ((obj (make-vug :name name :callback callback :args args
-                       :arg-types arg-types :defaults defaults
-                       :macro-p macro-p)))
+  (let ((obj (funcall (if macro-p #'make-vug-macro #'make-vug)
+                      :name name :callback callback :args args
+                      :arg-types arg-types :defaults defaults)))
     (when (ugen name)
       (destroy-ugen name)
       (nrt-msg debug "destroy UGEN ~A" name))
@@ -1778,6 +1794,25 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
                       object-type (length defaults) (length args))))
 
 (defmacro define-vug (name lambda-list &body body)
+  "Define a new VUG and the auxiliary function named NAME.
+
+Each element of the LAMBDA-LIST is a list
+
+    (argument-name argument-type)
+
+or a symbol ARGUMENT-NAME if the control parameter is of type SAMPLE.
+
+The auxiliary function NAME is used within the body of DEFINE-VUG,
+DEFINE-VUG-MACRO, DEFINE-UGEN or DSP!.
+
+If the first forms in BODY are lists beginning with a keyword, they
+are VUG SPEC's. The keyword indicates the interpretation of the
+other forms in the SPEC:
+
+    :DEFAULTS default-values
+        Default values for VUG parameter controls.
+
+Return the new VUG structure."
   (if (dsp name)
       (msg error "~A was defined to be a DSP." name)
       (with-gensyms (fn s)
@@ -1804,6 +1839,33 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
                      (add-vug ',name ',args ',types ',defaults ,fn))))))))))
 
 (defmacro define-vug-macro (name lambda-list &body body)
+  "Define a new VUG-MACRO and the auxiliary macro named NAME.
+
+LAMBDA-LIST is an ordinary lambda list without default values.
+Each element of LAMBDA-LIST is not necessarily the name of a control
+parameter; use VUG-INPUT or WITH-VUG-INPUTS to specify the VUG inputs
+or VUGLET to define a local VUG definition. Example:
+
+    (define-vug-macro megasynth (freq amp &optional interpolation)
+      (with-vug-inputs ((f freq)
+                        (a amp))
+        (if interpolation
+            `(megasynth-with-interpolation ,f ,a)
+            `(megasynth-without-interpolation ,f ,a))))
+
+    ;; Alternative.
+    (define-vug-macro megasynth (freq amp &optional interpolation)
+      (with-gensyms (megasynth)
+        `(vuglet ((,megasynth (f a)
+                    ,(if interpolation
+                         `(megasynth-with-interpolation f a)
+                         `(megasynth-without-interpolation f a))))
+           (,megasynth ,freq ,amp))))
+
+The auxiliary macro NAME is used within the body of DEFINE-VUG,
+DEFINE-VUG-MACRO, DEFINE-UGEN or DSP!.
+
+Return the new VUG-MACRO structure."
   (if (dsp name)
       (msg error "~A was defined to be a DSP." name)
       (multiple-value-bind (doc specs vug-body) (extract-vug-specs body)
@@ -1818,6 +1880,7 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
                       (macro-function ',name) t))))))
 
 (defun rename-vug (old-name new-name)
+  "Rename the VUG named OLD-NAME to NEW-NAME."
   (declare (type symbol old-name new-name))
   (if (dsp new-name)
       (msg error "~A was defined to be a DSP." new-name)
@@ -1833,8 +1896,10 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
                new-name)
               (t (msg error "~A is not a legal VUG name." old-name))))))
 
-;;; No panic if we accidentally redefine a function related to a VUG.
 (defun fix-vug (name)
+  "The function named NAME is forced to be the auxiliary function of
+the VUG or VUG-MACRO with the same name. Useful if that function is
+accidentally redefined."
   (let ((vug (vug name)))
     (when vug
       (cond ((vug-macro-p vug)
@@ -1847,14 +1912,15 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
              (setf (symbol-function name) (vug-callback vug))
              t)))))
 
-(declaim (inline destroy-vug))
 (defun destroy-vug (name)
+  "Remove the VUG or VUG-MACRO definition, if any, of NAME."
   (when (vug name)
     (remhash name *vugs*)
     (fmakunbound name)
     (values)))
 
 (defun destroy-ugen (name)
+  "Remove the UGEN definition, if any, of NAME."
   (when (ugen name)
     (remhash name *ugens*)
     (let ((vug (vug name)))
@@ -1872,8 +1938,11 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
                 collect name)
         #'string-lessp :key #'symbol-name))
 
-(declaim (inline all-vug-names))
 (defun all-vug-names (&optional inaccessible-p)
+  "Return the name list of the defined VUG's and VUG-MACRO's.
+
+If INACCESSIBLE-P is T, the list also includes the symbols unexported
+from the other packages."
   (%all-vug-names *vugs* inaccessible-p))
 
 (declaim (inline argument-names))
@@ -1912,10 +1981,15 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
            ,@body))
       `(progn ,@body)))
 
-;;; Used only inside the definition of a VUG-MACRO to specify the
-;;; inputs of the VUG.
-;;; BINDINGS is a list ((vug-varname1 value1) (vug-varname2 value2) ...)
 (defmacro with-vug-inputs (bindings &body body)
+  "Used within the body of DEFINE-VUG-MACRO to create bindings to VUG inputs
+(not all macro arguments are necessarily control parameters).
+
+BINDINGS is a list of lists
+
+    (vug-varname value)
+
+where VALUE is a VUG input."
   `(with ,(mapcar (lambda (x) `(,(car x) (vug-input ,(cadr x))))
                   bindings)
      ,@body))
@@ -1966,6 +2040,9 @@ variable is updated after the change of the 'followed' PARAMETERS."
                                args (mapcar #'list args defaults) (list form)))
                        (list args form)))))))))
 
-(defmacro vuglet (definitions &body body)
-  "Evaluate the BODY-FORMS with local VUG definitions."
-  `(macrolet ,(mapcar #'expand-vuglet-def definitions) ,@body))
+(defmacro vuglet (definitions &body body-forms)
+  "Evaluate the BODY-FORMS with local VUG DEFINITIONS within the body of
+DEFINE-VUG, DEFINE-VUG-MACRO, DEFINE-UGEN or DSP!.
+
+The local VUG names shadow the global VUG's or functions with the same name."
+  `(macrolet ,(mapcar #'expand-vuglet-def definitions) ,@body-forms))

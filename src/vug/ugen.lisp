@@ -192,6 +192,7 @@ to call to get the control value."
   (values))
 
 (defun rename-ugen (old-name new-name)
+  "Rename the UGEN named OLD-NAME to NEW-NAME."
   (declare (type symbol old-name new-name))
   (cond ((dsp new-name)
          (msg error "~A was defined to be a DSP." new-name))
@@ -208,8 +209,10 @@ to call to get the control value."
                   new-name)
                  (t (msg error "~A is not a legal UGEN name." old-name)))))))
 
-;;; No panic if we accidentally redefine a function related to a UGEN.
 (defun fix-ugen (name)
+  "The function named NAME is forced to be the auxiliary function of
+the UGEN with the same name. Useful if that function is accidentally
+redefined."
   (let ((ugen (ugen name)))
     (when (and ugen
                (or (not (fboundp name))
@@ -218,14 +221,18 @@ to call to get the control value."
       (setf (symbol-function name) (ugen-callback ugen))
       t)))
 
-(declaim (inline all-ugen-names))
 (defun all-ugen-names (&optional inaccessible-p)
+  "Return the name list of the defined UGEN's.
+
+If INACCESSIBLE-P is T, the list also includes the symbols unexported
+from the other packages."
   (%all-vug-names *ugens* inaccessible-p))
 
-(declaim (inline compiled-vug-p))
-(defun compiled-vug-p (name)
-  (let ((vug (vug name))
-        (ug (ugen name)))
+(defun compiled-vug-p (obj)
+  "Whether OBJ is a compiled VUG or the name of a compiled VUG."
+  (declare (type (or symbol vug) obj))
+  (let* ((vug (if (vug-p obj) obj (vug obj)))
+         (ug (ugen (vug-name vug))))
     (and vug ug (eq (vug-callback vug) (ugen-inline-callback ug)))))
 
 (declaim (inline store-ugen-return-pointer))
@@ -435,6 +442,20 @@ to call to get the control value."
 
 (incudine.util:defun* compile-vug (name-or-vug return-type force-p
                                    ugen-instance-constructor optimize)
+  "Define a new UGEN and the auxiliary function named NAME by
+compiling an existing VUG.
+
+NAME-OR-VUG is a VUG structure or a VUG name.
+
+The UGEN output is of type RETURN-TYPE.
+
+If FORCE-P is T, force the compilation.
+
+If UGEN-INSTANCE-CONSTRUCTOR is non-NIL, it is the constructor used to
+create the UGEN instances.
+
+If OPTIMIZE is non-NIL, it is the quoted list of optimization
+qualities for the declaration OPTIMIZE."
   (declare (type (or symbol vug) name-or-vug))
   (multiple-value-bind (vug name)
       (if (symbolp name-or-vug)
@@ -454,17 +475,22 @@ to call to get the control value."
                   (defaults (vug-defaults vug))
                   (fn (vug-callback vug))
                   (ugen (make-ugen :name name
-                                   :return-type return-type
+                                   :return-type (or return-type t)
                                    :args arg-names
                                    :arg-types types
                                    :defaults defaults
                                    :inline-callback fn)))
              (incudine.util::cudo-compile
-              `(%compile-vug ,name ,arg-bindings ,return-type ,args ,arg-names
-                             ,(or optimize '*standard-optimize-settings*)
-                             ,(mapcar #'list arg-names defaults)
-                             ,ugen-instance-constructor
-                             ,ugen)))))))
+              `(%compile-vug
+                 ,name ,arg-bindings ,return-type ,args ,arg-names
+                 ,(if optimize
+                      (if (or (atom optimize) (eq (car optimize) 'quote))
+                          optimize
+                          (optimize-settings
+                            `((:optimize ,@optimize)) :ugen-spec-p t))
+                      '*standard-optimize-settings*)
+                 ,(mapcar #'list arg-names defaults)
+                 ,ugen-instance-constructor ,ugen)))))))
 
 (defun get-ugen-specs (def)
   (multiple-value-bind (form doc)
@@ -534,58 +560,81 @@ to call to get the control value."
         ,@(loop for args in (get-ugen-spec :setfable specs)
                 collect `(defsetf ,@args))))))
 
-;;; SBCL VOP style for optional UGEN SPEC's. Each SPEC is a list
-;;; beginning with a keyword indicating the interpretation of the
-;;; other forms in the SPEC:
-;;;
-;;; :DEFAULTS default-values
-;;;     Default values for UGEN controls.
-;;;
-;;; :INSTANCE-TYPE Name
-;;;     Type of the UGEN instance (default: UGEN-INSTANCE).
-;;;
-;;; :CONSTRUCTOR Name
-;;;     Contructor function used to create a UGEN instance
-;;;     (default: MAKE-[instance-type]).
-;;;
-;;; :READERS {(Control-Name {Key Value}*)}*
-;;;     Specifications of the control getters.
-;;;     The valid keywords are:
-;;;
-;;;     :NAME         Getter name (default: [ugen-name]-[control-name])
-;;;     :ARG-NAME     Name of the UGEN instance (default: UGEN-INSTANCE)
-;;;     :INLINE-P     T to declare the function inline (default: T if METHOD-P NIL)
-;;;     :METHOD-P     T to define the getter with DEFMETHOD (default: nil)
-;;;
-;;; :WRITERS {(Control-Name {Key Value}*)}*
-;;;     Specifications of the control setters.
-;;;     The valid keywords are:
-;;;
-;;;     :NAME         Setter name (default: SET-[ugen-name]-[control-name])
-;;;     :ARG-NAME     Name of the UGEN instance (default: UGEN-INSTANCE)
-;;;     :VALUE-NAME   Name of the new value (default: VALUE)
-;;;     :VALUE-TYPE   Type of the passed value
-;;;     :INLINE-P     T to declare the function inline (default: T if METHOD-P NIL)
-;;;     :METHOD-P     T to define the setter with DEFMETHOD (default: nil)
-;;;
-;;; :ACCESSORS {(Control-Name {Key Value}*)}*
-;;;     Specifications of the control getters and setters.
-;;;     The valid keywords are:
-;;;
-;;;     :NAME :ARG-NAME :VALUE-NAME :VALUE-TYPE :INLINE-P :METHOD-P
-;;;
-;;;     If :METHOD-P is NIL and :NAME is specified, the function NAME is SETF-able:
-;;;
-;;;         (defun name ...)
-;;;         (defun set-name ...)
-;;;         (defsetf name set-name)
-;;;
-;;;     If :METHOD-P is T, define the methods:
-;;;
-;;;         (defmethod name ...)
-;;;         (defmethod (setf name) ...)
-;;;
+;;; SBCL VOP style for optional UGEN SPEC's.
 (defmacro define-ugen (name return-type lambda-list &body body)
+  "Define a new UGEN and the auxiliary function named NAME.
+
+The UGEN output is of type RETURN-TYPE.
+
+Each element of the LAMBDA-LIST is a list
+
+    (argument-name argument-type)
+
+or a symbol ARGUMENT-NAME if the control parameter is of type SAMPLE.
+
+If the auxiliary function NAME is used within the body of DEFINE-VUG,
+DEFINE-VUG-MACRO, DEFINE-UGEN or DSP!, the behaviour is analogous to
+the auxiliary function of a VUG. Otherwise, it returns the function
+of no arguments to allocate new UGEN instances.
+
+If the first forms in BODY are lists beginning with a keyword, they
+are UGEN SPEC's. The keyword indicates the interpretation of the
+other forms in the SPEC:
+
+    :DEFAULTS default-values
+        Default values for UGEN parameter controls.
+
+    :INSTANCE-TYPE Name
+        Type of the UGEN instance (default: UGEN-INSTANCE).
+
+    :CONSTRUCTOR Name
+        Contructor function used to create a UGEN instance
+        (default: MAKE-[instance-type]).
+
+    :READERS {(Control-Name {Key Value}*)}*
+        Specifications of the control getters.
+        The valid keywords are:
+
+        :NAME         Getter name (default: [ugen-name]-[control-name])
+        :ARG-NAME     Name of the UGEN instance (default: UGEN-INSTANCE)
+        :INLINE-P     T to declare the function inline
+                      (default: T if METHOD-P NIL)
+        :METHOD-P     T to define the getter with DEFMETHOD (default: nil)
+
+    :WRITERS {(Control-Name {Key Value}*)}*
+        Specifications of the control setters.
+        The valid keywords are:
+
+        :NAME         Setter name (default: SET-[ugen-name]-[control-name])
+        :ARG-NAME     Name of the UGEN instance (default: UGEN-INSTANCE)
+        :VALUE-NAME   Name of the new value (default: VALUE)
+        :VALUE-TYPE   Type of the passed value
+        :INLINE-P     T to declare the function inline
+                      (default: T if METHOD-P NIL)
+        :METHOD-P     T to define the setter with DEFMETHOD (default: nil)
+
+    :ACCESSORS {(Control-Name {Key Value}*)}*
+        Specifications of the control getters and setters.
+        The valid keywords are:
+
+        :NAME :ARG-NAME :VALUE-NAME :VALUE-TYPE :INLINE-P :METHOD-P
+
+        If :METHOD-P is NIL and :NAME is specified, the function NAME
+        is SETF-able:
+
+            (defun name ...)
+            (defun set-name ...)
+            (defsetf name set-name)
+
+        If :METHOD-P is T, define the methods:
+
+            (defmethod name ...)
+            (defmethod (setf name) ...)
+
+    :OPTIMIZE {Quality | (Quality Value)}*
+        Optimization qualities for the declaration OPTIMIZE.
+
+Return the new UGEN structure."
   (multiple-value-bind (doc specs form) (get-ugen-specs body)
     (let* ((instance-type (or (car (get-ugen-spec :instance-type specs))
                               'ugen-instance))
@@ -600,10 +649,13 @@ to call to get the control value."
                       (optimize-settings ',specs :ugen-spec-p t))
          ,@(define-ugen-control-get/setters name instance-type specs)))))
 
-;;; Return a function to show the code generated by DEFINE-UGEN.
-;;; The arguments of the function are the arguments of the UGEN
-;;; plus one optional STREAM.
 (defmacro ugen-debug (name return-type lambda-list &body body)
+  "Return a function to show the code generated by DEFINE-UGEN.
+
+See DEFINE-UGEN for the macro function arguments.
+
+The returned function requires the UGEN arguments plus one optional
+argument to specify the output stream."
   (multiple-value-bind (doc specs form) (get-ugen-specs body)
     (declare (ignore doc))
     (let ((instance-constructor (car (get-ugen-spec :constructor specs)))
