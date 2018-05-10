@@ -121,6 +121,7 @@ during the compilation of a UGEN or DSP. The default is NIL.")
   "Return T if object is of type VUG-MACRO.")
 
 (defstruct (ugen-instance (:copier nil))
+  "UGen instance type."
   (name nil :type symbol)
   (return-pointer nil :type (or foreign-pointer null))
   ;; Sequence #[c0-ptr-or-func c0-func-or-nil c1-ptr-or-func c1-func-or-nil ...]
@@ -1793,10 +1794,10 @@ input ARG (not all macro arguments are necessarily control parameters)."
                                  ~D instead of ~D"
                       object-type (length defaults) (length args))))
 
-(defmacro define-vug (name lambda-list &body body)
+(defmacro define-vug (name arglist &body body)
   "Define a new VUG and the auxiliary function named NAME.
 
-Each element of the LAMBDA-LIST is a list
+Each element of the ARGLIST is a list
 
     (argument-name argument-type)
 
@@ -1807,16 +1808,19 @@ DEFINE-VUG-MACRO, DEFINE-UGEN or DSP!.
 
 If the first forms in BODY are lists beginning with a keyword, they
 are VUG SPEC's. The keyword indicates the interpretation of the
-other forms in the SPEC:
+other forms in the specification:
 
     :DEFAULTS default-values
         Default values for VUG parameter controls.
+
+If the specification :DEFAULTS is defined, all the arguments of the
+auxiliary function are optional keywords.
 
 Return the new VUG structure."
   (if (dsp name)
       (msg error "~A was defined to be a DSP." name)
       (with-gensyms (fn s)
-        (multiple-value-bind (args types) (arg-names-and-types lambda-list)
+        (multiple-value-bind (args types) (arg-names-and-types arglist)
           (multiple-value-bind (doc specs vug-body) (extract-vug-specs body)
             (let ((defaults (cadr (get-vug-spec :defaults specs))))
               (check-default-args args defaults 'vug)
@@ -1827,7 +1831,7 @@ Return the new VUG structure."
                                      `(lambda ,args))
                                  ,@(and doc `(,doc))
                                  (flet ((,fn ,args
-                                          (with-coerce-arguments ,lambda-list
+                                          (with-coerce-arguments ,arglist
                                             (vug-block nil
                                               (with-argument-bindings
                                                   (,args ,types t)

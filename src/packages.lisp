@@ -237,7 +237,7 @@
    #:destroy-ugen #:rename-ugen #:fix-ugen #:all-ugen-names
    #:*eval-some-specials-p* #:*specials-to-eval*
    #:with
-   #:with-coerce-arguments #:with-vug-inputs #:vug-input
+   #:with-vug-inputs #:vug-input
    #:get-pointer
    #:dsp! #:dsp-debug #:all-dsp-names #:free-dsp-instances #:destroy-dsp
    #:*update-dsp-instances-p*
@@ -252,7 +252,7 @@
    #:samphold #:interpolate
    #:tick #:external-variable #:init-only #:initialize
    #:with-follow #:without-follow
-   #:maybe-expand #:update #:object-to-free
+   #:maybe-expand #:update
    #:vuglet
    #:out #:frame-out #:cout #:node-out
    #:dsp-node

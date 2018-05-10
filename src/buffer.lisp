@@ -811,9 +811,12 @@ FRAMES and the other keyword arguments ARGS are passed to MAKE-BUFFER."
   "Create bindings to newly allocated BUFFER structures with dynamic extent
 during BODY.
 
-BINDINGS is a list of lists (var frames &rest args), where VAR is the
-variable bound to a buffer, FRAMES and the other keyword arguments ARGS are
-passed to MAKE-BUFFER."
+BINDINGS is a list of lists
+
+    (var frames &rest args)
+
+where VAR is the variable bound to a buffer, FRAMES and the other keyword
+arguments ARGS are passed to MAKE-BUFFER."
   (let ((vars (mapcar #'car bindings)))
     `(let ,(mapcar (lambda (x) `(,(car x) (make-buffer ,@(cdr x)))) bindings)
        ,(and vars `(declare (type buffer ,@vars)))

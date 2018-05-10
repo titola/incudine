@@ -95,6 +95,7 @@
   `(progn ,@(mapcar (lambda (fn) `(setf ,fn #'dummy-function)) functions)))
 
 (defun all-dsp-names ()
+  "Return the name list of the defined DSP's."
   (loop for dsp being the hash-keys in *dsps* collect dsp))
 
 (declaim (inline set-dsp-dummy-functions))
@@ -176,11 +177,14 @@
     (values)))
 
 (defun free-dsp-instances (&optional name)
+  "If NAME is non-NIL, free the cached DSP instances named NAME.
+Otherwise, free all the cached DSP instances."
   (with-spinlock-held (*nrt-dsp-spinlock*)
     (free-nrt-dsp-instances name))
   (free-rt-dsp-instances name))
 
 (defun destroy-dsp (name)
+  "Remove the DSP definition, if any, of NAME."
   (when (dsp name)
     (setf (symbol-function name) (constantly nil))
     (rt-eval (:return-value-p t)
