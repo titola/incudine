@@ -261,3 +261,16 @@ Example: 8 processors
                       (or (lambda-list-to-star-list arglist) arglist)))))
               (t
                (warn "Undefined SWANK ARGLIST interface.")))))))
+
+;; &AUX bindings used to get the optional-key arguments by using
+;; LAMBDA-LIST-TO-STAR-LIST.
+(defun force-macro-lambda-list (name lambda-list)
+  (assert (find '&aux lambda-list))
+  (let ((getter (find-symbol "%SIMPLE-FUN-ARGLIST" "SB-KERNEL")))
+    (when getter
+      (let ((setter (fdefinition `(setf ,getter))))
+        (when setter
+          (let ((args (funcall getter (macro-function name))))
+            (unless (find '&aux args)
+              (funcall setter lambda-list (macro-function name))))))))
+  name)

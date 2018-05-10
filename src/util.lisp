@@ -431,10 +431,15 @@ You can have more than one &rest parameter."
   "See DEFUN*."
   (with-doc-string (doc-string body)
     (with-lambda*-arguments (args kargs aux-var args)
-      `(defmacro ,name (&rest optional-keywords &aux (,aux-var ',args))
-         ,@doc-string
-         (declare (ignore ,aux-var))
-         ,(defmacro*-body 'optional-keywords args kargs body)))))
+      (let ((lambda-list `(&rest optional-keywords &aux (,aux-var ',args))))
+        `(progn
+           (defmacro ,name ,lambda-list ,@doc-string
+             (declare (ignore ,aux-var))
+             ,(defmacro*-body 'optional-keywords args kargs body))
+           ;; The compiler could remove the lambda list keywords &AUX
+           ;; but we use them to read the optional-key arguments.
+           #+sbcl (force-macro-lambda-list ',name ',lambda-list)
+           #-sbcl ',name)))))
 
 (defun lambda-list-to-star-list (arglist)
   "Return the optional-key arguments of ARGLIST."
