@@ -1308,9 +1308,9 @@ Return the auxiliary function NAME."
                                                (progn ,@form))
                          (nrt-msg info "new alloc for DSP ~A" ',',name))))
            (cond ((vug ',name)
-                  (msg error "~A was defined to be a VUG" ',name))
+                  (incudine-error "~A was defined to be a VUG" ',name))
                  ((ugen ',name)
-                  (msg error "~A was defined to be an UGEN" ',name))
+                  (incudine-error "~A was defined to be an UGEN" ',name))
                  (t
                   ;; If there is a DSP called NAME, remove the cached instances.
                   (free-dsp-instances ',name)

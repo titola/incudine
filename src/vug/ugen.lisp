@@ -229,9 +229,9 @@ If METHOD-P is T, the setter is defined as a method on a generic function."
   "Rename the UGEN named OLD-NAME to NEW-NAME."
   (declare (type symbol old-name new-name))
   (cond ((dsp new-name)
-         (msg error "~A was defined to be a DSP." new-name))
+         (incudine-error "~A was defined to be a DSP." new-name))
         ((vug new-name)
-         (msg error "~A was defined to be a VUG." new-name))
+         (incudine-error "~A was defined to be a VUG." new-name))
         (t
          (let ((ugen (ugen old-name)))
            (cond (ugen
@@ -241,7 +241,7 @@ If METHOD-P is T, the setter is defined as a method on a generic function."
                   (setf (symbol-function new-name) (symbol-function old-name))
                   (fmakunbound old-name)
                   new-name)
-                 (t (msg error "~A is not a legal UGEN name." old-name)))))))
+                 (t (incudine-error "~A is not a legal UGEN name." old-name)))))))
 
 (defun fix-ugen (name)
   "The function named NAME is forced to be the auxiliary function of
@@ -496,11 +496,11 @@ qualities for the declaration OPTIMIZE."
           (values (vug name-or-vug) name-or-vug)
           (values name-or-vug (vug-name name-or-vug)))
     (cond ((null vug)
-           (msg error "~A is not a legal VUG name." name))
+           (incudine-error "~A is not a legal VUG name." name))
           ((and (compiled-vug-p name) (not force-p))
            (symbol-function name))
           ((vug-macro-p vug)
-           (msg error "~A is a VUG-MACRO." name))
+           (incudine-error "~A is a VUG-MACRO." name))
           (t
            (let* ((arg-names (vug-args vug))
                   (types (vug-arg-types vug))
@@ -596,7 +596,8 @@ qualities for the declaration OPTIMIZE."
 
 ;;; SBCL VOP style for optional UGEN SPEC's.
 (defmacro define-ugen (name return-type arglist &body body)
-  "Define a new UGEN and the auxiliary function named NAME.
+  "Define a new VUG, the UGEN obtained by compiling that VUG and the
+auxiliary function named NAME.
 
 The UGEN output is of type RETURN-TYPE.
 

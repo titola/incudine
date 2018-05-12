@@ -335,7 +335,7 @@ that file."
         (if (check-tuning-notes notes-or-file)
             (set-tuning-notes tuning notes-or-file (length notes-or-file)
                               (or description ""))
-            (msg error "incorrect note list ~A" notes-or-file))
+            (incudine-error "incorrect note list ~A" notes-or-file))
         (multiple-value-bind (notes len descr)
             (load-sclfile notes-or-file)
           (declare (type (unsigned-byte 8) len))
@@ -512,7 +512,7 @@ in Scale file format."
   "Return a copy of TUNING."
   (declare (type tuning tuning))
   (if (free-p tuning)
-      (msg error "Unusable tuning.")
+      (incudine-error "Unusable tuning.")
       (let ((new (make-tuning
                    :notes (coerce (tuning-ratios tuning) 'list)
                    :description (copy-seq (tuning-description tuning))

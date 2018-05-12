@@ -846,7 +846,7 @@ the argument is parsed with READ-FROM-STRING."
                 (sb-ext:exit :code 130)))
             (when #1=(toplevel-options-script opt)
               (sb-impl::process-script #1#)
-              (msg error "BUG: PROCESS-SCRIPT returned")))
+              (incudine-error "BUG: PROCESS-SCRIPT returned")))
         (abort ()
           :report (lambda (s)
                     (write-string

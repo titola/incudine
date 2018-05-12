@@ -616,7 +616,7 @@ during the compilation of a UGEN or DSP. The default is NIL.")
            (if (vug-variable-p i)
                (setf (vug-variable-performance-time-p i) t
                      (vug-variable-init-time-p i) nil)
-               (msg error
+               (incudine-error
                     "performance-time declaration, ~A is not a VUG variable"
                     i))))))
     obj))
@@ -1438,7 +1438,7 @@ input ARG (not all macro arguments are necessarily control parameters)."
            (msg debug "undelete ~A (pointer required)" obj))
          (incf (vug-variable-ref-count obj))
          (preserve-vug-variable obj))
-        (t (msg error "cannot get the pointer to ~A" obj))))
+        (t (incudine-error "cannot get the pointer to ~A" obj))))
 
 (defun update-variables-init-time-setter ()
   (labels ((update-setter (obj &optional floop-info)
@@ -1796,6 +1796,7 @@ input ARG (not all macro arguments are necessarily control parameters)."
 
 (defmacro define-vug (name arglist &body body)
   "Define a new VUG and the auxiliary function named NAME.
+Remove the UGEN definition of NAME if it exists.
 
 Each element of the ARGLIST is a list
 
@@ -1818,7 +1819,7 @@ auxiliary function are optional keywords.
 
 Return the new VUG structure."
   (if (dsp name)
-      (msg error "~A was defined to be a DSP." name)
+      (incudine-error "~A was defined to be a DSP." name)
       (with-gensyms (fn s)
         (multiple-value-bind (args types) (arg-names-and-types arglist)
           (multiple-value-bind (doc specs vug-body) (extract-vug-specs body)
@@ -1871,7 +1872,7 @@ DEFINE-VUG-MACRO, DEFINE-UGEN or DSP!.
 
 Return the new VUG-MACRO structure."
   (if (dsp name)
-      (msg error "~A was defined to be a DSP." name)
+      (incudine-error "~A was defined to be a DSP." name)
       (multiple-value-bind (doc specs vug-body) (extract-vug-specs body)
         (let ((defaults (cadr (get-vug-spec :defaults specs))))
           (check-default-args lambda-list defaults 'vug-macro)
@@ -1887,7 +1888,7 @@ Return the new VUG-MACRO structure."
   "Rename the VUG named OLD-NAME to NEW-NAME."
   (declare (type symbol old-name new-name))
   (if (dsp new-name)
-      (msg error "~A was defined to be a DSP." new-name)
+      (incudine-error "~A was defined to be a DSP." new-name)
       (let ((vug (vug old-name)))
         (cond (vug
                (remhash old-name *vugs*)
@@ -1898,7 +1899,7 @@ Return the new VUG-MACRO structure."
                    (setf (symbol-function new-name) (symbol-function old-name)))
                (fmakunbound old-name)
                new-name)
-              (t (msg error "~A is not a legal VUG name." old-name))))))
+              (t (incudine-error "~A is not a legal VUG name." old-name))))))
 
 (defun fix-vug (name)
   "The function named NAME is forced to be the auxiliary function of
