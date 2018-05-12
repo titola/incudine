@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -19,14 +19,14 @@
 (defmacro done-action (action)
   `(funcall ,action (dsp-node)))
 
-(defmacro done-self ()
+(defmacro done-p ()
   `(incudine::node-done-p (dsp-node)))
 
 (defmacro free-self ()
   `(incudine:free (dsp-node)))
 
 (defmacro free-self-when-done ()
-  `(when (done-self) (free-self)))
+  `(when (done-p) (free-self)))
 
 ;;;  +--------------------------------+
 ;;;  |   Header of a foreign array    |

@@ -230,3 +230,9 @@
    :replacement incudine.analysis:make-abuffer
    :date 20180403
    :package "INCUDINE.VUG")
+
+(incudine::deprecated-macro
+   (done-self () `(done-p))
+   :replacement incudine.vug:done-p
+   :date 20180512
+   :package "INCUDINE.VUG")

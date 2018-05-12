@@ -115,9 +115,9 @@
              (values))
            (lambda ()
              (cond ((>= ,phs ,max)
-                    (setf (done-self) t ,phs ,max))
+                    (setf (done-p) t ,phs ,max))
                    ((minusp ,phs)
-                    (setf (done-self) t ,phs +sample-zero+)))
+                    (setf (done-p) t ,phs +sample-zero+)))
              (values))))))
 
 (defmacro select-buffer-interp (interp data phs frames channels size wrap-p
