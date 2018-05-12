@@ -195,8 +195,18 @@ with dynamic extent during BODY."
   "Create new variable bindings to sample values by allocating foreign
 memory with dynamic extent during BODY.
 
-With the exception of the initializations of UGEN or DSP instances,
-WITH-SAMPLES performs the bindings in parallel."
+With the exception of the initializations of VUG, UGEN or DSP instances,
+WITH-SAMPLES performs the bindings in parallel.
+
+Within the definition of a VUG, UGEN or DSP,
+
+    (with-samples ((var0 form0) (var1 form1) ... (varN formN)) ...)
+
+is equivalent to
+
+    (with ((var0 form0) (var1 form1) ... (varN formN))
+      (declare (type sample var0 var1 ... varN))
+      ...)"
   `(%with-samples (,bindings psetf let) ,@body))
 
 (defmacro with-samples* (bindings &body body)

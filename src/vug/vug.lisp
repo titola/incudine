@@ -1084,19 +1084,59 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
 
 ;;; The following functions are just "tags":
 
-(defun tick (&rest forms) forms)
+(defun tick (&rest forms)
+  "Execute FORMS at performance-time. Example:
 
-(defun external-variable (obj) (identity obj))
+    (dsp! tick-test (amp)
+      ;; A normal function is init-time by default.
+      (out (* amp (1- (tick (random (sample 2)))))))"
+  forms)
 
-(defun update (obj) (identity obj))
+(defun external-variable (name)
+  "Return the variable NAME defined out of the scope of a macro or
+VUG-MACRO expansion."
+  (identity name))
 
-(defun init-only (&rest forms) forms)
+(defun update (var)
+  "Update the value of the variable VAR by evaluating the form
+associated in WITH binding.
 
-(defun initialize (&rest forms) forms)
+Example:
+
+    (dsp! update-test ()
+      (with-samples ((rnd (1- (tick (random (sample 2))))))
+        (out
+          ;; A performance-time variable is updated when it occurs the
+          ;; first time within the body of a definition.
+          rnd
+          ;; Update again.
+          (update rnd))))"
+  (identity var))
+
+(defun init-only (&rest forms)
+  "Form associated with a variable in WITH binding to ensure an
+initialization-time variable when FORMS is performance-time."
+  forms)
+
+(defun initialize (&rest forms)
+  "Used within the definition of a VUG, UGEN or DSP to specify the
+FORMS to evaluate at initialization-time."
+  forms)
 
 (defmacro %with-follow (parameters &body body) parameters body)
 
-(defmacro without-follow (parameters &body body) parameters body)
+(defmacro without-follow (parameters &body body)
+  "Form associated with a variable in WITH binding to remove the
+dependence on some PARAMETERS.
+
+Example:
+
+    (dsp! without-follow-test (freq amp)
+      (with-samples ((g (without-follow (amp)
+                          (setf amp (sample (if (< freq 500) .5 .2))))))
+        ;; G is updated only if the control parameter FREQ changes.
+        (out (sine freq g 0))))"
+  parameters body)
 
 (defun vug-input (arg)
   "Used within the body of DEFINE-VUG-MACRO to declare and return the VUG
@@ -1106,6 +1146,10 @@ input ARG (not all macro arguments are necessarily control parameters)."
 (defun store-ugen-return-value (form) form)
 
 (defmacro foreach-frame (&body body)
+  "Used within the definition of a VUG, UGEN or DSP to iterate over
+the number of frames with CURRENT-FRAME, CURRENT-INPUT-SAMPLE and
+CURRENT-SAMPLE bound to each frame, input-sample and output-sample,
+respectively."
   `(progn ,@body))
 
 (defmacro set-local-io-pointer (ptr-var value)
@@ -1116,11 +1160,21 @@ input ARG (not all macro arguments are necessarily control parameters)."
 
 ;;; End of the "tags".
 
-;;; MAYBE-EXPAND is used inside the definition of a VUG, when the
-;;; expansion of one or more performance-time variables is to inhibit
-;;; after a particular point of the code (i.e. loop or condition). It
-;;; avoids the obscure isolated vug-variables in the body of a VUG.
-(defmacro maybe-expand (&body body) `(progn ,@body))
+;;; Avoid the obscure isolated vug-variables.
+(defmacro maybe-expand (&body body)
+  "Used within the definition of a VUG, UGEN or DSP, to update the
+variables in BODY if necessary, and inhibit the expansion of one
+or more performance-time variables after a particular point of the
+code (i.e. loop or condition).
+
+Example:
+
+    (dsp! maybe-expand-test ((rain-p boolean))
+      (with-samples ((s (performance-time-humidity)))
+        (maybe-expand s)
+        (out (if rain-p s (* s 0.15)))))
+"
+  `(progn ,@body))
 
 (defun maybe-transform-macro (name def)
   (macroexpand-1
@@ -1959,6 +2013,32 @@ from the other packages."
   (mapcar (lambda (x) (if (consp x) (cadr x) 'sample)) args))
 
 (defmacro with (bindings &body body)
+  "Create new variable bindings within the definition of a VUG, UGEN
+or DSP.
+
+The bindings are performed sequentially.
+
+If the form associated with a variable includes one or more control
+parameters, that variable is updated during the performance-function
+if some of these control parameters change. See WITHOUT-FOLLOW to
+remove some dependences.
+
+Declarations may appear at the beginning of the BODY. WITH also accepts
+the following DECLARE expressions:
+
+    (performance-time var*)
+    (preserve var*)
+
+A variable is performance-time if its value changes during the
+execution of the performance-function. A variable is performance-time
+by default if its value is changed by using SETF, SETQ, INCF, DECF,
+PSETF or PSETQ.
+
+VUG, VUG-MACRO and UGEN are always performance-time.
+
+If there are redundant variables, they are removed during the compilation.
+The declaration PRESERVE avoids that simplification and it is generally
+useful for debugging purposes."
   `(let* ,bindings ,@body))
 
 (defmacro %with-samples (bindings &body body)
@@ -2009,13 +2089,22 @@ where VALUE is a VUG input."
   "Explicitally define the dependence on some PARAMETERS.
 
 If WITH-FOLLOW is within a INITIALIZE construct, the code is expanded
-at init-time and updated after the change of the 'followed' PARAMETERS.
+at initialization-time and updated after the change of the 'followed'
+PARAMETERS.
 
 If WITH-FOLLOW is within the body of a VUG/UGEN/DSP, the code is
 evaluated only after the change of the 'followed' PARAMETERS.
 
 If there is a binding between a VUG-VARIABLE and WITH-FOLLOW, the
-variable is updated after the change of the 'followed' PARAMETERS."
+variable is updated after the change of the 'followed' PARAMETERS.
+
+Example:
+
+    (dsp! with-follow-test (freq amp)
+      (with-follow (freq)
+        (setf amp (sample (if (< freq 500) .5 .2))))
+      ;; AMP is updated if FREQ changes.
+      (out (sine freq amp 0)))"
   `(make-temporary-binding (%with-follow ,parameters ,@body)))
 
 (defun expand-vuglet-def (def)

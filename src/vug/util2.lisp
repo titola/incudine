@@ -17,16 +17,16 @@
 (in-package :incudine.vug)
 
 (defmacro done-action (action)
+  "Apply the function ACTION to the DSP node."
   `(funcall ,action (dsp-node)))
 
 (defmacro done-p ()
+  "Whether the DSP finished playing."
   `(incudine::node-done-p (dsp-node)))
 
 (defmacro free-self ()
+  "Free the DSP node."
   `(incudine:free (dsp-node)))
-
-(defmacro free-self-when-done ()
-  `(when (done-p) (free-self)))
 
 ;;;  +--------------------------------+
 ;;;  |   Header of a foreign array    |
@@ -182,16 +182,19 @@
                                    value)))
        (values ,frm ,size)))))
 
-;;; Calc only one time during a tick
-(defmacro foreach-tick (&body body)
+(defmacro foreach-tick (&body forms)
+  "Execute FORMS once at current time."
   (with-gensyms (old-time)
     `(with-samples ((,old-time -1.0d0))
        (unless (= (now) ,old-time)
          (setf ,old-time (now))
-         ,@body)
+         ,@forms)
        (values))))
 
 (defmacro foreach-channel (&body body)
+  "Used within the definition of a VUG, UGEN or DSP to iterate over
+the number of output channels with CURRENT-CHANNEL bound to each
+number of channel."
   (with-gensyms (i)
     `(dochannels (,i *number-of-output-bus-channels*)
        (let ((current-channel ,i))

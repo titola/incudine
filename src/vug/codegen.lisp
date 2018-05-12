@@ -612,13 +612,14 @@
                   variables)
        ,@body)))
 
-;;; Retrieve the pointer to a slot of a foreign array.
-(defmacro get-pointer (foreign-variable &environment env)
+(defmacro get-pointer (variable &environment env)
+  "Used within the body of WITH to retrieve the foreign pointer to the
+value of a bound VARIABLE of type SAMPLE, POINTER or foreign array."
   (destructuring-bind (ptr type count)
-      ;; FOREIGN-VARIABLE is defined by WITH-FOREIGN-SYMBOLS, so we
-      ;; can use the list (mem-aref ptr type count) to get the needed
+      ;; VARIABLE is defined by WITH-FOREIGN-SYMBOLS, so we can use
+      ;; the list (mem-aref ptr type count) to get the needed
       ;; informations about the pointer.
-      (cdr (macroexpand-1 foreign-variable env))
+      (cdr (macroexpand-1 variable env))
     `(inc-pointer ,ptr (the non-negative-fixnum
                             (* ,count
                                (the non-negative-fixnum
@@ -861,7 +862,9 @@
                           (values (dsp-init-function ,dsp)
                                   (dsp-perf-function ,dsp)))))))))))))
 
-(defun dsp-node () *dsp-node*)
+(defun dsp-node ()
+  "Return the DSP node."
+  *dsp-node*)
 
 (declaim (inline update-free-hook))
 (defun update-free-hook (node hook)
