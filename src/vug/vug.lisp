@@ -1226,6 +1226,12 @@ Example:
             :inputs (list (list ,@(cadr def)) ,@(parse-vug-def (cddr def)))))
         ((eq name 'dsp-node)
          `(make-vug-symbol :name '%dsp-node%))
+        ((eq name 'done-p)
+         `(make-vug-function :name 'incudine::node-done-p
+                             :inputs (list '%dsp-node%)))
+        ((eq name 'free-self)
+         `(make-vug-function :name 'incudine:free
+                             :inputs (list '%dsp-node%)))
         ((quote-function-p def)
          (let ((fn (cadr def)))
            (if (and (consp fn) (not (eq (car fn) 'setf)))
