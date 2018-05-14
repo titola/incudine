@@ -317,7 +317,7 @@ Return the cons cell to the cons POOL."
 (defun foreign-rt-alloc (type &key zero-p initial-element initial-contents
                          (count 1 count-p))
   "Allocate enough memory to hold COUNT objects of type TYPE. If
-ZEROP is T, the memory is initialized with zeros. If INITIAL-ELEMENT
+ZERO-P is T, the memory is initialized with zeros. If INITIAL-ELEMENT
 is supplied, each element of the newly allocated memory is initialized
 with its value. If INITIAL-CONTENTS is supplied, each of its elements
 will be used to initialize the contents of the newly allocated memory.
@@ -373,7 +373,7 @@ This function has to be called from the real-time thread."
 (defun foreign-rt-realloc (ptr type &key zero-p initial-element initial-contents
                            (count 1 count-p))
   "Change the size of the memory block pointed to by ptr to hold COUNT
-objects of type TYPE. If ZEROP is T, the memory is initialized with zeros.
+objects of type TYPE. If ZERO-P is T, the memory is initialized with zeros.
 If INITIAL-ELEMENT is supplied, each element of the newly reallocated
 memory is initialized with its value. If INITIAL-CONTENTS is supplied,
 each of its elements will be used to initialize the contents of the newly
@@ -445,7 +445,7 @@ This function has to be called from the real-time thread."
 (defun foreign-realloc (ptr type &key zero-p initial-element initial-contents
                         (count 1 count-p))
   "Change the size of the memory block pointed to by ptr to hold COUNT
-objects of type TYPE. If ZEROP is T, the memory is initialized with zeros.
+objects of type TYPE. If ZERO-P is T, the memory is initialized with zeros.
 If INITIAL-ELEMENT is supplied, each element of the newly reallocated
 memory is initialized with its value. If INITIAL-CONTENTS is supplied,
 each of its elements will be used to initialize the contents of the newly
@@ -486,7 +486,7 @@ reallocated memory."
 (defun foreign-nrt-alloc (type &key zero-p initial-element initial-contents
                           (count 1 count-p))
   "Allocate enough memory to hold COUNT objects of type TYPE. If
-ZEROP is T, the memory is initialized with zeros. If INITIAL-ELEMENT
+ZERO-P is T, the memory is initialized with zeros. If INITIAL-ELEMENT
 is supplied, each element of the newly allocated memory is initialized
 with its value. If INITIAL-CONTENTS is supplied, each of its elements
 will be used to initialize the contents of the newly allocated memory."
