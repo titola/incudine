@@ -359,7 +359,8 @@ TARGET defaults to *ROOT-NODE*."
   (declare (type (or node fixnum) obj) (type real value))
   (rt-eval ()
     (setf (smp-ref (node-gain-data (if (node-p obj) obj (node obj))) 0)
-          (sample value)))
+          (sample value))
+    (values))
   value)
 
 (defsetf node-gain set-node-gain)
@@ -374,7 +375,8 @@ TARGET defaults to *ROOT-NODE*."
   (declare (type (or node fixnum) obj) (type real value))
   (rt-eval ()
     (setf (smp-ref (node-gain-data (if (node-p obj) obj (node obj))) 9)
-          (sample value)))
+          (sample value))
+    (values))
   value)
 
 (defsetf node-fade-time set-node-fade-time)
@@ -391,7 +393,8 @@ the node output. Setfable."
   (declare (type (or node fixnum) obj))
   (rt-eval ()
     (setf (smp-ref (node-gain-data (if (node-p obj) obj (node obj))) 3)
-          (seg-function-spec->sample value)))
+          (seg-function-spec->sample value))
+    (values))
   value)
 
 (defsetf node-fade-curve set-node-fade-curve)

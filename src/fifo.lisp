@@ -277,8 +277,7 @@ See also FAST-NRT-FUNCALL."
   "Evaluate FORM in real-time thread.
 
 If RETURN-VALUE-P is T, return the results of FORM."
-  `(%rt-eval (lambda () ,@form ,@(and (not return-value-p) '(nil)))
-             ,return-value-p))
+  `(%rt-eval (lambda () ,@form) ,return-value-p))
 
 (declaim (inline exit))
 (defun exit (&optional (code 0))

@@ -466,7 +466,9 @@ port-name of the stream to close."
   "Write SIZE bytes of a MIDI message encoded into four bytes."
   (declare (type output-stream stream) (type (unsigned-byte 32) message)
            (type positive-fixnum size))
-  (rt-eval () (foreign-write-short stream message size)))
+  (rt-eval ()
+    (foreign-write-short stream message size)
+    (values)))
 
 ;;; WRITE
 ;;;
@@ -496,9 +498,11 @@ port-name of the stream to close."
   (let ((end (or end (length data))))
     (declare (type non-negative-fixnum end))
     (unless (or (>= start end) (> end (length data)))
-      (rt-eval () (cffi:with-pointer-to-vector-data (ptr data)
-                    (foreign-write stream (cffi:inc-pointer ptr start)
-                                   (- end start)))))))
+      (rt-eval ()
+        (cffi:with-pointer-to-vector-data (ptr data)
+          (foreign-write stream (cffi:inc-pointer ptr start)
+                         (- end start)))
+        (values)))))
 
 ;;; READ
 ;;;

@@ -59,7 +59,9 @@ to a MIDI output STREAM."
 (defun midi-write-sysex (stream msg-ptr size)
   (if (pm:output-stream-p stream)
       (portmidi-write-sysex stream msg-ptr)
-      (rt-eval () (jackmidi:foreign-write stream msg-ptr size)))
+      (rt-eval ()
+        (jackmidi:foreign-write stream msg-ptr size)
+        (values)))
   stream)
 
 (defun sysex-sequence->foreign-array (seq &optional (dynamic-finalizer-p t))
