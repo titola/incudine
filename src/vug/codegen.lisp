@@ -1215,7 +1215,8 @@ The default is T.")
                  ,node-id ',name ,add-action ,target ,action ,fade-time
                  ,fade-curve))
              (nrt-msg debug "node ~D ~{~A ~}" ,node-id
-                      (list ,@(loop for i in arg-names append `(',i ,i))))))))))
+                      (list ,@(loop for i in arg-names append `(',i ,i))))
+             ,node))))))
 
 (defmacro maybe-update-dsp-instances (dsp-name arg-names)
   `(when *update-dsp-instances-p*
@@ -1329,8 +1330,7 @@ Return the auxiliary function NAME."
                              (type list stop-hook free-hook))
                     ,@(and doc `(,doc))
                     (enqueue-dsp-node ,name ,arg-names ,dsp-arg-bindings
-                                      ,get-function ,@keywords)
-                    (values))
+                                      ,get-function ,@keywords))
                   (compile ',name)
                   (maybe-update-dsp-instances ,name ,arg-names)
                   #',name)))))))

@@ -724,7 +724,8 @@ curve returned by NODE-FADE-CURVE."
                   name function init-args fade-time fade-curve)
     (unless (eq add-action :replace)
       (nrt-msg info "new node ~D" id))
-    (when action (funcall action node))))
+    (when action (funcall action node))
+    node))
 
 (defmacro get-add-action-and-target (&rest keywords)
   `(cond ,@(mapcar (lambda (x) `(,x (values ,(make-keyword x) ,x)))

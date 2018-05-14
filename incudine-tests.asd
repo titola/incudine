@@ -72,6 +72,7 @@
      (:file "vug/shadow-local-functions" :depends-on ("vug/base"))
      (:file "vug/ugen-reinit" :depends-on ("vug/ugen-base"))
      (:file "vug/free-hook" :depends-on ("vug/ugen-base"))
+     (:file "vug/dsp-from-dsp" :depends-on ("vug/base"))
      (:file "vug/recursion" :depends-on ("vug/base"))
      (:file "vug/node-out" :depends-on ("vug/base"))
      (:file "vug/delay/delay-1" :depends-on ("vug/base"))
