@@ -676,4 +676,4 @@
                                           most-positive-sample))
                       :wrap-p loop-p :interpolation :cubic)
     (when (done-p)
-      (done-action done-action))))
+      (funcall done-action (dsp-node)))))

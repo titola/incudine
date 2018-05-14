@@ -49,7 +49,7 @@
     (if done-p
         value
         (cond ((<= remain 1)
-               (done-action done-action)
+               (funcall done-action (dsp-node))
                (setf done-p t)
                value)
               (t (decf remain)
@@ -73,7 +73,7 @@
     (if done-p
         value
         (cond ((<= remain 1)
-               (done-action done-action)
+               (funcall done-action (dsp-node))
                (setf done-p t)
                value)
               (t (decf remain)
@@ -310,7 +310,7 @@
                         index (+ index 2)
                         level last-level)
                   (unless done-p
-                    (done-action done-action)
+                    (funcall done-action (dsp-node))
                     (setf done-p t)))))
       ;; Expand if GATE is modulated.
       (maybe-expand level)
@@ -318,7 +318,7 @@
             ((<= remain 1)
              ;; End of segment.
              (cond ((envelope-end-of-data-p (incf index) data-size)
-                    (done-action done-action)
+                    (funcall done-action (dsp-node))
                     (values (setf done-p t carry +sample-zero+ last-level end)
                             pos))
                    (t (incf curr-node)

@@ -257,7 +257,7 @@
    #:out #:frame-out #:cout #:node-out
    #:dsp-node
    #:lin->lin #:lin->exp
-   #:done-action #:done-p #:free-self
+   #:done-p #:free-self
    #:clip #:nclip #:wrap #:nwrap #:mirror #:nmirror
    ;; buffer
    #:buffer-read #:buffer-write #:buffer-frame #:buffer-play

@@ -16,10 +16,6 @@
 
 (in-package :incudine.vug)
 
-(defmacro done-action (action)
-  "Apply the function ACTION to the DSP node."
-  `(funcall ,action (dsp-node)))
-
 (defmacro done-p ()
   "Whether the DSP finished playing."
   `(incudine::node-done-p (dsp-node)))
@@ -215,7 +211,7 @@ number of channel."
                       (setf index
                             (cond ((< index end) (+ index step))
                                   (loop-p start)
-                                  (t (done-action done-action)
+                                  (t (funcall done-action (dsp-node))
                                      (setf done-p t)
                                      index))))))))
        (,counter ,start ,end ,step ,loop-p ,(or done-action '#'identity)))))
