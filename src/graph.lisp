@@ -348,19 +348,17 @@ TARGET defaults to *ROOT-NODE*."
         +sample-zero+
         (- (now) (node-start-time n)))))
 
+(declaim (inline node-gain))
 (defun node-gain (obj)
   "Return the current value of the node-gain. Setfable."
   (declare (type (or node fixnum) obj))
-  (incudine.util::truly-the sample
-    (rt-eval (:return-value-p t)
-      (smp-ref (node-gain-data (if (node-p obj) obj (node obj))) 0))))
+  (smp-ref (node-gain-data (if (node-p obj) obj (node obj)))))
 
+(declaim (inline set-node-gain))
 (defun set-node-gain (obj value)
   (declare (type (or node fixnum) obj) (type real value))
-  (rt-eval ()
-    (setf (smp-ref (node-gain-data (if (node-p obj) obj (node obj))) 0)
-          (sample value))
-    (values))
+  (setf (smp-ref (node-gain-data (if (node-p obj) obj (node obj))))
+        (sample value))
   value)
 
 (defsetf node-gain set-node-gain)
@@ -467,7 +465,7 @@ curve returned by NODE-FADE-CURVE."
   (let ((obj (if (node-p obj) obj (node obj))))
     (cond ((null-node-p obj) obj)
           (t
-           (setf (node-gain obj) +sample-zero+)
+           (rt-eval () (setf (node-gain obj) +sample-zero+))
            (node-segment obj (sample 1) (or duration (node-fade-time obj))
                          +sample-zero+ (or curve (node-fade-curve obj))
                          #'identity)))))
