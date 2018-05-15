@@ -1351,6 +1351,21 @@ the node OBJ."
   (declare (type (or non-negative-fixnum node) obj))
   (rt-eval (:return-value-p t) (control-value obj :%control-names%)))
 
+(declaim (inline done-p))
+(defun done-p (&optional (node (vug:dsp-node)))
+  "Whether the DSP related to NODE finished playing. Setfable.
+
+NODE defaults to VUG:DSP-NODE."
+  (incudine::node-done-p node))
+
+(declaim (inline set-done-p))
+(defun set-done-p (node bool)
+  (declare (type boolean bool))
+  (setf (incudine::node-done-p node) bool))
+
+(defsetf done-p (&optional (node (vug:dsp-node))) (bool)
+  (set-done-p node bool))
+
 (declaim (inline node-init-parse-args))
 (defun node-init-parse-args (node)
   (the function (car (node-init-args node))))

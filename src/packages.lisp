@@ -257,7 +257,7 @@
    #:out #:frame-out #:cout #:node-out
    #:dsp-node
    #:lin->lin #:lin->exp
-   #:done-p #:free-self
+   #:free-self
    #:clip #:nclip #:wrap #:nwrap #:mirror #:nmirror
    ;; buffer
    #:buffer-read #:buffer-write #:buffer-frame #:buffer-play
@@ -424,7 +424,7 @@
    #:node-enable-gain-p #:*node-enable-gain-p* #:node-fade-time
    #:node-fade-curve #:node-fade-in #:node-fade-out
    #:pause #:unpause #:pause-p #:move #:before-p #:after-p #:head-p #:tail-p
-   #:node-free-all #:stop-hook #:free-hook #:dograph #:dogroup #:dump
+   #:done-p #:node-free-all #:stop-hook #:free-hook #:dograph #:dogroup #:dump
    #:set-control #:set-controls #:control-value #:control-getter
    #:control-setter #:control-list #:control-names
    #:reinit

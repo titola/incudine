@@ -46,6 +46,7 @@
      incudine::make-foreign-array
      incudine::foreign-array-data
      incudine::node-controls
+     incudine:done-p
      incudine.util::declare-form-p
      incudine.util::separate-declaration
      incudine.util::force-sample-format

@@ -11,6 +11,17 @@
     (cout (* (the sample (node-gain (dsp-node)))
              (pan2 (sine freq amp 0) pos)))))
 
+(dsp! done-test-1 (end dur)
+  (setf (node-gain (dsp-node))
+        (expon 0 end dur (lambda (n) (setf (done-p n) t)))))
+
+(dsp! done-test-2 (amp fade-time)
+  (with ((node nil))
+    (declare (type (or node null) node))
+    (initialize
+      (setf node (reduce-warnings (done-test-1 amp fade-time))))
+    (out (sine 440 (tick (if (done-p node) amp (node-gain node))) 0))))
+
 (with-dsp-test (node-out.1 :channels 2
       :md5 #(122 192 115 127 47 7 39 111 86 25 115 36 107 224 247 78))
   (node-out-test-1 440 .5 .2 :id 123 :fade-time 0.8 :fade-curve 4)
@@ -29,3 +40,7 @@
   (at #[3.8 sec] #'node-out-test-2 660 .2 .5 :replace 123 :fade-time .4
       :free-hook (list (lambda (n) n (assert (null *node-enable-gain-p*)))))
   (at #[4.5 sec] #'node-fade-out 123 .5 -4))
+
+(with-dsp-test (node-out.3
+      :md5 #(121 245 161 46 3 6 184 211 61 5 49 105 211 233 63 130))
+  (done-test-2 .7 3))

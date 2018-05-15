@@ -233,6 +233,6 @@
 
 (incudine::deprecated-macro
    (done-self () `(done-p))
-   :replacement incudine.vug:done-p
+   :replacement incudine:done-p
    :date 20180512
    :package "INCUDINE.VUG")

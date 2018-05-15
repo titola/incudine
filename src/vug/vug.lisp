@@ -1228,7 +1228,10 @@ Example:
          `(make-vug-symbol :name '%dsp-node%))
         ((eq name 'done-p)
          `(make-vug-function :name 'incudine::node-done-p
-                             :inputs (list '%dsp-node%)))
+            :inputs (list ,(if (cadr def)
+                               (parse-vug-def
+                                 (cadr def) nil flist mlist floop-info)
+                               ''%dsp-node%))))
         ((eq name 'free-self)
          `(make-vug-function :name 'incudine:free
                              :inputs (list '%dsp-node%)))

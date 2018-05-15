@@ -16,18 +16,6 @@
 
 (in-package :incudine.vug)
 
-(declaim (inline done-p))
-(defun done-p ()
-  "Whether the DSP finished playing. Setfable."
-  (incudine::node-done-p (dsp-node)))
-
-(declaim (inline set-done-p))
-(defun set-done-p (bool)
-  (declare (type boolean bool))
-  (setf (incudine::node-done-p (dsp-node)) bool))
-
-(defsetf done-p set-done-p)
-
 (defun free-self ()
   "Free the DSP node."
   (incudine:free (dsp-node)))
