@@ -9,6 +9,12 @@
                           :loop-node -1 :release-node -1))
          *test-hook*)
 
+(dsp! ramp-test-1 (start end dur)
+  (out (* (line start end dur #'identity) (noise-test 1))))
+
+(dsp! expon-test-1 (start end dur)
+  (out (* (expon start end dur #'identity) (noise-test 1))))
+
 (dsp! vug-envelope-test ((env envelope) gain gate dur)
   (out (* (db->lin gain) (envelope env gate dur #'free))))
 
@@ -133,3 +139,17 @@
 (with-ugen-test (ugen-breakpoint-env.2)
     (ugen-breakpoint-env-test '(0 0 1 100 2 0) 13)
   (0 17 33 50 67 83 100 83 67 50 33 17 0))
+
+(with-dsp-test (ramp-test.1
+      :md5 #(255 169 119 69 127 35 240 42 227 232 100 47 39 238 159 41))
+  (ramp-test-1 0 1 1.5)
+  (at #[2 s] #'set-controls 1 :end 0 :dur 1.2)
+  (at #[3.4 s] #'set-controls 1 :end .8 :dur .3)
+  (at #[4 s] #'set-controls 1 :start 0 :end 1 :dur .5))
+
+(with-dsp-test (expon-test.1
+      :md5 #(3 14 6 50 1 201 11 118 113 59 91 237 74 33 189 175))
+  (expon-test-1 0 1 1.5)
+  (at #[2 s] #'set-controls 1 :end 0 :dur 1.2)
+  (at #[3.4 s] #'set-controls 1 :end .8 :dur .3)
+  (at #[4 s] #'set-controls 1 :start 0 :end 1 :dur .5))

@@ -28,7 +28,7 @@
   (at #[4 s] #'set-controls 1 :res .8 :index 4))   ; peaking
 
 (with-dsp-test (svf.2
-      :md5 #(59 243 243 143 216 220 155 54 81 56 31 100 195 188 91 178))
+      :md5 #(198 221 141 213 234 65 62 142 111 238 204 151 104 126 107 32))
   (svf-test-2 100 8000 1 .8 0 0 :id 1)
   (at #[1 s] #'set-controls 1 :f1 100 :dur 1 :index 1)
   (at #[1.5 s] #'set-control 1 :drive .09)

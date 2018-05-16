@@ -34,6 +34,20 @@
 ;;; Simple segments
 
 (define-vug line (start end dur (done-action function))
+  "Linear ramp from START to END in DUR seconds.
+
+If the control parameter DUR is changed, start a new ramp from the new
+START, or current level, to the new END. Example:
+
+    (dsp! ramp-test (start end dur)
+      (out (* (line start end dur #'identity) (white-noise 1))))
+
+    (ramp-test 0 1 3)
+    (set-controls 1 :end 0 :dur 2)
+    (set-controls 1 :end .5 :dur .3)
+    (set-controls 1 :start 0 :end 1 :dur .5)
+
+The function DONE-ACTION is called at the end of the ramp."
   (with ((done-p nil)
          (samples (max 1 (sample->fixnum (* dur *sample-rate*))))
          (remain samples)
@@ -46,16 +60,22 @@
                              (/ (- end value) samples)))))
     (declare (type sample value slope) (type boolean done-p)
              (type non-negative-fixnum samples remain))
-    (if done-p
-        value
-        (cond ((<= remain 1)
-               (funcall done-action (dsp-node))
-               (setf done-p t)
-               value)
-              (t (decf remain)
-                 (incf value slope))))))
+    (cond (done-p value)
+          (t (cond ((<= remain 1)
+                    (funcall done-action (dsp-node))
+                    (setf done-p t))
+                   (t (decf remain)))
+             (incf value slope)))))
 
 (define-vug expon (start end dur (done-action function))
+  "Exponential curve from START to END in DUR seconds.
+
+If START is 0, it is reset to 0.00001.
+
+If the control parameter DUR is changed, start a new curve from the
+new START, or current level, to the new END.
+
+The function DONE-ACTION is called at the end of the curve."
   (with ((done-p nil)
          (samples (max 1 (sample->fixnum (* dur *sample-rate*))))
          (remain samples)
@@ -66,18 +86,17 @@
                   (init-only (when done-p
                                ;; Restart
                                (setf done-p nil))
-                             (expt (the non-negative-sample (/ end value))
+                             (expt (the non-negative-sample
+                                     (/ (if (zerop end) 1d-5 end) value))
                                    (/ (sample samples)))))))
     (declare (type sample %start value power) (type boolean done-p)
              (type non-negative-fixnum samples remain))
-    (if done-p
-        value
-        (cond ((<= remain 1)
-               (funcall done-action (dsp-node))
-               (setf done-p t)
-               value)
-              (t (decf remain)
-                 (setf value (* value power)))))))
+    (cond (done-p value)
+          (t (cond ((<= remain 1)
+                    (funcall done-action (dsp-node))
+                    (setf done-p t))
+                   (t (decf remain)))
+             (setf value (* value power))))))
 
 ;;; Envelope Generator inspired by EnvGen of SuperCollider
 

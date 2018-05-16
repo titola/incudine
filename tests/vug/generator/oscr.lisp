@@ -34,9 +34,9 @@
         do (at time #'set-controls 123 :index index :amp (- amp))))
 
 (with-dsp-test (vug-oscr.fm.am.1 :channels 2
-      :md5 #(174 95 76 86 49 17 101 188 200 1 225 170 161 136 209 23))
+      :md5 #(133 28 27 209 143 93 58 21 248 68 237 12 87 60 191 207))
   (vug-oscr-test-3 50 4000 .35 1 400 +vug-test-duration-sec+))
 
 (with-dsp-test (vug-oscr.fm.am.2 :channels 2
-      :md5 #(42 85 169 236 127 134 21 182 181 128 4 52 145 198 58 45))
+      :md5 #(94 189 121 32 90 227 220 24 186 129 36 121 138 140 231 91))
   (vug-oscr-test-4 50 4000 .35 1 400 +vug-test-duration-sec+))
