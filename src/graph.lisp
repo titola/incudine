@@ -1531,6 +1531,17 @@ arguments ARGS."
        ,@body)))
 
 (defun node-segment (obj end dur &optional start curve (done-action #'identity))
+  "Change the node-gain of OBJ from START to END in DUR seconds.
+
+OBJ is a NODE structure or the integer identifier of the node.
+
+START defaults to the current level.
+
+The fade CURVE is the curve of an ENVELOPE structure or NIL to use the
+curve returned by NODE-FADE-CURVE.
+
+The function DONE-ACTION, #'IDENTITY by default, is called when the
+DSP finished playing."
   (let ((obj (if (node-p obj) obj (node obj))))
     (declare #.*standard-optimize-settings* #.*reduce-warnings*)
     (cond ((null-node-p obj) obj)

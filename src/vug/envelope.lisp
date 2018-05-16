@@ -42,6 +42,7 @@ START, or current level, to the new END. Example:
     (dsp! ramp-test (start end dur)
       (out (* (line start end dur #'identity) (white-noise 1))))
 
+    (rt-start)
     (ramp-test 0 1 3)
     (set-controls 1 :end 0 :dur 2)
     (set-controls 1 :end .5 :dur .3)
@@ -70,7 +71,7 @@ The function DONE-ACTION is called at the end of the ramp."
 (define-vug expon (start end dur (done-action function))
   "Exponential curve from START to END in DUR seconds.
 
-If START is 0, it is reset to 0.00001.
+If START or END is 0, it is reset to 0.00001.
 
 If the control parameter DUR is changed, start a new curve from the
 new START, or current level, to the new END.
@@ -180,6 +181,25 @@ The function DONE-ACTION is called at the end of the curve."
 
 (define-vug envelope ((env envelope) gate time-scale (done-action function)
                       (location non-negative-fixnum))
+  "Play back the curves of the envelope ENV.
+
+GATE is one of:
+
+                0   start the release phase
+               -1   immediate cutoff
+    minor than -1   release stage with a custom duration -1 minus GATE
+
+The envelope is re-triggered if the difference between the gate of the
+current audio cycle and the gate of the previous audio cycle is a
+positive value.
+
+GATE and TIME-SCALE default to 1.
+
+The function DONE-ACTION, #'IDENTITY by default, is called at the end
+of the envelope.
+
+LOCATION, 0 by default, is the current position in samples (an integer)
+of the envelope."
   (:defaults (incudine-missing-arg "Missing ENVELOPE struct.") 1 1 #'identity 0)
   (with-samples (last-level end (curve incudine::+seg-lin-func+)
                  grow a2 b1 y1 y2 old-gate)

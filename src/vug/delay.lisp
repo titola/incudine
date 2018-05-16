@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -38,7 +38,8 @@
 (define-vug buf-delay-s ((buffer buffer) in
                          (delay-samples non-negative-fixnum))
   "Buffer based delay line with delay time in samples.
-e all the BUFFER memory if the BUFFER size is a power of two."
+
+Use all the BUFFER memory if the BUFFER size is a power of two."
   (with ((ringbuf (buffer-data buffer))
          (mask (buffer-mask buffer)))
     (declare (type foreign-pointer ringbuf) (type non-negative-fixnum mask))
@@ -47,7 +48,8 @@ e all the BUFFER memory if the BUFFER size is a power of two."
 
 (define-vug buf-delay ((buffer buffer) in delay-time)
   "Buffer based delay line with DELAY-TIME in seconds.
-e all the BUFFER memory if the BUFFER size is a power of two."
+
+Use all the BUFFER memory if the BUFFER size is a power of two."
   (buf-delay-s buffer in (sample->fixnum (* delay-time *sample-rate*))))
 
 (define-vug delay-s (in (max-delay-samples positive-fixnum)
@@ -85,7 +87,9 @@ e all the BUFFER memory if the BUFFER size is a power of two."
 
 (define-vug-macro vdelay (in max-delay-time delay-time
                           &optional (interpolation :linear))
-  "Delay line with INTERPOLATION and DELAY-TIME in seconds."
+  "Delay line with INTERPOLATION and DELAY-TIME in seconds.
+
+INTERPOLATION is one of :LINEAR (default), :CUBIC or NIL."
   (with-gensyms (vdelay)
     `(vuglet ((,vdelay (in max-delay-time delay-time)
                 (with ((size (next-power-of-two
@@ -108,8 +112,10 @@ e all the BUFFER memory if the BUFFER size is a power of two."
 (define-vug-macro buf-vdelay (buffer in delay-time
                               &optional (interpolation :linear) write-head-var)
   "Buffer based delay line with INTERPOLATION and DELAY-TIME in seconds.
-If WRITE-HEAD-VAR is not NIL, it is the name of the variable used as
+
+If WRITE-HEAD-VAR is non-NIL, it is the name of the variable used as
 write head.
+
 Use all the BUFFER memory if the BUFFER size is a power of two."
   (with-gensyms (buf-vdelay)
     `(vuglet ((,buf-vdelay ((buf buffer) in delay-time)
@@ -130,8 +136,10 @@ Use all the BUFFER memory if the BUFFER size is a power of two."
 
 (define-vug-macro vtap (buffer delay-time write-head-var
                         &optional interpolation)
-  "Taps a buffer based delay line with INTERPOLATION at DELAY-TIME seconds.
+  "Tap a buffer based delay line with INTERPOLATION at DELAY-TIME seconds.
+
 WRITE-HEAD-VAR is the name of the variable used as write head.
+
 Use all the BUFFER memory if the BUFFER size is a power of two."
   (with-gensyms (vtap read-head)
     `(vuglet ((,vtap ((buf buffer) delay-time)
@@ -150,6 +158,8 @@ Use all the BUFFER memory if the BUFFER size is a power of two."
 
 (declaim (inline delay-feedback))
 (defun delay-feedback (delay-time decay-time)
+  "Feedback coefficient for a feed back comb filter with DELAY-TIME
+and DECAY-TIME."
   (cond ((zerop decay-time) +sample-zero+)
         ((plusp decay-time)
          (exp (/ (* +log001+ delay-time) decay-time)))

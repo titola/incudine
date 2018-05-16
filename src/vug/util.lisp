@@ -78,6 +78,7 @@
     num-zeros))
 
 (defmacro samples-zero (&rest sample-vars)
+  "Zero the variables SAMPLE-VARS of type SAMPLE."
   `(progn ,@(mapcar (lambda (var) `(setf ,var +sample-zero+)) sample-vars)))
 
 (defmacro vug-format-symbol (control &rest args)

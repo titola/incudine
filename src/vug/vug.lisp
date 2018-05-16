@@ -1933,6 +1933,16 @@ or VUGLET to define a local VUG definition. Example:
 The auxiliary macro NAME is used within the body of DEFINE-VUG,
 DEFINE-VUG-MACRO, DEFINE-UGEN or DSP!.
 
+If the first forms in BODY are lists beginning with a keyword, they
+are VUG SPEC's. The keyword indicates the interpretation of the
+other forms in the specification:
+
+    :DEFAULTS default-values
+        Default values for VUG parameter controls.
+
+If the specification :DEFAULTS is defined, all the arguments of the
+auxiliary macro are optional keywords.
+
 Return the new VUG-MACRO structure."
   (if (dsp name)
       (incudine-error "~A was defined to be a DSP." name)

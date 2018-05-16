@@ -24,10 +24,16 @@
             ((minusp phase) (incf phase end))))))
 
 (define-vug phasor (freq init)
+  "Produce a normalized moving phase value with frequency FREQ and
+initial value INIT."
   (with-samples ((rate (* freq *sample-duration*)))
     (%phasor rate init 1)))
 
 (define-vug phasor-loop (rate start-pos loopstart loopend)
+  "Produce a normalized moving phase value with a loop between
+LOOPSTART and LOOPEND, and initial value START-POS.
+
+RATE is the multiply factor of the rate."
   (with-samples ((pos start-pos)
                  (old-pos pos)
                  (loopsize (- loopend loopstart))
@@ -576,24 +582,35 @@
                        (incf cross inc-interp))
                      (if (minusp out) (- amp) amp)))))))
 
-;;; Wavetable lookup oscillator
 (define-vug-macro osc (buffer &optional (freq 440.0) (amp 1.0d0)
                        (phase +sample-zero+) interpolation)
+  "Wavetable lookup oscillator with frequency FREQ, amplitude AMP and PHASE.
+
+FREQ, AMP and PHASE default to 440, 1 and 0 respectively.
+
+INTERPOLATION is one of :LINEAR, :CUBIC or NIL (default)."
   (with-gensyms (osc)
     `(vuglet ((,osc ((buf buffer) freq amp phase)
                 (%osc buf freq amp phase ,(null (constantp phase))
                       ,interpolation)))
        (,osc ,buffer ,freq ,amp ,phase))))
 
-;;; Sine wave oscillator
 (define-vug sine (freq amp phase)
+  "High precision sine wave oscillator with frequency FREQ, amplitude
+AMP and PHASE."
   (* amp (sin (+ (* +twopi+ (phasor freq 0)) phase))))
 
-;;; Pulse wave oscillator
 (define-vug pulse (freq amp width)
+  "Pulse wave oscillator with frequency FREQ, amplitude AMP and WIDTH
+between 0 and 1."
   (if (< (phasor freq 0) width) amp (- amp)))
 
 (define-vug-macro impulse (&optional (freq 0 freq-p) (amp 1) (phase 0))
+  "Impulse oscillator with frequency FREQ, amplitude AMP and PHASE.
+
+If FREQ is not set, play back a single impulse.
+
+Frquency, amplitude and phase default to 0, 1 and 0 respectively."
   (if freq-p
       (with-gensyms (periodic-impulse)
         `(vuglet ((,periodic-impulse (freq amp phase)
@@ -614,26 +631,42 @@
 ;;;   [2] https://ccrma.stanford.edu/~jos/pasp/Normalized_Scattering_Junctions.html
 ;;;
 (define-vug oscrq (freq)
-  "Sinusoidal oscillator based on 2D vector rotation (sine and cosine outputs)."
+  "Sinusoidal oscillator based on 2D vector rotation (sine and cosine outputs)
+with frequency FREQ."
   (nlf2 (impulse) freq 1))
 
 (define-vug oscrs (freq amp)
-  "Sinusoidal oscillator based on 2D vector rotation (sine output)."
+  "Sinusoidal oscillator based on 2D vector rotation (sine output)
+with frequency FREQ and amplitude AMP."
   (* amp (frame-ref (oscrq freq) 0)))
 
 (define-vug oscrc (freq amp)
-  "Sinusoidal oscillator based on 2D vector rotation (cosine output)."
+  "Sinusoidal oscillator based on 2D vector rotation (cosine output)
+with frequency FREQ and amplitude AMP."
   (* amp (frame-ref (oscrq freq) 1)))
 
 (define-vug oscr (freq amp)
-  "Sinusoidal oscillator based on 2D vector rotation (sine output by default)."
+  "Sinusoidal oscillator based on 2D vector rotation (sine output by
+default) with frequency FREQ and amplitude AMP."
   (oscrs freq amp))
 
 ;;; Band limited impulse generator used in Music N languages.
-;;; The output is a set of harmonically related sine partials.
 (define-vug-macro buzz (freq amp num-harm &key (phase +sample-zero+)
                         (table-lookup-p t) buffer (harm-change-lag 0.001d0)
                         (interpolation :linear))
+  "Band limited impulse generator with frequency FREQ, amplitude AMP
+and PHASE. The output is a set of NUM-HARM harmonically related sine
+partials.
+
+PHASE defaults to zero.
+
+If TABLE-LOOKUP-P is T, use the BUFFER with a single cycle sinusoid
+instead of the function SIN. BUFFER defaults to *SINE-TABLE*.
+
+HARM-CHANGE-LAG is the lag-time for the crossfade when the number of
+the harmonics changes.
+
+INTERPOLATION is one of :LINEAR (default), :CUBIC or NIL."
   (if table-lookup-p
       ;; Version with table lookup.
       (with-gensyms (buzz-table-lookup)
@@ -651,6 +684,26 @@
                          &key (phase +sample-zero+) (table-lookup-p t)
                          buffer (harm-change-lag 0.001d0)
                          (interpolation :linear))
+  "Band limited impulse generator with frequency FREQ, amplitude AMP
+and PHASE. The output is a set of NUM-HARM harmonically related sine
+partials.
+
+PHASE defaults to zero.
+
+MUL is a real number and defaults to 1. It specifies the multiplier
+of a power series where
+
+    (* strength-coeff (expt mul n))
+
+is the strength of the partial (+ lowest-harm n).
+
+If TABLE-LOOKUP-P is T, use the BUFFER with a single cycle sinusoid
+instead of the function COS. BUFFER defaults to *COSINE-TABLE*.
+
+HARM-CHANGE-LAG is the lag-time for the crossfade when the number of
+the harmonics changes.
+
+INTERPOLATION is one of :LINEAR (default), :CUBIC or NIL."
   (if table-lookup-p
       ;; Version with table lookup
       (with-gensyms (gbuzz-table-lookup)
@@ -668,12 +721,21 @@
 
 (define-vug buffer-play ((buffer buffer) rate start-pos (loop-p boolean)
                          (done-action function))
-  (prog1 (buffer-read buffer (%phasor (* rate (buffer-sample-rate buffer)
-                                         *sample-duration*)
-                                      start-pos
-                                      (if loop-p
-                                          (sample (buffer-frames buffer))
-                                          most-positive-sample))
-                      :wrap-p loop-p :interpolation :cubic)
+  "Play back the content of the buffer starting from the frame START-POS.
+
+RATE is the multiply factor of the sampling rate of BUFFER. For example,
+1 is the original, 1.5 is a fifth up and 0.5 is an octave down.
+
+If LOOP-P is T, play it back in a loop.
+
+The function DONE-ACTION is called when LOOP-P is NIL and the buffer
+is finished playing."
+  (prog1 (buffer-read buffer
+           (%phasor (* rate (buffer-sample-rate buffer) *sample-duration*)
+                    start-pos
+                    (if loop-p
+                        (sample (buffer-frames buffer))
+                        most-positive-sample))
+           :wrap-p loop-p :interpolation :cubic)
     (when (done-p)
       (funcall done-action (dsp-node)))))

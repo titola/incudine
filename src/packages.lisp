@@ -265,7 +265,7 @@
    #:phasor #:phasor-loop #:osc #:sine #:pulse #:impulse #:buzz #:gbuzz
    #:oscrq #:oscrs #:oscrc #:oscr
    ;; envelope
-   #:line #:expon #:envelope #:node-segment
+   #:line #:expon #:envelope
    ;; noise
    #:white-noise #:pink-noise #:fractal-noise #:crackle
    #:make-random-number-generator #:rand
@@ -422,7 +422,7 @@
    #:node-start-time #:node-uptime #:null-node-p #:live-nodes
    #:next-node-id #:*root-node* #:node-release-phase-p #:node-gain
    #:node-enable-gain-p #:*node-enable-gain-p* #:node-fade-time
-   #:node-fade-curve #:node-fade-in #:node-fade-out
+   #:node-fade-curve #:node-fade-in #:node-fade-out #:node-segment
    #:pause #:unpause #:pause-p #:move #:before-p #:after-p #:head-p #:tail-p
    #:done-p #:node-free-all #:stop-hook #:free-hook #:dograph #:dogroup #:dump
    #:set-control #:set-controls #:control-value #:control-getter

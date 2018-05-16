@@ -131,46 +131,53 @@
                            ,wrap-phase-fn cubic-interp))
     (otherwise `(%no-interp ,data ,phs ,channels ,wrap-phase-fn))))
 
-(define-vug-macro buffer-read (buffer phase &key wrap-p interpolation)
+(define-vug-macro buffer-read (buffer frame &key wrap-p interpolation)
+  "Return the value of the CURRENT-CHANNEL of the BUFFER FRAME.
+
+If WRAP-P is T, wrap around if necessary.
+
+INTERPOLATION is one of :LINEAR, :CUBIC or NIL (default)."
   (with-gensyms (bread)
-    `(vuglet ((,bread ((buf buffer) phase (wrap-p boolean))
+    `(vuglet ((,bread ((buf buffer) frame (wrap-p boolean))
                 (with ((size (buffer-size buf))
                        (frames (buffer-frames buf))
                        (channels (buffer-channels buf))
                        (data (buffer-data buf))
-                       (wrap-phase-fn (wrap-phase-func phase frames wrap-p)))
+                       (wrap-phase-fn (wrap-phase-func frame frames wrap-p)))
                   (declare (type non-negative-fixnum size frames channels)
                            (type foreign-pointer data)
                            (type function wrap-phase-fn))
-                  (select-buffer-interp ,interpolation data phase frames
+                  (select-buffer-interp ,interpolation data frame frames
                                         channels size wrap-p wrap-phase-fn))))
-       (,bread ,buffer ,phase ,wrap-p))))
+       (,bread ,buffer ,frame ,wrap-p))))
 
-;;; Write an input to a buffer at an index.
-;;; If INDEX-VAR is the name of an existent variable, the value of the
-;;; index is stored in this variable.
-(define-vug-macro buffer-write (buffer index input &optional index-var)
-  (with-gensyms (bwrite)
-    `(vuglet ((,bwrite ((buf buffer) (index fixnum) input)
-                (with ((data (buffer-data buf))
-                       (upper-limit (1- (buffer-size buf)))
-                       (index (clip index 0 upper-limit)))
-                  (declare (type foreign-pointer data)
-                           (type non-negative-fixnum upper-limit index))
-                  ,@(when index-var
-                      `((setq (external-variable ,index-var) index)))
-                  (setf (smp-ref data index) input))))
-       (,bwrite ,buffer ,index ,input))))
+(define-vug buffer-write ((buf buffer) (frame non-negative-fixnum) input)
+  "Write INPUT to the CURRENT-CHANNEL of the BUFFER FRAME.
 
-(define-vug-macro buffer-frame (buffer phase &key wrap-p interpolation)
+Return the related buffer index."
+  (with ((data (buffer-data buf))
+         (upper-limit (1- (buffer-size buf)))
+         (index (clip (the fixnum
+                        (+ (* frame (buffer-channels buf)) current-channel))
+                      0 upper-limit)))
+    (declare (type foreign-pointer data)
+             (type non-negative-fixnum upper-limit index))
+    (setf (smp-ref data index) input)))
+
+(define-vug-macro buffer-frame (buffer frame &key wrap-p interpolation)
+  "Return the BUFFER FRAME.
+
+If WRAP-P is T, wrap around if necessary.
+
+INTERPOLATION is one of :LINEAR, :CUBIC or NIL (default)."
   (with-gensyms (bframe)
-    `(vuglet ((,bframe ((buf buffer) phase (wrap-p boolean))
+    `(vuglet ((,bframe ((buf buffer) frame (wrap-p boolean))
                 (with ((channels (buffer-channels buf))
                        (frame (make-frame channels)))
                   (dochannels (current-channel channels)
                     (setf (frame-ref frame current-channel)
-                          (buffer-read buf phase
+                          (buffer-read buf frame
                                        :wrap-p wrap-p
                                        :interpolation ,interpolation)))
                   frame)))
-       (,bframe ,buffer ,phase ,wrap-p))))
+       (,bframe ,buffer ,frame ,wrap-p))))

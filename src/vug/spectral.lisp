@@ -17,7 +17,9 @@
 (in-package :incudine.vug)
 
 (define-vug centroid ((abuf abuffer))
-  "Compute the spectral centroid using moments."
+  "Compute the spectral centroid of the ABUFFER data using moments.
+
+Overwrite the ABUFFER data with the result."
   (with-samples (num denom)
     (setf num +sample-zero+ denom +sample-zero+)
     (dofft-polar (i nbins ((compute-abuffer abuf)) ()
@@ -45,6 +47,13 @@
 ;;;   Audio Effects (DAFx-02), Hamburg, Germany, 2002, pp. 33-38.
 ;;;
 (define-vug-macro flux (abuf &optional half-wave-rectifier-p l1-norm-p)
+  "Compute the spectral flux of the ABUFFER data.
+
+If HALF-WAVE-RECTIFIER-P is T, use the half-wave rectifier function.
+
+If L1-NORM-P is T, return the L1-norm of the spectral flux.
+
+Overwrite the ABUFFER data with the result."
   (with-gensyms (flux)
     `(vuglet ((,flux ((abuf1 abuffer))
                 (with-samples (diff result)
@@ -74,7 +83,9 @@
        (,flux ,abuf))))
 
 (define-vug spectral-rms ((abuf abuffer))
-  "Compute the spectral RMS."
+  "Compute the spectral RMS of the ABUFFER data.
+
+Overwrite the ABUFFER data with the result."
   (with-samples (rms)
     (setf rms +sample-zero+)
     (dofft-polar (i nbins ((compute-abuffer abuf)) ()
@@ -83,7 +94,9 @@
       (incf rms (* mag0 mag0)))))
 
 (define-vug rolloff ((abuf abuffer) percent)
-  "Compute the spectral rolloff."
+  "Compute the spectral rolloff of the ABUFFER data.
+
+Overwrite the ABUFFER data with the result."
   (with-samples (threshold result)
     (setf result +sample-zero+)
     (dofft-polar (i nbins ((compute-abuffer abuf)) ())
@@ -98,7 +111,9 @@
         (return)))))
 
 (define-vug flatness ((abuf abuffer))
-  "Compute the spectral flatness."
+  "Compute the spectral flatness of the ABUFFER data.
+
+Overwrite the ABUFFER data with the result."
   (with-samples (geometric-mean arithmetic-mean)
     (setf geometric-mean +sample-zero+
           arithmetic-mean +sample-zero+)

@@ -68,12 +68,16 @@
 
 (declaim (inline foreign-length))
 (defun foreign-length (pointer)
+  "Return the number of elements in a foreign array created by one of
+the make-*-array utilities associated with a variable in WITH binding."
   (logand (cffi:mem-ref (cffi:inc-pointer pointer (- +foreign-header-size+))
                         :uint32)
           +foreign-array-length-mask+))
 
 (declaim (inline foreign-array-type-of))
 (defun foreign-array-type-of (pointer)
+  "Return the type of a foreign array created by one of the
+make-*-array utilities associated with a variable in WITH binding."
   (svref *foreign-array-types*
          (ash (cffi:mem-ref (cffi:inc-pointer pointer (- +foreign-header-size+))
                             :uint32)
@@ -110,7 +114,32 @@
   (make-*-array make-f32-array :float)
   (make-*-array make-f64-array :double))
 
+(setf
+  (documentation 'make-frame 'function)
+  "Associated with a variable in WITH binding to create a foreign
+array of type SAMPLE and size SIZE."
+  (documentation 'make-i32-array 'function)
+  "Associated with a variable in WITH binding to create a foreign
+array of type SIGNED-BYTE 32 and size SIZE."
+  (documentation 'make-u32-array 'function)
+  "Associated with a variable in WITH binding to create a foreign
+array of type UNSIGNED-BYTE 32 and size SIZE."
+  (documentation 'make-i64-array 'function)
+  "Associated with a variable in WITH binding to create and foreign
+array of type SIGNED-BYTE 64 and size SIZE."
+  (documentation 'make-u64-array 'function)
+  "Associated with a variable in WITH binding to create a foreign
+array of type UNSIGNED-BYTE 64 and size SIZE."
+  (documentation 'make-f32-array 'function)
+  "Associated with a variable in WITH binding to create a foreign
+array of type SINGLE-FLOAT and size SIZE."
+  (documentation 'make-f64-array 'function)
+  "Associated with a variable in WITH binding to create a foreign
+array of type DOUBLE-FLOAT and size SIZE.")
+
 (defmacro make-pointer-array (size)
+  "Associated with a variable in WITH binding to create a foreign
+array of type foreign-pointer and size SIZE."
   `(%make-foreign-array ,size :pointer))
 
 (declaim (inline %make-vec))
@@ -128,32 +157,66 @@
 
 (defmacro maybe-make-i32-array (&whole whole size &key zero-p initial-element
                                 initial-contents)
+  "Associated with a variable in WITH binding to create an array of
+type (signed-byte 32) and size SIZE. The array is foreign on 32-bit
+platforms because the size of a fixnum is minor than 32 bits."
   (declare (ignore zero-p initial-element initial-contents))
   (let ((fname (maybe-make-x32-array-fname make-i32-array)))
     `(,fname ,size ,@(cddr whole))))
 
 (defmacro maybe-make-u32-array (&whole whole size &key zero-p initial-element
                                 initial-contents)
+  "Associated with a variable in WITH binding to create an array of
+type (unsigned-byte 32) and size SIZE. The array is foreign on 32-bit
+platforms because the size of a fixnum is minor than 32 bits."
   (declare (ignore zero-p initial-element initial-contents))
   (let ((fname (maybe-make-x32-array-fname make-u32-array)))
     `(,fname ,size ,@(cddr whole))))
 
 (defmacro maybe-i32-ref (array index)
+  "Access the element of the array created by maybe-make-i32-array. Setfable."
   (if (< incudine.util::n-fixnum-bits 32)
       `(i32-ref ,array ,index)
       `(the fixnum (svref ,array ,index))))
 
 (defmacro maybe-u32-ref (array index)
+  "Access the element of the array created by maybe-make-u32-array. Setfable."
   (if (< incudine.util::n-fixnum-bits 32)
       `(u32-ref ,array ,index)
       `(the fixnum (svref ,array ,index))))
 
-;;; Return a value of a frame
-(defmacro frame-ref (frame channel)
-  `(smp-ref ,frame ,channel))
+(declaim (inline frame-ref))
+(defun frame-ref (ptr index)
+  "Access the foreign array element of type SAMPLE specified by INDEX.
+Setfable."
+  (mem-ref ptr 'sample (the non-negative-fixnum
+                         (* index +foreign-sample-size+))))
 
-;;; Like MULTIPLE-VALUE-BIND but dedicated to a FRAME
+(define-compiler-macro frame-ref (ptr index)
+  (if (constantp index)
+      `(mem-ref ,ptr 'sample ,(* (eval index) +foreign-sample-size+))
+      `(mem-ref ,ptr 'sample (the non-negative-fixnum
+                               (* ,index ,+foreign-sample-size+)))))
+
+(declaim (inline frame-set))
+(defun frame-set (ptr index value)
+  (setf (mem-ref ptr 'sample (the non-negative-fixnum
+                               (* index +foreign-sample-size+)))
+        value))
+
+(define-compiler-macro frame-set (ptr index value)
+  (if (constantp index)
+      `(setf (mem-ref ,ptr 'sample ,(* (eval index) +foreign-sample-size+))
+             ,value)
+      `(setf (mem-ref ,ptr 'sample (the non-negative-fixnum
+                                     (* ,index ,+foreign-sample-size+)))
+             ,value)))
+
+(defsetf frame-ref frame-set)
+
 (defmacro multiple-sample-bind (vars frame &body body)
+  "Used within the definition of a VUG, UGEN or DSP to bind the variables
+VARS to the corresponding values in the foreign array of samples FRAME."
   (with-gensyms (frm)
     `(with ((,frm ,frame))
        (declare (type frame ,frm))
@@ -163,6 +226,9 @@
          ,@body))))
 
 (defmacro samples (&rest values)
+  "Used within the definition of a VUG, UGEN or DSP to return VALUES
+as a foreign array of samples. The second returned value is the number
+of samples."
   (with-gensyms (frm)
     (let ((size (length values)))
     `(with ((,frm (make-frame ,size)))
@@ -270,12 +336,16 @@ START-OFFSET is the initial offset for the internal counter."
     (setf threshold gate)
     value))
 
-(define-vug lin->lin (in old-min old-max new-min new-max)
+(define-vug lin->lin (input old-min old-max new-min new-max)
+  "Return a value between NEW-MIN and NEW-MAX that is the linear
+mapping of the INPUT sample in the range of OLD-MIN to OLD-MAX."
   (with-samples ((old-rdelta (/ (sample 1) (- old-max old-min)))
                  (new-delta (- new-max new-min)))
-    (+ new-min (* new-delta old-rdelta (- in old-min)))))
+    (+ new-min (* new-delta old-rdelta (- input old-min)))))
 
 (define-vug lin->exp (in old-min old-max new-min new-max)
+  "Return a value between NEW-MIN and NEW-MAX that is the exponential
+mapping of the INPUT sample in the range of OLD-MIN to OLD-MAX."
   (with-samples ((old-rdelta (/ (sample 1) (- old-max old-min)))
                  (new-ratio (/ new-max new-min)))
     (* (expt (the non-negative-sample new-ratio)
@@ -295,6 +365,7 @@ START-OFFSET is the initial offset for the internal counter."
         ,,@body)))
 
 (define-vug-macro nclip (in low high)
+  "Destructively clip the INPUT sample to a value between LOW and HIGH."
   (%with-samples-rebinding ((lo low) (hi high))
     `(progn
        (cond ((> ,in ,hi) (setf ,in ,hi))
@@ -318,6 +389,8 @@ START-OFFSET is the initial offset for the internal counter."
                        clauses)))))
 
 (define-vug-macro nwrap (in low high &optional range offset)
+  "Destructively wrap-around the INPUT sample that exceeds the LOW and
+HIGH thresholds."
   (%with-samples-rebinding ((lo low) (hi high))
     (let ((delta (or range hi)))
       `(progn
@@ -342,6 +415,8 @@ START-OFFSET is the initial offset for the internal counter."
            ,in))))
 
 (define-vug-macro nmirror (in low high &optional range two-range offset)
+  "Destructively reflect the INPUT sample that exceeds the LOW and
+HIGH thresholds."
   (%with-samples-rebinding ((lo low) (hi high))
     (let ((%range (or range hi))
           (%offset (or offset in)))
@@ -358,21 +433,24 @@ START-OFFSET is the initial offset for the internal counter."
                  (t ,in))))))
 
 (declaim (inline clip))
-(defun clip (in low high)
+(defun clip (input low high)
+  "Clip the INPUT sample to a value between LOW and HIGH."
   (flet ((%clip (in low high)
            (cond ((> in high) high)
                  ((< in low) low)
                  (t in))))
-    (if (typep in 'sample)
-        (%clip in (sample low) (sample high))
-        (%clip in low high))))
+    (if (typep input 'sample)
+        (%clip input (sample low) (sample high))
+        (%clip input low high))))
 
 (define-vug wrap (in low high)
+  "Wrap-around the INPUT sample that exceeds the LOW and HIGH thresholds."
   (with-samples ((range (- high low))
                  (%in in))
     (nwrap %in low high range (- %in low))))
 
 (define-vug mirror (in low high)
+  "Reflect the INPUT sample that exceeds the LOW and HIGH thresholds."
   (with-samples ((range (- high low))
                  (two-range (+ range range))
                  (%in in))
