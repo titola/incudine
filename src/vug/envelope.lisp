@@ -18,8 +18,7 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (import
-   '(incudine:incudine-missing-arg
-     incudine:envelope
+   '(incudine:envelope
      incudine:envelope-data
      incudine::envelope-data-size
      incudine:envelope-points
@@ -200,7 +199,8 @@ of the envelope.
 
 LOCATION, 0 by default, is the current position in samples (an integer)
 of the envelope."
-  (:defaults (incudine-missing-arg "Missing ENVELOPE struct.") 1 1 #'identity 0)
+  (:defaults (incudine:incudine-missing-arg "Missing ENVELOPE struct.")
+             1 1 #'identity 0)
   (with-samples (last-level end (curve incudine::+seg-lin-func+)
                  grow a2 b1 y1 y2 old-gate)
     (declare (preserve last-level end curve grow a2 b1 y1 y2))

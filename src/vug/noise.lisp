@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -17,13 +17,24 @@
 (in-package :incudine.vug)
 
 (define-vug white-noise (amp)
+  "White noise generator with output optionally scaled by AMP."
+  (:defaults 1)
   (with-samples ((rmax (* amp 2.0)))
     (- (random rmax) amp)))
 
-;;; Pink Noise generator using the Gardner method with the James
-;;; McCartney's optimization (http://www.firstpr.com.au/dsp/pink-noise).
+;;; Reference:
+;;;
+;;;   [1] http://www.firstpr.com.au/dsp/pink-noise
+;;;
 ;;; Based on Phil Burk's code in C.
-(define-vug-macro pink-noise (amp &optional (number-of-bands 20))
+(define-vug-macro pink-noise (amp number-of-bands)
+  "Pink Noise generator using the Gardner method with the James
+McCartney's optimization.
+
+The output is optionally scaled by AMP.
+
+NUMBER-OF-BANDS defaults to 20."
+  (:defaults 1 20)
   (let* ((max-random-rows 30)
          (number-of-rows (clip number-of-bands 4 30))
          (random-limit32 4294967296)
@@ -62,12 +73,63 @@
                             (+ total (random ,random-limit24)))))))
        (,pink ,amp))))
 
-;;; Noise generator based on a chaotic function (used in SuperCollider).
-(define-vug crackle (param amp)
-  (* amp (~ (abs (- (* it param) (delay1 it) 0.05)) :initial-value 0.3d0)))
+;;; Noise generator used in SuperCollider.
+(define-vug crackle (param amp init-value)
+  "Noise generator based on a chaotic function with scale factor AMP
+(1 by default).
+
+The formula is
+
+    y[n] = | param * y[n-1] - y[n-2] - 0.05 |
+
+INIT-VALUE is the initial value of y and defaults to 0.3."
+  (:defaults (incudine:incudine-missing-arg "PARAM") 1 .3)
+  (* amp (~ (abs (- (* it param) (delay1 it) 0.05)) :initial-value init-value)))
 
 (define-vug-macro rand (&whole whole distribution &key a b c n n1 n2 p alpha
                         beta mu nu sigma tt zeta seed)
+  "Noise generator with random number DISTRIBUTION.
+
+|--------------------+------------+------------+-----------+-------------|
+| distribution       | param 1    | param 2    | param 3   | return type |
+|--------------------+------------+------------+-----------+-------------|
+| :linear            | :a 0.0     | :b 1.0     |           | double      |
+| :high              | :a 0.0     | :b 1.0     |           | double      |
+| :triangular        | :a 0.0     | :b 1.0     |           | double      |
+| :gauss             | :sigma 1.0 |            |           | double      |
+| :gauss-tail        | :a 1.0     | :sigma 1.0 |           | double      |
+| :exp               | :mu 1.0    |            |           | double      |
+| :laplace           | :a 1.0     |            |           | double      |
+| :exppow            | :a 1.0     | :b 1.5     |           | double      |
+| :cauchy            | :a 1.0     |            |           | double      |
+| :rayleigh          | :sigma 1.0 |            |           | double      |
+| :rayleigh-tail     | :a 1.0     | :sigma 1.0 |           | double      |
+| :landau            |            |            |           | double      |
+| :levy              | :c 1.0     | :alpha 1.0 |           | double      |
+| :levy-skew         | :c 1.0     | :alpha 1.0 | :beta 1.0 | double      |
+| :gamma             | :a 1.0     | :b 1.0     |           | double      |
+| :uni               | :a 0.0     | :b 1.0     |           | double      |
+| :lognormal         | :zeta 1.0  | :sigma 1.0 |           | double      |
+| :chisq             | :nu 1.0    |            |           | double      |
+| :f                 | :nu1 1.0   | :nu2 1.0   |           | double      |
+| :t                 | :nu 1.0    |            |           | double      |
+| :beta              | :a 1.0     | :b 1.0     |           | double      |
+| :pareto            | :a 1.0     | :b 1.0     |           | double      |
+| :logistic          | :a 1.0     |            |           | double      |
+| :weibull           | :a 1.0     | :b 1.0     |           | double      |
+| :gumbel1           | :a 1.0     | :b 1.0     |           | double      |
+| :gumbel2           | :a 1.0     | :b 1.0     |           | double      |
+| :poisson           | :mu 1.0    |            |           | uint        |
+| :bernoulli         | :p 0.5     |            |           | uint        |
+| :binomial          | :n 1       |            |           | uint        |
+| :negative-binomial | :p 0.5     | :n 1.0     |           | uint        |
+| :pascal            | :p 0.5     | :n 1       |           | uint        |
+| :geom              | :p 0.5     |            |           | uint        |
+| :hypergeom         | :n1 1      | :n2 1      | :tt 1     | uint        |
+| :log               | :p 0.5     |            |           | uint        |
+|--------------------+------------+------------+-----------+-------------|
+
+See also GEN:ALL-RANDOM-DISTRIBUTIONS and GEN:RAND-ARGS."
   (declare (ignorable a b c n n1 n2 p alpha beta mu nu sigma tt zeta))
   (let ((spec (gen::find-rand-func-spec distribution))
         (pl (cddr whole)))
@@ -122,6 +184,25 @@
 
 (define-vug-macro fractal-noise (amp beta &key (poles-density 6)
                                  (filter-order 15) (lowest-freq 50))
+  "Fractal noise generator implemented as a white noise filtered by a
+cascade of FILTER-ORDER (15 by default) filters.
+
+The output is scaled by AMP.
+
+BETA is the spectral parameter related to the fractal dimension (defines
+the target 1/f^beta spectrum). Examples:
+
+  |------+-------|
+  | beta | noise |
+  |------+-------|
+  |    0 | white |
+  |    1 | pink  |
+  |    2 | brown |
+  |------+-------|
+
+POLES-DENSITY defaults to 6.
+
+The frequency LOWEST-FREQ of the first pole defaults to 50."
   (with-gensyms (in c1 c2 p z a b sec r-poles-density)
     `(with-samples ((,in (white-noise (sample 1)))
                     (,r-poles-density (vug-input

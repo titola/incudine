@@ -25,7 +25,8 @@
 
 (define-vug phasor (freq init)
   "Produce a normalized moving phase value with frequency FREQ and
-initial value INIT."
+initial value INIT (0 by default)."
+  (:defaults 1 0)
   (with-samples ((rate (* freq *sample-duration*)))
     (%phasor rate init 1)))
 
@@ -598,11 +599,13 @@ INTERPOLATION is one of :LINEAR, :CUBIC or NIL (default)."
 (define-vug sine (freq amp phase)
   "High precision sine wave oscillator with frequency FREQ, amplitude
 AMP and PHASE."
+  (:defaults 440 1 0)
   (* amp (sin (+ (* +twopi+ (phasor freq 0)) phase))))
 
 (define-vug pulse (freq amp width)
   "Pulse wave oscillator with frequency FREQ, amplitude AMP and WIDTH
 between 0 and 1."
+  (:defaults 4 1 .5)
   (if (< (phasor freq 0) width) amp (- amp)))
 
 (define-vug-macro impulse (&optional (freq 0 freq-p) (amp 1) (phase 0))
@@ -721,15 +724,22 @@ INTERPOLATION is one of :LINEAR (default), :CUBIC or NIL."
 
 (define-vug buffer-play ((buffer buffer) rate start-pos (loop-p boolean)
                          (done-action function))
-  "Play back the content of the buffer starting from the frame START-POS.
+  "Play back the CURRENT-CHANNEL of the buffer data starting from the
+frame START-POS (0 by default).
 
 RATE is the multiply factor of the sampling rate of BUFFER. For example,
-1 is the original, 1.5 is a fifth up and 0.5 is an octave down.
+1 (default) is the original, 1.5 is a fifth up and 0.5 is an octave down.
 
 If LOOP-P is T, play it back in a loop.
 
-The function DONE-ACTION is called when LOOP-P is NIL and the buffer
-is finished playing."
+The function DONE-ACTION, #'FREE by default, is called when LOOP-P is
+NIL and the buffer is finished playing.
+
+Example:
+
+    (dsp! buffer-play-test ((buf buffer))
+      (foreach-channel (cout (buffer-play buf))))"
+  (:defaults (incudine:incudine-missing-arg "BUFFER") 1 0 nil #'incudine:free)
   (prog1 (buffer-read buffer
            (%phasor (* rate (buffer-sample-rate buffer) *sample-duration*)
                     start-pos

@@ -267,8 +267,7 @@
    ;; envelope
    #:line #:expon #:envelope
    ;; noise
-   #:white-noise #:pink-noise #:fractal-noise #:crackle
-   #:make-random-number-generator #:rand
+   #:white-noise #:pink-noise #:fractal-noise #:crackle #:rand
    ;; chaos
    #:cusp #:fb-sine #:gbman #:henon #:latoocarfian #:lin-cong #:quad-map
    #:standard-map #:lorenz #:gendy
@@ -291,7 +290,7 @@
    #:stereo #:pan2 #:fpan2
    ;; midi
    #:*linear-midi-table*
-   #:midi-note #:midi-keynum #:midi-highest-keynum #:midi-lowest-keynum
+   #:midi-keynum #:midi-highest-keynum #:midi-lowest-keynum
    #:midi-note-on #:midi-note-off #:played-midi-note #:reset-midi-notes
    #:midi-velocity #:midi-cps #:midi-amp #:midi-poly-aftertouch #:midi-cc
    #:midi-program #:midi-global-aftertouch #:midi-pitch-bend
@@ -416,7 +415,6 @@
    #:timestamp
    #:rt-funcall #:fast-rt-funcall #:nrt-funcall #:fast-nrt-funcall
    #:*sine-table* #:*cosine-table*
-   #:all-random-distributions #:rand-args
    ;; node
    #:node #:node-p #:group #:group-p #:make-group #:node-name #:node-id
    #:node-start-time #:node-uptime #:null-node-p #:live-nodes
@@ -597,6 +595,7 @@
   (:use :cl :incudine :incudine.vug :incudine.util :incudine.analysis)
   (:import-from #:alexandria #:positive-fixnum #:negative-fixnum
                 #:non-negative-fixnum #:with-gensyms #:define-constant)
+  (:import-from #:incudine.gen #:all-random-distributions #:rand-args)
   (:import-from #:incudine.midifile #:with-open-midifile)
   (:import-from #:incudine.soundfile #:with-open-soundfile)
   (:nicknames :scratch))

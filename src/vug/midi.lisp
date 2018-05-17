@@ -110,9 +110,10 @@
   (defvar *midi-normalize-pb-table* (make-midi-normalize-pb-table))
 
   (defvar *linear-midi-table*
-    (incudine:make-buffer 128 :initial-contents (loop for i below 128
-                                                      collect (/ i 127)))
-    "Linear mapping from [0, 127] to [0.0, 1.0]")
+    (incudine:make-buffer 128
+      :initial-contents (loop for i below 128 collect (/ i 127)))
+    "BUFFER structure of size 128 for linear mapping from [0, 127]
+to [0.0, 1.0].")
   (declaim (inline *linear-midi-table*))
 
   (declaim (inline midi-note-off-p midi-note-on-p midi-note-p
@@ -121,17 +122,23 @@
 
   (macrolet ((define-midi-*-p (spec)
                `(progn
-                  ,@(mapcar (lambda (cons)
-                              `(defun ,(vug-format-symbol "MIDI-~A-P" (car cons))
-                                   (status)
-                                 (declare (type (unsigned-byte 8) status))
-                                 (= (ldb (byte 4 4) status) ,(cdr cons))))
-                            spec)))
+                  ,@(mapcar
+                      (lambda (cons)
+                        `(defun ,(vug-format-symbol "MIDI-~A-P" (car cons))
+                             (status)
+                             ,(format nil "Return T if STATUS is the status byte ~
+                                          of a MIDI ~(~A~). Otherwise, return NIL."
+                                      (car cons))
+                             (declare (type (unsigned-byte 8) status))
+                             (= (ldb (byte 4 4) status) ,(cdr cons))))
+                      spec)))
              (define-vug-midi (names)
                `(progn
                   ,@(mapcar (lambda (name)
                               `(define-vug ,(vug-format-symbol "MIDI-~A" name)
                                    ((channel fixnum))
+                                 ,(format nil "Return the MIDI ~(~A~) for CHANNEL."
+                                          name)
                                  (with ((table (svref *midi-table* channel)))
                                    (declare (type midi-table table))
                                    (the fixnum
@@ -144,21 +151,27 @@
     (define-vug-midi (program global-aftertouch)))
 
   (define-vug midi-velocity ((channel fixnum) (keynum (unsigned-byte 8)))
-    (with ((velocity-vec (midi-table-note-velocity-vec (svref *midi-table*
-                                                              channel))))
+    "Return the velocity of the last received MIDI note for CHANNEL
+and key number KEYNUM."
+    (with ((velocity-vec (midi-table-note-velocity-vec
+                           (svref *midi-table* channel))))
       (the (integer 0 127) (svref velocity-vec keynum))))
 
   (define-vug midi-poly-aftertouch ((channel fixnum) (keynum fixnum))
+    "Return the last received MIDI poly-aftertouch for CHANNEL and key
+number KEYNUM."
     (with ((pat-table (midi-table-poly-aftertouch (svref *midi-table* channel))))
       (declare (type simple-vector pat-table))
       (the fixnum (svref pat-table keynum))))
 
   (define-vug midi-cc ((channel fixnum) (number fixnum))
+    "Return the value of the last received MIDI cc NUMBER for CHANNEL."
     (with ((cc-table (midi-table-cc (svref *midi-table* channel))))
       (declare (type simple-vector cc-table))
       (the fixnum (svref cc-table number))))
 
   (define-vug midi-pitch-bend ((channel fixnum))
+    "Return the last received MIDI pitch bend for CHANNEL."
     (with ((table (svref *midi-table* channel)))
       (declare (type midi-table table))
       (midi-table-pitch-bend table)))
@@ -177,64 +190,94 @@
                                 ,in)))))))
 
 (defun midi-note-p (status)
+  "Return T if STATUS is the status byte of a MIDI note. Otherwise,
+return NIL."
   (declare (type (unsigned-byte 8) status))
   (or (midi-note-on-p status) (midi-note-off-p status)))
 
 (define-vug midi-note-on ((channel fixnum))
-  "Keynum of the last MIDI note-on message for the channel CHANNEL."
+  "Return the key number of the last received MIDI note-on message for
+the CHANNEL."
   (with ((note-prio-vec (midi-table-note-priority-vec
-                         (svref *midi-table* channel))))
+                          (svref *midi-table* channel))))
     (the (integer 0 127) (%last-note-on note-prio-vec))))
 
 (define-vug midi-note-off ((channel fixnum))
-  "Keynum of the last MIDI note-off message for the channel CHANNEL."
+  "Return the key number of the last received MIDI note-off message
+for the CHANNEL."
   (with ((note-prio-vec (midi-table-note-priority-vec
-                         (svref *midi-table* channel))))
+                          (svref *midi-table* channel))))
     (the (integer 0 127) (%last-note-off note-prio-vec))))
 
 (define-vug midi-lowest-keynum ((channel fixnum))
+  "Return the lowest received MIDI key number for CHANNEL."
   (with ((note-prio-vec (midi-table-note-priority-vec
-                         (svref *midi-table* channel))))
+                          (svref *midi-table* channel))))
     (the (integer 0 127) (lowest-note-priority note-prio-vec))))
 
 (define-vug midi-highest-keynum ((channel fixnum))
+  "Return the highest received MIDI key number for CHANNEL."
   (with ((note-prio-vec (midi-table-note-priority-vec
-                         (svref *midi-table* channel))))
+                          (svref *midi-table* channel))))
     (the (integer 0 127) (highest-note-priority note-prio-vec))))
 
 (define-vug midi-cps ((tun tuning) (keynum (unsigned-byte 8)))
+  "Return the frequency of the key number KEYNUM in a TUNING."
   (with ((data (tuning-data tun)))
     (declare (type pointer data))
     (smp-ref data keynum)))
 
 (define-vug midi-amp ((ampbuf buffer) (channel fixnum)
                       (keynum (unsigned-byte 8)))
+  "Return the amplitude that is the linear mapping of the last
+received MIDI note for CHANNEL and key number KEYNUM.
+
+AMPBUF is the BUFFER structure of size 128 used for linear mapping
+from key number to amplitude."
   (with ((data (buffer-data ampbuf)))
     (smp-ref data (midi-velocity channel keynum))))
 
 (define-vug lin-midi-poly-aftertouch ((channel fixnum) (keynum fixnum) min max)
+  "Return a value between MIN and MAX that is the linear mapping of
+the last received MIDI poly-aftertouch for CHANNEL and key number KEYNUM."
   (midi-linear-map (midi-poly-aftertouch channel keynum) min max))
 
 (define-vug exp-midi-poly-aftertouch ((channel fixnum) (keynum fixnum) min max)
+  "Return a value between MIN and MAX that is the exponential mapping of
+the last received MIDI poly-aftertouch for CHANNEL and key number KEYNUM."
   (midi-exponential-map (midi-poly-aftertouch channel keynum) min max))
 
 (define-vug lin-midi-cc ((channel fixnum) (number fixnum) min max)
+  "Return a value between MIN and MAX that is the linear mapping of
+the last received MIDI cc NUMBER for CHANNEL."
   (midi-linear-map (midi-cc channel number) min max))
 
 (define-vug exp-midi-cc ((channel fixnum) (number fixnum) min max)
+  "Return a value between MIN and MAX that is the exponential mapping
+of the last received MIDI cc NUMBER for CHANNEL."
   (midi-exponential-map (midi-cc channel number) min max))
 
 (define-vug lin-midi-global-aftertouch ((channel fixnum) min max)
+  "Return a value between MIN and MAX that is the linear mapping of
+the last received MIDI global-aftertouch for CHANNEL and key number
+KEYNUM."
   (midi-linear-map (midi-global-aftertouch channel) min max))
 
 (define-vug exp-midi-global-aftertouch ((channel fixnum) min max)
+  "Return a value between MIN and MAX that is the exponential mapping
+of the last received MIDI global-aftertouch for CHANNEL and key number
+KEYNUM."
   (midi-exponential-map (midi-global-aftertouch channel) min max))
 
 (define-vug lin-midi-pitch-bend ((channel fixnum) min max)
+  "Return a value between MIN and MAX that is the linear mapping of
+the last received MIDI pitch bend for CHANNEL."
   (midi-linear-map (+ (midi-pitch-bend channel) 8192) min max
                    *midi-normalize-pb-bipolar-table*))
 
 (define-vug exp-midi-pitch-bend ((channel fixnum) min max)
+  "Return a value between MIN and MAX that is the exponential mapping
+of the last received MIDI pitch bend for CHANNEL."
   (midi-exponential-map (+ (midi-pitch-bend channel) 8192) min max
                         *midi-normalize-pb-table*))
 
@@ -247,11 +290,10 @@ CHANNEL is the MIDI channel from 0 to 15.
 
 Examples:
 
-  ;; F7 chord [65 69 72 75] played on the first channel.
-  (played-midi-note 1 0) ; => 69, 96, T
-  (played-midi-note 3 0) ; => 75, 89, T
-  (played-midi-note 6 0) ; =>  0,  0, NIL
-"
+    ;; F7 chord [65 69 72 75] played on the first channel.
+    (played-midi-note 1 0) ; => 69, 96, T
+    (played-midi-note 3 0) ; => 75, 89, T
+    (played-midi-note 6 0) ; =>  0,  0, NIL"
   (declare (type (unsigned-byte 8) note-number)
            (type (unsigned-byte 4) channel))
   (labels ((played (x i offset veloc-vec)
@@ -286,6 +328,7 @@ Examples:
                  (midi-table-note-velocity-vec mtab)))))
 
 (defun reset-midi-notes (&optional channel)
+  "Zero the MIDI note table for CHANNEL or all the tables if CHANNEL is NIL."
   (declare (type (or (unsigned-byte 4) null) channel))
   (if channel
       (let ((table (svref *midi-table* channel)))

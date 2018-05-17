@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -16,10 +16,13 @@
 
 (in-package :incudine.vug)
 
-(define-vug stereo (in) (out in in))
+(define-vug stereo (input)
+  "Mix the INPUT into the first two output busses."
+  (out input input))
 
 (define-vug pan2 (in pos)
-  "Stereo equal power panpot."
+  "Stereo equal power panpot with position POS between 0 (left)
+and 1 (right)."
   (with-samples ((alpha (* +half-pi+ pos))
                  (left (cos alpha))
                  (right (sin alpha)))
@@ -28,7 +31,8 @@
           (t +sample-zero+))))
 
 (define-vug fpan2 (in pos)
-  "Fast stereo equal power panpot."
+  "Fast stereo equal power panpot with position POS between 0 (left)
+and 1 (right)."
   (with ((tabsize (ash (buffer-size *sine-table*) -2))
          (sintab (buffer-data *sine-table*))
          (costab (buffer-data *cosine-table*))
