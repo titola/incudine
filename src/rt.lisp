@@ -376,6 +376,12 @@ the thread."
 
 #+portaudio
 (defun portaudio-set-device (output &optional (input output))
+  "Set the index of the audio device.
+
+If INPUT is non-NIL, the indexes of the output and input devices are
+OUTPUT and INPUT respectively.
+
+See PORTAUDIO-DEVICE-INFO."
   (declare (type fixnum output input))
   (unless (and (= incudine.config::*portaudio-output-device* output)
                (= incudine.config::*portaudio-input-device* input))

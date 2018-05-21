@@ -1,6 +1,6 @@
 ;;; Common Lisp interface to interact with the sound editor Snd.
 ;;;
-;;; Copyright (c) 2015-2017 Tito Latini
+;;; Copyright (c) 2015-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -22,10 +22,12 @@
   (open-stream-p (process-stream)))
 
 (defun flush-stream ()
+  "Flush anything waiting on the Snd stream."
   (when *snd*
     (loop while (read-char-no-hang (process-stream) nil t))))
 
 (defun close-stream ()
+  "Close the Snd stream."
   (when (and *snd* (open-process-stream-p))
     (close (process-stream))))
 
@@ -115,10 +117,13 @@
 (defvar *emacs-mode-p* nil)
 (declaim (type boolean *emacs-mode-p*))
 
-(defun emacs-mode-p () *emacs-mode-p*)
+(defun emacs-mode-p ()
+  "Return T to enable the interaction through the Emacs' Snd-Scheme mode.
+Setfable.
 
-;;; SWANK:EVAL-IN-EMACS requires slime-enable-evaluate-in-emacs T
-;;; on the Emacs side.
+It requires SLIME-ENABLE-EVALUATE-IN-EMACS T on the Emacs side."
+  *emacs-mode-p*)
+
 (defun eval-in-emacs (form)
   (funcall (find-symbol "EVAL-IN-EMACS" "SWANK") form))
 
@@ -157,7 +162,7 @@
                                   :wait nil)))))
 
 (defun exit ()
-  "Terminate Snd."
+  "Terminate the Snd process started by RUN."
   (cond (*emacs-mode-p*
          (eval "(exit 0)"))
         (*snd*
@@ -170,7 +175,7 @@
            (and code (zerop code))))))
 
 (defun eval (string &key (output-p t) (parser #'default-parser))
-  "Evaluates STRING in Snd."
+  "The STRING is evaluated by Snd."
   (declare (type string string) (type boolean output-p) (type function parser))
   (cond (*emacs-mode-p*
          (let ((str (eval-in-emacs `(incudine-snd-send-string ,string))))
@@ -184,9 +189,12 @@
 (defun truenamestring (pathspec)
   (namestring (truename pathspec)))
 
-(defun load (scmfile &optional env)
-  "Loads the scheme FILE in Snd."
-  (eval (format nil "(load ~S~@[ ~(~A~)~])" (truenamestring scmfile) env)))
+(defun load (scmfile &optional s7-env-string)
+  "Load the scheme FILE in Snd.
+
+The optional string S7-ENV-STRING is the s7 environment."
+  (eval (format nil "(load ~S~@[ ~(~A~)~])" (truenamestring scmfile)
+                s7-env-string)))
 
 (defvar *sharp-s-function* (get-dispatch-macro-character #\# #\s))
 
@@ -194,37 +202,6 @@
   (declare (ignore stream arg))
   (make-symbol (format nil "#~A" (char-downcase subchar))))
 
-;;; Format s7 code for SND:EVAL
-;;;
-;;;   (snd:enable-sharp-s7-syntax)
-;;;
-;;;   #s7(let ((snd (open-sound "foo.wav")))
-;;;        (play snd :wait #t))
-;;;
-;;;   ;; => "(let ((snd (open-sound \"foo.wav\"))) (play snd :wait #t))"
-;;;
-;;;   #s7(quote #.(LOOP REPEAT 8 COLLECT (RANDOM 1.0)))
-;;;
-;;;   ;; => "(quote
-;;;   ;;      (0.5520501 0.4115485 0.35940528 0.0056368113 0.31019592
-;;;   ;;       0.4214077 0.32522345 0.2879219))"
-;;;
-;;;   (format nil #s7(new-sound "/tmp/foo.wav" :channels 1 :size ~D)
-;;;           (floor incudine.util:*sample-rate*))
-;;;
-;;;   ;; => "(new-sound \"/tmp/foo.wav\" :channels 1 :size 48000)"
-;;;
-;;;   (snd:eval *)   ; => (SOUND 0)
-;;;
-;;;   #snd(...)   is equivalent to  (snd:eval #s7(...))
-;;;   #0snd(...)  is equivalent to  (snd:eval #s7(...) :output-p nil)
-;;;
-;;;   hidden side effect:  #7s is equivalent to #s7
-;;;
-;;;   (defstruct point x y)
-;;;   #s(point)
-;;;   ;; => #S(POINT :X NIL :Y NIL)
-;;;
 (declaim (special *s7-readtable*))
 
 (defun |#s7-reader| (stream subchar arg)
@@ -269,5 +246,35 @@
   (set-sharp-s7-syntax))
 
 (defmacro enable-sharp-s7-syntax ()
+ "Enable the reader syntax used to format and eval s7 forms.
+
+Example:
+
+    #s7(let ((snd (open-sound \"foo.wav\")))
+         (play snd :wait #t))
+
+    ;; => \"(let ((snd (open-sound \\\"foo.wav\\\"))) (play snd :wait #t))\"
+
+    #s7(quote #.(LOOP REPEAT 8 COLLECT (RANDOM 1.0)))
+
+    ;; => \"(quote
+    ;;      (0.5520501 0.4115485 0.35940528 0.0056368113 0.31019592
+    ;;       0.4214077 0.32522345 0.2879219))\"
+
+    (format nil #s7(new-sound \"/tmp/foo.wav\" :channels 1 :size ~D)
+            (floor incudine.util:*sample-rate*))
+
+    ;; => \"(new-sound \\\"/tmp/foo.wav\\\" :channels 1 :size 48000)\"
+
+    (snd:eval *)   ; => (SOUND 0)
+
+    #snd(...)   is equivalent to  (snd:eval #s7(...))
+    #0snd(...)  is equivalent to  (snd:eval #s7(...) :output-p nil)
+
+    hidden side effect:  #7s is equivalent to #s7
+
+    (defstruct point x y)
+    #s(point)
+    ;; => #S(POINT :X NIL :Y NIL)"
   `(eval-when (:compile-toplevel :execute)
      (add-sharp-s7-syntax)))

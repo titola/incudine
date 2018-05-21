@@ -197,11 +197,11 @@
           (progn ,@body)
        (free ,var))))
 
-(defmacro with-receiver ((state-var stream message-var
+(defmacro with-receiver ((state-form stream message-var
                           &optional timestamp-var (sleep-time 1) thread-name)
                          &body body)
   (with-gensyms (evbuf timeout)
-    `(if ,state-var
+    `(if ,state-form
          (warn "PortMidi receiver already started.")
          (case (stream-direction ,stream)
            (:closed (warn "The stream is closed."))
@@ -210,12 +210,12 @@
             (bt:make-thread
              (lambda ()
                (with-event-buffer (,evbuf)
-                 (setf ,state-var t)
+                 (setf ,state-form t)
                  (unwind-protect
                       (loop initially (read ,stream ,evbuf
                                             default-sysex-buffer-size) ; flush
                             with ,timeout = ,sleep-time
-                            while ,state-var do
+                            while ,state-form do
                               (cond ((eq (poll ,stream) :pm-got-data)
                                      (read ,stream ,evbuf
                                            default-sysex-buffer-size)
@@ -223,7 +223,7 @@
                                                       ,timestamp-var)
                                               ,@body))
                                     (t (pt:sleep ,timeout))))
-                   (setf ,state-var nil))))
+                   (setf ,state-form nil))))
              :name ,(or thread-name
                         `(format nil "pm-recv ~A"
                                  (stream-device-name ,stream)))))))))

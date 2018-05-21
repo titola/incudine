@@ -37,15 +37,19 @@
 
 (in-package :jackmidi)
 
-(deftype data () '(simple-array (unsigned-byte 8) (*)))
+(deftype data ()
+  "Type designator for a vector of octets."
+  '(simple-array (unsigned-byte 8) (*)))
 
 (defstruct (stream (:copier nil))
+  "Jack MIDI stream type."
   (pointer (cffi:null-pointer) :type cffi:foreign-pointer)
   (direction :closed :type (member :input :output :closed))
   (port-name "" :type string))
 
 (defstruct (input-stream (:include stream) (:copier nil)
                          (:constructor %make-input-stream))
+  "Jack MIDI input stream type."
   ;; Pointer to the event that contains the received SysEx message.
   (sysex-pointer* (cffi:null-pointer) :type cffi:foreign-pointer))
 
@@ -71,7 +75,14 @@
         obj))))
 
 (defstruct (output-stream (:include stream) (:copier nil)
-                          (:constructor %make-output-stream)))
+                          (:constructor %make-output-stream))
+  "Jack MIDI output stream type.")
+
+(setf
+  (documentation 'input-stream-p 'function)
+  "Return T if object is of type JACKMIDI:INPUT-STREAM."
+  (documentation 'output-stream-p 'function)
+  "Return T if object is of type JACKMIDI:OUTPUT-STREAM.")
 
 (defun make-output-stream (port-name)
   (declare (type string port-name))
@@ -148,6 +159,7 @@
 
 (declaim (inline port-name))
 (defun port-name (stream)
+  "Return the port name of a Jack MIDI stream."
   (stream-port-name stream))
 
 (defun set-port-name (stream name)
@@ -200,17 +212,21 @@
 
 (declaim (inline foreign-write))
 (defun foreign-write (stream buffer-pointer buffer-size)
-  "Write a MIDI message stored into a foreign buffer."
+  "Write BUFFER-SIZE bytes of a MIDI message stored into a foreign
+array pointed to by BUFFER-POINTER to the Jack MIDI output STREAM."
   (logand (cffi:foreign-funcall "jm_write" :pointer (stream-pointer stream)
             :pointer buffer-pointer :unsigned-int buffer-size :int)
           #xffffff))
 
 (declaim (inline foreign-read))
 (defun foreign-read (stream buffer-pointer buffer-size)
-    "A foreign buffer is filled with BUFFER-SIZE events received from a INPUT-STREAM.
-Return the number of the events read.
+    "Read the events received from a Jack MIDI input STREAM into a
+foreign array of size BUFFER-SIZE bytes pointed to by BUFFER-POINTER.
+Return the number of events read.
+
 The header of the event is 12 bytes long: a timestamp (foreign double float)
 and the length of the MIDI message (foreign uint32).
+
 The MIDI messages are aligned to four bytes."
   (logand (cffi:foreign-funcall "jm_read" :pointer (stream-pointer stream)
             :pointer buffer-pointer :unsigned-int buffer-size :int)
@@ -357,7 +373,13 @@ The MIDI messages are aligned to four bytes."
                        *output-streams-spinlock*))
 
 (defun open (&key (direction :input) port-name)
-  "Create and return a new JACKMIDI:STREAM."
+  "Create and return a new JACKMIDI:STREAM.
+
+DIRECTION is :INPUT (default) or :OUTPUT to return a JACKMIDI:INPUT-STREAM
+or a JACKMIDI:OUTPUT-STREAM respectively.
+
+PORT-NAME defaults to \"midi_in\" if DIRECTION is :INPUT or \"midi_out\"
+if DIRECTION is :OUTPUT."
   (declare (type (member :input :output) direction)
            (type (or string null) port-name))
   (let* ((input-p (eq direction :input))
@@ -411,7 +433,7 @@ port-name of the stream to close."
 
 (declaim (inline message))
 (defun message (status data1 data2)
-  "Encode a short MIDI message into a (UNSIGNED-BYTE 32)."
+  "Encode a short MIDI message into four bytes."
   (declare (type (unsigned-byte 8) status data1 data2))
   (the (unsigned-byte 32)
     #+little-endian
@@ -421,7 +443,7 @@ port-name of the stream to close."
 
 (declaim (inline decode-message))
 (defun decode-message (msg)
-  "Decode a MIDI message encoded into a (UNSIGNED-BYTE 32)."
+  "Decode a MIDI message encoded into four bytes."
   (declare (type (unsigned-byte 32) msg))
   (incudine-optimize
     #+little-endian
@@ -437,10 +459,15 @@ port-name of the stream to close."
               (ldb (byte 8 0) m2)
               (ldb (byte 8 0) m)))))
 
-(declaim (inline sysex-message-p))
 (defun sysex-message-p (msg)
-  #+little-endian (= (logand msg #xFF) #xF0)
-  #-little-endian (= (ldb (byte 8 24) msg) #xF0))
+  "Whether the MIDI message MSG is a SysEx."
+  (= (typecase msg
+       ((unsigned-byte 8) msg)
+       (data (aref msg 0))
+       (otherwise
+        #+little-endian (logand msg #xFF)
+        #-little-endian (ldb (byte 8 24) msg)))
+     #xF0))
 
 (declaim (inline sysex-eox-message-p))
 (defun sysex-eox-message-p (msg)
@@ -450,47 +477,47 @@ port-name of the stream to close."
       (= (ldb (byte 8 24) msg) #xF7)))
 
 (declaim (inline data))
-(defun data (&rest values)
-  (coerce values 'data))
+(defun data (&rest octets)
+  "Return a vector of OCTETS."
+  (coerce octets 'data))
 
-;;; WRITE-SHORT
-;;;
-;;; Example:
-;;;
-;;;     (defvar *midiout* (jackmidi:open :direction :output))
-;;;     (rt-start)
-;;;     (jackmidi:write-short *midiout* (jackmidi:message 144 60 96) 3)
-;;;
 (declaim (inline write-short))
 (defun write-short (stream message size)
-  "Write SIZE bytes of a MIDI message encoded into four bytes."
+  "Write a MIDI event with the MESSAGE of size SIZE encoded into four
+bytes to the Jack MIDI output STREAM.
+
+Example:
+
+    (defvar *midiout* (jackmidi:open :direction :output))
+    (rt-start)
+    (jackmidi:write-short *midiout* (jackmidi:message 144 60 96) 3)"
   (declare (type output-stream stream) (type (unsigned-byte 32) message)
            (type positive-fixnum size))
   (rt-eval ()
     (foreign-write-short stream message size)
     (values)))
 
-;;; WRITE
-;;;
-;;; Examples:
-;;;
-;;;     (defvar *midiout* (jackmidi:open :direction :output))
-;;;
-;;;     (defvar *msg0* (make-array 6 :element-type '(unsigned-byte 8)
-;;;                      :initial-contents '(#xf0 #x7e #x7f #x09 #x01 #xf7)))
-;;;     (rt-start)
-;;;     (jackmidi:write *midiout* *msg0*)
-;;;
-;;;     (jackmidi:write *midiout*
-;;;       (jackmidi:data #xf0 #x7e #x7f #x09 #x01 #xf7))
-;;;
-;;;     (defvar *msg1* (coerce '(144 60 96 128 60 0) 'jackmidi:data))
-;;;
-;;;     (jackmidi:write *midiout* *msg1* :end 3)           ; note on
-;;;     (jackmidi:write *midiout* *msg1* :start 3 :end 6)  ; note off
-;;;
 (defun write (stream data &key (start 0) end)
-  "Write a MIDI message stored into the octets DATA."
+  "Write the octets DATA of a MIDI message into a Jack MIDI output STREAM.
+
+START and END are the bounding index designators of DATA.
+
+Example:
+
+    (defvar *midiout* (jackmidi:open :direction :output))
+
+    (defvar *msg0* (make-array 6 :element-type '(unsigned-byte 8)
+                     :initial-contents '(#xf0 #x7e #x7f #x09 #x01 #xf7)))
+    (rt-start)
+    (jackmidi:write *midiout* *msg0*)
+
+    (jackmidi:write *midiout*
+      (jackmidi:data #xf0 #x7e #x7f #x09 #x01 #xf7))
+
+    (defvar *msg1* (coerce '(144 60 96 128 60 0) 'jackmidi:data))
+
+    (jackmidi:write *midiout* *msg1* :end 3)           ; note on
+    (jackmidi:write *midiout* *msg1* :start 3 :end 6)  ; note off"
   (declare (type output-stream stream)
            (type data data)
            (type (or positive-fixnum null) end)
@@ -504,23 +531,22 @@ port-name of the stream to close."
                          (- end start)))
         (values)))))
 
-;;; READ
-;;;
-;;; Example:
-;;;
-;;;     (defvar *midiin* (jackmidi:open))
-;;;     (defvar *buf* (make-array 1024 :element-type '(unsigned-byte 8)))
-;;;     (rt-start)
-;;;     (prog1 (zerop (jackmidi:read *midiin* *buf*))
-;;;       (print *buf*))
-;;;
-(declaim (inline read))
 (defun read (stream octets)
-  "The buffer OCTETS is filled with the events received from a INPUT-STREAM.
-Return the number of the events read.
+  "Read the events received from a Jack MIDI input STREAM into a
+vector of OCTETS. Return the number of the events read.
+
 The header of the event is 12 bytes long: a timestamp (foreign double float)
 and the length of the MIDI message (foreign uint32).
-The MIDI messages are aligned to four bytes."
+
+The MIDI messages are aligned to four bytes.
+
+Example:
+
+    (defvar *midiin* (jackmidi:open))
+    (defvar *buf* (make-array 1024 :element-type '(unsigned-byte 8)))
+    (rt-start)
+    (prog1 (zerop (jackmidi:read *midiin* *buf*))
+      (print *buf*))"
   (declare (type input-stream stream) (type data octets))
   (cffi:with-pointer-to-vector-data (ptr octets)
     (foreign-read stream ptr (length octets))))
@@ -536,7 +562,10 @@ The MIDI messages are aligned to four bytes."
   (%flush-pending (stream-pointer stream)))
 
 (defun all-streams (&optional direction)
-  "Return a new list with the opened Jack MIDI streams."
+  "Return a new list with the opened Jack MIDI streams.
+
+If DIRECTION is :INPUT or :OUTPUT, return the list of the opened input
+or output streams, respectively."
   (macrolet ((get-streams (type-filter spinlock pending)
                `(if (jack-stopped-p)
                     (remove-if-not ,type-filter *streams*)
@@ -606,14 +635,16 @@ The MIDI messages are aligned to four bytes."
 
 (defstruct (event-buffer (:constructor %make-event-buffer)
                          (:copier nil))
+  "Jack MIDI event buffer type."
   (pointer (cffi:null-pointer) :type cffi:foreign-pointer)
   (size 0 :type non-negative-fixnum)
   (events 0 :type non-negative-fixnum))
 
 (define-constant +sysex-max-size+ 1024)
 
-(declaim (inline make-event-buffer))
-(defun make-event-buffer (&optional (size #.+sysex-max-size+))
+(defun make-event-buffer (&optional (size +sysex-max-size+))
+  "Create and return a new EVENT-BUFFER structure of size SIZE
+(1024 by default)."
   (declare (type positive-fixnum size))
   (let* ((ptr (cffi:foreign-alloc :char :count size))
          (obj (%make-event-buffer :pointer ptr :size size)))
@@ -645,8 +676,9 @@ The MIDI messages are aligned to four bytes."
 
 (defsetf input-stream-sysex-event set-input-stream-sysex-event)
 
-(declaim (inline input-stream-sysex-timestamp))
 (defun input-stream-sysex-timestamp (stream)
+  "Return the timestamp of the MIDI SysEx message stored in the buffer
+of the MIDI Jack input STREAM."
   (let ((ptr (input-stream-sysex-event stream)))
     (if (cffi:null-pointer-p ptr)
         0d0
@@ -660,15 +692,17 @@ The MIDI messages are aligned to four bytes."
         size
         0)))
 
-(declaim (inline input-stream-sysex-size))
 (defun input-stream-sysex-size (stream)
+  "Return the length of the MIDI SysEx message stored in the buffer of
+the MIDI Jack input STREAM."
   (let ((ptr (input-stream-sysex-event stream)))
     (if (cffi:null-pointer-p ptr)
         0
         (event-sysex-size ptr))))
 
-(declaim (inline input-stream-sysex-pointer))
 (defun input-stream-sysex-pointer (stream)
+  "Return the foreign pointer to the MIDI SysEx message stored in the
+buffer of the MIDI Jack input STREAM."
   (let ((ptr (input-stream-sysex-event stream)))
     (if (cffi:null-pointer-p ptr)
         (values ptr 0)
@@ -676,6 +710,12 @@ The MIDI messages are aligned to four bytes."
                 (event-sysex-size ptr)))))
 
 (defun input-stream-sysex-octets (stream &optional octets (start 0))
+  "Return the vector of octets stored in the buffer of the MIDI Jack
+input STREAM.
+
+Create a new vector if OCTETS is NIL (default).
+
+START and END are the bounding index designators of the vector."
   (declare (type input-stream stream) (type (or data null) octets)
            (type non-negative-fixnum start))
   (multiple-value-bind (ptr size) (input-stream-sysex-pointer stream)
@@ -694,14 +734,22 @@ The MIDI messages are aligned to four bytes."
           (declare (type non-negative-fixnum i j))
           (setf (aref buf j) (u8-ref ptr i)))))))
 
-(defmacro doevent ((evbuf message-var stream events
+(defmacro doevent ((event-buffer message-var stream count-form
                     &optional timestamp-var result) &body body)
+  "Iterate over the MIDI events of the EVENT-BUFFER structure related
+to a Jack MIDI input STREAM with MESSAGE-VAR bound to each message.
+Then RESULT form is evaluated.
+
+COUNT-FORM is evaluated to get the number of events.
+
+If TIMESTAMP-VAR is non-NIL, it is the variable bound to the timestamp
+of each message."
   (with-gensyms (ptr remain len tmp i j n)
     (let ((offset (cffi:foreign-type-size '(:struct event))))
-      `(let ((,n ,events))
+      `(let ((,n ,count-form))
          (declare (type non-negative-fixnum ,n))
          (do ((,i 0 (1+ ,i))
-              (,ptr (event-buffer-pointer ,evbuf)
+              (,ptr (event-buffer-pointer ,event-buffer)
                     (cffi:inc-pointer ,ptr ,offset))
               (,remain ,n (1- ,remain)))
              ((>= ,i ,n) ,result)
@@ -729,14 +777,25 @@ The MIDI messages are aligned to four bytes."
 
 (defmacro with-event-buffer ((var &optional (size #.+sysex-max-size+))
                              &body body)
+  "Bind VAR to a newly allocated EVENT-BUFFER structure with dynamic
+extent during BODY."
   `(let ((,var (make-event-buffer ,size)))
      (declare (type event-buffer ,var))
      (incudine::maybe-unwind-protect (progn ,@body) (free ,var))))
 
-(defmacro with-receiver ((state-var stream message-var
+(defmacro with-receiver ((state-form stream message-var
                           &optional timestamp-var thread-name) &body body)
+  "If the setfable STATE-FORM is T, start receiving from the Jack MIDI
+input STREAM with MESSAGE-VAR bound to the received MIDI message.
+
+If TIMESTAMP-VAR is non-NIL, it is the variable bound to the timestamp
+of each message.
+
+Optionally, the receiver thread is named THREAD-NAME.
+
+See also INCUDINE:MAKE-RESPONDER and INCUDINE:RECV-START."
   (with-gensyms (evbuf)
-    `(if ,state-var
+    `(if ,state-form
          (warn "Jack MIDI receiver already started.")
          (case (stream-direction ,stream)
            (:closed (warn "The stream is closed."))
@@ -745,19 +804,19 @@ The MIDI messages are aligned to four bytes."
             (bt:make-thread
               (lambda ()
                 (with-event-buffer (,evbuf)
-                  (setf ,state-var t)
+                  (setf ,state-form t)
                   (unwind-protect
                        (loop initially (flush-pending ,stream)
-                             while ,state-var do
+                             while ,state-form do
                                (doevent (,evbuf ,message-var ,stream
                                           (foreign-read ,stream
                                             (event-buffer-pointer ,evbuf)
                                             (event-buffer-size ,evbuf))
                                           ,timestamp-var)
                                  ,@body)
-                               (when ,state-var
+                               (when ,state-form
                                  (waiting-for ,stream)))
-                    (setf ,state-var nil))))
+                    (setf ,state-form nil))))
               :name ,(or thread-name
                          `(format nil "jackmidi-recv ~A"
                                   (stream-port-name ,stream)))))))))

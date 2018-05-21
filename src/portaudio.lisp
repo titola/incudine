@@ -89,6 +89,9 @@
 
 (defun incudine::portaudio-device-info (&optional
                                         (stream incudine.util:*logger-stream*))
+  "Print the index and name of the audio devices to STREAM.
+
+STREAM defaults to INCUDINE.UTIL:*LOGGER-STREAM*."
   (flet ((devinfo ()
            (let ((count (cffi:foreign-funcall "Pa_GetDeviceCount" :int)))
              (when (plusp count)
