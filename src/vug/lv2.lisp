@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -165,7 +165,27 @@
          (lv2-run lv2-descr lv2-handle ,block-size)))))
 
 (defmacro vug:lv2->vug (uri vug-name
-                        &optional (block-size (block-size)) debug-p)
+                        &key (block-size (block-size)) debug-p)
+  "Define a new VUG and the auxiliary function named VUG-NAME to use
+the LV2 plugin with URI.
+
+All the arguments of the auxiliary function are optional keywords.
+
+If the incudine block size changes, VUG:LV2->VUG should be called again.
+
+If BLOCK-SIZE is not set and the incudine block size changes, LV2->VUG
+should be called again.
+
+If DEBUG-P is T, return the lisp form to define the VUG.
+
+Return the new VUG structure.
+
+Example:
+
+    (lv2->vug \"http://plugin.org.uk/swh-plugins/amp\" swh.amp)
+
+    (dsp! amp-test (gain)
+      (out (swh.amp gain (white-noise))))"
   (if debug-p
       `(%lv2->vug ,uri ',vug-name ,block-size)
       `(macrolet ((generate (u n bs) (%lv2->vug u n bs)))

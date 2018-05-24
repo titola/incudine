@@ -62,7 +62,9 @@
   (:report (lambda (condition stream)
              (let ((str (text condition)))
                (format stream "SND:EVAL ~A"
-                       (subseq str 0 (position #\Return str)))))))
+                       (subseq str 0 (position #\Return str))))))
+  (:documentation "All types of error conditions about the sound
+editor Snd inherit from this condition."))
 
 (defun error-p (str)
   (let* ((s0 (string-right-trim " \t\n\r" str))

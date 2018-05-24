@@ -16,29 +16,52 @@
 
 (in-package :incudine)
 
-(define-condition incudine-error (error) ())
+(define-condition incudine-error (error) ()
+  (:documentation "All types of Incudine error conditions inherit from
+this condition."))
 
-(define-condition incudine-simple-error (simple-error) ())
+(define-condition incudine-simple-error (incudine-error simple-error) ()
+  (:documentation "Subtype of INCUDINE-ERROR and SIMPLE-ERROR."))
 
-(define-condition incudine-compile-error (incudine-simple-error) ())
+(define-condition incudine-compile-error (incudine-simple-error) ()
+  (:documentation "Signaled if there is an error during the
+compilation of the Incudine library.
 
-(define-condition incudine-memory-fault-error (incudine-simple-error) ())
+Subtype of INCUDINE-SIMPLE-ERROR."))
+
+(define-condition incudine-memory-fault-error (incudine-simple-error) ()
+  (:documentation "Signaled if there is an unhandled memory fault.
+
+Subtype of INCUDINE-SIMPLE-ERROR."))
 
 (define-condition incudine-storage-condition (storage-condition
                                               incudine-simple-error)
-  ())
+  ()
+  (:documentation "Subtype of INCUDINE-SIMPLE-ERROR and STORAGE-CONDITION."))
 
-(define-condition incudine-network-error (incudine-simple-error) ())
+(define-condition incudine-network-error (incudine-simple-error) ()
+  (:documentation "Conditions that relate to networking interface
+should inherit from this type.
 
-(define-condition incudine-node-error (incudine-simple-error) ())
+Subtype of INCUDINE-SIMPLE-ERROR."))
 
-(define-condition incudine-missing-arg (incudine-simple-error) ())
+(define-condition incudine-node-error (incudine-simple-error) ()
+  (:documentation "Conditions that relate to the node tree should
+inherit from this type.
+
+Subtype of INCUDINE-SIMPLE-ERROR."))
+
+(define-condition incudine-missing-arg (incudine-simple-error) ()
+  (:documentation "Signaled if there is a missing argument.
+
+Subtype of INCUDINE-SIMPLE-ERROR."))
 
 (define-condition incudine-unknown-time-unit (incudine-error)
   ((name :initarg :name :reader time-unit-name))
   (:report (lambda (condition stream)
              (format stream "Unknown time unit ~S"
-                     (time-unit-name condition)))))
+                     (time-unit-name condition))))
+  (:documentation "Signaled if the time unit is unknown."))
 
 (defmacro %simple-error (datum format-control &rest format-arguments)
   `(error ,datum :format-control ,format-control

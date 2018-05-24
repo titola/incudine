@@ -153,7 +153,7 @@
 ;;; Default duration for fade in/out.
 (setq *fade-time* 0)
 
-;;; Velocity of the sound at 22°C, 1 atmosfera.
+;;; Velocity of the sound at 22 degrees Celsius, 1 atmosfera.
 (setq *sound-velocity* 345)
 
 

@@ -32,14 +32,20 @@
 
 (defstruct (input-stream (:include incudine.osc:input-stream)
                          (:print-function print-stream))
-  "Input stream socket type.")
+  "Input stream socket type.
+
+Extension of OSC:INPUT-STREAM.")
 
 (defstruct (output-stream (:include incudine.osc:output-stream)
                           (:print-function print-stream))
-  "Output stream socket type.")
+  "Output stream socket type.
+
+Extension of OSC:OUTPUT-STREAM.")
 
 (deftype stream ()
-  "Stream socket type."
+  "Stream socket type.
+
+Extension of OSC:STREAM."
   `(or input-stream output-stream))
 
 (setf

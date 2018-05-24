@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014-2017 Tito Latini
+;;; Copyright (c) 2014-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -109,7 +109,7 @@
   (:documentation "Documentation string for VUG."))
 
 (defmethod doc-string ((p plugin))
-  (format nil "~A.~%~A (~A/~D) by ~A."
+  (format nil "~A.~2%~A (~A/~D) by ~A."
           (plugin-name p) (type-of p) (plugin-label p) (plugin-id p)
           (plugin-author p)))
 

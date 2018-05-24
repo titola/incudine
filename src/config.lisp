@@ -66,7 +66,9 @@
 
   (deftype non-positive-sample () `(sample * ,+sample-zero+))
 
-  (deftype frame () 'foreign-pointer)
+  (deftype frame ()
+    "Type designator for a foreign array of samples."
+    'foreign-pointer)
 
   (defun sample (number)
     "Coerce NUMBER to type SAMPLE."
@@ -123,7 +125,7 @@
     :documentation "Number of bits needed to represent the bitmask +PHASE-MASK+.")
 
   (define-constant +phase-mask+ (1- +table-maxlen+)
-    :documentation "The bitmask (- +TABLE-MAXLEN+ 1).")
+    :documentation "The bitmask calculated as +TABLE-MAXLEN+ minus 1.")
 
   (define-constant +rad2inc+ (* +table-maxlen+ +rtwopi+)
     :documentation "Division of +TABLE-MAXLEN+ by two PI.")
@@ -141,11 +143,11 @@
 
   (defvar *sound-velocity*
     (force-sample-format incudine.config::*sound-velocity*)
-    "Velocity of the sound in m/s at 22°C, 1 atmosfera.")
+    "Velocity of the sound in m/s at 22 degrees Celsius, 1 atmosfera.")
   (declaim (type sample *sound-velocity*))
 
   (defvar *r-sound-velocity* (/ 1.0 *sound-velocity*)
-    "The inverse of the sound velocity in s/m at 22°C, 1 atmosfera.")
+    "The inverse of the sound velocity in s/m at 22 degrees Celsius, 1 atmosfera.")
   (declaim (type sample *r-sound-velocity*))
 
   (defvar *sample-rate-hook* nil

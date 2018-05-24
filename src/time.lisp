@@ -627,7 +627,7 @@ The possible units are:
 |-------------+------------------------+--------------------------|
 
 The number of meters depends on the velocity of the sound in m/s at
-22°C, 1 atmosfera (the default is *SOUND-VELOCITY*)."
+22 degrees Celsius, 1 atmosfera (the default is *SOUND-VELOCITY*)."
   `(eval-when (:compile-toplevel :execute)
      (add-sharp-square-bracket-syntax)))
 

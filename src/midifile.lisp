@@ -28,7 +28,11 @@
   "Return a vector of OCTETS."
   (coerce octets 'data))
 
-(define-condition midifile-error (incudine-simple-error) ())
+(define-condition midifile-error (incudine-simple-error) ()
+  (:documentation "All types of error conditions about MIDI files
+inherit from this condition.
+
+Subtype of INCUDINE-SIMPLE-ERROR."))
 
 (define-condition midifile-parse-error (midifile-error)
   ((string :initarg :string :reader midifile-error-string)
@@ -38,7 +42,8 @@
              (cl:format stream "~A at position ~D (track ~D)."
                         (midifile-error-string condition)
                         (midifile-error-position condition)
-                        (midifile-error-track condition)))))
+                        (midifile-error-track condition))))
+  (:documentation "Signaled if there is a MIDI file parsing error."))
 
 (define-condition invalid-running-status (midifile-parse-error)
   ((byte :initarg :status-byte :reader invalid-running-status-byte))
@@ -47,11 +52,23 @@
                                 at position ~D (track ~D)."
                         (invalid-running-status-byte condition)
                         (midifile-error-position condition)
-                        (midifile-error-track condition)))))
+                        (midifile-error-track condition))))
+  (:documentation "Signaled if the MIDI file parser encounters an
+invalid running status.
 
-(define-condition invalid-track-chunk-length (midifile-parse-error) ())
+Subtype of MIDIFILE-PARSE-ERROR."))
 
-(define-condition invalid-variable-length-quantity (midifile-parse-error) ())
+(define-condition invalid-track-chunk-length (midifile-parse-error) ()
+  (:documentation "Signaled if the MIDI file parser encounters a
+header-chunk with invalid length of track data.
+
+Subtype of MIDIFILE-PARSE-ERROR."))
+
+(define-condition invalid-variable-length-quantity (midifile-parse-error) ()
+  (:documentation "Signaled if the MIDI file parser encounters an
+invalid variable-length-quantity.
+
+Subtype of MIDIFILE-PARSE-ERROR."))
 
 (defmacro %midifile-error (format-control &rest format-arguments)
   `(incudine::%simple-error 'midifile-error ,format-control ,@format-arguments))

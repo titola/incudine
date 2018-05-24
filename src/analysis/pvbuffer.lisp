@@ -110,6 +110,12 @@ A PVBUFFER contains a sequence of spectral data."
        (incf ,pvbuf-pos))))
 
 (defun buffer->pvbuffer (buf partsize &key (start 0) (frames 0))
+  "Create and return a new PVBUFFER structure with spectral data
+obtained from a sequence of FFT's of the BUFFER structure BUF
+partitioned with partition size PARTSIZE.
+
+The optional keywords START and FRAMES mark the beginning position in
+frames and the number of frames of the buffer, respectively."
   (declare (type incudine:buffer buf) (type positive-fixnum partsize)
            (type non-negative-fixnum start frames))
   (let* ((bdata (incudine:buffer-data buf))

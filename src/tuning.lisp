@@ -595,16 +595,17 @@ before the conversion.
 
 Example with ET12 scale:
 
-         pch   | keynum |  frac
-     ----------+--------+--------
-      8.00     |   60   |  0.000
-      8.09     |   69   |  0.000
-      8.10     |   70   |  0.000
-      8.095    |   69   |  0.500
-      8.12     |   71   |  0.999
-      8.120001 |   72   |  0.000
-      9.00     |   72   |  0.000
-"
+|----------+--------+-------|
+|      pch | keynum |  frac |
+|----------+--------+-------|
+|     8.00 |     60 | 0.000 |
+|     8.09 |     69 | 0.000 |
+|     8.10 |     70 | 0.000 |
+|    8.095 |     69 | 0.500 |
+|     8.12 |     71 | 0.999 |
+| 8.120001 |     72 | 0.000 |
+|     9.00 |     72 | 0.000 |
+|----------+--------+-------|"
   (declare (type (single-float 0.0 15.0) pitch-class))
   (multiple-value-bind (min-oct degree0) (%keynum->pch 0 tuning)
     (declare (type fixnum min-oct degree0))
@@ -654,15 +655,16 @@ a TUNING structure, PITCH-CLASS is a floating point number xx.yy[z]* where
 
 Example with ET12 scale:
 
-       pch  |  cps
-     -------+-------
-      8.00  |  261
-      8.09  |  440
-      8.095 |  453
-      8.10  |  466
-      8.12  |  523
-      9.00  |  523
-"
+|-------+-----|
+|   pch | cps |
+|-------+-----|
+|  8.00 | 261 |
+|  8.09 | 440 |
+| 8.095 | 453 |
+|  8.10 | 466 |
+|  8.12 | 523 |
+|  9.00 | 523 |
+|-------+-----|"
   (declare (type (single-float 0.0 15.0) pitch-class)
            (type (or tuning null) tuning))
   (if tuning

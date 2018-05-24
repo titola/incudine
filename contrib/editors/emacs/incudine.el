@@ -81,6 +81,7 @@ vice versa.")
                                  string))))
 
 (defun incudine-eval-defun ()
+  "Evaluate the current toplevel form."
   (interactive)
   (slime-eval-defun))
 
@@ -90,6 +91,7 @@ vice versa.")
   (switch-to-buffer-other-window (slime-output-buffer)))
 
 (defun incudine-repl-clear-buffer ()
+  "Clear the REPL buffer."
   (interactive)
   (save-window-excursion
     (with-current-buffer (slime-repl-buffer)
@@ -97,7 +99,9 @@ vice versa.")
       (slime-repl-clear-buffer))))
 
 (defun incudine-prev-defun (&optional n)
-  "Jump at the end of the previous defun."
+  "Jump at the end of the previous defun.
+
+If N is non-NIL, do it that many times."
   (interactive "p")
   (end-of-defun)
   (beginning-of-defun)
@@ -107,7 +111,9 @@ vice versa.")
   (forward-sexp))
 
 (defun incudine-next-defun (&optional n)
-  "Jump at the end of the next defun."
+  "Jump at the end of the next defun.
+
+If N is non-NIL, do it that many times."
   (interactive "p")
   (end-of-defun)
   (if n
@@ -117,13 +123,13 @@ vice versa.")
   (forward-sexp))
 
 (defun incudine-eval-and-next-fn ()
-  "Eval the function and jump to the next."
+  "Eval the function and jump to the next defun."
   (interactive)
   (slime-eval-defun)
   (incudine-next-defun))
 
 (defun incudine-eval-and-prev-fn ()
-  "Eval the function and jump to the previous."
+  "Eval the function and jump to the previous defun."
   (interactive)
   (slime-eval-defun)
   (incudine-prev-defun))
@@ -132,7 +138,8 @@ vice versa.")
   (if n (prefix-numeric-value n) 0))
 
 (defun incudine-rt-start (&optional block-size)
-  "Realtime start.
+  "Start the real-time thread.
+
 If BLOCK-SIZE is positive, set the new block size before starting."
   (interactive "P")
   (let ((n (prefix-numeric-value0 block-size)))
@@ -143,14 +150,16 @@ If BLOCK-SIZE is positive, set the new block size before starting."
         (incudine-eval "(incudine:rt-start)"))))
 
 (defun incudine-rt-stop ()
-  "Realtime stop."
+  "Stop the real-time thread."
   (interactive)
   (incudine-eval "(incudine:rt-stop)"))
 
 (defun incudine-free-node (&optional id)
   "Stop to play a node of the graph.
-If ID is negative, call INCUDINE:STOP instead of INCUDINE:FREE.
-If ID is zero, call INCUDINE:FLUSH-PENDING before INCUDINE:FREE."
+
+If ID is negative, call `incudine:stop' instead of `incudine:free'.
+
+If ID is zero, call `incudine:flush-pending' before `incudine:free'."
   (interactive "P")
   (let ((n (prefix-numeric-value0 id)))
     (incudine-eval (cond ((= n 0) "(progn (incudine:flush-pending) (incudine:free 0))")
@@ -159,22 +168,28 @@ If ID is zero, call INCUDINE:FLUSH-PENDING before INCUDINE:FREE."
                    (abs n))))
 
 (defun incudine-pause-node (&optional id)
-  "Pause node."
+  "Pause node.
+
+If ID is non-NIL, pause the node with identifier ID."
   (interactive "P")
   (incudine-eval "(incudine:pause %d)"
                  (prefix-numeric-value0 id)))
 
 (defun incudine-unpause-node (&optional id)
-  "Pause node."
+  "Unpause node.
+
+If ID is non-NIL, unpause the node with identifier ID."
   (interactive "P")
   (incudine-eval "(incudine:unpause %d)"
                  (prefix-numeric-value0 id)))
 
-(defun incudine-dump-graph (&optional node)
-  "Print informations about the graph of nodes."
+(defun incudine-dump-graph (&optional id)
+  "Print informations about the graph of nodes.
+
+If ID is non-NIL, print info about the group with identifier ID."
   (interactive "P")
   (let ((form (format "(incudine:dump (incudine:node %d) *standard-output*)"
-                      (prefix-numeric-value0 node))))
+                      (prefix-numeric-value0 id))))
     (slime-eval-async `(swank:pprint-eval ,form)
       (lambda (result)
         (slime-with-popup-buffer ("*incudine-node-tree*")
@@ -198,14 +213,16 @@ If ID is zero, call INCUDINE:FLUSH-PENDING before INCUDINE:FREE."
                  (prefix-numeric-value time)))
 
 (defun incudine-rt-memory-free-size ()
-  "Display the free realtime memory"
+  "Display the free realtime memory."
   (interactive)
   (incudine-eval
    "(values (incudine.util:get-foreign-sample-free-size)
             (incudine.util:get-rt-memory-free-size))"))
 
 (defun incudine-peak-info (&optional ch)
-  "Display the peak info of a channel. Reset the meters if CH is negative"
+  "Display the peak info of the channel CH (0 by default).
+
+If CH is a negative number, reset the meters."
   (interactive "P")
   (let ((value (prefix-numeric-value0 ch)))
     (if (minusp value)
@@ -213,7 +230,6 @@ If ID is zero, call INCUDINE:FLUSH-PENDING before INCUDINE:FREE."
         (incudine-eval "(incudine:peak-info %d)" value))))
 
 (defun incudine-set-logger-level (value)
-  "Set Logger Level."
   (incudine-eval "(setf (incudine.util:logger-level) %s)" value))
 
 (defun incudine-logger-level-choice (c)
@@ -228,7 +244,6 @@ If ID is zero, call INCUDINE:FLUSH-PENDING before INCUDINE:FREE."
         (?d ":DEBUG")))))
 
 (defun incudine-set-logger-time (value)
-  "Set Logger Time."
   (incudine-eval "(setf (incudine.util:logger-time) %s)" value))
 
 (defun incudine-logger-time-choice (c)
@@ -257,7 +272,7 @@ arguments and display the generated code."
           #'slime-initialize-macroexpansion-buffer)))))
 
 (defun incudine-play-regofile ()
-  "Eval the edited rego file in realtime."
+  "Eval the edited rego file and schedule the obtained events."
   (interactive)
   (when (and incudine-save-buffer-before-play (buffer-modified-p))
     (save-buffer))
@@ -275,7 +290,7 @@ arguments and display the generated code."
 
 (defun incudine-find-name (&optional name where)
   "If the current line is an `include' statement, edit the included
-file name, otherwise edit a lisp definition or call find-tag."
+file name, otherwise edit a lisp definition or call `find-tag'."
   (interactive (list (and (not current-prefix-arg) (slime-symbol-at-point))))
   (unless (save-excursion
             (beginning-of-line)
@@ -293,7 +308,7 @@ file name, otherwise edit a lisp definition or call find-tag."
 
 (defun incudine-find-name-retract ()
   "If we are editing a rego file, goto the location of the parent
-rego file or call tags-loop-continue."
+rego file or call `tags-loop-continue'."
   (interactive)
   (let* ((from (current-buffer))
          (entry (assoc from incudine-rego-files-walk)))

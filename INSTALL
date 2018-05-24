@@ -10,6 +10,13 @@ priorities *RT-PRIORITY*, *NRT-PRIORITY* and *RECEIVER-DEFAULT-PRIORITY*
     cd /path/to/incudine
     cp incudinerc-example ${HOME}/.incudinerc
 
+Emacs and Texinfo are required to build the documentation:
+
+    cd doc/manual && make info html pdf
+
+This builds the Info, HTML and PDF documentation from the Org and
+Texinfo sources.
+
 If you want to create and install the incudine command:
 
     cd src && sh install_executable

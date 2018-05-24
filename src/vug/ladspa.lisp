@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014-2017 Tito Latini
+;;; Copyright (c) 2014-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -159,7 +159,34 @@
          (ladspa-run ,plugin ladspa-ptr ,block-size)))))
 
 (defmacro vug:ladspa->vug (filename label vug-name
-                           &optional (block-size (block-size)) debug-p)
+                           &key (block-size (block-size)) debug-p)
+  "Define a new VUG and the auxiliary function named VUG-NAME to use
+the LADSPA plugin with LABEL loaded from FILENAME.
+
+FILENAME is the namestring of the plugin path, absolute or relative to
+LADSPA:*LADSPA-PATH*, with or without type extension.
+
+All the arguments of the auxiliary function are optional keywords.
+
+If BLOCK-SIZE is not set and the incudine block size changes,
+LADSPA->VUG should be called again.
+
+If DEBUG-P is T, return the lisp form to define the VUG.
+
+Return the new VUG structure.
+
+Example:
+
+    (ladspa->vug \"caps\" \"Plate\" plate-reverb)
+
+    (dsp! plate-reverb-test (trig-freq input-decay input-scale bw tail
+                             damping blend)
+      (with-samples ((in (* (decay (impulse trig-freq) input-decay)
+                            (white-noise input-scale))))
+        ;; PLATE-REVERB returns a frame because there are two outputs.
+        (multiple-sample-bind (l r)
+            (plate-reverb bw tail damping blend in)
+          (out l r))))"
   (if debug-p
       `(%ladspa->vug ,filename ,label ',vug-name ,block-size)
       `(macrolet ((generate (f l n bs) (%ladspa->vug f l n bs)))

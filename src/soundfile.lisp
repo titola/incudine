@@ -16,7 +16,11 @@
 
 (in-package :soundfile)
 
-(define-condition soundfile-error (incudine-simple-error file-error) ())
+(define-condition soundfile-error (incudine-simple-error file-error) ()
+  (:documentation "All types of error conditions about sound files
+inherit from this condition.
+
+Subtype of INCUDINE-SIMPLE-ERROR and FILE-ERROR."))
 
 (defstruct (stream (:copier nil))
   "Sound file stream type."

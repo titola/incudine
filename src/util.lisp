@@ -172,8 +172,8 @@ The following variables are updated: *SAMPLE-RATE*, *SAMPLE-DURATION*,
   *sample-duration*)
 
 (defun set-sound-velocity (value)
-  "Set the the velocity of the sound in m/s at 22°C, 1 atmosfera and
-run the hook *SOUND-VELOCITY-HOOK*."
+  "Set the the velocity of the sound in m/s at 22 degrees Celsius, 1
+atmosfera and run the hook *SOUND-VELOCITY-HOOK*."
   (setf *sound-velocity* (sample value)
         *r-sound-velocity* (/ 1.0 *sound-velocity*))
   (incudine::call-hooks "set-sound-velocity" *sound-velocity-hook*)
