@@ -9,3 +9,9 @@ src/cache.lisp
 src/incudine
 src/analysis/maybe-fftw-no-simd.lisp
 contrib/cudere-clm/clm-init.lisp
+doc/manual/dir
+doc/manual/incudine.*
+doc/manual/main.org
+doc/manual/out-of-dict.lisp
+doc/manual/undocumented.*
+doc/manual/version

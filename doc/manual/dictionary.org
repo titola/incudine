@@ -1,0 +1,1216 @@
+* The Incudine dictionary
+** Condition
+::: incudine-error
+::: incudine-simple-error
+::: incudine-compile-error
+::: incudine-memory-fault-error
+::: incudine-storage-condition
+::: incudine-network-error
+::: incudine-node-error
+::: incudine-missing-arg
+::: incudine-unknown-time-unit
+::: midifile:midifile-error
+::: midifile:midifile-parse-error
+::: midifile:invalid-variable-length-quantity
+::: midifile:invalid-running-status
+::: midifile:invalid-track-chunk-length
+::: soundfile:soundfile-error
+#+texinfo: @page
+** Bus
+::: bus
+::: audio-in
+::: audio-out
+::: peak-info
+::: print-peak-info
+::: reset-peak-meters
+::: set-number-of-channels
+#+texinfo: @page
+** Buffer
+::: buffer
+::: *sine-table*
+::: *cosine-table*
+::: make-buffer
+::: copy-buffer
+::: buffer-p
+::: free
+::: free-p
+::: buffer-data
+::: buffer-size
+::: buffer-frames
+::: buffer-channels
+::: buffer-sample-rate
+::: buffer-file
+::: buffer-mask
+::: buffer-lobits
+::: buffer-lodiv
+::: buffer-lomask
+::: buffer-value
+::: buffer-load
+::: buffer-save
+::: map-buffer
+::: map-into-buffer
+::: resize-buffer
+::: scale-buffer
+::: normalize-buffer
+::: rescale-buffer
+::: sort-buffer
+::: circular-shift
+::: quantize
+::: buffer->array
+::: buffer->list
+::: fill-buffer
+::: with-buffer
+::: with-buffers
+#+texinfo: @page
+** Tuning
+::: tuning
+::: *default-tuning*
+::: make-tuning
+::: copy-tuning
+::: tuning-description
+::: tuning-cents
+::: tuning-ratios
+::: tuning-cps
+::: tuning-data
+::: tuning-degree-index
+::: tuning-freq-base
+::: tuning-keynum-base
+::: set-tuning
+::: set-tuning-reference
+::: set-tuning-from-midi
+::: minimize-tuning-ratios
+::: tuning-notes-from-data
+::: tuning-save
+::: load-sclfile
+::: cps->pch
+::: pch->cps
+::: keynum->pch
+::: pch->keynum
+#+texinfo: @page
+** Envelope
+::: envelope
+::: make-envelope
+::: copy-envelope
+::: envelope-p
+::: envelope-data
+::: envelope-duration
+::: envelope-points
+::: envelope-loop-node
+::: envelope-release-node
+::: envelope-restart-level
+::: envelope-base->curves
+::: edit-envelope
+::: envelope-level
+::: envelope-time
+::: envelope-curve
+::: set-envelope-base
+::: envelope-at
+::: scale-envelope
+::: normalize-envelope
+::: rescale-envelope
+::: breakpoints->env
+::: freq-breakpoints->env
+::: make-linen
+::: make-perc
+::: make-cutoff
+::: make-asr
+::: make-adsr
+::: make-dadsr
+#+texinfo: @page
+** Time
+::: tempo
+::: make-tempo
+::: tempo-p
+::: *tempo*
+::: bpm
+::: bps
+::: spb
+::: tempo-envelope
+::: make-tempo-envelope
+::: tempo-envelope-p
+::: copy-tempo-envelope
+::: set-tempo-envelope
+::: bpm-at
+::: bps-at
+::: spb-at
+::: time-at
+::: now
+::: tempo-sync
+::: timestamp
+::: enable-sharp-square-bracket-syntax
+#+texinfo: @page
+** Foreign Array
+::: incudine.util:with-foreign-array
+::: incudine.util:with-samples
+::: incudine.util:with-samples*
+::: incudine.util:i8-ref
+::: incudine.util:i16-ref
+::: incudine.util:i32-ref
+::: incudine.util:i64-ref
+::: incudine.util:u8-ref
+::: incudine.util:u16-ref
+::: incudine.util:u32-ref
+::: incudine.util:u64-ref
+::: incudine.util:f32-ref
+::: incudine.util:f64-ref
+::: incudine.util:ptr-ref
+::: incudine.external:foreign-set
+::: incudine.external:foreign-copy
+::: incudine.external:foreign-copy-samples
+::: incudine.external:foreign-zero-sample
+#+texinfo: @page
+** Memory Management
+*** Foreign Memory
+::: incudine.external:foreign-alloc-sample
+::: incudine.util:foreign-realloc
+::: incudine.util:get-nrt-memory-max-size
+::: incudine.util:get-nrt-memory-free-size
+::: incudine.util:get-nrt-memory-used-size
+**** Allocation in Realtime Thread
+::: incudine.util:*allow-rt-memory-pool-p*
+::: incudine.util:allow-rt-memory-p
+::: incudine.util:foreign-rt-alloc
+::: incudine.util:foreign-rt-realloc
+::: incudine.util:foreign-rt-free
+::: incudine.util:safe-foreign-rt-free
+::: incudine.util:get-rt-memory-max-size
+::: incudine.util:get-rt-memory-free-size
+::: incudine.util:get-rt-memory-used-size
+::: incudine.util:get-foreign-sample-max-size
+::: incudine.util:get-foreign-sample-free-size
+::: incudine.util:get-foreign-sample-used-size
+*** Finalization
+::: with-cleanup
+::: dynamic-incudine-finalizer-p
+::: incudine-finalize
+::: incudine-cancel-finalization
+*** Cons Pool
+::: incudine.util:cons-pool
+::: incudine.util:make-cons-pool
+::: incudine.util:cons-pool-pop-cons
+::: incudine.util:cons-pool-push-cons
+::: incudine.util:cons-pool-pop-list
+::: incudine.util:cons-pool-push-list
+::: incudine.util:cons-pool-size
+::: incudine.util:expand-cons-pool
+**** Realtime Cons Pool
+::: incudine.util:rt-global-pool-pop-cons
+::: incudine.util:rt-global-pool-push-cons
+::: incudine.util:rt-global-pool-pop-list
+::: incudine.util:rt-global-pool-push-list
+**** Non-Realtime Cons Pool
+::: incudine.util:nrt-global-pool-pop-cons
+::: incudine.util:nrt-global-pool-push-cons
+::: incudine.util:nrt-global-pool-pop-list
+::: incudine.util:nrt-global-pool-push-list
+**** Tlist
+::: incudine.util:make-tlist
+::: incudine.util:tlist-empty-p
+::: incudine.util:tlist-add-left
+::: incudine.util:tlist-add-right
+::: incudine.util:tlist-left
+::: incudine.util:tlist-remove-left
+::: incudine.util:tlist-right
+*** Foreign Pool
+::: incudine.external:init-foreign-memory-pool
+::: incudine.external:destroy-foreign-memory-pool
+::: incudine.external:foreign-alloc-ex
+::: incudine.external:foreign-realloc-ex
+::: incudine.external:foreign-free-ex
+::: incudine.external:get-foreign-max-size
+::: incudine.external:get-foreign-used-size
+*** Consing
+::: incudine.util:get-bytes-consed-in
+#+texinfo: @page
+** Realtime
+::: set-rt-block-size
+::: rt-loop-callback
+::: rt-silent-errors
+::: rt-start
+::: rt-stop
+::: rt-status
+::: *rt-thread-start-hook*
+::: *rt-thread-exit-hook*
+::: rt-buffer-size
+::: rt-sample-rate
+::: rt-xruns
+::: rt-time-offset
+::: incudine.external:rt-cycle-start-time
+::: incudine.external:rt-client
+::: incudine.util:rt-eval
+::: incudine.util:rt-thread-p
+::: incudine.util:*rt-thread*
+::: incudine.util:*nrt-thread*
+::: incudine.util:*fast-nrt-thread*
+::: incudine.util:*rt-priority*
+::: incudine.util:*nrt-priority*
+::: incudine.util:*fast-nrt-priority*
+*** Receiver
+::: make-responder
+::: make-osc-responder
+::: add-responder
+::: remove-responder
+::: all-responders
+::: remove-all-responders
+::: receiver
+::: remove-receiver
+::: recv-functions
+::: recv-start
+::: recv-stop
+::: recv-status
+#+texinfo: @page
+** Multithreaded Synchronization
+*** Lock-Free FIFO
+::: nrt-funcall
+::: fast-nrt-funcall
+::: rt-funcall
+::: fast-rt-funcall
+::: incudine.util:barrier
+::: incudine.util:compare-and-swap
+*** Spinlock Support
+::: incudine.util:spinlock
+::: incudine.util:make-spinlock
+::: incudine.util:acquire-spinlock
+::: incudine.util:release-spinlock
+::: incudine.util:with-spinlock-held
+#+texinfo: @page
+** Scheduling
+::: at
+::: aat
+::: with-schedule
+::: flush-pending
+::: flush-all-fifos
+*** Earliest Deadline First Scheduling
+::: incudine.edf:node
+::: incudine.edf:make-node
+::: incudine.edf:heap
+::: incudine.edf:*heap*
+::: incudine.edf:*heap-size*
+::: incudine.edf:make-heap
+::: incudine.edf:heap-empty-p
+::: incudine.edf:heap-count
+::: incudine.edf:+root-node+
+::: incudine.edf:schedule-at
+::: incudine.edf:sched-loop
+::: incudine.edf:last-time
+::: incudine.edf:add-flush-pending-hook
+::: incudine.edf:remove-flush-pending-hook
+::: incudine.edf:reduce-heap-pool
+#+texinfo: @page
+** DSP Graph
+::: node
+::: node-p
+::: *root-node*
+::: node-id
+::: node-name
+::: live-nodes
+::: node-free-all
+::: null-node-p
+::: node-gain
+::: node-enable-gain-p
+::: *node-enable-gain-p*
+::: node-fade-time
+::: incudine.util:*fade-time*
+::: node-fade-curve
+::: incudine.util:*fade-curve*
+::: node-fade-in
+::: node-fade-out
+::: node-segment
+::: node-release-phase-p
+::: node-start-time
+::: node-uptime
+::: next-node-id
+::: free-hook
+::: stop-hook
+::: group
+::: make-group
+::: group-p
+::: dograph
+::: dogroup
+::: move
+::: after-p
+::: before-p
+::: head-p
+::: tail-p
+::: play
+::: stop
+::: pause
+::: unpause
+::: pause-p
+::: done-p
+::: reinit
+::: dump
+::: control-getter
+::: control-setter
+::: control-list
+::: control-names
+::: control-value
+::: set-control
+::: set-controls
+#+texinfo: @page
+** Logging
+::: incudine.util:*logger-stream*
+::: incudine.util:*null-output*
+::: incudine.util:*logger-force-output-p*
+::: incudine.util:msg
+::: incudine.util:nrt-msg
+::: incudine.util:logger-level
+::: incudine.util:logger-time
+::: incudine.util:logger-time-function
+::: incudine.util:default-logger-time-function
+::: incudine.util:with-local-logger
+#+texinfo: @page
+** defun*, lambda* and defmacro*
+~defun*~, ~lambda*~ and ~defmacro*~ are inspired by the extensions
+define*, lambda* and define-macro* in Bill Schottstaedt's Scheme
+implementation s7 [fn:lambda-star].
+
+#+texinfo: @noindent
+Some examples from s7.html translated to CL:
+
+#+begin_example
+(defun* hi (a (b 32) (c "hi")) (list a b c))
+
+(hi 1)             ; => (1 32 "hi")
+(hi :b 2 :a 3)     ; => (3 2 "hi")
+(hi 3 2 1)         ; => (3 2 1)
+
+(defun* foo ((a 0) (b (+ a 4)) (c (+ a 7))) (list a b c))
+
+(foo :b 2 :a 60)   ; => (60 2 67)
+
+(defun* foo (&rest a &rest b) (mapcar #'+ a b))
+
+(foo 1 2 3 4 5)    ; => (3 5 7 9)
+
+(defun* foo ((b 3) &rest x (c 1)) (list b c x))
+
+(foo 32)           ; => (32 1 NIL)
+(foo 1 2 3 4 5)    ; => (1 3 (2 3 4 5))
+
+(funcall (lambda* ((b 3) &rest x (c 1) . d) (list b c x d)) 1 2 3 4 5)
+; => (1 3 (2 3 4 5) (4 5))
+
+(defmacro* add-2 (a (b 2)) `(+ ,a ,b))
+
+(add-2 1 3)        ; => 4
+(add-2 1)          ; => 3
+(add-2 :b 3 :a 1)  ; => 4
+#+end_example
+
+::: incudine.util:defun*
+::: incudine.util:lambda*
+::: incudine.util:defmacro*
+::: incudine.util:lambda-list-to-star-list
+
+[fn:lambda-star]
+  The text of the doc-string in ~defun*~ is copied/edited from
+  the s7.html file provided with the source code:
+
+    ftp://ccrma-ftp.stanford.edu/pub/Lisp/s7.tar.gz
+
+
+#+texinfo: @page
+** Sharp-T Reader Macro
+::: enable-sharp-t-syntax
+#+texinfo: @page
+** Numeric Types
+::: incudine.util:sample
+::: incudine.util:positive-sample
+::: incudine.util:non-positive-sample
+::: incudine.util:negative-sample
+::: incudine.util:non-negative-sample
+::: incudine.util:limited-sample
+::: incudine.util:maybe-limited-sample
+::: incudine.util:least-negative-sample
+::: incudine.util:most-negative-sample
+::: incudine.util:least-positive-sample
+::: incudine.util:most-positive-sample
+::: incudine.util:frame
+::: incudine.util:bus-number
+::: incudine.util:channel-number
+::: incudine.util:non-negative-fixnum64
+::: incudine.util:most-positive-fixnum64
+#+texinfo: @page
+** Constants
+::: incudine.util:+sample-zero+
+::: incudine.util:+twopi+
+::: incudine.util:+rtwopi+
+::: incudine.util:+half-pi+
+::: incudine.util:+log001+
+::: incudine.util:+sqrt2+
+::: incudine.util:+foreign-sample-size+
+::: incudine.util:+foreign-complex-size+
+::: incudine.util:+pointer-size+
+::: incudine.util:+pointer-address-type+
+::: incudine.util:+table-maxlen+
+::: incudine.util:+phase-mask+
+::: incudine.util:+max-lobits+
+::: incudine.util:+rad2inc+
+#+texinfo: @page
+** Utilities
+::: incudine.util:incudine-version
+::: init
+::: incudine.util:exit
+::: incudine.util:*reduce-warnings*
+::: incudine.util:reduce-warnings
+::: incudine.external:errno-to-string
+::: block-size
+::: dsp-seq
+::: incudine.util:pow
+::: incudine.util:linear-interp
+::: incudine.util:cubic-interp
+::: incudine.util:cos-interp
+::: incudine.util:db->lin
+::: incudine.util:lin->db
+::: incudine.util:sample->fixnum
+::: incudine.util:sample->int
+::: incudine.util:float->fixnum
+::: incudine.util:t60->pole
+::: incudine.external:complex-to-polar
+::: incudine.external:polar-to-complex
+::: incudine.util:sort-samples
+::: incudine.util:rationalize*
+::: incudine.util:dochannels
+::: incudine.util:smp-ref
+::: incudine.util:power-of-two-p
+::: incudine.util:next-power-of-two
+::: incudine.util:*sample-rate*
+::: incudine.util:*sample-duration*
+::: incudine.util:*sample-rate-hook*
+::: incudine.util:set-sample-rate
+::: incudine.util:set-sample-duration
+::: incudine.util:*cps2inc*
+::: incudine.util:*twopi-div-sr*
+::: incudine.util:*pi-div-sr*
+::: incudine.util:*minus-pi-div-sr*
+::: incudine.util:*sound-velocity*
+::: incudine.util:*r-sound-velocity*
+::: incudine.util:*sound-velocity-hook*
+::: incudine.util:set-sound-velocity
+::: incudine.util:seed-random-state
+::: incudine.util:thread-affinity
+::: incudine.util:thread-priority
+::: incudine.util:with-pinned-objects
+::: incudine.util:without-interrupts
+#+texinfo: @page
+** Analysis
+*** Analysis Structure
+::: ana:analysis
+::: ana:analysis-p
+::: ana:analysis-input-buffer
+::: ana:analysis-input-buffer-size
+::: ana:analysis-output-buffer
+::: ana:analysis-output-buffer-size
+::: ana:analysis-time
+::: ana:touch-analysis
+::: ana:discard-analysis
+*** Analysis Buffer
+::: ana:abuffer
+::: ana:make-abuffer
+::: ana:abuffer-p
+::: ana:abuffer-data
+::: ana:abuffer-size
+::: ana:abuffer-nbins
+::: ana:abuffer-link
+::: ana:abuffer-time
+::: ana:abuffer-normalized-p
+::: ana:abuffer-complex
+::: ana:abuffer-polar
+::: ana:abuffer-imagpart
+::: ana:abuffer-realpart
+::: ana:compute-abuffer
+::: ana:update-linked-object
+::: ana:touch-abuffer
+::: ana:discard-abuffer
+*** Fast Fourier Transform
+::: ana:fft
+::: ana:make-fft
+::: ana:fft-p
+::: ana:fft-size
+::: ana:fft-plan
+::: ana:fft-input
+::: ana:compute-fft
+::: ana:ifft
+::: ana:make-ifft
+::: ana:ifft-p
+::: ana:ifft-size
+::: ana:ifft-plan
+::: ana:ifft-output
+::: ana:compute-ifft
+::: ana:window-size
+::: ana:window-function
+::: ana:*fft-default-window-function*
+::: ana:rectangular-window
+::: ana:dofft
+::: ana:dofft-polar
+::: ana:dofft-complex
+::: ana:new-fft-plan
+::: ana:+fft-plan-fast+
+::: ana:+fft-plan-best+
+::: ana:+fft-plan-optimal+
+::: ana:remove-fft-plan
+::: ana:get-fft-plan
+::: ana:fft-plan-list
+*** PVbuffer
+::: ana:pvbuffer
+::: ana:buffer->pvbuffer
+::: ana:pvbuffer-data
+::: ana:pvbuffer-size
+::: ana:pvbuffer-channels
+::: ana:pvbuffer-frames
+::: ana:pvbuffer-fft-size
+::: ana:pvbuffer-scale-factor
+::: ana:pvbuffer-block-size
+#+texinfo: @page
+** GEN Routines
+*** Analysis
+::: gen:analysis
+*** Envelope
+::: gen:envelope
+*** Filter
+::: gen:fir
+*** Partials
+::: gen:partials
+::: gen:gbuzz
+::: gen:chebyshev-1
+::: incudine.util:cheb
+*** Polynomial
+::: gen:polynomial
+*** Random
+::: gen:all-random-distributions
+::: gen:rand
+::: gen:rand-args
+*** Windows
+::: gen:defwindow
+::: gen:symmetric-loop
+::: gen:symmetric-set
+::: gen:bartlett
+::: gen:blackman
+::: gen:gaussian
+::: gen:hamming
+::: gen:hanning
+::: gen:kaiser
+::: gen:sinc
+::: gen:dolph-chebyshev
+::: gen:sine-window
+#+texinfo: @page
+** MIDI
+::: midiout
+::: midiout-sysex
+::: midi-tuning-sysex
+#+texinfo: @page
+** Mouse Support
+Currently, mouse pointer support requires X window system.
+
+::: incudine.util:mouse-start
+::: incudine.util:mouse-stop
+::: incudine.util:mouse-status
+::: incudine.util:get-mouse-x
+::: incudine.util:get-mouse-y
+::: incudine.util:get-mouse-button
+#+texinfo: @page
+** Voicer
+::: voicer:voicer
+::: voicer:create
+::: voicer:update
+::: voicer:empty-p
+::: voicer:full-p
+::: voicer:polyphony
+::: voicer:steal-voice-mode
+::: voicer:trigger
+::: voicer:release
+::: voicer:control-list
+::: voicer:control-names
+::: voicer:control-value
+::: voicer:set-controls
+::: voicer:define-map
+::: voicer:remove-map
+::: voicer:remove-all-maps
+::: voicer:panic
+::: voicer:midi-event
+::: voicer:midi-bind
+::: voicer:scale-midi-amp
+::: voicer:fill-amp-table
+::: voicer:fill-freq-table
+#+texinfo: @page
+** Virtual Unit Generator
+::: vug:vug
+::: vug:vug-macro
+::: vug:vug-p
+::: vug:vug-macro-p
+::: vug:define-vug
+::: vug:define-vug-macro
+::: vug:rename-vug
+::: vug:destroy-vug
+::: vug:all-vug-names
+::: vug:fix-vug
+::: vug:vug-input
+::: vug:with-vug-inputs
+::: vug:vuglet
+::: vug:with
+::: vug:with-follow
+::: vug:without-follow
+::: vug:init-only
+::: vug:external-variable
+::: vug:initialize
+::: vug:tick
+::: vug:update
+::: vug:foreach-channel
+::: vug:current-channel
+::: vug:foreach-frame
+::: vug:current-frame
+::: vug:current-sample
+::: vug:current-input-sample
+::: vug:foreach-tick
+::: vug:maybe-expand
+::: vug:get-pointer
+::: vug:dsp-node
+::: vug:free-self
+::: vug:make-i32-array
+::: vug:make-u32-array
+::: vug:make-i64-array
+::: vug:make-u64-array
+::: vug:make-f32-array
+::: vug:make-f64-array
+::: vug:make-pointer-array
+::: vug:maybe-make-i32-array
+::: vug:maybe-i32-ref
+::: vug:maybe-make-u32-array
+::: vug:maybe-u32-ref
+::: vug:foreign-array-type-of
+::: vug:foreign-length
+::: vug:samples-zero
+#+texinfo: @page
+** Built-in Virtual Unit Generators
+*** Output
+::: vug:out
+::: vug:cout
+::: vug:frame-out
+::: vug:node-out
+*** Generator
+::: vug:buzz
+::: vug:gbuzz
+::: vug:impulse
+::: vug:osc
+::: vug:oscr
+::: vug:oscrc
+::: vug:oscrq
+::: vug:oscrs
+::: vug:phasor
+::: vug:phasor-loop
+::: vug:pulse
+::: vug:sine
+*** Noise
+::: vug:white-noise
+::: vug:pink-noise
+::: vug:fractal-noise
+::: vug:crackle
+::: vug:rand
+*** Envelope
+::: vug:line
+::: vug:expon
+::: vug:envelope
+*** Panpot
+::: vug:fpan2
+::: vug:pan2
+::: vug:stereo
+*** Delay
+::: vug:buf-delay-s
+::: vug:buf-delay
+::: vug:buf-vdelay
+::: vug:delay1
+::: vug:delay-s
+::: vug:delay
+::: vug:vdelay
+::: vug:vtap
+::: vug:delay-feedback
+::: vug:allpass
+::: vug:vallpass
+::: vug:fb-comb
+::: vug:ff-comb
+*** Filter
+::: vug:~
+::: vug:apf
+::: vug:biquad
+::: vug:bpf
+::: vug:butter-bp
+::: vug:butter-br
+::: vug:butter-hp
+::: vug:butter-lp
+::: vug:cs-atone
+::: vug:cs-tone
+::: vug:dcblock
+::: vug:decay
+::: vug:decay-2
+::: vug:direct-convolve
+::: vug:env-follower
+::: vug:fofilter
+::: vug:hi-shelf
+::: vug:hpf
+::: vug:lag
+::: vug:lag-ud
+::: vug:low-shelf
+::: vug:lpf
+::: vug:lpf18
+::: vug:maf
+::: vug:median
+::: vug:moogff
+::: vug:moogladder
+::: vug:nlf2
+::: vug:notch
+::: vug:part-convolve
+::: vug:peak-eq
+::: vug:pole
+::: vug:pole*
+::: vug:reson
+::: vug:resonr
+::: vug:resonz
+::: vug:ringr
+::: vug:ringz
+::: vug:svf
+::: vug:two-pole
+::: vug:two-zero
+::: vug:zero
+::: vug:zero*
+*** Conversion
+::: vug:lin->lin
+::: vug:lin->exp
+*** Buffer
+::: vug:buffer-read
+::: vug:buffer-write
+::: vug:buffer-play
+::: vug:buffer-frame
+*** Frame
+::: vug:make-frame
+::: vug:frame-ref
+::: vug:multiple-sample-bind
+::: vug:samples
+*** Distortion
+::: vug:clip
+::: vug:nclip
+::: vug:wrap
+::: vug:nwrap
+::: vug:mirror
+::: vug:nmirror
+*** Analysis
+::: vug:centroid
+::: vug:flatness
+::: vug:flux
+::: vug:rolloff
+::: vug:spectral-rms
+*** Chaos
+::: vug:cusp
+::: vug:fb-sine
+::: vug:gbman
+::: vug:gendy
+::: vug:henon
+::: vug:latoocarfian
+::: vug:lin-cong
+::: vug:lorenz
+::: vug:quad-map
+::: vug:standard-map
+*** MIDI
+::: vug:*linear-midi-table*
+::: vug:midi-note-p
+::: vug:midi-note-off
+::: vug:midi-note-off-p
+::: vug:midi-note-on
+::: vug:midi-note-on-p
+::: vug:midi-keynum
+::: vug:midi-lowest-keynum
+::: vug:midi-highest-keynum
+::: vug:midi-velocity
+::: vug:midi-amp
+::: vug:midi-cps
+::: vug:midi-cc
+::: vug:midi-cc-p
+::: vug:midi-program
+::: vug:midi-program-p
+::: vug:midi-pitch-bend
+::: vug:midi-pitch-bend-p
+::: vug:midi-poly-aftertouch
+::: vug:midi-poly-aftertouch-p
+::: vug:midi-global-aftertouch
+::: vug:midi-global-aftertouch-p
+::: vug:lin-midi-cc
+::: vug:lin-midi-pitch-bend
+::: vug:lin-midi-poly-aftertouch
+::: vug:lin-midi-global-aftertouch
+::: vug:exp-midi-cc
+::: vug:exp-midi-pitch-bend
+::: vug:exp-midi-poly-aftertouch
+::: vug:exp-midi-global-aftertouch
+::: vug:played-midi-note
+::: vug:reset-midi-notes
+*** Misc
+::: vug:counter
+::: vug:downsamp
+::: vug:interpolate
+::: vug:samphold
+::: vug:snapshot
+::: vug:with-control-period
+*** Mouse
+::: vug:mouse-x
+::: vug:mouse-y
+::: vug:mouse-button
+::: vug:lin-mouse-x
+::: vug:lin-mouse-y
+::: vug:exp-mouse-x
+::: vug:exp-mouse-y
+*** Foreign Plugin
+::: incudine.vug-foreign:+input-port+
+::: incudine.vug-foreign:+output-port+
+::: incudine.vug-foreign:+audio-port+
+::: incudine.vug-foreign:+control-port+
+::: incudine.vug-foreign:+midi-port+
+::: incudine.vug-foreign:+event-port+
+::: incudine.vug-foreign:port
+::: incudine.vug-foreign:input-port-p
+::: incudine.vug-foreign:output-port-p
+::: incudine.vug-foreign:audio-port-p
+::: incudine.vug-foreign:control-port-p
+::: incudine.vug-foreign:midi-port-p
+::: incudine.vug-foreign:event-port-p
+::: incudine.vug-foreign:make-port
+::: incudine.vug-foreign:port-loop
+::: incudine.vug-foreign:plugin
+::: incudine.vug-foreign:make-plugin
+::: incudine.vug-foreign:with-vug-plugin
+::: incudine.vug-foreign:doc-string
+::: incudine.vug-foreign:update-io-number
+#+texinfo: @page
+** Unit Generator
+::: vug:ugen
+::: vug:define-ugen
+::: vug:ugen-debug
+::: vug:*eval-some-specials-p*
+::: vug:*specials-to-eval*
+::: vug:compile-vug
+::: vug:compiled-vug-p
+::: vug:rename-ugen
+::: vug:destroy-ugen
+::: vug:all-ugen-names
+::: vug:fix-ugen
+::: vug:ugen-instance
+::: vug:with-ugen-instance
+::: vug:with-ugen-instances
+::: vug:ugen-perf-function
+::: vug:ugen-reinit-function
+::: vug:ugen-return-pointer
+::: vug:ugen-control-pointer
+::: vug:define-ugen-control-getter
+::: vug:define-ugen-control-setter
+#+texinfo: @page
+** DSP
+::: vug:*update-dsp-instances-p*
+::: vug:dsp!
+::: vug:dsp-debug
+::: vug:destroy-dsp
+::: vug:free-dsp-instances
+::: vug:all-dsp-names
+#+texinfo: @page
+** Mixdown
+::: incudine.util:*bounce-to-disk-guard-size*
+::: bounce-to-disk
+::: bounce-to-buffer
+::: with-nrt
+#+texinfo: @page
+** Rego File
+A rego file can contain time-tagged lisp functions, lisp statements,
+arbitrary score statements and lisp tags.
+
+#+texinfo: @noindent
+The syntax of a time-tagged lisp function is:
+
+#+texinfo: @exampleindent 4
+#+begin_example
+start-time-in-beats function-name [arg1] [arg2] ...
+#+end_example
+
+#+texinfo: @noindent
+If the symbol ~//~ is used to separate the functions with the same
+time-tag, the result is a polyphonic vertical sequencer in text files.
+A quoted function name is ignored; useful to mute an instrument.
+
+#+texinfo: @noindent
+For example:
+
+#+texinfo: @exampleindent 4
+#+begin_example
+2.5 foo 440 .08 // bar 550 .1 // 'baz 660 .05 // sev 770 .1
+3.2                           //  baz 330 .03
+4.5 foo 220 .02                               // sev 772 .07
+#+end_example
+
+#+texinfo: @noindent
+is equivalent to
+
+#+texinfo: @exampleindent 4
+#+begin_example
+2.5 foo 440 .08
+2.5 bar 550 .1
+2.5 sev 770 .1
+3.2 baz 330 .03
+4.5 foo 220 .02
+4.5 sev 772 .07
+#+end_example
+
+#+texinfo: @noindent
+Local variables usable inside a rego file:
+
+#+texinfo: @exampleindent 4
+#+begin_example
+TIME          time offset in beats
+TEMPO-ENV     temporal envelope of the events
+#+end_example
+
+#+texinfo: @noindent
+It is possible to define other local variables by inserting
+the bindings after ~with~, at the beginning of the score.
+For example:
+
+#+texinfo: @exampleindent 4
+#+begin_example
+;;; test.rego
+with (id 1) (last 4)
+
+;; simple oscillators
+0          simple 440 .2 :id id
+1          simple 448 .2 :id (+ id 1)
+(1- last)  simple 661 .2 :id (+ id 2)
+last       free 0
+#+end_example
+
+#+texinfo: @noindent
+We can also add a ~declare~ expression after the bindings.
+
+#+texinfo: @noindent
+~dur~ is a local function to convert the duration from
+beats to seconds with respect to ~tempo-env~.
+
+#+texinfo: @noindent
+~tempo~ is a local macro to change the tempo of the score.
+The syntax is
+
+#+texinfo: @exampleindent 4
+#+begin_example
+(tempo bpm)
+(tempo bpms beats &key curve loop-node release-node
+                       restart-level real-time-p)
+#+end_example
+
+#+texinfo: @noindent
+The syntax to include the content of an external rego file is:
+
+#+texinfo: @exampleindent 4
+#+begin_example
+include "regofile" [time]
+#+end_example
+
+#+texinfo: @noindent
+where ~time~ is an optional time offset in beats.
+
+#+texinfo: @noindent
+~time~ and ~tempo-env~ are a parent's copy within an included rego file,
+so we can locally change the temporal envelope and/or the time offset
+without side effects. Moreover, all the local bindings and the labels
+contained in a rego file continue to have lexical scope and dynamic
+extent, therefore it is possible to include the same rego file multiple
+times without name collisions.
+
+#+texinfo: @noindent
+There is not a specific limit on the depth of included rego files.
+
+#+texinfo: @noindent
+Note: we can use ~tempo-env~ within an event function only if the
+event terminates before the end of the rego file.
+
+#+texinfo: @noindent
+A rego file ends after the last event or after a long pending event if
+the duration is known (defined with the local function ~dur~). For
+example:
+
+#+texinfo: @exampleindent 4
+#+begin_example
+0    ...
+1.5  ...
+3    ...
+#+end_example
+
+#+texinfo: @noindent
+ends after 3 beats but
+
+#+texinfo: @exampleindent 4
+#+begin_example
+0    ...
+1.5  ... (dur 5) ...
+3    ...
+#+end_example
+
+#+texinfo: @noindent
+ends after 6.5 beats.
+
+::: defscore-statement
+::: delete-score-statement
+::: ignore-score-statements
+::: *score-readtable*
+::: regofile->sexp
+::: regofile->function
+::: regofile->lispfile
+::: regofile->list
+::: regolist->file
+#+texinfo: @page
+** Networking
+*** General Stream Sockets
+::: net:stream
+::: net:input-stream
+::: net:input-stream-p
+::: net:output-stream
+::: net:output-stream-p
+::: net:+default-msg-flags+
+::: net:*buffer-size*
+::: net:*listen-backlog*
+::: net:host
+::: net:port
+::: net:direction
+::: net:protocol
+::: net:protocolp
+::: net:buffer-pointer
+::: net:buffer-size
+::: net:open
+::: net:open-p
+::: net:*before-close-hook*
+::: net:close
+::: net:read
+::: net:write
+::: net:foreign-read
+::: net:foreign-write
+::: net:broadcast
+::: net:block-p
+::: net:without-block
+::: net:socket-fd
+::: net:last-recv-fd
+::: net:socket-send
+::: net:connect
+::: net:connections
+::: net:connections-fd
+::: net:close-connections
+::: net:reject
+::: net:buffer-to-string
+::: net:string-to-buffer
+::: net:buffer-to-octets
+::: net:octets-to-buffer
+::: net:slip-encode
+::: net:slip-decode
+*** Open Sound Control
+::: osc:stream
+::: osc:input-stream
+::: osc:input-stream-p
+::: osc:output-stream
+::: osc:output-stream-p
+::: osc:*buffer-size*
+::: osc:*max-values*
+::: osc:latency
+::: osc:max-values
+::: osc:message-encoding
+::: osc:open
+::: osc:with-stream
+::: osc:message-pointer
+::: osc:message-length
+::: osc:message
+::: osc:start-message
+::: osc:send
+::: osc:simple-bundle
+::: osc:send-bundle
+::: osc:receive
+::: osc:address-pattern
+::: osc:check-pattern
+::: osc:index-values
+::: osc:value
+::: osc:value-pointer
+::: osc:with-values
+::: osc:required-values
+::: osc:midi
+::: osc:fix-size
+#+texinfo: @page
+** Midifile
+::: midifile:stream
+::: midifile:input-stream
+::: midifile:input-stream-p
+::: midifile:output-stream
+::: midifile:output-stream-p
+::: midifile:open
+::: midifile:open-p
+::: midifile:close
+::: midifile:with-open-midifile
+::: midifile:read-header
+::: midifile:write-header
+::: midifile:read-event
+::: midifile:write-short-event
+::: midifile:write-event
+::: midifile:write-tempo-track
+::: midifile:message
+::: midifile:tempo-message
+::: midifile:string-message
+::: midifile:path
+::: midifile:data
+::: midifile:format
+::: midifile:ppqn
+::: midifile:smpte
+::: midifile:number-of-tracks
+::: midifile:current-track
+::: midifile:next-track
+::: midifile:end-of-track
+::: midifile:tempo
+::: midifile:message-status
+::: midifile:message-data1
+::: midifile:message-data2
+::: midifile:message-length
+::: midifile:message-buffer
+::: midifile:event-time
+::: midifile:event-delta-time
+::: midifile:event-beats
+::: midifile:event-seconds
+::: midifile:release-cached-buffers
+#+texinfo: @page
+** Soundfile
+::: soundfile:stream
+::: soundfile:input-stream
+::: soundfile:input-stream-p
+::: soundfile:output-stream
+::: soundfile:output-stream-p
+::: soundfile:open
+::: soundfile:open-p
+::: soundfile:close
+::: soundfile:with-open-soundfile
+::: soundfile:read-header
+::: soundfile:read
+::: soundfile:read-next
+::: soundfile:read-into-buffer
+::: soundfile:foreign-read
+::: soundfile:write
+::: soundfile:foreign-write
+::: soundfile:eof-p
+::: soundfile:duration
+::: soundfile:channels
+::: soundfile:frames
+::: soundfile:sample-rate
+::: soundfile:header-type
+::: soundfile:data-format
+::: soundfile:metadata
+::: soundfile:data-location
+::: soundfile:path
+::: soundfile:buffer-data
+::: soundfile:buffer-size
+::: soundfile:buffer-value
+::: soundfile:buffer-index
+::: soundfile:current-frame
+::: soundfile:position
+::: soundfile:offset
+::: soundfile:maxamp
+::: soundfile:convert
+::: soundfile:concatenate
+::: soundfile:merge
+#+texinfo: @page
+** Contributed Modules

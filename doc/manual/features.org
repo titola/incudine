@@ -1,0 +1,58 @@
+* Features
+ - Realtime synthesis with sample-by-sample or block-by-block
+   processing (without a realtime garbage collector but it's simple
+   to define cons-free DSP).
+
+ - Sample accurate callbacks.
+
+ - Non-realtime bounce to disk and bounce to buffer.
+
+ - The format of the sample is double float.
+
+ - Optional standalone executable.
+
+ - Optional score (rego) files with time-tagged lisp functions,
+   lisp statements, lisp tags and arbitrary score statements.
+
+ - Graph of DSP's.
+
+ - Collection of useful re-definable virtual unit generators.
+
+ - Collection of GEN routines.
+
+ - MIDI support via [[http://portmedia.sourceforge.net/portmidi][PortMidi]] and [[http://jackaudio.org][Jack MIDI]].
+
+ - MIDI File I/O support.
+
+ - Open Sound Control support.
+
+ - Tempo change with arbitrary curves.
+
+ - Import/Export a musical scale from/to scale file format.
+
+ - MIDI tuning by sending a bulk tuning dump message with arbitrary
+   checksum function or 28 single note tuning change messages
+   (Exclusive Real Time).
+
+ - Frequencies of a TUNING structure changed with the data received
+   from a MIDI bulk tuning dump message.
+
+ - Flexible voicer.
+
+ - The score (rego) files are [[http://orgmode.org][Org]] friendly. It is possible to edit and
+   organize score files with spreedsheet-like capabilities, headlines,
+   unordered lists, blocks, properties, hyperlinks, todo items, tags,
+   deadlines, scheduling, etc.
+
+ - Optional interface to interact with the sound editor [[http://ccrma.stanford.edu/software/snd/][Snd]].
+
+ - Optional cudere-clm package, the Incudine version of CLM.
+
+ - Optional interface to use a [[http://www.ladspa.org][LADSPA audio plugin]] in a Virtual UGen.
+
+ - Optional interface to use a [[http://lv2plug.in][LV2 audio plugin]] in a Virtual UGen.
+
+ - Optional [[http://www.fluidsynth.org/][FluidSynth]] SoundFont synthesizer support.
+
+ - Incudine is released under the GNU General Public License (GPL)
+   version 2 or later.

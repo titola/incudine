@@ -1,0 +1,13 @@
+* Introduction
+Incudine is useful to design software synthesizers or sound plugins
+from scratch, exploiting the expressive power of Common Lisp, without
+the constraint to use pre-built unit generators. It is also a
+compositional tool that allows to produce high quality sounds
+controllable at the sample level, defining and redefining the digital
+signal processors and the musical structures on-the-fly.
+
+Incudine introduces the Virtual UGen (VUG), a new mechanism for
+defining primitive unit generators by writing concise and reusable
+code. The definition of a VUG contains lisp code and/or other nested
+VUGs (or "real" UGens), and it is re-arranged and compiled efficiently
+during the creation of a DSP.

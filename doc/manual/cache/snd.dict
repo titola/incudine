@@ -1,0 +1,34 @@
+*** Sound editor Snd
+Interface to interact with Snd.
+
+#+texinfo: @noindent
+To load ~incudine-snd~ use ~asdf:load-system~ or ~require~.
+
+::: snd:*program-name*
+::: snd:*program-args*
+::: snd:*tmpfile*
+::: snd:snd-error
+::: snd:run
+::: snd:eval
+::: snd:load
+::: snd:exit
+::: snd:flush-stream
+::: snd:close-stream
+::: snd:emacs-mode-p
+::: snd:enable-sharp-s7-syntax
+::: snd:open-or-update-sound
+::: snd:mix
+::: snd:float-vector
+::: snd:sound->buffer
+::: snd:selection->buffer
+::: snd:region->buffer
+::: snd:mix->buffer
+::: snd:float-vector->buffer
+::: snd:buffer->sound
+::: snd:buffer->mix
+::: snd:map-channel
+::: snd:env-channel
+::: snd:env-selection
+::: incudine:bounce-to-snd
+::: incudine:bounce-to-snd-mix
+#+texinfo: @page

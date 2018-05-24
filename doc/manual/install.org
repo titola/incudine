@@ -1,0 +1,154 @@
+* Installation
+** Requirements
+Incudine works with [[http://www.sbcl.org][SBCL]], an implementation of ANSI Common Lisp with a
+high-performance native compiler.
+
+*** Common Lisp packages
+
+- [[http://common-lisp.net/project/alexandria][Alexandria]]
+
+- [[http://common-lisp.net/project/bordeaux-threads][Bordeaux-threads]]
+
+- [[http://common-lisp.net/project/cffi][CFFI]]
+
+- [[https://github.com/sionescu/swap-bytes][Swap-bytes]]
+
+- [Optional] [[http://common-lisp.net/project/linedit/][Linedit]] for incudine command
+
+*** Foreign libraries
+
+- Pthread
+
+- [[http://jackaudio.org][JACK]] or [[http://www.portaudio.com][PortAudio >= 1.9]]
+
+- [[http://portmedia.sourceforge.net/portmidi][PortMidi]]
+
+- [[http://www.mega-nerd.com/libsndfile][libsndfile >= 1.0.19]]
+
+- [[http://www.fftw.org][FFTW >= 3.0]]
+
+- [[http://www.gnu.org/software/gsl][GNU Scientific Library (GSL)]]
+
+- [Optional] [[http://www.fluidsynth.org/][FluidSynth]]
+
+- [Optional] [[http://drobilla.net/software/lilv][LILV]]
+
+** Download
+The latest source code can be obtained via Git:
+
+#+begin_example
+git clone git://git.code.sf.net/p/incudine/incudine
+#+end_example
+
+#+texinfo: @noindent
+Mirror:
+
+#+begin_example
+git clone git://github.com/titola/incudine.git
+#+end_example
+
+** Configuration
+Symlink the system definition file to a directory in your
+~asdf:*central-registry*~ list:
+
+#+begin_example
+cd /path/to/your/registry/
+ln -s /path/to/incudine/incudine.asd
+#+end_example
+
+#+vindex: *rt-priority*
+#+vindex: *nrt-priority*
+#+vindex: *receiver-default-priority*
+#+texinfo: @noindent
+Edit and copy the configuration file, with particular attention to the
+priorities ~*rt-priority*~, ~*nrt-priority*~ and
+~*receiver-default-priority*~
+
+#+begin_example
+cd /path/to/incudine
+cp incudinerc-example ${HOME}/.incudinerc
+#+end_example
+
+#+texinfo: @noindent
+Emacs and Texinfo are required to build the documentation:
+
+#+begin_example
+cd doc/manual && make info html pdf
+#+end_example
+
+#+texinfo: @noindent
+This builds the Info, HTML and PDF documentation from the Org and
+Texinfo sources.
+
+#+texinfo: @noindent
+If you want to create and install the incudine command:
+
+#+begin_example
+cd src && ./install_executable
+#+end_example
+
+#+texinfo: @noindent
+The options for the script =install_executable= are:
+
+#+begin_example
+--prefix=PREFIX       install architecture-independent files in PREFIX
+                      [/usr/local]
+--bindir=DIR          user executables [PREFIX/bin]
+--swank-loader=PATH   support for Swank server with path to swank-loader.lisp
+--without-aclrepl     do not use Allegro CL-style Read-Eval-Print Loop.
+--with-clm            use cudere-clm, the Incudine version of CLM.
+--with-linedit        support for Linedit, readline-style library in CL.
+--with-fluidsynth     support for FluidSynth SoundFont synthesizer.
+--with-ladspa         support for LADSPA plugins.
+--with-lv2            support for LV2 plugins.
+--with-snd            support for the sound editor Snd.
+--with-module=NAME    load the module NAME before to create the executable.
+--sbcl-options=OPTS   options for SBCL.
+--before-save=FORM    read and evaluate FORM before to create the executable.
+#+end_example
+
+#+texinfo: @noindent
+For example:
+
+#+begin_example
+sh install_executable --with-linedit --with-ladspa --with-snd  \
+                      --with-module=ltk --with-module=dsp-collection
+#+end_example
+
+#+texinfo: @noindent
+or with Swank server and other options:
+
+#+begin_example
+sh install_executable --with-linedit --with-fluidsynth \
+                      --with-ladspa --with-lv2 --with-snd \
+                      --swank-loader=/path/to/slime/swank-loader.lisp \
+                      --with-module=inferior-shell \
+                      --before-save="(use-package 'inferior-shell :scratch)"
+#+end_example
+
+#+texinfo: @noindent
+Note: the support for LV2 plugins requires Lilv, a LV2 host library.
+
+#+texinfo: @noindent
+If you use SLIME, add these lines to =${HOME}/.swank.lisp=
+
+#+begin_example
+;; Avoid problems in realtime because the default value is :SPAWN
+;; (each request in a separate thread)
+,#+sbcl (setf swank:*communication-style* :sigio)
+;; Useful to redirect standard output from any other threads into the REPL
+,#+sbcl (defparameter swank:*globally-redirect-io* t)
+#+end_example
+
+#+texinfo: @noindent
+There is also a major mode for GNU Emacs. If you want to install it,
+add the following lines to your .emacs file:
+
+#+begin_example
+(push "/path/to/incudine/contrib/editors/emacs" load-path)
+(require 'incudine)
+;; org-babel functions
+(require 'ob-incudine)
+#+end_example
+
+*** Sample configuration file

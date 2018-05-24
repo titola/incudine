@@ -1,0 +1,162 @@
+** Emacs Modes
+*** Incudine Mode
+The major mode for editing incudine code.
+
+#+attr_texinfo: :options {Variable} incudine-mode-hook
+#+begin_defvr
+Hook called when a buffer enters Incudine mode.
+#+end_defvr
+
+- @@texinfo:@kbd{C-c s}@@ (~incudine-scratch~) ::
+     Switch to Incudine scratch buffer.
+
+- @@texinfo:@kbd{C-c v}@@ (~incudine-show-repl~) ::
+     Show REPL in other window.
+
+- @@texinfo:@kbd{C-c M-o}@@ (~incudine-repl-clear-buffer~) ::
+     Clear the REPL buffer.
+
+- @@texinfo:@kbd{C-c r s}@@ (~incudine-rt-start~) ::
+     Start the real-time thread.
+
+     With a positive argument ~n~, set the new block size to ~n~
+     before starting.
+
+- @@texinfo:@kbd{C-c r q}@@ (~incudine-rt-stop~) ::
+     Stop the real-time thread.
+
+- @@texinfo:@kbd{C-c i p}@@ (~incudine-peak-info~) ::
+     Display the peak info of a channel (0 by default).
+
+     With a non negative argument, display the peak info of that channel.
+
+     With a negative argument, reset the meters.
+
+- @@texinfo:@kbd{C-M-Return}@@ (~incudine-free-node~) ::
+     Stop to play a node of the graph.
+
+     With a negative argument, call ~incudine:stop~ instead of ~incudine:free~.
+
+     With zero argument, call ~incudine:flush-pending~ before ~incudine:free~.
+
+- @@texinfo:@kbd{C-c p}@@ (~incudine-pause-node~) ::
+     Pause node.
+
+     With a numeric argument 'n', pause the node with identifier 'n'.
+
+- @@texinfo:@kbd{C-c u}@@ (~incudine-unpause-node~) ::
+     Unpause node.
+
+     With a numeric argument 'n', unpause the node with identifier 'n'.
+
+- @@texinfo:@kbd{C-c i n}@@ (~incudine-live-nodes~) ::
+     Print the number of the live nodes.
+
+- @@texinfo:@kbd{C-c i g}@@ (~incudine-dump-graph~) ::
+     Print informations about the graph of nodes.
+
+     With a numeric argument 'n', print info about the group with
+     identifier 'n'.
+
+- @@texinfo:@kbd{C-c g c}@@ (~incudine-gc~) ::
+     Initiate a garbage collection.
+
+- @@texinfo:@kbd{C-c g b}@@ (~incudine-bytes-consed-in~) ::
+     Rough estimate of the bytes consed in ~time~ seconds.
+
+- @@texinfo:@kbd{C-c i m}@@ (~incudine-rt-memory-free-size~) ::
+     Display the free realtime memory.
+
+- @@texinfo:@kbd{C-c i d}@@ ::
+     If the form at point starts with ~dsp!~ or ~define-ugen~, prompt the
+     arguments and display the generated code.
+
+- @@texinfo:@kbd{C-c l l e}@@ ::
+     Set the logger level to ~:error~.
+
+- @@texinfo:@kbd{C-c l l w}@@ ::
+     Set the logger level to ~:warn~.
+
+- @@texinfo:@kbd{C-c l l i}@@ ::
+     Set the logger level to ~:info~.
+
+- @@texinfo:@kbd{C-c l l d}@@ ::
+     Set the logger level to ~:debug~.
+
+- @@texinfo:@kbd{C-c l t n}@@ ::
+     Log messages without timestamp.
+
+- @@texinfo:@kbd{C-c l t s}@@ ::
+     Log messages with timestamp in seconds.
+
+- @@texinfo:@kbd{C-c l t S}@@ ::
+     Log messages with timestamp in samples.
+
+- @@texinfo:@kbd{C-Return}@@ ::
+     Eval the function and jump to the next defun.
+
+- @@texinfo:@kbd{C-S-Return}@@ ::
+     Eval the function and jump to the previous defun.
+
+- @@texinfo:@kbd{M-Return}@@ ::
+     Evaluate the current toplevel form.
+
+- @@texinfo:@kbd{PageUp}@@ ::
+     Jump at the end of the previous defun.
+
+     With a numeric argument, do it that many times.
+
+- @@texinfo:@kbd{PageDown}@@ ::
+     Jump at the end of the next defun.
+
+     With a numeric argument, do it that many times.
+
+- @@texinfo:@kbd{C-j}@@ ::
+     Evaluate sexp before point; print value into the current buffer.
+
+*** Incudine Rego Mode
+Major mode for editing incudine rego files.
+
+#+texinfo: @noindent
+Incudine rego mode is a derivative of Org mode.
+
+#+attr_texinfo: :options {Variable} incudine-rego-mode-hook
+#+begin_defvr
+Hook called when a buffer enters Incudine Rego mode.
+#+end_defvr
+
+- @@texinfo:@kbd{f9}@@ (~incudine-play-regofile~) ::
+     Eval the edited rego file and schedule the obtained events.
+
+- @@texinfo:@kbd{C-c R l}@@ ::
+     Display the list of events obtained from the edited rego file.
+
+- @@texinfo:@kbd{C-c R e}@@ ::
+     Display the scheduled events obtained from the edited rego file.
+
+- @@texinfo:@kbd{C-c R s}@@ ::
+     Display the expansion of the edited rego file.
+
+- @@texinfo:@kbd{M-.}@@ ::
+     If the current line is an ~include~ statement, edit the included
+     file name, otherwise edit a lisp definition or call ~find-tag~.
+
+- @@texinfo:@kbd{M-,}@@ ::
+     Goto the location of the parent rego file or call ~tags-loop-continue~.
+
+*** Org Mode
+Code blocks in Incudine are supported. For example,
+
+#+texinfo: @exampleindent 4
+#+begin_example
+(require 'ob-incudine)
+#+end_example
+
+#+texinfo: @noindent
+enables the execution of Incudine code blocks.
+
+#+texinfo: @noindent
+If the ~tangle~ header argument is ~yes~, the extension of the tangled
+file is "cudo".
+
+#+texinfo: @page

@@ -1,0 +1,679 @@
+*** LV2 plugin
+LV2 audio plugin interface for Incudine.
+
+#+texinfo: @noindent
+To load ~incudine-lv2~ use ~asdf:load-system~ or ~require~.
+
+#+attr_texinfo: :options {Macro} vug:lv2->vug uri vug-name @andkey{} block-size debug-p
+#+begin_deffn
+Define a new VUG and the auxiliary function named ~vug-name~ to use
+the ~lv2~ plugin with ~uri~.
+
+All the arguments of the auxiliary function are optional keywords.
+
+If the incudine block size changes, ~vug:lv2->vug~ should be called again.
+
+If ~block-size~ is not set and the incudine block size changes, ~lv2->vug~
+should be called again.
+
+If ~debug-p~ is ~t~, return the lisp form to define the VUG.
+
+Return the new VUG structure.
+
+Example:
+
+: (lv2->vug "http://plugin.org.uk/swh-plugins/amp" swh.amp)
+:
+: (dsp! amp-test (gain)
+:   (out (swh.amp gain (white-noise))))
+#+end_deffn
+
+#+attr_texinfo: :options {Variable} lilv:*world*
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Variable} lilv:*uri-audio-port*
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Variable} lilv:*uri-control-port*
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Variable} lilv:*uri-input-port*
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Variable} lilv:*uri-output-port*
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Variable} lilv:*uri-event-port*
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Variable} lilv:*uri-midi-port*
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Structure} lilv:world
+#+begin_deftp
+#+end_deftp
+
+#+attr_texinfo: :options {Structure} lilv:instance
+#+begin_deftp
+#+end_deftp
+
+#+attr_texinfo: :options lilv:free-p obj
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options {Generic Function} lilv:free obj
+#+begin_deffn
+#+end_deffn
+
+#+attr_texinfo: :options lilv:lv2-init
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-pointer uri
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:uri-to-path uri
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:new-uri world uri
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:new-string world str
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:new-int world val
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:new-float world val
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:new-bool world val
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:node-free val
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:node-duplicate val
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:node-equals value other
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:node-get-turtle-token value
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:node-is-uri value
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:node-as-uri value
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:node-is-blank value
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:node-as-blank value
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:node-is-literal value
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:node-is-string value
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:node-as-string value
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:node-is-float value
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:node-as-float value
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:node-is-int value
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:node-as-int value
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:node-is-bool value
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:node-as-bool value
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-classes-free collection
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-classes-size collection
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-classes-begin collection
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-classes-get collection i
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-classes-next collection i
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-classes-is-end collection i
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-classes-get-by-uri classes uri
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:scale-points-free collection
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:scale-points-size collection
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:scale-points-begin collection
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:scale-points-get collection i
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:scale-points-next collection i
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:scale-points-is-end collection i
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:uis-free collection
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:uis-size collection
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:uis-begin collection
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:uis-get collection i
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:uis-next collection i
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:uis-is-end collection i
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:uis-get-by-uri uis uri
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:nodes-free collection
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:nodes-size collection
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:nodes-begin collection
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:nodes-get collection i
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:nodes-next collection i
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:nodes-is-end collection i
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:nodes-get-first collection
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:nodes-contains values value
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:nodes-merge a b
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugins-size collection
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugins-begin collection
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugins-get collection i
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugins-next collection i
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugins-is-end collection i
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugins-get-by-uri plugins uri
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:init-world
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:world-new
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:world-set-option world uri value
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:world-load-all world
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:world-load-bundle world bundle-uri
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:world-load-resource world resource
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:world-get-plugin-class world
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:world-get-plugin-classes world
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:world-get-all-plugins world
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:world-find-nodes world subject predicate object
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:world-get world subject predicate object
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:world-ask world subject predicate object
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-verify plugin
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-get-uri plugin
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-get-bundle-uri plugin
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-get-data-uris plugin
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-get-library-uri plugin
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-get-name plugin
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-get-class plugin
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-get-value p predicate
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-has-feature p feature-uri
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-get-supported-features p
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-get-required-features p
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-get-optional-features p
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-has-extension-data p uri
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-get-extension-data p
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-get-num-ports p
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-get-port-ranges-float p min-values max-values def-values
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options {Macro} lilv:plugin-get-num-ports-of-class p class-1 @andrest{} varargs0
+#+begin_deffn
+#+end_deffn
+
+#+attr_texinfo: :options lilv:plugin-has-latency p
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-get-latency-port-index p
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-get-port-by-index plugin index
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-get-port-by-symbol plugin symbol
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-get-port-by-designation plugin port-class designation
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-get-project plugin
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-get-author-name plugin
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-get-author-email plugin
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-get-author-homepage plugin
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-is-replaced plugin
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-write-description world plugin base-uri plugin-file
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-write-manifest-entry world plugin base-uri manifest-file plugin-file-path
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-get-related plugin type
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:port-get-value plugin port predicate
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:port-get plugin port predicate
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:port-get-properties plugin port
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:port-has-property p port property-uri
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:port-supports-event p port event-type
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:port-get-index plugin port
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:port-get-symbol plugin port
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:port-get-name plugin port
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:port-get-classes plugin port
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:port-is-a plugin port port-class
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:port-get-range plugin port deflt min max
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:port-get-scale-points plugin port
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:state-new-from-world world map subject
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:state-new-from-file world map subject path
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:state-new-from-string world map str
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:state-new-from-instance plugin instance map file-dir copy-dir link-dir save-dir get-value user-data flags features
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:state-free state
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:state-equals a b
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:state-get-num-properties state
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:state-get-plugin-uri state
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:state-get-label state
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:state-set-label state label
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:state-restore state instance set-value user-data flags features
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:state-save world map unmap state uri dir filename
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:state-to-string world map unmap state uri base-uri
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:scale-point-get-label point
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:scale-point-get-value point
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-class-get-parent-uri plugin-class
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-class-get-uri plugin-class
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-class-get-label plugin-class
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-class-get-children plugin-class
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:plugin-instantiate plugin sample-rate features
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:instance-get-descriptor instance
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:instance-get-handle instance
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:instance-get-uri instance
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:instance-connect-port instance port-index data-location
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:instance-activate instance
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:instance-deactivate instance
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options {Macro} lilv:instance-impl-slot-value instance-ptr slot-name
+#+begin_deffn
+#+end_deffn
+
+#+attr_texinfo: :options {Macro} lilv:instance-slot-value instance slot-name
+#+begin_deffn
+#+end_deffn
+
+#+attr_texinfo: :options lilv:connect-port callback handle index data-location
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options {Macro} lilv:descriptor-slot-value pointer slot-name
+#+begin_deffn
+#+end_deffn
+
+#+attr_texinfo: :options lilv:plugin-get-uis plugin
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:ui-get-uri ui
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:ui-get-classes ui
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:ui-is-a ui class-uri
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:ui-is-supported ui supported-func container-type ui-type
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:ui-get-bundle-uri ui
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:ui-get-binary-uri ui
+#+begin_defun
+#+end_defun
+
+#+texinfo: @page

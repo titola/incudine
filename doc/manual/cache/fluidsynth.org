@@ -1,0 +1,628 @@
+*** Fluidsynth
+FluidSynth SoundFont synthesizer interface for Incudine.
+
+#+texinfo: @noindent
+To load ~incudine-fluidsynth~ use ~asdf:load-system~ or ~require~.
+
+**** Logging
+#+attr_texinfo: :options {Variable} fluidsynth:*logger-stream*
+#+begin_defvr
+#+end_defvr
+
+
+**** Settings
+#+attr_texinfo: :options {Constant} fluidsynth:hint-bounded-below
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} fluidsynth:hint-bounded-above
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} fluidsynth:hint-toggled
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} fluidsynth:hint-sample-rate
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} fluidsynth:hint-logarithmic
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} fluidsynth:hint-integer
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} fluidsynth:hint-filename
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} fluidsynth:hint-optionlist
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} fluidsynth:no-type
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} fluidsynth:num-type
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} fluidsynth:int-type
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} fluidsynth:str-type
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} fluidsynth:set-type
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Structure} fluidsynth:settings
+#+begin_deftp
+#+end_deftp
+
+#+attr_texinfo: :options fluidsynth:setting settings name
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:new-settings @andoptional{} setting-list
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:delete-settings settings
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:settings-get-type settings name
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:settings-get-hints settings name
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:settings-is-realtime settings name
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:settings-setstr settings name str
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:settings-copystr settings name str len
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:settings-dupstr settings name str
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:settings-getstr settings name str
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:settings-getstr-default settings name
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:settings-str-equal settings name value
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:settings-setnum settings name val
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:settings-getnum settings name val
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:settings-getnum-default settings name
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:settings-getnum-range settings name min max
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:settings-setint settings name val
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:settings-getint settings name val
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:settings-getint-default settings name
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:settings-getint-range settings name min max
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:settings-foreach-option settings name data func
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:settings-option-count settings name
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:settings-option-concat settings name separator
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:settings-foreach settings data func
+#+begin_defun
+#+end_defun
+
+
+**** Synth
+#+attr_texinfo: :options {Constant} fluidsynth:channel-info-name-size
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Structure} fluidsynth:synth
+#+begin_deftp
+#+end_deftp
+
+#+attr_texinfo: :options fluidsynth:new settings
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:delete synth
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:get-settings synth
+#+begin_defun
+#+end_defun
+
+
+**** MIDI channel messages
+#+attr_texinfo: :options fluidsynth:noteon synth chan key vel
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:noteoff synth chan key
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:cc synth chan ctrl val
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:get-cc synth chan ctrl pval
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:sysex synth data len response response_len handled dryrun
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:pitch-bend synth chan val
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:get-pitch-bend synth chan ppitch_bend
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:pitch-wheel-sens synth chan val
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:get-pitch-wheel-sens synth chan pval
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:program-change synth chan program
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:channel-pressure synth chan val
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:bank-select synth chan bank
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:sfont-select synth chan sfont_id
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:program-select synth chan sfont_id bank_num preset_num
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:program-select-by-sfont-name synth chan sfont_name bank_num preset_num
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:get-program synth chan sfont_id bank_num preset_num
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:unset-program synth chan
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:get-channel-info synth chan info
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:program-reset synth
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:system-reset synth
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:all-notes-off synth chan
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:all-sounds-off synth chan
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:set-channel-type synth chan type
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:get-channel-preset synth chan
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:start synth id preset audio_chan midi_chan key vel
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:stop synth id
+#+begin_defun
+#+end_defun
+
+
+**** SoundFont management
+#+attr_texinfo: :options fluidsynth:sfload synth filename reset_presets
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:sfreload synth id
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:sfunload synth id reset_presets
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:add-sfont synth sfont
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:remove-sfont synth sfont
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:sfcount synth
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:get-sfont synth num
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:get-sfont-by-id synth id
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:get-sfont-by-name synth name
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:set-bank-offset synth sfont_id offset
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:get-bank-offset synth sfont_id
+#+begin_defun
+#+end_defun
+
+
+**** Reverb
+#+attr_texinfo: :options {Constant} fluidsynth:reverb-default-roomsize
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} fluidsynth:reverb-default-damp
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} fluidsynth:reverb-default-width
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} fluidsynth:reverb-default-level
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options fluidsynth:set-reverb synth roomsize damping width level
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:set-reverb-on synth on
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:get-reverb-roomsize synth
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:get-reverb-damp synth
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:get-reverb-level synth
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:get-reverb-width synth
+#+begin_defun
+#+end_defun
+
+
+**** Chorus
+#+attr_texinfo: :options {Constant} fluidsynth:chorus-mod-sine
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} fluidsynth:chorus-mod-triangle
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} fluidsynth:chorus-default-n
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} fluidsynth:chorus-default-level
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} fluidsynth:chorus-default-speed
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} fluidsynth:chorus-default-depth
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} fluidsynth:chorus-default-type
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options fluidsynth:set-chorus synth nr level speed depth_ms type
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:set-chorus-on synth on
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:get-chorus-nr synth
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:get-chorus-level synth
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:get-chorus-speed-hz synth
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:get-chorus-depth-ms synth
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:get-chorus-type synth
+#+begin_defun
+#+end_defun
+
+
+**** Audio and MIDI channels
+#+attr_texinfo: :options fluidsynth:count-midi-channels synth
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:count-audio-channels synth
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:count-effects-channels synth
+#+begin_defun
+#+end_defun
+
+
+**** Synthesis parameters
+#+attr_texinfo: :options fluidsynth:set-sample-rate synth sample_rate
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:set-gain synth gain
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:get-gain synth
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:set-polyphony synth polyphony
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:get-polyphony synth
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:get-active-voice-count synth
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:get-internal-bufsize synth
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:set-interp-method synth chan interp_method
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options {Constant} fluidsynth:interp-none
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} fluidsynth:interp-linear
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} fluidsynth:interp-4thorder
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} fluidsynth:interp-7thorder
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} fluidsynth:interp-default
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} fluidsynth:interp-highest
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options fluidsynth:set-gen synth chan param value
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:set-gen2 synth chan param value absolute normalized
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:get-gen synth chan param
+#+begin_defun
+#+end_defun
+
+
+**** Tuning
+#+attr_texinfo: :options fluidsynth:create-key-tuning synth bank prog name pitch
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:activate-key-tuning synth bank prog name pitch apply
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:create-octave-tuning synth bank prog name pitch
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:activate-octave-tuning synth bank prog name pitch apply
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:tune-notes synth bank prog len keys pitch apply
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:select-tuning synth chan bank prog
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:activate-tuning synth chan bank prog apply
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:reset-tuning synth chan
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:deactivate-tuning synth chan apply
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:tuning-iteration-start synth
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:tuning-iteration-next synth bank prog
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:tuning-dump synth bank prog name len pitch
+#+begin_defun
+#+end_defun
+
+
+**** Misc
+#+attr_texinfo: :options fluidsynth:get-cpu-load synth
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:error synth
+#+begin_defun
+#+end_defun
+
+
+**** Synthesizer plugin
+#+attr_texinfo: :options fluidsynth:write-s16 synth len lout loff lincr rout roff rincr
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:write-float synth len lout loff lincr rout roff rincr
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:nwrite-float synth len left right fx_left fx_right
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:process synth len nin in nout out
+#+begin_defun
+#+end_defun
+
+
+**** Synthesizer's interface to handle SoundFont loaders
+#+attr_texinfo: :options fluidsynth:add-sfloader synth loader
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:alloc-voice synth sample channum key vel
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:start-voice synth voice
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:get-voicelist synth buf bufsize id
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:handle-midi-event data event
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options fluidsynth:set-midi-router synth router
+#+begin_defun
+#+end_defun
+
+#+texinfo: @page

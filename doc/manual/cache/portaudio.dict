@@ -1,0 +1,11 @@
+*** PortAudio
+Set the configuration variable ~*audio-driver*~ to enable PortAudio:
+
+#+begin_example
+;; Add to ~/.incudinerc
+(setq *audio-driver* :portaudio)
+#+end_example
+
+::: portaudio-device-info
+::: portaudio-set-device
+#+texinfo: @page

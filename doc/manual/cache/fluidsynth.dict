@@ -1,0 +1,184 @@
+*** Fluidsynth
+FluidSynth SoundFont synthesizer interface for Incudine.
+
+#+texinfo: @noindent
+To load ~incudine-fluidsynth~ use ~asdf:load-system~ or ~require~.
+
+**** Logging
+::: fluidsynth:*logger-stream*
+
+**** Settings
+::: fluidsynth:hint-bounded-below
+::: fluidsynth:hint-bounded-above
+::: fluidsynth:hint-toggled
+::: fluidsynth:hint-sample-rate
+::: fluidsynth:hint-logarithmic
+::: fluidsynth:hint-integer
+::: fluidsynth:hint-filename
+::: fluidsynth:hint-optionlist
+::: fluidsynth:no-type
+::: fluidsynth:num-type
+::: fluidsynth:int-type
+::: fluidsynth:str-type
+::: fluidsynth:set-type
+::: fluidsynth:settings
+::: fluidsynth:setting
+::: fluidsynth:new-settings
+::: fluidsynth:delete-settings
+::: fluidsynth:settings-get-type
+::: fluidsynth:settings-get-hints
+::: fluidsynth:settings-is-realtime
+::: fluidsynth:settings-setstr
+::: fluidsynth:settings-copystr
+::: fluidsynth:settings-dupstr
+::: fluidsynth:settings-getstr
+::: fluidsynth:settings-getstr-default
+::: fluidsynth:settings-str-equal
+::: fluidsynth:settings-setnum
+::: fluidsynth:settings-getnum
+::: fluidsynth:settings-getnum-default
+::: fluidsynth:settings-getnum-range
+::: fluidsynth:settings-setint
+::: fluidsynth:settings-getint
+::: fluidsynth:settings-getint-default
+::: fluidsynth:settings-getint-range
+::: fluidsynth:settings-foreach-option
+::: fluidsynth:settings-option-count
+::: fluidsynth:settings-option-concat
+::: fluidsynth:settings-foreach
+
+**** Synth
+::: fluidsynth:channel-info-name-size
+::: fluidsynth:synth
+::: fluidsynth:new
+::: fluidsynth:delete
+::: fluidsynth:get-settings
+
+**** MIDI channel messages
+::: fluidsynth:noteon
+::: fluidsynth:noteoff
+::: fluidsynth:cc
+::: fluidsynth:get-cc
+::: fluidsynth:sysex
+::: fluidsynth:pitch-bend
+::: fluidsynth:get-pitch-bend
+::: fluidsynth:pitch-wheel-sens
+::: fluidsynth:get-pitch-wheel-sens
+::: fluidsynth:program-change
+::: fluidsynth:channel-pressure
+::: fluidsynth:bank-select
+::: fluidsynth:sfont-select
+::: fluidsynth:program-select
+::: fluidsynth:program-select-by-sfont-name
+::: fluidsynth:get-program
+::: fluidsynth:unset-program
+::: fluidsynth:get-channel-info
+::: fluidsynth:program-reset
+::: fluidsynth:system-reset
+::: fluidsynth:all-notes-off
+::: fluidsynth:all-sounds-off
+::: fluidsynth:set-channel-type
+::: fluidsynth:get-channel-preset
+::: fluidsynth:start
+::: fluidsynth:stop
+
+**** SoundFont management
+::: fluidsynth:sfont
+::: fluidsynth:sfload
+::: fluidsynth:sfreload
+::: fluidsynth:sfunload
+::: fluidsynth:add-sfont
+::: fluidsynth:remove-sfont
+::: fluidsynth:sfcount
+::: fluidsynth:get-sfont
+::: fluidsynth:get-sfont-by-id
+::: fluidsynth:get-sfont-by-name
+::: fluidsynth:set-bank-offset
+::: fluidsynth:get-bank-offset
+
+**** Reverb
+::: fluidsynth:reverb-default-roomsize
+::: fluidsynth:reverb-default-damp
+::: fluidsynth:reverb-default-width
+::: fluidsynth:reverb-default-level
+::: fluidsynth:set-reverb
+::: fluidsynth:set-reverb-on
+::: fluidsynth:get-reverb-roomsize
+::: fluidsynth:get-reverb-damp
+::: fluidsynth:get-reverb-level
+::: fluidsynth:get-reverb-width
+
+**** Chorus
+::: fluidsynth:chorus-mod-sine
+::: fluidsynth:chorus-mod-triangle
+::: fluidsynth:chorus-default-n
+::: fluidsynth:chorus-default-level
+::: fluidsynth:chorus-default-speed
+::: fluidsynth:chorus-default-depth
+::: fluidsynth:chorus-default-type
+::: fluidsynth:set-chorus
+::: fluidsynth:set-chorus-on
+::: fluidsynth:get-chorus-nr
+::: fluidsynth:get-chorus-level
+::: fluidsynth:get-chorus-speed-hz
+::: fluidsynth:get-chorus-depth-ms
+::: fluidsynth:get-chorus-type
+
+**** Audio and MIDI channels
+::: fluidsynth:count-midi-channels
+::: fluidsynth:count-audio-channels
+::: fluidsynth:count-audio-group
+::: fluidsynth:count-effects-channels
+
+**** Synthesis parameters
+::: fluidsynth:set-sample-rate
+::: fluidsynth:set-gain
+::: fluidsynth:get-gain
+::: fluidsynth:set-polyphony
+::: fluidsynth:get-polyphony
+::: fluidsynth:get-active-voice-count
+::: fluidsynth:get-internal-bufsize
+::: fluidsynth:set-interp-method
+::: fluidsynth:interp-none
+::: fluidsynth:interp-linear
+::: fluidsynth:interp-4thorder
+::: fluidsynth:interp-7thorder
+::: fluidsynth:interp-default
+::: fluidsynth:interp-highest
+::: fluidsynth:set-gen
+::: fluidsynth:set-gen2
+::: fluidsynth:get-gen
+
+**** Tuning
+::: fluidsynth:create-key-tuning
+::: fluidsynth:activate-key-tuning
+::: fluidsynth:create-octave-tuning
+::: fluidsynth:activate-octave-tuning
+::: fluidsynth:tune-notes
+::: fluidsynth:select-tuning
+::: fluidsynth:activate-tuning
+::: fluidsynth:reset-tuning
+::: fluidsynth:deactivate-tuning
+::: fluidsynth:tuning-iteration-start
+::: fluidsynth:tuning-iteration-next
+::: fluidsynth:tuning-dump
+
+**** Misc
+::: fluidsynth:get-cpu-load
+::: fluidsynth:error
+
+**** Synthesizer plugin
+::: fluidsynth:write-s16
+::: fluidsynth:write-float
+::: fluidsynth:nwrite-float
+::: fluidsynth:process
+
+**** Synthesizer's interface to handle SoundFont loaders
+::: fluidsynth:add-sfloader
+::: fluidsynth:voice
+::: fluidsynth:alloc-voice
+::: fluidsynth:start-voice
+::: fluidsynth:get-voicelist
+::: fluidsynth:handle-midi-event
+::: fluidsynth:set-midi-router
+#+texinfo: @page

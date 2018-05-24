@@ -1,0 +1,374 @@
+*** LADSPA plugin
+LADSPA audio plugin interface for Incudine.
+
+#+texinfo: @noindent
+To load ~incudine-ladspa~ use ~asdf:load-system~ or ~require~.
+
+#+attr_texinfo: :options {Macro} vug:ladspa->vug filename label vug-name @andkey{} block-size debug-p
+#+begin_deffn
+Define a new VUG and the auxiliary function named ~vug-name~ to use
+the ~ladspa~ plugin with ~label~ loaded from ~filename~.
+
+~filename~ is the namestring of the plugin path, absolute or relative to
+~ladspa:*ladspa-path*~, with or without type extension.
+
+All the arguments of the auxiliary function are optional keywords.
+
+If ~block-size~ is not set and the incudine block size changes,
+~ladspa->vug~ should be called again.
+
+If ~debug-p~ is ~t~, return the lisp form to define the VUG.
+
+Return the new VUG structure.
+
+Example:
+
+: (ladspa->vug "caps" "Plate" plate-reverb)
+:
+: (dsp! plate-reverb-test (trig-freq input-decay input-scale bw tail
+:                          damping blend)
+:   (with-samples ((in (* (decay (impulse trig-freq) input-decay)
+:                         (white-noise input-scale))))
+:     ;; PLATE-REVERB returns a frame because there are two outputs.
+:     (multiple-sample-bind (l r)
+:         (plate-reverb bw tail damping blend in)
+:       (out l r))))
+#+end_deffn
+
+#+attr_texinfo: :options {Variable} ladspa:*ladspa-path*
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Condition} ladspa:ladspa-error
+#+begin_deftp
+#+end_deftp
+
+#+attr_texinfo: :options ladspa:ladspa-error format-control @andrest{} format-arguments
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:properties descriptor
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options {Constant} ladspa:property-realtime
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} ladspa:property-inplace-broken
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} ladspa:property-hard-rt-capable
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options ladspa:realtime-p x
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:inplace-broken-p x
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:hard-rt-capable-p x
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options {Constant} ladspa:port-input
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} ladspa:port-output
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} ladspa:port-control
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} ladspa:port-audio
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options ladspa:port-input-p x
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:port-output-p x
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:port-control-p x
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:port-audio-p x
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options {Constant} ladspa:hint-bounded-below
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} ladspa:hint-bounded-above
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} ladspa:hint-toggled
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} ladspa:hint-sample-rate
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} ladspa:hint-logarithmic
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} ladspa:hint-integer
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} ladspa:hint-default-mask
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} ladspa:hint-default-none
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} ladspa:hint-default-minimum
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} ladspa:hint-default-low
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} ladspa:hint-default-middle
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} ladspa:hint-default-high
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} ladspa:hint-default-maximum
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} ladspa:hint-default-0
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} ladspa:hint-default-1
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} ladspa:hint-default-100
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} ladspa:hint-default-440
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options ladspa:hint-bounded-below-p x
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:hint-bounded-above-p x
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:hint-toggled-p x
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:hint-sample-rate-p x
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:hint-logarithmic-p x
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:hint-integer-p x
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:hint-has-default-p x
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:hint-default-minimum-p x
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:hint-default-low-p x
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:hint-default-middle-p x
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:hint-default-high-p x
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:hint-default-maximum-p x
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:hint-default-0-p x
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:hint-default-1-p x
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:hint-default-100-p x
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:hint-default-440-p x
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:hint-default port-range-hint-pointer @andoptional{} sample-rate
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:descriptor instance
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:descriptor-slot-value descriptor slot-name
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options {Structure} ladspa:handle
+#+begin_deftp
+#+end_deftp
+
+#+attr_texinfo: :options ladspa:pointer instance
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:active-p instance
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:deleted-p instance
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:unique-id descriptor
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:label descriptor
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:name descriptor
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:maker descriptor
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:copyright descriptor
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:port-count descriptor
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:port-descriptors descriptor
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:port-names descriptor
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:port-range-hints descriptor
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:implementation-data descriptor
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:instantiate callback descriptor sample-rate
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:connect-port callback instance port data-location
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:has-activate-p descriptor
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:activate instance
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:run callback instance sample-count
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:has-run-adding-p descriptor
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:run-adding callback instance sample-count
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:has-set-run-adding-gain-p descriptor
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:set-run-adding-gain callback instance gain
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:has-deactivate-p descriptor
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:deactivate instance
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:cleanup instance
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:load-plugin-library filename
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:unload-plugin-library filename
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:unload-all-plugins
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options ladspa:plugin-descriptor filename label
+#+begin_defun
+#+end_defun
+
+#+texinfo: @page

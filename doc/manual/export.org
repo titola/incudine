@@ -1,0 +1,14 @@
+* Export Setup                                                     :noexport:
+#+options: ':t toc:t H:4 prop:nil author:t
+#+subtitle: Music/DSP programming environment for Common Lisp
+#+author: by Tito Latini
+#+language: en
+#+startup: overview
+
+#+texinfo_filename: incudine.info
+#+texinfo_header: @syncodeindex tp fn
+#+texinfo_dir_category: Programming
+#+texinfo_dir_title: incudine: (incudine)
+#+texinfo_dir_desc: Music/DSP programming environment for Common Lisp
+
+#+export_file_name: incudine

@@ -1,0 +1,37 @@
+*** Jack MIDI
+Set the configuration variable ~*enable-jack-midi*~ to enable Jack MIDI:
+
+#+begin_example
+;; Add to ~/.incudinerc
+(setq *enable-jack-midi* t)
+#+end_example
+
+::: jackmidi:stream
+::: jackmidi:input-stream
+::: jackmidi:input-stream-p
+::: jackmidi:output-stream
+::: jackmidi:output-stream-p
+::: jackmidi:open
+::: jackmidi:close
+::: jackmidi:read
+::: jackmidi:foreign-read
+::: jackmidi:write
+::: jackmidi:write-short
+::: jackmidi:foreign-write
+::: jackmidi:get-stream-by-name
+::: jackmidi:all-streams
+::: jackmidi:port-name
+::: jackmidi:data
+::: jackmidi:message
+::: jackmidi:decode-message
+::: jackmidi:event-buffer
+::: jackmidi:make-event-buffer
+::: jackmidi:with-event-buffer
+::: jackmidi:doevent
+::: jackmidi:with-receiver
+::: jackmidi:sysex-message-p
+::: jackmidi:input-stream-sysex-size
+::: jackmidi:input-stream-sysex-pointer
+::: jackmidi:input-stream-sysex-timestamp
+::: jackmidi:input-stream-sysex-octets
+#+texinfo: @page

@@ -1,0 +1,9 @@
+* Function Index
+  :PROPERTIES:
+  :INDEX:    fn
+  :END:
+
+* Variable Index
+  :PROPERTIES:
+  :INDEX:    vr
+  :END:

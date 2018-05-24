@@ -1,0 +1,26 @@
+*** PortAudio
+Set the configuration variable ~*audio-driver*~ to enable PortAudio:
+
+#+begin_example
+;; Add to ~/.incudinerc
+(setq *audio-driver* :portaudio)
+#+end_example
+
+#+attr_texinfo: :options portaudio-device-info @andoptional{} stream
+#+begin_defun
+Print the index and name of the audio devices to ~stream~.
+
+~stream~ defaults to ~incudine.util:*logger-stream*~.
+#+end_defun
+
+#+attr_texinfo: :options portaudio-set-device output @andoptional{} input
+#+begin_defun
+Set the index of the audio device.
+
+If ~input~ is non-NIL, the indexes of the output and input devices are
+~output~ and ~input~ respectively.
+
+See ~portaudio-device-info~.
+#+end_defun
+
+#+texinfo: @page

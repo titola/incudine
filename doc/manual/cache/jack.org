@@ -1,0 +1,237 @@
+*** Jack MIDI
+Set the configuration variable ~*enable-jack-midi*~ to enable Jack MIDI:
+
+#+begin_example
+;; Add to ~/.incudinerc
+(setq *enable-jack-midi* t)
+#+end_example
+
+#+attr_texinfo: :options {Structure} jackmidi:stream
+#+begin_deftp
+Jack MIDI stream type.
+#+end_deftp
+
+#+attr_texinfo: :options {Structure} jackmidi:input-stream
+#+begin_deftp
+Jack MIDI input stream type.
+#+end_deftp
+
+#+attr_texinfo: :options jackmidi:input-stream-p object
+#+begin_defun
+Return ~t~ if object is of type ~jackmidi:input-stream~.
+#+end_defun
+
+#+attr_texinfo: :options {Structure} jackmidi:output-stream
+#+begin_deftp
+Jack MIDI output stream type.
+#+end_deftp
+
+#+attr_texinfo: :options jackmidi:output-stream-p object
+#+begin_defun
+Return ~t~ if object is of type ~jackmidi:output-stream~.
+#+end_defun
+
+#+attr_texinfo: :options jackmidi:open @andkey{} direction port-name
+#+begin_defun
+Create and return a new ~jackmidi:stream~.
+
+~direction~ is ~:input~ (default) or ~:output~ to return a ~jackmidi:input-stream~
+or a ~jackmidi:output-stream~ respectively.
+
+~port-name~ defaults to "midi_in" if ~direction~ is ~:input~ or "midi_out"
+if ~direction~ is ~:output~.
+#+end_defun
+
+#+attr_texinfo: :options jackmidi:close obj
+#+begin_defun
+Close a ~jackmidi:stream~. ~obj~ is a ~jackmidi:stream~ or the
+port-name of the stream to close.
+#+end_defun
+
+#+attr_texinfo: :options jackmidi:read stream octets
+#+begin_defun
+Read the events received from a Jack MIDI input ~stream~ into a
+vector of ~octets~. Return the number of the events read.
+
+The header of the event is 12 bytes long: a timestamp (foreign double float)
+and the length of the MIDI message (foreign uint32).
+
+The MIDI messages are aligned to four bytes.
+
+Example:
+
+: (defvar *midiin* (jackmidi:open))
+: (defvar *buf* (make-array 1024 :element-type '(unsigned-byte 8)))
+: (rt-start)
+: (prog1 (zerop (jackmidi:read *midiin* *buf*))
+:   (print *buf*))
+#+end_defun
+
+#+attr_texinfo: :options jackmidi:foreign-read stream buffer-pointer buffer-size
+#+begin_defun
+Read the events received from a Jack MIDI input ~stream~ into a
+foreign array of size ~buffer-size~ bytes pointed to by ~buffer-pointer~.
+Return the number of events read.
+
+The header of the event is 12 bytes long: a timestamp (foreign double float)
+and the length of the MIDI message (foreign uint32).
+
+The MIDI messages are aligned to four bytes.
+#+end_defun
+
+#+attr_texinfo: :options jackmidi:write stream data @andkey{} start end
+#+begin_defun
+Write the octets ~data~ of a MIDI message into a Jack MIDI output ~stream~.
+
+~start~ and ~end~ are the bounding index designators of ~data~.
+
+Example:
+
+: (defvar *midiout* (jackmidi:open :direction :output))
+:
+: (defvar *msg0* (make-array 6 :element-type '(unsigned-byte 8)
+:                  :initial-contents '(#xf0 #x7e #x7f #x09 #x01 #xf7)))
+: (rt-start)
+: (jackmidi:write *midiout* *msg0*)
+:
+: (jackmidi:write *midiout*
+:   (jackmidi:data #xf0 #x7e #x7f #x09 #x01 #xf7))
+:
+: (defvar *msg1* (coerce '(144 60 96 128 60 0) 'jackmidi:data))
+:
+: (jackmidi:write *midiout* *msg1* :end 3)           ; note on
+: (jackmidi:write *midiout* *msg1* :start 3 :end 6)  ; note off
+#+end_defun
+
+#+attr_texinfo: :options jackmidi:write-short stream message size
+#+begin_defun
+Write a MIDI event with the ~message~ of size ~size~ encoded into four
+bytes to the Jack MIDI output ~stream~.
+
+Example:
+
+: (defvar *midiout* (jackmidi:open :direction :output))
+: (rt-start)
+: (jackmidi:write-short *midiout* (jackmidi:message 144 60 96) 3)
+#+end_defun
+
+#+attr_texinfo: :options jackmidi:foreign-write stream buffer-pointer buffer-size
+#+begin_defun
+Write ~buffer-size~ bytes of a MIDI message stored into a foreign
+array pointed to by ~buffer-pointer~ to the Jack MIDI output ~stream~.
+#+end_defun
+
+#+attr_texinfo: :options jackmidi:get-stream-by-name name
+#+begin_defun
+Return the Jack MIDI stream with port-name ~name~.
+#+end_defun
+
+#+attr_texinfo: :options jackmidi:all-streams @andoptional{} direction
+#+begin_defun
+Return a new list with the opened Jack MIDI streams.
+
+If ~direction~ is ~:input~ or ~:output~, return the list of the opened input
+or output streams, respectively.
+#+end_defun
+
+#+attr_texinfo: :options jackmidi:port-name stream
+#+begin_defun
+Return the port name of a Jack MIDI stream.
+#+end_defun
+
+#+attr_texinfo: :options {Type} jackmidi:data
+#+begin_deftp
+Type designator for a vector of octets.
+#+end_deftp
+
+#+attr_texinfo: :options jackmidi:data @andrest{} octets
+#+begin_defun
+Return a vector of ~octets~.
+#+end_defun
+
+#+attr_texinfo: :options jackmidi:message status data1 data2
+#+begin_defun
+Encode a short MIDI message into four bytes.
+#+end_defun
+
+#+attr_texinfo: :options jackmidi:decode-message msg
+#+begin_defun
+Decode a MIDI message encoded into four bytes.
+#+end_defun
+
+#+attr_texinfo: :options {Structure} jackmidi:event-buffer
+#+begin_deftp
+Jack MIDI event buffer type.
+#+end_deftp
+
+#+attr_texinfo: :options jackmidi:make-event-buffer @andoptional{} size
+#+begin_defun
+Create and return a new ~event-buffer~ structure of size ~size~
+(1024 by default).
+#+end_defun
+
+#+attr_texinfo: :options {Macro} jackmidi:with-event-buffer (var @andoptional{} size) @andbody{} body
+#+begin_deffn
+Bind ~var~ to a newly allocated ~event-buffer~ structure with dynamic
+extent during ~body~.
+#+end_deffn
+
+#+attr_texinfo: :options {Macro} jackmidi:doevent (event-buffer message-var stream count-form @andoptional{} timestamp-var result) @andbody{} body
+#+begin_deffn
+Iterate over the MIDI events of the ~event-buffer~ structure related
+to a Jack MIDI input ~stream~ with ~message-var~ bound to each message.
+Then ~result~ form is evaluated.
+
+~count-form~ is evaluated to get the number of events.
+
+If ~timestamp-var~ is non-NIL, it is the variable bound to the timestamp
+of each message.
+#+end_deffn
+
+#+attr_texinfo: :options {Macro} jackmidi:with-receiver (state-form stream message-var @andoptional{} timestamp-var thread-name) @andbody{} body
+#+begin_deffn
+If the setfable ~state-form~ is ~t~, start receiving from the Jack MIDI
+input ~stream~ with ~message-var~ bound to the received MIDI message.
+
+If ~timestamp-var~ is non-NIL, it is the variable bound to the timestamp
+of each message.
+
+Optionally, the receiver thread is named ~thread-name~.
+
+See also ~incudine:make-responder~ and ~incudine:recv-start~.
+#+end_deffn
+
+#+attr_texinfo: :options jackmidi:sysex-message-p msg
+#+begin_defun
+Whether the MIDI message ~msg~ is a SysEx.
+#+end_defun
+
+#+attr_texinfo: :options jackmidi:input-stream-sysex-size stream
+#+begin_defun
+Return the length of the MIDI SysEx message stored in the buffer of
+the MIDI Jack input ~stream~.
+#+end_defun
+
+#+attr_texinfo: :options jackmidi:input-stream-sysex-pointer stream
+#+begin_defun
+Return the foreign pointer to the MIDI SysEx message stored in the
+buffer of the MIDI Jack input ~stream~.
+#+end_defun
+
+#+attr_texinfo: :options jackmidi:input-stream-sysex-timestamp stream
+#+begin_defun
+Return the timestamp of the MIDI SysEx message stored in the buffer
+of the MIDI Jack input ~stream~.
+#+end_defun
+
+#+attr_texinfo: :options jackmidi:input-stream-sysex-octets stream @andoptional{} octets start
+#+begin_defun
+Return the vector of octets stored in the buffer of the MIDI Jack
+input ~stream~.
+
+Create a new vector if ~octets~ is ~nil~ (default).
+
+~start~ and ~end~ are the bounding index designators of the vector.
+#+end_defun
+
+#+texinfo: @page
