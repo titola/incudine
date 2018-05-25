@@ -317,6 +317,8 @@
   "Create the real-time thread named THREAD-NAME and return :STARTED
 if no error has occured.
 
+Call INIT to initialize Incudine if necessary.
+
 PREAMBLE-FUNCTION is called before to create the thread. By default
 it starts the auxiliary non-real-time threads and set the client name.
 
