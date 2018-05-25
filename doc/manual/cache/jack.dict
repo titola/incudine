@@ -26,6 +26,17 @@ Set the configuration variable ~*enable-jack-midi*~ to enable Jack MIDI:
 ::: jackmidi:decode-message
 ::: jackmidi:event-buffer
 ::: jackmidi:make-event-buffer
+
+#+attr_texinfo: :options {Method} free event-buffer
+#+begin_deffn
+Deallocate the ~event-buffer~.
+#+end_deffn
+
+#+attr_texinfo: :options {Method} free-p event-buffer
+#+begin_deffn
+Return ~t~ if the ~event-buffer~ is deallocated.
+#+end_deffn
+
 ::: jackmidi:with-event-buffer
 ::: jackmidi:doevent
 ::: jackmidi:with-receiver

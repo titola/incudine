@@ -170,6 +170,17 @@ Create and return a new ~event-buffer~ structure of size ~size~
 (1024 by default).
 #+end_defun
 
+
+#+attr_texinfo: :options {Method} free event-buffer
+#+begin_deffn
+Deallocate the ~event-buffer~.
+#+end_deffn
+
+#+attr_texinfo: :options {Method} free-p event-buffer
+#+begin_deffn
+Return ~t~ if the ~event-buffer~ is deallocated.
+#+end_deffn
+
 #+attr_texinfo: :options {Macro} jackmidi:with-event-buffer (var @andoptional{} size) @andbody{} body
 #+begin_deffn
 Bind ~var~ to a newly allocated ~event-buffer~ structure with dynamic

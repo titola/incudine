@@ -32,8 +32,17 @@
 ::: make-buffer
 ::: copy-buffer
 ::: buffer-p
-::: free
-::: free-p
+
+#+attr_texinfo: :options {Method} free buffer
+#+begin_deffn
+Deallocate the ~buffer~.
+#+end_deffn
+
+#+attr_texinfo: :options {Method} free-p buffer
+#+begin_deffn
+Return ~t~ if the ~buffer~ is deallocated.
+#+end_deffn
+
 ::: buffer-data
 ::: buffer-size
 ::: buffer-frames
@@ -54,8 +63,23 @@
 ::: normalize-buffer
 ::: rescale-buffer
 ::: sort-buffer
-::: circular-shift
-::: quantize
+
+#+attr_texinfo: :options {Method} circular-shift buffer n
+#+begin_deffn
+Perform a circular shift of length ~n~.
+#+end_deffn
+
+#+attr_texinfo: :options {Method} quantize buffer from @andkey{} start end filter-function
+#+begin_deffn
+Quantize ~buffer~ with respect to a real number, a vector, a ~buffer~
+or ~tuning~ structure in sorted order.
+
+The keywords ~start~ and ~end~ are the bounding index designators, and
+the keyword ~filter-function~ is usable to apply a function to the
+quantized value. The arguments of that function are the vector index
+and the quantized value.
+#+end_deffn
+
 ::: buffer->array
 ::: buffer->list
 ::: fill-buffer
@@ -67,6 +91,17 @@
 ::: *default-tuning*
 ::: make-tuning
 ::: copy-tuning
+
+#+attr_texinfo: :options {Method} free tuning
+#+begin_deffn
+Deallocate the ~tuning~.
+#+end_deffn
+
+#+attr_texinfo: :options {Method} free-p tuning
+#+begin_deffn
+Return ~t~ if the ~tuning~ is deallocated.
+#+end_deffn
+
 ::: tuning-description
 ::: tuning-cents
 ::: tuning-ratios
@@ -86,12 +121,35 @@
 ::: pch->cps
 ::: keynum->pch
 ::: pch->keynum
+
+#+attr_texinfo: :options {Method} quantize tuning from @andkey{} start end filter-function
+#+begin_deffn
+Quantize ~tuning~ with respect to a real number, a vector, a ~buffer~
+or ~tuning~ structure in sorted order.
+
+The keywords ~start~ and ~end~ are the bounding index designators, and
+the keyword ~filter-function~ is usable to apply a function to the
+quantized value. The arguments of that function are the vector index
+and the quantized value.
+#+end_deffn
+
 #+texinfo: @page
 ** Envelope
 ::: envelope
 ::: make-envelope
 ::: copy-envelope
 ::: envelope-p
+
+#+attr_texinfo: :options {Method} free envelope
+#+begin_deffn
+Deallocate the ~envelope~.
+#+end_deffn
+
+#+attr_texinfo: :options {Method} free-p envelope
+#+begin_deffn
+Return ~t~ if the ~envelope~ is deallocated.
+#+end_deffn
+
 ::: envelope-data
 ::: envelope-duration
 ::: envelope-points
@@ -129,6 +187,17 @@
 ::: make-tempo-envelope
 ::: tempo-envelope-p
 ::: copy-tempo-envelope
+
+#+attr_texinfo: :options {Method} free obj
+#+begin_deffn
+Deallocate the ~tempo~ or ~tempo-envelope~ instance.
+#+end_deffn
+
+#+attr_texinfo: :options {Method} free-p obj
+#+begin_deffn
+Return ~t~ if the ~tempo~ or ~tempo-envelope~ instance is deallocated.
+#+end_deffn
+
 ::: set-tempo-envelope
 ::: bpm-at
 ::: bps-at
@@ -160,6 +229,8 @@
 ::: incudine.external:foreign-zero-sample
 #+texinfo: @page
 ** Memory Management
+::: free
+::: free-p
 *** Foreign Memory
 ::: incudine.external:foreign-alloc-sample
 ::: incudine.util:foreign-realloc
@@ -304,6 +375,14 @@
 ::: node-id
 ::: node-name
 ::: live-nodes
+
+#+attr_texinfo: :options {Method} free node
+#+begin_deffn
+Deallocate the ~node~.
+
+~node~ is a ~node~ structure or the integer identifier of the node.
+#+end_deffn
+
 ::: node-free-all
 ::: null-node-p
 ::: node-gain
@@ -457,6 +536,8 @@ Some examples from s7.html translated to CL:
 ::: incudine.external:errno-to-string
 ::: block-size
 ::: dsp-seq
+::: circular-shift
+::: quantize
 ::: incudine.util:pow
 ::: incudine.util:linear-interp
 ::: incudine.util:cubic-interp
@@ -509,6 +590,17 @@ Some examples from s7.html translated to CL:
 ::: ana:abuffer
 ::: ana:make-abuffer
 ::: ana:abuffer-p
+
+#+attr_texinfo: :options {Method} free abuffer
+#+begin_deffn
+Deallocate the ~abuffer~.
+#+end_deffn
+
+#+attr_texinfo: :options {Method} free-p abuffer
+#+begin_deffn
+Return ~t~ if the ~abuffer~ is deallocated.
+#+end_deffn
+
 ::: ana:abuffer-data
 ::: ana:abuffer-size
 ::: ana:abuffer-nbins
@@ -538,6 +630,12 @@ Some examples from s7.html translated to CL:
 ::: ana:ifft-plan
 ::: ana:ifft-output
 ::: ana:compute-ifft
+
+#+attr_texinfo: :options {Method} circular-shift ifft n
+#+begin_deffn
+Perform a circular shift of length ~n~.
+#+end_deffn
+
 ::: ana:window-size
 ::: ana:window-function
 ::: ana:*fft-default-window-function*
@@ -555,6 +653,17 @@ Some examples from s7.html translated to CL:
 *** PVbuffer
 ::: ana:pvbuffer
 ::: ana:buffer->pvbuffer
+
+#+attr_texinfo: :options {Method} free pvbuffer
+#+begin_deffn
+Deallocate the ~pvbuffer~.
+#+end_deffn
+
+#+attr_texinfo: :options {Method} free-p pvbuffer
+#+begin_deffn
+Return ~t~ if the ~pvbuffer~ is deallocated.
+#+end_deffn
+
 ::: ana:pvbuffer-data
 ::: ana:pvbuffer-size
 ::: ana:pvbuffer-channels
@@ -614,6 +723,12 @@ Currently, mouse pointer support requires X window system.
 ::: voicer:voicer
 ::: voicer:create
 ::: voicer:update
+
+#+attr_texinfo: :options {Method} free voicer
+#+begin_deffn
+Deallocate the ~voicer~.
+#+end_deffn
+
 ::: voicer:empty-p
 ::: voicer:full-p
 ::: voicer:polyphony
@@ -895,6 +1010,17 @@ Currently, mouse pointer support requires X window system.
 ::: vug:ugen-instance
 ::: vug:with-ugen-instance
 ::: vug:with-ugen-instances
+
+#+attr_texinfo: :options {Method} free ugen-instance
+#+begin_deffn
+Deallocate the ~ugen-instance~.
+#+end_deffn
+
+#+attr_texinfo: :options {Method} free-p ugen-instance
+#+begin_deffn
+Return ~t~ if the ~ugen-instance~ is deallocated.
+#+end_deffn
+
 ::: vug:ugen-perf-function
 ::: vug:ugen-reinit-function
 ::: vug:ugen-return-pointer

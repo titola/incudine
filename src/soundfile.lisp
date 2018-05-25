@@ -424,12 +424,6 @@ BUFFER-SIZE is the size of the internal stream buffer and defaults to
     (setf (stream-open-p sf) nil))
   sf)
 
-(defmethod incudine:free-p ((obj soundfile:stream))
-  (not (soundfile:open-p obj)))
-
-(defmethod incudine:free ((obj soundfile:stream))
-  (soundfile:close obj))
-
 (defmacro with-open-soundfile ((stream filespec &rest options) &body body)
   "Use SOUNDFILE:OPEN to create a SOUNDFILE:STREAM. When control leaves
 the body, either normally or abnormally, the SOUNDFILE:STREAM is

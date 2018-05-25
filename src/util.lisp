@@ -591,11 +591,12 @@ If DYNAMIC-P is NIL, the object is valid outside WITH-CLEANUP."
            (unwind-protect (,func) ,@cleanup)))))
 
 (defgeneric quantize (obj from &key)
-  (:documentation "Quantize OBJ with respect to a real number, a vector
-or a BUFFER-BASE structure (i.e. BUFFER or TUNING) in sorted order.
-If OBJ is a vector or a BUFFER-BASE structure, the keywords START and END
-are the bounding index designators, and the keyword FILTER-FUNCTION is
-usable to apply a function to the quantized value.  The arguments of that
+  (:documentation "Quantize OBJ with respect to a real number, a
+vector, a BUFFER or TUNING structure in sorted order.
+
+If OBJ is a vector, a BUFFER or TUNING structure, the keywords START and
+END are the bounding index designators, and the keyword FILTER-FUNCTION is
+usable to apply a function to the quantized value. The arguments of that
 function are the vector index and the quantized value."))
 
 (defun foreign-circular-shift (ptr type size n)

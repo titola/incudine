@@ -607,6 +607,7 @@ Per Quarter Note) defaults to 480."
 
 (defun close (mf)
   "Close a MIDIFILE:STREAM.
+
 If MF is a MIDIFILE:OUTPUT-STREAM, write the current track."
   (let ((f (stream-fd-stream mf)))
     (when (open-stream-p f)
@@ -628,12 +629,6 @@ If MF is a MIDIFILE:OUTPUT-STREAM, write the current track."
       (setf (stream-open-p mf) nil)
       (add-to-buffer-pool (stream-buffer mf)))
       mf))
-
-(defmethod incudine:free-p ((obj midifile:stream))
-  (not (open-stream-p (stream-fd-stream obj))))
-
-(defmethod incudine:free ((obj midifile:stream))
-  (midifile:close obj))
 
 (defmacro with-open-midifile ((midifile-stream filespec &rest options) &body body)
   "Use MIDIFILE:OPEN to create a MIDIFILE:STREAM. When control leaves the body,
