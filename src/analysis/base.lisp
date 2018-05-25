@@ -525,17 +525,77 @@ complex if necessary."
 
 (defsetf abuffer-time set-abuffer-time)
 
-(defmacro abuffer-realpart (obj nbin)
-  "Return the real part of the analysis bin NBIN of the abuffer OBJ."
-  `(mem-ref (abuffer-data ,obj) 'sample
-            (the non-negative-fixnum (* ,nbin +foreign-complex-size+))))
+(defun abuffer-realpart (obj nbin)
+  "Return the real part of the analysis bin NBIN of the abuffer OBJ.
+Setfable."
+  (mem-ref (abuffer-data obj) 'sample
+           (the non-negative-fixnum (* nbin +foreign-complex-size+))))
 
-(defmacro abuffer-imagpart (obj nbin)
-  "Return the imaginary part of the analysis bin NBIN of the abuffer OBJ."
-  `(mem-ref (abuffer-data ,obj) 'sample
-            (the non-negative-fixnum
-              (+ (the non-negative-fixnum (* ,nbin +foreign-complex-size+))
-                 +foreign-sample-size+))))
+(define-compiler-macro abuffer-realpart (obj nbin)
+  (if (constantp nbin)
+      `(mem-ref (abuffer-data ,obj) 'sample
+                ,(* (eval nbin) +foreign-complex-size+))
+      `(mem-ref (abuffer-data ,obj) 'sample
+                (the non-negative-fixnum (* ,nbin ,+foreign-complex-size+)))))
+
+(defun set-abuffer-realpart (obj nbin value)
+  (setf (mem-ref (abuffer-data obj) 'sample
+                 (the non-negative-fixnum (* nbin +foreign-complex-size+)))
+        (sample value)))
+
+(define-compiler-macro set-abuffer-realpart (obj nbin value)
+  (if (constantp nbin)
+      `(setf (mem-ref (abuffer-data mobj) 'sample
+                      ,(* (eval nbin) +foreign-complex-size+))
+             (sample ,value))
+      `(setf (mem-ref (abuffer-data ,obj) 'sample
+                      (the non-negative-fixnum
+                        (* ,nbin ,+foreign-complex-size+)))
+             (sample ,value))))
+
+(defsetf abuffer-realpart set-abuffer-realpart)
+
+(defun abuffer-imagpart (obj nbin)
+  "Return the imaginary part of the analysis bin NBIN of the abuffer OBJ.
+Setfable."
+  (mem-ref (abuffer-data obj) 'sample
+           (the non-negative-fixnum
+             (+ (the non-negative-fixnum (* nbin +foreign-complex-size+))
+                +foreign-sample-size+))))
+
+(define-compiler-macro abuffer-imagpart (obj nbin)
+  (if (constantp nbin)
+      `(mem-ref (abuffer-data ,obj) 'sample
+                ,(+ (* (eval nbin) +foreign-complex-size+)
+                    +foreign-complex-size+))
+      `(mem-ref (abuffer-data ,obj) 'sample
+                (the non-negative-fixnum
+                  (+ (the non-negative-fixnum
+                       (* ,nbin ,+foreign-complex-size+))
+                     ,+foreign-sample-size+)))))
+
+(defun set-abuffer-imagpart (obj nbin value)
+  (setf (mem-ref (abuffer-data obj) 'sample
+                 (the non-negative-fixnum
+                   (+ (the non-negative-fixnum
+                        (* nbin +foreign-complex-size+))
+                      +foreign-sample-size+)))
+        (sample value)))
+
+(define-compiler-macro set-abuffer-imagpart (obj nbin value)
+  (if (constantp nbin)
+      `(setf (mem-ref (abuffer-data ,obj) 'sample
+                      (+ ,(* (eval nbin) +foreign-complex-size+)
+                         ,+foreign-sample-size+))
+             (sample ,value))
+      `(setf (mem-ref (abuffer-data ,obj) 'sample
+                      (the non-negative-fixnum
+                        (+ (the non-negative-fixnum
+                             (* ,nbin ,+foreign-complex-size+))
+                           ,+foreign-sample-size+)))
+             (sample ,value))))
+
+(defsetf abuffer-imagpart set-abuffer-imagpart)
 
 (defgeneric update-linked-object (obj force-p)
   (:documentation "Called within COMPUTE-ABUFFER to update the linked object."))
