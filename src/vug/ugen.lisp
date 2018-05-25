@@ -599,6 +599,9 @@ qualities for the declaration OPTIMIZE."
   "Define a new VUG, the UGEN obtained by compiling that VUG and the
 auxiliary function named NAME.
 
+If the UGEN is declared inline within the definition of a VUG, UGEN
+or DSP, it is replaced with the parent VUG.
+
 The UGEN output is of type RETURN-TYPE.
 
 Each element of the ARGLIST is a list
