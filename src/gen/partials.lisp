@@ -18,9 +18,9 @@
 
 (declaim (inline partial-ref))
 (defun partial-ref (partial-number amp phase dc index size tmp-var)
-  (declare (type non-negative-fixnum index size)
-           (type foreign-pointer tmp-var ))
-  (setf (smp-ref tmp-var 0)
+  (declare (type fixnum partial-number index size)
+           (type real amp phase dc))
+  (setf (smp-ref tmp-var)
         (+ dc (* amp (sin (the limited-sample
                             (+ (/ (* +twopi+ index partial-number) size)
                                (* +twopi+ phase))))))))
@@ -90,22 +90,20 @@ NORMALIZE-P to specify whether the normalization is necessary."
       (let ((size (if periodic-p size (1- size))))
         (declare (type non-negative-fixnum size)
                  #.*standard-optimize-settings* #.*reduce-warnings*)
-        (with-foreign-array (tmp 'sample)
-          (with-samples (value abs-value (max 0.0))
+        (with-samples (abs-value (max 0.0))
+          (with-foreign-array (tmp 'sample)
             (dotimes (i size)
-              (setf (smp-ref foreign-pointer i)
-                    (reduce #'+
-                      (mapcar (lambda (x)
-                                (destructuring-bind (num amp phs dc) x
-                                  (partial-ref num amp phs dc i size tmp)))
-                              pl)))
+              (setf (smp-ref foreign-pointer i) +sample-zero+)
+              (loop for (num amp phs dc) in pl do
+                      (incf (smp-ref foreign-pointer i)
+                            (partial-ref num amp phs dc i size tmp)))
               (setf abs-value (abs (smp-ref foreign-pointer i)))
-              (when (> abs-value max) (setf max abs-value)))
-            (unless periodic-p
-              (setf (smp-ref foreign-pointer size) (smp-ref foreign-pointer 0)))
-            (values foreign-pointer
-                    (if (zerop max) max (/ max))
-                    normalize-p)))))))
+              (when (> abs-value max) (setf max abs-value))))
+          (unless periodic-p
+            (setf (smp-ref foreign-pointer size) (smp-ref foreign-pointer 0)))
+          (values foreign-pointer
+                  (if (zerop max) max (/ max))
+                  normalize-p))))))
 
 ;;; BUZZ and GBUZZ are inspired by GEN11 of Csound.
 (defun buzz (num-harm)
