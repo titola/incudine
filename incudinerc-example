@@ -32,6 +32,9 @@
 ;; Priority for the threads of the receivers (i.e. MIDI input)
 (setq *receiver-default-priority* 63)
 
+;; Zero-based number of CPU reserved for the realtime thread.
+; (setq *rt-cpu* 0)
+
 ;;;-----------------------[ Audio settings ]------------------------
 
 ;; Real time audio:

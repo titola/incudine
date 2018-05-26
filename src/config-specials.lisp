@@ -40,6 +40,7 @@
   *portaudio-output-device*
   *receiver-default-priority*
   *rt-block-size*
+  *rt-cpu*
   *rt-edf-heap-size*
   *rt-priority*
   *sample-rate*

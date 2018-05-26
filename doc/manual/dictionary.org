@@ -302,6 +302,7 @@ Return ~t~ if the ~tempo~ or ~tempo-envelope~ instance is deallocated.
 ::: rt-status
 ::: *rt-thread-start-hook*
 ::: *rt-thread-exit-hook*
+::: rt-cpu
 ::: rt-buffer-size
 ::: rt-sample-rate
 ::: rt-xruns

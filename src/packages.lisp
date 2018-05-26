@@ -23,7 +23,7 @@
    #:*max-buffer-size* #:*frames-per-buffer*
    #:*client-name* #:*max-number-of-channels* #:*number-of-input-bus-channels*
    #:*number-of-output-bus-channels* #:*number-of-bus-channels*
-   #:*rt-edf-heap-size* #:*nrt-edf-heap-size* #:*rt-priority*
+   #:*rt-edf-heap-size* #:*nrt-edf-heap-size* #:*rt-priority* #:*rt-cpu*
    #:*nrt-priority* #:*receiver-default-priority* #:*max-number-of-nodes*
    #:*default-table-size* #:*default-bpm* #:*fade-curve* #:*fade-time*
    #:*midi-input-timeout*
@@ -404,8 +404,8 @@
    #:peak-info #:print-peak-info #:reset-peak-meters
    #:set-number-of-channels
    #:*rt-thread-start-hook* #:*rt-thread-exit-hook*
-   #:rt-start #:rt-stop #:rt-status #:rt-buffer-size #:rt-sample-rate #:rt-xruns
-   #:rt-loop-callback #:set-rt-block-size #:block-size
+   #:rt-start #:rt-stop #:rt-status #:rt-cpu #:rt-buffer-size #:rt-sample-rate
+   #:rt-xruns #:rt-loop-callback #:set-rt-block-size #:block-size
    #:rt-time-offset #:rt-silent-errors
    #:at #:aat #:with-schedule #:flush-pending #:flush-all-fifos
    #:tempo #:*tempo* #:make-tempo #:tempo-p #:bpm #:bps #:spb #:now #:tempo-sync

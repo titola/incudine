@@ -24,6 +24,9 @@
 
   (defvar *sample-rate* 48000)
 
+  (defvar *rt-cpu* nil)
+  (declaim (type (or null alexandria:non-negative-fixnum) *rt-cpu*))
+
   (defvar *rt-block-size* 1)
 
   (defvar *midi-input-timeout* 1)

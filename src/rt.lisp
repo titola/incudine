@@ -305,7 +305,53 @@
 (defvar *after-rt-stop-function* nil)
 (declaim (type (or function null) *after-rt-stop-function*))
 
-(defun rt-start (&key (preamble-function #'rt-preamble)
+(defvar *threads-with-altered-affinity* (make-hash-table))
+(declaim (type hash-table *threads-with-altered-affinity*))
+
+(defun set-rt-cpu (n)
+  (declare (type non-negative-fixnum n))
+  (unset-rt-cpu)
+  (if *rt-thread*
+      (let ((mask (ash 1 n)))
+        (dolist (thr (bt:all-threads))
+          (if (eq thr *rt-thread*)
+              (setf (thread-affinity thr) mask)
+              (setf (gethash thr *threads-with-altered-affinity*)
+                    (setf (thread-affinity thr)
+                          (logandc2 (thread-affinity thr) mask)))))
+        n)
+      (incudine-error "real-time thread not started")))
+
+(defun unset-rt-cpu ()
+  (when (plusp (hash-table-count *threads-with-altered-affinity*))
+    (when *rt-thread*
+      (let ((n (thread-affinity *rt-thread*)))
+        (declare (type non-negative-fixnum n))
+        (if (power-of-two-p n)
+            ;; Revert the unchanged thread affinities.
+            (maphash (lambda (thr mask)
+                       (when (and (bt:thread-alive-p thr)
+                                  (= (thread-affinity thr) mask))
+                         (setf (thread-affinity thr) (logior mask n))))
+                     *threads-with-altered-affinity*)
+            (msg warn "rt-thread affinity altered"))))
+    (clrhash *threads-with-altered-affinity*)
+    nil))
+
+(defun rt-cpu ()
+  "Return the zero-based number of CPU reserved for the real-time thread.
+Setfable."
+  (if *rt-thread*
+      (let ((n (thread-affinity *rt-thread*)))
+        (if (power-of-two-p n)
+            (1- (integer-length n))
+            (incudine-error "real-time thread without a reserved CPU.")))
+      (incudine-error "real-time thread not started")))
+
+(defsetf rt-cpu set-rt-cpu)
+
+(defun rt-start (&key (cpu incudine.config:*rt-cpu*)
+                 (preamble-function #'rt-preamble)
                  (thread-name "audio-rt-thread")
                  (thread-function #'rt-thread-callback)
                  (thread-function-args (list #-dummy-audio
@@ -318,6 +364,12 @@
 if no error has occured.
 
 Call INIT to initialize Incudine if necessary.
+
+If CPU is non-NIL, it is the zero-based number of CPU reserved for the
+real-time thread. The thread affinities of the other threads are
+reverted during RT-STOP if they are unchanged in the meanwhile.
+
+CPU defaults to the configuration variable *RT-CPU*.
 
 PREAMBLE-FUNCTION is called before to create the thread. By default
 it starts the auxiliary non-real-time threads and set the client name.
@@ -332,7 +384,8 @@ by default.
 
 If GC-P is T (default), initiate a garbage collection before to create
 the thread."
-  (declare (type string thread-name)
+  (declare (type (or null non-negative-fixnum) cpu)
+           (type string thread-name)
            (type (or function null) preamble-function after-stop-function)
            (type function thread-function)
            (type cons thread-function-args)
@@ -346,6 +399,7 @@ the thread."
     (sleep .1)
     (setf (rt-params-status *rt-params*)
           (cond ((and *rt-thread* (bt:thread-alive-p *rt-thread*))
+                 (when cpu (set-rt-cpu cpu))
                  :started)
                 (t (msg warn "failed to start the realtime thread")
                    (setf *rt-thread* nil)
@@ -366,15 +420,17 @@ the thread."
   "Stop the real-time thread and return :STOPPED."
   (unless (eq (rt-status) :stopped)
     (cond ((rt-thread-p) (nrt-funcall #'rt-stop))
-          (t (when *rt-thread*
-               (let ((thread *rt-thread*))
-                 (setf *rt-thread* nil)
-                 (setf rt-state 1)
-                 (sleep .05)
-                 (loop while (bt:thread-alive-p thread))
-                 (msg debug "realtime thread stopped")))
-             (call-after-stop)
-             (setf (rt-params-status *rt-params*) :stopped)))))
+          (t
+           (when *rt-thread*
+             (let ((thread *rt-thread*))
+               (unset-rt-cpu)
+               (setf *rt-thread* nil)
+               (setf rt-state 1)
+               (sleep .05)
+               (loop while (bt:thread-alive-p thread))
+               (msg debug "realtime thread stopped")))
+           (call-after-stop)
+           (setf (rt-params-status *rt-params*) :stopped)))))
 
 #+portaudio
 (defun portaudio-set-device (output &optional (input output))
