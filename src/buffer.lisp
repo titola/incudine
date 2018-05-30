@@ -277,7 +277,8 @@ SAMPLE-RATE is *SAMPLE-RATE* by default."
   (declare (type (or string pathname) path) (type fixnum channel)
            (type non-negative-real offset))
   (let ((offset (floor offset))
-        (frames (and frames (floor frames))))
+        (frames (and frames (floor frames)))
+        (path (truename path)))
     (declare (type non-negative-fixnum offset)
              (type (or non-negative-fixnum null) frames))
     (with-open-sndfile (sf path offset frames channels sample-rate
@@ -303,8 +304,7 @@ SAMPLE-RATE is *SAMPLE-RATE* by default."
                                             channels (buffer-channels buffer) 0
                                             *sndfile-buffer-size* channel-map
                                             1)))
-            (setf (buffer-file buffer)
-                  (if (pathnamep path) path (pathname path)))
+            (setf (buffer-file buffer) path)
             (reduce-warnings
               (setf (buffer-sample-rate buffer) (sample (sf:sample-rate info))))
             buffer))))))
