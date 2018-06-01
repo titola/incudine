@@ -400,6 +400,23 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
                        (list (first sb-ext:*posix-argv*) testfile path)
                        t t)))))
 
+  (defun check-loaded-c-library ()
+    (flet ((clib-error (required)
+             (compile-error
+               "*AUDIO-DRIVER* is ~S but the loaded foreign library~%~
+                ~S~%doesn't depend on ~A. Launch the clean.sh script~2%~4T~
+                cd ~S && ./clean.sh~2%~
+                then recompile Incudine."
+               *audio-driver* *c-library-pathname* required
+               (namestring *c-source-dir*))))
+    (cond ((and (eq *audio-driver* :jack)
+                (not (cffi:foreign-symbol-pointer "ja_start")))
+           (clib-error "Jack"))
+          ((and (member *audio-driver* '(:portaudio :portaudio-jack))
+                (not (cffi:foreign-symbol-pointer "pa_start")))
+           (clib-error "PortAudio")))
+    (values)))
+
   (defun %compile-c-library (ofiles libs-dep)
     (let ((cmd (format nil "~A ~A ~A -o ~S~{ ~S~}~{ -l~A~}"
                        *c-compiler* *c-compiler-flags* *c-linker-flags*

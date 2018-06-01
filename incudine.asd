@@ -100,8 +100,9 @@
                         (symbol-call :incudine.config '#:compile-c-library))
                        (t
                         (symbol-call :incudine.config '#:update-features)))
-                 (symbol-call :cffi '#:load-foreign-library
-                              (output-file 'compile-op c))))
+                 (prog1 (symbol-call :cffi '#:load-foreign-library
+                                     (output-file 'compile-op c))
+                   (symbol-call :incudine.config '#:check-loaded-c-library))))
      (:file "config" :depends-on ("compile-clib"))
      (:file "logger" :depends-on ("edf-sched"))
      (:file "foreign" :depends-on ("config" "clib"))
