@@ -530,7 +530,7 @@
                         (mus-interp-bezier 5)
                         (mus-interp-hermite 6)))))
         (if (numberp type)
-            (let ((size (or (first args) (length v))))
+            (let ((size (or (first args) `(length ,v))))
               `(,(svref *array-interp-function-names* type) ,v ,x ,size
                                                             ,@(cdr args)))
             form))
