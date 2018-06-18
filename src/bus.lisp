@@ -147,7 +147,7 @@ If AUDIO-OUT is used within a VUG definition, FRAME is ignored."
 (defun update-peak-values (chan)
   (declare #.*standard-optimize-settings*
            (type channel-number chan))
-  (let ((value (mem-aref (output-pointer) 'sample chan)))
+  (let ((value (abs (mem-aref (output-pointer) 'sample chan))))
     (declare (type sample value))
     (when (> value (smp-ref *output-peak-values* chan))
       (setf (smp-ref *output-peak-values* chan) value))
