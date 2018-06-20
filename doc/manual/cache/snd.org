@@ -30,9 +30,11 @@ editor Snd inherit from this condition.
 Start Snd.
 #+end_defun
 
-#+attr_texinfo: :options snd:eval string @andkey{} output-p parser
+#+attr_texinfo: :options snd:eval string @andkey{} format-arguments output-p parser
 #+begin_defun
-The ~string~ is evaluated by Snd.
+The ~string~ with optional ~format-arguments~ is evaluated by Snd.
+
+If ~output-p~ is ~t~ (default), return the output of Snd.
 #+end_defun
 
 #+attr_texinfo: :options snd:load scmfile @andoptional{} s7-env-string

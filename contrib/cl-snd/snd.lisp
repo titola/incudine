@@ -176,17 +176,22 @@ It requires SLIME-ENABLE-EVALUATE-IN-EMACS T on the Emacs side."
          (let ((code (process-exit-code)))
            (and code (zerop code))))))
 
-(defun eval (string &key (output-p t) (parser #'default-parser))
-  "The STRING is evaluated by Snd."
+(defun eval (string &key format-arguments (output-p t) (parser #'default-parser))
+  "The STRING with optional FORMAT-ARGUMENTS is evaluated by Snd.
+
+If OUTPUT-P is T (default), return the output of Snd."
   (declare (type string string) (type boolean output-p) (type function parser))
-  (cond (*emacs-mode-p*
-         (let ((str (eval-in-emacs `(incudine-snd-send-string ,string))))
-           (when output-p
-             (funcall parser
-                      (subseq str 0 (position #\newline str :from-end t))))))
-        (*snd*
-         (to-process string)
-         (if output-p (from-process parser) (flush-stream)))))
+  (let ((string (if format-arguments
+                    (apply #'format nil string format-arguments)
+                    string)))
+    (cond (*emacs-mode-p*
+           (let ((str (eval-in-emacs `(incudine-snd-send-string ,string))))
+             (when output-p
+               (funcall parser
+                        (subseq str 0 (position #\newline str :from-end t))))))
+          (*snd*
+           (to-process string)
+           (if output-p (from-process parser) (flush-stream))))))
 
 (defun truenamestring (pathspec)
   (namestring (truename pathspec)))

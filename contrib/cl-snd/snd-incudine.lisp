@@ -27,17 +27,14 @@
 
 (enable-sharp-s7-syntax)
 
-(defmacro eval-format (control-string &rest format-arguments)
-  `(eval (format nil ,control-string ,@format-arguments)))
-
 (defun open-or-update-sound (file)
   "If no sound is found that matches the soundfile FILE, open that
 file in Snd. Otherwise, update the sound."
-  (eval-format
+  (eval
     #s7(let* ((f ~S)
               (s (find-sound f)))
          (if s (update-sound s) (open-sound f)))
-    (truenamestring file)))
+    :format-arguments (list (truenamestring file))))
 
 (defun arg-list (lst)
   (mapcar (lambda (arg)
@@ -164,7 +161,7 @@ passed to INCUDINE:BUFFER-SAVE."
 (defun buffer->float-vector (buf fvec-name &rest buffer-save-args)
   (declare (type incudine:buffer buf) (type string fvec-name))
   (with-buffer-save (buf f *tmpfile* buffer-save-args)
-    (eval-format
+    (eval
       #s7(begin
            (define ~A
              (let* ((sf ~S)
@@ -175,7 +172,7 @@ passed to INCUDINE:BUFFER-SAVE."
                    ((= i size) (free-sampler rd) v)
                  (float-vector-set! v i (rd)))))
            (length ~A))
-      fvec-name f fvec-name)))
+      :format-arguments (list fvec-name f fvec-name))))
 
 (defun float-vector (fvec-name obj &optional (start 0) (end 0))
   "Define a float-vector in Snd named FVEC-NAME initialized with the
@@ -269,7 +266,7 @@ See map-channel in Snd."
                (incudine:with-buffer (new (length vec) :initial-contents vec)
                  (incudine:buffer-save new *tmpfile* :header-type "wav"
                                        :data-format "double")
-                 (eval-format
+                 (eval
                    #s7(as-one-edit
                        (lambda ()
                          (let ((s ~A) (c ~A))
@@ -277,7 +274,7 @@ See map-channel in Snd."
                            (insert-channel ~S :snd s :chn c)
                            s))
                        ~S)
-                   snd chn *tmpfile* origin)))
+                   :format-arguments (list snd chn *tmpfile* origin))))
           (incudine:free buf))))))
 
 (defun env-channel (env &key (beg 0) dur snd chn (origin "incudine env-channel"))
@@ -296,8 +293,8 @@ See env-channel in Snd."
            (type (or alexandria:non-negative-fixnum null) chn)
            (type string origin))
   (multiple-value-bind (snd chn) (sound-and-channel snd chn)
-    (let ((frames (eval-format #s7(let ((s ~A)) (if (sound? s) (framples s ~A)))
-                               snd chn)))
+    (let ((frames (eval #s7(let ((s ~A)) (if (sound? s) (framples s ~A)))
+                        :format-arguments (list snd chn))))
       (when (and frames (plusp frames))
         (let* ((beg (min beg (1- frames)))
                (maxdur (- frames beg))
@@ -306,12 +303,12 @@ See env-channel in Snd."
                                  :fill-function (gen:envelope env :periodic-p nil))
             (incudine:buffer-save buf *tmpfile* :header-type "wav"
                                   :data-format "double")
-            (eval-format
+            (eval
               #s7(let ((s ~A) (rd (make-sampler 0 ~S)))
                    (map-channel (lambda (x) (* x (rd)))
                                 ~D ~D s ~A current-edit-position ~S)
                    (free-sampler rd) s)
-              snd *tmpfile* beg dur chn origin)))))))
+              :format-arguments (list snd *tmpfile* beg dur chn origin))))))))
 
 (defun env-selection (env &key (origin "incudine env-selection"))
   "Apply the amplitude envelope ENV, an INCUDINE:ENVELOPE structure,
