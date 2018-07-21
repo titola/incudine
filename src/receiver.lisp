@@ -151,7 +151,7 @@ input available from STREAM."
 ;;; Open Sound Control
 
 (defun net-remove-receiver-and-responders (stream)
-  (when (osc:input-stream-p stream)
+  (when (incudine.osc:input-stream-p stream)
     (remove-receiver-and-responders stream))
   stream)
 
