@@ -1,6 +1,13 @@
 Installation Instructions
 *************************
 
+If you use Quicklisp, put the incudine directory into local-projects:
+
+    mv incudine /path/to/quicklisp/local-projects
+
+otherwise, symlink the system definition file to a directory in your
+ASDF:*CENTRAL-REGISTRY* list:
+
     cd /path/to/your/registry/
     ln -s /path/to/incudine/incudine.asd
 

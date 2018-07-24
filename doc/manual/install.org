@@ -48,7 +48,14 @@ git clone git://github.com/titola/incudine.git
 #+end_example
 
 ** Configuration
-Symlink the system definition file to a directory in your
+If you use [[https://www.quicklisp.org/][Quicklisp]], put the ~incudine~ directory into ~local-projects~:
+
+#+begin_example
+mv incudine /path/to/quicklisp/local-projects
+#+end_example
+
+#+texinfo: @noindent
+otherwise, symlink the system definition file to a directory in your
 ~asdf:*central-registry*~ list:
 
 #+begin_example
