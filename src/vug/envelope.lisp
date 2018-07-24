@@ -30,6 +30,14 @@
      incudine::segment-stack-reposition
      incudine::%segment-update-level)))
 
+(define-vug decay (in decay-time)
+  "Exponential decay."
+  (pole in (t60->pole decay-time)))
+
+(define-vug decay-2 (in attack-time decay-time)
+  "Exponential decay with the attack obtained by subtracting two DECAY's."
+  (- (decay in decay-time) (decay in attack-time)))
+
 ;;; Simple segments
 
 (define-vug line (start end dur (done-action function))

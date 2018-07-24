@@ -267,7 +267,7 @@
    ;; amplitude
    #:env-follower #:rms #:gain #:balance
    ;; envelope
-   #:line #:expon #:envelope
+   #:decay #:decay-2 #:line #:expon #:envelope
    ;; noise
    #:white-noise #:pink-noise #:fractal-noise #:crackle #:rand
    ;; chaos
@@ -281,7 +281,7 @@
    #:~ #:pole #:pole* #:zero #:zero* #:two-pole #:two-zero
    #:cs-tone #:cs-atone
    #:dcblock #:lag #:lag-ud
-   #:maf #:median #:decay #:decay-2 #:biquad #:reson
+   #:maf #:median #:biquad #:reson
    #:resonz #:resonr #:ringz #:ringr
    #:fofilter #:lpf #:hpf #:bpf #:notch #:apf #:peak-eq #:low-shelf #:hi-shelf
    #:butter-lp #:butter-hp #:butter-bp #:butter-br

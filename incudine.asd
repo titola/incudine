@@ -172,7 +172,7 @@
      (:file "vug/util2" :depends-on ("vug/codegen"))
      (:file "vug/buffer" :depends-on ("vug/util2" "buffer" "analysis/base"))
      (:file "vug/in-out" :depends-on ("bus" "vug/util2"))
-     (:file "vug/envelope" :depends-on ("gen/envelope" "vug/util2"))
+     (:file "vug/envelope" :depends-on ("gen/envelope" "vug/util2" "vug/filter"))
      (:file "vug/oscillator" :depends-on ("vug/buffer" "vug/filter"))
      (:file "vug/delay" :depends-on ("vug/buffer"))
      (:file "vug/filter" :depends-on ("vug/codegen"))

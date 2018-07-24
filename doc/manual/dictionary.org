@@ -829,6 +829,8 @@ Deallocate the ~voicer~.
 ::: vug:gain
 ::: vug:balance
 *** Envelope
+::: vug:decay
+::: vug:decay-2
 ::: vug:line
 ::: vug:expon
 ::: vug:envelope
@@ -862,8 +864,6 @@ Deallocate the ~voicer~.
 ::: vug:cs-atone
 ::: vug:cs-tone
 ::: vug:dcblock
-::: vug:decay
-::: vug:decay-2
 ::: vug:direct-convolve
 ::: vug:fofilter
 ::: vug:hi-shelf

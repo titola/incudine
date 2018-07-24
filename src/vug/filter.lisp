@@ -61,10 +61,6 @@ a 60 dB lag ATTACK-TIME and DECAY-TIME."
                (coef-down (t60->pole decay-time)))
   (~ (pole* in (if (> in it) coef-up coef-down)))))
 
-(define-vug decay (in decay-time)
-  "Exponential decay."
-  (pole in (t60->pole decay-time)))
-
 (define-vug biquad (in b0 b1 b2 a0 a1 a2)
   "Biquad filter."
   (with-samples (x1 x2 y y1 y2)
@@ -116,10 +112,6 @@ half-power point."
 (define-vug dcblock (in coef)
   "DC blocking filter."
   (pole (zero in 1) coef))
-
-(define-vug decay-2 (in attack-time decay-time)
-  "Exponential decay with the attack obtained by subtracting two DECAYs."
-  (- (decay in decay-time) (decay in attack-time)))
 
 ;;; Two pole resonant filters.
 ;;;
