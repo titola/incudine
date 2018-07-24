@@ -823,6 +823,11 @@ Deallocate the ~voicer~.
 ::: vug:fractal-noise
 ::: vug:crackle
 ::: vug:rand
+*** Amplitude
+::: vug:env-follower
+::: vug:rms
+::: vug:gain
+::: vug:balance
 *** Envelope
 ::: vug:line
 ::: vug:expon
@@ -860,7 +865,6 @@ Deallocate the ~voicer~.
 ::: vug:decay
 ::: vug:decay-2
 ::: vug:direct-convolve
-::: vug:env-follower
 ::: vug:fofilter
 ::: vug:hi-shelf
 ::: vug:hpf

@@ -264,6 +264,8 @@
    ;; oscillator
    #:phasor #:phasor-loop #:osc #:sine #:pulse #:impulse #:buzz #:gbuzz
    #:oscrq #:oscrs #:oscrc #:oscr
+   ;; amplitude
+   #:env-follower #:rms #:gain #:balance
    ;; envelope
    #:line #:expon #:envelope
    ;; noise
@@ -279,7 +281,7 @@
    #:~ #:pole #:pole* #:zero #:zero* #:two-pole #:two-zero
    #:cs-tone #:cs-atone
    #:dcblock #:lag #:lag-ud
-   #:env-follower #:maf #:median #:decay #:decay-2 #:biquad #:reson
+   #:maf #:median #:decay #:decay-2 #:biquad #:reson
    #:resonz #:resonr #:ringz #:ringr
    #:fofilter #:lpf #:hpf #:bpf #:notch #:apf #:peak-eq #:low-shelf #:hi-shelf
    #:butter-lp #:butter-hp #:butter-bp #:butter-br

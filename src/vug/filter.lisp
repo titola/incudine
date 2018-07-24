@@ -117,10 +117,6 @@ half-power point."
   "DC blocking filter."
   (pole (zero in 1) coef))
 
-(define-vug env-follower (in attack-time decay-time)
-  "Envelope follower."
-  (lag-ud (abs in) attack-time decay-time))
-
 (define-vug decay-2 (in attack-time decay-time)
   "Exponential decay with the attack obtained by subtracting two DECAYs."
   (- (decay in decay-time) (decay in attack-time)))
