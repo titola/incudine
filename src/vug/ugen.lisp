@@ -297,12 +297,16 @@ from the other packages."
         (ugen-instance-perf-function obj) perf-fn))
 
 (defmacro with-ugen-preamble ((instance-var free-fn-var to-free-var
-                               name instance-constructor)
+                               name node instance-constructor)
                               &body body)
-  `(let ((,instance-var (,(or instance-constructor 'make-ugen-instance)
+  `(let ((%dsp-node% (or ,node
+                         ;; The UGEN is outside a DSP.
+                         (incudine::make-temp-node)))
+         (,instance-var (,(or instance-constructor 'make-ugen-instance)
                           :name ,name))
          (,free-fn-var nil))
-     (declare (type ugen-instance ,instance-var)
+     (declare (type incudine:node %dsp-node%)
+              (type ugen-instance ,instance-var)
               (type (or function null) ,free-fn-var))
      (let ((incudine::*to-free* nil)
            (,to-free-var nil))
@@ -335,7 +339,7 @@ from the other packages."
          `(lambda ()
             (declare ,,optimize)
             (with-ugen-preamble (,u ,free-fn ,to-free  ',',name
-                                 ,',ugen-instance-constructor)
+                                 ,,node ,',ugen-instance-constructor)
               (with-foreign-arrays ((,smpvec ,smpvecw 'sample ,,smpvec-size)
                                     (,f32vec ,f32vecw :float ,,f32vec-size)
                                     (,f64vec ,f64vecw :double ,,f64vec-size)
@@ -352,10 +356,7 @@ from the other packages."
                        (,(vug-foreign-varnames pointer) ,ptrvec :pointer))
                     ,(%expand-variables
                        (reorder-initialization-code)
-                       `(let ((%dsp-node% ,(or ,node
-                                               ;; The UGEN is outside a DSP.
-                                               '(incudine::make-temp-node))))
-                          (declare (type (or incudine:node null) %dsp-node%))
+                       `(progn
                           ,@(initialization-code)
                           (setf ,to-free incudine::*to-free*)
                           (fill-ugen-instance ,u
