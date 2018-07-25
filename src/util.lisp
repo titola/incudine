@@ -477,10 +477,35 @@ You can have more than one &rest parameter."
 (defvar *sample-counter* (foreign-alloc 'sample :initial-element +sample-zero+))
 (declaim (type foreign-pointer *sample-counter*))
 
+(defvar *rt-sample-counter* *sample-counter*)
+(declaim (type foreign-pointer *rt-sample-counter*))
+
 (declaim (inline now))
 (defun now ()
   "Return the current time in samples."
   (mem-ref *sample-counter* 'sample))
+
+(defun set-time (value)
+  (declare (type real value))
+  (unless (eq *sample-counter* *rt-sample-counter*)
+    (setf (mem-ref *sample-counter* 'sample) (sample value)))
+  value)
+
+(defsetf now set-time)
+
+(defmacro with-local-time ((&key (start 0)) &body body)
+  "Use a local counter during BODY.
+
+START is the initial time in samples and defaults to zero.
+
+The function NOW is setfable to change the time, for example:
+
+    (with-local-time
+      (loop repeat 8 collect (incf (now))))
+    ;; => (1.0d0 2.0d0 3.0d0 4.0d0 5.0d0 6.0d0 7.0d0 8.0d0)"
+  `(cffi:with-foreign-object (*sample-counter* 'sample)
+     (setf (mem-ref *sample-counter* 'sample) (sample ,start))
+     ,@body))
 
 (defvar *portmidi-time* (foreign-alloc 'sample :initial-element +sample-zero+))
 (declaim (type foreign-pointer *portmidi-time*))

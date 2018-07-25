@@ -190,6 +190,9 @@ halts the mapping operation, leaving trailing samples unaffected, or a
 sequence the contents of which are spliced into the edited version,
 effectively replacing the current sample with any number of samples.
 
+The utility ~incudine:now~ called from ~function~ returns the current
+local time.
+
 ~beg~ defaults to 0 and ~dur~ defaults to the full length of the sound.
 
 ~snd~ and ~chn~ default to the currently selected sound.

@@ -195,27 +195,29 @@ The sequence is optionally bounded by START and END."
         (t 0)))
 
 (defun map-channel-new-vec (buffer function beg end)
-  (do ((i 0 (1+ i))
-       (stop nil)
-       (vec (make-array (incudine:buffer-size buffer) :adjustable t
-                        :fill-pointer 0)))
-      ((>= i (incudine:buffer-size buffer)) vec)
-    (when (and end (>= i end))
-      (setf stop t))
-    (let* ((val (incudine:buffer-value buffer i))
-           (ret (if (or stop (< i beg))
-                    val
-                    (funcall function val))))
-      (cond ((numberp ret)
-             (vector-push-extend ret vec))
-            ((and (listp ret) (every #'realp ret))
-             (dolist (x ret) (vector-push-extend x vec)))
-            ((and (vectorp ret) (every #'realp ret))
-             (dotimes (j (length ret))
-               (vector-push-extend (svref ret j) vec)))
-            ((eq ret t)
-             (setf stop t)
-             (vector-push-extend val vec))))))
+  (incudine:with-local-time ()
+    (do ((i 0 (1+ i))
+         (stop nil)
+         (vec (make-array (incudine:buffer-size buffer) :adjustable t
+                          :fill-pointer 0)))
+        ((>= i (incudine:buffer-size buffer)) vec)
+      (when (and end (>= i end))
+        (setf stop t))
+      (let* ((val (incudine:buffer-value buffer i))
+             (ret (if (or stop (< i beg))
+                      val
+                      (prog1 (funcall function val)
+                        (incf (incudine:now))))))
+        (cond ((numberp ret)
+               (vector-push-extend ret vec))
+              ((and (listp ret) (every #'realp ret))
+               (dolist (x ret) (vector-push-extend x vec)))
+              ((and (vectorp ret) (every #'realp ret))
+               (dotimes (j (length ret))
+                 (vector-push-extend (svref ret j) vec)))
+              ((eq ret t)
+               (setf stop t)
+               (vector-push-extend val vec)))))))
 
 (defun sound-and-channel (snd chn)
   (let* ((snd (cond ((integerp snd)
@@ -239,6 +241,9 @@ nothing), or a number which replaces the current sample, or T which
 halts the mapping operation, leaving trailing samples unaffected, or a
 sequence the contents of which are spliced into the edited version,
 effectively replacing the current sample with any number of samples.
+
+The utility INCUDINE:NOW called from FUNCTION returns the current
+local time.
 
 BEG defaults to 0 and DUR defaults to the full length of the sound.
 

@@ -496,3 +496,16 @@
            (dotimes (i *test-length*)
              (outa i (readin rd))))))
   #(29 152 233 110 54 120 174 233 9 27 96 185 37 239 23 125))
+
+;;; Incudine local time
+
+(deftest local-time.1
+    (let ((counter incudine::*sample-counter*))
+      (with-sound-test ()
+        ;; Local time inside WITH-SOUND.
+        (assert (not (eq counter incudine::*sample-counter*)))
+        (dotimes (i *test-length*)
+          (setf (incudine:now) i)
+          (outa i (* (logand (incudine.util:sample->fixnum (incudine:now)) #xffff)
+                     1.25d-5)))))
+  #(15 190 123 137 131 50 169 76 33 248 183 182 48 7 16 182))

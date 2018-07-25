@@ -61,6 +61,7 @@
       (setf *tempo* (make-tempo *default-bpm*))
       (setf *sample-counter*
             (foreign-alloc 'sample :initial-element +sample-zero+))
+      (setf *rt-sample-counter* *sample-counter*)
       ;; graph
       (setf *node-hash* (make-node-hash *max-number-of-nodes*))
       (setf *root-node*

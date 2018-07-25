@@ -406,7 +406,8 @@
                   (or ,sampling-rate *clm-srate*) ,channels ,sf ,revf
                   ,statistics ,continue-old-file ,reverb-channels
                   ,header-type ,data-format ,comm ,temp-file-p)
-                (incudine:with-cleanup ,@body)
+                (with-local-time ()
+                  (incudine:with-cleanup ,@body))
                 (end-with-sound
                   ,scaled-to ,outfile ,revf (and ,temp-file-p ,sf) ,statistics
                   ,header-type-str ,data-format-str ,rev-func ,decay-time

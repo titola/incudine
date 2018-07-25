@@ -411,6 +411,7 @@
    #:rt-time-offset #:rt-silent-errors
    #:at #:aat #:with-schedule #:flush-pending #:flush-all-fifos
    #:tempo #:*tempo* #:make-tempo #:tempo-p #:bpm #:bps #:spb #:now #:tempo-sync
+   #:with-local-time
    #:tempo-envelope #:make-tempo-envelope #:tempo-envelope-p #:set-tempo-envelope
    #:copy-tempo-envelope
    #:time-at #:bps-at #:bpm-at #:spb-at

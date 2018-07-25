@@ -204,6 +204,7 @@ Return ~t~ if the ~tempo~ or ~tempo-envelope~ instance is deallocated.
 ::: spb-at
 ::: time-at
 ::: now
+::: with-local-time
 ::: tempo-sync
 ::: timestamp
 ::: enable-sharp-square-bracket-syntax
