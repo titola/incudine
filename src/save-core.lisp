@@ -149,6 +149,7 @@ core image starts up.")
                      (,*rt-foreign-array-pool* ,+foreign-array-pool-initial-size+)
                      (,*tempo-pool* ,+tempo-pool-initial-size+)
                      (,*rt-tempo-pool* ,+tempo-pool-initial-size+)
+                     (,*node-pool* ,+node-pool-initial-size+)
                      (,incudine.analysis::*ring-input-buffer-pool*
                       ,incudine.analysis::+ring-buffer-pool-initial-size+)
                      (,incudine.analysis::*rt-ring-input-buffer-pool*

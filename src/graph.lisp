@@ -42,7 +42,9 @@
   "Default curve of the ENVELOPE structure used for fade in/out.")
 (declaim (type (or symbol real) *fade-curve*))
 
-(defstruct (node (:constructor %make-node) (:copier nil))
+(defstruct (node (:include incudine-object)
+                 (:constructor %make-node)
+                 (:copier nil))
   "Node type."
   (id nil :type (or fixnum null))
   (hash 0 :type fixnum)
@@ -133,15 +135,56 @@
   (declare #.*standard-optimize-settings*)
   (eq obj *root-node*))
 
-(defmacro make-temp-node (&rest rest)
-  `(prog1 (%make-node :id -1 ,@rest)
-     (nrt-msg info "new temporary node")))
+(define-constant +node-pool-initial-size+ 100)
+
+(defvar *node-pool-ptr* nil)
+(declaim (type (or incudine-object-pool null) *node-pool-ptr*))
+
+(defun make-cached-node ()
+  (let ((start-time-ptr nil)
+        (gain-data-ptr nil)
+        (obj nil))
+    (handler-case
+        (progn
+          (setf start-time-ptr
+                (foreign-alloc 'sample :initial-element +sample-zero+))
+          (setf gain-data-ptr (foreign-alloc-sample 10))
+          (setf obj (%make-node
+                      :id -1
+                      :index (* 2 *max-number-of-nodes*)
+                      :hash (int-hash -1)
+                      :start-time-ptr start-time-ptr
+                      :gain-data gain-data-ptr))
+          (incudine.util::finalize obj
+            (lambda ()
+              (foreign-free start-time-ptr)
+              (foreign-free gain-data-ptr)
+              (when *node-pool-ptr*
+                (incudine-object-pool-expand *node-pool-ptr* 1))))
+          obj)
+      (error (c)
+        (when start-time-ptr
+          (foreign-free start-time-ptr))
+        (when gain-data-ptr
+          (foreign-free gain-data-ptr))
+        (foreign-alloc-error "~A" c)))))
+
+(defvar *node-pool*
+  (setf *node-pool-ptr*
+        (make-incudine-object-pool
+          +node-pool-initial-size+ #'make-cached-node nil)))
+(declaim (type incudine-object-pool *node-pool*))
+
+(defun make-temp-node ()
+  (let ((node (incudine.util::alloc-object *node-pool*)))
+    (setf (node-id node) -1)
+    (nrt-msg info "new temporary node")
+    node))
 
 (declaim (inline temp-node-p))
 (defun temp-node-p (node)
   (declare (type node node))
-  (let ((id (node-id node)))
-    (and id (minusp id))))
+  (node-pool-ptr node))
 
 (declaim (inline null-node-p))
 (defun null-node-p (obj)
@@ -931,10 +974,9 @@ of GROUP."
            (unlink-group node)
            (nrt-msg info "free group 0")))
         ((temp-node-p node)
-         (foreign-free (node-start-time-ptr node))
-         (foreign-free (node-gain-data node))
-         (incudine.util::cancel-finalization node)
          (setf (node-id node) nil)
+         (setf (node-done-p node) nil)
+         (incudine.util::free-object node *node-pool*)
          (nrt-msg info "free temporary node"))
         ((node-id node)
          (let ((id (node-id node)))
