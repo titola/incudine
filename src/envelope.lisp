@@ -445,7 +445,7 @@ otherwise it restarts from the value RESTART-LEVEL."
 (defun %segment-stack-reposition (consointer dur delta)
   (declare (type cons consointer)
            (type non-negative-fixnum dur)
-           (type positive-fixnum delta)
+           (type fixnum delta)
            #.*standard-optimize-settings*)
   (with-segment-stack (beg end curve grow a2 b1 y1 y2) consointer
     (curve-case curve
@@ -503,7 +503,8 @@ otherwise it restarts from the value RESTART-LEVEL."
 (declaim (inline segment-stack-reposition))
 (defun segment-stack-reposition (consointer dur delta)
   (declare (type cons consointer)
-           (type non-negative-fixnum dur delta)
+           (type non-negative-fixnum dur)
+           (type fixnum delta)
            #.*standard-optimize-settings*)
   (if (= delta 0)
       (segment-stack-init consointer dur)
