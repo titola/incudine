@@ -60,7 +60,7 @@
 ;; or a scl file.
 (set-fluidsynth-tuning *tun* *synth* 0 0)
 
-(fluidsynth:select-tuning *synth* 0 0 0)
+(fluidsynth:activate-tuning *synth* 0 0 0 t)
 
 ;;; Play with the new tuning.
 

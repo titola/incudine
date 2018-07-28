@@ -31,7 +31,6 @@ To load ~incudine-fluidsynth~ use ~asdf:load-system~ or ~require~.
 ::: fluidsynth:settings-setstr
 ::: fluidsynth:settings-copystr
 ::: fluidsynth:settings-dupstr
-::: fluidsynth:settings-getstr
 ::: fluidsynth:settings-getstr-default
 ::: fluidsynth:settings-str-equal
 ::: fluidsynth:settings-setnum
@@ -72,7 +71,6 @@ To load ~incudine-fluidsynth~ use ~asdf:load-system~ or ~require~.
 ::: fluidsynth:program-select-by-sfont-name
 ::: fluidsynth:get-program
 ::: fluidsynth:unset-program
-::: fluidsynth:get-channel-info
 ::: fluidsynth:program-reset
 ::: fluidsynth:system-reset
 ::: fluidsynth:all-notes-off
@@ -120,8 +118,8 @@ To load ~incudine-fluidsynth~ use ~asdf:load-system~ or ~require~.
 ::: fluidsynth:set-chorus-on
 ::: fluidsynth:get-chorus-nr
 ::: fluidsynth:get-chorus-level
-::: fluidsynth:get-chorus-speed-hz
-::: fluidsynth:get-chorus-depth-ms
+::: fluidsynth:get-chorus-speed
+::: fluidsynth:get-chorus-depth
 ::: fluidsynth:get-chorus-type
 
 **** Audio and MIDI channels
@@ -146,18 +144,13 @@ To load ~incudine-fluidsynth~ use ~asdf:load-system~ or ~require~.
 ::: fluidsynth:interp-default
 ::: fluidsynth:interp-highest
 ::: fluidsynth:set-gen
-::: fluidsynth:set-gen2
 ::: fluidsynth:get-gen
 
 **** Tuning
-::: fluidsynth:create-key-tuning
 ::: fluidsynth:activate-key-tuning
-::: fluidsynth:create-octave-tuning
 ::: fluidsynth:activate-octave-tuning
 ::: fluidsynth:tune-notes
-::: fluidsynth:select-tuning
 ::: fluidsynth:activate-tuning
-::: fluidsynth:reset-tuning
 ::: fluidsynth:deactivate-tuning
 ::: fluidsynth:tuning-iteration-start
 ::: fluidsynth:tuning-iteration-next
@@ -180,5 +173,4 @@ To load ~incudine-fluidsynth~ use ~asdf:load-system~ or ~require~.
 ::: fluidsynth:start-voice
 ::: fluidsynth:get-voicelist
 ::: fluidsynth:handle-midi-event
-::: fluidsynth:set-midi-router
 #+texinfo: @page

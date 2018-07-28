@@ -2,7 +2,7 @@
 ;;;
 ;;; ASDF system definition for INCUDINE-FLUIDSYNTH
 ;;;
-;;; Copyright (c) 2015-2017 Tito Latini
+;;; Copyright (c) 2015-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 (in-package :asdf-user)
 
 (defsystem "incudine-fluidsynth"
-  :version "1.0"
+  :version "1.1"
   :description "FluidSynth SoundFont synthesizer interface for Incudine."
   :licence "GPL v2"
   :author "Tito Latini"

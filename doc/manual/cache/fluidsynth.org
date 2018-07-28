@@ -103,10 +103,6 @@ To load ~incudine-fluidsynth~ use ~asdf:load-system~ or ~require~.
 #+begin_defun
 #+end_defun
 
-#+attr_texinfo: :options fluidsynth:settings-getstr settings name str
-#+begin_defun
-#+end_defun
-
 #+attr_texinfo: :options fluidsynth:settings-getstr-default settings name
 #+begin_defun
 #+end_defun
@@ -252,10 +248,6 @@ To load ~incudine-fluidsynth~ use ~asdf:load-system~ or ~require~.
 #+end_defun
 
 #+attr_texinfo: :options fluidsynth:unset-program synth chan
-#+begin_defun
-#+end_defun
-
-#+attr_texinfo: :options fluidsynth:get-channel-info synth chan info
 #+begin_defun
 #+end_defun
 
@@ -425,11 +417,11 @@ To load ~incudine-fluidsynth~ use ~asdf:load-system~ or ~require~.
 #+begin_defun
 #+end_defun
 
-#+attr_texinfo: :options fluidsynth:get-chorus-speed-hz synth
+#+attr_texinfo: :options fluidsynth:get-chorus-speed synth
 #+begin_defun
 #+end_defun
 
-#+attr_texinfo: :options fluidsynth:get-chorus-depth-ms synth
+#+attr_texinfo: :options fluidsynth:get-chorus-depth synth
 #+begin_defun
 #+end_defun
 
@@ -513,25 +505,13 @@ To load ~incudine-fluidsynth~ use ~asdf:load-system~ or ~require~.
 #+begin_defun
 #+end_defun
 
-#+attr_texinfo: :options fluidsynth:set-gen2 synth chan param value absolute normalized
-#+begin_defun
-#+end_defun
-
 #+attr_texinfo: :options fluidsynth:get-gen synth chan param
 #+begin_defun
 #+end_defun
 
 
 **** Tuning
-#+attr_texinfo: :options fluidsynth:create-key-tuning synth bank prog name pitch
-#+begin_defun
-#+end_defun
-
 #+attr_texinfo: :options fluidsynth:activate-key-tuning synth bank prog name pitch apply
-#+begin_defun
-#+end_defun
-
-#+attr_texinfo: :options fluidsynth:create-octave-tuning synth bank prog name pitch
 #+begin_defun
 #+end_defun
 
@@ -543,15 +523,7 @@ To load ~incudine-fluidsynth~ use ~asdf:load-system~ or ~require~.
 #+begin_defun
 #+end_defun
 
-#+attr_texinfo: :options fluidsynth:select-tuning synth chan bank prog
-#+begin_defun
-#+end_defun
-
 #+attr_texinfo: :options fluidsynth:activate-tuning synth chan bank prog apply
-#+begin_defun
-#+end_defun
-
-#+attr_texinfo: :options fluidsynth:reset-tuning synth chan
 #+begin_defun
 #+end_defun
 
@@ -618,10 +590,6 @@ To load ~incudine-fluidsynth~ use ~asdf:load-system~ or ~require~.
 #+end_defun
 
 #+attr_texinfo: :options fluidsynth:handle-midi-event data event
-#+begin_defun
-#+end_defun
-
-#+attr_texinfo: :options fluidsynth:set-midi-router synth router
 #+begin_defun
 #+end_defun
 

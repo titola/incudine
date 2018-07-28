@@ -1,4 +1,4 @@
-;;; Copyright (c) 2015 Tito Latini
+;;; Copyright (c) 2015-2018 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -23,6 +23,7 @@
   (:export
    ;; Variables
    #:*logger-stream*
+   #:version
    ;; Settings
    #:HINT-BOUNDED-BELOW
    #:HINT-BOUNDED-ABOVE
@@ -47,7 +48,6 @@
    #:settings-setstr
    #:settings-copystr
    #:settings-dupstr
-   #:settings-getstr
    #:settings-getstr-default
    #:settings-str-equal
    #:settings-setnum
@@ -86,7 +86,6 @@
    #:program-select-by-sfont-name
    #:get-program
    #:unset-program
-   #:get-channel-info
    #:program-reset
    #:system-reset
    #:all-notes-off
@@ -131,8 +130,8 @@
    #:set-chorus-on
    #:get-chorus-nr
    #:get-chorus-level
-   #:get-chorus-speed-hz
-   #:get-chorus-depth-ms
+   #:get-chorus-speed
+   #:get-chorus-depth
    #:get-chorus-type
    ;; Audio and MIDI channels
    #:count-midi-channels
@@ -155,17 +154,12 @@
    #:INTERP-DEFAULT
    #:INTERP-HIGHEST
    #:set-gen
-   #:set-gen2
    #:get-gen
    ;; Tuning
-   #:create-key-tuning
    #:activate-key-tuning
-   #:create-octave-tuning
    #:activate-octave-tuning
    #:tune-notes
-   #:select-tuning
    #:activate-tuning
-   #:reset-tuning
    #:deactivate-tuning
    #:tuning-iteration-start
    #:tuning-iteration-next
@@ -184,5 +178,4 @@
    #:alloc-voice
    #:start-voice
    #:get-voicelist
-   #:handle-midi-event
-   #:set-midi-router))
+   #:handle-midi-event))

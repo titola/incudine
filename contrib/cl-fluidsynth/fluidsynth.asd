@@ -22,7 +22,7 @@
 
 (defsystem "fluidsynth"
   :description "Wrapper for FluidSynth SoundFont synthesizer"
-  :version "1.0"
+  :version "1.1"
   :author "Tito Latini"
   :licence "LGPL"
   :depends-on (:cffi :alexandria #-sbcl :trivial-garbage)

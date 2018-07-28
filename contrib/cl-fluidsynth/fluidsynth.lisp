@@ -1,4 +1,4 @@
-;;; Copyright (c) 2015-2016 Tito Latini
+;;; Copyright (c) 2015-2018 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -25,11 +25,13 @@
               (case type
                 (#.NUM-TYPE (values #'settings-getnum :double))
                 (#.INT-TYPE (values #'settings-getint :int))
-                (#.STR-TYPE (values #'settings-getstr :string))
+                (#.STR-TYPE (values #'settings-dupstr :string))
                 (otherwise (error "unknown setting type")))
             (cffi:with-foreign-object (ptr :double)
               (funcall get-cb settings name ptr)
-              (cffi:mem-ref ptr foreign-type)))))))
+              (prog1 (cffi:mem-ref ptr foreign-type)
+                (when (= type STR-TYPE)
+                  (cffi:foreign-free (cffi:mem-ref ptr :pointer))))))))))
 
 (defun set-setting (settings name value)
   (unless (deleted-p settings)

@@ -26,6 +26,14 @@
   (unless (cffi:foreign-library-loaded-p 'fluidsynth)
     (cffi:use-foreign-library fluidsynth)))
 
+(defun version ()
+  (cffi:with-foreign-objects ((major :int) (minor :int) (micro :int))
+    (cffi:foreign-funcall "fluid_version"
+      :pointer major :pointer minor :pointer micro :void)
+    (values (cffi:mem-ref major :int)
+            (cffi:mem-ref minor :int)
+            (cffi:mem-ref micro :int))))
+
 (defstruct wrap-pointer
   (ptr (cffi:null-pointer) :type cffi:foreign-pointer))
 
@@ -125,11 +133,6 @@
   (len :int))
 
 (cffi:defcfun ("fluid_settings_dupstr" settings-dupstr) :int
-  (settings settings)
-  (name :string)
-  (str :pointer))
-
-(cffi:defcfun ("fluid_settings_getstr" settings-getstr) :int
   (settings settings)
   (name :string)
   (str :pointer))
@@ -336,11 +339,6 @@
   (synth synth)
   (chan :int))
 
-(cffi:defcfun ("fluid_synth_get_channel_info" get-channel-info) :int
-  (synth synth)
-  (chan :int)
-  (info :pointer))
-
 (cffi:defcfun ("fluid_synth_program_reset" program-reset) :int
   (synth synth))
 
@@ -481,10 +479,12 @@
 (cffi:defcfun ("fluid_synth_get_chorus_level" get-chorus-level) :double
   (synth synth))
 
-(cffi:defcfun ("fluid_synth_get_chorus_speed_Hz" get-chorus-speed-hz) :double
+;;; Undefined alien in FluidSynth 1.x: it was "fluid_synth_get_chorus_speed_Hz".
+(cffi:defcfun ("fluid_synth_get_chorus_speed" get-chorus-speed) :double
   (synth synth))
 
-(cffi:defcfun ("fluid_synth_get_chorus_depth_ms" get-chorus-depth-ms) :double
+;;; Undefined alien in FluidSynth 1.x: it was "fluid_synth_get_chorus_depth_ms".
+(cffi:defcfun ("fluid_synth_get_chorus_depth" get-chorus-depth) :double
   (synth synth))
 
 (cffi:defcfun ("fluid_synth_get_chorus_type" get-chorus-type) :int
@@ -556,27 +556,12 @@
   (param :int)
   (value :float))
 
-(cffi:defcfun ("fluid_synth_set_gen2" set-gen2) :int
-  (synth synth)
-  (chan :int)
-  (param :int)
-  (value :float)
-  (absolute :int)
-  (normalized :int))
-
 (cffi:defcfun ("fluid_synth_get_gen" get-gen) :float
   (synth synth)
   (chan :int)
   (param :int))
 
 ;;; Tuning
-
-(cffi:defcfun ("fluid_synth_create_key_tuning" create-key-tuning) :int
-  (synth synth)
-  (bank :int)
-  (prog :int)
-  (name :string)
-  (pitch :pointer))
 
 (cffi:defcfun ("fluid_synth_activate_key_tuning" activate-key-tuning) :int
   (synth synth)
@@ -585,13 +570,6 @@
   (name :string)
   (pitch :pointer)
   (apply :boolean))
-
-(cffi:defcfun ("fluid_synth_create_octave_tuning" create-octave-tuning) :int
-  (synth synth)
-  (bank :int)
-  (prog :int)
-  (name :string)
-  (pitch :pointer))
 
 (cffi:defcfun ("fluid_synth_activate_octave_tuning" activate-octave-tuning) :int
   (synth synth)
@@ -610,22 +588,12 @@
   (pitch :pointer)
   (apply :boolean))
 
-(cffi:defcfun ("fluid_synth_select_tuning" select-tuning) :int
-  (synth synth)
-  (chan :int)
-  (bank :int)
-  (prog :int))
-
 (cffi:defcfun ("fluid_synth_activate_tuning" activate-tuning) :int
   (synth synth)
   (chan :int)
   (bank :int)
   (prog :int)
   (apply :boolean))
-
-(cffi:defcfun ("fluid_synth_reset_tuning" reset-tuning) :int
-  (synth synth)
-  (chan :int))
 
 (cffi:defcfun ("fluid_synth_deactivate_tuning" deactivate-tuning) :int
   (synth synth)
@@ -724,7 +692,3 @@
 (cffi:defcfun ("fluid_synth_handle_midi_event" handle-midi-event) :int
   (data :pointer)
   (event :pointer))
-
-(cffi:defcfun ("fluid_synth_set_midi_router" set-midi-router) :void
-  (synth synth)
-  (router :pointer))
