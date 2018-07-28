@@ -60,6 +60,7 @@
             (object :arg-name gen))
   (:accessors (location :name mus-location :arg-name gen :value-name pos
                         :method-p t))
+  (declare (inline envelope))
   (with ((env (breakpoints->env list :base base :scaler scaler
                                 :offset offset :duration 1.0)))
     (initialize (setf object env))
@@ -704,6 +705,7 @@
   (:instance-type one-zero-instance)
   (:accessors (a0 :arg-name gen) (a1 :arg-name gen))
   (:writers (input :arg-name f))
+  (declare (inline delay1))
   (+ (* a0 input) (* a1 (delay1 input))))
 
 (defun* make-one-zero ((a0 1.0) (a1 0.0))
@@ -738,6 +740,7 @@
   (:instance-type two-pole-instance)
   (:accessors (a0 :arg-name gen) (b1 :arg-name gen) (b2 :arg-name gen))
   (:writers (input :arg-name f))
+  (declare (inline delay1))
   (~ (- (* a0 input) (* b1 it) (* b2 (delay1 it)))))
 
 (defun* make-two-pole ((a0 1.0) (b1 0.0) b2 frequency radius)
@@ -806,6 +809,7 @@
   (:instance-type two-zero-instance)
   (:accessors (a0 :arg-name gen) (a1 :arg-name gen) (a2 :arg-name gen))
   (:writers (input :arg-name f))
+  (declare (inline delay1))
   (with-samples ((x1 (delay1 input)))
     (+ (* a0 input) (* a1 x1) (* a2 (delay1 x1)))))
 
@@ -869,6 +873,7 @@
   (:accessors (freq :name mus-frequency :arg-name gen :method-p t)
               (radius :name mus-scaler :arg-name gen :method-p t))
   (:writers (input :arg-name f) (freq :arg-name gen))
+  (declare (inline delay1))
   (with-samples ((rr (* radius radius))
                  (gain (* .5 (- 1 rr)))
                  (fb (* 2 radius (cos (hz->radians freq))))
