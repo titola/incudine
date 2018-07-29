@@ -19,7 +19,22 @@
 (define-vug centroid ((abuf abuffer))
   "Compute the spectral centroid of the ABUFFER data using moments.
 
-Overwrite the ABUFFER data with the result."
+Overwrite the ABUFFER data with the result.
+
+Example:
+
+    (dsp! centroid-test ()
+      (with ((fft (make-fft 1024 :window-size 512 :window-function (gen:hanning)))
+             (abuf (make-abuffer fft))
+             (result +sample-zero+))
+        (declare (type sample result))
+        (setf (fft-input fft)
+              ;; Exponential growth from 1 to 30 harmonics in 20 seconds
+              (buzz 440 .5 (sample->fixnum (expon 1 30 20 #'free))))
+        (with-control-period ((sample->fixnum *sample-rate*))
+          (setf result (* (centroid abuf) *sample-rate* 0.5))
+          (nrt-msg info \"~D\" (sample->fixnum result)))
+        (out (tick (fft-input fft)))))"
   (with-samples (num denom)
     (setf num +sample-zero+ denom +sample-zero+)
     (dofft-polar (i nbins ((compute-abuffer abuf)) ()
@@ -53,7 +68,39 @@ If HALF-WAVE-RECTIFIER-P is T, use the half-wave rectifier function.
 
 If L1-NORM-P is T, return the L1-norm of the spectral flux.
 
-Overwrite the ABUFFER data with the result."
+Overwrite the ABUFFER data with the result.
+
+Examples:
+
+    (dsp! flux-test ((buf buffer))
+      (with ((fft (make-fft 2048 :window-function (gen:hamming)))
+             (abuf (make-abuffer fft))
+             (hop-size (sample->fixnum (* *sample-rate* 0.1)))
+             (result +sample-zero+))
+        (declare (type sample result))
+        (setf (fft-input fft) (buffer-play buf 1 0 nil #'free))
+        (with-control-period (hop-size)
+          (setf result (flux abuf))
+          (nrt-msg info \"~D\" (sample->fixnum result)))
+        (out (tick (fft-input fft)))))
+
+    (dsp! flux-rectified-test ((buf buffer) flux-threshold)
+      (with ((fft (make-fft 2048 :window-function (gen:hamming)))
+             (abuf (make-abuffer fft))
+             (hop-size (sample->fixnum (* *sample-rate* 0.1)))
+             ;; The result of FLUX is unnormalized
+             (threshold (* flux-threshold (fft-size fft)))
+             (result +sample-zero+))
+        (declare (type sample threshold result))
+        (setf (fft-input fft) (buffer-play buf 1 0 t #'identity))
+        (with-control-period (hop-size)
+          ;; Spectral flux with half-wave rectifier function
+          ;; and L1-norm (Dixon DAFx-06)
+          (setf result (sample (if (> (flux abuf t t) threshold) 100 0))))
+        (out (tick (fft-input fft))
+             (prog1 (ringz result 3000 .1)
+               (unless (zerop result)
+                 (setf result +sample-zero+))))))"
   (with-gensyms (flux)
     `(vuglet ((,flux ((abuf1 abuffer))
                 (with-samples (diff result)
@@ -85,7 +132,20 @@ Overwrite the ABUFFER data with the result."
 (define-vug spectral-rms ((abuf abuffer))
   "Compute the spectral RMS of the ABUFFER data.
 
-Overwrite the ABUFFER data with the result."
+Overwrite the ABUFFER data with the result.
+
+Example:
+
+    (dsp! spectral-rms-test ()
+      (with ((fft (make-fft 1024 :window-function (gen:hanning)))
+             (abuf (make-abuffer fft))
+             (mult (/ (sample 1.0) (fft-size fft)))
+             (rms +sample-zero+))
+        (declare (type sample mult rms))
+        (setf (fft-input fft) (audio-in 0))
+        (with-control-period (1024)
+          (setf rms (* (spectral-rms abuf) mult))
+          (reduce-warnings (nrt-msg info \"~F\" rms)))))"
   (with-samples (rms)
     (setf rms +sample-zero+)
     (dofft-polar (i nbins ((compute-abuffer abuf)) ()
@@ -96,7 +156,21 @@ Overwrite the ABUFFER data with the result."
 (define-vug rolloff ((abuf abuffer) percent)
   "Compute the spectral rolloff of the ABUFFER data.
 
-Overwrite the ABUFFER data with the result."
+Overwrite the ABUFFER data with the result.
+
+Example:
+
+    (dsp! rolloff-test (percent)
+      (with ((fft (make-fft 1024 :window-function (gen:hanning)))
+             (abuf (make-abuffer fft))
+             (srdiv2 (* *sample-rate* 0.5))
+             (perc (sample->fixnum (* percent 100)))
+             (result +sample-zero+))
+        (declare (type sample srdiv2 result))
+        (setf (fft-input fft) (audio-in 0))
+        (with-control-period (1024)
+          (setf result (* (rolloff abuf percent) srdiv2))
+          (nrt-msg info \"~D% rolloff: ~D\" perc (sample->fixnum result)))))"
   (with-samples (threshold result)
     (setf result +sample-zero+)
     (dofft-polar (i nbins ((compute-abuffer abuf)) ())
@@ -113,7 +187,26 @@ Overwrite the ABUFFER data with the result."
 (define-vug flatness ((abuf abuffer))
   "Compute the spectral flatness of the ABUFFER data.
 
-Overwrite the ABUFFER data with the result."
+Overwrite the ABUFFER data with the result.
+
+Example:
+
+    (define-vug crossfade (in1 in2 pos)
+      (with-samples ((alpha (* +half-pi+ pos)))
+        (+ (* (cos alpha) in1) (* (sin alpha) in2))))
+
+    (dsp! flatness-test ()
+      (with ((fft (make-fft 1024 :window-function (gen:hanning)))
+             (abuf (make-abuffer fft))
+             (result +sample-zero+))
+        (declare (type sample result))
+        (setf (fft-input fft)
+              (crossfade (sine 1000 .5 0) (white-noise .1)
+                         (line 0 1 8 #'free)))
+        (with-control-period (1024)
+          (setf result (flatness abuf))
+          (nrt-msg info \"~D\" (sample->fixnum (* 100 result))))
+        (out (tick (fft-input fft)))))"
   (with-samples (geometric-mean arithmetic-mean)
     (setf geometric-mean +sample-zero+
           arithmetic-mean +sample-zero+)
