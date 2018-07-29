@@ -1,6 +1,28 @@
 Installation Instructions
 *************************
 
+Requirements:
+
+Incudine works with SBCL, an implementation of ANSI Common Lisp with a
+high-performance native compiler.
+
+- Common Lisp packages
+  + Alexandria
+  + Bordeaux-threads
+  + CFFI
+  + Swap-bytes
+  + [Optional] Linedit for incudine command
+
+- Foreign libraries
+  + Pthread
+  + JACK or PortAudio >= 1.9
+  + PortMidi
+  + libsndfile >= 1.0.19
+  + FFTW >= 3.0
+  + GNU Scientific Library (GSL)
+  + [Optional] FluidSynth
+  + [Optional] LILV
+
 If you use Quicklisp, put the incudine directory into local-projects:
 
     mv incudine /path/to/quicklisp/local-projects
@@ -30,20 +52,20 @@ If you want to create and install the incudine command:
 
 The options for the script `install_executable' are:
 
-  --prefix=PREFIX       install architecture-independent files in PREFIX
-                        [/usr/local]
-  --bindir=DIR          user executables [PREFIX/bin]
-  --swank-loader=PATH   support for Swank server with path to swank-loader.lisp
-  --without-aclrepl     do not use Allegro CL-style Read-Eval-Print Loop.
-  --with-clm            use cudere-clm, the Incudine version of CLM
-  --with-linedit        support for Linedit, readline-style library in CL.
-  --with-fluidsynth     support for FluidSynth SoundFont synthesizer.
-  --with-ladspa         support for LADSPA plugins.
-  --with-lv2            support for LV2 plugins.
-  --with-snd            support for the sound editor Snd.
-  --with-module=NAME    load the module NAME before to create the executable.
-  --sbcl-options=OPTS   options for SBCL.
-  --before-save=FORM    read and evaluate FORM before to create the executable.
+    --prefix=PREFIX       install architecture-independent files in PREFIX
+                          [/usr/local]
+    --bindir=DIR          user executables [PREFIX/bin]
+    --swank-loader=PATH   support for Swank server with path to swank-loader.lisp
+    --without-aclrepl     do not use Allegro CL-style Read-Eval-Print Loop.
+    --with-clm            use cudere-clm, the Incudine version of CLM
+    --with-linedit        support for Linedit, readline-style library in CL.
+    --with-fluidsynth     support for FluidSynth SoundFont synthesizer.
+    --with-ladspa         support for LADSPA plugins.
+    --with-lv2            support for LV2 plugins.
+    --with-snd            support for the sound editor Snd.
+    --with-module=NAME    load the module NAME before to create the executable.
+    --sbcl-options=OPTS   options for SBCL.
+    --before-save=FORM    read and evaluate FORM before to create the executable.
 
 For example:
 
