@@ -28,7 +28,7 @@
              (:copier nil))
   (constructor (lambda ()) :type function)
   (real-time-p nil :type boolean)
-  (spinlock nil :type (or null spinlock)))
+  (spinlock (make-spinlock) :type spinlock))
 
 (defmethod print-object ((obj incudine-object-pool) stream)
   (format stream "#<INCUDINE-OBJECT-POOL ~D>" (incudine-object-pool-size obj)))
@@ -62,8 +62,7 @@
                          (incf (incudine-object-pool-size pool))))
     :grow 1
     :constructor constructor
-    :real-time-p real-time-p
-    :spinlock (unless real-time-p (make-spinlock))))
+    :real-time-p real-time-p))
 
 (defun incudine-object-pool-expand-1 (pool)
   (flet ((expand ()
