@@ -179,7 +179,24 @@
     (free-p (with-cleanup (funcall (ugen-test-1 100 123456 30))))
   T)
 
-(with-ugen-test (ugen.9)
-    (with-ugen-instance (u ugen-atom-test 123)
-      (funcall (ugen-perf-function u)))
-  123)
+(defun temp-node-pool-size ()
+  (incudine.util::incudine-object-pool-size incudine::*node-pool*))
+
+(deftest ugen.9
+    (let ((temp-nodes (temp-node-pool-size)))
+      (values (with-ugen-instance (u ugen-atom-test 123)
+                (assert (> temp-nodes (temp-node-pool-size)))
+                (funcall (ugen-perf-function u)))
+              (= temp-nodes (temp-node-pool-size))))
+  123 T)
+
+(deftest ugen.10
+    (let* ((node (incudine::make-temp-node))
+           (temp-nodes (temp-node-pool-size)))
+      (values (with-ugen-instance (u ugen-atom-test 123 node)
+                (assert (= temp-nodes (temp-node-pool-size)))
+                (funcall (ugen-perf-function u)))
+              (prog1 (= temp-nodes (temp-node-pool-size))
+                (free node))
+              (= (1+ temp-nodes) (temp-node-pool-size))))
+  123 T T)

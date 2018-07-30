@@ -386,16 +386,15 @@ from the other packages."
                             ;; Free function.
                             (setf ,free-fn
                                   ,(to-free-form to-free
+                                     ;; Free the node only if the UGEN
+                                     ;; is outside a DSP.
+                                     `(unless ,,node %dsp-node%)
                                      smpvecw ,smpvec-size
                                      f32vecw ,f32vec-size
                                      f64vecw ,f64vec-size
                                      i32vecw ,i32vec-size
                                      i64vecw ,i64vec-size
-                                     ptrvecw ,ptrvec-size
-                                     '%dsp-node%
-                                     ;; Free the node only if the UGEN
-                                     ;; is outside a DSP.
-                                     (if ,node 0 1)))
+                                     ptrvecw ,ptrvec-size))
                             ;; Performance function.
                             (lambda (&optional (current-channel 0))
                               (declare (type channel-number current-channel)

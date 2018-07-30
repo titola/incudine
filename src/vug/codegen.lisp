@@ -840,7 +840,7 @@ value of a bound VARIABLE of type SAMPLE, POINTER or foreign array."
                                     (setf ,to-free incudine::*to-free*)))
                                 ,node)
                             :free-function
-                              ,(to-free-form nil
+                              ,(to-free-form nil nil
                                              smpvecw ,smpvec-size
                                              f32vecw ,f32vec-size
                                              f64vecw ,f64vec-size
@@ -1116,10 +1116,13 @@ value of a bound VARIABLE of type SAMPLE, POINTER or foreign array."
              collect (reinit-binding-form var))))
 
 ;;; ARGS is a list (c-array size c-array size ...)
-(defun to-free-form (objects c-array-sample-wrap sample-size &rest args)
+(defun to-free-form (objects node c-array-sample-wrap sample-size &rest args)
   `(lambda ()
      ,@(when objects
          `((free-incudine-objects ,objects)))
+     ,@(when node
+         `((let ((n ,node))
+             (when n (incudine:free n)))))
      ;; Free the foreign arrays
      ,@(when (and #.*use-foreign-sample-p* (plusp sample-size))
          `((incudine:free ,c-array-sample-wrap)))
