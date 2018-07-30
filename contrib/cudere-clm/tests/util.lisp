@@ -1,7 +1,9 @@
 (in-package :cudere-clm-tests)
 
 (defun test-file-pathname (file)
-  (namestring (asdf:compile-file-pathname* file :output-file file)))
+  (namestring (asdf:compile-file-pathname*
+                (asdf:system-source-file "cudere-clm-tests")
+                :output-file file)))
 
 (defvar *test-file-name* (test-file-pathname "test.wav"))
 (defvar *test-filter-file* (test-file-pathname "filter.wav"))
