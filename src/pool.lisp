@@ -122,6 +122,12 @@ NEW-FORM is evaluated to set the CAR of a CONS."
                 (setf (cdr ,lst) nil)))
            (declare (type positive-fixnum ,i) (type list ,lst)))))))
 
+(defun empty-cons-pool (pool &key cancel-finalizations)
+  (when cancel-finalizations
+    (mapc #'cancel-finalization (cons-pool-data pool)))
+  (setf (cons-pool-size pool) 0)
+  (setf (cons-pool-data pool) nil))
+
 ;;; NRT GLOBAL CONS-POOL (used in nrt-thread)
 
 (defvar *nrt-global-pool*

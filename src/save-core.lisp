@@ -136,6 +136,9 @@ core image starts up.")
       (unless (null-pointer-p *foreign-client-name*)
         (foreign-free *foreign-client-name*)
         (setf *foreign-client-name* (null-pointer)))
+      ;; Empty the pool of temporary nodes because the foreign memory
+      ;; is not allocated after the startup of the saved image.
+      (incudine.util::empty-cons-pool *node-pool* :cancel-finalizations t)
       (loop for (pool size)
                 in `((,*buffer-pool* ,+buffer-pool-initial-size+)
                      (,*rt-buffer-pool* ,+buffer-pool-initial-size+)
@@ -149,7 +152,6 @@ core image starts up.")
                      (,*rt-foreign-array-pool* ,+foreign-array-pool-initial-size+)
                      (,*tempo-pool* ,+tempo-pool-initial-size+)
                      (,*rt-tempo-pool* ,+tempo-pool-initial-size+)
-                     (,*node-pool* ,+node-pool-initial-size+)
                      (,incudine.analysis::*ring-input-buffer-pool*
                       ,incudine.analysis::+ring-buffer-pool-initial-size+)
                      (,incudine.analysis::*rt-ring-input-buffer-pool*
