@@ -682,6 +682,7 @@ SBCL options:
 
   (def-toplevel-opt ("-R" . "--realtime")
     (setf (toplevel-options-disable-debugger-p opt) t)
+    (setf *fill-rt-memory-pools-p* t)
     (with-eval-form (nil "Failed to start realtime")
       (when (changed-number-of-channels-p opt)
         ;; Change the size of the rt buffers.
@@ -788,7 +789,9 @@ the argument is parsed with READ-FROM-STRING."
 ;;; Adapted to SB-IMPL::TOPLEVEL-INIT in `sbcl/src/code/toplevel.lisp'.
 (defun incudine-toplevel ()
   (let ((options (cdr sb-ext:*posix-argv*))
-        (opt (make-toplevel-options)))
+        (opt (make-toplevel-options))
+        (*fill-nrt-memory-pools-p* nil)
+        (*fill-rt-memory-pools-p* nil))
     (declare (type list options))
     (loop while options do
          (let* ((option (car options))
@@ -818,6 +821,11 @@ the argument is parsed with READ-FROM-STRING."
     (catch 'toplevel-catcher
       (restart-case
           (progn
+            (unless (or (toplevel-options-quit-p opt)
+                        (toplevel-options-script opt))
+              ;; Pre-allocated objects in REPL.
+              (setf *fill-nrt-memory-pools-p* t)
+              (setf *fill-rt-memory-pools-p* t))
             (funcall *core-init-function*)
             (let ((pkg *package*))
               (when (toplevel-options-sysinit-p opt)

@@ -17,8 +17,53 @@
 (in-package :incudine)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
+  (defvar *fill-nrt-memory-pools-p* nil)
+  (declaim (type boolean *fill-nrt-memory-pools-p*))
+
+  (defvar *fill-rt-memory-pools-p* nil)
+  (declaim (type boolean *fill-rt-memory-pools-p*))
+
   (defvar *core-init-function*
     (lambda ()
+      (when *fill-nrt-memory-pools-p*
+        (loop for (pool size)
+              in `((,*buffer-pool* ,+buffer-pool-initial-size+)
+                   (,*envelope-pool* ,+envelope-pool-initial-size+)
+                   (,*tempo-envelope-pool* ,+tempo-envelope-pool-initial-size+)
+                   (,*tuning-pool* ,+tuning-pool-initial-size+)
+                   (,*node-pool* ,+node-pool-initial-size+)
+                   (,*foreign-array-pool* ,+foreign-array-pool-initial-size+)
+                   (,*tempo-pool* ,+tempo-pool-initial-size+)
+                   (,incudine.analysis::*ring-input-buffer-pool*
+                    ,incudine.analysis::+ring-buffer-pool-initial-size+)
+                   (,incudine.analysis::*ring-output-buffer-pool*
+                    ,incudine.analysis::+ring-buffer-pool-initial-size+)
+                   (,incudine.analysis::*fft-pool*
+                    ,incudine.analysis::+fft-pool-initial-size+)
+                   (,incudine.analysis::*ifft-pool*
+                    ,incudine.analysis::+fft-pool-initial-size+)
+                   (,incudine.analysis::*abuffer-pool*
+                    ,incudine.analysis::+abuffer-pool-initial-size+))
+           do (ensure-incudine-object-pool-size pool size)))
+      (when *fill-rt-memory-pools-p*
+        (loop for (pool size)
+              in `((,*rt-buffer-pool* ,+buffer-pool-initial-size+)
+                   (,*rt-envelope-pool* ,+envelope-pool-initial-size+)
+                   (,*rt-tempo-envelope-pool* ,+tempo-envelope-pool-initial-size+)
+                   (,*rt-tuning-pool* ,+tuning-pool-initial-size+)
+                   (,*rt-foreign-array-pool* ,+foreign-array-pool-initial-size+)
+                   (,*rt-tempo-pool* ,+tempo-pool-initial-size+)
+                   (,incudine.analysis::*rt-ring-input-buffer-pool*
+                    ,incudine.analysis::+ring-buffer-pool-initial-size+)
+                   (,incudine.analysis::*rt-ring-output-buffer-pool*
+                    ,incudine.analysis::+ring-buffer-pool-initial-size+)
+                   (,incudine.analysis::*rt-fft-pool*
+                    ,incudine.analysis::+fft-pool-initial-size+)
+                   (,incudine.analysis::*rt-ifft-pool*
+                    ,incudine.analysis::+fft-pool-initial-size+)
+                   (,incudine.analysis::*rt-abuffer-pool*
+                    ,incudine.analysis::+abuffer-pool-initial-size+))
+              do (ensure-incudine-object-pool-size pool size)))
       (set-sample-rate (sample (or incudine.config::*sample-rate* 48000)))
       (set-sound-velocity (sample (or incudine.config::*sound-velocity* 345)))
       ;; gsl random
@@ -136,43 +181,25 @@ core image starts up.")
       (unless (null-pointer-p *foreign-client-name*)
         (foreign-free *foreign-client-name*)
         (setf *foreign-client-name* (null-pointer)))
-      ;; Empty the pool of temporary nodes because the foreign memory
-      ;; is not allocated after the startup of the saved image.
+      ;; Empty all the memory pools otherwise they will be static
+      ;; and the finalizers don't work.
+      (dolist (p (list *buffer-pool* *rt-buffer-pool* *envelope-pool*
+                       *rt-envelope-pool* *tempo-envelope-pool*
+                       *rt-tempo-envelope-pool* *tuning-pool* *rt-tuning-pool*
+                       *foreign-array-pool* *rt-foreign-array-pool*
+                       *tempo-pool* *rt-tempo-pool*
+                       incudine.analysis::*ring-input-buffer-pool*
+                       incudine.analysis::*rt-ring-input-buffer-pool*
+                       incudine.analysis::*ring-output-buffer-pool*
+                       incudine.analysis::*rt-ring-output-buffer-pool*
+                       incudine.analysis::*fft-pool*
+                       incudine.analysis::*rt-fft-pool*
+                       incudine.analysis::*ifft-pool*
+                       incudine.analysis::*rt-ifft-pool*
+                       incudine.analysis::*abuffer-pool*
+                       incudine.analysis::*rt-abuffer-pool*))
+        (incudine.util::empty-cons-pool p))
       (incudine.util::empty-cons-pool *node-pool* :cancel-finalizations t)
-      (loop for (pool size)
-                in `((,*buffer-pool* ,+buffer-pool-initial-size+)
-                     (,*rt-buffer-pool* ,+buffer-pool-initial-size+)
-                     (,*envelope-pool* ,+envelope-pool-initial-size+)
-                     (,*rt-envelope-pool* ,+envelope-pool-initial-size+)
-                     (,*tempo-envelope-pool* ,+tempo-envelope-pool-initial-size+)
-                     (,*rt-tempo-envelope-pool* ,+tempo-envelope-pool-initial-size+)
-                     (,*tuning-pool* ,+tuning-pool-initial-size+)
-                     (,*rt-tuning-pool* ,+tuning-pool-initial-size+)
-                     (,*foreign-array-pool* ,+foreign-array-pool-initial-size+)
-                     (,*rt-foreign-array-pool* ,+foreign-array-pool-initial-size+)
-                     (,*tempo-pool* ,+tempo-pool-initial-size+)
-                     (,*rt-tempo-pool* ,+tempo-pool-initial-size+)
-                     (,incudine.analysis::*ring-input-buffer-pool*
-                      ,incudine.analysis::+ring-buffer-pool-initial-size+)
-                     (,incudine.analysis::*rt-ring-input-buffer-pool*
-                      ,incudine.analysis::+ring-buffer-pool-initial-size+)
-                     (,incudine.analysis::*ring-output-buffer-pool*
-                      ,incudine.analysis::+ring-buffer-pool-initial-size+)
-                     (,incudine.analysis::*rt-ring-output-buffer-pool*
-                      ,incudine.analysis::+ring-buffer-pool-initial-size+)
-                     (,incudine.analysis::*fft-pool*
-                      ,incudine.analysis::+fft-pool-initial-size+)
-                     (,incudine.analysis::*rt-fft-pool*
-                      ,incudine.analysis::+fft-pool-initial-size+)
-                     (,incudine.analysis::*ifft-pool*
-                      ,incudine.analysis::+fft-pool-initial-size+)
-                     (,incudine.analysis::*rt-ifft-pool*
-                      ,incudine.analysis::+fft-pool-initial-size+)
-                     (,incudine.analysis::*abuffer-pool*
-                      ,incudine.analysis::+abuffer-pool-initial-size+)
-                     (,incudine.analysis::*rt-abuffer-pool*
-                      ,incudine.analysis::+abuffer-pool-initial-size+))
-            do (ensure-incudine-object-pool-size pool size))
       (clrhash incudine.analysis::*fft-plan*)
       (values))
     "Function to call before to save a core image.")
