@@ -805,7 +805,7 @@ event list at runtime when the function is called."
         (t x)))
 
 (defun stream->regolist (stream)
-  (eval (%stream->regolist stream)))
+  (incudine.util::cudo-eval (%stream->regolist stream)))
 
 (defun write-regolist (list stream)
   (dolist (l list list) (format stream "~{~S~^ ~}~%" l)))
