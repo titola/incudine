@@ -23,19 +23,20 @@
       (cout (pan (foscil (* env 0.128) freq 1 2.41 (* env 6) osc-buf)
                  pan-buf pos)))))
 
-(declaim (special buf1 buf2))
+(defparameter buf1 (make-buffer 8192))
+(defparameter buf2 (make-buffer 8193))
 
 (defscore-statement f1 (time size gen pna stra phsa)
   (declare (ignore gen))
   `(,time (lambda ()
-            (setf buf1 (make-buffer ,size
-                         :fill-function (gen:partials '((,pna ,stra ,phsa))))))))
+            (fill-buffer (resize-buffer buf1 ,size)
+                         (gen:partials '((,pna ,stra ,phsa)))))))
 
 (defscore-statement f2 (time size gen str1)
   (declare (ignore gen))
   `(,time (lambda ()
-            (setf buf2 (make-buffer (logand ,size #xFFFFFE)
-                         :fill-function (gen:partials '(,str1)))))))
+            (fill-buffer (resize-buffer buf2 (logand ,size #xFFFFFE))
+                         (gen:partials '(,str1))))))
 
 (defscore-statement i1 (time dur freq pan)
   (list time 'texture `(dur ,dur) freq pan 'buf1 'buf2))
