@@ -807,8 +807,18 @@ event list at runtime when the function is called."
 (defun stream->regolist (stream)
   (incudine.util::cudo-eval (%stream->regolist stream)))
 
+(defun add-line-continuation (string stream)
+  (with-input-from-string (s string)
+    (let ((*print-pretty* t))
+      (loop for l0 = (read-line s nil nil nil) then l1
+            for l1 = (read-line s nil nil nil)
+            while l1 do
+              (write-line (format nil "~A \\" l0) stream)
+            finally (write-line l0 stream)))))
+
 (defun write-regolist (list stream)
-  (dolist (l list list) (format stream "~{~S~^ ~}~%" l)))
+  (dolist (l list list)
+    (add-line-continuation (format nil "~{~S~^ ~}~%" l) stream)))
 
 (defun regofile->list (path)
   "From a rego file PATH, return the corresponding event list as a
