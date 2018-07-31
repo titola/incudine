@@ -781,17 +781,28 @@ event list at runtime when the function is called."
                             (,sched (at-beat fn &rest args)
                               (with-gensyms (x)
                                 `(,',%sched ,at-beat
-                                            (lambda (,x)
-                                              (setf ,',sched (sample ,x))
-                                              (list ',fn ,@args))))))
+                                   (lambda (,x)
+                                     (setf ,',sched (sample ,x))
+                                     (list ',fn ,@(mapcar #'quote-var-special
+                                                          args)))))))
                    (symbol-macrolet
                        ((,time (rego-time (foreign-array-data ,c-array-wrap)
                                           ,tempo-env)))
                      ,(incudine::%write-regofile stream sched last-time last-dur
                                                  max-time tempo-env nil nil nil)
-                     (mapcar (lambda (l) (cons (first l)
-                                               (funcall (second l) (first l))))
+                     (mapcar (lambda (l)
+                               (cons (first l)
+                                     (funcall (second l) (first l))))
                              (sort (nreverse ,flist) '< :key 'first))))))))))))
+
+(defun quote-var-special (x)
+  (cond ((and (symbolp x)
+              (not (fboundp x))
+              (incudine.util::var-globally-special-p x))
+         (list 'quote x))
+        ((consp x)
+         (mapcar #'quote-var-special x))
+        (t x)))
 
 (defun stream->regolist (stream)
   (eval (%stream->regolist stream)))
