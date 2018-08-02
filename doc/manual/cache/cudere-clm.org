@@ -703,6 +703,10 @@ To load ~cudere-clm~ use ~asdf:load-system~ or ~require~.
 #+begin_defvr
 #+end_defvr
 
+#+attr_texinfo: :options {Variable} clm:*clm-dac-wait-default*
+#+begin_defvr
+#+end_defvr
+
 #+attr_texinfo: :options {Variable} clm:*clm-table-size*
 #+begin_defvr
 #+end_defvr

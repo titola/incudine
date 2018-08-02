@@ -226,6 +226,7 @@ To load ~cudere-clm~ use ~asdf:load-system~ or ~require~.
 ::: clm:*verbose*
 ::: clm:*clm-play*
 ::: clm:*clm-player*
+::: clm:*clm-dac-wait-default*
 ::: clm:*clm-table-size*
 ::: clm:*clm-safety*
 ::: clm:*safety*
