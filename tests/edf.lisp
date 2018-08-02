@@ -63,23 +63,15 @@
   NIL (NIL . 2) NIL 0)
 
 (deftest edf-sort.1
-    (let ((incudine::*sample-counter* incudine::*nrt-sample-counter*)
-          (stack nil))
-      ;; Undefined order if the time is the same.
-      (dotimes (n 10) (at 0 (lambda (x) (push x stack)) n))
-      (incudine::reset-sample-counter)
-      (incudine.edf::sched-loop)
-      (incudine::reset-sample-counter)
-      (equal stack '(9 8 7 6 5 4 3 2 1 0)))
-  NIL)
-
-(deftest edf-sort.2
-    (let ((incudine::*sample-counter* incudine::*nrt-sample-counter*)
-          (stack nil))
-      ;; Correct order with a fractional value of the time.
-      (dotimes (n 10) (at (sample (* n 0.01)) (lambda (x) (push x stack)) n))
-      (incudine::reset-sample-counter)
-      (incudine.edf::sched-loop)
-      (incudine::reset-sample-counter)
-      stack)
-  (9 8 7 6 5 4 3 2 1 0))
+    (with-local-time ()
+      (let ((stack nil)
+            (len (1- incudine.edf::*heap-size*)))
+        (loop for i below len
+              ;; Correct order of the events with the same time.
+              for time = 0 then (if (> (random 100) 50) (1+ time) time)
+              do (at time (lambda (x) (push x stack)) i))
+        (loop until (incudine.edf:heap-empty-p) do
+                (incudine.edf::sched-loop)
+                (incf (now)))
+        (equal (alexandria:iota len) (reverse stack))))
+  T)

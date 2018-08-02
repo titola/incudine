@@ -21,6 +21,8 @@
 (defstruct (node (:constructor make-node ()) (:copier nil))
   "Heap node type."
   (time +sample-zero+ :type sample)
+  ;; Two nodes have different order also if the time is the same.
+  (order 0 :type non-negative-fixnum)
   (function #'corrupted-heap :type function)
   (args nil :type list))
 
@@ -38,7 +40,8 @@
         :type simple-vector)
   (next-node +root-node+ :type positive-fixnum)
   (temp-node (make-node) :type node)
-  (time-offset +sample-zero+ :type sample))
+  (time-offset +sample-zero+ :type sample)
+  (ordering-tag 0 :type non-negative-fixnum))
 
 (defmethod print-object ((obj heap) stream)
   (declare (ignore obj))
@@ -103,22 +106,28 @@ SIZE defaults to *heap-size*."
 (defsetf heap-node set-heap-node)
 
 (declaim (inline node-update))
-(defun node-update (node time function args)
+(defun node-update (node time order function args)
   (setf (node-time node) time
+        (node-order node) order
         (node-function node) function
         (node-args node) args)
   node)
 
 (declaim (inline node-copy))
 (defun node-copy (src dest)
-  (node-update dest (node-time src) (node-function src)
+  (node-update dest (node-time src) (node-order src) (node-function src)
                (node-args src)))
 
 (declaim (inline node-move))
 (defun node-move (src dest)
   (node-copy src dest)
-  (node-update src +sample-zero+ #'corrupted-heap nil)
+  (node-update src +sample-zero+ 0 #'corrupted-heap nil)
   dest)
+
+(defun node-time> (n0 n1)
+  (or (> (node-time n0) (node-time n1))
+      (and (= (node-time n0) (node-time n1))
+           (> (node-order n0) (node-order n1)))))
 
 (declaim (inline schedule-at))
 (defun schedule-at (time function args)
@@ -137,7 +146,11 @@ SIZE defaults to *heap-size*."
                     (node-copy (heap-node parent) (heap-node curr))
                     (setf curr parent))
                    (t (return)))))
-      (node-update (heap-node curr) t0 function args)
+      (node-update (heap-node curr) t0 (heap-ordering-tag *heap*) function args)
+      (setf (heap-ordering-tag *heap*)
+            ;; Masking unnecessary in practice but safe.
+            (logand (1+ (heap-ordering-tag *heap*))
+                    #.(1- (ash 1 (1- incudine.util::n-fixnum-bits)))))
       (incf (heap-next-node *heap*)))))
 
 (defun %at (time function args)
@@ -185,15 +198,15 @@ Example:
            (loop while (< curr (heap-next-node *heap*)) do
                 (let ((sister (1+ curr)))
                   (when (and (< sister (heap-next-node *heap*))
-                             (> (node-time (heap-node curr))
-                                (node-time (heap-node sister))))
+                             (node-time> (heap-node curr) (heap-node sister)))
                     (incf curr))
-                  (cond ((> (node-time (heap-temp-node *heap*))
-                            (node-time (heap-node curr)))
+                  (cond ((node-time> (heap-temp-node *heap*) (heap-node curr))
                          (node-copy (heap-node curr) (heap-node parent))
                          (setf parent curr curr (ash parent 1)))
                         (t (return)))))
            (node-copy (heap-temp-node *heap*) (heap-node parent))
+           (when (= (heap-next-node *heap*) +root-node+)
+             (setf (heap-ordering-tag *heap*) 0))
            (heap-node 0)))
         (t *dummy-node*)))
 
@@ -273,14 +286,15 @@ The list is empty after FLUSH-PENDING.")
           (lambda () (incudine:fast-rt-funcall #'rt-flush))))))
 
 (defun flush-pending (&optional time-step)
-  "If TIME-STEP is NIL, remove all the scheduled events.
+  "If TIME-STEP is NIL (default), remove all the scheduled events.
 If TIME-STEP is a number, the evaluation of a pending event is
 forced every TIME-STEP samples."
   (declare (type (or null non-negative-real) time-step))
   (if time-step
       (flush-pending-with-time-step time-step)
       (flet ((rt-flush ()
-               (setf (heap-next-node *heap*) 1))
+               (setf (heap-next-node *heap*) 1)
+               (setf (heap-ordering-tag *heap*) 0))
              (nrt-flush ()
                (dolist (fun *flush-pending-hook*)
                  (funcall fun))
