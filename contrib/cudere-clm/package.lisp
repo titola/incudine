@@ -69,7 +69,8 @@
    #:*clm-file-buffer-size* #:*clm-file-name* #:*clm-header-type* #:*header-type*
    #:*clm-data-format* #:*data-format* #:*clm-tempfile-data-format*
    #:*clm-tempfile-header-type* #:*clm-verbose* #:*verbose* #:*clm-play*
-   #:*clm-player* #:*clm-table-size* #:*clm-safety* #:*safety*
+   #:*clm-player* #:*clm-dac-wait-default*
+   #:*clm-table-size* #:*clm-safety* #:*safety*
    #:*clm-array-print-length* #:*clm-init* #:*clm-search-list* #:*clm-notehook*
    #:*notehook* #:*clm-clipped* #:*clipped* #:*clm-src-width*
    #:*clm-delete-reverb* #:*clm-reverb-channels* #:*clm-statistics*

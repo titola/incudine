@@ -934,7 +934,7 @@
   (when (find-package "UIOP/RUN-PROGRAM")
     (let ((run (find-symbol "%RUN-PROGRAM" "UIOP/RUN-PROGRAM")))
       (when run
-        (setf *dac-pid* (getf (funcall run command :wait nil) :process))))))
+        (setf *dac-process* (funcall run command :wait nil))))))
 
 (defun* clm:play (file (start 0) end (wait *clm-dac-wait-default*))
   (let ((filename (if file
@@ -957,12 +957,11 @@
         last-dac-filename)))
 
 (defun stop-playing ()
-  #+sbcl
-  (when *dac-pid*
-    (when (sb-ext:process-alive-p *dac-pid*)
-      (sb-ext:process-kill *dac-pid* SB-UNIX:SIGTERM)
-      (sb-ext:process-wait *dac-pid*))
-    (setf *dac-pid* nil)))
+  (when *dac-process*
+    (when (uiop:process-alive-p *dac-process*)
+      (uiop:terminate-process *dac-process*)
+      (uiop:wait-process *dac-process*))
+    (setf *dac-process* nil)))
 
 (setf (symbol-function 'dac) (symbol-function 'clm:play))
 (setf (symbol-function 'stop-dac) (symbol-function 'stop-playing))

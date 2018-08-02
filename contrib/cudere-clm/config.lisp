@@ -318,7 +318,7 @@
 
 (defvar last-open-input-file-name nil)
 
-(defvar *dac-pid* nil)
+(defvar *dac-process* nil)
 
 (defvar last-dac-filename *clm-file-name*)
 
