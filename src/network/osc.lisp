@@ -596,10 +596,11 @@ send and sendto for details on the FLAGS argument."
                  flags))))
 
 (defun %receive (stream flags osc-message-p)
-  (declare (type input-stream stream) (type non-negative-fixnum flags)
+  (declare (type stream stream) (type non-negative-fixnum flags)
            (type boolean osc-message-p))
   (incudine-optimize
-    (let ((res (if (protocolp stream :tcp)
+    (let ((res (if (and (protocolp stream :tcp)
+                        (input-stream-p stream))
                    (net-recv stream flags osc-message-p)
                    (force-fixnum
                      (%recvfrom (stream-socket-fd stream)
