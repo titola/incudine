@@ -60,6 +60,26 @@
     (when (< sb-ext:*inline-expansion-limit* limit)
       (setf sb-ext:*inline-expansion-limit* limit))))
 
+#+x86-64
+(defun old-movsxd-p ()
+  ;; Syntax changed in SBCL from 1.4.11. I prefere to avoid
+  ;; SB-EXT:ASSERT-VERSION->= because if SBCL is obtained from git
+  ;; and compiled without an updated version.lisp-expr file, the
+  ;; version is not correct. movsxd is used at least in
+  ;; incudine/src/network/sbcl-vops.lisp.
+  ;; Tested with sbcl-1.4.10 and before the release of sbcl-1.4.11.
+  (let ((x86-64-pkg (find-package "SB-X86-64-ASM"))
+        (r8 (find-symbol "R8-TN" "SB-VM"))
+        (ecx (find-symbol "ECX-TN" "SB-VM")))
+    (when (and x86-64-pkg r8 ecx)
+      (let ((segment (sb-assem:make-segment))
+            (args (mapcar 'symbol-value (list r8 ecx))))
+        (handler-case
+            (and (sb-assem:assemble (segment 'nil)
+                   (apply (find-symbol "MOVSXD" x86-64-pkg) args segment args))
+                 t)
+          (error (c) (declare (ignore c)) nil))))))
+
 (declaim (inline incudine::int-hash))
 (defun incudine::int-hash (x)
   (declare (type fixnum x))

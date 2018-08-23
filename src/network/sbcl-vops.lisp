@@ -26,9 +26,13 @@
   (:result-types sb-vm::signed-num)
   (:generator 2
    (move res integer)
-   (let ((res-dword (sb-vm::reg-in-size res :dword)))
-     (inst bswap res-dword)
-     (inst movsxd res res-dword))))
+   #.(if (incudine.util::old-movsxd-p)
+         '(let ((res-dword (sb-vm::reg-in-size res :dword)))
+            (inst bswap res-dword)
+            (inst movsxd res res-dword))
+         '(progn
+            (inst bswap (sb-vm::reg-in-size res :dword))
+            (inst movsx '(:dword :qword) res res)))))
 
 #+x86
 (define-vop (signed-32bit-swap-bytes)
