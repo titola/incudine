@@ -21,8 +21,8 @@
 (define-condition allocation-error (sndfile-error)
   ((object-type :reader object-type-of :initarg :object-type))
   (:report (lambda (condition stream)
-             (format stream "Failed object allocation for ~A."
-                     (object-type-of condition)))))
+             (cl:format stream "Failed object allocation for ~A."
+                        (object-type-of condition)))))
 
 (define-condition error-generic (sndfile-error)
   ((errno :reader errno :initarg :errno))
