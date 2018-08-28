@@ -865,10 +865,12 @@ Deallocate the ~voicer~.
 ::: vug:cs-atone
 ::: vug:cs-tone
 ::: vug:dcblock
+::: vug:diff
 ::: vug:direct-convolve
 ::: vug:fofilter
 ::: vug:hi-shelf
 ::: vug:hpf
+::: vug:integrator
 ::: vug:lag
 ::: vug:lag-ud
 ::: vug:low-shelf

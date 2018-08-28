@@ -279,6 +279,7 @@
    #:delay-feedback #:delay1
    ;; filter
    #:~ #:pole #:pole* #:zero #:zero* #:two-pole #:two-zero
+   #:diff #:integrator
    #:cs-tone #:cs-atone
    #:dcblock #:lag #:lag-ud
    #:maf #:median #:biquad #:reson

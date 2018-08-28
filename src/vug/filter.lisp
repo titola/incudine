@@ -40,6 +40,10 @@
   (with-samples ((g (- 1 (abs coef))))
     (pole (* g in) coef)))
 
+(define-vug integrator (in)
+  "Integrate the input IN."
+  (pole in 1))
+
 (define-vug zero (in coef)
   "One zero filter."
   (- in (* coef (delay1 in))))
@@ -48,6 +52,10 @@
   "Scaled one zero filter."
   (with-samples ((g (- 1 (abs coef))))
     (+ (* g in) (* coef (delay1 in)))))
+
+(define-vug diff (in)
+  "First order difference."
+  (zero in 1))
 
 (define-vug lag (in time)
   "Scaled one pole filter with the coefficient calculated from
