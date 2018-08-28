@@ -50,8 +50,8 @@
 
 (define-vug zero* (in coef)
   "Scaled one zero filter."
-  (with-samples ((g (- 1 (abs coef))))
-    (+ (* g in) (* coef (delay1 in)))))
+  (with-samples ((g (/ (1+ (abs coef)))))
+    (* g (zero in coef))))
 
 (define-vug diff (in)
   "First order difference."
