@@ -420,6 +420,11 @@ BPM is the tempo in beats per minute and defaults to *DEFAULT-BPM*."
         (cadr fst)
         `(lambda () ,@form))))
 
+(defun soundfile-truename (path &key input-p)
+  (cond ((and (stringp path) (string= path "-")) path)
+        (input-p (truename path))
+        (t (merge-pathnames (truename (directory-namestring path)) path))))
+
 (defmacro bounce-to-disk ((output-filename &key input-filename
                            (channels *number-of-output-bus-channels*)
                            duration (pad 2) (sample-rate *sample-rate*)
@@ -515,12 +520,17 @@ Not all file types support metadata. The valid properties are: title,
 copyright, software, artist, comment, date, album, license, tracknumber
 and genre."
   `(,@(if input-filename
-          `(%bounce-to-disk-with-infile ,input-filename)
+          `(%bounce-to-disk-with-infile
+             (soundfile-truename ,input-filename :input-p t))
           '(%bounce-to-disk))
-    ,output-filename ,(or duration `(- ,pad)) ,channels ,sample-rate
-    ,(or header-type '*default-header-type*)
-    ,(or data-format '*default-data-format*)
-    ,metadata (bounce-function ,body)))
+      (soundfile-truename ,output-filename)
+      ,(or duration `(- ,pad))
+      ,channels
+      ,sample-rate
+      ,(or header-type '*default-header-type*)
+      ,(or data-format '*default-data-format*)
+      ,metadata
+      (bounce-function ,body)))
 
 (defmacro nrt-write-buffer-loop (in-data out-data in-count out-count
                                  in-channels out-channels in-size mix-p)
