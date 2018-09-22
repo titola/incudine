@@ -43,14 +43,18 @@ undefined.")
 (defvar *nrt-dirty-nodes* (make-array *max-number-of-nodes* :fill-pointer 0))
 (declaim (type vector *nrt-dirty-nodes*))
 
-(defvar *%nrt-input-pointer* (alloc-bus-pointer 'input))
+(defvar *%nrt-input-pointer*
+  (let ((*number-of-input-bus-channels* *max-number-of-channels*))
+    (alloc-bus-pointer 'input)))
 (declaim (type foreign-pointer *%nrt-input-pointer*))
 
 (defvar *nrt-input-pointer*
   (cffi:foreign-alloc :pointer :initial-element *%nrt-input-pointer*))
 (declaim (type foreign-pointer *nrt-input-pointer*))
 
-(defvar *%nrt-output-pointer* (alloc-bus-pointer 'output))
+(defvar *%nrt-output-pointer*
+  (let ((*number-of-output-bus-channels* *max-number-of-channels*))
+    (alloc-bus-pointer 'output)))
 (declaim (type foreign-pointer *%nrt-output-pointer*))
 
 (defvar *nrt-output-pointer*
@@ -141,7 +145,8 @@ undefined.")
         `(if (incudine.edf:heap-empty-p) (return)))
      (compute-tick)
      (write-snd-buffer ,data ,count ,channels)
-     (when (= ,count ,bufsize)
+     (when (>= ,count ,bufsize)
+       (assert (= ,count ,bufsize))
        (write-sample ,snd ,data ,bufsize)
        (free-dirty-nodes)
        (setf ,count 0))
@@ -240,29 +245,30 @@ sample rate respectively.
 
 BPM is the tempo in beats per minute and defaults to *DEFAULT-BPM*."
   `(incudine.util::with-local-sample-rate (,sample-rate)
-     (let ((*to-engine-fifo* *nrt-fifo*)
-           (*from-engine-fifo* *nrt-fifo*)
-           (*from-world-fifo* *nrt-from-world-fifo*)
-           (*fast-from-engine-fifo* *nrt-fifo*)
-           (*fast-to-engine-fifo* *nrt-fifo*)
-           (*rt-thread* (bt:current-thread))
-           (*allow-rt-memory-pool-p* nil)
-           (*node-hash* *nrt-node-hash*)
-           (*root-node* *nrt-root-node*)
-           (*dirty-nodes* *nrt-dirty-nodes*)
-           (*bus-pointer* *nrt-bus-pointer*)
-           (*output-pointer* *nrt-output-pointer*)
-           (*input-pointer* *nrt-input-pointer*)
-           (*number-of-output-bus-channels* ,channels)
-           (*block-size* 1)
-           (*block-input-samples* *number-of-input-bus-channels*)
-           (*block-output-samples* ,channels)
-           (*output-peak-values* *nrt-output-peak-values*)
-           (*out-of-range-counter* *nrt-out-of-range-counter*)
-           (incudine.edf:*heap* *nrt-edf-heap*)
-           (incudine.edf:*heap-size* *nrt-edf-heap-size*)
-           (*tempo* *nrt-tempo*)
-           (*sample-counter* *nrt-sample-counter*))
+     (let* ((*to-engine-fifo* *nrt-fifo*)
+            (*from-engine-fifo* *nrt-fifo*)
+            (*from-world-fifo* *nrt-from-world-fifo*)
+            (*fast-from-engine-fifo* *nrt-fifo*)
+            (*fast-to-engine-fifo* *nrt-fifo*)
+            (*rt-thread* (bt:current-thread))
+            (*allow-rt-memory-pool-p* nil)
+            (*node-hash* *nrt-node-hash*)
+            (*root-node* *nrt-root-node*)
+            (*dirty-nodes* *nrt-dirty-nodes*)
+            (*bus-pointer* *nrt-bus-pointer*)
+            (*output-pointer* *nrt-output-pointer*)
+            (*input-pointer* *nrt-input-pointer*)
+            (*number-of-input-bus-channels* 0)
+            (*number-of-output-bus-channels* ,channels)
+            (*block-size* 1)
+            (*block-input-samples* *number-of-input-bus-channels*)
+            (*block-output-samples* *number-of-output-bus-channels*)
+            (*output-peak-values* *nrt-output-peak-values*)
+            (*out-of-range-counter* *nrt-out-of-range-counter*)
+            (incudine.edf:*heap* *nrt-edf-heap*)
+            (incudine.edf:*heap-size* *nrt-edf-heap-size*)
+            (*tempo* *nrt-tempo*)
+            (*sample-counter* *nrt-sample-counter*))
        (setf (bpm *tempo*) ,bpm)
        ,@body)))
 
@@ -289,6 +295,12 @@ BPM is the tempo in beats per minute and defaults to *DEFAULT-BPM*."
          (perform-fifos)
          (nrt-cleanup)))))
 
+(defun round-sndfile-buffer-size (channels)
+  (let ((x (mod incudine::*sndfile-buffer-size* channels)))
+    (if (= x 0)
+        incudine::*sndfile-buffer-size*
+        (- (+ incudine::*sndfile-buffer-size* channels) x))))
+
 (defun %bounce-to-disk (output-filename duration channels sample-rate
                         header-type data-format metadata function)
   (declare (type (or string pathname) output-filename) (type function function)
@@ -305,7 +317,7 @@ BPM is the tempo in beats per minute and defaults to *DEFAULT-BPM*."
                                  (max *bounce-to-disk-guard-size* remain))
                               remain)
                            remain))
-           (bufsize (* *sndfile-buffer-size* *sample-size*))
+           (bufsize (* (round-sndfile-buffer-size channels) *sample-size*))
            (frame 0)
            (count 0))
       (declare (type non-negative-fixnum bufsize count)
@@ -354,7 +366,7 @@ BPM is the tempo in beats per minute and defaults to *DEFAULT-BPM*."
                            ;; Frames of the input file.
                            0
                            remain))
-           (bufsize (* *sndfile-buffer-size* *sample-size*))
+           (bufsize (* (round-sndfile-buffer-size channels) *sample-size*))
            (frame 0)
            (count 0)
            (input-eof-p nil))
@@ -372,6 +384,9 @@ BPM is the tempo in beats per minute and defaults to *DEFAULT-BPM*."
             (with-sf-input (snd-in input-filename data-in in-channels bufsize
                             input-remain input-index max-frames
                             pad-at-the-end-p)
+              (assert (<= in-channels *max-number-of-channels*))
+              (setf *number-of-input-bus-channels* in-channels)
+              (setf *block-input-samples* (* in-channels *block-size*))
               (with-sf-info (info max-frames *sample-rate* channels
                              header-type data-format)
                 (multiple-value-bind (path-or-stdout open-stdout-p)
@@ -559,6 +574,7 @@ and genre."
       (declare (type (or non-negative-fixnum null) in-channels in-size))
       (with-nrt (out-channels sample-rate)
         (when in-channels
+          (setf *number-of-input-bus-channels* in-channels)
           (setf *block-input-samples* (* in-channels *block-size*)))
         (nrt-cleanup)
         (zeroes-nrt-bus-channels)

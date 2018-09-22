@@ -169,10 +169,10 @@
 (declaim (type positive-fixnum *block-size*))
 
 (defvar *block-input-samples* (* *block-size* *number-of-input-bus-channels*))
-(declaim (type positive-fixnum *block-input-samples*))
+(declaim (type non-negative-fixnum *block-input-samples*))
 
 (defvar *block-output-samples* (* *block-size* *number-of-output-bus-channels*))
-(declaim (type positive-fixnum *block-output-samples*))
+(declaim (type non-negative-fixnum *block-output-samples*))
 
 (declaim (inline block-size))
 (defun block-size ()

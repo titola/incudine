@@ -124,10 +124,14 @@
                     (node-last group) :dummy-node)
               group))
       (setf *nrt-node-hash* (make-node-hash *max-number-of-nodes*))
-      (setf *%nrt-input-pointer* (alloc-bus-pointer 'input))
+      (setf *%nrt-input-pointer*
+            (let ((*number-of-input-bus-channels* *max-number-of-channels*))
+              (alloc-bus-pointer 'input)))
       (setf *nrt-input-pointer*
             (foreign-alloc :pointer :initial-element *%nrt-input-pointer*))
-      (setf *%nrt-output-pointer* (alloc-bus-pointer 'output))
+      (setf *%nrt-output-pointer*
+            (let ((*number-of-output-bus-channels* *max-number-of-channels*))
+              (alloc-bus-pointer 'output)))
       (setf *nrt-output-pointer*
             (foreign-alloc :pointer :initial-element *%nrt-output-pointer*))
       (setf *nrt-bus-pointer* (alloc-bus-pointer 'bus))

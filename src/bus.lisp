@@ -21,10 +21,12 @@
 (define-constant +io-bus-channels-pad+ 1024)
 
 (defvar *number-of-input-bus-channels* 2)
-(declaim (type channel-number *number-of-input-bus-channels*))
+(declaim (type (integer 0 #.(1+ incudine.util::maximum-channel-number))
+               *number-of-input-bus-channels*))
 
 (defvar *number-of-output-bus-channels* 2)
-(declaim (type channel-number *number-of-output-bus-channels*))
+(declaim (type (integer 0 #.(1+ incudine.util::maximum-channel-number))
+               *number-of-output-bus-channels*))
 
 (defvar *input-increment-bytes*
   (* *number-of-input-bus-channels* +foreign-sample-size+))
@@ -35,7 +37,8 @@
 (declaim (type non-negative-fixnum *output-increment-bytes*))
 
 (defvar *number-of-bus-channels* 4096)
-(declaim (type bus-number *number-of-bus-channels*))
+(declaim (type (integer 0 #.(1+ incudine.util::maximum-bus-number))
+               *number-of-bus-channels*))
 
 (defun alloc-bus-pointer (type)
   (declare (type (member bus input output) type))

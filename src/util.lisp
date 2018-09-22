@@ -18,6 +18,10 @@
 
 ;;; TYPES
 
+(define-constant maximum-channel-number 1023)
+
+(define-constant maximum-bus-number 16383)
+
 ;; NON-NEGATIVE-FIXNUM64 used to get a better optimization
 ;; on 64bit machines. MOST-POSITIVE-FIXNUM 2^59-1 is good
 ;; at least with SBCL and CCL.
@@ -40,9 +44,9 @@ LIMITED-SAMPLE."
   #+(and sbcl x86) 'limited-sample
   #-(and sbcl x86) 'sample)
 
-(deftype channel-number () '(integer 0 1023))
+(deftype channel-number () `(integer 0 ,maximum-channel-number))
 
-(deftype bus-number () '(integer 0 16383))
+(deftype bus-number () `(integer 0 ,maximum-bus-number))
 
 ;;; MISC
 
