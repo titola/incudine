@@ -155,15 +155,15 @@ undefined.")
 
 (defmacro nrt-loop-with-infile (snd-in data-in snd-out data-out
                                 bufsize count out-channels input-remain
-                                input-index in-channels input-eof-p
-                                &optional stop-if-empty-p)
+                                input-index in-channels in-bufsize
+                                input-eof-p &optional stop-if-empty-p)
   `(progn
      (unless ,input-eof-p
        (cond ((plusp ,input-remain)
               (read-snd-buffer ,data-in ,input-remain ,input-index
                                ,in-channels))
              (t ;; Fill the input buffer.
-              (setf ,input-remain (read-sample ,snd-in ,data-in ,bufsize))
+              (setf ,input-remain (read-sample ,snd-in ,data-in ,in-bufsize))
               (setf ,input-index 0)
               (cond ((zerop ,input-remain)
                      (clear-inputs)
@@ -211,9 +211,8 @@ undefined.")
                                                           ,data-format)))))
      ,@body))
 
-(defmacro with-sf-input ((var path data-var channels-var bufsize
-                          input-remain input-index max-frames
-                          pad-at-the-end-p)
+(defmacro with-sf-input ((var path data-var channels-var bufsize-var
+                          input-remain input-index max-frames pad-at-the-end-p)
                          &body body)
   (with-gensyms (info %path-or-stdin path-or-stdin open-stdin-p)
     `(let ((,%path-or-stdin ,path)
@@ -226,16 +225,17 @@ undefined.")
                (values ,%path-or-stdin nil))
          (sf:with-open (,var ,path-or-stdin :info ,info :mode sf:sfm-read
                              :open-fd-p ,open-stdin-p)
-           (with-foreign-array (,data-var 'sample ,bufsize)
-             (let ((,channels-var (sf:channels ,info))
-                   (,input-remain 0)
-                   (,input-index 0))
-               (declare (type non-negative-fixnum ,channels-var ,input-remain
-                              ,input-index))
-               (setf *block-input-samples* (* ,channels-var *block-size*))
-               (when ,pad-at-the-end-p
-                 (setf ,max-frames (sf:frames ,info)))
-               ,@body)))))))
+           (let* ((,channels-var (sf:channels ,info))
+                  (,bufsize-var (* (round-sndfile-buffer-size ,channels-var)
+                                   *sample-size*))
+                  (,input-remain 0)
+                  (,input-index 0))
+             (declare (type non-negative-fixnum ,channels-var ,bufsize-var
+                            ,input-remain ,input-index))
+             (setf *block-input-samples* (* ,channels-var *block-size*))
+             (when ,pad-at-the-end-p
+               (setf ,max-frames (sf:frames ,info)))
+             (with-foreign-array (,data-var 'sample ,bufsize-var) ,@body)))))))
 
 (defmacro with-nrt ((channels sample-rate &key (bpm *default-bpm*)) &body body)
   "Execute BODY without to interfere with the real-time context.
@@ -381,9 +381,8 @@ BPM is the tempo in beats per minute and defaults to *DEFAULT-BPM*."
           (progn
             ;; Fill the EDF.
             (funcall function)
-            (with-sf-input (snd-in input-filename data-in in-channels bufsize
-                            input-remain input-index max-frames
-                            pad-at-the-end-p)
+            (with-sf-input (snd-in input-filename data-in in-channels in-bufsize
+                            input-remain input-index max-frames pad-at-the-end-p)
               (assert (<= in-channels *max-number-of-channels*))
               (setf *number-of-input-bus-channels* in-channels)
               (setf *block-input-samples* (* in-channels *block-size*))
@@ -402,9 +401,10 @@ BPM is the tempo in beats per minute and defaults to *DEFAULT-BPM*."
                       ;; COUNT and INPUT-INDEX are incremented respectively
                       ;; by CHANNELS and IN-CHANNELS.
                       ;; INPUT-REMAIN is decremented by IN-CHANNELS.
-                      (nrt-loop-with-infile snd-in data-in snd-out
-                                  data-out bufsize count channels input-remain
-                                  input-index in-channels input-eof-p)))))))
+                      (nrt-loop-with-infile
+                        snd-in data-in snd-out data-out bufsize count channels
+                        input-remain input-index in-channels in-bufsize
+                        input-eof-p)))))))
         (condition (c)
           (msg error "~A" c)
           (nrt-cleanup)))
