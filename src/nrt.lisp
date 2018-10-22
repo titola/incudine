@@ -29,12 +29,14 @@ undefined.")
 (defvar *nrt-from-world-fifo* (make-fifo))
 (declaim (type fifo *nrt-from-world-fifo*))
 
-(defvar *nrt-root-node*
+(defun make-nrt-root-node ()
   (let ((group (make-node 0 *max-number-of-nodes*)))
     (setf (node-prev group) :dummy-node
           (node-funcons group) nil
           (node-last group) :dummy-node)
     group))
+
+(defvar *nrt-root-node* (make-nrt-root-node))
 (declaim (type node *nrt-root-node*))
 
 (defvar *nrt-node-hash* (make-node-hash *max-number-of-nodes*))
@@ -237,6 +239,79 @@ undefined.")
                (setf ,max-frames (sf:frames ,info)))
              (with-foreign-array (,data-var 'sample ,bufsize-var) ,@body)))))))
 
+(defvar *cached-nrt-memory-p* nil)
+(declaim (type boolean *cached-nrt-memory-p*))
+
+(defvar *alloc-nrt-memory-p* nil)
+(declaim (type boolean *alloc-nrt-memory-p*))
+
+(defvar *nrt-memory-lock* (bt:make-lock "NRT-MEMORY-LOCK"))
+(declaim (type bt:lock *nrt-memory-lock*))
+
+(defun realloc-nrt-input-buffer ()
+  (foreign-free *%nrt-input-pointer*)
+  (setf *%nrt-input-pointer* (alloc-bus-pointer 'input))
+  (setf (input-pointer) *%nrt-input-pointer*))
+
+(defun ensure-nrt-input-buffer ()
+  (if (and (not *cached-nrt-memory-p*)
+           (> *number-of-input-bus-channels*
+              *number-of-output-bus-channels*))
+      (realloc-nrt-input-buffer)))
+
+;; The first BOUNCE-TO-* uses the pre-allocated memory. Multiple concurrent
+;; BOUNCE-TO-* alloc memory with dynamic extent during BODY.
+(defmacro with-nrt-memory (&body body)
+  (let ((vars '(*nrt-fifo* *nrt-from-world-fifo* *nrt-node-hash* *nrt-root-node*
+                *nrt-dirty-nodes* *nrt-bus-pointer* *%nrt-input-pointer*
+                *nrt-input-pointer* *%nrt-output-pointer* *nrt-output-pointer*
+                *nrt-output-peak-values* *nrt-out-of-range-counter*
+                *nrt-edf-heap* *nrt-tempo* *nrt-sample-counter*)))
+    `(let ((*cached-nrt-memory-p* nil)
+           ,@(loop for v in vars collect `(,v ,v)))
+       (unwind-protect
+            (progn
+              (bt:with-lock-held (*nrt-memory-lock*)
+                (unless *alloc-nrt-memory-p*
+                  (setf *alloc-nrt-memory-p* t)
+                  (setf *cached-nrt-memory-p* t)))
+              (unless *cached-nrt-memory-p*
+                (setf *nrt-fifo* (make-fifo :buffer-size 512)
+                      *nrt-from-world-fifo* (make-fifo)
+                      *nrt-node-hash* (make-node-hash *max-number-of-nodes*)
+                      *nrt-root-node* (make-nrt-root-node)
+                      *nrt-dirty-nodes*
+                        (make-array *max-number-of-nodes* :fill-pointer 0)
+                      ;; inputs = outputs by default.
+                      *%nrt-input-pointer* (alloc-bus-pointer 'output)
+                      *%nrt-output-pointer* (alloc-bus-pointer 'output)
+                      *nrt-input-pointer*
+                        (cffi:foreign-alloc
+                          :pointer :initial-element *%nrt-input-pointer*)
+                      *nrt-output-pointer*
+                        (cffi:foreign-alloc
+                          :pointer :initial-element *%nrt-output-pointer*)
+                      *nrt-bus-pointer* (alloc-bus-pointer 'bus)
+                      *nrt-output-peak-values*
+                        (foreign-alloc-sample *number-of-output-bus-channels*)
+                      *nrt-out-of-range-counter*
+                        (make-array *number-of-output-bus-channels*
+                                    :initial-element 0)
+                      *nrt-edf-heap*
+                        (incudine.edf:make-heap *nrt-edf-heap-size*)
+                      *nrt-tempo* (make-tempo *default-bpm*)
+                      *nrt-sample-counter*
+                        (foreign-alloc 'sample :initial-element +sample-zero+)))
+              ,@body)
+         (if *cached-nrt-memory-p*
+             (bt:with-lock-held (*nrt-memory-lock*)
+               (setf *alloc-nrt-memory-p* nil))
+             (dolist (v (list ,@vars))
+               (typecase v
+                 (node (destroy-node v))
+                 (foreign-pointer (foreign-free v))
+                 (t (free v)))))))))
+
 (defmacro with-nrt ((channels sample-rate &key (bpm *default-bpm*)) &body body)
   "Execute BODY without to interfere with the real-time context.
 
@@ -245,32 +320,33 @@ sample rate respectively.
 
 BPM is the tempo in beats per minute and defaults to *DEFAULT-BPM*."
   `(incudine.util::with-local-sample-rate (,sample-rate)
-     (let* ((*to-engine-fifo* *nrt-fifo*)
-            (*from-engine-fifo* *nrt-fifo*)
-            (*from-world-fifo* *nrt-from-world-fifo*)
-            (*fast-from-engine-fifo* *nrt-fifo*)
-            (*fast-to-engine-fifo* *nrt-fifo*)
-            (*rt-thread* (bt:current-thread))
-            (*allow-rt-memory-pool-p* nil)
-            (*node-hash* *nrt-node-hash*)
-            (*root-node* *nrt-root-node*)
-            (*dirty-nodes* *nrt-dirty-nodes*)
-            (*bus-pointer* *nrt-bus-pointer*)
-            (*output-pointer* *nrt-output-pointer*)
-            (*input-pointer* *nrt-input-pointer*)
-            (*number-of-input-bus-channels* 0)
-            (*number-of-output-bus-channels* ,channels)
-            (*block-size* 1)
-            (*block-input-samples* *number-of-input-bus-channels*)
-            (*block-output-samples* *number-of-output-bus-channels*)
-            (*output-peak-values* *nrt-output-peak-values*)
-            (*out-of-range-counter* *nrt-out-of-range-counter*)
-            (incudine.edf:*heap* *nrt-edf-heap*)
-            (incudine.edf:*heap-size* *nrt-edf-heap-size*)
-            (*tempo* *nrt-tempo*)
-            (*sample-counter* *nrt-sample-counter*))
-       (setf (bpm *tempo*) ,bpm)
-       ,@body)))
+     (let ((*number-of-input-bus-channels* 0)
+           (*number-of-output-bus-channels* ,channels))
+       (with-nrt-memory
+         (let* ((*to-engine-fifo* *nrt-fifo*)
+                (*from-engine-fifo* *nrt-fifo*)
+                (*from-world-fifo* *nrt-from-world-fifo*)
+                (*fast-from-engine-fifo* *nrt-fifo*)
+                (*fast-to-engine-fifo* *nrt-fifo*)
+                (*rt-thread* (bt:current-thread))
+                (*allow-rt-memory-pool-p* nil)
+                (*node-hash* *nrt-node-hash*)
+                (*root-node* *nrt-root-node*)
+                (*dirty-nodes* *nrt-dirty-nodes*)
+                (*bus-pointer* *nrt-bus-pointer*)
+                (*output-pointer* *nrt-output-pointer*)
+                (*input-pointer* *nrt-input-pointer*)
+                (*block-size* 1)
+                (*block-input-samples* *number-of-input-bus-channels*)
+                (*block-output-samples* *number-of-output-bus-channels*)
+                (*output-peak-values* *nrt-output-peak-values*)
+                (*out-of-range-counter* *nrt-out-of-range-counter*)
+                (incudine.edf:*heap* *nrt-edf-heap*)
+                (incudine.edf:*heap-size* *nrt-edf-heap-size*)
+                (*tempo* *nrt-tempo*)
+                (*sample-counter* *nrt-sample-counter*))
+           (setf (bpm *tempo*) ,bpm)
+           ,@body)))))
 
 (defmacro write-to-disk-loop ((index limit) &body body)
   `(loop while (< ,index ,limit) do ,@body (incf ,index)))
@@ -386,6 +462,7 @@ BPM is the tempo in beats per minute and defaults to *DEFAULT-BPM*."
               (assert (<= in-channels *max-number-of-channels*))
               (setf *number-of-input-bus-channels* in-channels)
               (setf *block-input-samples* (* in-channels *block-size*))
+              (ensure-nrt-input-buffer)
               (with-sf-info (info max-frames *sample-rate* channels
                              header-type data-format)
                 (multiple-value-bind (path-or-stdout open-stdout-p)
@@ -585,7 +662,8 @@ and genre."
       (with-nrt (out-channels sample-rate)
         (when in-channels
           (setf *number-of-input-bus-channels* in-channels)
-          (setf *block-input-samples* (* in-channels *block-size*)))
+          (setf *block-input-samples* (* in-channels *block-size*))
+          (ensure-nrt-input-buffer))
         (nrt-cleanup)
         (zeroes-nrt-bus-channels)
         (reset-sample-counter)

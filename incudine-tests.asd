@@ -89,6 +89,7 @@
      (:file "vug/generator/oscr" :depends-on ("vug/base"))
      (:file "vug/generator/impulse" :depends-on ("vug/base"))
      (:file "vug/generator/sine" :depends-on ("vug/base"))
+     (:file "vug/parallel-nrt" :depends-on ("vug/generator/osc"))
      (:file "rego/base" :depends-on ("vug/base"))
      (:file "rego/test" :depends-on ("rego/base"))
      (:static-file "data.raw")

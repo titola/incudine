@@ -1080,6 +1080,10 @@ the STOP method. The function argument is the object to stop."))
 (defmethod (setf stop-hook) ((flist list) (obj integer))
   (setf (stop-hook (node obj)) flist))
 
+(defun destroy-node (obj)
+  (mapc #'foreign-free (list (node-start-time-ptr obj) (node-gain-data obj)))
+  (incudine.util::cancel-finalization obj))
+
 (declaim (inline move-group-loop-p))
 (defun move-group-loop-p (src dest)
   (and (group-p src) (find-group dest src) t))
