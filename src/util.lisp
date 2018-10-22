@@ -555,13 +555,13 @@ Example:
 (defgeneric circular-shift (obj n)
   (:documentation "Perform a circular shift of length N."))
 
+(defgeneric free-p (obj)
+  (:documentation "Return T if the object obj is deallocated."))
+
 (defgeneric free (obj)
   (:documentation "Deallocate the object OBJ."))
 
 (defmethod free ((obj t)) (values))
-
-(defgeneric free-p (obj)
-  (:documentation "Return T if the object obj is deallocated."))
 
 (defmethod free ((obj list))
   (dolist (x obj) (free x)))
@@ -569,9 +569,6 @@ Example:
 (defmethod free ((obj function))
   (funcall obj)
   (values))
-
-(defgeneric free-p (obj)
-  (:documentation "Return T if the object obj is deallocated."))
 
 (defvar *to-free*)
 
