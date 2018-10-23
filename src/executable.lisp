@@ -239,6 +239,20 @@
     (terpri f)
     pathname))
 
+;; The command line options are stored in the FASL header between `#!'
+;; and `--script\n#'. From sbcl-1.4.13, SB-EXT:*RUNTIME-PATHNAME* is
+;; not special anymore, so that global variable is temporarily changed
+;; to insert `--' and the command line options before `--script' in the
+;; FASL header.
+(defmacro fasl-header-hack ((options) &body body)
+  (with-gensyms (true-runtime-pathname)
+    `(let ((,true-runtime-pathname sb-ext:*runtime-pathname*))
+       (unwind-protect
+            (progn
+              (setf sb-ext:*runtime-pathname* (format nil "~{~A~^ ~}" ,options))
+              ,@body)
+         (setf sb-ext:*runtime-pathname* ,true-runtime-pathname)))))
+
 (defun load-compiled-cudo-file (pathname opt &optional rego-file-p)
   (declare (type string pathname) (type toplevel-options opt)
            (type boolean rego-file-p))
@@ -317,12 +331,7 @@
                                ;; The produced file becomes a script usable
                                ;; both in realtime and non-realtime.
                                (%complete-score lisp-pathname opt fname)))
-                           (let ((sb-ext:*runtime-pathname*
-                                  ;; The consumed options are stored in the
-                                  ;; header of the FASL, between `#!' and
-                                  ;; `--script\n#'
-                                  (format nil "~{~A~^ ~}" consumed-options))
-                                 (*standard-output* *logger-stream*))
+                           (fasl-header-hack (consumed-options)
                              (if stdin-p
                                  (eval (rego-from-stdin-form opt))
                                  (load (compile-file lisp-pathname))))
