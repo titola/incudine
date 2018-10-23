@@ -497,10 +497,13 @@ BPM is the tempo in beats per minute and defaults to *DEFAULT-BPM*."
         (cadr fst)
         `(lambda () ,@form))))
 
+(defun outfile-truename (path)
+  (merge-pathnames (truename (directory-namestring path)) path))
+
 (defun soundfile-truename (path &key input-p)
   (cond ((and (stringp path) (string= path "-")) path)
         (input-p (truename path))
-        (t (merge-pathnames (truename (directory-namestring path)) path))))
+        (t (outfile-truename path))))
 
 (defmacro bounce-to-disk ((output-filename &key input-filename
                            (channels *number-of-output-bus-channels*)

@@ -371,7 +371,7 @@
             (*clm-with-sound-depth* (1+ *clm-with-sound-depth*))
             (*srate* *clm-srate*)
             (*clipped* ,clipped)
-            (,outfile ,output)
+            (,outfile (namestring (incudine::outfile-truename ,output)))
             (,revf ,revfile)
             (,comm (or ,comment ,info))
             (,rev-func (or ,reverb-func ',reverb))
