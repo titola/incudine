@@ -56,7 +56,12 @@ If UPDATE-MIDI-TABLE-P is T (default), update the MIDI table used by
 DSP and UGEN instances.
 
 PortMidi receiver is started with polling TIMEOUT that defaults to
-*MIDI-INPUT-TIMEOUT*."))
+*MIDI-INPUT-TIMEOUT*.
+
+If STREAM is a CL:INPUT-STREAM, the required READ-FUNCTION is the
+function of one argument used to read from the stream. This function
+returns the value passed to the responders of STREAM. If an end of
+file occurs, the receiver is stopped."))
 
 (defgeneric recv-stop (stream)
   (:documentation "Stop receiving from STREAM."))
@@ -252,6 +257,50 @@ The function takes the stream as argument."
   (add-receiver stream (or (receiver stream) (make-receiver stream))
                 #'start-net-recv priority))
 
+;;; CL:INPUT-STREAM
+
+(defmethod valid-input-stream-p ((obj stream))
+  (input-stream-p obj))
+
+(defun start-cl-stream-recv (receiver read-function)
+  (declare (type receiver receiver) (type function read-function)
+           #.*standard-optimize-settings*)
+  (bt:make-thread
+    (lambda ()
+      (let ((stream (receiver-stream receiver)))
+        ;; Flush pending writes.
+        (loop while (listen stream) do (funcall read-function stream))
+        (setf (receiver-status receiver) t)
+        (handler-case
+            (loop while (receiver-status receiver) do
+                    (let ((res (funcall read-function stream)))
+                      (when (receiver-status receiver)
+                        (dolist (fn (receiver-functions receiver))
+                          (funcall (the function fn) res)))))
+          (end-of-file (c)
+            (declare (ignore c))
+            (msg error "end of file~%stop receiving from ~A" stream)
+            (recv-stop stream))
+          (condition (c) (nrt-msg error "~A" c)))))
+    :name (format nil "cl:input-stream recv ~A" (receiver-stream receiver))))
+
+(defmethod recv-start ((stream stream) &key read-function
+                       (priority *receiver-default-priority*))
+  (unless read-function
+    (incudine-missing-arg "READ-FUNCTION is mandatory for CL:INPUT-STREAM."))
+  (add-receiver stream (or (receiver stream) (make-receiver stream))
+                (lambda (receiver)
+                  (start-cl-stream-recv receiver read-function))
+                priority))
+
+(defmethod recv-stop ((stream stream))
+  (let ((recv (receiver stream)))
+    (when recv
+      (compare-and-swap (receiver-status recv) t nil)
+      (msg debug "cl:input-stream receiver for ~S stopped"
+           (receiver-stream recv))
+      recv)))
+
 ;;; RESPONDER
 
 (defvar *responder-hash* (make-hash-table))
@@ -297,7 +346,10 @@ If STREAM is a MIDI input stream, the function requires three
 arguments: status byte and two data bytes.
 
 If STREAM is a NET:INPUT-STREAM, the function takes the stream as
-argument."
+argument.
+
+If STREAM is a CL:INPUT-STREAM, the function takes the value
+returned by the read-function passed to RECV-START."
   (declare (type function function))
   (let ((recv (or (receiver stream)
                   (add-receiver stream (make-receiver stream) #'identity
