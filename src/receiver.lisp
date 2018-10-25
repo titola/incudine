@@ -184,7 +184,13 @@ to an OSC message with ADDRESS and TYPES.
 
 FUNCTION is added to the list of receiver-functions for STREAM.
 
-The function takes the stream as argument."
+The function takes the OSC values as arguments.
+
+Example:
+
+    (make-osc-responder *oscin* \"/osc/test\" \"iii\"
+                        (lambda (a b c)
+                          (msg warn \"~D ~D ~D\" a b c)))"
   (let ((function (if (eq (car function) 'function)
                       (cadr function)
                       function)))
