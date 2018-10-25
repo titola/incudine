@@ -56,7 +56,7 @@
   (make-incudine-object-pool +dsp-instance-pool-initial-size+ #'make-rt-dsp t))
 (declaim (type incudine-object-pool *rt-dsp-instance-pool*))
 
-(defvar *nrt-dsp-spinlock* (make-spinlock "NRT-DSP"))
+(incudine.util::defglobal *nrt-dsp-spinlock* (make-spinlock "NRT-DSP"))
 (declaim (type spinlock *nrt-dsp-spinlock*))
 
 (declaim (inline make-dsp-instance))

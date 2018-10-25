@@ -98,7 +98,7 @@
 (defvar *fast-to-engine-fifo* (make-fifo :name "fast to engine"))
 (declaim (type fifo *fast-to-engine-fifo*))
 
-(defvar *fast-nrt-spinlock* (make-spinlock "fast nrt"))
+(defglobal *fast-nrt-spinlock* (make-spinlock "fast nrt"))
 (declaim (type spinlock *fast-nrt-spinlock*))
 
 (defvar *nrt-audio-sync* (make-sync-condition "nrt audio"))

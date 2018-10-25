@@ -120,7 +120,8 @@ Subtype of MIDIFILE-PARSE-ERROR."))
 (defvar *buffer-pool* nil)
 (declaim (type list *buffer-pool*))
 
-(defvar *buffer-pool-lock* (bt:make-lock "MIDIFILE-BUFFER-POOL"))
+(incudine.util::defglobal *buffer-pool-lock*
+  (bt:make-lock "MIDIFILE-BUFFER-POOL"))
 
 (defun make-buffer (size)
   (declare (type positive-fixnum size))

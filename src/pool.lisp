@@ -137,7 +137,7 @@ NEW-FORM is evaluated to set the CAR of a CONS."
     :grow 2048))
 (declaim (type cons-pool *nrt-global-pool*))
 
-(defvar *nrt-global-pool-spinlock* (make-spinlock "NRT-GLOBAL-POOL"))
+(defglobal *nrt-global-pool-spinlock* (make-spinlock "NRT-GLOBAL-POOL"))
 (declaim (type spinlock *nrt-global-pool-spinlock*))
 
 (defun nrt-global-pool-push-cons (cons)
@@ -295,11 +295,11 @@ Return the cons cell to the cons POOL."
 
   ;;; Lock used only to free the memory if the rt-thread is absent
   ;;; (memory allocated in realtime but the rt-thread has been terminated)
-  (defvar *rt-memory-lock* (bt:make-lock "RT-MEMORY"))
-  (defvar *rt-memory-sample-lock* (bt:make-lock "RT-MEMORY-SAMPLE"))
+  (defglobal *rt-memory-lock* (bt:make-lock "RT-MEMORY"))
+  (defglobal *rt-memory-sample-lock* (bt:make-lock "RT-MEMORY-SAMPLE"))
 
   ;;; Lock to alloc/free the memory in non-realtime.
-  (defvar *nrt-memory-lock* (make-spinlock "NRT-MEMORY"))
+  (defglobal *nrt-memory-lock* (make-spinlock "NRT-MEMORY"))
 
   (defun init-foreign-memory-pools ()
     (unless *initialized-foreign-memory-pools*

@@ -31,7 +31,7 @@
   (defvar *mouse-event* (alloc-mouse-event))
   (declaim (type foreign-pointer *mouse-event*))
 
-  (defvar *mouse-spinlock* (make-spinlock "Mouse"))
+  (incudine.util::defglobal *mouse-spinlock* (make-spinlock "Mouse"))
   (declaim (type spinlock *mouse-spinlock*))
 
   (defvar *mouse-thread* nil)

@@ -16,12 +16,18 @@
 
 (in-package :incudine.util)
 
-(import
- '(sb-int:constant-form-value
-   sb-ext:octets-to-string sb-ext:string-to-octets
-   sb-ext:gc
-   sb-ext:get-time-of-day
-   sb-ext:truly-the))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (import
+    '(sb-ext:defglobal)
+    "INCUDINE")
+  (import
+    '(sb-int:constant-form-value
+      sb-ext:defglobal
+      sb-ext:gc
+      sb-ext:get-time-of-day
+      sb-ext:octets-to-string
+      sb-ext:string-to-octets
+      sb-ext:truly-the)))
 
 (define-constant n-machine-word-bits sb-vm:n-machine-word-bits)
 
@@ -31,7 +37,7 @@
   '(sb-ext:muffle-conditions sb-ext:compiler-note)
   "Declaration to muffle compiler-notes.")
 
-(defvar *null-output*
+(sb-ext:defglobal *null-output*
   (sb-sys:make-fd-stream
     (sb-unix:unix-open #-win32 "/dev/null" #+win32 "nul" sb-unix:o_wronly #o666)
     :name "null output"

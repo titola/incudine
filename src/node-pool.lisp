@@ -46,7 +46,7 @@
   "Pool of nodes used out of the graph in non-realtime.")
 (declaim (type cons-pool *nrt-node-pool*))
 
-(defvar *nrt-node-pool-spinlock* (make-spinlock "NRT-NODE-POOL"))
+(defglobal *nrt-node-pool-spinlock* (make-spinlock "NRT-NODE-POOL"))
 (declaim (type spinlock *nrt-node-pool-spinlock*))
 
 (declaim (inline rt-node-pool-pop))

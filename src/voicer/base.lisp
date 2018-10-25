@@ -34,7 +34,7 @@
 
 (define-constant +voicer-pool-grow+ (floor (* +voicer-pool-size+ 0.1)))
 
-(defvar *voicer-pool-spinlock* (make-spinlock "VOICER-POOL"))
+(incudine.util::defglobal *voicer-pool-spinlock* (make-spinlock "VOICER-POOL"))
 (declaim (type spinlock *voicer-pool-spinlock*))
 
 (defun expand-voicer-pool (pool &optional (delta 1))

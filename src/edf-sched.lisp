@@ -248,7 +248,8 @@ scheduled at the current time."
 to FLUSH-PENDING. The functions are called in non-realtime thread.
 The list is empty after FLUSH-PENDING.")
 
-(defvar *flush-pending-spinlock* (incudine.util:make-spinlock "FLUSH-PENDING"))
+(incudine.util::defglobal *flush-pending-spinlock*
+  (incudine.util:make-spinlock "FLUSH-PENDING"))
 (declaim (type incudine.util:spinlock *flush-pending-spinlock*))
 
 (defun add-flush-pending-hook (function)
@@ -333,7 +334,8 @@ forced every TIME-STEP samples."
   "Pool of EDFs.")
 (declaim (type incudine.util:cons-pool *heap-pool*))
 
-(defvar *heap-pool-spinlock* (incudine.util:make-spinlock "EDF-HEAP-POOL"))
+(incudine.util::defglobal *heap-pool-spinlock*
+  (incudine.util:make-spinlock "EDF-HEAP-POOL"))
 (declaim (type incudine.util:spinlock *heap-pool-spinlock*))
 
 (defun heap-pool-pop ()
