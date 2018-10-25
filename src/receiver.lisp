@@ -24,7 +24,8 @@
   "Receiver type."
   stream
   (functions nil :type list)
-  (status nil :type boolean))
+  (status nil :type boolean)
+  (thread nil :type (or null bt:thread)))
 
 (defgeneric valid-input-stream-p (obj))
 
@@ -85,10 +86,17 @@ input available from STREAM."
   (when (bt:threadp thread)
     (setf (thread-priority thread) priority)))
 
+(defun recv-unset-thread (receiver)
+  (loop while (bt:thread-alive-p (receiver-thread receiver)))
+  (setf (receiver-thread receiver) nil)
+  receiver)
+
 (defun add-receiver (stream recv start-function priority)
   (let ((result (funcall start-function recv)))
     (when result
       (recv-set-priority result priority)
+      (when (bt:threadp result)
+        (setf (receiver-thread recv) result))
       (setf (gethash stream *receiver-hash*) recv))))
 
 (declaim (inline remove-receiver))
@@ -139,19 +147,22 @@ input available from STREAM."
                        &key (priority *receiver-default-priority*)
                        (update-midi-table-p t)
                        (timeout *midi-input-timeout*))
-  (let ((*midi-input-timeout* (max 1 timeout)))
-    (add-receiver stream (or (receiver stream) (make-receiver stream))
-                  (if update-midi-table-p
-                      #'start-portmidi-recv-update-mtab
-                      #'start-portmidi-recv-no-mtab)
-                  priority)))
+  (unless (eq (recv-status stream) :running)
+    (let ((*midi-input-timeout* (max 1 timeout)))
+      (add-receiver stream (or (receiver stream) (make-receiver stream))
+                    (if update-midi-table-p
+                        #'start-portmidi-recv-update-mtab
+                        #'start-portmidi-recv-no-mtab)
+                    priority))))
 
 (defmethod recv-stop ((stream portmidi:input-stream))
   (let ((recv (receiver stream)))
-    (compare-and-swap (receiver-status recv) t nil)
-    (msg debug "PortMidi receiver for ~S stopped"
-         (portmidi::input-stream-device-name stream))
-    recv))
+    (when (and recv (receiver-status recv))
+      (compare-and-swap (receiver-status recv) t nil)
+      (recv-unset-thread recv)
+      (msg debug "PortMidi receiver for ~S stopped"
+           (portmidi::input-stream-device-name stream))
+      recv)))
 
 ;;; Open Sound Control
 
@@ -212,12 +223,13 @@ The function takes the stream as argument."
 
 (defmethod recv-start ((stream incudine.osc::stream)
                        &key (priority *receiver-default-priority*))
-  (add-receiver stream (or (receiver stream) (make-receiver stream))
-                #'start-osc-recv priority))
+  (unless (eq (recv-status stream) :running)
+    (add-receiver stream (or (receiver stream) (make-receiver stream))
+                  #'start-osc-recv priority)))
 
 (defmethod recv-stop ((stream incudine.osc::stream))
   (let ((recv (receiver stream)))
-    (when recv
+    (when (and recv (receiver-status recv))
       (incudine.osc:with-stream (tmp :direction :output
                                  :protocol (incudine.osc:protocol stream)
                                  :host (incudine.osc:host stream)
@@ -227,6 +239,7 @@ The function takes the stream as argument."
         ;; Unblock the receiver.
         (incudine.osc:message tmp "/receiver/quit" ""))
       (incudine.osc:close-connections stream)
+      (recv-unset-thread recv)
       recv)))
 
 ;;; Generic networking
@@ -254,8 +267,9 @@ The function takes the stream as argument."
 
 (defmethod recv-start ((stream incudine.net:input-stream)
                        &key (priority *receiver-default-priority*))
-  (add-receiver stream (or (receiver stream) (make-receiver stream))
-                #'start-net-recv priority))
+  (unless (eq (recv-status stream) :running)
+    (add-receiver stream (or (receiver stream) (make-receiver stream))
+                  #'start-net-recv priority)))
 
 ;;; CL:INPUT-STREAM
 
@@ -286,19 +300,25 @@ The function takes the stream as argument."
 
 (defmethod recv-start ((stream stream) &key read-function
                        (priority *receiver-default-priority*))
-  (unless read-function
-    (incudine-missing-arg "READ-FUNCTION is mandatory for CL:INPUT-STREAM."))
-  (add-receiver stream (or (receiver stream) (make-receiver stream))
-                (lambda (receiver)
-                  (start-cl-stream-recv receiver read-function))
-                priority))
+  (unless (eq (recv-status stream) :running)
+    (unless read-function
+      (incudine-missing-arg "READ-FUNCTION is mandatory for CL:INPUT-STREAM."))
+    (add-receiver stream (or (receiver stream) (make-receiver stream))
+                  (lambda (receiver)
+                    (start-cl-stream-recv receiver read-function))
+                  priority)))
 
 (defmethod recv-stop ((stream stream))
   (let ((recv (receiver stream)))
-    (when recv
+    (when (and recv (receiver-status recv))
       (compare-and-swap (receiver-status recv) t nil)
       (msg debug "cl:input-stream receiver for ~S stopped"
            (receiver-stream recv))
+      (sleep 1)
+      (when (and (bt:thread-alive-p (receiver-thread recv))
+                 (not (listen stream)))
+        (bt:destroy-thread (receiver-thread recv)))
+      (recv-unset-thread recv)
       recv)))
 
 ;;; RESPONDER

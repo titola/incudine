@@ -852,11 +852,12 @@ See also INCUDINE:MAKE-RESPONDER and INCUDINE:RECV-START."
 (defmethod recv-start ((stream jackmidi:input-stream)
                        &key (priority *receiver-default-priority*)
                        (update-midi-table-p t))
-  (add-receiver stream (or (receiver stream) (make-receiver stream))
-                (if update-midi-table-p
-                    #'start-jackmidi-recv-update-mtab
-                    #'start-jackmidi-recv-no-mtab)
-                priority))
+  (unless (eq (recv-status stream) :running)
+    (add-receiver stream (or (receiver stream) (make-receiver stream))
+                  (if update-midi-table-p
+                      #'start-jackmidi-recv-update-mtab
+                      #'start-jackmidi-recv-no-mtab)
+                  priority)))
 
 (defmethod recv-stop ((stream jackmidi:input-stream))
   (let ((recv (receiver stream)))
@@ -864,6 +865,7 @@ See also INCUDINE:MAKE-RESPONDER and INCUDINE:RECV-START."
       (compare-and-swap (receiver-status recv) t nil)
       (sleep .1)
       (jackmidi::force-cond-signal (jackmidi::stream-pointer stream))
+      (recv-unset-thread recv)
       (msg debug "Jack MIDI receiver for ~S stopped"
            (jackmidi:port-name stream))
       recv)))
