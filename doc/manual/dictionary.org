@@ -554,6 +554,7 @@ Some examples from s7.html translated to CL:
 ::: incudine.external:polar-to-complex
 ::: incudine.util:sort-samples
 ::: incudine.util:rationalize*
+::: incudine.util:parse-float
 ::: incudine.util:dochannels
 ::: incudine.util:smp-ref
 ::: incudine.util:power-of-two-p

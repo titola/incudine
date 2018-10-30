@@ -58,6 +58,19 @@
           collect (incudine::calc-lobits i))
   #.(loop for i to +max-lobits+ collect i))
 
+(deftest parse-float.1
+    (let ((str "test 123 345.67 -8910.1112    1314.15"))
+      (flet ((parse-test (start &optional end)
+               (multiple-value-list
+                 (parse-float str :start start :end end))))
+        (values (parse-test 5)
+                (parse-test 8)
+                (parse-test 15)
+                (parse-test 26)
+                (parse-test 10 14)
+                (parse-test 0))))
+  (123.0 8) (345.67 15) (-8910.111 26) (1314.15 37) (45.6 14) (NIL 0))
+
 (deftest dochannels
     (let ((acc))
       (dochannels (ch 8 (nreverse acc))

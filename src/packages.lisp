@@ -125,7 +125,7 @@
    #:get-bytes-consed-in
    #:thread-affinity #:thread-priority
    #:seed-random-state
-   #:sample->fixnum #:sample->int #:float->fixnum #:rationalize*
+   #:sample->fixnum #:sample->int #:float->fixnum #:rationalize* #:parse-float
    #:sort-samples
    #:rt-thread-p #:rt-eval #:allow-rt-memory-p
    #:foreign-pointer

@@ -251,6 +251,34 @@ The error is 0.0005% by default."
               (rat (floor (* m (- 1.0 significand-error)))
                    (rationalize x))))))))
 
+(defun parse-float (string &key (start 0) end)
+  "Parse a floating point number from the substring of STRING
+delimited by START and END.
+
+The first value returned is either the floating point number that was
+parsed or NIL.
+
+The second value is either the index into the string of the delimiter
+that terminated the parse, or the upper bounding index of the substring."
+  (declare (type simple-string string))
+  (multiple-value-bind (int pos)
+      (parse-integer string :start start :end end :junk-allowed t)
+    (if int
+        (let ((frac-start (1+ pos)))
+          (if (and (< frac-start (or end (length string)))
+                   (char= (char string pos) #\.)
+                   (digit-char-p (char string frac-start)))
+              (multiple-value-bind (frac len)
+                  (parse-integer string :start frac-start :end end
+                                 :junk-allowed t)
+                (values
+                  (+ int (* (/ frac (expt 10.0 (the (unsigned-byte 8)
+                                                 (- len frac-start))))
+                            (if (minusp int) -1 1)))
+                  len))
+              (values (* 1.0 int) pos)))
+        (values nil 0))))
+
 (declaim (inline declare-form-p))
 (defun declare-form-p (lst)
   (eq (car lst) 'declare))
