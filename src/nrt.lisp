@@ -246,7 +246,7 @@ undefined.")
 (declaim (type boolean *alloc-nrt-memory-p*))
 
 (defglobal *nrt-memory-lock* (bt:make-lock "NRT-MEMORY-LOCK"))
-(declaim (type bt:lock *nrt-memory-lock*))
+(declaim (type bt::lock *nrt-memory-lock*))
 
 (defun realloc-nrt-input-buffer ()
   (foreign-free *%nrt-input-pointer*)
