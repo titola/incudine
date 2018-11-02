@@ -246,6 +246,7 @@ undefined.")
 (declaim (type boolean *alloc-nrt-memory-p*))
 
 (defglobal *nrt-memory-lock* (bt:make-lock "NRT-MEMORY-LOCK"))
+;; Symbol BT:LOCK exported from bordeaux-threads-v0.8.6
 (declaim (type bt::lock *nrt-memory-lock*))
 
 (defun realloc-nrt-input-buffer ()
