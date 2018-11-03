@@ -288,9 +288,11 @@ Example:
   (bt:make-thread
     (lambda ()
       (let ((stream (receiver-stream receiver)))
-        ;; Flush pending writes.
-        (loop while (listen stream) do (funcall read-function stream))
         (setf (receiver-status receiver) t)
+        ;; Flush pending writes.
+        (if (serial-stream-p stream)
+            (serial-flush stream :direction :input)
+            (clear-input stream))
         (handler-case
             (loop while (receiver-status receiver) do
                     (let ((res (funcall read-function stream)))
@@ -302,13 +304,14 @@ Example:
             (msg error "end of file~%stop receiving from ~A" stream)
             (recv-stop stream))
           (condition (c) (nrt-msg error "~A" c)))))
-    :name (format nil "cl:input-stream recv ~A" (receiver-stream receiver))))
+    :name (let ((stream (receiver-stream receiver)))
+            (format nil "~A recv ~A" (type-of stream) stream))))
 
 (defmethod recv-start ((stream stream) &key read-function
                        (priority *receiver-default-priority*))
   (unless (eq (recv-status stream) :running)
     (unless read-function
-      (incudine-missing-arg "READ-FUNCTION is mandatory for CL:INPUT-STREAM."))
+      (incudine-missing-arg "READ-FUNCTION is mandatory for STREAM."))
     (add-receiver stream (or (receiver stream) (make-receiver stream))
                   (lambda (receiver)
                     (start-cl-stream-recv receiver read-function))
@@ -318,14 +321,14 @@ Example:
   (let ((recv (receiver stream)))
     (when (and recv (receiver-status recv))
       (compare-and-swap (receiver-status recv) t nil)
-      (msg debug "cl:input-stream receiver for ~S stopped"
-           (receiver-stream recv))
-      (sleep 1)
-      (when (and (bt:thread-alive-p (receiver-thread recv))
-                 (not (listen stream)))
-        (bt:destroy-thread (receiver-thread recv)))
-      (recv-unset-thread recv)
-      recv)))
+      (let ((stream (receiver-stream recv)))
+        (msg debug "~A receiver for ~S stopped" (type-of stream) stream)
+        (sleep 1)
+        (when (and (bt:thread-alive-p (receiver-thread recv))
+                   (not (listen stream)))
+          (bt:destroy-thread (receiver-thread recv)))
+        (recv-unset-thread recv)
+        recv))))
 
 ;;; RESPONDER
 

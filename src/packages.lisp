@@ -437,6 +437,8 @@
    #:remove-all-responders #:all-responders
    ;; midi
    #:midiout #:midiout-sysex #:midi-tuning-sysex #:set-tuning-from-midi
+   ;; serial
+   #:open-serial-port #:serial-stream-p #:serial-flush
    ;; envelope
    #:envelope #:envelope-p #:make-envelope #:edit-envelope #:envelope-points
    #:envelope-level #:envelope-time #:envelope-curve

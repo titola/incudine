@@ -1269,6 +1269,10 @@ ends after 6.5 beats.
 ::: osc:midi
 ::: osc:fix-size
 #+texinfo: @page
+** Serial IO
+::: open-serial-port
+::: serial-stream-p
+::: serial-flush
 ** Midifile
 ::: midifile:stream
 ::: midifile:input-stream
