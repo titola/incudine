@@ -16,8 +16,8 @@
 
 (in-package :incudine)
 
-(defvar *receiver-hash* (make-hash-table))
-(declaim (type hash-table *receiver-hash*))
+(defvar *receivers* (make-hash-table))
+(declaim (type hash-table *receivers*))
 
 (defstruct (receiver (:constructor %make-receiver)
                      (:copier nil))
@@ -45,7 +45,7 @@
 (defun receiver (stream)
   "Return the receiver related to STREAM if it exists. Otherwise,
 return NIL."
-  (values (gethash stream *receiver-hash*)))
+  (values (gethash stream *receivers*)))
 
 (defgeneric recv-start (stream &key)
   (:documentation "Start receiving from STREAM.
@@ -97,14 +97,14 @@ input available from STREAM."
       (recv-set-priority result priority)
       (when (bt:threadp result)
         (setf (receiver-thread recv) result))
-      (setf (gethash stream *receiver-hash*) recv))))
+      (setf (gethash stream *receivers*) recv))))
 
 (declaim (inline remove-receiver))
 (defun remove-receiver (stream)
   "Remove the receiver related to STREAM."
   (when stream
     (recv-stop stream)
-    (remhash stream *receiver-hash*)))
+    (remhash stream *receivers*)))
 
 ;;; PORTMIDI
 
@@ -332,8 +332,8 @@ Example:
 
 ;;; RESPONDER
 
-(defvar *responder-hash* (make-hash-table))
-(declaim (type hash-table *responder-hash*))
+(defvar *responders* (make-hash-table))
+(declaim (type hash-table *responders*))
 
 (defstruct (responder (:constructor %make-responder) (:copier nil))
   (receiver nil :type (or receiver null))
@@ -342,18 +342,18 @@ Example:
 (declaim (inline all-responders))
 (defun all-responders (stream)
   "Return the list of the responders for STREAM."
-  (values (gethash stream *responder-hash*)))
+  (values (gethash stream *responders*)))
 
 (defun %add-responder (resp stream)
   (declare (type responder resp))
-  (let* ((old-resp-list (gethash stream *responder-hash*))
+  (let* ((old-resp-list (gethash stream *responders*))
          (new-resp-list (cons resp old-resp-list))
          (old-func-list (receiver-functions (responder-receiver resp)))
          (new-func-list (cons (responder-function resp) old-func-list)))
     (when (eq (compare-and-swap (receiver-functions (responder-receiver resp))
                                 old-func-list new-func-list)
               old-func-list)
-      (setf (gethash stream *responder-hash*) new-resp-list)))
+      (setf (gethash stream *responders*) new-resp-list)))
   resp)
 
 (defun add-responder (resp)
@@ -361,7 +361,7 @@ Example:
 receiver-functions."
   (declare (type responder resp))
   (let ((recv (responder-receiver resp)))
-    (let ((resp-list (gethash (receiver-stream recv) *responder-hash*)))
+    (let ((resp-list (gethash (receiver-stream recv) *responders*)))
       (unless (find resp resp-list :test #'eq)
         (%add-responder resp (receiver-stream recv))))))
 
@@ -392,7 +392,7 @@ returned by the read-function passed to RECV-START."
 receiver-functions."
   (declare (type responder resp))
   (let ((recv (responder-receiver resp)))
-    (let ((resp-list (gethash (receiver-stream recv) *responder-hash*)))
+    (let ((resp-list (gethash (receiver-stream recv) *responders*)))
       (when resp-list
         (let* ((old-functions (receiver-functions recv))
                (new-functions (remove (responder-function resp)
@@ -402,9 +402,9 @@ receiver-functions."
                     old-functions)
             (let ((new-list (delete resp resp-list)))
               (if new-list
-                  (setf (gethash (receiver-stream recv) *responder-hash*)
+                  (setf (gethash (receiver-stream recv) *responders*)
                         new-list)
-                  (remhash (receiver-stream recv) *responder-hash*)))))
+                  (remhash (receiver-stream recv) *responders*)))))
         (values)))))
 
 (defun remove-all-responders (&optional stream)
@@ -412,7 +412,12 @@ receiver-functions."
   (if stream
       (dolist (resp (all-responders stream))
         (remove-responder resp))
-      (maphash-keys #'remove-all-responders *responder-hash*))
+      (maphash-keys #'remove-all-responders *responders*))
+  (values))
+
+(defun remove-all-receivers ()
+  "Remove all the receivers."
+  (clrhash *receivers*)
   (values))
 
 (defun remove-receiver-and-responders (stream)

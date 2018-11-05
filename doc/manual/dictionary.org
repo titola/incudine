@@ -327,6 +327,7 @@ Return ~t~ if the ~tempo~ or ~tempo-envelope~ instance is deallocated.
 ::: remove-all-responders
 ::: receiver
 ::: remove-receiver
+::: remove-all-receivers
 ::: recv-functions
 ::: recv-start
 ::: recv-stop

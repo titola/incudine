@@ -431,7 +431,7 @@
    #:control-setter #:control-list #:control-names
    #:reinit
    ;; responder
-   #:receiver #:remove-receiver
+   #:receiver #:remove-receiver #:remove-all-receivers
    #:recv-start #:recv-stop #:recv-status #:recv-functions
    #:make-responder #:make-osc-responder #:add-responder #:remove-responder
    #:remove-all-responders #:all-responders
