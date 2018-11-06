@@ -236,19 +236,25 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
                     (incudine.util::alloc-object *tempo-envelope-pool*)
                     #'foreign-free
                     *tempo-envelope-pool*))
-      (incudine.util::with-struct-slots
-          ((spb time-warp points max-points constant-p) tempo-env tempo-envelope)
-        (setf spb spb-env
-              time-warp twarp-data
-              points %points
-              max-points %max-points
-              constant-p (tenv-constant-p spbs))
-        (incudine-finalize tempo-env
-          (lambda ()
-            (funcall free-fn twarp-data)
-            (incudine-object-pool-expand pool 1)))
-        (fill-time-warp-data twarp-data spb-env)
-        tempo-env))))
+      (handler-case
+          (incudine.util::with-struct-slots
+              ((spb time-warp points max-points constant-p)
+               tempo-env tempo-envelope)
+            (setf spb spb-env
+                  time-warp twarp-data
+                  points %points
+                  max-points %max-points
+                  constant-p (tenv-constant-p spbs))
+            (fill-time-warp-data twarp-data spb-env))
+        (condition (c)
+          (funcall free-fn twarp-data)
+          (free spb-env)
+          (incudine-object-pool-expand pool 1)
+          (error c)))
+      (incudine-finalize tempo-env
+        (lambda ()
+          (funcall free-fn twarp-data)
+          (incudine-object-pool-expand pool 1))))))
 
 (defmethod free-p ((obj tempo-envelope))
   (null-pointer-p (tempo-envelope-time-warp obj)))

@@ -125,7 +125,12 @@ a non-NIL FILE argument, return the pathname.")
                       *buffer-pool*)))
       (declare (type foreign-pointer %data) (type buffer obj)
                (type incudine-object-pool pool))
-      (update-buffer obj frm chans bufsize %data srate rt-p free-fn)
+      (handler-case
+          (update-buffer obj frm chans bufsize %data srate rt-p free-fn)
+        (condition (c)
+          (funcall free-fn %data)
+          (incudine-object-pool-expand pool 1)
+          (error c)))
       (incudine-finalize obj
         (lambda ()
           (funcall free-fn %data)

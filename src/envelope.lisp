@@ -583,23 +583,27 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
                     *envelope-pool*))
       (declare (type foreign-pointer %data) (type envelope env)
                (type incudine-object-pool pool))
-      (incudine.util::with-struct-slots
-          ((data-ptr data-size points max-points %restart-level real-time-p foreign-free)
-           env envelope "INCUDINE")
-        (setf data-ptr %data
-              data-size (compute-envelope-data-size size)
-              points size
-              max-points %max-points
-              %restart-level (and restart-level (sample restart-level))
-              real-time-p rt-p
-              foreign-free free-fn)
-        (incudine-finalize env
-          (lambda ()
-            (funcall free-fn %data)
-            (incudine-object-pool-expand pool 1)))
-        (edit-envelope env levels times :curve curve :base base
-                       :loop-node loop-node :release-node release-node)
-        env))))
+      (handler-case
+          (incudine.util::with-struct-slots
+              ((data-ptr data-size points max-points %restart-level real-time-p
+                foreign-free) env envelope "INCUDINE")
+            (setf data-ptr %data
+                  data-size (compute-envelope-data-size size)
+                  points size
+                  max-points %max-points
+                  %restart-level (and restart-level (sample restart-level))
+                  real-time-p rt-p
+                  foreign-free free-fn)
+            (edit-envelope env levels times :curve curve :base base
+                           :loop-node loop-node :release-node release-node))
+        (condition (c)
+          (funcall free-fn %data)
+          (incudine-object-pool-expand pool 1)
+          (error c)))
+      (incudine-finalize env
+        (lambda ()
+          (funcall free-fn %data)
+          (incudine-object-pool-expand pool 1))))))
 
 (declaim (inline check-envelope-node))
 (defun check-envelope-node (env number)

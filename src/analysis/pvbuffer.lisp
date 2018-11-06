@@ -16,7 +16,8 @@
 
 (in-package :incudine.analysis)
 
-(defstruct (pvbuffer (:copier nil))
+(defstruct (pvbuffer (:constructor %make-pvbuffer)
+                     (:copier nil))
   "PVbuffer type.
 
 A PVBUFFER contains a sequence of spectral data."
@@ -118,34 +119,46 @@ The optional keywords START and FRAMES mark the beginning position in
 frames and the number of frames of the buffer, respectively."
   (declare (type incudine:buffer buf) (type positive-fixnum partsize)
            (type non-negative-fixnum start frames))
-  (let* ((bdata (incudine:buffer-data buf))
-         (bsize (incudine:buffer-size buf))
-         (channels (incudine:buffer-channels buf))
-         (partitions (number-of-partitions (if (plusp frames)
-                                               frames
-                                               (incudine:buffer-frames buf))
-                                           partsize))
-         (fft-size (* 2 partsize))
-         (fft (make-fft fft-size :window-function #'rectangular-window))
-         (fft-inbuf (fft-input-buffer fft))
-         (fft-outbuf (fft-output-buffer fft))
-         (block-size (fft-output-buffer-size fft))
-         (size (* partitions block-size))
-         (data (alloc-multi-channel-data channels size))
-         (obj (reduce-warnings
-                (make-pvbuffer :data data :size size :frames partitions
-                               :channels channels :fft-size fft-size
-                               :scale-factor (fft-scale-factor fft)
-                               :block-size block-size))))
-    (declare (type non-negative-fixnum channels partitions fft-size block-size
-                   size)
-             #.*standard-optimize-settings*)
-    (incudine-finalize obj (lambda () (free-multi-channel-data data channels)))
-    (foreach-pvbuffer-channel (obj pvbuf-ptr pvbpos bpos start channels)
-      (foreach-pvbuffer-frame obj
-        (fft-input-from-buffer-partition fft-inbuf fft-size partsize bdata bsize
-                                         bpos channels)
-        (fft-execute (fft-plan fft) fft-inbuf fft-outbuf)
-        (fft-output-to-pvbuffer-frame fft-outbuf pvbuf-ptr pvbpos block-size)))
-    (free fft)
-    obj))
+  (let ((fft (make-fft (* 2 partsize) :window-function #'rectangular-window))
+        (channels (incudine:buffer-channels buf))
+        (data nil)
+        (obj nil))
+    (handler-case
+        (unwind-protect
+          (let* ((bdata (incudine:buffer-data buf))
+                 (bsize (incudine:buffer-size buf))
+                 (partitions (number-of-partitions
+                               (if (plusp frames)
+                                   frames
+                                   (incudine:buffer-frames buf))
+                               partsize))
+                 (block-size (fft-output-buffer-size fft))
+                 (size (* partitions block-size))
+                 (fft-size (fft-size fft))
+                 (fft-inbuf (fft-input-buffer fft))
+                 (fft-outbuf (fft-output-buffer fft)))
+            (declare (type non-negative-fixnum partitions block-size size
+                           fft-size)
+                     #.*standard-optimize-settings*)
+            (setf data (alloc-multi-channel-data channels size))
+            (setf obj
+                  (incudine-finalize
+                    (reduce-warnings
+                      (%make-pvbuffer :data data :size size :frames partitions
+                                      :channels channels :fft-size fft-size
+                                      :scale-factor (fft-scale-factor fft)
+                                      :block-size block-size))
+                    (lambda ()
+                      (free-multi-channel-data data channels))))
+            (foreach-pvbuffer-channel (obj pvbuf-ptr pvbpos bpos start channels)
+              (foreach-pvbuffer-frame obj
+                (fft-input-from-buffer-partition
+                  fft-inbuf fft-size partsize bdata bsize bpos channels)
+                (fft-execute (fft-plan fft) fft-inbuf fft-outbuf)
+                (fft-output-to-pvbuffer-frame
+                  fft-outbuf pvbuf-ptr pvbpos block-size)))
+            obj)
+          (free fft))
+      (condition (c)
+        (if data (free-multi-channel-data data channels))
+        (error c)))))

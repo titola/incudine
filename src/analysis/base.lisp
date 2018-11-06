@@ -90,18 +90,22 @@
                     *ring-input-buffer-pool*))
       (declare (type foreign-pointer data-ptr) (type ring-input-buffer buf)
                (type incudine-object-pool pool))
+      (handler-case
+          (incudine.util::with-struct-slots
+              ((data size real-time-p foreign-free)
+               buf ring-input-buffer "INCUDINE.ANALYSIS")
+            (setf data data-ptr
+                  size bufsize
+                  real-time-p rt-p
+                  foreign-free free-fn))
+        (condition (c)
+          (funcall free-fn data-ptr)
+          (incudine-object-pool-expand pool 1)
+          (error c)))
       (incudine-finalize buf
         (lambda ()
           (funcall free-fn data-ptr)
-          (incudine-object-pool-expand pool 1)))
-      (incudine.util::with-struct-slots
-          ((data size real-time-p foreign-free)
-           buf ring-input-buffer "INCUDINE.ANALYSIS")
-        (setf data data-ptr
-              size bufsize
-              real-time-p rt-p
-              foreign-free free-fn)
-        buf))))
+          (incudine-object-pool-expand pool 1))))))
 
 (defun make-ring-output-buffer (bufsize
                                 &optional (real-time-p (incudine.util:allow-rt-memory-p)))
@@ -110,10 +114,9 @@
            (if rt-p
                (foreign-rt-alloc 'sample :count bufsize :zero-p zero-p)
                (foreign-alloc-sample bufsize))))
-    (let* ((rt-p (and real-time-p incudine.util:*allow-rt-memory-pool-p*))
-           (data-ptr (foreign-alloc bufsize t rt-p))
-           (tmp-ptr (foreign-alloc bufsize nil rt-p)))
-      (declare (type foreign-pointer data-ptr tmp-ptr))
+    (let ((rt-p (and real-time-p incudine.util:*allow-rt-memory-pool-p*))
+          (data-ptr nil)
+          (tmp-ptr nil))
       (multiple-value-bind (buf free-fn pool)
           (if rt-p
               (values (incudine.util::alloc-rt-object *rt-ring-output-buffer-pool*)
@@ -123,20 +126,28 @@
                       #'foreign-free
                       *ring-output-buffer-pool*))
         (declare (type ring-output-buffer buf) (type incudine-object-pool pool))
+        (handler-case
+            (progn
+              (setf data-ptr (foreign-alloc bufsize t rt-p))
+              (setf tmp-ptr (foreign-alloc bufsize nil rt-p))
+              (incudine.util::with-struct-slots
+                  ((data tmp size real-time-p foreign-free)
+                   buf ring-output-buffer "INCUDINE.ANALYSIS")
+                (setf data data-ptr
+                      tmp tmp-ptr
+                      size bufsize
+                      real-time-p rt-p
+                      foreign-free free-fn)))
+          (condition (c)
+            (dolist (p (list data-ptr tmp-ptr))
+              (if p (funcall free-fn p)))
+            (incudine-object-pool-expand pool 1)
+            (error c)))
         (incudine-finalize buf
           (lambda ()
             (funcall free-fn data-ptr)
             (funcall free-fn tmp-ptr)
-            (incudine-object-pool-expand pool 1)))
-        (incudine.util::with-struct-slots
-            ((data tmp size real-time-p foreign-free)
-             buf ring-output-buffer "INCUDINE.ANALYSIS")
-          (setf data data-ptr
-                tmp tmp-ptr
-                size bufsize
-                real-time-p rt-p
-                foreign-free free-fn)
-          buf)))))
+            (incudine-object-pool-expand pool 1)))))))
 
 (defmethod free-p ((obj ring-buffer))
   (zerop (ring-buffer-size obj)))
@@ -448,8 +459,8 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
                       (* 2 %nbins)
                       (analysis-size analysis-object)))
            (rt-p (and real-time-p incudine.util:*allow-rt-memory-pool-p*))
-           (data-ptr (foreign-alloc %size t rt-p))
-           (tptr (foreign-alloc 1 nil rt-p)))
+           (data-ptr nil)
+           (tptr nil))
       (multiple-value-bind (obj free-fn pool)
           (if rt-p
               (values (incudine.util::alloc-rt-object *rt-abuffer-pool*)
@@ -459,26 +470,34 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
                       #'foreign-free
                       *abuffer-pool*))
         (declare (type abuffer obj) (type incudine-object-pool pool))
+        (handler-case
+            (progn
+              (setf data-ptr (foreign-alloc %size t rt-p))
+              (setf tptr (foreign-alloc 1 nil rt-p))
+              (incudine.util::with-struct-slots
+                  ((data size nbins scale-factor time-ptr link coord-complex-p
+                    real-time-p foreign-free)
+                   obj abuffer "INCUDINE.ANALYSIS")
+                (setf data data-ptr
+                      size %size
+                      nbins %nbins
+                      scale-factor (analysis-scale-factor analysis-object)
+                      time-ptr tptr
+                      link analysis-object
+                      coord-complex-p coord-complex-p
+                      real-time-p rt-p
+                      foreign-free free-fn)
+                (setf (smp-ref time-ptr 0) #.(sample -1))))
+          (condition (c)
+            (dolist (p (list data-ptr tptr))
+              (if p (funcall free-fn p)))
+            (incudine-object-pool-expand pool 1)
+            (error c)))
         (incudine-finalize obj
           (lambda ()
             (funcall free-fn data-ptr)
             (funcall free-fn tptr)
-            (incudine-object-pool-expand pool 1)))
-        (incudine.util::with-struct-slots
-            ((data size nbins scale-factor time-ptr link coord-complex-p
-              real-time-p foreign-free)
-             obj abuffer "INCUDINE.ANALYSIS")
-          (setf data data-ptr
-                size %size
-                nbins %nbins
-                scale-factor (analysis-scale-factor analysis-object)
-                time-ptr tptr
-                link analysis-object
-                coord-complex-p coord-complex-p
-                real-time-p rt-p
-                foreign-free free-fn)
-          (setf (smp-ref time-ptr 0) #.(sample -1))
-          obj)))))
+            (incudine-object-pool-expand pool 1)))))))
 
 (defmethod free-p ((obj abuffer))
   (zerop (abuffer-size obj)))

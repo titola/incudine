@@ -109,31 +109,37 @@
                       (incudine.util::alloc-object *tuning-pool*)
                       #'foreign-free
                       *tuning-pool*))
-        (let* ((smp-ratios (cffi:inc-pointer %data data-bytes))
-               (%aux-data (cffi:inc-pointer smp-ratios
-                            (+ data-bytes +foreign-sample-size+))))
-          (incudine.util::with-struct-slots
-              ((data-ptr description %cents %ratios sample-ratios aux-data size
-                real-time-p foreign-free)
-               obj tuning)
-            (setf data-ptr %data
-                  size %size
-                  description descr
-                  %cents cents
-                  %ratios ratios
-                  sample-ratios smp-ratios
-                  aux-data %aux-data
-                  real-time-p rt-p
-                  foreign-free free-fn)
-            (incudine-finalize obj
-              (lambda ()
-                (funcall free-fn %data)
-                (incudine-object-pool-expand pool 1)))
-            (setf (u8-ref aux-data 0) keynum-base)
-            (setf (u8-ref aux-data 1) (min degree-index (1- (length cents))))
-            (setf (smp-ref aux-data +tuning-freq-base-index+) (sample freq-base))
-            (update-tuning-data (tuning-update-sample-ratios obj))
-            obj))))))
+        (handler-case
+            (let* ((smp-ratios (cffi:inc-pointer %data data-bytes))
+                   (%aux-data (cffi:inc-pointer smp-ratios
+                                (+ data-bytes +foreign-sample-size+))))
+              (incudine.util::with-struct-slots
+                  ((data-ptr description %cents %ratios sample-ratios aux-data
+                    size real-time-p foreign-free)
+                   obj tuning)
+                (setf data-ptr %data
+                      size %size
+                      description descr
+                      %cents cents
+                      %ratios ratios
+                      sample-ratios smp-ratios
+                      aux-data %aux-data
+                      real-time-p rt-p
+                      foreign-free free-fn)
+                (setf (u8-ref aux-data 0) keynum-base)
+                (setf (u8-ref aux-data 1)
+                      (min degree-index (1- (length cents))))
+                (setf (smp-ref aux-data +tuning-freq-base-index+)
+                      (sample freq-base))
+                (update-tuning-data (tuning-update-sample-ratios obj))))
+          (condition (c)
+            (funcall free-fn %data)
+            (incudine-object-pool-expand pool 1)
+            (error c)))
+        (incudine-finalize obj
+          (lambda ()
+            (funcall free-fn %data)
+            (incudine-object-pool-expand pool 1)))))))
 
 (defun make-tuning (&key notes file description (keynum-base 69) (freq-base 440)
                     (degree-index 9) (real-time-p (allow-rt-memory-p)))

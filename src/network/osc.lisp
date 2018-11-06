@@ -232,54 +232,79 @@ MESSAGE-ENCODING is NIL (default) or :SLIP."
            (type positive-fixnum buffer-size max-values)
            (type (member nil :slip) message-encoding))
   (cffi:with-foreign-object (address-ptr :pointer)
-    (unless (zerop (new-address address-ptr host port (eq protocol :udp)
-                                (eq direction :input) *addrinfo-hints-flags*))
-      (incudine::foreign-alloc-error "OSC address allocation."))
-    (let* ((buffer-size (max 1500 buffer-size))
-           (address (cffi:mem-ref address-ptr :pointer))
-           ;; Add 4 bytes with zero, so the loop in STREAM-BUFFER-STRLEN
-           ;; never fails if the message is wrong and without zeroes.
-           ;; Also reserve the space to store a temporary value (see GET-FLOAT
-           ;; for little-endian) and a file descriptor.
-           (buf-pad (+ +zero-padding-bytes+ +temp-space-bytes+
-                       (if (and (eq direction :input) (eq protocol :tcp))
-                           0 +int-size+)))
-           (buf-ptr (cffi:foreign-alloc :char :count (+ buffer-size buf-pad)
-                                        :initial-element 0))
-           (aux-ptr (if (eq message-encoding :slip)
-                        (cffi:foreign-alloc :char :count (* 2 buffer-size)
-                                            :initial-element 0)
-                        (cffi:null-pointer)))
-           (value-vec-ptr (cffi:foreign-alloc :pointer :count (+ max-values 3)))
-           (type-vec-ptr (cffi:foreign-alloc :char :count (+ max-values 1)
-                                             :initial-element 0))
-           (fds-ptr (alloc-fds buf-ptr (+ buffer-size buf-pad) direction
-                               protocol))
-           (buffer-offset (if (and (eq protocol :tcp) (null message-encoding))
-                              ;; 4 bytes reserved for the size of the message.
-                              4 0))
-           (reserved-bytes (+ +bundle-reserved-bytes+ buffer-offset))
-           (obj (funcall (if (eq direction :input)
-                             input-stream-constructor
-                             output-stream-constructor)
-                         :host host :port port :protocol protocol
-                         :address-ptr address :fds-ptr fds-ptr
-                         :addrinfo-ptr (cffi:mem-ref address :pointer)
-                         :direction direction :buffer-pointer buf-ptr
-                         :message-pointer (cffi:inc-pointer buf-ptr
-                                                            reserved-bytes)
-                         :bundle-pointer (if (zerop buffer-offset)
-                                             buf-ptr
-                                             (cffi:inc-pointer buf-ptr
-                                                               buffer-offset))
-                         :message-encoding message-encoding
-                         :buffer-size (- buffer-size reserved-bytes)
-                         :max-values max-values
-                         :value-vec-ptr value-vec-ptr
-                         :type-vec-ptr type-vec-ptr :aux-buffer-pointer aux-ptr
-                         :tmp-ptr (cffi:inc-pointer buf-ptr
-                                                    (+ buffer-size
-                                                       +zero-padding-bytes+)))))
+    (let ((address nil)
+          (buf-ptr nil)
+          (aux-ptr nil)
+          (value-vec-ptr nil)
+          (type-vec-ptr nil)
+          (fds-ptr nil)
+          (obj nil))
+      (unless (zerop (new-address address-ptr host port (eq protocol :udp)
+                                  (eq direction :input) *addrinfo-hints-flags*))
+        (incudine::foreign-alloc-error "OSC address allocation."))
+      (handler-case
+          (let* ((buffer-size (max 1500 buffer-size))
+                 ;; Add 4 bytes with zero, so the loop in STREAM-BUFFER-STRLEN
+                 ;; never fails if the message is wrong and without zeroes.
+                 ;; Also reserve the space to store a temporary value (see GET-FLOAT
+                 ;; for little-endian) and a file descriptor.
+                 (buf-pad (+ +zero-padding-bytes+ +temp-space-bytes+
+                             (if (and (eq direction :input) (eq protocol :tcp))
+                                 0 +int-size+)))
+                 (buffer-offset (if (and (eq protocol :tcp)
+                                         (null message-encoding))
+                                    ;; 4 bytes reserved for the size of the message.
+                                    4 0))
+                 (reserved-bytes (+ +bundle-reserved-bytes+ buffer-offset)))
+            (setf address (cffi:mem-ref address-ptr :pointer))
+            (setf buf-ptr
+                  (cffi:foreign-alloc :char :count (+ buffer-size buf-pad)
+                                      :initial-element 0))
+            (setf aux-ptr
+                  (if (eq message-encoding :slip)
+                      (cffi:foreign-alloc :char :count (* 2 buffer-size)
+                                          :initial-element 0)
+                      (cffi:null-pointer)))
+            (setf value-vec-ptr
+                  (cffi:foreign-alloc :pointer :count (+ max-values 3)))
+            (setf type-vec-ptr
+                  (cffi:foreign-alloc :char :count (+ max-values 1)
+                                      :initial-element 0))
+            (setf fds-ptr (alloc-fds buf-ptr (+ buffer-size buf-pad) direction
+                                     protocol))
+            (setf obj (funcall
+                        (if (eq direction :input)
+                            input-stream-constructor
+                            output-stream-constructor)
+                        :host host
+                        :port port
+                        :protocol protocol
+                        :address-ptr address
+                        :fds-ptr fds-ptr
+                        :addrinfo-ptr (cffi:mem-ref address :pointer)
+                        :direction direction
+                        :buffer-pointer buf-ptr
+                        :message-pointer
+                          (cffi:inc-pointer buf-ptr reserved-bytes)
+                        :bundle-pointer
+                          (if (zerop buffer-offset)
+                              buf-ptr
+                              (cffi:inc-pointer buf-ptr buffer-offset))
+                        :message-encoding message-encoding
+                        :buffer-size (- buffer-size reserved-bytes)
+                        :max-values max-values
+                        :value-vec-ptr value-vec-ptr
+                        :type-vec-ptr type-vec-ptr
+                        :aux-buffer-pointer aux-ptr
+                        :tmp-ptr
+                          (cffi:inc-pointer
+                            buf-ptr (+ buffer-size +zero-padding-bytes+)))))
+        (condition (c)
+          (if fds-ptr (free-fds fds-ptr direction protocol))
+          (if address (free-address address))
+          (dolist (p (list buf-ptr aux-ptr value-vec-ptr type-vec-ptr))
+            (if p (free-pointer p)))
+          (error c)))
       (incudine.util::finalize obj
         (lambda ()
           (free-fds fds-ptr direction protocol)
