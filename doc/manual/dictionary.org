@@ -253,6 +253,7 @@ Return ~t~ if the ~tempo~ or ~tempo-envelope~ instance is deallocated.
 ::: incudine.util:get-foreign-sample-used-size
 *** Finalization
 ::: with-cleanup
+::: without-cleanup
 ::: dynamic-incudine-finalizer-p
 ::: incudine-finalize
 ::: incudine-cancel-finalization

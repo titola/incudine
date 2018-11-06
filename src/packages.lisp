@@ -399,7 +399,8 @@
    #:load-sclfile
    #:pch->cps #:cps->pch #:pch->keynum #:keynum->pch
    #:free #:free-p
-   #:with-cleanup #:incudine-finalize #:incudine-cancel-finalization
+   #:with-cleanup #:without-cleanup
+   #:incudine-finalize #:incudine-cancel-finalization
    #:dynamic-incudine-finalizer-p
    #:play #:stop #:quantize
    #:circular-shift

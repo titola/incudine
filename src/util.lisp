@@ -613,6 +613,11 @@ the dynamic extent of BODY."
              (incudine.util:rt-global-pool-push-list *to-free*)
              (incudine.util:nrt-global-pool-push-list *to-free*))))))
 
+(defmacro without-cleanup (&body body)
+  "Used inside the body of WITH-CLEANUP to ignore the dynamic
+finalizers during BODY."
+  `(let ((*to-free* nil)) ,@body))
+
 (declaim (inline dynamic-incudine-finalizer-p))
 (defun dynamic-incudine-finalizer-p ()
   "Return T within the dynamic extend of WITH-CLEANUP."
