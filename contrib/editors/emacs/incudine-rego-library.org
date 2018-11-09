@@ -1,0 +1,53 @@
+#+TITLE: Collection of code blocks for Incudine Rego Mode
+
+* bounce-to-disk
+
+#+NAME: bounce-to-disk
+#+HEADER: :package "SCRATCH"
+#+HEADER: :var output-filename=()
+#+HEADER: :var input-filename=()
+#+HEADER: :var channels=()
+#+HEADER: :var duration=()
+#+HEADER: :var pad=2
+#+HEADER: :var sample-rate=()
+#+HEADER: :var header-type=()
+#+HEADER: :var data-format=()
+#+HEADER: :var metadata=()
+#+HEADER: :var rego-filename=(buffer-file-name)
+#+BEGIN_SRC incudine :results silent
+  (bounce-to-disk ((or output-filename
+                       (make-pathname :defaults rego-filename :type "wav"))
+                   :input-filename input-filename
+                   :channels (or channels *number-of-output-bus-channels*)
+                   :duration duration :pad pad
+                   :sample-rate (or sample-rate *sample-rate*)
+                   :header-type header-type :data-format data-format
+                   :metadata metadata)
+    (funcall (regofile->function rego-filename)))
+#+END_SRC
+
+* bounce-to-snd
+
+#+NAME: bounce-to-snd
+#+HEADER: :package  "SCRATCH"
+#+HEADER: :var output-filename=()
+#+HEADER: :var input-filename=()
+#+HEADER: :var channels=()
+#+HEADER: :var duration=()
+#+HEADER: :var pad=2
+#+HEADER: :var sample-rate=()
+#+HEADER: :var header-type=()
+#+HEADER: :var data-format=()
+#+HEADER: :var metadata=()
+#+HEADER: :var rego-filename=(buffer-file-name)
+#+BEGIN_SRC incudine :results silent
+  (bounce-to-snd ((or output-filename
+                      (make-pathname :defaults rego-filename :type "wav"))
+                  :input-filename input-filename
+                  :channels (or channels *number-of-output-bus-channels*)
+                  :duration duration :pad pad
+                  :sample-rate (or sample-rate *sample-rate*)
+                  :header-type header-type :data-format data-format
+                  :metadata metadata)
+    (funcall (regofile->function rego-filename)))
+#+END_SRC

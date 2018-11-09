@@ -144,6 +144,52 @@ Hook called when a buffer enters Incudine Rego mode.
 - @@texinfo:@kbd{M-,}@@ ::
      Goto the location of the parent rego file or call ~tags-loop-continue~.
 
+**** Collection of code blocks
+
+The syntax of the function call arguments in Org is
+
+: argA=value, argB=value, ...
+
+#+texinfo: @noindent
+If we forget this rule and something stops to work, we can use the
+interactive function ~load-incudine-rego-library~ to reload the code blocks.
+
+#+attr_texinfo: :options bounce-to-disk (:var output-filename input-filename channels duration pad sample-rate header-type data-format metadata rego-filename)
+#+begin_defun
+Process the current rego file or the ~rego-filename~ passed as argument.
+
+By default ~output-filename~ is derived from the rego filename with
+extension "wav".
+
+See ~incudine:bounce-to-disk~ for the other defaults.
+
+Example:
+
+: ;;; test.rego
+:
+: #+begin_src incudine :results silent
+:   (dsp! smart-pulses (freq amp (nh fixnum))
+:     (out (buzz freq amp nh)))
+: #+end_src
+:
+: #+call: bounce-to-disk(channels=1, duration=4, sample-rate=44100)
+: #+call: bounce-to-disk(channels=1, header-type="au", data-format="double")
+: #+call: bounce-to-disk(output-filename="break-engine-gen.wav", rego-filename="buonassera-ciccio-systems.rego")
+: #+call: bounce-to-disk(rego-filename="various-systems.rego")
+: | 0 | smart-pulses | 650/3  | .30 |  7 |
+: | 0 | smart-pulses | 5200/3 | .45 | 11 |
+#+end_defun
+
+#+attr_texinfo: :options bounce-to-snd (:var output-filename input-filename channels duration pad sample-rate header-type data-format metadata rego-filename)
+#+begin_defun
+If ~incudine-snd~ is loaded and Snd is started with ~snd:run~, process
+the current rego file or the ~rego-filename~ passed as argument, then
+open ~output-filename~ in Snd.
+
+By default ~output-filename~ is derived from the rego filename with
+extension "wav".
+#+end_defun
+
 *** Org Mode
 Code blocks in Incudine are supported. For example,
 
