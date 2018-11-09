@@ -378,9 +378,10 @@ BPM is the tempo in beats per minute and defaults to *DEFAULT-BPM*."
         incudine::*sndfile-buffer-size*
         (- (+ incudine::*sndfile-buffer-size* channels) x))))
 
-(defun %bounce-to-disk (output-filename duration channels sample-rate
-                        header-type data-format metadata function)
-  (declare (type (or string pathname) output-filename) (type function function)
+(defun %bounce-to-disk (input-filename output-filename duration channels
+                        sample-rate header-type data-format metadata function)
+  (declare (ignore input-filename)
+           (type (or string pathname) output-filename) (type function function)
            (type channel-number channels) (type real duration))
   (with-nrt (channels sample-rate)
     (let* (;; If DURATION is negative or zero, the rendering terminates
@@ -600,18 +601,23 @@ METADATA is a property list to set string metadata in OUTPUT-FILENAME.
 Not all file types support metadata. The valid properties are: title,
 copyright, software, artist, comment, date, album, license, tracknumber
 and genre."
-  `(,@(if input-filename
-          `(%bounce-to-disk-with-infile
-             (soundfile-truename ,input-filename :input-p t))
-          '(%bounce-to-disk))
-      (soundfile-truename ,output-filename)
-      ,(or duration `(- ,pad))
-      ,channels
-      ,sample-rate
-      ,(or header-type '*default-header-type*)
-      ,(or data-format '*default-data-format*)
-      ,metadata
-      (bounce-function ,body)))
+  (with-gensyms (fname infile)
+    `(let ((,infile ,input-filename))
+       (multiple-value-bind (,fname ,infile)
+           (if ,infile
+               (values #'%bounce-to-disk-with-infile
+                       (soundfile-truename ,infile :input-p t))
+               (values #'%bounce-to-disk nil))
+         (funcall ,fname
+           ,infile
+           (soundfile-truename ,output-filename)
+           (or ,duration (- ,pad))
+           ,channels
+           ,sample-rate
+           (or ,header-type *default-header-type*)
+           (or ,data-format *default-data-format*)
+           ,metadata
+           (bounce-function ,body))))))
 
 (defmacro nrt-write-buffer-loop (in-data out-data in-count out-count
                                  in-channels out-channels in-size mix-p)
