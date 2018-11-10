@@ -144,6 +144,23 @@ Hook called when a buffer enters Incudine Rego mode.
 - @@texinfo:@kbd{M-,}@@ ::
      Goto the location of the parent rego file or call ~tags-loop-continue~.
 
+*** Org Mode
+Code blocks in Incudine are supported. For example,
+
+#+texinfo: @exampleindent 4
+#+begin_example
+(require 'ob-incudine)
+#+end_example
+
+#+texinfo: @noindent
+enables the execution of Incudine code blocks.
+
+#+texinfo: @noindent
+If the ~tangle~ header argument is ~yes~, the extension of the tangled
+file is "cudo".
+
+#+texinfo: @page
+
 **** Collection of code blocks
 
 The syntax of the function call arguments in Org is
@@ -189,20 +206,3 @@ open ~output-filename~ in Snd.
 By default ~output-filename~ is derived from the rego filename with
 extension "wav".
 #+end_defun
-
-*** Org Mode
-Code blocks in Incudine are supported. For example,
-
-#+texinfo: @exampleindent 4
-#+begin_example
-(require 'ob-incudine)
-#+end_example
-
-#+texinfo: @noindent
-enables the execution of Incudine code blocks.
-
-#+texinfo: @noindent
-If the ~tangle~ header argument is ~yes~, the extension of the tangled
-file is "cudo".
-
-#+texinfo: @page
