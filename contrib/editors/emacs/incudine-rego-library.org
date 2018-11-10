@@ -15,15 +15,16 @@
 #+HEADER: :var metadata=()
 #+HEADER: :var rego-filename=(buffer-file-name)
 #+BEGIN_SRC incudine :results silent
-  (bounce-to-disk ((or output-filename
-                       (make-pathname :defaults rego-filename :type "wav"))
-                   :input-filename input-filename
-                   :channels (or channels *number-of-output-bus-channels*)
-                   :duration duration :pad pad
-                   :sample-rate (or sample-rate *sample-rate*)
-                   :header-type header-type :data-format data-format
-                   :metadata metadata)
-    (funcall (regofile->function rego-filename)))
+  (let ((*logger-stream* *standard-output*))
+    (bounce-to-disk ((or output-filename
+                         (make-pathname :defaults rego-filename :type "wav"))
+                     :input-filename input-filename
+                     :channels (or channels *number-of-output-bus-channels*)
+                     :duration duration :pad pad
+                     :sample-rate (or sample-rate *sample-rate*)
+                     :header-type header-type :data-format data-format
+                     :metadata metadata)
+      (funcall (regofile->function rego-filename))))
 #+END_SRC
 
 * bounce-to-snd
@@ -41,13 +42,14 @@
 #+HEADER: :var metadata=()
 #+HEADER: :var rego-filename=(buffer-file-name)
 #+BEGIN_SRC incudine :results silent
-  (bounce-to-snd ((or output-filename
-                      (make-pathname :defaults rego-filename :type "wav"))
-                  :input-filename input-filename
-                  :channels (or channels *number-of-output-bus-channels*)
-                  :duration duration :pad pad
-                  :sample-rate (or sample-rate *sample-rate*)
-                  :header-type header-type :data-format data-format
-                  :metadata metadata)
-    (funcall (regofile->function rego-filename)))
+  (let ((*logger-stream* *standard-output*))
+    (bounce-to-snd ((or output-filename
+                        (make-pathname :defaults rego-filename :type "wav"))
+                    :input-filename input-filename
+                    :channels (or channels *number-of-output-bus-channels*)
+                    :duration duration :pad pad
+                    :sample-rate (or sample-rate *sample-rate*)
+                    :header-type header-type :data-format data-format
+                    :metadata metadata)
+      (funcall (regofile->function rego-filename))))
 #+END_SRC
