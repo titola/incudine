@@ -417,6 +417,7 @@ receiver-functions."
 
 (defun remove-all-receivers ()
   "Remove all the receivers."
+  (alexandria:maphash-keys #'recv-stop *receivers*)
   (clrhash *receivers*)
   (values))
 
