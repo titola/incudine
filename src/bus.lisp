@@ -95,7 +95,9 @@
 
 (declaim (inline bus))
 (defun bus (num)
-  "Return the value of the bus number NUM. Setfable."
+  "Return the value of the bus number NUM. Setfable.
+
+No bounds checking."
   (declare (type bus-number num))
   (smp-ref *bus-pointer* num))
 
@@ -110,7 +112,9 @@
 (defun audio-in (channel &optional (frame 0))
   "Return the value of the CHANNEL of the input buffer FRAME.
 
-If AUDIO-IN is used within a VUG definition, FRAME is ignored."
+If AUDIO-IN is used within a VUG definition, FRAME is ignored.
+
+No bounds checking."
   (declare (type channel-number channel)
            (type non-negative-fixnum frame))
   (smp-ref (input-pointer)
@@ -123,7 +127,9 @@ If AUDIO-IN is used within a VUG definition, FRAME is ignored."
 (defun audio-out (channel &optional (frame 0))
   "Return the value of the CHANNEL of the output buffer FRAME. Setfable.
 
-If AUDIO-OUT is used within a VUG definition, FRAME is ignored."
+If AUDIO-OUT is used within a VUG definition, FRAME is ignored.
+
+No bounds checking."
   (declare (type channel-number channel)
            (type non-negative-fixnum frame))
   (smp-ref (output-pointer)
@@ -161,7 +167,9 @@ If AUDIO-OUT is used within a VUG definition, FRAME is ignored."
 
 (declaim (inline peak-info))
 (defun peak-info (chan)
-  "Return peak information for the channel CHAN."
+  "Return peak information for the channel CHAN.
+
+No bounds checking."
   (declare (type channel-number chan))
   (values (smp-ref *output-peak-values* chan)
           (svref *out-of-range-counter* chan)))
@@ -172,7 +180,9 @@ If AUDIO-OUT is used within a VUG definition, FRAME is ignored."
 
 The number of the channels defaults to *NUMBER-OF-OUTPUT-BUS-CHANNELS*.
 
-The output stream is *LOGGER-STREAM* by default."
+The output stream is *LOGGER-STREAM* by default.
+
+No bounds checking."
   (fresh-line stream)
   (format stream "~11Tpeak amps:  ")
   (dochannels (ch channels)
