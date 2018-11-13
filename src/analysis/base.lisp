@@ -306,7 +306,7 @@ rectangular window."
   (ring-buffer *dummy-ring-buffer* :type ring-buffer)
   (window-buffer (null-pointer) :type foreign-pointer)
   (window-size 0 :type non-negative-fixnum)
-  (window-function #'rectangular-window :type function)
+  (window-function #'rectangular-window :type (or function null))
   (plan-wrap *dummy-fft-plan* :type fft-plan)
   (plan (null-pointer) :type foreign-pointer))
 
@@ -351,9 +351,9 @@ rectangular window."
 (declaim (type incudine-object-pool *rt-ifft-pool*))
 
 (defgeneric window-function (obj)
-  (:documentation "Function of two arguments called to fill an analysis data window.
-The function arguments are the foreign pointer to the data window of
-type SAMPLE and the window size respectively. Setfable."))
+  (:documentation "NIL or the function of two arguments called to fill an analysis data window.
+The function arguments are the foreign pointer to the data window of type
+SAMPLE and the window size respectively. Setfable."))
 
 (defgeneric (setf window-function) (fn obj))
 
@@ -366,8 +366,8 @@ type SAMPLE and the window size respectively. Setfable."))
   (fft-common-window-function obj))
 
 (declaim (inline fill-window-buffer))
-(defun fill-window-buffer (buffer function size)
-  (if (eq function #'rectangular-window)
+(defun fill-window-buffer (buffer function size &optional force-p)
+  (if (and (not force-p) (eq function #'rectangular-window))
       buffer
       (funcall function buffer size)))
 
@@ -375,6 +375,9 @@ type SAMPLE and the window size respectively. Setfable."))
   (fill-window-buffer (fft-common-window-buffer obj) fn
                       (fft-common-window-size obj))
   (setf (fft-common-window-function obj) fn))
+
+(defmethod (setf window-function) ((fn null) (obj fft-common))
+  (setf (fft-common-window-function obj) nil))
 
 (defmethod window-size ((obj fft-common))
   (fft-common-window-size obj))
@@ -400,7 +403,9 @@ type SAMPLE and the window size respectively. Setfable."))
             (incudine-object-pool-expand pool 1)))
         (funcall foreign-free (fft-common-window-buffer obj))
         (setf (fft-common-window-buffer obj) window-buffer)
-        (fill-window-buffer window-buffer (fft-common-window-function obj) size)
+        (if (fft-common-window-function obj)
+            (fill-window-buffer window-buffer
+                                (fft-common-window-function obj) size))
         (setf (fft-common-window-size obj) size))))
   size)
 

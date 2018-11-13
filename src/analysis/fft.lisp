@@ -152,9 +152,12 @@ FFT-PLAN, FLAGS defaults to +FFT-PLAN-FAST+."
 
 WINDOW-SIZE is the size of the analysis window and defaults to SIZE.
 
-WINDOW-FUNCTION is a function of two arguments called to fill the FFT data
-window. The function arguments are the foreign pointer to the data window
-of type SAMPLE and the window size respectively.
+WINDOW-FUNCTION is NIL or a function of two arguments called to fill the
+FFT data window. The function arguments are the foreign pointer to the
+data window of type SAMPLE and the window size respectively.
+If WINDOW-FUNCTION is NIL, the window is initially rectangular but
+we can call FFT-WINDOW to get the pointer to the buffer and directly
+manipulate the sample values.
 WINDOW-FUNCTION defaults to *FFT-DEFAULT-WINDOW-FUNCTION*.
 
 The argument FLAGS for the FFT planner is usually +FFT-PLAN-OPTIMAL+,
@@ -165,7 +168,8 @@ not the best. Without a cached FFT-PLAN, FLAGS defaults to +FFT-PLAN-FAST+.
 
 Set REAL-TIME-P to NIL to disallow real-time memory pools."
   (declare (type positive-fixnum size) (type non-negative-fixnum window-size)
-           (type (or fixnum null) flags) (type function window-function)
+           (type (or fixnum null) flags)
+           (type (or function null) window-function)
            #.*reduce-warnings*)
   (flet ((foreign-alloc (size fftw-array-p rt-p)
            (cond (rt-p (foreign-rt-alloc 'sample :count size))
@@ -200,7 +204,8 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
               (setf outbuf (foreign-alloc complex-array-size t rt-p))
               (setf winbuf (fill-window-buffer
                              (foreign-alloc window-size nil rt-p)
-                             window-function window-size))
+                             (or window-function #'rectangular-window)
+                             window-size (null window-function)))
               (setf tptr (foreign-alloc 1 nil rt-p))
               (incudine.util::with-struct-slots
                   ((size input-buffer input-buffer-size output-buffer
@@ -260,6 +265,11 @@ current time."
 (defmethod update-linked-object ((obj fft) force-p)
   (compute-fft obj force-p))
 
+(defun fft-window (obj)
+  "Return the foreign pointer to the sample values of the FFT window
+and the FFT window size."
+  (values (fft-window-buffer obj) (fft-window-size obj)))
+
 (declaim (inline fft-input))
 (defun fft-input (fft)
   "Return the sample value of the current FFT input. Setfable."
@@ -285,9 +295,12 @@ current time."
 
 WINDOW-SIZE is the size of the analysis window and defaults to SIZE.
 
-WINDOW-FUNCTION is a function of two arguments called to fill the FFT data
-window. The function arguments are the foreign pointer to the data window
-of type SAMPLE and the window size respectively.
+WINDOW-FUNCTION is NIL or a function of two arguments called to fill the
+FFT data window. The function arguments are the foreign pointer to the
+data window of type SAMPLE and the window size respectively.
+If WINDOW-FUNCTION is NIL, the window is initially rectangular but
+we can call IFFT-WINDOW to get the pointer to the buffer and directly
+manipulate the sample values.
 WINDOW-FUNCTION defaults to *FFT-DEFAULT-WINDOW-FUNCTION*.
 
 The argument FLAGS for the FFT planner is usually +FFT-PLAN-OPTIMAL+,
@@ -298,7 +311,8 @@ not the best. Without a cached FFT-PLAN, FLAGS defaults to +FFT-PLAN-FAST+.
 
 Set REAL-TIME-P to NIL to disallow real-time memory pools."
   (declare (type positive-fixnum size) (type non-negative-fixnum window-size)
-           (type (or fixnum null) flags) (type function window-function)
+           (type (or fixnum null) flags)
+           (type (or function null) window-function)
            #.*reduce-warnings*)
   (flet ((foreign-alloc (size fftw-array-p rt-p)
            (cond (rt-p (foreign-rt-alloc 'sample :count size))
@@ -333,7 +347,8 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
               (setf outbuf (foreign-alloc size t rt-p))
               (setf winbuf (fill-window-buffer
                              (foreign-alloc window-size nil rt-p)
-                             window-function window-size))
+                             (or window-function #'rectangular-window)
+                             window-size (null window-function)))
               (setf tptr (foreign-alloc 1 nil rt-p))
               (incudine.util::with-struct-slots
                   ((size input-buffer input-buffer-size output-buffer
@@ -410,6 +425,11 @@ current time."
     (setf (analysis-time obj) (now))
     (setf (ifft-input-changed-p obj) nil))
   obj)
+
+(defun ifft-window (obj)
+  "Return the foreign pointer to the sample values of the IFFT window
+and the IFFT window size."
+  (values (ifft-window-buffer obj) (ifft-window-size obj)))
 
 (declaim (inline ifft-output))
 (defun ifft-output (ifft)

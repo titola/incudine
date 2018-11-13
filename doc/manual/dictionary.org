@@ -626,6 +626,7 @@ Return ~t~ if the ~abuffer~ is deallocated.
 ::: ana:fft-p
 ::: ana:fft-size
 ::: ana:fft-plan
+::: ana:fft-window
 ::: ana:fft-input
 ::: ana:compute-fft
 ::: ana:ifft
@@ -633,6 +634,7 @@ Return ~t~ if the ~abuffer~ is deallocated.
 ::: ana:ifft-p
 ::: ana:ifft-size
 ::: ana:ifft-plan
+::: ana:ifft-window
 ::: ana:ifft-output
 ::: ana:compute-ifft
 

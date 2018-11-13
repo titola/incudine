@@ -199,8 +199,10 @@
            #:pvbuffer-frames #:pvbuffer-channels #:pvbuffer-fft-size
            #:pvbuffer-block-size #:pvbuffer-scale-factor
            #:*fft-default-window-function*
-           #:fft #:fft-p #:make-fft #:fft-size #:fft-plan #:fft-input
-           #:ifft #:ifft-p #:make-ifft #:ifft-size #:ifft-plan #:ifft-output
+           #:fft #:fft-p #:make-fft
+           #:fft-size #:fft-plan #:fft-window #:fft-input
+           #:ifft #:ifft-p #:make-ifft
+           #:ifft-size #:ifft-plan #:ifft-window #:ifft-output
            #:+fft-plan-optimal+ #:+fft-plan-best+ #:+fft-plan-fast+
            #:get-fft-plan #:new-fft-plan #:remove-fft-plan #:fft-plan-list
            #:compute-abuffer #:update-linked-object
