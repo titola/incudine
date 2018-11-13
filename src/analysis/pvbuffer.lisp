@@ -21,7 +21,7 @@
   "PVbuffer type.
 
 A PVBUFFER contains a sequence of spectral data."
-  (data (null-pointer) :type foreign-pointer)
+  (data-ptr (null-pointer) :type foreign-pointer)
   (size 0 :type non-negative-fixnum)
   (frames 0 :type non-negative-fixnum)
   (channels 1 :type channel-number)
@@ -30,8 +30,6 @@ A PVBUFFER contains a sequence of spectral data."
   (block-size 0 :type non-negative-fixnum))
 
 (setf
-  (documentation 'pvbuffer-data 'function)
-  "Return the foreign pointer to the pvbuffer data."
   (documentation 'pvbuffer-size 'function)
   "Return the pvbuffer size."
   (documentation 'pvbuffer-channels 'function)
@@ -46,16 +44,16 @@ A PVBUFFER contains a sequence of spectral data."
   "Return the block size of the pvbuffer.")
 
 (defmethod incudine:free ((obj pvbuffer))
-  (let ((data (pvbuffer-data obj)))
+  (let ((data (pvbuffer-data-ptr obj)))
     (unless (null-pointer-p data)
       (free-multi-channel-data data (pvbuffer-channels obj))
       (incudine-cancel-finalization obj)
-      (setf (pvbuffer-data obj) (null-pointer))
+      (setf (pvbuffer-data-ptr obj) (null-pointer))
       (incudine.util:nrt-msg debug "Free ~A" (type-of obj)))
     (values)))
 
 (defmethod incudine:free-p ((obj pvbuffer))
-  (null-pointer-p (pvbuffer-data obj)))
+  (null-pointer-p (pvbuffer-data-ptr obj)))
 
 (defmethod print-object ((obj pvbuffer) stream)
   (multiple-value-bind (size frames channels block-size)
@@ -65,6 +63,15 @@ A PVBUFFER contains a sequence of spectral data."
                   (pvbuffer-channels obj) (pvbuffer-block-size obj)))
     (format stream "#<PVBUFFER :SIZE ~D :FRAMES ~D :CHANNELS ~D :BLOCK-SIZE ~D>"
             size frames channels block-size)))
+
+(defun pvbuffer-data (instance &optional (frame 0) (channel 0))
+  "Return the foreign pointer to the data FRAME of a PVbuffer CHANNEL.
+
+FRAME and CHANNEL default to zero.
+
+No bounds checking."
+  (cffi:mem-aptr (cffi:mem-aref (pvbuffer-data-ptr instance) :pointer channel)
+                 'sample frame))
 
 (declaim (inline number-of-partitions))
 (defun number-of-partitions (frames partsize)
@@ -76,7 +83,7 @@ A PVBUFFER contains a sequence of spectral data."
                                     &body body)
   (with-gensyms (ch)
     `(dotimes (,ch ,channels)
-       (let ((,pvbuf-ptr-var (cffi:mem-aref (pvbuffer-data ,pvbuf-var)
+       (let ((,pvbuf-ptr-var (cffi:mem-aref (pvbuffer-data-ptr ,pvbuf-var)
                                             :pointer ,ch))
              (,pvbuf-pos-var 0)
              (,buf-pos-var (+ (the non-negative-fixnum
@@ -144,7 +151,7 @@ frames and the number of frames of the buffer, respectively."
             (setf obj
                   (incudine-finalize
                     (reduce-warnings
-                      (%make-pvbuffer :data data :size size :frames partitions
+                      (%make-pvbuffer :data-ptr data :size size :frames partitions
                                       :channels channels :fft-size fft-size
                                       :scale-factor (fft-scale-factor fft)
                                       :block-size block-size))

@@ -123,8 +123,6 @@ of a multichannel finite impulse response."
          (channels (pvbuffer-channels pvbuf))
          (block-size (pvbuffer-block-size pvbuf))
          (scale-factor (pvbuffer-scale-factor pvbuf))
-         ;; Impulse response
-         (irdata (pvbuffer-data pvbuf))
          (fdl-size (pvbuffer-size pvbuf))
          ;; Frequency Delay Line
          (fdl (make-frame fdl-size :zero-p t))
@@ -164,7 +162,7 @@ of a multichannel finite impulse response."
         (dotimes (ch channels)
           ;; Multiply the partitions and mix the results
           (pconv-multiply-partitions ifft-inbuf fdl
-                                     (mem-aref irdata :pointer ch)
+                                     (pvbuffer-data pvbuf 0 ch)
                                      fdl-size fdl-head block-size partitions)
           ;; IFFT of the resultant complex spectrum
           (ifft-execute (ifft-plan ifft) ifft-inbuf ifft-outbuf)
