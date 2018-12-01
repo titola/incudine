@@ -777,6 +777,7 @@ value of a bound VARIABLE of type SAMPLE, POINTER or foreign array."
                  i64vec-size ptrvec-size)
     `(let* ((*vug-variables* (make-vug-variables))
             (*variables-to-preserve* nil)
+            (*no-follow-parameter-list* nil)
             (*initialization-code* (make-initialization-code-stack))
             (,vug-body (format-vug-code ,(dsp-vug-block name arguments obj)))
             (,smpvec-size (add-sample-variables))
@@ -871,18 +872,6 @@ value of a bound VARIABLE of type SAMPLE, POINTER or foreign array."
   (if #1=(incudine::node-free-hook node)
       (setf (cdr (last #1#)) hook)
       (setf #1# hook)))
-
-(declaim (inline without-follow-vug-parameter-p))
-(defun without-follow-vug-parameter-p (parameter vug-function)
-  (member parameter (mapcar #'vug-variable-value
-                            (car (vug-function-inputs vug-function)))
-          :test #'eq))
-
-(declaim (inline skip-update-variable-p))
-(defun skip-update-variable-p (parameter variable-value)
-  (and (vug-function-p variable-value)
-       (vug-name-p variable-value 'without-follow)
-       (without-follow-vug-parameter-p parameter variable-value)))
 
 (declaim (inline %reinit-vug-variable))
 (defun %reinit-vug-variable (var value param-plist)

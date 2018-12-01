@@ -40,6 +40,20 @@
                       (setf amp (sample (if (< freq 500) .5 .2))))))
     (out (sine freq g 0))))
 
+(dsp! without-follow-test-2 ((n fixnum))
+  (with ((frm (without-follow (n)
+                ;; Expansion with other initializations
+                ;; where the VUG-VARIABLES don't depend
+                ;; on the control parameter N.
+                (make-frame (+ n 2))))
+         (scl (/ (sample 1) n)))
+    (declare (type frame frm) (type sample scl))
+    ;; Side effect: WITH-CONTROL-PERIOD changes the control parameter N.
+    (with-control-period (n)
+      (setf (smp-ref frm)
+            (* (if (> n 200) -1 1) (sample n))))
+    (out (* scl (smp-ref frm)))))
+
 (with-dsp-test (with-follow.1
       :md5 #(26 199 222 9 34 233 149 188 155 219 178 3 28 169 246 245))
   (with-follow-test-1 440 .3 :id 123)
@@ -76,3 +90,8 @@
   (at #[3/2 s] #'set-control 123 :amp .3)   ; ignored
   (at #[2 s] #'set-control 123 :freq 1000)
   (at #[5/2 s] #'set-control 123 :amp .3))  ; ignored
+
+(with-dsp-test (without-follow.2
+      :md5 #(23 230 169 179 79 83 199 145 147 186 71 102 22 50 150 218))
+  (without-follow-test-2 128 :id 123)
+  (at #[5/2 s] #'set-control 123 :n 256))

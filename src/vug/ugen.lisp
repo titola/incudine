@@ -321,6 +321,7 @@ from the other packages."
                  i64vec-size ptrvec-size)
     `(let* ((*vug-variables* (make-vug-variables))
             (*variables-to-preserve* nil)
+            (*no-follow-parameter-list* nil)
             (*ugen-return-value* nil)
             (*initialization-code* (make-initialization-code-stack))
             (,vug-body (format-vug-code ,(dsp-vug-block nil arguments obj)))
