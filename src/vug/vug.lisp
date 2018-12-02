@@ -335,25 +335,34 @@ during the compilation of a UGEN or DSP. The default is NIL.")
   (and (vug-function-p obj)
        (eq (vug-function-name obj) 'without-follow)))
 
-(defun without-follow-vug-parameter-p (parameter vug-function)
+(defun with-follow-vug-parameter-p (parameter vug-function)
   (member parameter (mapcar #'vug-variable-value
                             (car (vug-function-inputs vug-function)))
           :test #'eq))
+
+(defun without-follow-vug-parameter-p (parameter vug-function)
+  (with-follow-vug-parameter-p parameter vug-function))
 
 (defun skip-update-variable-p (parameter variable-value)
   (and (without-follow-form-p variable-value)
        (without-follow-vug-parameter-p parameter variable-value)))
 
 (defun update-variable-dependence (var dep to-recheck-p)
-  (when (and (or to-recheck-p
-                 (vug-variable-input-p dep)
-                 ;; Maybe a control with side effects.
-                 (vug-parameter-aux-variable-p dep))
-             (not (or (member dep *no-follow-parameter-list*)
-                      (and (vug-parameter-aux-variable-p dep)
-                           (skip-update-variable-p
-                             (vug-variable-value dep)
-                             (vug-variable-value var))))))
+  (when (or (and (vug-parameter-aux-variable-p dep)
+                 (with-follow-form-p (vug-variable-value var))
+                 (or (with-follow-vug-parameter-p
+                       (vug-variable-value dep)
+                       (vug-variable-value var))
+                     (not (member dep *no-follow-parameter-list*))))
+            (and (or to-recheck-p
+                     (vug-variable-input-p dep)
+                     ;; Maybe a control with side effects.
+                     (vug-parameter-aux-variable-p dep))
+                 (not (or (member dep *no-follow-parameter-list*)
+                          (and (vug-parameter-aux-variable-p dep)
+                               (skip-update-variable-p
+                                 (vug-variable-value dep)
+                                 (vug-variable-value var)))))))
     (pushnew var (vug-variable-variables-to-recheck dep))))
 
 (defun rename-vug-variable (var name)
@@ -474,7 +483,9 @@ during the compilation of a UGEN or DSP. The default is NIL.")
              (store-ugen-return-varname name)
              (values nil (car (vug-function-inputs value)) 1))
             ((and *no-follow-parameter-list*
-                  (not (without-follow-form-p value)))
+                  (not (or (vug-variable-p value)
+                           (without-follow-form-p value)
+                           (with-follow-form-p value))))
              (values nil (make-vug-function :name 'without-follow
                            :inputs (list *no-follow-parameter-list* value))
                      0))
@@ -560,11 +571,19 @@ during the compilation of a UGEN or DSP. The default is NIL.")
 (defun resolve-variable-to-update (obj var)
   (cond ((vug-function-p obj)
          (unless (eq (vug-function-name obj) 'get-pointer)
-           (let ((inputs (vug-function-inputs obj)))
+           (let* ((inputs (vug-function-inputs obj))
+                  (*no-follow-parameter-list*
+                    (cond ((without-follow-form-p obj)
+                           (union *no-follow-parameter-list* (first inputs)))
+                          ((with-follow-form-p obj)
+                           (set-difference *no-follow-parameter-list*
+                                           (first inputs)))
+                          (t *no-follow-parameter-list*))))
              (resolve-variable-to-update
-               (if (with-follow-form-p obj)
-                   ;; VUG-PARAMETER list.
+               (if (and (with-follow-form-p obj)
+                        (null *no-follow-parameter-list*))
                    (first inputs)
+                   ;; Parsing the body of WITHOUT-FOLLOW.
                    inputs)
                var))))
         ((vug-variable-p obj)
@@ -1247,16 +1266,15 @@ Example:
                                            floop-info))))
         ((eq name 'external-variable)
          `(make-vug-symbol :name ',(cadr def)))
-        ((eq name 'without-follow)
+        ((member name '(%with-follow without-follow))
          (let ((params (cadr def)))
            `(let ((*no-follow-parameter-list*
-                    (append *no-follow-parameter-list* (list ,@params))))
+                   (,(if (eq name '%with-follow) 'set-difference 'union)
+                     *no-follow-parameter-list* (list ,@params))))
               (make-vug-function :name ',name
-                :inputs (list (list ,@params) ,@(parse-vug-def (cddr def)))))))
-        ((eq name '%with-follow)
-         `(let ((*no-follow-parameter-list* nil))
-            (make-vug-function :name ',name
-              :inputs (list (list ,@(cadr def)) ,@(parse-vug-def (cddr def))))))
+                :inputs (list (list ,@params)
+                              ,@(parse-vug-def (cddr def) nil flist mlist
+                                               floop-info))))))
         ((eq name 'dsp-node)
          `(make-vug-symbol :name '%dsp-node%))
         ((eq name 'done-p)

@@ -54,6 +54,19 @@
             (* (if (> n 200) -1 1) (sample n))))
     (out (* scl (smp-ref frm)))))
 
+(dsp! without-follow-test-3 (a b c scl)
+  (vuglet ((don (x)
+             ;; Explicit WITH-FOLLOW because this local VUG
+             ;; is used within the body of WITHOUT-FOLLOW.
+             (with-samples ((y (with-follow (b)
+                                 (* x (+ a b c)))))
+               (+ y y))))
+    (with-samples ((din (without-follow (a b)
+                          ;; DIN follows the control parameter C,
+                          ;; DON follows the control parameters B and C.
+                          (don (* a (- c b))))))
+      (out (* scl din)))))
+
 (with-dsp-test (with-follow.1
       :md5 #(26 199 222 9 34 233 149 188 155 219 178 3 28 169 246 245))
   (with-follow-test-1 440 .3 :id 123)
@@ -95,3 +108,13 @@
       :md5 #(23 230 169 179 79 83 199 145 147 186 71 102 22 50 150 218))
   (without-follow-test-2 128 :id 123)
   (at #[5/2 s] #'set-control 123 :n 256))
+
+(with-dsp-test (without-follow.3
+      :md5 #(150 111 196 218 12 176 249 242 93 165 222 184 223 183 64 121))
+  (without-follow-test-3 1 2 3 1/30 :id 123)
+  ;; Ignored.
+  (at #[1 s] #'set-control 123 :a 100)
+  ;; (* 2 scl old-x (+ a b c))
+  (at #[2 s] #'set-controls 123 :a 3 :b 5/2)
+  ;; (* 2 scl (* a (- c b)) (+ a b c))
+  (at #[3 s] #'set-control 123 :c 3))
