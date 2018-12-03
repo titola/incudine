@@ -490,7 +490,10 @@ FUNCTION is a function of as many arguments as there are buffers."
                    max
                    (norm (1+ index)
                          (max (abs (smp-ref data index)) max)))))
-      (scale-buffer buffer (/ value (norm 1 (abs (smp-ref data 0))))))))
+      (let ((max (norm 1 (abs (smp-ref data 0)))))
+        (if (zerop max)
+            buffer
+            (scale-buffer buffer (/ value max)))))))
 
 (defun rescale-buffer (buffer min max)
   "Rescale the buffer values to be between MIN and MAX."
