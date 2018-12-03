@@ -311,7 +311,8 @@ rectangular window."
   (plan (null-pointer) :type foreign-pointer))
 
 (defstruct (fft (:include fft-common) (:constructor %make-fft) (:copier nil))
-  "FFT type.")
+  "FFT type."
+  (shift 0 :type fixnum))
 
 (setf
   (documentation 'fft-p 'function)

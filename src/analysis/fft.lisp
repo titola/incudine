@@ -257,6 +257,16 @@ current time."
       (unless (eq (fft-window-function obj) #'rectangular-window)
         (apply-window (fft-input-buffer obj) (fft-window-buffer obj) winsize))
       (apply-zero-padding (fft-input-buffer obj) winsize fftsize)
+      (unless (zerop (fft-shift obj))
+        (incudine::foreign-circular-shift (fft-input-buffer obj) 'sample
+                                          (fft-input-buffer-size obj)
+                                          (fft-shift obj))
+        ;; The reset is a little overhead but we are applying the delayed
+        ;; method CIRCULAR-SHIFT and the code is unclear if we call that
+        ;; method one time for all the transforms. The alternative is to
+        ;; add a keyword argument :CIRCULAR-SHIFT or :ZERO-PHASE-P to
+        ;; MAKE-FFT but the lazy method seems more flexible.
+        (setf (fft-shift obj) 0))
       (fft-execute (fft-plan obj) (fft-input-buffer obj) (fft-output-buffer obj))
       (setf (analysis-time obj) (now))
       (setf (fft-input-changed-p obj) nil)))
@@ -272,7 +282,10 @@ and the FFT window size."
 
 (declaim (inline fft-input))
 (defun fft-input (fft)
-  "Return the sample value of the current FFT input. Setfable."
+  "Return the sample value of the current FFT input. Setfable.
+
+The FFT structure uses a ring buffer internally and the input buffer
+is filled during the transform."
   (let ((buf (fft-ring-buffer fft)))
     (smp-ref (ring-input-buffer-data buf)
              (ring-input-buffer-head buf))))
@@ -287,6 +300,11 @@ and the FFT window size."
 (defmethod print-object ((obj ifft) stream)
   (format stream "#<IFFT :SIZE ~D :WINDOW-SIZE ~D :NBINS ~D>"
           (ifft-size obj) (ifft-window-size obj) (ifft-nbins obj)))
+
+(defmethod circular-shift ((obj fft) n)
+  ;; Lazy operation: the shift is applied during COMPUTE-FFT.
+  (setf (fft-shift obj) n)
+  obj)
 
 (defun make-ifft (size &key (window-size 0)
                   (window-function *fft-default-window-function*)
