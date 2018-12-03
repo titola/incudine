@@ -21,12 +21,10 @@
 (define-constant +io-bus-channels-pad+ 1024)
 
 (defvar *number-of-input-bus-channels* 2)
-(declaim (type (integer 0 #.(1+ incudine.util::maximum-channel-number))
-               *number-of-input-bus-channels*))
+(declaim (type channel-number *number-of-input-bus-channels*))
 
 (defvar *number-of-output-bus-channels* 2)
-(declaim (type (integer 0 #.(1+ incudine.util::maximum-channel-number))
-               *number-of-output-bus-channels*))
+(declaim (type channel-number *number-of-output-bus-channels*))
 
 (defvar *input-increment-bytes*
   (* *number-of-input-bus-channels* +foreign-sample-size+))

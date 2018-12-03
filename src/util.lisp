@@ -44,7 +44,7 @@ LIMITED-SAMPLE."
   #+(and sbcl x86) 'limited-sample
   #-(and sbcl x86) 'sample)
 
-(deftype channel-number () `(integer 0 ,maximum-channel-number))
+(deftype channel-number () `(integer 0 ,(1+ maximum-channel-number)))
 
 (deftype bus-number () `(integer 0 ,maximum-bus-number))
 
