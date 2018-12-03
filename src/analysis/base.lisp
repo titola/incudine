@@ -385,6 +385,8 @@ SAMPLE and the window size respectively. Setfable."))
 
 (defmethod (setf window-size) (size (obj fft-common))
   (declare (type positive-fixnum size))
+  (when (> size (fft-size obj))
+    (setf size (fft-size obj)))
   (unless (= size (fft-common-window-size obj))
     (let* ((input-buffer (fft-common-input-buffer obj))
            (output-buffer (fft-common-output-buffer obj))
