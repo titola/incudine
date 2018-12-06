@@ -51,6 +51,8 @@
      (:file "gen-window" :depends-on ("util"))
      (:file "gen-filter" :depends-on ("util"))
      (:file "play-function" :depends-on ("vug/base"))
+     (:file "analysis/ring-buffer" :depends-on ("util"))
+     (:file "analysis/fft" :depends-on ("util"))
      (:file "vug/base" :depends-on ("util"))
      (:file "vug/ugen-base" :depends-on ("vug/base"))
      (:file "vug/types" :depends-on ("vug/base"))

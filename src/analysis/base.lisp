@@ -36,6 +36,7 @@
   (data (null-pointer) :type foreign-pointer)
   (size 0 :type non-negative-fixnum)
   (head 0 :type non-negative-fixnum)
+  (mask 0 :type non-negative-fixnum)
   (real-time-p nil :type boolean)
   (foreign-free #'foreign-free :type function))
 
@@ -77,7 +78,8 @@
 (defun make-ring-input-buffer (bufsize
                                &optional (real-time-p (incudine.util:allow-rt-memory-p)))
   (declare (type non-negative-fixnum bufsize))
-  (let ((rt-p (and real-time-p incudine.util:*allow-rt-memory-pool-p*)))
+  (let ((rt-p (and real-time-p incudine.util:*allow-rt-memory-pool-p*))
+        (bufsize (incudine.util:next-power-of-two bufsize)))
     (multiple-value-bind (data-ptr buf free-fn pool)
         (if rt-p
             (values (foreign-rt-alloc 'sample :count bufsize :zero-p t)
@@ -92,10 +94,11 @@
                (type incudine-object-pool pool))
       (handler-case
           (incudine.util::with-struct-slots
-              ((data size real-time-p foreign-free)
+              ((data size mask real-time-p foreign-free)
                buf ring-input-buffer "INCUDINE.ANALYSIS")
             (setf data data-ptr
                   size bufsize
+                  mask (1- bufsize)
                   real-time-p rt-p
                   foreign-free free-fn))
         (condition (c)
@@ -115,6 +118,7 @@
                (foreign-rt-alloc 'sample :count bufsize :zero-p zero-p)
                (foreign-alloc-sample bufsize))))
     (let ((rt-p (and real-time-p incudine.util:*allow-rt-memory-pool-p*))
+          (bufsize (incudine.util:next-power-of-two bufsize))
           (data-ptr nil)
           (tmp-ptr nil))
       (multiple-value-bind (buf free-fn pool)
@@ -131,11 +135,12 @@
               (setf data-ptr (foreign-alloc bufsize t rt-p))
               (setf tmp-ptr (foreign-alloc bufsize nil rt-p))
               (incudine.util::with-struct-slots
-                  ((data tmp size real-time-p foreign-free)
+                  ((data tmp size mask real-time-p foreign-free)
                    buf ring-output-buffer "INCUDINE.ANALYSIS")
                 (setf data data-ptr
                       tmp tmp-ptr
                       size bufsize
+                      mask (1- bufsize)
                       real-time-p rt-p
                       foreign-free free-fn)))
           (condition (c)
@@ -181,9 +186,8 @@
   (declare (type sample value) (type ring-input-buffer buf))
   (setf (smp-ref (ring-input-buffer-data buf) (ring-input-buffer-head buf))
         value)
-  (incf (ring-buffer-head buf))
-  (when (>= (ring-buffer-head buf) (ring-buffer-size buf))
-    (setf (ring-buffer-head buf) 0))
+  (setf (ring-input-buffer-head buf)
+        (logand (1+ (ring-input-buffer-head buf)) (ring-buffer-mask buf)))
   value)
 
 (declaim (inline copy-from-ring-buffer))
@@ -210,10 +214,10 @@
         #1=(smp-ref (ring-output-buffer-data buf)
                     (ring-output-buffer-head buf)))
   (setf #1# +sample-zero+)
-  (incf (ring-output-buffer-head buf))
-  (when (>= (ring-output-buffer-head buf) (ring-output-buffer-size buf))
-    (setf (ring-output-buffer-head buf) 0))
-  (smp-ref (ring-output-buffer-tmp buf) 0))
+  (setf (ring-output-buffer-head buf)
+        (logand (1+ (ring-output-buffer-head buf))
+                (ring-output-buffer-mask buf)))
+  (smp-ref (ring-output-buffer-tmp buf)))
 
 (defstruct (analysis (:include incudine-object) (:copier nil))
   "Analysis type."

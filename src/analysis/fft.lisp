@@ -460,8 +460,8 @@ and the IFFT window size."
   ;; IFFT-OUTPUT reads from the ring buffer.
   (let ((buf (ifft-ring-buffer obj)))
     (setf (ring-output-buffer-head buf)
-          (mod (- (ring-output-buffer-head buf) n)
-               (ring-output-buffer-size buf))))
+          (logand (- (ring-output-buffer-head buf) n)
+                  (ring-output-buffer-mask buf))))
   (incudine::foreign-circular-shift (ifft-output-buffer obj) 'sample
                                     (ifft-output-buffer-size obj) n)
   obj)
