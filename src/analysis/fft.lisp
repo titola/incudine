@@ -273,6 +273,9 @@ current time."
       (setf (fft-input-changed-p obj) nil)))
   obj)
 
+(defmethod update-linked-object-p ((obj fft))
+  (fft-input-changed-p obj))
+
 (defmethod update-linked-object ((obj fft) force-p)
   (compute-fft obj force-p))
 
@@ -427,7 +430,9 @@ current time."
   (declare (type ifft obj) (type (or abuffer null) abuffer)
            (type boolean force-p))
   (when (or force-p
-            (and abuffer (< (analysis-time obj) (now)))
+            (and abuffer
+                 (or (< (analysis-time obj) (now))
+                     (update-linked-object-p (abuffer-link abuffer))))
             (ifft-input-changed-p obj))
     (when abuffer
       (compute-abuffer abuffer)

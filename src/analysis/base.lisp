@@ -635,6 +635,12 @@ Setfable."
   (declare (ignore obj force-p))
   nil)
 
+(defgeneric update-linked-object-p (obj))
+
+(defmethod update-linked-object-p ((obj t))
+  (declare (ignore obj))
+  nil)
+
 (defun compute-abuffer (abuf &optional force-p)
   "Fill the abuffer with the updated analysis data of the linked
 analysis object.
@@ -642,8 +648,10 @@ analysis object.
 If FORCE-P is NIL (default), the abuffer is updated once for the
 current time."
   (declare (type abuffer abuf) (type boolean force-p))
-  (when (or force-p (< (abuffer-time abuf) (now)))
-    (let ((link (abuffer-link abuf)))
+  (let ((link (abuffer-link abuf)))
+    (when (or force-p
+              (< (abuffer-time abuf) (now))
+              (update-linked-object-p link))
       (update-linked-object link force-p)
       (setf (abuffer-coord-complex-p abuf) (analysis-output-complex-p link))
       (setf (abuffer-time abuf) (now))
