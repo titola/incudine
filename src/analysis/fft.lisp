@@ -243,8 +243,9 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
             (incudine-object-pool-expand pool 1)))))))
 
 (defun compute-fft (obj &optional force-p)
-  "Compute a fast Fourier transform on the input data of the FFT
-structure OBJ and write the results into the FFT output buffer.
+  "Compute an unnormalized fast Fourier transform on the input data of
+the FFT structure OBJ and write the results into the FFT output buffer.
+COMPUTE-IFFT normalizes the input data before the inverse transform.
 
 If FORCE-P is NIL (default), the transform is computed once for the
 current time."
