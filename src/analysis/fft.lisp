@@ -456,8 +456,12 @@ and the IFFT window size."
   (ring-output-buffer-next (ifft-ring-buffer ifft)))
 
 (defmethod circular-shift ((obj ifft) n)
-  ;; Shifting the ring buffer head is also faster but GEN:ANALYSIS
-  ;; does a copy of the output buffer.
+  (declare (type fixnum n))
+  ;; IFFT-OUTPUT reads from the ring buffer.
+  (let ((buf (ifft-ring-buffer obj)))
+    (setf (ring-output-buffer-head buf)
+          (mod (- (ring-output-buffer-head buf) n)
+               (ring-output-buffer-size buf))))
   (incudine::foreign-circular-shift (ifft-output-buffer obj) 'sample
                                     (ifft-output-buffer-size obj) n)
   obj)
