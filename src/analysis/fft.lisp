@@ -203,7 +203,7 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
               (setf inbuf (foreign-alloc size t rt-p))
               (setf outbuf (foreign-alloc complex-array-size t rt-p))
               (setf winbuf (fill-window-buffer
-                             (foreign-alloc window-size nil rt-p)
+                             (foreign-alloc size nil rt-p)
                              (or window-function #'rectangular-window)
                              window-size (null window-function)))
               (setf tptr (foreign-alloc 1 nil rt-p))
@@ -368,7 +368,7 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
               (setf inbuf (foreign-alloc complex-array-size t rt-p))
               (setf outbuf (foreign-alloc size t rt-p))
               (setf winbuf (fill-window-buffer
-                             (foreign-alloc window-size nil rt-p)
+                             (foreign-alloc size nil rt-p)
                              (or window-function #'rectangular-window)
                              window-size (null window-function)))
               (setf tptr (foreign-alloc 1 nil rt-p))
