@@ -4,6 +4,23 @@
 
 (defvar *deprecated* nil)
 
+(defun deprecated-symbol-names (&key obsolete-p)
+  "Return a list of lists
+
+    (deprecated-symbol :from date)
+
+If OBSOLETE-P is T, the deprecated symbol is obsolete starting from
+the specified date.
+
+A deprecated symbol is obsolete after one year."
+  (flet ((date (l) (getf (cdr l) :from)))
+    (sort (if obsolete-p
+              (mapcar (lambda (x)
+                        (list (car x) :from (+ (date x) 10000)))
+                      *deprecated*)
+              (copy-tree *deprecated*))
+          #'< :key #'date)))
+
 (defmacro deprecated-function ((name args &rest body)
                                &key run-time-message-p date package
                                (replacement (car body)))

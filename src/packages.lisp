@@ -385,6 +385,7 @@
    #:incudine-network-error #:incudine-node-error #:incudine-missing-arg
    #:incudine-unknown-time-unit
    #:init #:enable-sharp-t-syntax #:enable-sharp-square-bracket-syntax
+   #:deprecated-symbol-names
    #:dsp-seq
    #:buffer #:make-buffer #:buffer-p
    #:buffer-mask #:buffer-data #:fill-buffer #:smp-ref #:buffer-value
