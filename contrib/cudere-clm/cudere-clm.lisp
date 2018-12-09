@@ -387,7 +387,7 @@
   (with-samples ((den 0)
                  (cos5 (+ n (sample .5))))
     (initialize
-      (with-follow (n) (setf scaler (sample (/ n)))))
+      (with-follow (n) (setf scaler (/ (sample 1) n))))
     (setf den (sin (* phase .5)))
     (prog1 (if (< (abs den) 1d-14)
                (sample 1)
