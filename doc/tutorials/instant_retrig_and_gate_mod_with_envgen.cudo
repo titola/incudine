@@ -42,7 +42,7 @@
                                 1 #'identity)
                       (butter-lp (bpf (fractal-noise .5 2.3) 150 .1)
                                  8000)))
-             (db->lin gain))))
+             (db->linear gain))))
 
 ;; attack decay sustain (retrig) attack decay sustain (retrig) ...
 (explosions -10 1 1/6 :id #xF35)

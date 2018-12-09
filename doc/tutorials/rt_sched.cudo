@@ -111,7 +111,7 @@
 ;; Here is another example:
 
 (dsp! ringhio (freq gain dur)
-  (with-samples ((amp (db->lin gain))
+  (with-samples ((amp (db->linear gain))
                  (dt (* dur 4/5 (spb *tempo*))))
     (initialize
       (reduce-warnings (at (+ (now) #[dur beats]) #'free (dsp-node))))

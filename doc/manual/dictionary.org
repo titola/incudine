@@ -546,8 +546,8 @@ Some examples from s7.html translated to CL:
 ::: incudine.util:linear-interp
 ::: incudine.util:cubic-interp
 ::: incudine.util:cos-interp
-::: incudine.util:db->lin
-::: incudine.util:lin->db
+::: incudine.util:db->linear
+::: incudine.util:linear->db
 ::: incudine.util:sample->fixnum
 ::: incudine.util:sample->int
 ::: incudine.util:float->fixnum

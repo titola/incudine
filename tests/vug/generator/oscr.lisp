@@ -6,7 +6,7 @@
   (out (oscr freq amp)))
 
 (dsp! vug-oscr-test-2 (fc fm index amp)
-  (stereo (oscr (+ fc (oscr fm (* fm index))) (db->lin amp))))
+  (stereo (oscr (+ fc (oscr fm (* fm index))) (db->linear amp))))
 
 (dsp! vug-oscr-test-3 (frq0 frq1 amp afrq0 afrq1 dur)
   (stereo (oscr (expon frq0 frq1 dur #'free)

@@ -6,7 +6,7 @@
   (out (sine freq amp phase)))
 
 (dsp! vug-sine-test-2 (fc fm index amp)
-  (stereo (sine (+ fc (sine fm (* fm index) 0)) (db->lin amp) 0)))
+  (stereo (sine (+ fc (sine fm (* fm index) 0)) (db->linear amp) 0)))
 
 (dsp! vug-sine-test-3 (frq0 frq1 amp afrq0 afrq1 dur)
   (stereo (sine (expon frq0 frq1 dur #'free)

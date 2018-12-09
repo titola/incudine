@@ -27,6 +27,7 @@
   (:use #:cl)
   (:nicknames :clm)
   (:import-from #:alexandria #:define-constant)
+  (:import-from #:incudine.util #:db->linear #:linear->db)
   (:export
    ;; Conditions
    #:cudere-clm-error
@@ -88,7 +89,7 @@
    #:mus-order #:mus-output? #:mus-phase #:mus-ramp #:mus-reset #:mus-safety
    #:mus-scaler #:mus-xcoeff #:mus-xcoeffs #:mus-ycoeff #:mus-ycoeffs #:mus-width
    ;; Utilities
-   #:hz->radians #:radians->hz
+   #:hz->radians #:radians->hz #:db->linear #:linear->db
    #:seconds->samples #:samples->seconds #:times->samples
    #:mus-rand-seed #:mus-set-rand-seed
    #:clm-random #:centered-random #:mus-random

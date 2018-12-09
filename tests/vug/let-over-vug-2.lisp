@@ -4,19 +4,19 @@
 
 (dsp! let-over-vug-4 (freq amp)
   (let* ((freq (+ freq (sine 8 (* freq .1) 0)))
-         (amp (db->lin amp))
+         (amp (db->linear amp))
          (oscil (sine freq amp 0)))
     (stereo oscil)))
 
 (dsp! symbol-macrolet-over-vug-1 (freq amp)
   (symbol-macrolet ((oscil (sine f a 0))
-                    (a (db->lin amp))
+                    (a (db->linear amp))
                     (f (+ freq (sine 8 (* freq .1) 0))))
     (stereo oscil)))
 
 (dsp! multiple-value-bind-over-vug-1 (amp)
   (multiple-value-bind (freq amp)
-      (values 440 (db->lin amp))
+      (values 440 (db->linear amp))
     (out (sine (sample freq) amp 0))))
 
 (with-dsp-test (let-over-vug.4 :channels 2

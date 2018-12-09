@@ -2,14 +2,14 @@
 
 ;;;; Misc
 
-(deftest lin->db
-    (mapcar (lambda (x) (floor (lin->db x)))
+(deftest linear->db
+    (mapcar (lambda (x) (floor (linear->db x)))
                      '(0.00001 0.0001 0.001 0.01 .1 .15 .2 .25 .33
                        .5 .68 .772 .9 1 1.9 3.4))
   (-100 -81 -61 -41 -21 -17 -14 -13 -10 -7 -4 -3 -1 0 5 10))
 
-(deftest db->lib
-    (mapcar (lambda (x) (two-decimals (db->lin x)))
+(deftest db->linear
+    (mapcar (lambda (x) (two-decimals (db->linear x)))
             '(-100 -10 -24 -12 -6 -3 0 6 12))
   (0.0 0.32 0.06 0.25 0.5 0.71 1.0 2.0 3.98))
 

@@ -61,7 +61,7 @@
 
 (dsp! sonica ((pch single-float) gain)
   (with-samples ((freq (pch->cps pch))
-                 (amp (db->lin gain)))
+                 (amp (db->linear gain)))
     (stereo (+ (suono freq amp)
                (suono (* freq 8) (* amp .2))))))
 

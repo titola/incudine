@@ -16,10 +16,10 @@
   (out (* (expon start end dur #'identity) (noise-test 1))))
 
 (dsp! vug-envelope-test ((env envelope) gain gate dur)
-  (out (* (db->lin gain) (envelope env gate dur #'free))))
+  (out (* (db->linear gain) (envelope env gate dur #'free))))
 
 (dsp! vug-breakpoint-env-test ((bp cons) gain (base real) dur)
-  (out (* (db->lin gain)
+  (out (* (db->linear gain)
           (envelope (breakpoints->env bp :base base :duration 1)
                     1 dur #'free))))
 

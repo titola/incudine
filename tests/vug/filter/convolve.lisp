@@ -4,7 +4,7 @@
   (out (direct-convolve (buzz 100 .5 200) buf)))
 
 (dsp! part-convolve-test-1 (gain (pvb pvbuffer))
-  (out (part-convolve (noise-test (db->lin gain)) pvb)))
+  (out (part-convolve (noise-test (db->linear gain)) pvb)))
 
 (with-dsp-test (direct-convolve.1
       :md5 #(37 30 104 242 95 25 79 197 191 33 139 41 220 212 243 59))

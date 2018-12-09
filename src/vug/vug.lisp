@@ -64,7 +64,7 @@
     '(coerce locally progn))
 
   (defvar *incudine-non-destructive-operations*
-    '(sample next-power-of-two power-of-two-p lin->db db->lin linear-interp
+    '(sample next-power-of-two power-of-two-p linear->db db->linear linear-interp
       cos-interp cubic-interp t60->pole sample->fixnum sample->int))
 
   (defvar *known-non-destructive-functions*

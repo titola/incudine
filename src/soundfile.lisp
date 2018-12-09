@@ -848,7 +848,7 @@ or scaled by SCALE-BY."
   (flet ((r-maxamp (in)
            (incudine-optimize (/ (the double-float (maxamp in))))))
     (let ((mult (or (and scale-by (coerce scale-by 'double-float))
-                    (and normalize (* (db->lin normalize) (r-maxamp infile)))
+                    (and normalize (* (db->linear normalize) (r-maxamp infile)))
                     (and scale-to (* scale-to (r-maxamp infile))))))
       (declare (type (or null double-float) mult)
                #.*standard-optimize-settings*)

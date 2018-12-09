@@ -218,7 +218,7 @@ File to load when processing this option.
 cat >foo.cudo <<'---'
 (dsp! simple (freq db (env envelope) gate)
   (stereo (* (envelope env gate 1 #'free)
-             (sine freq (db->lin db) 0))))
+             (sine freq (db->linear db) 0))))
 ---
 
 cat >quux.rego <<'---'

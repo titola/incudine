@@ -109,7 +109,7 @@
    #:next-power-of-two #:power-of-two-p
    #:dochannels
    #:pow
-   #:lin->db #:db->lin
+   #:linear->db #:db->linear
    #:linear-interp #:cos-interp #:cubic-interp
    #:t60->pole
    #:cheb
@@ -564,7 +564,7 @@
                 #:*default-header-type* #:*default-data-format*
                 #:*standard-optimize-settings* #:incudine-optimize
                 #:*reduce-warnings* #:reduce-warnings
-                #:non-negative-fixnum64 #:next-power-of-two #:db->lin)
+                #:non-negative-fixnum64 #:next-power-of-two #:db->linear)
   (:export
    #:soundfile-error
    #:stream #:input-stream #:input-stream-p #:output-stream #:output-stream-p

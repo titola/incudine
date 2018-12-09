@@ -115,6 +115,18 @@
    :package "INCUDINE.UTIL"
    :run-time-message-p t)
 
+(incudine::deprecated-function
+   (db->lin (value) (db->linear value))
+   :replacement incudine.util:db->linear
+   :date 20181209
+   :package "INCUDINE.UTIL")
+
+(incudine::deprecated-function
+   (lin->db (value) (linear->db value))
+   :replacement incudine.util:linear->db
+   :date 20181209
+   :package "INCUDINE.UTIL")
+
 (in-package :incudine.vug)
 
 (incudine::deprecated-macro

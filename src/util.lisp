@@ -106,14 +106,14 @@ and execute the body once for each channel, then RESULT form is evaluated."
      (declare (type channel-number ,var))
      ,@body))
 
-(declaim (inline lin->db))
-(defun lin->db (value)
+(declaim (inline linear->db))
+(defun linear->db (value)
   "Convert the linear VALUE to dB."
   (let ((in (if (zerop value) least-positive-sample value)))
     (* (log in) #.(/ (sample 20) (log (sample 10))))))
 
-(declaim (inline db->lin))
-(defun db->lin (value)
+(declaim (inline db->linear))
+(defun db->linear (value)
   "Convert VALUE dB to linear value."
   (expt (sample 10) (* value (sample 0.05))))
 

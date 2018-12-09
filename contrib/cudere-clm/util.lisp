@@ -986,7 +986,7 @@
                    (chan-stats (tag chans vals times)
                      (let* ((vals-db
                               (map 'vector
-                                   (lambda (x) (and (> x 1e-15) (lin->db x)))
+                                   (lambda (x) (and (> x 1e-15) (linear->db x)))
                                    vals))
                             (lin-control-string
                               (format nil "~~~D,3F"
