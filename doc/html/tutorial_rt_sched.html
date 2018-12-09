@@ -175,7 +175,7 @@
       </p>
 
       <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">ringhio</span> (freq gain dur)
-  (with-samples ((amp (db-&gt;lin gain))
+  (with-samples ((amp (db-&gt;linear gain))
                  (dt (* dur 4/5 (spb *tempo*))))
     (initialize
       (reduce-warnings (at (+ (now) #[dur beats]) #'free (dsp-node))))

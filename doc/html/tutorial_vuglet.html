@@ -98,7 +98,7 @@
 
 (dsp! <span style="color: #87cefa;">sonica</span> ((pch single-float) gain)
   (with-samples ((freq (pch-&gt;cps pch))
-                 (amp (db-&gt;lin gain)))
+                 (amp (db-&gt;linear gain)))
     (stereo (+ (suono freq amp)
                (suono (* freq 8) (* amp .2))))))
 

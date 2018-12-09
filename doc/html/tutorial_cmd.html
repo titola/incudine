@@ -34,7 +34,7 @@ incudine -h
 cat &gt;foo.cudo &lt;&lt;'---'
 (dsp! simple (freq db (env envelope) gate)
   (stereo (* (envelope env gate 1 #'free)
-             (sine freq (db-&gt;lin db) 0))))
+             (sine freq (db-&gt;linear db) 0))))
 ---
 
 cat &gt;quux.rego &lt;&lt;'---'
