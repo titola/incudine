@@ -106,15 +106,25 @@ and execute the body once for each channel, then RESULT form is evaluated."
      (declare (type channel-number ,var))
      ,@body))
 
+(declaim (inline hz->radians))
+(defun hz->radians (value)
+  "Convert the VALUE from Hz to radians."
+  (* value *twopi-div-sr*))
+
+(declaim (inline radians->hz))
+(defun radians->hz (value)
+  "Convert the VALUE from radians to Hz."
+  (* value *sr-div-twopi*))
+
 (declaim (inline linear->db))
 (defun linear->db (value)
-  "Convert the linear VALUE to dB."
+  "Convert the VALUE from linear to dB."
   (let ((in (if (zerop value) least-positive-sample value)))
     (* (log in) #.(/ (sample 20) (log (sample 10))))))
 
 (declaim (inline db->linear))
 (defun db->linear (value)
-  "Convert VALUE dB to linear value."
+  "Convert the VALUE from dB to linear."
   (expt (sample 10) (* value (sample 0.05))))
 
 (declaim (inline linear-interp))
@@ -159,7 +169,7 @@ and execute the body once for each channel, then RESULT form is evaluated."
   "Set the sample rate to VALUE and run the hook *SAMPLE-RATE-HOOK*.
 
 The following variables are updated: *SAMPLE-RATE*, *SAMPLE-DURATION*,
-*TWOPI-DIV-SR*, *PI-DIV-SR*, *MINUS-PI-DIV-SR* and *CPS2INC*."
+*TWOPI-DIV-SR*, *SR-DIV-TWOPI*, *PI-DIV-SR*, *MINUS-PI-DIV-SR* and *CPS2INC*."
   (setf *sample-rate* (sample value)
         *sample-duration* (/ 1.0 *sample-rate*))
   (incudine::call-hooks "set-sample-rate" *sample-rate-hook*)
@@ -169,7 +179,7 @@ The following variables are updated: *SAMPLE-RATE*, *SAMPLE-DURATION*,
   "Set the sample duration to VALUE and run the hook *SAMPLE-RATE-HOOK*.
 
 The following variables are updated: *SAMPLE-RATE*, *SAMPLE-DURATION*,
-*TWOPI-DIV-SR*, *PI-DIV-SR*, *MINUS-PI-DIV-SR* and *CPS2INC*."
+*TWOPI-DIV-SR*, *SR-DIV-TWOPI*, *PI-DIV-SR*, *MINUS-PI-DIV-SR* and *CPS2INC*."
   (setf *sample-duration* (sample value)
         *sample-rate* (/ 1.0 *sample-duration*))
   (incudine::call-hooks "set-sample-duration" *sample-rate-hook*)

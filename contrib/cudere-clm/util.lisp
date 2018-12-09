@@ -1,5 +1,5 @@
 ;;; Incudine version of CLM
-;;; Copyright (c) 2017 Tito Latini
+;;; Copyright (c) 2017-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -255,12 +255,12 @@
   (declare (ignore vars))
   `(progn ,(fix-run-loop-do-declare body)))
 
-(declaim (inline hz->radians))
-(defun hz->radians (value)
+(declaim (inline clm:hz->radians))
+(defun clm:hz->radians (value)
   (* value +twopi+ (/ *clm-srate*)))
 
-(declaim (inline radians->hz))
-(defun radians->hz (value)
+(declaim (inline clm:radians->hz))
+(defun clm:radians->hz (value)
   (* +rtwopi+ value *clm-srate*))
 
 ;;; Copied from clm-5/mus.lisp

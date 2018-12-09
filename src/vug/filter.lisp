@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2018 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -83,16 +83,15 @@ a 60 dB lag ATTACK-TIME and DECAY-TIME."
       y)))
 
 (defmacro with-reson-common ((wt-var radius-var freq q) &body body)
-  `(with-samples ((,wt-var (* ,freq *twopi-div-sr*))
-                  (,radius-var (exp (* (/ ,freq ,q)
-                                       *minus-pi-div-sr*))))
+  `(with-samples ((,wt-var (hz->radians ,freq))
+                  (,radius-var (exp (* (/ ,freq ,q) *minus-pi-div-sr*))))
      ,@body))
 
 ;;; `tone' and `atone' opcodes used in Csound.
 (define-vug cs-tone (in hp)
   "A first-order recursive lowpass filter where HP is the response curve's
 half-power point."
-  (with-samples ((b (- 2 (cos (* hp *twopi-div-sr*))))
+  (with-samples ((b (- 2 (cos (hz->radians hp))))
                  (coef (- b (sqrt (the non-negative-sample (- (* b b) 1)))))
                  (g (- 1 coef)))
     (pole (* g in) coef)))
@@ -100,19 +99,19 @@ half-power point."
 (define-vug cs-atone (in hp)
   "A first-order recursive highpass filter where HP is the response curve's
 half-power point."
-  (with-samples ((b (- 2 (cos (* hp *twopi-div-sr*))))
+  (with-samples ((b (- 2 (cos (hz->radians hp))))
                  (coef (- b (sqrt (the non-negative-sample (- (* b b) 1))))))
     (pole (* coef (zero in 1)) coef)))
 
 (define-vug two-pole (in freq radius)
   "Two pole filter."
-  (with-samples ((a1 (* -2 radius (cos (* freq *twopi-div-sr*))))
+  (with-samples ((a1 (* -2 radius (cos (hz->radians freq))))
                  (a2 (* radius radius)))
     (~ (- in (* a1 it) (* a2 (delay1 it))))))
 
 (define-vug two-zero (in freq radius)
   "Two zero filter."
-  (with-samples ((b1 (* -2 radius (cos (* freq *twopi-div-sr*))))
+  (with-samples ((b1 (* -2 radius (cos (hz->radians freq))))
                  (b2 (* radius radius))
                  (x1 (delay1 in)))
     (+ in (* b1 x1) (* b2 (delay1 x1)))))
@@ -156,7 +155,7 @@ half-power point."
   "Two pole resonant filter with zeroes located at z = 1 and z = -1.
 The bandwidth is specified in a 60dB ring DECAY-TIME and a constant
 scale factor."
-  (with-samples ((wt (* freq *twopi-div-sr*))
+  (with-samples ((wt (hz->radians freq))
                  (r (t60->pole decay-time))
                  (rr (* r r))
                  (scale 0.5))
@@ -166,7 +165,7 @@ scale factor."
   "Two pole resonant filter with zeroes located at +/- sqrt(radius).
 The bandwidth is specified in a 60dB ring DECAY-TIME and a constant
 scale factor."
-  (with-samples ((wt (* freq *twopi-div-sr*))
+  (with-samples ((wt (hz->radians freq))
                  (r (t60->pole decay-time))
                  (scale 0.5))
     (biquad in scale 0 (* scale (- r)) 1 (- (* 2 r (cos wt))) (* r r))))
@@ -176,7 +175,7 @@ scale factor."
 ;;; FORMLET and LET.
 (define-vug fofilter (in freq attack-time decay-time)
   "FOF-like filter."
-  (with-samples ((wt (* freq *twopi-div-sr*))
+  (with-samples ((wt (hz->radians freq))
                  (cos-wt (cos wt))
                  (r0 (t60->pole attack-time))
                  (r1 (t60->pole decay-time)))
@@ -187,7 +186,7 @@ scale factor."
 ;;; http://www.musicdsp.org/files/Audio-EQ-Cookbook.txt
 
 (defmacro %%with-biquad-common (bindings &body body)
-  `(with-samples ((w0 (* freq *twopi-div-sr*))
+  `(with-samples ((w0 (hz->radians freq))
                   (cos-w0 (cos w0))
                   (sin-w0 (sin w0))
                   ,@bindings)
@@ -297,13 +296,13 @@ scale factor."
 (define-vug butter-bp (in fcut bandwidth)
   "Second-order Butterworth bandpass filter."
   (with-samples ((c (/ 1.0 (tan (* bandwidth *pi-div-sr*))))
-                 (d (* -2.0 (cos (* fcut *twopi-div-sr*)))))
+                 (d (* -2.0 (cos (hz->radians fcut)))))
     (biquad in 1 0 -1 (+ c 1) (* c d) (- c 1))))
 
 (define-vug butter-br (in fcut bandwidth)
   "Second-order Butterworth bandreject filter."
   (with-samples ((c (tan (* bandwidth *pi-div-sr*)))
-                 (d (* -2.0 (cos (* fcut *twopi-div-sr*)))))
+                 (d (* -2.0 (cos (hz->radians fcut)))))
     (biquad in 1 d 1 (+ c 1) d (- 1 c))))
 
 ;;; Based on Josep Comajuncosas' 18dB/oct resonant 3-pole LPF with
@@ -518,7 +517,7 @@ scale factor."
 ;;;
 (define-vug nlf2 (in freq r)
   "Second order normalized digital waveguide resonator."
-  (with-samples ((th (* freq *twopi-div-sr*))
+  (with-samples ((th (hz->radians freq))
                  (c (cos th))
                  (s (sin th))
                  (fb0 0)

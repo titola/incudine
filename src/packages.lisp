@@ -83,7 +83,7 @@
    #:frame
    #:+twopi+ #:+half-pi+ #:+rtwopi+ #:+log001+ #:+sqrt2+
    #:+table-maxlen+ #:+max-lobits+ #:+phase-mask+ #:+rad2inc+ #:*cps2inc*
-   #:*pi-div-sr* #:*minus-pi-div-sr* #:*twopi-div-sr*
+   #:*pi-div-sr* #:*minus-pi-div-sr* #:*twopi-div-sr* #:*sr-div-twopi*
    #:+pointer-size+ #:+foreign-sample-size+ #:+foreign-complex-size+
    #:+pointer-address-type+
    #:*sample-rate* #:*sample-duration* #:*sound-velocity* #:*r-sound-velocity*
@@ -109,6 +109,7 @@
    #:next-power-of-two #:power-of-two-p
    #:dochannels
    #:pow
+   #:hz->radians #:radians->hz
    #:linear->db #:db->linear
    #:linear-interp #:cos-interp #:cubic-interp
    #:t60->pole

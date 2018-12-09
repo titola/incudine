@@ -65,7 +65,7 @@ with {
       </p>
 
       <pre class="src src-lisp">(define-vug <span style="color: #87cefa;">moog-vcf</span> (in res fr)
-  (with-samples ((wt (* fr *twopi-div-sr*))
+  (with-samples ((wt (hz->radians fr))
                  (coef (- 1 wt))
                  (unity-gain (* wt wt wt wt))
                  (mk (* -4 (clip res 0.0d0 0.999999d0))))
@@ -76,7 +76,7 @@ with {
       </p>
 
       <pre class="src src-lisp">(define-vug <span style="color: #87cefa;">tone</span> (in hp)
-  (with-samples ((b (- 2 (cos (* hp *twopi-div-sr*))))
+  (with-samples ((b (- 2 (cos (hz->radians hp))))
                  (coef (- b (sqrt (the non-negative-sample (- (* b b) 1)))))
                  (g (- 1 coef)))
     (pole (* g in) coef)))
@@ -87,7 +87,7 @@ with {
 
 (dsp! <span style="color: #87cefa;">tone4-test</span> (amp)
   (with-samples ((hp (expon 50 8000 10 #'free))
-                 (b (- 2 (cos (* hp *twopi-div-sr*))))
+                 (b (- 2 (cos (hz->radians hp))))
                  (coef (- b (sqrt (the non-negative-sample (- (* b b) 1)))))
                  (g (expt (the non-negative-sample (- 1 coef)) 4)))
     (stereo #4t(pole (* g (white-noise amp)) coef))))</pre>

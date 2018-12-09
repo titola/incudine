@@ -7,7 +7,7 @@
 ;;;   [1] https://ccrma.stanford.edu/~stilti/papers/moogvcf.pdf
 ;;;   [2] https://ccrma.stanford.edu/~jos/pasp/vegf.html
 (define-vug moog-vcf (in res fr)
-  (with-samples ((wt (* fr *twopi-div-sr*))
+  (with-samples ((wt (hz->radians fr))
                  (coef (- 1 wt))
                  (unity-gain (* wt wt wt wt))
                  (mk (* -4 (clip res 0.0d0 0.999999d0))))

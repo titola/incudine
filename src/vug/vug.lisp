@@ -83,7 +83,7 @@
 
 (defvar *default-specials-to-eval*
   '(*sample-rate* *sample-duration* *cps2inc* *pi-div-sr* *minus-pi-div-sr*
-    *twopi-div-sr* *sound-velocity* *r-sound-velocity*))
+    *twopi-div-sr* *sr-div-twopi* *sound-velocity* *r-sound-velocity*))
 (declaim (type list *default-specials-to-eval*))
 
 (defvar *specials-to-eval* *default-specials-to-eval*

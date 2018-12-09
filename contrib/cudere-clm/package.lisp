@@ -172,7 +172,7 @@
 
 (defpackage :cudere-clm.sys
   (:use #:cl #:cudere-clm #:incudine #:incudine.util)
-  (:shadowing-import-from #:incudine #:play)
+  (:shadowing-import-from #:cudere-clm #:hz->radians #:radians->hz #:play)
   (:import-from #:incudine.vug #:ugen-instance #:define-ugen
                 #:ugen-perf-function #:ugen-reinit-function
                 #:ugen-return-pointer #:ugen-control-pointer

@@ -546,6 +546,8 @@ Some examples from s7.html translated to CL:
 ::: incudine.util:linear-interp
 ::: incudine.util:cubic-interp
 ::: incudine.util:cos-interp
+::: incudine.util:hz->radians
+::: incudine.util:radians->hz
 ::: incudine.util:db->linear
 ::: incudine.util:linear->db
 ::: incudine.util:sample->fixnum
@@ -568,6 +570,7 @@ Some examples from s7.html translated to CL:
 ::: incudine.util:set-sample-duration
 ::: incudine.util:*cps2inc*
 ::: incudine.util:*twopi-div-sr*
+::: incudine.util:*sr-div-twopi*
 ::: incudine.util:*pi-div-sr*
 ::: incudine.util:*minus-pi-div-sr*
 ::: incudine.util:*sound-velocity*

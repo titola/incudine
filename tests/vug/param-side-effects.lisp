@@ -40,7 +40,7 @@
                (loop (cond ((> x high) (setf x (- x1 x)))
                            ((< x low) (setf x (- x0 x)))
                            (t (return x)))))))
-    (with-samples ((inc (* freq *twopi-div-sr*)))
+    (with-samples ((inc (hz->radians freq)))
       (initialize (setf phase +half-pi+))
       ;; The input of VUG RORRIM is PHASE, a control with side effects,
       ;; so the variable X in RORRIM is performance-time.
