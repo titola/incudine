@@ -520,7 +520,7 @@ in Scale file format."
   (if (free-p tuning)
       (incudine-error "Unusable tuning.")
       (let ((new (make-tuning
-                   :notes (coerce (tuning-ratios tuning) 'list)
+                   :notes (rest (coerce (tuning-ratios tuning) 'list))
                    :description (copy-seq (tuning-description tuning))
                    :keynum-base (tuning-keynum-base tuning)
                    :freq-base (tuning-freq-base tuning)

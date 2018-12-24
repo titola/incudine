@@ -156,6 +156,15 @@
                 (list t0 (copy-tuning t0)))))
   (T T))
 
+(deftest copy-tuning.1
+    (with-cleanup
+      (let ((orig *default-tuning*)
+            (cp (copy-tuning *default-tuning*)))
+        (every #'zerop
+          (append (map 'list #'- (tuning-cents cp) (tuning-cents orig))
+                  (map 'list #'- (tuning-ratios cp) (tuning-ratios orig))))))
+  T)
+
 (defvar *carlos-beta-tuning*
   (make-tuning
     :notes '(63.8 127.6 191.4 255.2 319.0 382.8 446.6 510.4 574.2 638.0 701.8
