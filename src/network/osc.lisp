@@ -797,8 +797,8 @@ in the STREAM buffer. The OSC value is specified by the zero-based INDEX."
            ,x))))
 
 #-little-endian
-(defmacro maybe-ntoh (stream ntoh-fname size value)
-  (declare (ignore stream ntoh-fname size))
+(defmacro maybe-ntoh (stream ntoh-fname value)
+  (declare (ignore stream ntoh-fname))
   value)
 
 (defmacro case-char (keyform &body cases)
