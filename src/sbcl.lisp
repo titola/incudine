@@ -84,6 +84,8 @@
             (and (sb-assem:assemble (segment 'nil)
                    (apply (find-symbol "MOVSXD" x86-64-pkg) args segment args))
                  t)
+          ;; MOVSXD with two arguments in older SBCL.
+          (sb-int:simple-program-error (c) (declare (ignore c)) t)
           (error (c) (declare (ignore c)) nil))))))
 
 (declaim (inline incudine::int-hash))
