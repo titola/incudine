@@ -23,6 +23,10 @@ high-performance native compiler.
   + [Optional] FluidSynth
   + [Optional] LILV
 
+  Some Linux distributions provide separated devel packages necessary
+  to compile Incudine, for example jack-audio-connection-kit-devel,
+  portaudio-devel, etc.
+
 If you use Quicklisp, put the incudine directory into local-projects:
 
     mv incudine /path/to/quicklisp/local-projects

@@ -33,6 +33,11 @@ high-performance native compiler.
 
 - [Optional] [[http://drobilla.net/software/lilv][LILV]]
 
+#+texinfo: @noindent
+Some Linux distributions provide separated devel packages necessary to
+compile Incudine, for example ~jack-audio-connection-kit-devel~,
+~portaudio-devel~, etc.
+
 ** Download
 The latest source code can be obtained via Git:
 
