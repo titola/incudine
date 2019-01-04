@@ -231,7 +231,7 @@
                 #:rectangular-window #:dofft #:dofft-polar #:dofft-complex)
   (:export
    #:vug #:vug-p #:define-vug #:vug-macro #:vug-macro-p #:define-vug-macro
-   #:destroy-vug #:rename-vug #:all-vug-names #:fix-vug
+   #:vug-lambda-list #:destroy-vug #:rename-vug #:all-vug-names #:fix-vug
    #:ugen #:ugen-instance #:with-ugen-instance #:with-ugen-instances
    #:define-ugen #:ugen-debug #:compile-vug #:compiled-vug-p
    #:ugen-perf-function #:ugen-reinit-function #:ugen-return-pointer

@@ -2008,6 +2008,17 @@ Return the new VUG-MACRO structure."
              (add-vug ',name ',lambda-list nil ',defaults
                       (macro-function ',name) t))))))
 
+(defun vug-lambda-list (name)
+  "Return the lambda list and the default values for the VUG NAME.
+
+NAME can also be a VUG structure."
+  (declare (type (or symbol vug) name))
+  (let ((vug (if (vug-p name) name (vug name))))
+    (values (if (vug-macro-p vug)
+                (copy-list (vug-args vug))
+                (mapcar #'list (vug-args vug) (vug-arg-types vug)))
+            (copy-list (vug-defaults vug)))))
+
 (defun rename-vug (old-name new-name)
   "Rename the VUG named OLD-NAME to NEW-NAME."
   (declare (type symbol old-name new-name))

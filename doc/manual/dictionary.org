@@ -767,6 +767,7 @@ Deallocate the ~voicer~.
 ::: vug:vug-macro-p
 ::: vug:define-vug
 ::: vug:define-vug-macro
+::: vug:vug-lambda-list
 ::: vug:rename-vug
 ::: vug:destroy-vug
 ::: vug:all-vug-names
