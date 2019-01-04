@@ -2015,9 +2015,9 @@ NAME can also be a VUG structure."
   (declare (type (or symbol vug) name))
   (let ((vug (if (vug-p name) name (vug name))))
     (values (if (vug-macro-p vug)
-                (copy-list (vug-args vug))
-                (mapcar #'list (vug-args vug) (vug-arg-types vug)))
-            (copy-list (vug-defaults vug)))))
+                (copy-tree (vug-args vug))
+                (mapcar #'list (vug-args vug) (copy-tree (vug-arg-types vug))))
+            (copy-tree (vug-defaults vug)))))
 
 (defun rename-vug (old-name new-name)
   "Rename the VUG named OLD-NAME to NEW-NAME."
