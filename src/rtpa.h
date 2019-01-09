@@ -20,6 +20,7 @@
 #ifndef __RTPA_H
 #define __RTPA_H
 
+#include <stdint.h>
 #include <pthread.h>
 #include <portaudio.h>
 #include "common.h"
@@ -89,7 +90,8 @@ void pa_set_lisp_io(SAMPLE *input, SAMPLE *output);
 unsigned long pa_cycle_begin(void);
 void pa_cycle_end(unsigned long nframes);
 SAMPLE pa_get_cycle_start_time(void);
-double pa_get_time_offset(void);
+double pa_get_time_offset_seconds(void);
+uint32_t pa_get_time_offset_frames(void);
 PaStream *pa_stream(void);
 void pa_set_devices(PaDeviceIndex input, PaDeviceIndex output);
 

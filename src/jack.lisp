@@ -45,7 +45,15 @@
 
 (cffi:defcfun ("ja_get_cycle_start_time" rt-cycle-start-time) sample)
 
-(cffi:defcfun ("ja_get_time_offset" rt-time-offset) :double)
+(cffi:defcfun "ja_get_time_offset_seconds" :double)
+
+(cffi:defcfun ("ja_get_time_offset_frames") :uint32)
+
+(defun rt-time-offset (&optional time-unit)
+  (declare (type symbol time-unit))
+  (if (and time-unit (string= (symbol-name time-unit) "FRAMES"))
+      (ja-get-time-offset-frames)
+      (ja-get-time-offset-seconds)))
 
 (cffi:defcfun ("ja_client" rt-client) :pointer)
 

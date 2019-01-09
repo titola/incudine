@@ -123,7 +123,8 @@ void ja_set_lisp_io(SAMPLE *input, SAMPLE *output);
 jack_nframes_t ja_cycle_begin(void);
 void ja_cycle_end(jack_nframes_t frames);
 SAMPLE ja_get_cycle_start_time(void);
-double ja_get_time_offset(void);
+double ja_get_time_offset_seconds(void);
+jack_nframes_t ja_get_time_offset_frames(void);
 jack_client_t *ja_client(void);
 
 /* Jack MIDI */

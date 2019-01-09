@@ -457,8 +457,9 @@ See PORTAUDIO-DEVICE-INFO."
   (documentation 'rt-sample-rate 'function)
   "Return the sample rate of the real-time audio system."
   (documentation 'rt-time-offset 'function)
-  "Return the time in seconds from the start of the current real-time
-process cycle.
+  "Return the time from the start of the current real-time process cycle.
+
+TIME-UNIT is FRAMES or SECONDS (default).
 
 Example:
 

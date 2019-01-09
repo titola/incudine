@@ -424,7 +424,7 @@ SAMPLE ja_get_cycle_start_time(void)
         return ja_cycle_start_time;
 }
 
-double ja_get_time_offset(void)
+double ja_get_time_offset_seconds(void)
 {
         if (client != NULL) {
                 jack_nframes_t jack_frames;
@@ -436,6 +436,20 @@ double ja_get_time_offset(void)
                         return (frames - jack_frames) * ja_sample_duration;
         }
         return 0.0;
+}
+
+jack_nframes_t ja_get_time_offset_frames(void)
+{
+        if (client != NULL) {
+                jack_nframes_t jack_frames;
+                int frames;
+
+                jack_frames = jack_frames_since_cycle_start(client);
+                frames = (int) (*ja_sample_counter - ja_cycle_start_time);
+                if (frames > jack_frames)
+                        return (jack_nframes_t) (frames - jack_frames);
+        }
+        return 0;
 }
 
 jack_client_t *ja_client(void)

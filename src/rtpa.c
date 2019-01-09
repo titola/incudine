@@ -303,7 +303,7 @@ SAMPLE pa_get_cycle_start_time(void)
         return pa_cycle_start_time_smp;
 }
 
-double pa_get_time_offset(void)
+double pa_get_time_offset_seconds(void)
 {
         if (stream != NULL) {
                 PaTime time_from_cycle_start;
@@ -317,6 +317,20 @@ double pa_get_time_offset(void)
                         return (double) (frames_to_seconds - time_from_cycle_start);
         }
         return 0.0;
+}
+
+uint32_t pa_get_time_offset_frames(void)
+{
+        if (stream != NULL) {
+                PaTime time_from_cycle_start, frames;
+
+                time_from_cycle_start =
+                        Pa_GetStreamTime(stream) - pa_cycle_start_time_sec;
+                frames = *pa_sample_counter - pa_cycle_start_time_smp;
+                if (frames > time_from_cycle_start)
+                        return (uint32_t) (frames - time_from_cycle_start);
+        }
+        return 0;
 }
 
 PaStream *pa_stream(void)
