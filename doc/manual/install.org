@@ -82,6 +82,22 @@ cp incudinerc-example ${HOME}/.incudinerc
 #+end_example
 
 #+texinfo: @noindent
+Here is a test:
+
+#+begin_example
+(require :incudine)
+(in-package :scratch)
+(dsp! hello-world () (out (sine 440 .3)))
+(rt-start)
+;; You should hear an oscillation at 440 Hz.
+(hello-world)
+(free 0)
+(rt-stop)
+;; It writes a soundfile.
+(bounce-to-disk ("/tmp/test.wav" :channels 1 :duration 1) (hello-world))
+#+end_example
+
+#+texinfo: @noindent
 Emacs and Texinfo are required to build the documentation:
 
 #+begin_example

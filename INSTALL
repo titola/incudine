@@ -43,6 +43,19 @@ priorities *RT-PRIORITY*, *NRT-PRIORITY* and *RECEIVER-DEFAULT-PRIORITY*
     cd /path/to/incudine
     cp incudinerc-example ${HOME}/.incudinerc
 
+Here is a test:
+
+(require :incudine)
+(in-package :scratch)
+(dsp! hello-world () (out (sine 440 .3)))
+(rt-start)
+;; You should hear an oscillation at 440 Hz.
+(hello-world)
+(free 0)
+(rt-stop)
+;; It writes a soundfile.
+(bounce-to-disk ("/tmp/test.wav" :channels 1 :duration 1) (hello-world))
+
 Emacs and Texinfo are required to build the documentation:
 
     cd doc/manual && make info html pdf
