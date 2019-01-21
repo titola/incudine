@@ -7,10 +7,15 @@ To load ~incudine-ladspa~ use ~asdf:load-system~ or ~require~.
 #+attr_texinfo: :options {Macro} vug:ladspa->vug filename label vug-name @andkey{} block-size debug-p
 #+begin_deffn
 Define a new VUG and the auxiliary function named ~vug-name~ to use
-the ~ladspa~ plugin with ~label~ loaded from ~filename~.
+the LADSPA plugin with ~label~ loaded from ~filename~.
 
 ~filename~ is the namestring of the plugin path, absolute or relative to
 ~ladspa:*ladspa-path*~, with or without type extension.
+
+The control parameter ~plugin-instance~ is set to the plugin instance
+during the DSP initialization. It is possible to retrieve the plugin
+instance through ~control-value~. This functionality works only with a
+VUG or an inlined UGEN.
 
 All the arguments of the auxiliary function are optional keywords.
 

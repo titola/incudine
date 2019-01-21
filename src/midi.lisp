@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -156,8 +156,9 @@ SEQ is of type SEQUENCE."
                  (logand sum #x7F))))
     (checksum 1 0)))
 
-(defun midi-bulk-tuning-dump (tuning stream device-id program checksum-function)
-  (declare (type midi-output-stream stream) (type tuning tuning)
+(defun midi-bulk-tuning-dump (tuning function object device-id program
+                              checksum-function)
+  (declare (type tuning tuning) (type function function)
            (type (unsigned-byte 8) device-id program)
            (type function checksum-function)
            #.*standard-optimize-settings*)
@@ -188,7 +189,8 @@ SEQ is of type SEQUENCE."
                  (tuning-et12-cents-offset tuning))
       (setf (u8-ref buf +midi-bulk-tuning-dump-checksum-index+)
             (funcall checksum-function buf +midi-bulk-tuning-dump-buffer-size+))
-      (midi-write-sysex stream buf +midi-bulk-tuning-dump-buffer-size+))))
+      (funcall function object buf +midi-bulk-tuning-dump-buffer-size+)
+      object)))
 
 (defmacro with-midi-single-note-tuning-change-buffer ((buf-var device-id program)
                                                       &body body)
@@ -201,8 +203,8 @@ SEQ is of type SEQUENCE."
      (setf (u32-ref ,buf-var 1) (midi-four-bytes 2 ,program 1 0))
      ,@body))
 
-(defun midi-128-single-note-tuning (tuning stream device-id program)
-  (declare (type midi-output-stream stream) (type tuning tuning)
+(defun midi-128-single-note-tuning (tuning function object device-id program)
+  (declare (type tuning tuning) (type function function)
            (type (unsigned-byte 8) device-id program)
            #.*standard-optimize-settings*)
   (with-midi-single-note-tuning-change-buffer (buf device-id program)
@@ -218,7 +220,7 @@ SEQ is of type SEQUENCE."
                          (- (+ os (aref (tuning-cents tuning) i)) (* xx 100)))
                      (declare (type (unsigned-byte 8) yy zz))
                      (setf (u32-ref buf 2) (midi-four-bytes xx yy zz #xF7))
-                     (midi-write-sysex stream buf 12)))
+                     (funcall function object buf 12)))
                  (sleep .0001)
                  (let ((i (mod (1+ k) degrees)))
                    (send (1+ k) i degrees
@@ -228,7 +230,7 @@ SEQ is of type SEQUENCE."
                              os))))))
       (send 0 0 (1- (length (tuning-cents tuning)))
             (tuning-et12-cents-offset tuning))
-      stream)))
+      object)))
 
 (defun midi-tuning-sysex (tuning stream &optional (device-id 0) (program 0)
                           single-note-tuning-p
@@ -242,9 +244,11 @@ It is useful if the manufacturer implements a different checksum.
 
 DEVICE-ID and PROGRAM default to 0."
   (if single-note-tuning-p
-      (midi-128-single-note-tuning tuning stream device-id program)
-      (midi-bulk-tuning-dump tuning stream device-id program
-                             checksum-function)))
+      (midi-128-single-note-tuning
+        tuning #'midi-write-sysex stream device-id program)
+      (midi-bulk-tuning-dump
+        tuning #'midi-write-sysex stream device-id program
+        checksum-function)))
 
 (declaim (inline valid-midi-bulk-tuning-dump-p))
 (defun valid-midi-bulk-tuning-dump-p (sysex-ptr device-id sub-id-2)

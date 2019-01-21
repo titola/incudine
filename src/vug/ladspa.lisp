@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014-2018 Tito Latini
+;;; Copyright (c) 2014-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -19,12 +19,16 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (export 'ladspa->vug (find-package :incudine.vug))
   (object-to-free incudine.vug-foreign::ladspa-plugin-instantiate
-                  incudine.vug-foreign::update-ladspa-instance))
+                  incudine.vug-foreign::update-ladspa-instance)
+  (object-to-free incudine.vug-foreign::make-ladspa-plugin-instance
+                  incudine.vug-foreign::update-ladspa-plugin-state))
 
 (in-package :incudine.vug-foreign)
 
 (defstruct (ladspa-plugin (:include plugin)
                           (:constructor %make-ladspa-plugin)))
+
+(defstruct (ladspa-plugin-instance (:include plugin-instance)))
 
 (defun make-ladspa-plugin (filename label)
   (update-io-number
@@ -95,6 +99,10 @@
   ;; are connected and the plugin-instance is activated.
   `(setf ,(second args) t))
 
+(defmacro update-ladspa-plugin-state (vug-varname args)
+  (declare (ignore vug-varname args))
+  nil)
+
 (defmethod incudine:free ((obj ladspa:handle))
   (msg debug "Cleanup LADSPA plugin")
   (ladspa:cleanup obj))
@@ -105,15 +113,17 @@
                                 :pointer instance-ptr :unsigned-long index
                                 :pointer data-location :void))
 
-(defun ladspa-connect-port-form (plugin instance-ptr block-size)
+(defun ladspa-connect-port-form (plugin instance instance-ptr block-size)
   `(progn
      ,@(port-loop (p i plugin)
          for name = (arg-symbol p)
-         collect `(ladspa-connect-port ,plugin ,instance-ptr ,i
-                                       ,(if (and (> block-size 1)
-                                                 (audio-port-p p))
-                                            name
-                                            `(get-pointer ,name))))))
+         collect
+           (let ((ptr (if (and (> block-size 1) (audio-port-p p))
+                          name
+                          `(get-pointer ,name))))
+             `(progn (ladspa-connect-port ,plugin ,instance-ptr ,i ,ptr)
+                     (setf (aref (plugin-instance-port-pointers ,instance) ,i)
+                           ,ptr))))))
 
 (defmacro ladspa-?activate (plugin instance instance-ptr activate-p)
   (with-gensyms (cb)
@@ -141,20 +151,29 @@
                                 :unsigned-long sample-count :void))
 
 (defun %ladspa->vug (filename label vug-name block-size)
-  (let ((plugin (make-ladspa-plugin filename label)))
-    `(with-vug-plugin (,vug-name ,plugin ,block-size)
+  (let ((plugin (make-ladspa-plugin filename label))
+        (plugin-instance (ensure-symbol "PLUGIN-INSTANCE")))
+    `(with-vug-plugin (,vug-name ,plugin ,block-size t)
        (with ((reinit-p nil)
               (ladspa-obj (ladspa-plugin-instantiate ,plugin reinit-p))
-              (ladspa-ptr (ladspa::handle-ptr ladspa-obj)))
+              (ladspa-ptr (ladspa::handle-ptr ladspa-obj))
+              (ladspa-state
+                (make-ladspa-plugin-instance
+                  :label ,(plugin-label plugin)
+                  :handle-pointer ladspa-ptr
+                  :port-pointers
+                    (make-array ,(length (plugin-ports plugin))))))
          (declare (type foreign-pointer ladspa-ptr)
                   (type boolean reinit-p)
                   (preserve reinit-p))
          (initialize
+           (setf ,plugin-instance ladspa-state)
            ;; REINIT-P is NIL only the first time. It becomes T in
            ;; UPDATE-LADSPA-INSTANCE
            (if reinit-p
                (ladspa-deactivate ,plugin ladspa-obj ladspa-ptr)
-               ,(ladspa-connect-port-form plugin 'ladspa-ptr block-size))
+               ,(ladspa-connect-port-form
+                  plugin plugin-instance 'ladspa-ptr block-size))
            (ladspa-activate ,plugin ladspa-obj ladspa-ptr))
          (ladspa-run ,plugin ladspa-ptr ,block-size)))))
 
@@ -165,6 +184,11 @@ the LADSPA plugin with LABEL loaded from FILENAME.
 
 FILENAME is the namestring of the plugin path, absolute or relative to
 LADSPA:*LADSPA-PATH*, with or without type extension.
+
+The control parameter PLUGIN-INSTANCE is set to the plugin instance
+during the DSP initialization. It is possible to retrieve the plugin
+instance through CONTROL-VALUE. This functionality works only with a
+VUG or an inlined UGEN.
 
 All the arguments of the auxiliary function are optional keywords.
 

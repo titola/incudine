@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -29,6 +29,7 @@
     (world-load-all *world*)
     *world*))
 
+(defvar *uri-atom-port* (cffi:null-pointer))
 (defvar *uri-audio-port* (cffi:null-pointer))
 (defvar *uri-control-port* (cffi:null-pointer))
 (defvar *uri-input-port* (cffi:null-pointer))
@@ -37,9 +38,11 @@
 (defvar *uri-midi-port* (cffi:null-pointer))
 
 (defun lv2-init ()
+  "Initialize the Lilv World that represents all Lilv state."
   (lilv:init-world)
   (macrolet ((set-var (var-name uri)
                `(setf ,var-name (lilv:new-uri lilv::*world* ,uri))))
+    (set-var *uri-atom-port* "http://lv2plug.in/ns/ext/atom#AtomPort")
     (set-var *uri-audio-port* "http://lv2plug.in/ns/lv2core#AudioPort")
     (set-var *uri-control-port* "http://lv2plug.in/ns/lv2core#ControlPort")
     (set-var *uri-input-port* "http://lv2plug.in/ns/lv2core#InputPort")
@@ -57,13 +60,23 @@
            (lilv:world-get-all-plugins lilv:*world*) node)
       (lilv:node-free node))))
 
+(declaim (inline lv2:features))
+(defun lv2:features ()
+  "Return the NULL-terminated foreign array of LV2 Features supported by
+Incudine. The foreign array is allocated during the initialization of the
+Lilv World."
+  (world-features *world*))
+
 (defgeneric free (obj))
 
 (defmethod free ((obj world))
   (unless (free-p obj)
     (world-free (world-pointer obj))
+    (cffi:foreign-free (world-features obj))
     (cancel-finalization obj)
+    (lv2::free-features)
     (setf (world-pointer obj) (cffi:null-pointer))
+    (setf (world-features obj) (cffi:null-pointer))
     (values)))
 
 (defmethod free ((obj instance))
@@ -76,3 +89,17 @@
       (cancel-finalization obj)
       (setf (instance-pointer obj) (cffi:null-pointer))
       (values))))
+
+(defmacro node-loop ((var nodes) &rest keywords-and-forms)
+  "Iterate over the NODES with VAR bound to each node and the
+KEYWORDS-AND-FORMS of the LOOP macro.
+
+Example:
+
+    (lilv:node-loop (n lilv-nodes)
+      if (lilv:node-is-uri n) collect (lilv:node-as-uri n))"
+  (let ((n (gensym)))
+    `(loop for ,n = (nodes-begin ,nodes) then (nodes-next ,nodes ,n)
+           for ,var = (nodes-get ,nodes ,n)
+           until (nodes-is-end ,nodes ,n)
+          ,@keywords-and-forms)))

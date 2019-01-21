@@ -68,6 +68,8 @@
                           (source-file "contrib/cl-lilv/cffi-lv2.lisp")
                           (source-file "contrib/cl-lilv/error.lisp")
                           (source-file "contrib/cl-lilv/lilv.lisp")
+                          (source-file "contrib/cl-lilv/lv2.lisp")
+                          (source-file "contrib/cl-lilv/map.lisp")
                           (source-file "src/vug/lv2.lisp")))
     ("cache/portaudio.dict"
      :required-features (:portaudio)
@@ -193,12 +195,15 @@
 
 (defvar *special-char-lists*
   (mapcar (lambda (str) (nreverse (coerce str 'list)))
-          '("C" "DC" "DSP" "FFT" "IFFT" "MIDI" "NTP" "OSC" "VUG" "UGEN")))
+          '("C" "DC" "DSP" "FFT" "IFFT" "LADSPA" "LV2" "MIDI" "NTP" "OSC"
+            "UGEN" "URID" "VUG")))
 
 (defun tildelize-p (char-list)
   (null (or (let ((pos (position-if #'alpha-char-p char-list)))
               (when pos
-                (member (if (= pos 0) char-list (subseq char-list pos))
+                (member (if (or (= pos 0) (every #'alphanumericp char-list))
+                            char-list
+                            (subseq char-list pos))
                         *special-char-lists* :test #'equal)))
             (find #\_ char-list)
             (char= (first (last char-list)) #\"))))

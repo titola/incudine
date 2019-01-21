@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -486,6 +486,7 @@
 
 (defpackage :incudine.vug-foreign
   (:use :cl :incudine.util :incudine.vug)
+  (:nicknames :vug-foreign)
   (:import-from #:alexandria #:define-constant #:make-keyword
                 #:format-symbol #:ensure-symbol #:with-gensyms
                 #:non-negative-fixnum)
@@ -494,6 +495,8 @@
    #:+input-port+ #:+output-port+ #:+control-port+ #:+audio-port+
    #:+event-port+ #:+midi-port+
    #:port #:make-port #:port-loop #:plugin #:make-plugin
+   #:plugin-instance #:plugin-instance-pointer
+   #:plugin-port-pointer
    #:update-io-number #:input-port-p #:output-port-p #:control-port-p
    #:audio-port-p #:event-port-p #:midi-port-p
    #:doc-string #:with-vug-plugin))

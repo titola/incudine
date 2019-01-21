@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2014 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -18,18 +18,32 @@
 
 (defpackage lv2
   (:use #:cl)
+  (:import-from #:alexandria #:non-negative-fixnum)
+  (:import-from #:cffi #:defctype #:defcstruct #:defcunion)
+  (:shadow #:atom)
+  (:import-from #:alexandria #:define-constant)
   (:export
+   #:+midi-event+
    #:handle
    #:feature
    #:descriptor
+   #:atom
+   #:atom-event
+   #:atom-sequence
+   #:atom-sequence-body
    #:event
    #:event-buffer
-   #:event-feature))
+   #:event-feature
+   #:features
+   #:uri-to-id
+   #:id-to-uri))
 
 (defpackage lilv
   (:use #:cl)
+  (:import-from #:cffi #:defctype #:defcstruct #:defcfun)
   (:export
    #:*world*
+   #:*uri-atom-port*
    #:*uri-audio-port*
    #:*uri-control-port*
    #:*uri-input-port*
@@ -177,12 +191,15 @@
    #:plugin-class-get-label
    #:plugin-class-get-children
    #:plugin-instantiate
+   #:instance-free
    #:instance-get-descriptor
    #:instance-get-handle
    #:instance-get-uri
+   #:instance-get-extension-data
    #:instance-connect-port
    #:instance-activate
    #:instance-deactivate
+   #:instance-run
    #:instance-impl-slot-value
    #:instance-slot-value
    #:connect-port
@@ -193,4 +210,5 @@
    #:ui-is-a
    #:ui-is-supported
    #:ui-get-bundle-uri
-   #:ui-get-binary-uri))
+   #:ui-get-binary-uri
+   #:node-loop))

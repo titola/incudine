@@ -1009,6 +1009,7 @@ Deallocate the ~voicer~.
 ::: incudine.vug-foreign:port-loop
 ::: incudine.vug-foreign:plugin
 ::: incudine.vug-foreign:make-plugin
+::: incudine.vug-foreign:plugin-port-pointer
 ::: incudine.vug-foreign:with-vug-plugin
 ::: incudine.vug-foreign:doc-string
 ::: incudine.vug-foreign:update-io-number

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014-2018 Tito Latini
+;;; Copyright (c) 2014-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -44,6 +44,8 @@
   (ports #() :type simple-vector :read-only t)
   (inputs 0 :type non-negative-fixnum)
   (outputs 0 :type non-negative-fixnum)
+  (input-events 0 :type non-negative-fixnum)
+  (output-events 0 :type non-negative-fixnum)
   (sample-type t :type (or symbol cons) :read-only t)
   (instantiate-cb (cffi:null-pointer) :type foreign-pointer)
   (connect-port-cb (cffi:null-pointer) :type foreign-pointer)
@@ -52,17 +54,44 @@
   (deactivate-cb (cffi:null-pointer) :type foreign-pointer)
   (cleanup-cb (cffi:null-pointer) :type foreign-pointer))
 
+(defstruct plugin-instance
+  (label "" :type string :read-only t)
+  (handle-pointer (cffi:null-pointer) :type foreign-pointer)
+  (port-pointers #() :type simple-vector)
+  (event-pointers nil :type (or null simple-vector)))
+
+(declaim (inline plugin-instance-pointer))
+(defun plugin-instance-pointer (obj)
+  (plugin-instance-handle-pointer obj))
+
+(defmethod print-object ((obj plugin-instance) stream)
+  (format stream "#<~A ~S #X~8,'0X>" (type-of obj)
+          (plugin-instance-label obj)
+          (cffi:pointer-address (plugin-instance-pointer obj))))
+
+(declaim (inline plugin-port-pointer))
+(defun plugin-port-pointer (obj index)
+  "Return the foreign pointer to the data of the plugin port INDEX."
+  (aref (plugin-instance-port-pointers obj) index))
+
+(defun audio-control-outputs (plugin)
+  (- (plugin-outputs plugin) (plugin-output-events plugin)))
+
 (defun update-io-number (plugin)
   (declare (type plugin plugin))
   (setf (plugin-inputs plugin) (port-inputs plugin))
   (setf (plugin-outputs plugin) (port-outputs plugin))
+  (multiple-value-bind (in-events out-events)
+      (port-events plugin)
+    (setf (plugin-input-events plugin) in-events)
+    (setf (plugin-output-events plugin) out-events))
   plugin)
 
 (defun make-plugin (&rest args)
   (update-io-number (apply #'%make-plugin args)))
 
 (defmethod print-object ((obj plugin) stream)
-  (format stream "#<~S ~S #X~8,'0X>" (type-of obj)
+  (format stream "#<~A ~S #X~8,'0X>" (type-of obj)
           (plugin-label obj)
           (cffi:pointer-address (plugin-pointer obj))))
 
@@ -72,6 +101,7 @@
 (define-constant +audio-port+     8)
 (define-constant +event-port+    16)
 (define-constant +midi-port+     32)
+(define-constant +atom-port+     64)
 
 (defmacro port-typep (port type)
   `(logtest (port-type ,port)
@@ -81,8 +111,18 @@
 (defun output-port-p (port) (port-typep port output))
 (defun control-port-p (port) (port-typep port control))
 (defun audio-port-p (port) (port-typep port audio))
-(defun event-port-p (port) (port-typep port event))
 (defun midi-port-p (port) (port-typep port midi))
+(defun atom-port-p (port) (port-typep port atom))
+(defun %event-port-p (port) (port-typep port event))
+
+(defun event-port-p (port)
+  (or (atom-port-p port) (%event-port-p port) (midi-port-p port)))
+
+(defun audio-control-input-port-p (port)
+  (and (input-port-p port) (not (event-port-p port))))
+
+(defun audio-control-output-port-p (port)
+  (and (output-port-p port) (not (event-port-p port))))
 
 (defun lispify-name (name)
   "Lispify the name of a port."
@@ -127,18 +167,35 @@
 (defun port-inputs (plugin)
   (port-loop (p i plugin) if (input-port-p p) sum 1))
 
+(defun port-control-inputs (plugin)
+  (port-loop (p i plugin)
+    if (and (input-port-p p)
+            (control-port-p p)
+            (not (event-port-p p)))
+    sum 1))
+
 (defun port-outputs (plugin)
   (port-loop (p i plugin) if (output-port-p p) sum 1))
 
-(defun port-input-names (plugin)
-  (port-loop (p i plugin)
-    if (input-port-p p)
-    collect (arg-symbol p)))
+(defun port-events (plugin)
+  (let ((acc (cons 0 0)))
+    (port-loop (p i plugin)
+      do (if (event-port-p p)
+             (if (input-port-p p)
+                 (incf (car acc))
+                 (incf (cdr acc)))))
+    (values (car acc) (cdr acc))))
 
-(defun port-output-names (plugin)
+(defun port-audio-control-input-names (plugin control-arguments-p)
   (port-loop (p i plugin)
-    if (output-port-p p)
-    collect (arg-symbol p)))
+    if (and (audio-control-input-port-p p)
+            (or control-arguments-p (audio-port-p p)))
+      collect (arg-symbol p)))
+
+(defun port-audio-control-output-names (plugin)
+  (port-loop (p i plugin)
+    if (audio-control-output-port-p p)
+      collect (arg-symbol p)))
 
 (defun port-input-arg (port block-size)
   (let ((arg (arg-symbol port)))
@@ -146,19 +203,24 @@
         arg
         `(,arg cffi:foreign-pointer))))
 
-(defun port-input-args (plugin &optional (block-size 1))
+(defun vug-arg-names (plugin block-size control-arguments-p)
   (port-loop (p i plugin)
-    if (input-port-p p) collect (port-input-arg p block-size)))
+    if (and (input-port-p p)
+            (not (event-port-p p))
+            (or control-arguments-p (audio-port-p p)))
+      collect (port-input-arg p block-size)))
 
 (defun port-input-defaults-p (plugin)
   (port-loop (p i plugin)
-    if (and (input-port-p p) (not (null (port-default p))))
+    if (and (input-port-p p) (port-default p))
       do (return t)))
 
-(defun port-input-defaults (plugin &optional missing-arg-format-control)
+(defun port-input-defaults (plugin control-arguments-p missing-arg-format-control)
   (when (port-input-defaults-p plugin)
     (port-loop (p i plugin)
-      if (input-port-p p)
+      if (and (input-port-p p)
+              (not (event-port-p p))
+              (or control-arguments-p (audio-port-p p)))
         collect (or (port-default p)
                     (when missing-arg-format-control
                       `(incudine-missing-arg
@@ -187,20 +249,28 @@
                (loop for (type lst) on ,declare-list-name by #'cddr
                      collect (cons type (nreverse lst)))))))
 
-(defun vug-port-input-bindings (plugin &optional (block-size 1))
+(defun vug-port-input-bindings (plugin block-size control-arguments-p
+                                event-buffer-size make-event-form)
   (vug-port-bindings (decl)
     (port-loop (p i plugin)
-      if (input-port-p p)
+      if (and (input-port-p p)
+              (or control-arguments-p (event-port-p p)))
         collect (let* ((name (port-lisp-name p))
                        (arg (ensure-symbol name))
                        (array-p (io-array-p p block-size)))
                   (add-vug-declaration arg (port-value-type p) decl array-p)
-                  `(,arg ,(if array-p
-                              arg
-                              (vug::dsp-coercing-argument
-                               arg (port-value-type p))))))))
+                  `(,arg
+                    ,(cond (array-p arg)
+                           ((event-port-p p)
+                            (funcall make-event-form
+                              ;; Foreign array automatically freed.
+                              `(make-u32-array ,(ash event-buffer-size -2))))
+                           (t
+                            (vug::dsp-coercing-argument
+                              arg (port-value-type p)))))))))
 
-(defun vug-port-output-bindings (plugin &optional (block-size 1))
+(defun vug-port-output-bindings (plugin block-size event-buffer-size
+                                 make-event-form)
   (vug-port-bindings (decl)
     (port-loop (p i plugin)
       if (output-port-p p)
@@ -208,12 +278,18 @@
                        (arg (ensure-symbol name))
                        (array-p (io-array-p p block-size)))
                   (add-vug-declaration arg (port-value-type p) decl array-p)
-                  `(,arg ,(if array-p
-                              `(,(port-array-fname p) ,block-size)
-                              (vug::coerce-number 0 (port-value-type p))))))))
+                  `(,arg
+                    ,(cond (array-p `(,(port-array-fname p) ,block-size))
+                           ((event-port-p p)
+                            (funcall make-event-form
+                              ;; Foreign array automatically freed.
+                              `(make-u32-array ,(ash event-buffer-size -2))
+                              :output-p t))
+                           (t
+                            (vug::coerce-number 0 (port-value-type p)))))))))
 
 (defun vug-frame-binding (plugin block-size)
-  (let ((outs (plugin-outputs plugin)))
+  (let ((outs (audio-control-outputs plugin)))
     (when (> outs 1)
       `((outputs ,(if (= block-size 1)
                       `(make-frame ,outs)
@@ -226,8 +302,8 @@
              ,(if control-p `(get-pointer ,out) out))))
 
 (defun get-output (plugin block-size)
-  (let ((names (port-output-names plugin)))
-    (if (> (plugin-outputs plugin) 1)
+  (let ((names (port-audio-control-output-names plugin)))
+    (if (> (audio-control-outputs plugin) 1)
         (if (= block-size 1)
             ;; Array of samples (frame).
             `(,@(loop for out in names for index from 0
@@ -241,29 +317,71 @@
             ;; Foreign array.
             `(,(car names))))))
 
-(defmacro with-vug-plugin ((vug-name plugin block-size) &body body)
+(defmacro with-vug-plugin ((vug-name plugin block-size control-arguments-p
+                            &key (event-buffer-size 131072)
+                            (make-event-form #'identity)
+                            (reset-event-form #'identity))
+                           &body body)
   (multiple-value-bind (in-bindings in-decl)
-      (vug-port-input-bindings plugin block-size)
+      (vug-port-input-bindings
+        plugin block-size control-arguments-p event-buffer-size
+        make-event-form)
     (multiple-value-bind (out-bindings out-decl)
-        (vug-port-output-bindings plugin block-size)
-      (let ((defaults (port-input-defaults plugin "Missing ~S argument")))
-        `(define-vug ,vug-name ,(port-input-args plugin block-size)
+        (vug-port-output-bindings
+           plugin block-size event-buffer-size make-event-form)
+      (let ((defaults (port-input-defaults
+                        plugin control-arguments-p "Missing ~S argument"))
+            (plugin-instance (ensure-symbol "PLUGIN-INSTANCE")))
+        `(define-vug ,vug-name (,@(vug-arg-names
+                                    plugin block-size control-arguments-p)
+                                (,plugin-instance (or null plugin-instance)))
            ,(doc-string plugin)
-           ,@(when defaults `((:defaults ,@defaults)))
+           (:defaults ,@defaults nil)
            (with (,@in-bindings
                   ,@out-bindings
                   ,@(vug-frame-binding plugin block-size))
              (declare ,@in-decl ,@out-decl)
+             (maybe-expand ,@(port-audio-control-input-names
+                               plugin control-arguments-p))
+             ,@(when (plusp (plugin-output-events plugin))
+                 (port-loop (p i plugin)
+                   if (and (event-port-p p) (output-port-p p))
+                     collect (funcall reset-event-form (arg-symbol p)
+                                      :init-time-p t :output-p t)))
+             ,@body
              ,@(when (and (> (plugin-outputs plugin) 1)
                           (> block-size 1))
                  ;; Set the pointer to the foreign arrays.
                  `((initialize
-                    ,@(port-loop (p i plugin)
-                        with index = 0
-                        if (output-port-p p)
-                          collect (set-outputs index (arg-symbol p) block-size
-                                               (control-port-p p))
-                          and do (incf index)))))
-             (maybe-expand ,@(port-input-names plugin))
-             ,@body
+                     ,@(port-loop (p i plugin)
+                         with index = 0
+                         if (audio-control-output-port-p p)
+                           collect (set-outputs index (arg-symbol p) block-size
+                                                (control-port-p p))
+                           and do (incf index)))))
+             ,@(when (plusp (plugin-input-events plugin))
+                 `((initialize
+                     (setf (plugin-instance-event-pointers ,plugin-instance)
+                           (make-array ,(plugin-input-events plugin)))
+                     ,@(port-loop (p i plugin)
+                         with j = 0
+                         if (and (event-port-p p) (input-port-p p))
+                           collect
+                             `(setf (svref (plugin-instance-event-pointers
+                                             ,plugin-instance)
+                                           ,j)
+                                    ,(arg-symbol p))
+                           and do (incf j)
+                           and collect (funcall reset-event-form (arg-symbol p)
+                                                :init-time-p t)))))
+             ,@(when (plusp (plugin-output-events plugin))
+                 (port-loop (p i plugin)
+                   if (and (event-port-p p) (output-port-p p))
+                     collect (funcall reset-event-form (arg-symbol p)
+                                      :init-time-p t :output-p t)))
+             ,@(when (plusp (plugin-input-events plugin))
+                 (port-loop (p i plugin)
+                   if (and (event-port-p p) (input-port-p p))
+                     collect (funcall reset-event-form
+                                      (arg-symbol p))))
              ,@(get-output plugin block-size)))))))

@@ -4,29 +4,179 @@ LV2 audio plugin interface for Incudine.
 #+texinfo: @noindent
 To load ~incudine-lv2~ use ~asdf:load-system~ or ~require~.
 
-#+attr_texinfo: :options {Macro} vug:lv2->vug uri vug-name @andkey{} block-size debug-p
+#+attr_texinfo: :options {Macro} vug:lv2->vug uri vug-name @andkey{} block-size control-arguments-p debug-p
 #+begin_deffn
 Define a new VUG and the auxiliary function named ~vug-name~ to use
-the ~lv2~ plugin with ~uri~.
+the LV2 plugin with ~uri~.
 
-All the arguments of the auxiliary function are optional keywords.
+Initialize the Lilv World if necessary.
 
-If the incudine block size changes, ~vug:lv2->vug~ should be called again.
+The control parameter ~plugin-instance~ is set to the plugin instance
+during the DSP initialization. It is possible to retrieve the plugin
+instance through ~control-value~. This functionality works only with a
+VUG or an inlined UGEN.
 
-If ~block-size~ is not set and the incudine block size changes, ~lv2->vug~
-should be called again.
+If ~control-arguments-p~ is ~t~ (default), all the LV2 controls are
+optional keywords of the auxiliary function. If the LV2 plugin provides
+many control ports, ~lv2->vug~ fails with a "Control stack exhausted"
+error. In this case, set ~control-arguments-p~ to ~nil~, retrieve the plugin
+instance via ~control-value~ and use ~vug-foreign:plugin-port-pointer~ out
+of the DSP.
+
+If the incudine block size changes, ~lv2->vug~ should be called again.
 
 If ~debug-p~ is ~t~, return the lisp form to define the VUG.
 
 Return the new VUG structure.
 
-Example:
+Example of a LV2 effect:
 
 : (lv2->vug "http://plugin.org.uk/swh-plugins/amp" swh.amp)
 :
 : (dsp! amp-test (gain)
 :   (out (swh.amp gain (white-noise))))
+
+Example of a LV2 instrument:
+
+: (set-rt-block-size 64)
+:
+: (lv2->vug SYNTH-TEST-URI synth-test)
+:
+: ;; Note: the control parameter PLUGIN could be of type T for simplicity.
+: (dsp! lv2-synth-test ((plugin (or null vug-foreign:plugin-instance)))
+:   (:defaults nil)
+:   (with ((out (cffi:null-pointer)))
+:     (declare (type pointer out))
+:     ;; If the instrument has many control ports, we can use
+:     ;; VUG-FOREIGN:PLUGIN-PORT-POINTER out of the DSP.
+:     (setf out (synth-test :plugin-instance plugin))
+:     (foreach-frame
+:       ;; Plugin with a single audio output port.
+:       (stereo (sample (f32-ref out current-frame)))
+:       ;; Plugin with multiple audio output ports, for example two:
+:       ;; (out (sample (f32-ref (ptr-ref out 0) current-frame))
+:       ;;      (sample (f32-ref (ptr-ref out 1) current-frame))))))
+:
+: (rt-start)
+: (lv2-synth-test :id 123)
+:
+: (defvar *synth-test* (control-value 123 'plugin))
+:
+: *synth-test*
+: ;; => #<LV2-PLUGIN-INSTANCE ...>
+:
+: (defvar *midiin* (jackmidi:open))
+:
+: (make-responder *midiin*
+:   (lambda (st d1 d2)
+:     (lv2:write-event *synth-test* (lv2:midi-message st d1 d2))))
+:
+: (recv-start *midiin*)
+:
+: (defun set-lv2-control (plugin port-index value)
+:   ;; Change the port value in rt-thread.
+:   (rt-eval ()
+:     (setf (f32-ref (vug-foreign:plugin-port-pointer plugin port-index))
+:           (coerce value 'single-float)))
+:   value)
+:
+: ;; Read the Turtle description of plugin /path/to/SYNTH-TEST.ttl
+: ;; or run the command lv2info to know the port indices.
+: (set-lv2-control *synth-test* PORT-INDEX 0.1)
+:
+: (f32-ref (vug-foreign:plugin-port-pointer *synth-test* PORT-INDEX))
+: ;; => 0.1
+:
+: ;; We can set more port values from nrt-thread with a single
+: ;; memory barrier or CAS.
+: (rt-eval ()
+:   (set-lv2-control ...)
+:   (set-lv2-control ...)
+:   ...)
 #+end_deffn
+
+#+attr_texinfo: :options lv2:write-event plugin data @andkey{} index type start end
+#+begin_defun
+Send an event through an Atom port of a LV2 ~plugin~. The buffer type
+of the Atom port is Atom Sequence.
+
+~data~ is a short MIDI message encoded into four bytes or a vector of
+octets where ~start~ and ~end~ are the optional bounding index designators.
+
+If the plugin has more than one input event port, ~index~ is the array
+index of the input event ports.
+
+The event ~type~ is a URID (an integer) obtained from ~lv2:uri-to-id~.
+It is a MIDI event by default.
+#+end_defun
+
+#+attr_texinfo: :options lv2:midi-message @andrest{} octets
+#+begin_defun
+Return a MIDI message encoded for ~lv2:write-event~.
+#+end_defun
+
+#+attr_texinfo: :options set-lv2-tuning tuning plugin @andkey{} event-index device-id program single-note-tuning-p checksum-function
+#+begin_defun
+Send a bulk tuning dump message as a LV2 MIDI message. It obviously
+works if the LV2 synthesizer supports it. The new frequencies are
+related to a ~tuning~ structure.
+
+If the plugin has more than one input event port, ~event-index~ is the
+array index of the input event ports.
+
+If ~single-note-tuning-p~ is non-NIL, send 128 single note tuning change
+messages instead.
+
+The optional ~checksum-function~ requires two arguments: the foreign
+buffer containing the MIDI SysEx message and the buffer size in bytes.
+It is useful if the manufacturer implements a different checksum.
+
+~event-index~, ~device-id~ and ~program~ default to 0.
+#+end_defun
+
+#+attr_texinfo: :options lv2:uri-to-id uri
+#+begin_defun
+Get the numeric identifier of a Uniform Resource Identifier,
+a string that identifies a resource.
+#+end_defun
+
+#+attr_texinfo: :options lv2:id-to-uri id
+#+begin_defun
+Get the Uniform Resource Identifier for a mapped numeric ~id~
+obtained from ~lv2:uri-to-id~.
+
+Example:
+
+: (lv2:uri-to-id "http://lv2plug.in/ns/ext/midi#MidiEvent")
+: ;; => 62
+: (lv2:id-to-uri 62)
+: ;; => "http://lv2plug.in/ns/ext/midi#MidiEvent"
+#+end_defun
+
+#+attr_texinfo: :options {Constant} lv2:+midi-event+
+#+begin_defvr
+Numeric identifier of http://lv2plug.in/ns/ext/midi#MidiEvent.
+#+end_defvr
+
+#+attr_texinfo: :options lv2:features
+#+begin_defun
+Return the NULL-terminated foreign array of LV2 Features supported by
+Incudine. The foreign array is allocated during the initialization of the
+Lilv World.
+#+end_defun
+
+#+attr_texinfo: :options {Structure} lv2:atom-sequence
+#+begin_deftp
+#+end_deftp
+
+#+attr_texinfo: :options {Structure} lv2:event
+#+begin_deftp
+#+end_deftp
+
+#+attr_texinfo: :options lilv:lv2-init
+#+begin_defun
+Initialize the Lilv World that represents all Lilv state.
+#+end_defun
 
 #+attr_texinfo: :options {Variable} lilv:*world*
 #+begin_defvr
@@ -45,6 +195,10 @@ Example:
 #+end_defvr
 
 #+attr_texinfo: :options {Variable} lilv:*uri-output-port*
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Variable} lilv:*uri-atom-port*
 #+begin_defvr
 #+end_defvr
 
@@ -71,10 +225,6 @@ Example:
 #+attr_texinfo: :options {Generic Function} lilv:free obj
 #+begin_deffn
 #+end_deffn
-
-#+attr_texinfo: :options lilv:lv2-init
-#+begin_defun
-#+end_defun
 
 #+attr_texinfo: :options lilv:plugin-pointer uri
 #+begin_defun
@@ -287,6 +437,17 @@ Example:
 #+attr_texinfo: :options lilv:nodes-merge a b
 #+begin_defun
 #+end_defun
+
+#+attr_texinfo: :options {Macro} lilv:node-loop (var nodes) @andrest{} keywords-and-forms
+#+begin_deffn
+Iterate over the ~nodes~ with ~var~ bound to each node and the
+~keywords-and-forms~ of the ~loop~ macro.
+
+Example:
+
+: (lilv:node-loop (n lilv-nodes)
+:   if (lilv:node-is-uri n) collect (lilv:node-as-uri n))
+#+end_deffn
 
 #+attr_texinfo: :options lilv:plugins-size collection
 #+begin_defun
@@ -629,6 +790,10 @@ Example:
 #+end_defun
 
 #+attr_texinfo: :options lilv:instance-deactivate instance
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options lilv:instance-run instance sample-count
 #+begin_defun
 #+end_defun
 

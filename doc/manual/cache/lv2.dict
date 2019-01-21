@@ -5,17 +5,30 @@ LV2 audio plugin interface for Incudine.
 To load ~incudine-lv2~ use ~asdf:load-system~ or ~require~.
 
 ::: vug:lv2->vug
+::: lv2:write-event
+::: lv2:midi-message
+::: incudine:set-lv2-tuning
+::: lv2:uri-to-id
+::: lv2:id-to-uri
+::: lv2:+midi-event+
+::: lv2:features
 ::: lv2:handle
 ::: lv2:feature
 ::: lv2:descriptor
+::: lv2:atom
+::: lv2:atom-event
+::: lv2:atom-sequence
+::: lv2:atom-sequence-body
 ::: lv2:event
 ::: lv2:event-buffer
 ::: lv2:event-feature
+::: lilv:lv2-init
 ::: lilv:*world*
 ::: lilv:*uri-audio-port*
 ::: lilv:*uri-control-port*
 ::: lilv:*uri-input-port*
 ::: lilv:*uri-output-port*
+::: lilv:*uri-atom-port*
 ::: lilv:*uri-event-port*
 ::: lilv:*uri-midi-port*
 ::: lilv:instance-impl
@@ -23,7 +36,6 @@ To load ~incudine-lv2~ use ~asdf:load-system~ or ~require~.
 ::: lilv:instance
 ::: lilv:free-p
 ::: lilv:free
-::: lilv:lv2-init
 ::: lilv:plugin-pointer
 ::: lilv:uri-to-path
 ::: lilv:new-uri
@@ -77,6 +89,7 @@ To load ~incudine-lv2~ use ~asdf:load-system~ or ~require~.
 ::: lilv:nodes-get-first
 ::: lilv:nodes-contains
 ::: lilv:nodes-merge
+::: lilv:node-loop
 ::: lilv:plugins-size
 ::: lilv:plugins-begin
 ::: lilv:plugins-get
@@ -163,6 +176,7 @@ To load ~incudine-lv2~ use ~asdf:load-system~ or ~require~.
 ::: lilv:instance-connect-port
 ::: lilv:instance-activate
 ::: lilv:instance-deactivate
+::: lilv:instance-run
 ::: lilv:instance-impl-slot-value
 ::: lilv:instance-slot-value
 ::: lilv:connect-port
