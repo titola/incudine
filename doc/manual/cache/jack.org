@@ -149,7 +149,7 @@ Type designator for a vector of octets.
 Return a vector of ~octets~.
 #+end_defun
 
-#+attr_texinfo: :options jackmidi:message status data1 data2
+#+attr_texinfo: :options jackmidi:message status @andoptional{} data1 data2
 #+begin_defun
 Encode a short MIDI message into four bytes.
 #+end_defun

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2016-2018 Tito Latini
+;;; Copyright (c) 2016-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -276,7 +276,7 @@ MIDIFILE:INPUT-STREAM MF."
 
 ;; Copy of JACMIDI:MESSAGE.
 (declaim (inline message))
-(defun message (status data1 data2)
+(defun message (status &optional (data1 0) (data2 0))
   "Encode a short MIDI message into four bytes."
   (declare (type (unsigned-byte 8) status data1 data2))
   (the (unsigned-byte 32)
