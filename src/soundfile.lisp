@@ -683,7 +683,7 @@ if FORWARD-P is NIL."
            0d0)
           (t
            (read-next (move-to-frame sf frame (stream-buffer-end sf))
-                      channel forward-p peek-p)))))
+                      channel peek-p forward-p)))))
 
 (declaim (inline update-frame-threshold))
 (defun update-frame-threshold (sf frame)
