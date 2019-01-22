@@ -355,10 +355,6 @@ format, number of tracks, ppqn-or-smpte-format and ticks-per-frame."))
               (stream-smpte-format obj))
           (stream-ticks-per-frame obj)))
 
-(defmethod read-header ((obj pathname))
-  (with-open-file (f obj :element-type '(unsigned-byte 8))
-    (read-header f)))
-
 (defmethod read-header ((obj string))
   (read-header (truename obj)))
 
@@ -636,6 +632,9 @@ If MF is a MIDIFILE:OUTPUT-STREAM, write the current track."
 either normally or abnormally, the MIDIFILE:STREAM is automatically closed."
   `(let ((,midifile-stream (open ,filespec ,@options)))
      (unwind-protect (progn ,@body) (close ,midifile-stream))))
+
+(defmethod read-header ((obj pathname))
+  (with-open-midifile (f obj) (read-header f)))
 
 (declaim (inline update-byte-counters))
 (defun update-byte-counters (mf bytes)
