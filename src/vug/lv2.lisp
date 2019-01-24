@@ -194,7 +194,7 @@
 
 (defun lv2-connect-port-form (plugin instance control-arguments-p descriptor
                               handle block-size)
-  `(progn
+  `(reduce-warnings
      ,@(port-loop (p i plugin)
          for name = (arg-symbol p)
          if (or (and (input-port-p p)
@@ -266,14 +266,15 @@
               (lv2-handle (lv2-handle lv2-ptr))
               (lv2-descr (lv2-descriptor lv2-ptr))
               (lv2-state
-                (make-lv2-plugin-instance
-                  :label ,(plugin-label plugin)
-                  :uri ,(plugin-path plugin)
-                  :handle-pointer lv2-handle
-                  :lilv-instance lv2-obj
-                  :port-pointers
-                    (make-array
-                      ,(lilv:plugin-get-num-ports (plugin-pointer plugin)))))
+                (reduce-warnings
+                  (make-lv2-plugin-instance
+                    :label ,(plugin-label plugin)
+                    :uri ,(plugin-path plugin)
+                    :handle-pointer lv2-handle
+                    :lilv-instance lv2-obj
+                    :port-pointers
+                      (make-array
+                        ,(lilv:plugin-get-num-ports (plugin-pointer plugin))))))
               ,@(unless control-arguments-p
                   `((controls (make-f32-array
                                 ,(port-control-inputs plugin))))))

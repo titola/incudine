@@ -152,7 +152,7 @@ and execute the body once for each channel, then RESULT form is evaluated."
   "Return a real pole for a 60dB exponential decay in TIME seconds."
   (if (plusp time)
       ;; tau = time / log(0.001) = time / 6.9077
-      (exp (/ *log001-div-sr* time))
+      (incudine.external::%exp (/ *log001-div-sr* time))
       +sample-zero+))
 
 (declaim (inline cheb))

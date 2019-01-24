@@ -114,7 +114,7 @@
                                 :pointer data-location :void))
 
 (defun ladspa-connect-port-form (plugin instance instance-ptr block-size)
-  `(progn
+  `(reduce-warnings
      ,@(port-loop (p i plugin)
          for name = (arg-symbol p)
          collect
@@ -158,11 +158,12 @@
               (ladspa-obj (ladspa-plugin-instantiate ,plugin reinit-p))
               (ladspa-ptr (ladspa::handle-ptr ladspa-obj))
               (ladspa-state
-                (make-ladspa-plugin-instance
-                  :label ,(plugin-label plugin)
-                  :handle-pointer ladspa-ptr
-                  :port-pointers
-                    (make-array ,(length (plugin-ports plugin))))))
+                (reduce-warnings
+                  (make-ladspa-plugin-instance
+                    :label ,(plugin-label plugin)
+                    :handle-pointer ladspa-ptr
+                    :port-pointers
+                      (make-array ,(length (plugin-ports plugin)))))))
          (declare (type foreign-pointer ladspa-ptr)
                   (type boolean reinit-p)
                   (preserve reinit-p))

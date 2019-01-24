@@ -398,3 +398,6 @@ The returned value is of type DOUBLE-FLOAT.
 If BASE is a negative value and POWER is not an integer,
 FLOATING-POINT-INVALID-OPERATION is signalled."
   (%pow (coerce base 'double-float) (coerce power 'double-float)))
+
+(declaim (inline %exp))
+(cffi:defcfun ("exp" %exp) :double (x :double))
