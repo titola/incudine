@@ -559,7 +559,7 @@ Setfable."
 
 (define-compiler-macro set-abuffer-realpart (obj nbin value)
   (if (constantp nbin)
-      `(setf (mem-ref (abuffer-data obj) 'sample
+      `(setf (mem-ref (abuffer-data ,obj) 'sample
                       ,(* (eval nbin) +foreign-complex-size+))
              (sample ,value))
       `(setf (mem-ref (abuffer-data ,obj) 'sample
