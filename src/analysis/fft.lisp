@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -170,6 +170,7 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
   (declare (type positive-fixnum size) (type non-negative-fixnum window-size)
            (type (or fixnum null) flags)
            (type (or function null) window-function)
+           (type boolean real-time-p)
            #.*reduce-warnings*)
   (flet ((foreign-alloc (size fftw-array-p rt-p)
            (cond (rt-p (foreign-rt-alloc 'sample :count size))
@@ -194,7 +195,7 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
               (values (incudine.util::alloc-rt-object *rt-fft-pool*)
                       #'safe-foreign-rt-free
                       *rt-fft-pool*)
-              (values (incudine.util::alloc-rt-object *fft-pool*)
+              (values (incudine.util::alloc-object *fft-pool*)
                       #'foreign-free
                       *fft-pool*))
         (declare (type fft obj) (type incudine-object-pool pool))
@@ -335,6 +336,7 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
   (declare (type positive-fixnum size) (type non-negative-fixnum window-size)
            (type (or fixnum null) flags)
            (type (or function null) window-function)
+           (type boolean real-time-p)
            #.*reduce-warnings*)
   (flet ((foreign-alloc (size fftw-array-p rt-p)
            (cond (rt-p (foreign-rt-alloc 'sample :count size))
@@ -359,7 +361,7 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
               (values (incudine.util::alloc-rt-object *rt-ifft-pool*)
                       #'safe-foreign-rt-free
                       *rt-ifft-pool*)
-              (values (incudine.util::alloc-rt-object *ifft-pool*)
+              (values (incudine.util::alloc-object *ifft-pool*)
                       #'foreign-free
                       *ifft-pool*))
         (declare (type ifft obj) (type incudine-object-pool pool))
