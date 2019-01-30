@@ -17,6 +17,7 @@
 (in-package :incudine.vug-foreign)
 
 (defstruct (port (:constructor %make-port))
+  "Foreign plugin port type."
   (name "" :type string :read-only t)
   (lisp-name "" :type string :read-only t)
   (id 0 :type non-negative-fixnum :read-only t)
@@ -33,6 +34,7 @@
   (format stream "#<PLUGIN-PORT ~D ~A>" (port-id obj) (port-lisp-name obj)))
 
 (defstruct (plugin (:constructor %make-plugin))
+  "Foreign plugin type."
   (name "" :type string :read-only t)
   (path "" :type string :read-only t)
   (pointer (cffi:null-pointer) :type foreign-pointer :read-only t)
@@ -55,6 +57,7 @@
   (cleanup-cb (cffi:null-pointer) :type foreign-pointer))
 
 (defstruct plugin-instance
+  "Foreign plugin instance type."
   (label "" :type string :read-only t)
   (handle-pointer (cffi:null-pointer) :type foreign-pointer)
   (port-pointers #() :type simple-vector)
@@ -62,6 +65,7 @@
 
 (declaim (inline plugin-instance-pointer))
 (defun plugin-instance-pointer (obj)
+  "Return the foreign plugin instance pointer."
   (plugin-instance-handle-pointer obj))
 
 (defmethod print-object ((obj plugin-instance) stream)

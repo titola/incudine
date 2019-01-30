@@ -992,13 +992,18 @@ Deallocate the ~voicer~.
 ::: vug:exp-mouse-x
 ::: vug:exp-mouse-y
 *** Foreign Plugin
+::: incudine.vug-foreign:plugin
+::: incudine.vug-foreign:make-plugin
+::: incudine.vug-foreign:plugin-instance
+::: incudine.vug-foreign:plugin-instance-pointer
+::: incudine.vug-foreign:plugin-port-pointer
+::: incudine.vug-foreign:port
 ::: incudine.vug-foreign:+input-port+
 ::: incudine.vug-foreign:+output-port+
 ::: incudine.vug-foreign:+audio-port+
 ::: incudine.vug-foreign:+control-port+
 ::: incudine.vug-foreign:+midi-port+
 ::: incudine.vug-foreign:+event-port+
-::: incudine.vug-foreign:port
 ::: incudine.vug-foreign:input-port-p
 ::: incudine.vug-foreign:output-port-p
 ::: incudine.vug-foreign:audio-port-p
@@ -1007,9 +1012,6 @@ Deallocate the ~voicer~.
 ::: incudine.vug-foreign:event-port-p
 ::: incudine.vug-foreign:make-port
 ::: incudine.vug-foreign:port-loop
-::: incudine.vug-foreign:plugin
-::: incudine.vug-foreign:make-plugin
-::: incudine.vug-foreign:plugin-port-pointer
 ::: incudine.vug-foreign:with-vug-plugin
 ::: incudine.vug-foreign:doc-string
 ::: incudine.vug-foreign:update-io-number
