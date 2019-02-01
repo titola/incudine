@@ -255,7 +255,7 @@ current time."
     (let ((fftsize (fft-size obj))
           (winsize (fft-window-size obj)))
       (copy-from-ring-buffer
-        (fft-input-buffer obj) (fft-ring-buffer obj) fftsize)
+        (fft-input-buffer obj) (fft-ring-buffer obj) winsize)
       (unless (eq (fft-window-function obj) #'rectangular-window)
         (apply-window (fft-input-buffer obj) (fft-window-buffer obj) winsize))
       (apply-zero-padding (fft-input-buffer obj) winsize fftsize)
