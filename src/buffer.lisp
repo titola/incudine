@@ -524,7 +524,7 @@ FUNCTION is a function of as many arguments as there are buffers."
     (buffer-base-data-ptr buffer) (buffer-base-size buffer))
   buffer)
 
-(defmethod circular-shift ((obj buffer-base) n)
+(defmethod circular-shift ((obj buffer-base) n &key)
   (foreign-circular-shift (buffer-base-data-ptr obj) 'sample
                           (buffer-base-size obj) n)
   obj)

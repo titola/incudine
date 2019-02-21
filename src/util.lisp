@@ -590,7 +590,7 @@ Example:
                        (car functions)))))
       (%dsp-seq function-call-forms))))
 
-(defgeneric circular-shift (obj n)
+(defgeneric circular-shift (obj n &key)
   (:documentation "Perform a circular shift of length N."))
 
 (defgeneric free-p (obj)

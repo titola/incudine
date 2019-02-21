@@ -633,6 +633,12 @@ Return ~t~ if the ~abuffer~ is deallocated.
 ::: ana:fft-window
 ::: ana:fft-input
 ::: ana:compute-fft
+
+#+attr_texinfo: :options {Method} circular-shift fft n
+#+begin_deffn
+Perform a circular shift of length ~n~ during ~compute-fft~.
+#+end_deffn
+
 ::: ana:ifft
 ::: ana:make-ifft
 ::: ana:ifft-p
@@ -642,9 +648,12 @@ Return ~t~ if the ~abuffer~ is deallocated.
 ::: ana:ifft-output
 ::: ana:compute-ifft
 
-#+attr_texinfo: :options {Method} circular-shift ifft n
+#+attr_texinfo: :options {Method} circular-shift ifft n &key before-windowing-p
 #+begin_deffn
 Perform a circular shift of length ~n~.
+
+If ~before-windowing-p~ is T, perform the shift during ~compute-ifft~,
+before the application of the window.
 #+end_deffn
 
 ::: ana:window-size

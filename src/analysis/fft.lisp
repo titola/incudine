@@ -306,7 +306,7 @@ is filled during the transform."
   (format stream "#<IFFT :SIZE ~D :WINDOW-SIZE ~D :NBINS ~D>"
           (ifft-size obj) (ifft-window-size obj) (ifft-nbins obj)))
 
-(defmethod circular-shift ((obj fft) n)
+(defmethod circular-shift ((obj fft) n &key)
   ;; Lazy operation: the shift is applied during COMPUTE-FFT.
   (setf (fft-shift obj) n)
   obj)
@@ -443,6 +443,11 @@ current time."
                             (ifft-input-buffer-size obj)))
     (ifft-execute (ifft-plan obj) (ifft-input-buffer obj)
                   (ifft-output-buffer obj))
+    (unless (zerop (ifft-shift obj))
+      (incudine::foreign-circular-shift (ifft-output-buffer obj) 'sample
+                                        (ifft-output-buffer-size obj)
+                                        (ifft-shift obj))
+      (setf (ifft-shift obj) 0))
     (ifft-apply-window obj abuffer)
     (apply-zero-padding (ifft-output-buffer obj) (ifft-window-size obj)
                         (ifft-size obj))
@@ -462,13 +467,19 @@ and the IFFT window size."
   "Return the sample value of the current IFFT output."
   (ring-output-buffer-next (ifft-ring-buffer ifft)))
 
-(defmethod circular-shift ((obj ifft) n)
+(defmethod circular-shift ((obj ifft) n &key before-windowing-p)
+  "Perform a circular shift of length N.
+
+If BEFORE-WINDOWING-P is T, perform the shift during COMPUTE-IFFT,
+before the application of the window."
   (declare (type fixnum n))
-  ;; IFFT-OUTPUT reads from the ring buffer.
-  (let ((buf (ifft-ring-buffer obj)))
-    (setf (ring-output-buffer-head buf)
-          (logand (- (ring-output-buffer-head buf) n)
-                  (ring-output-buffer-mask buf))))
-  (incudine::foreign-circular-shift (ifft-output-buffer obj) 'sample
-                                    (ifft-output-buffer-size obj) n)
+  (if before-windowing-p
+      (setf (ifft-shift obj) n)
+      (let ((buf (ifft-ring-buffer obj)))
+        ;; IFFT-OUTPUT reads from the ring buffer.
+        (setf (ring-output-buffer-head buf)
+              (logand (- (ring-output-buffer-head buf) n)
+                      (ring-output-buffer-mask buf)))
+        (incudine::foreign-circular-shift (ifft-output-buffer obj) 'sample
+                                          (ifft-output-buffer-size obj) n)))
   obj)

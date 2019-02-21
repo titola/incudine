@@ -312,11 +312,11 @@ rectangular window."
   (window-size 0 :type non-negative-fixnum)
   (window-function #'rectangular-window :type (or function null))
   (plan-wrap *dummy-fft-plan* :type fft-plan)
-  (plan (null-pointer) :type foreign-pointer))
+  (plan (null-pointer) :type foreign-pointer)
+  (shift 0 :type fixnum))
 
 (defstruct (fft (:include fft-common) (:constructor %make-fft) (:copier nil))
-  "FFT type."
-  (shift 0 :type fixnum))
+  "FFT type.")
 
 (setf
   (documentation 'fft-p 'function)
