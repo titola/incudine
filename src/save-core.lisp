@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -43,7 +43,9 @@
                    (,incudine.analysis::*ifft-pool*
                     ,incudine.analysis::+fft-pool-initial-size+)
                    (,incudine.analysis::*abuffer-pool*
-                    ,incudine.analysis::+abuffer-pool-initial-size+))
+                    ,incudine.analysis::+abuffer-pool-initial-size+)
+                   (,incudine.analysis::*pvbuffer-pool*
+                    ,incudine.analysis::+pvbuffer-pool-initial-size+))
            do (ensure-incudine-object-pool-size pool size)))
       (when *fill-rt-memory-pools-p*
         (loop for (pool size)
@@ -62,7 +64,9 @@
                    (,incudine.analysis::*rt-ifft-pool*
                     ,incudine.analysis::+fft-pool-initial-size+)
                    (,incudine.analysis::*rt-abuffer-pool*
-                    ,incudine.analysis::+abuffer-pool-initial-size+))
+                    ,incudine.analysis::+abuffer-pool-initial-size+)
+                   (,incudine.analysis::*rt-pvbuffer-pool*
+                    ,incudine.analysis::+pvbuffer-pool-initial-size+))
               do (ensure-incudine-object-pool-size pool size)))
       (set-sample-rate (sample (or incudine.config::*sample-rate* 48000)))
       (set-sound-velocity (sample (or incudine.config::*sound-velocity* 345)))
@@ -201,7 +205,9 @@ core image starts up.")
                        incudine.analysis::*ifft-pool*
                        incudine.analysis::*rt-ifft-pool*
                        incudine.analysis::*abuffer-pool*
-                       incudine.analysis::*rt-abuffer-pool*))
+                       incudine.analysis::*rt-abuffer-pool*
+                       incudine.analysis::*pvbuffer-pool*
+                       incudine.analysis::*rt-pvbuffer-pool*))
         (incudine.util::empty-cons-pool p))
       (incudine.util::empty-cons-pool *node-pool* :cancel-finalizations t)
       (clrhash incudine.analysis::*fft-plan*)

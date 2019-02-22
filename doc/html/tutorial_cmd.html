@@ -208,7 +208,7 @@ sndfile-metadata-get --str-{title,artist} quux.wav</pre>
       <pre class="src src-sh">cat &gt; conv.cudo &lt;&lt;'---'
 (defvar *pvbuf*
   (let ((buf (buffer-load (read-arg 1 nil))))
-    (cond (buf (buffer-&gt;pvbuffer buf 2048))
+    (cond (buf (make-part-convolve-buffer buf 2048))
           (t (msg error "Failed to open the IR")
              (exit 1)))))
 

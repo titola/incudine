@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -81,20 +81,27 @@ LIMITED-SAMPLE."
       (cons (apply-sample-coerce (car form))
             (apply-sample-coerce (cdr form)))))
 
-(defun alloc-multi-channel-data (channels size)
-  (declare (type channel-number channels) (type positive-fixnum size))
-  (let ((ptr (cffi:foreign-alloc :pointer :count channels)))
+(defun alloc-multi-channel-data (channels size &key real-time-p)
+  (declare (type channel-number channels) (type positive-fixnum size)
+           (type boolean real-time-p))
+  (let ((ptr (funcall (if real-time-p #'foreign-rt-alloc #'foreign-alloc)
+                      :pointer :count channels)))
     (dotimes (ch channels ptr)
       (declare (type channel-number ch))
       (setf (cffi:mem-aref ptr :pointer ch)
-            (foreign-alloc-sample size)))))
+            (if real-time-p
+                (foreign-rt-alloc-sample size)
+                (foreign-alloc-sample size))))))
 
-(defun free-multi-channel-data (data channels)
+(defun free-multi-channel-data (data channels
+                                &optional (free-function #'foreign-free))
+  (declare (type foreign-pointer data) (type channel-number channels)
+           (type function free-function))
   (dotimes (ch channels)
     (let ((frame (cffi:mem-aref data :pointer ch)))
       (unless (cffi:null-pointer-p frame)
-        (foreign-free frame))))
-  (foreign-free data)
+        (funcall free-function frame))))
+  (funcall free-function data)
   (values))
 
 (defmacro dochannels ((var channels &optional (result nil))

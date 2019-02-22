@@ -658,6 +658,7 @@ before the application of the window.
 
 ::: ana:window-size
 ::: ana:window-function
+::: ana:hop-size
 ::: ana:*fft-default-window-function*
 ::: ana:rectangular-window
 ::: ana:dofft
@@ -670,9 +671,13 @@ before the application of the window.
 ::: ana:remove-fft-plan
 ::: ana:get-fft-plan
 ::: ana:fft-plan-list
-*** PVbuffer
+*** Short-Time Fourier Transform and Phase Vocoder
 ::: ana:pvbuffer
-::: ana:buffer->pvbuffer
+::: ana:make-pvbuffer
+::: ana:make-part-convolve-buffer
+::: ana:make-fft-from-pvbuffer
+::: ana:make-ifft-from-pvbuffer
+::: ana:stft
 
 #+attr_texinfo: :options {Method} free pvbuffer
 #+begin_deffn
@@ -684,13 +689,36 @@ Deallocate the ~pvbuffer~.
 Return ~t~ if the ~pvbuffer~ is deallocated.
 #+end_deffn
 
+::: ana:pvbuffer-window
+
+#+attr_texinfo: :options {Method} ana:window-size pvbuffer
+#+begin_deffn
+Return the analysis window size of the pvbuffer frames. Setfable.
+#+end_deffn
+
+#+attr_texinfo: :options {Method} ana:window-function pvbuffer
+#+begin_deffn
+Return the analysis window function of the pvbuffer frames. Setfable.
+#+end_deffn
+
+#+attr_texinfo: :options {Method} ana:hop-size pvbuffer
+#+begin_deffn
+Return the STFT frame offset of the pvbuffer. Setfable.
+#+end_deffn
+
 ::: ana:pvbuffer-data
+::: ana:fill-pvbuffer
+::: ana:copy-pvbuffer-data
 ::: ana:pvbuffer-size
 ::: ana:pvbuffer-channels
 ::: ana:pvbuffer-frames
+::: ana:pvbuffer-sample-rate
 ::: ana:pvbuffer-fft-size
-::: ana:pvbuffer-scale-factor
 ::: ana:pvbuffer-block-size
+::: ana:pvbuffer-data-type
+::: ana:pvbuffer-scale-factor
+::: ana:normalize-pvbuffer
+::: ana:pvbuffer-normalized-p
 #+texinfo: @page
 ** GEN Routines
 *** Analysis

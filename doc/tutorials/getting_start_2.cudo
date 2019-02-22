@@ -646,9 +646,9 @@ WAVEFORM-1
 (defvar *btest* (buffer-load "/path/to/someloop.wav"))
 
 (defvar *auditorium*
-  (buffer->pvbuffer (buffer-load "/path/to/auditorium.wav") 8192))
+  (make-part-convolve-buffer (buffer-load "/path/to/auditorium.wav") 8192))
 
-;;; There are two keywords in BUFFER->PVBUFFER, START and FRAMES,
+;;; There are two keywords in MAKE-PART-CONVOLVE-BUFFER, START and FRAMES,
 ;;; respectively the offset and the number of frames of the input
 ;;; buffer. The default is to use the whole buffer.
 
@@ -676,7 +676,7 @@ WAVEFORM-1
 ;;; It is possible to change the PVBUFFER on-the-fly:
 
 (defvar *grotte-frasassi*
-  (buffer->pvbuffer (buffer-load "/path/to/grotte_frasassi.wav") 8192))
+  (make-part-convolve-buffer (buffer-load "/path/to/grotte_frasassi.wav") 8192))
 
 (set-control 1 :pvbuf *grotte-frasassi*)
 (set-control 1 :pvbuf *auditorium*)

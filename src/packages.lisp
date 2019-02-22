@@ -190,25 +190,29 @@
            #:analysis-input-buffer #:analysis-input-buffer-size
            #:analysis-output-buffer #:analysis-output-buffer-size
            #:analysis-time #:touch-analysis #:discard-analysis
-           #:window-size #:window-function #:rectangular-window
+           #:window-size #:window-function #:rectangular-window #:hop-size
            #:abuffer #:make-abuffer #:abuffer-p #:abuffer-data #:abuffer-time
            #:abuffer-realpart #:abuffer-imagpart #:abuffer-size #:abuffer-link
            #:abuffer-nbins #:abuffer-normalized-p
            #:abuffer-polar #:abuffer-complex
            #:touch-abuffer #:discard-abuffer
-           #:pvbuffer #:buffer->pvbuffer #:pvbuffer-data #:pvbuffer-size
-           #:pvbuffer-frames #:pvbuffer-channels #:pvbuffer-fft-size
-           #:pvbuffer-block-size #:pvbuffer-scale-factor
            #:*fft-default-window-function*
-           #:fft #:fft-p #:make-fft
+           #:fft #:fft-p #:make-fft #:make-fft-from-pvbuffer
            #:fft-size #:fft-plan #:fft-window #:fft-input
-           #:ifft #:ifft-p #:make-ifft
+           #:ifft #:ifft-p #:make-ifft #:make-ifft-from-pvbuffer
            #:ifft-size #:ifft-plan #:ifft-window #:ifft-output
            #:+fft-plan-optimal+ #:+fft-plan-best+ #:+fft-plan-fast+
            #:get-fft-plan #:new-fft-plan #:remove-fft-plan #:fft-plan-list
            #:compute-abuffer #:update-linked-object
            #:compute-fft #:compute-ifft
-           #:dofft #:dofft-polar #:dofft-complex))
+           #:dofft #:dofft-polar #:dofft-complex
+           #:stft
+           #:pvbuffer #:make-pvbuffer #:make-part-convolve-buffer
+           #:pvbuffer-data #:pvbuffer-size #:pvbuffer-frames #:pvbuffer-channels
+           #:pvbuffer-fft-size #:pvbuffer-block-size #:pvbuffer-sample-rate
+           #:pvbuffer-scale-factor #:pvbuffer-data-type #:pvbuffer-window
+           #:pvbuffer-normalized-p #:normalize-pvbuffer #:fill-pvbuffer
+           #:copy-pvbuffer-data))
 
 (defpackage :incudine.vug
   (:use :cl :incudine.util)

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -384,6 +384,11 @@ PTR is the foreign pointer to SIZE complex samples."
     (cond ((> x y) 1)
           ((< x y) -1)
           (t 0))))
+
+(declaim (inline %fmod))
+(cffi:defcfun ("fmod" %fmod) :double
+  (x :double)
+  (y :double))
 
 (declaim (inline %pow))
 (cffi:defcfun ("pow" %pow) :double

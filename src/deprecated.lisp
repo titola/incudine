@@ -265,3 +265,13 @@ A deprecated symbol is obsolete after one year."
    :replacement incudine:done-p
    :date 20180512
    :package "INCUDINE.VUG")
+
+(in-package :incudine.analysis)
+
+(incudine::deprecated-function
+   (buffer->pvbuffer (buf partsize &key (start 0) frames)
+     (make-part-convolve-buffer buf partsize :start start :frames frames))
+   :replacement incudine.analysis:make-part-convolve-buffer
+   :date 20190222
+   :package "INCUDINE.ANALYSIS"
+   :run-time-message-p t)

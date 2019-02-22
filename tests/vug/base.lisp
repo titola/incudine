@@ -50,7 +50,7 @@
   (with-buffers ((b 1024 :fill-function (gen:sinc 23))
                  (w 1024 :fill-function (gen:kaiser 12)))
     (map-into-buffer b #'* b w)
-    (buffer->pvbuffer b 64))
+    (make-part-convolve-buffer b 64))
   "Buffer for FIR filter test with partitioned convolution.")
 (declaim (type pvbuffer *filter-pvbuffer-test-1*))
 

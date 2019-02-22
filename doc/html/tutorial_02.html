@@ -814,9 +814,9 @@ NIL
       <pre class="src src-lisp">(defvar <span style="color: #eedd82;">*btest*</span> (buffer-load <span style="color: #ffa07a;">"/path/to/someloop.wav"</span>))
 
 (defvar <span style="color: #eedd82;">*auditorium*</span>
-  (buffer-&gt;pvbuffer (buffer-load <span style="color: #ffa07a;">"/path/to/auditorium.wav"</span>) 8192))
+  (make-part-convolve-buffer (buffer-load <span style="color: #ffa07a;">"/path/to/auditorium.wav"</span>) 8192))
 
-<span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">There are two keywords in BUFFER-&gt;PVBUFFER, START and FRAMES,</span>
+<span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">There are two keywords in MAKE-PART-CONVOLVE-BUFFER, START and FRAMES,</span>
 <span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">respectively the offset and the number of frames of the input</span>
 <span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">buffer. The default is to use the whole buffer.</span>
 
@@ -844,7 +844,7 @@ Slots with <span style="color: #b0c4de;">:INSTANCE</span> allocation:
 <span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">It is possible to change the PVBUFFER on-the-fly:</span>
 
 (defvar <span style="color: #eedd82;">*grotte-frasassi*</span>
-  (buffer-&gt;pvbuffer (buffer-load <span style="color: #ffa07a;">"/path/to/grotte_frasassi.wav"</span>) 8192))
+  (make-part-convolve-buffer (buffer-load <span style="color: #ffa07a;">"/path/to/grotte_frasassi.wav"</span>) 8192))
 
 <span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:pvbuf</span> *grotte-frasassi*)
 <span class="prompt">SCRATCH&gt;</span> (set-control 1 <span style="color: #b0c4de;">:pvbuf</span> *auditorium*)

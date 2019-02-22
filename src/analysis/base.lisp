@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -227,7 +227,7 @@
   (input-changed-p nil :type boolean)
   (output-buffer (null-pointer) :type foreign-pointer)
   (output-buffer-size 0 :type non-negative-fixnum)
-  (output-complex-p nil :type boolean)
+  (output-data-type 'real :type symbol)
   (nbins 0 :type non-negative-fixnum)
   (scale-factor (sample 1) :type sample)
   (time-ptr (null-pointer) :type foreign-pointer)
@@ -367,6 +367,11 @@ SAMPLE and the window size respectively. Setfable."))
 
 (defgeneric (setf window-size) (size obj))
 
+(defgeneric hop-size (obj)
+  (:documentation "Return the STFT frame offset. Setfable."))
+
+(defgeneric (setf hop-size) (size obj))
+
 (defmethod window-function ((obj fft-common))
   (fft-common-window-function obj))
 
@@ -409,7 +414,7 @@ SAMPLE and the window size respectively. Setfable."))
   (scale-factor (sample 1) :type sample)
   (time-ptr (null-pointer) :type foreign-pointer)
   (link nil :type (or analysis null))
-  (coord-complex-p nil :type boolean)
+  (data-type :complex :type (member :complex :magnitude-phase))
   (normalized-p nil :type boolean)
   (real-time-p nil :type boolean)
   (foreign-free #'foreign-free :type function))
@@ -443,12 +448,14 @@ SAMPLE and the window size respectively. Setfable."))
   "Create and return a new ABUFFER structure linked to ANALYSIS-OBJECT.
 
 Set REAL-TIME-P to NIL to disallow real-time memory pools."
-  (declare (type analysis analysis-object))
+  (declare (type analysis analysis-object)
+           (type boolean real-time-p))
   (flet ((foreign-alloc (size zero-p rt-p)
            (if rt-p
                (foreign-rt-alloc 'sample :count size :zero-p zero-p)
                (foreign-alloc-sample size))))
-    (let* ((coord-complex-p (analysis-output-complex-p analysis-object))
+    (let* ((coord-complex-p (eq (analysis-output-data-type analysis-object)
+                                :complex))
            (%nbins (analysis-nbins analysis-object))
            (%size (if coord-complex-p
                       (* 2 %nbins)
@@ -470,7 +477,7 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
               (setf data-ptr (foreign-alloc %size t rt-p))
               (setf tptr (foreign-alloc 1 nil rt-p))
               (incudine.util::with-struct-slots
-                  ((data size nbins scale-factor time-ptr link coord-complex-p
+                  ((data size nbins scale-factor time-ptr link data-type
                     real-time-p foreign-free)
                    obj abuffer "INCUDINE.ANALYSIS")
                 (setf data data-ptr
@@ -479,7 +486,7 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
                       scale-factor (analysis-scale-factor analysis-object)
                       time-ptr tptr
                       link analysis-object
-                      coord-complex-p coord-complex-p
+                      data-type (if coord-complex-p :complex :magnitude-phase)
                       real-time-p rt-p
                       foreign-free free-fn)
                 (setf (smp-ref time-ptr 0) #.(sample -1))))
@@ -513,19 +520,25 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
     (incudine.util:nrt-msg debug "Free ~A" (type-of obj)))
   (values))
 
+(declaim (inline abuffer-coord-complex-p))
+(defun abuffer-coord-complex-p (obj)
+  (eq (abuffer-data-type obj) :complex))
+
 (defun abuffer-polar (obj)
   "Convert the representation of the abuffer data from complex to
 polar if necessary."
   (when (abuffer-coord-complex-p obj)
     (complex-to-polar (abuffer-data obj) (abuffer-nbins obj))
-    (setf (abuffer-coord-complex-p obj) nil)))
+    (setf (abuffer-data-type obj) :magnitude-phase))
+  obj)
 
 (defun abuffer-complex (obj)
   "Convert the representation of the abuffer data from polar to
 complex if necessary."
   (unless (abuffer-coord-complex-p obj)
     (polar-to-complex (abuffer-data obj) (abuffer-nbins obj))
-    (setf (abuffer-coord-complex-p obj) t)))
+    (setf (abuffer-data-type obj) :complex))
+  obj)
 
 (declaim (inline abuffer-time))
 (defun abuffer-time (obj)
@@ -636,7 +649,7 @@ current time."
               (< (abuffer-time abuf) (now))
               (update-linked-object-p link))
       (update-linked-object link force-p)
-      (setf (abuffer-coord-complex-p abuf) (analysis-output-complex-p link))
+      (setf (abuffer-data-type abuf) (analysis-output-data-type link))
       (setf (abuffer-time abuf) (now))
       (foreign-copy-samples (abuffer-data abuf) (analysis-output-buffer link)
                             (abuffer-size abuf))))
@@ -704,22 +717,24 @@ The modification time of the abuffer's in ABUFFER-DEST-LIST is updated."
                                      `(unless (abuffer-coord-complex-p ,x)
                                         (polar-to-complex (abuffer-data ,x)
                                                           ,nbins-var)
-                                        (setf (abuffer-coord-complex-p ,x) t)))
+                                        (setf (abuffer-data-type ,x) :complex)))
                                    abuffer-src-vars)
                          ,@(mapcar (lambda (x)
                                      `(unless (abuffer-coord-complex-p ,x)
-                                        (setf (abuffer-coord-complex-p ,x) t)))
+                                        (setf (abuffer-data-type ,x) :complex)))
                                    abuffer-dest-vars))
                       `(progn
                          ,@(mapcar (lambda (x)
                                      `(when (abuffer-coord-complex-p ,x)
-                                        (complex-to-polar (abuffer-data ,x)
-                                                          ,nbins-var)
-                                        (setf (abuffer-coord-complex-p ,x) nil)))
+                                        (complex-to-polar
+                                          (abuffer-data ,x) ,nbins-var)
+                                        (setf (abuffer-data-type ,x)
+                                              :magnitude-phase)))
                                    abuffer-src-vars)
                          ,@(mapcar (lambda (x)
                                      `(when (abuffer-coord-complex-p ,x)
-                                        (setf (abuffer-coord-complex-p ,x) nil)))
+                                        (setf (abuffer-data-type ,x)
+                                              :magnitude-phase)))
                                    abuffer-dest-vars)))))
            (let ((,start ,index-start)
                  (,end ,(or index-end nbins-var)))

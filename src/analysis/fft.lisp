@@ -210,21 +210,22 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
               (setf tptr (foreign-alloc 1 nil rt-p))
               (incudine.util::with-struct-slots
                   ((size input-buffer input-buffer-size output-buffer
-                    output-buffer-size ring-buffer window-buffer window-size
-                    window-function nbins output-complex-p scale-factor
-                    time-ptr real-time-p foreign-free plan-wrap plan)
+                    output-buffer-size output-data-type ring-buffer
+                    window-buffer window-size window-function nbins
+                    scale-factor time-ptr real-time-p foreign-free
+                    plan-wrap plan)
                    obj fft "INCUDINE.ANALYSIS")
                 (setf size %size
                       input-buffer inbuf
                       input-buffer-size %size
                       output-buffer outbuf
                       output-buffer-size complex-array-size
+                      output-data-type :complex
                       ring-buffer (make-ring-input-buffer %size rt-p)
                       window-buffer winbuf
                       window-size winsize
                       window-function winfunc
                       nbins %nbins
-                      output-complex-p t
                       scale-factor (/ (sample 1) %size)
                       time-ptr tptr
                       real-time-p rt-p
