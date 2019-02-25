@@ -15,6 +15,7 @@
 ::: midifile:invalid-running-status
 ::: midifile:invalid-track-chunk-length
 ::: soundfile:soundfile-error
+::: ana:analysis-file-error
 #+texinfo: @page
 ** Bus
 ::: bus
@@ -719,6 +720,8 @@ Return the STFT frame offset of the pvbuffer. Setfable.
 ::: ana:pvbuffer-scale-factor
 ::: ana:normalize-pvbuffer
 ::: ana:pvbuffer-normalized-p
+::: ana:pvbuffer-save
+::: ana:pvbuffer-load
 #+texinfo: @page
 ** GEN Routines
 *** Analysis

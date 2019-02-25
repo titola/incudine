@@ -186,7 +186,8 @@
                 #:%copy-to-ring-output-buffer)
   (:intern #:fft-input-buffer #:fft-output-buffer
            #:ifft-input-buffer #:ifft-output-buffer)
-  (:export #:analysis #:analysis-p
+  (:export #:analysis-file-error
+           #:analysis #:analysis-p
            #:analysis-input-buffer #:analysis-input-buffer-size
            #:analysis-output-buffer #:analysis-output-buffer-size
            #:analysis-time #:touch-analysis #:discard-analysis
@@ -212,7 +213,7 @@
            #:pvbuffer-fft-size #:pvbuffer-block-size #:pvbuffer-sample-rate
            #:pvbuffer-scale-factor #:pvbuffer-data-type #:pvbuffer-window
            #:pvbuffer-normalized-p #:normalize-pvbuffer #:fill-pvbuffer
-           #:copy-pvbuffer-data))
+           #:copy-pvbuffer-data #:pvbuffer-save #:pvbuffer-load))
 
 (defpackage :incudine.vug
   (:use :cl :incudine.util)
