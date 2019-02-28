@@ -376,7 +376,10 @@ related foreign memory pool is usable."
            arguments))))
 
 (defun lambda*-arguments (keys vals)
-  (cond ((or (null vals) (keywordp (car vals))) vals)
+  (cond ((or (null vals)
+             (and (keywordp (car vals))
+                  (member (car vals) keys)))
+         vals)
         ((null keys) nil)
         (t
          (multiple-value-bind (k v next-keys)
