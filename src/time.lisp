@@ -147,7 +147,9 @@ The value is initially *DEFAULT-BPM* beats per minute.")
 
 (declaim (inline tempo-sync))
 (defun tempo-sync (period)
-  "Get the time synchronized to PERIOD."
+  "Get the time synchronized to PERIOD samples. It is equivalent to
+
+    (- (+ (now) period) (mod (now) period))"
   (incudine.external::%tempo-sync *sample-counter* (sample period)))
 
 (defvar *dummy-envelope* (%make-envelope))
