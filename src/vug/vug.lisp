@@ -1043,7 +1043,9 @@ It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
                      (arg-p args)
                      (val (car defaults)))
                  (multiple-value-bind (curr args)
-                     (if (keywordp arg)
+                     (if (and (keywordp arg)
+                              (member arg arg-names
+                                      :key 'symbol-name :test 'string=))
                          (values (list (or (getf args (make-keyword
                                                         (car arg-names)))
                                            val))
