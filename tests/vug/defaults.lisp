@@ -4,9 +4,11 @@
   (:defaults 110 .3 (+ 1 (random 10)))
   (buzz freq amp nh))
 
-(define-vug vug-default-test-2 (amp (lst cons))
-  (:defaults .5 (list 440))
-  (sine (reduce-warnings (sample (car lst))) amp 0))
+(define-vug vug-default-test-2 ((silence-p boolean) amp (lst cons))
+  (:defaults t .5 (list 440))
+  (if silence-p
+      +sample-zero+
+      (sine (reduce-warnings (sample (car lst))) amp 0)))
 
 (define-vug-macro vug-macro-default-test-2 (freq amp)
   (:defaults 440 .3)
@@ -35,7 +37,8 @@
 (dsp! default-test-2 ()
   ;; Explicit defaults for VUG-FUNCALL to parse (list 440) otherwise
   ;; the generated code is an unquoted (440) and the compilation fails.
-  (out (vug-default-test-2)))
+  ;; Bug fixed: argument NIL is not to replace with the default value.
+  (out (vug-default-test-2 nil)))
 
 (with-dsp-test (defaults.1 :channels 2
       :md5 #(66 12 5 72 208 226 193 134 68 106 21 60 138 81 161 114))
