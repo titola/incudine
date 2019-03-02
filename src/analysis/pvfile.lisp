@@ -99,7 +99,7 @@ Subtype of INCUDINE-SIMPLE-ERROR and FILE-ERROR."))
           (:magnitude-frequency "MAGFREQ")))
       (cond ((= (pvfile-string "COMPLEX") obj) :complex)
             ((= (pvfile-string "MAGPHASE") obj) :magnitude-phase)
-            ((= (pvfile-string "MAGFREQ") obj) :magnitude-freq))))
+            ((= (pvfile-string "MAGFREQ") obj) :magnitude-frequency))))
 
 (defun pvfile-flag (x)
   (if (numberp x)
