@@ -126,13 +126,6 @@ A deprecated symbol is obsolete after one year."
 (in-package :incudine.util)
 
 (incudine::deprecated-function
-   (thread-set-priority (thread priority)
-     (setf (thread-priority thread) priority))
-   :date 20180201
-   :package "INCUDINE.UTIL"
-   :run-time-message-p t)
-
-(incudine::deprecated-function
    (db->lin (value) (db->linear value))
    :replacement incudine.util:db->linear
    :date 20181209
