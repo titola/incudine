@@ -83,9 +83,11 @@ a 60 dB lag ATTACK-TIME and DECAY-TIME."
       y)))
 
 (defmacro with-reson-common ((wt-var radius-var freq q) &body body)
-  `(with-samples ((,wt-var (hz->radians ,freq))
-                  (,radius-var (exp (* (/ ,freq ,q) *minus-pi-div-sr*))))
-     ,@body))
+  (with-gensyms (rq)
+    `(with-samples ((,wt-var (hz->radians ,freq))
+                    (,rq (/ ,q))
+                    (,radius-var (exp (* ,freq ,rq *minus-pi-div-sr*))))
+       ,@body)))
 
 ;;; `tone' and `atone' opcodes used in Csound.
 (define-vug cs-tone (in hp)
@@ -250,8 +252,9 @@ scale factor."
   "Second-order peaking equalizer."
   (%with-biquad-common
       ((gain (expt (sample 10) (* db (sample 0.025))))
+       (r-gain (/ gain))
        (c1 (* alpha gain))
-       (c2 (/ alpha gain))
+       (c2 (* alpha r-gain))
        (b1 (- (* 2.0 cos-w0))))
     (biquad in (+ 1.0 c1) b1 (- 1.0 c1) (+ 1.0 c2) b1 (- 1.0 c2))))
 
