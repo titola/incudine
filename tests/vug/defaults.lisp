@@ -17,6 +17,10 @@
       (sine freq amp)
       (sample 0)))
 
+(define-vug vug-default-test-4 ((what boolean) freq amp phase)
+  (:defaults nil 1000 1 +half-pi+)
+  (if what (sine freq amp phase) (sample 0)))
+
 (define-vug-macro vug-macro-default-test-2 (freq amp)
   (:defaults 440 .3)
   `(sine ,freq ,amp 0))
@@ -50,6 +54,9 @@
 (dsp! default-test-3 ()
   (out (vug-default-test-3 440 :play)))
 
+(dsp! default-test-4 ()
+  (out (vug-default-test-4 t :amp .5 :phase 0 :freq 440)))
+
 (with-dsp-test (defaults.1 :channels 2
       :md5 #(66 12 5 72 208 226 193 134 68 106 21 60 138 81 161 114))
   (default-test-1))
@@ -61,3 +68,7 @@
 (with-dsp-test (defaults.3
       :md5 #(13 165 85 102 64 98 53 34 161 88 38 4 70 123 22 209))
   (default-test-3))
+
+(with-dsp-test (defaults.4
+      :md5 #(13 165 85 102 64 98 53 34 161 88 38 4 70 123 22 209))
+  (default-test-4))
