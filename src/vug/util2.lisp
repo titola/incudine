@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -264,7 +264,8 @@ number of channel."
   "Count from START to END (excluded) by STEP, optionally in loop if
 LOOP-P is T.
 
-The function DONE-ACTION is called at the end if LOOP-P is NIL."
+The one-argument function DONE-ACTION is called at the end if LOOP-P is NIL.
+The function argument is the DSP node."
   (with-gensyms (counter)
     `(vuglet ((,counter ((start fixnum) (end fixnum) (step fixnum)
                          (loop-p boolean) (done-action function))

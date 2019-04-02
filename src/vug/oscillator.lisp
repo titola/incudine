@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -732,8 +732,9 @@ RATE is the multiply factor of the sampling rate of BUFFER. For example,
 
 If LOOP-P is T, play it back in a loop.
 
-The function DONE-ACTION, #'FREE by default, is called when LOOP-P is
-NIL and the buffer is finished playing.
+The one-argument function DONE-ACTION, #'FREE by default, is called
+when LOOP-P is NIL and the buffer is finished playing. The function
+argument is the DSP node.
 
 Example:
 

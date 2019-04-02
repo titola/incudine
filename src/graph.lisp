@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -1586,8 +1586,8 @@ START defaults to the current level.
 The fade CURVE is the curve of an ENVELOPE structure or NIL to use the
 curve returned by NODE-FADE-CURVE.
 
-The function DONE-ACTION, #'IDENTITY by default, is called when the
-DSP finished playing."
+The one-argument function DONE-ACTION, #'IDENTITY by default, is called
+when the DSP finished playing. The function argument is the DSP node."
   (let ((obj (if (node-p obj) obj (node obj))))
     (declare #.*standard-optimize-settings* #.*reduce-warnings*)
     (cond ((null-node-p obj) obj)
