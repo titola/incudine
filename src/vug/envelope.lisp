@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -40,28 +40,32 @@
 
 ;;; Simple segments
 
-(define-vug line (start end dur (done-action function))
-  "Linear ramp from START to END in DUR seconds.
+(define-vug line (start end duration (done-action function))
+  "Linear ramp from START to END in DURATION seconds.
 
-If the control parameter DUR is changed, start a new ramp from the new
-START, or current level, to the new END. Example:
+If the control parameter DURATION is changed, start a new ramp from
+the new START, or current level, to the new END. Example:
 
-    (dsp! ramp-test (start end dur)
-      (out (* (line start end dur #'identity) (white-noise 1))))
+    (dsp! ramp-test (start end duration)
+      (out (* (line start end duration) (white-noise))))
 
     (rt-start)
     (ramp-test 0 1 3)
-    (set-controls 1 :end 0 :dur 2)
-    (set-controls 1 :end .5 :dur .3)
-    (set-controls 1 :start 0 :end 1 :dur .5)
+    (set-controls 1 :end 0 :duration 2)
+    (set-controls 1 :end .5 :duration .3)
+    (set-controls 1 :start 0 :end 1 :duration .5)
 
-The function DONE-ACTION is called at the end of the ramp."
+START, END and DURATION default to 0, 1 and 1 respectively.
+
+The one-argument function DONE-ACTION, #'IDENTITY by default, is
+called at the end of the ramp. The function argument is the DSP node."
+  (:defaults 0 1 1 #'identity)
   (with ((done-p nil)
-         (samples (max 1 (sample->fixnum (* dur *sample-rate*))))
+         (samples (max 1 (sample->fixnum (* duration *sample-rate*))))
          (remain samples)
          (value start)
          (slope (without-follow (start end)
-                  ;; Update only if DUR is changed
+                  ;; Update only if DURATION is changed
                   (init-only (when done-p
                                ;; Restart
                                (setf done-p nil))
@@ -75,22 +79,26 @@ The function DONE-ACTION is called at the end of the ramp."
                    (t (decf remain)))
              (incf value slope)))))
 
-(define-vug expon (start end dur (done-action function))
-  "Exponential curve from START to END in DUR seconds.
+(define-vug expon (start end duration (done-action function))
+  "Exponential curve from START to END in DURATION seconds.
 
 If START or END is 0, it is reset to 0.00001.
 
-If the control parameter DUR is changed, start a new curve from the
+If the control parameter DURATION is changed, start a new curve from the
 new START, or current level, to the new END.
 
-The function DONE-ACTION is called at the end of the curve."
+START, END and DURATION default to 0.00001, 1 and 1 respectively.
+
+The one-argument function DONE-ACTION, #'IDENTITY by default, is
+called at the end of the curve. The function argument is the DSP node."
+  (:defaults 0 1 1 #'identity)
   (with ((done-p nil)
-         (samples (max 1 (sample->fixnum (* dur *sample-rate*))))
+         (samples (max 1 (sample->fixnum (* duration *sample-rate*))))
          (remain samples)
          (%start (if (zerop start) 1d-5 start))
          (value %start)
          (power (without-follow (start end)
-                  ;; Update only if DUR is changed
+                  ;; Update only if DURATION is changed
                   (init-only (when done-p
                                ;; Restart
                                (setf done-p nil))
@@ -202,8 +210,8 @@ positive value.
 
 GATE and TIME-SCALE default to 1.
 
-The function DONE-ACTION, #'IDENTITY by default, is called at the end
-of the envelope.
+The one-argument function DONE-ACTION, #'IDENTITY by default, is
+called at the end of the envelope. The function argument is the DSP node.
 
 LOCATION, 0 by default, is the current position in samples (an integer)
 of the envelope."
