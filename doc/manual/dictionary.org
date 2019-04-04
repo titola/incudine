@@ -19,6 +19,109 @@
 #+texinfo: @page
 ** Bus
 ::: bus
+
+#+texinfo: @noindent
+The utility ~bus~ is similar to ~smp-ref~ with a pre-allocated foreign
+array of type ~sample~:
+
+#+begin_example
+(bus 123)
+(setf (bus 123) value)
+#+end_example
+
+#+texinfo: @noindent
+is equivalent to
+
+#+begin_example
+(smp-ref preallocated-foreign-array 123)
+(setf (smp-ref preallocated-foreign-array 123) (sample value))
+#+end_example
+
+#+texinfo: @noindent
+Example:
+
+#+begin_example
+(in-package :scratch)
+
+(dsp! master ()
+  ;; Stereo output from the first two buses.
+  (out (bus 0) (bus 1))
+  ;; Zero before the next audio cycle.
+  (setf (bus 0) 0)
+  (setf (bus 1) 0))
+
+(dsp! track (freq amp pos)
+  (foreach-channel
+    ;; We can use CURRENT-CHANNEL here because MASTER reads the buses
+    ;; 0 and 1, and CURRENT-CHANNEL starts from 0. INCF means "mix"
+    ;; (use SETF if you want to overwrite the current bus value).
+    (incf (bus current-channel) (pan2 (sine freq amp) pos))))
+
+(dsp! stereo-test (freq amp (nbus fixnum))
+  ;; The adjacent bus number is explicitally computed.
+  ;; Note: this initialization avoids a sum during the performance
+  ;; and it is necessary because BUS is a function.
+  (with ((nbus2 (+ nbus 1)))
+    (incf (bus nbus) (sine freq amp))
+    ;; Note: SINE is a VUG, therefore the initialization for `(* freq 3/2)'
+    ;; is implicit (there is a hidden WITH).
+    (incf (bus nbus2) (sine (* freq 3/2) amp))))
+
+(set-rt-block-size 1)
+(rt-start)
+
+(master :id 1)
+;; In this case `:before 1' is unnecessary because the new node is
+;; added at the head of the root node by default.
+(track 440 .1 .3 :before 1)
+(track 660 .15 .9 :before 1)
+(stereo-test 220 .1 0 :before 1)
+
+(free 0)
+#+end_example
+
+#+texinfo: @noindent
+If the block size is greater than 1, it is necessary to change
+the strategy. The following example is a possible implementation
+but we can also define other utilities for custom structures
+(i.e. a matrix frames*channels):
+
+#+begin_example
+(dsp! master ()
+  (with ((frames (block-size)))
+    (foreach-frame
+      ;; Stereo output from the first blocksize*2 buses.
+      (out (bus current-frame) (bus (+ frames current-frame)))
+      (setf (bus current-frame) 0)
+      (setf (bus (+ frames current-frame)) 0))))
+
+(dsp! track (freq amp pos)
+  (with ((frames (block-size)))
+    (foreach-frame
+      (foreach-channel
+        (incf (bus (+ current-frame
+                      (the fixnum (* frames current-channel))))
+              (pan2 (sine freq amp) pos))))))
+
+(dsp! stereo-test (freq amp (nbus fixnum))
+  (with ((frames (+ nbus (block-size))))
+    (declare (fixnum frames))
+    (foreach-frame
+      (incf (bus (+ nbus current-frame)) (sine freq amp))
+      (incf (bus (+ frames current-frame)) (sine (* freq 3/2) amp)))))
+
+(set-rt-block-size 64)
+(rt-start)
+
+(master :id 1)
+(track 440 .1 .3)
+(track 660 .15 .9)
+(stereo-test 220 .1 0)
+
+(free 0)
+(set-rt-block-size 1)
+#+end_example
+
 ::: audio-in
 ::: audio-out
 ::: peak-info
