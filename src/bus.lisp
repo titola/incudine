@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -92,23 +92,25 @@
 (declaim (type simple-vector *out-of-range-counter*))
 
 (declaim (inline bus))
-(defun bus (num)
-  "Return the value of the bus number NUM. Setfable.
+(defun bus (number)
+  "Return the value of the zero-based bus NUMBER. Setfable.
 
 No bounds checking."
-  (declare (type bus-number num))
-  (smp-ref *bus-pointer* num))
+  (declare (type bus-number number))
+  (smp-ref *bus-pointer* number))
 
 (declaim (inline set-bus))
-(defun set-bus (num value)
-  (declare (type bus-number num))
-  (setf (smp-ref *bus-pointer* num) (sample value)))
+(defun set-bus (number value)
+  (declare (type bus-number number))
+  (setf (smp-ref *bus-pointer* number) (sample value)))
 
 (defsetf bus set-bus)
 
 (declaim (inline audio-in))
 (defun audio-in (channel &optional (frame 0))
   "Return the value of the CHANNEL of the input buffer FRAME.
+
+CHANNEL and FRAME are zero-based.
 
 If AUDIO-IN is used within a VUG definition, FRAME is ignored.
 
@@ -124,6 +126,8 @@ No bounds checking."
 (declaim (inline audio-out))
 (defun audio-out (channel &optional (frame 0))
   "Return the value of the CHANNEL of the output buffer FRAME. Setfable.
+
+CHANNEL and FRAME are zero-based.
 
 If AUDIO-OUT is used within a VUG definition, FRAME is ignored.
 
@@ -164,13 +168,13 @@ No bounds checking."
     (values)))
 
 (declaim (inline peak-info))
-(defun peak-info (chan)
-  "Return peak information for the channel CHAN.
+(defun peak-info (channel)
+  "Return peak information for the zero-based CHANNEL.
 
 No bounds checking."
-  (declare (type channel-number chan))
-  (values (smp-ref *output-peak-values* chan)
-          (svref *out-of-range-counter* chan)))
+  (declare (type channel-number channel))
+  (values (smp-ref *output-peak-values* channel)
+          (svref *out-of-range-counter* channel)))
 
 (defun print-peak-info (&optional (channels *number-of-output-bus-channels*)
                         (stream *logger-stream*))
