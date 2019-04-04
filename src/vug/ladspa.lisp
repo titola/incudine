@@ -198,20 +198,7 @@ LADSPA->VUG should be called again.
 
 If DEBUG-P is T, return the lisp form to define the VUG.
 
-Return the new VUG structure.
-
-Example:
-
-    (ladspa->vug \"caps\" \"Plate\" plate-reverb)
-
-    (dsp! plate-reverb-test (trig-freq input-decay input-scale bw tail
-                             damping blend)
-      (with-samples ((in (* (decay (impulse trig-freq) input-decay)
-                            (white-noise input-scale))))
-        ;; PLATE-REVERB returns a frame because there are two outputs.
-        (multiple-sample-bind (l r)
-            (plate-reverb bw tail damping blend in)
-          (out l r))))"
+Return the new VUG structure."
   (if debug-p
       `(%ladspa->vug ,filename ,label ',vug-name ,block-size)
       `(macrolet ((generate (f l n bs) (%ladspa->vug f l n bs)))

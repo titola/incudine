@@ -5,6 +5,106 @@ LADSPA audio plugin interface for Incudine.
 To load ~incudine-ladspa~ use ~asdf:load-system~ or ~require~.
 
 ::: vug:ladspa->vug
+
+#+texinfo: @noindent
+Example with block size 1:
+
+#+begin_example
+(set-rt-block-size 1)
+
+(ladspa->vug \"caps\" \"Plate\" plate-reverb)
+
+(dsp! plate-reverb-test (trig-freq input-decay input-scale bw tail
+                         damping blend)
+  (with-samples ((in (* (decay (impulse trig-freq) input-decay)
+                        (white-noise input-scale))))
+    ;; PLATE-REVERB returns a frame because there are two outputs.
+    (multiple-sample-bind (l r)
+        (plate-reverb bw tail damping blend in)
+      (out l r))))
+#+end_example
+
+#+texinfo: @noindent
+Another example with block size greater than 1:
+
+#+begin_example
+(set-rt-block-size 64)
+
+(ladspa->vug "caps" "Plate" plate-reverb)
+
+;; Test with a UGEN.
+(compile-vug 'plate-reverb 'pointer)
+
+(define-vug rev-input ((in pointer))
+  "Read a block of audio samples from the first Incudine input port."
+  (foreach-frame
+    (setf (f32-ref in current-frame)
+          (coerce (audio-in 0) 'single-float))))
+
+(define-vug rev-output ((out pointer))
+  "Write two blocks of audio samples to two Incudine output ports."
+  (foreach-frame
+    (out (f32-ref (ptr-ref out 0) current-frame)
+         (f32-ref (ptr-ref out 1) current-frame))))
+
+(dsp! rev-test (bw tail damping blend)
+  (with ((in (make-f32-array (block-size)))
+         (out (cffi:null-pointer)))
+    (declare (pointer out))
+    (rev-input in)
+    (setf out (plate-reverb bw tail damping blend in))
+    (rev-output out)))
+
+(rev-test .75 .5 .25 .25 :id 8)
+(set-controls 8 :tail .8 :dumping .1 :blend .5)
+(free 8)
+#+end_example
+
+#+texinfo: @noindent
+The alternative is to set a specific block size for the plugin,
+for example:
+
+#+begin_example
+(ladspa->vug "cmt" "freeverb3" %freeverb :block-size 64)
+
+(define-vug freeverb (input room-size damping wet dry width)
+  (:defaults 0 .5 .5 .3 .7 .5)
+  (with ((inL (make-f32-array 64 :zero-p t))
+         (inR (make-f32-array 64 :zero-p t))
+         (out (cffi:null-pointer))
+         (i 63))
+    (declare (type pointer out) (type fixnum i))
+    (foreach-tick
+      (when (= i 63)
+        (setf out (%freeverb inL inR 0 room-size damping wet dry width)))
+      (setf i (logand (1+ i) 63)))
+    (maybe-expand input)
+    (cond ((= current-channel 0)
+           (setf (f32-ref inL i) (coerce input 'single-float)))
+          ((= current-channel 1)
+           (setf (f32-ref inR i) (coerce input 'single-float))))
+    (if (< current-channel 2)
+        (sample (f32-ref (ptr-ref out current-channel) i))
+        +sample-zero+)))
+
+(dsp! reverb-test ((buf buffer) amp room-size damping wet dry width)
+  (:defaults (incudine-missing-arg "Missing buffer.") 1 .5 .5 .3 .7 .5)
+  (foreach-frame
+    (foreach-channel
+      (cout (* amp
+               (freeverb (buffer-play buf) room-size damping wet dry width))))))
+
+(defvar *buf* (buffer-load "/path/to/soundfile.wav"))
+
+(set-rt-block-size 256)
+(rt-start)
+
+(reverb-test *buf* .5 :wet .8)
+
+(free 0)
+(set-rt-block-size 1)
+#+end_example
+
 ::: ladspa:*ladspa-path*
 ::: ladspa:ladspa-error
 ::: ladspa:data
