@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -218,7 +218,8 @@ Example:
            (apply (node-function ,n) (node-args ,n)))
        (condition (,c)
          (incudine:nrt-funcall
-           (lambda () (format *error-output* "ERROR: ~A~%" ,c)))))))
+           (lambda () (format *error-output* "ERROR: ~A~%"
+                              (the condition ,c))))))))
 
 (defmacro sched-loop ()
   "Earliest Deadline First scheduling loop to call the functions

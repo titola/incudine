@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -305,6 +305,7 @@ Example:
             (recv-stop stream))
           (condition (c) (nrt-msg error "~A" c)))))
     :name (let ((stream (receiver-stream receiver)))
+            (declare (type stream stream))
             (format nil "~A recv ~A" (type-of stream) stream))))
 
 (defmethod recv-start ((stream stream) &key read-function

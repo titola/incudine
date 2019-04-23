@@ -1558,8 +1558,9 @@ arguments ARGS."
               (t (format stream "node ~D~:[~; (pause)~]~%" (node-id n)
                          (node-pause-p n))
                  (indent-line)
-                 (format stream "  ~A ~{~A ~}~%"
-                         (node-name n) (reduce-warnings (control-list n)))
+                 (reduce-warnings
+                   (format stream "  ~A ~{~A ~}~%"
+                           (node-name n) (control-list n)))
                  (dec-indent n))))
       (force-output stream))))
 
