@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -137,20 +137,21 @@ half-power point."
   "Two pole resonant filter."
   (with-reson-common (wt r freq q)
     (with-samples ((rr (* r r)))
-      (biquad in (* (- 1 rr) (sin wt)) 0 0 1 (- (* 2 r (cos wt))) rr))))
+      (biquad in (* (- 1 rr) (sin wt)) 0 0 1 (* -2 r (cos wt)) rr))))
 
 (define-vug resonz (in freq q)
   "Two pole resonant filter with zeroes located at z = 1 and z = -1."
   (with-reson-common (wt r freq q)
     (with-samples ((rr (* r r))
                    (scale (* (- 1 rr) 0.5)))
-      (biquad in scale 0 (- scale) 1 (- (* 2 r (cos wt))) rr))))
+      (biquad in scale 0 (- scale) 1 (* -2 r (cos wt)) rr))))
 
 (define-vug resonr (in freq q)
   "Two pole resonant filter with zeroes located at +/- sqrt(radius)."
   (with-reson-common (wt r freq q)
-    (with-samples ((scale (- 1 r)))
-      (biquad in scale 0 (* scale (- r)) 1 (- (* 2 r (cos wt))) (* r r)))))
+    (with-samples ((rr (* r r))
+                   (scale (- 1 r)))
+      (biquad in scale 0 (- rr r) 1 (* -2 r (cos wt)) rr))))
 
 ;;; Inspired by Ringz in SuperCollider.
 (define-vug ringz (in freq decay-time)
@@ -159,9 +160,8 @@ The bandwidth is specified in a 60dB ring DECAY-TIME and a constant
 scale factor."
   (with-samples ((wt (hz->radians freq))
                  (r (t60->pole decay-time))
-                 (rr (* r r))
-                 (scale 0.5))
-    (biquad in scale 0 (- scale) 1 (- (* 2 r (cos wt))) rr)))
+                 (rr (* r r)))
+    (biquad in 0.5 0 -0.5 1 (* -2 r (cos wt)) rr)))
 
 (define-vug ringr (in freq decay-time)
   "Two pole resonant filter with zeroes located at +/- sqrt(radius).
@@ -169,8 +169,8 @@ The bandwidth is specified in a 60dB ring DECAY-TIME and a constant
 scale factor."
   (with-samples ((wt (hz->radians freq))
                  (r (t60->pole decay-time))
-                 (scale 0.5))
-    (biquad in scale 0 (* scale (- r)) 1 (- (* 2 r (cos wt))) (* r r))))
+                 (rr (* r r)))
+    (biquad in 0.5 0 (* -0.5 r) 1 (* -2 r (cos wt)) rr)))
 
 ;;; FOF-like filter based on James McCartney's Formlet.
 ;;; The name is FOFILTER (used also in Csound) to avoid confusion with
@@ -181,8 +181,8 @@ scale factor."
                  (cos-wt (cos wt))
                  (r0 (t60->pole attack-time))
                  (r1 (t60->pole decay-time)))
-    (- (biquad in 0.25 0 -0.25 1 (- (* 2 r1 cos-wt)) (* r1 r1))
-       (biquad in 0.25 0 -0.25 1 (- (* 2 r0 cos-wt)) (* r0 r0)))))
+    (- (biquad in 0.25 0 -0.25 1 (* -2 r1 cos-wt) (* r1 r1))
+       (biquad in 0.25 0 -0.25 1 (* -2 r0 cos-wt) (* r0 r0)))))
 
 ;;; EQ biquad filter coefficients by Robert Bristow-Johnson
 ;;; http://www.musicdsp.org/files/Audio-EQ-Cookbook.txt
@@ -217,27 +217,27 @@ scale factor."
 (define-vug lpf (in freq q)
   "Second-order lowpass filter."
   (%with-biquad-common
-      ((b1 (- 1.0 cos-w0))
+      ((b1 (- 1 cos-w0))
        (b2 (* b1 0.5)))
-    (biquad in b2 b1 b2 (+ 1.0 alpha) (- (* 2.0 cos-w0)) (- 1.0 alpha))))
+    (biquad in b2 b1 b2 (+ 1 alpha) (* -2 cos-w0) (- 1 alpha))))
 
 (define-vug hpf (in freq q)
   "Second-order highpass filter."
   (%with-biquad-common
-      ((b1 (- (+ 1.0 cos-w0)))
-       (b2 (* (- b1) 0.5)))
-    (biquad in b2 b1 b2 (+ 1.0 alpha) (- (* 2.0 cos-w0)) (- 1.0 alpha))))
+      ((b1 (- -1.0 cos-w0))
+       (b2 (* -0.5 b1)))
+    (biquad in b2 b1 b2 (+ 1.0 alpha) (* -2.0 cos-w0) (- 1.0 alpha))))
 
 (define-vug bpf (in freq q)
   "Second-order bandpass filter."
   (%with-biquad-common ()
-    (biquad in alpha 0.0 (- alpha) (+ 1.0 alpha) (- (* 2.0 cos-w0))
+    (biquad in alpha 0.0 (- alpha) (+ 1.0 alpha) (* -2.0 cos-w0)
             (- 1.0 alpha))))
 
 (define-vug notch (in freq q)
   "Second-order notch filter."
   (%with-biquad-common
-      ((b1 (- (* 2.0 cos-w0))))
+      ((b1 (* -2.0 cos-w0)))
     (biquad in 1.0 b1 1.0 (+ 1.0 alpha) b1 (- 1.0 alpha))))
 
 (define-vug apf (in freq q)
@@ -255,7 +255,7 @@ scale factor."
        (r-gain (/ gain))
        (c1 (* alpha gain))
        (c2 (* alpha r-gain))
-       (b1 (- (* 2.0 cos-w0))))
+       (b1 (* -2.0 cos-w0)))
     (biquad in (+ 1.0 c1) b1 (- 1.0 c1) (+ 1.0 c2) b1 (- 1.0 c2))))
 
 (define-vug low-shelf (in freq s db)
