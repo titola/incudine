@@ -1166,6 +1166,7 @@ Deallocate the ~voicer~.
 ::: vug:ugen
 ::: vug:define-ugen
 ::: vug:ugen-debug
+::: vug:ugen-lambda-list
 ::: vug:*eval-some-specials-p*
 ::: vug:*specials-to-eval*
 ::: vug:compile-vug

@@ -242,7 +242,7 @@
    #:ugen-perf-function #:ugen-reinit-function #:ugen-return-pointer
    #:ugen-control-pointer
    #:define-ugen-control-getter #:define-ugen-control-setter
-   #:destroy-ugen #:rename-ugen #:fix-ugen #:all-ugen-names
+   #:ugen-lambda-list #:destroy-ugen #:rename-ugen #:fix-ugen #:all-ugen-names
    #:*eval-some-specials-p* #:*specials-to-eval*
    #:with
    #:with-vug-inputs #:vug-input
