@@ -388,7 +388,8 @@
    #:incudine-error #:incudine-simple-error #:incudine-compile-error
    #:incudine-memory-fault-error #:incudine-storage-condition
    #:incudine-network-error #:incudine-node-error #:incudine-missing-arg
-   #:incudine-unknown-time-unit
+   #:incudine-unknown-time-unit #:incudine-undefined-vug
+   #:incudine-undefined-ugen #:incudine-undefined-dsp
    #:init #:enable-sharp-t-syntax #:enable-sharp-square-bracket-syntax
    #:deprecated-symbol-names
    #:dsp-seq

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2018 Tito Latini
+;;; Copyright (c) 2018-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -62,6 +62,27 @@ Subtype of INCUDINE-SIMPLE-ERROR."))
              (format stream "Unknown time unit ~S"
                      (time-unit-name condition))))
   (:documentation "Signaled if the time unit is unknown."))
+
+(define-condition incudine-undefined-object (incudine-error)
+  ((name :initarg :name :reader undefined-object-name)))
+
+(define-condition incudine-undefined-vug (incudine-undefined-object) ()
+  (:report (lambda (condition stream)
+             (format stream "The VUG ~S is undefined."
+                     (undefined-object-name condition))))
+  (:documentation "Signaled if the virtual unit generator is undefined."))
+
+(define-condition incudine-undefined-ugen (incudine-undefined-object) ()
+  (:report (lambda (condition stream)
+             (format stream "The UGEN ~S is undefined."
+                     (undefined-object-name condition))))
+  (:documentation "Signaled if the unit generator is undefined."))
+
+(define-condition incudine-undefined-dsp (incudine-undefined-object) ()
+  (:report (lambda (condition stream)
+             (format stream "The DSP ~S is undefined."
+                     (undefined-object-name condition))))
+  (:documentation "Signaled if the DSP is undefined."))
 
 (defmacro %simple-error (datum format-control &rest format-arguments)
   `(error ,datum :format-control ,format-control

@@ -9,6 +9,9 @@
 ::: incudine-node-error
 ::: incudine-missing-arg
 ::: incudine-unknown-time-unit
+::: incudine:incudine-undefined-vug
+::: incudine:incudine-undefined-ugen
+::: incudine:incudine-undefined-dsp
 ::: midifile:midifile-error
 ::: midifile:midifile-parse-error
 ::: midifile:invalid-variable-length-quantity
