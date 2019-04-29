@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -30,7 +30,9 @@
 (defstruct (dsp-properties (:include incudine-object) (:copier nil))
   (rt-instances nil :type list)
   (nrt-instances nil :type list)
-  (arguments nil :type list))
+  (arguments nil :type list)
+  (arg-types nil :type list)
+  (defaults nil :type list))
 
 (define-constant +dsp-properties-pool-initial-size+ 200)
 
@@ -93,6 +95,15 @@
 
 (defmacro set-dummy-functions (&rest functions)
   `(progn ,@(mapcar (lambda (fn) `(setf ,fn #'dummy-function)) functions)))
+
+(defun dsp-lambda-list (name)
+  "Return the lambda list and the default values for the DSP NAME."
+  (let ((prop (dsp name)))
+    (if prop
+        (values (mapcar #'list (dsp-properties-arguments prop)
+                        (dsp-properties-arg-types prop))
+                (copy-tree (dsp-properties-defaults prop)))
+        (error 'incudine:incudine-undefined-dsp :name name))))
 
 (defun all-dsp-names ()
   "Return the name list of the defined DSP's."

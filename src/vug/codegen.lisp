@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -1167,9 +1167,12 @@ The default is T.")
          (values (dsp-init-function ,obj)
                  (dsp-perf-function ,obj))))))
 
-(declaim (inline set-dsp-arg-names))
-(defun set-dsp-arg-names (dsp-name arg-names)
-  (setf (dsp-properties-arguments (get-dsp-properties dsp-name)) arg-names))
+(defun set-dsp-arguments (dsp-name names types defaults)
+  (let ((prop (get-dsp-properties dsp-name)))
+    (setf (dsp-properties-arguments prop) names
+          (dsp-properties-arg-types prop) types
+          (dsp-properties-defaults prop) defaults)
+    prop))
 
 ;;; Returns the function to parse the arguments of a DSP.
 (defmacro parse-dsp-args-func (bindings args)
@@ -1292,6 +1295,7 @@ Return the auxiliary function NAME."
   (with-gensyms (get-function)
     (multiple-value-bind (doc specs form) (extract-vug-specs body)
       (let* ((arg-names (argument-names arglist))
+             (arg-types (argument-types arglist))
              (dsp-arg-bindings (dsp-coercing-arguments arglist))
              (defaults (cadr (get-vug-spec :defaults specs)))
              (optimize (optimize-settings specs))
@@ -1310,7 +1314,7 @@ Return the auxiliary function NAME."
                  (t
                   ;; If there is a DSP called NAME, remove the cached instances.
                   (free-dsp-instances ',name)
-                  (set-dsp-arg-names ',name ',arg-names)
+                  (set-dsp-arguments ',name ',arg-names ',arg-types ',defaults)
                   (,@(if defaults
                          `(defun* ,name ,(dsp-optional-keywords
                                            arg-names defaults keywords))

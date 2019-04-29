@@ -1199,6 +1199,7 @@ Return ~t~ if the ~ugen-instance~ is deallocated.
 ::: vug:*update-dsp-instances-p*
 ::: vug:dsp!
 ::: vug:dsp-debug
+::: vug:dsp-lambda-list
 ::: vug:destroy-dsp
 ::: vug:free-dsp-instances
 ::: vug:all-dsp-names

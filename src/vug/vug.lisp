@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -2011,10 +2011,13 @@ Return the new VUG-MACRO structure."
 NAME can also be a VUG structure."
   (declare (type (or symbol vug) name))
   (let ((vug (if (vug-p name) name (vug name))))
-    (values (if (vug-macro-p vug)
-                (copy-tree (vug-args vug))
-                (mapcar #'list (vug-args vug) (copy-tree (vug-arg-types vug))))
-            (copy-tree (vug-defaults vug)))))
+    (if vug
+        (values
+          (if (vug-macro-p vug)
+              (copy-tree (vug-args vug))
+              (mapcar #'list (vug-args vug) (copy-tree (vug-arg-types vug))))
+          (copy-tree (vug-defaults vug)))
+        (error 'incudine:incudine-undefined-vug :name name))))
 
 (defun rename-vug (old-name new-name)
   "Rename the VUG named OLD-NAME to NEW-NAME."
@@ -2082,11 +2085,9 @@ If INACCESSIBLE-P is T, the list also includes the symbols unexported
 from the other packages."
   (%all-vug-names *vugs* inaccessible-p))
 
-(declaim (inline argument-names))
 (defun argument-names (args)
   (mapcar (lambda (x) (if (consp x) (car x) x)) args))
 
-(declaim (inline argument-types))
 (defun argument-types (args)
   (mapcar (lambda (x) (if (consp x) (cadr x) 'sample)) args))
 
