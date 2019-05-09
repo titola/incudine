@@ -7,7 +7,11 @@
 
  - Non-realtime bounce to disk and bounce to buffer.
 
- - The format of the sample is double float.
+ - Arbitrary precision. The sample type is double float but the
+   unit generators and the DSP's don't require a particular type.
+   In practice the init-time and performance-time functions of
+   UGEN or DSP are arbitrary lisp functions regulated by the
+   context (i.e. realtime audio).
 
  - Optional standalone executable.
 
