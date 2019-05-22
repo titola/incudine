@@ -71,14 +71,6 @@ A deprecated symbol is obsolete after one year."
    :date 20181209
    :package "INCUDINE.UTIL")
 
-(in-package :incudine.vug)
-
-(incudine::deprecated-macro
-   (done-self () `(done-p))
-   :replacement incudine:done-p
-   :date 20180512
-   :package "INCUDINE.VUG")
-
 (in-package :incudine.analysis)
 
 (incudine::deprecated-function
