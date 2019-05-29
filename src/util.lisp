@@ -64,6 +64,18 @@ LIMITED-SAMPLE."
             incudine.config::+incudine-minor+
             incudine.config::+incudine-patch+))
 
+(defun incudine-version->= (&rest subversions)
+  "Whether the current Incudine version is equal to or greater than
+the version specified in the arguments.
+
+Example:
+
+    (incudine-version->= 0 9 25)"
+  (destructuring-bind (&optional (major 0) (minor 0) (patch 0)) subversions
+    (and (>= incudine.config::+incudine-major+ major)
+         (>= incudine.config::+incudine-minor+ minor)
+         (>= incudine.config::+incudine-patch+ patch))))
+
 (defmacro incudine-optimize (&body body)
   `(locally (declare ,*standard-optimize-settings*) ,@body))
 

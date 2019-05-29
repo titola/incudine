@@ -640,6 +640,7 @@ Some examples from s7.html translated to CL:
 #+texinfo: @page
 ** Utilities
 ::: incudine.util:incudine-version
+::: incudine.util:incudine-version->=
 ::: deprecated-symbol-names
 ::: init
 ::: incudine.util:exit

@@ -103,7 +103,7 @@
    #:*standard-optimize-settings*
    #:most-positive-sample #:most-negative-sample
    #:least-positive-sample #:least-negative-sample
-   #:incudine-version
+   #:incudine-version #:incudine-version->=
    #:exit
    #:without-interrupts #:with-pinned-objects
    #:next-power-of-two #:power-of-two-p
