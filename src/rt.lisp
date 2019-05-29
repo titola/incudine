@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -231,16 +231,16 @@
            (rt-transfer-to-c-thread)
            (nrt-funcall #'rt-stop))))))
 
+;;; Real-time loop callback for sample by sample computation.
 #-dummy-audio
 (defun rt-loop-1 (frames-per-buffer)
-  "Real-time loop callback for sample by sample computation."
   (declare #.*standard-optimize-settings*
            (type non-negative-fixnum frames-per-buffer))
   (rt-loop-form frames-per-buffer 1))
 
+;;; Real-time loop callback with a block size of 64 frames.
 #-dummy-audio
 (defun rt-loop-64 (frames-per-buffer)
-  "Real-time loop callback with a block size of 64 frames."
   (declare #.*standard-optimize-settings*
            (type non-negative-fixnum frames-per-buffer))
   (rt-loop-form frames-per-buffer 64))

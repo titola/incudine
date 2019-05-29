@@ -877,12 +877,12 @@ during the compilation of a UGEN or DSP. The default is NIL.")
     (otherwise (parse-other-declare-form form
                  (performance-time preserve temporary)))))
 
-(defvar *local-vug-functions* nil
-  "Association list describing all the used local functions.
-The CAR positions are the names of the local functions.
-The CDR positions are the local variables bound to the local functions.
-
-It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.")
+;;; Association list describing all the used local functions.
+;;; The CAR positions are the names of the local functions.
+;;; The CDR positions are the local variables bound to the local functions.
+;;;
+;;; It is typically used to get the local variables for LOCAL-VUG-FUNCTIONS-VARS.
+(defvar *local-vug-functions* nil)
 (declaim (type list *local-vug-functions*))
 
 (defun add-local-vug-function-var (var function-name)

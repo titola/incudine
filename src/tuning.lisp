@@ -1,4 +1,4 @@
-;;; Copyright (c) 2015-2018 Tito Latini
+;;; Copyright (c) 2015-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -546,10 +546,10 @@ in Scale file format."
           (the non-negative-fixnum
             (1- (length (tuning-cents tuning))))))
 
+;;; Return the keynum related to the first degree of TUNING after the
+;;; start of OCTAVE.  For convention, octave zero starts with one cycle
+;;; for second.  Example: octave 8 starts with 256 Hz (about middle C).
 (defun tuning-start-index (tuning octave)
-  "Return the keynum related to the first degree of TUNING after the
-start of OCTAVE.  For convention, octave zero starts with one cycle
-for second.  Example: octave 8 starts with 256 Hz (about middle C)."
   (declare (type (integer 0 14) octave))
   (let ((cps (ash 1 octave)))
     (declare (type fixnum cps))

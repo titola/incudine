@@ -105,34 +105,34 @@
             (stream-direction obj) (zerop (length port-name))
             port-name)))
 
-(defvar *streams* nil
-  "Ordered list of opened Jack MIDI streams.")
+;;; Ordered list of opened Jack MIDI streams.
+(defvar *streams* nil)
 (declaim (type list *streams*))
 
-(defvar *input-streams* (vector)
-  "Ordered vector of opened Jack MIDI input streams.")
+;;; Ordered vector of opened Jack MIDI input streams.
+(defvar *input-streams* (vector))
 (declaim (type simple-vector *input-streams*))
 
-(defvar *pending-input-streams* (vector)
-  "Temporary Jack MIDI input streams used in non-realtime.")
+;;; Temporary Jack MIDI input streams used in non-realtime.
+(defvar *pending-input-streams* (vector))
 (declaim (type simple-vector *pending-input-streams*))
 
+;;; Spinlock to update *PENDING-INPUT-STREAMS* in nrt-thread.
 (defvar *input-streams-spinlock*
-  (incudine.util:make-spinlock "jackmidi pending-input-streams")
-  "Spinlock to update *PENDING-INPUT-STREAMS* in nrt-thread.")
+  (incudine.util:make-spinlock "jackmidi pending-input-streams"))
 (declaim (type incudine.util:spinlock *input-streams-spinlock*))
 
-(defvar *output-streams* (vector)
-  "Ordered vector of opened Jack MIDI output streams.")
+;;; Ordered vector of opened Jack MIDI output streams.
+(defvar *output-streams* (vector))
 (declaim (type simple-vector *output-streams*))
 
-(defvar *pending-output-streams* (vector)
-  "Temporary Jack MIDI output streams used in non-realtime.")
+;;; Temporary Jack MIDI output streams used in non-realtime.
+(defvar *pending-output-streams* (vector))
 (declaim (type simple-vector *pending-output-streams*))
 
+;;; Spinlock to update *PENDING-OUTPUT-STREAMS* in nrt-thread.
 (defvar *output-streams-spinlock*
-  (incudine.util:make-spinlock "jackmidi pending-output-streams")
-  "Spinlock to update *PENDING-OUTPUT-STREAMS* in nrt-thread.")
+  (incudine.util:make-spinlock "jackmidi pending-output-streams"))
 (declaim (type incudine.util:spinlock *output-streams-spinlock*))
 
 (declaim (inline jack-stopped-p))

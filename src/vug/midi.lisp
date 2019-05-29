@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -28,11 +28,11 @@
     ;; pitch bend between -8192 and 8191
     (pitch-bend 0 :type fixnum))
 
+  ;;; Table to store the received MIDI channel messages.
   (defvar *midi-table*
     (make-array 16 :element-type 'midi-table
                 :initial-contents (loop for i below 16
-                                        collect (make-midi-table)))
-    "Table to store the received MIDI channel messages")
+                                        collect (make-midi-table))))
   (declaim (type vector *midi-table*))
 
   (declaim (inline midi-channel))

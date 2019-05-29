@@ -23,6 +23,8 @@
   (defvar *fill-rt-memory-pools-p* nil)
   (declaim (type boolean *fill-rt-memory-pools-p*))
 
+  ;;; Allocation of the foreign memory and initialization when a saved
+  ;;; core image starts up.
   (defvar *core-init-function*
     (lambda ()
       (when *fill-nrt-memory-pools-p*
@@ -170,15 +172,14 @@
       (setf *package* (find-package :incudine.scratch))
       ;; tuning
       (setf *tuning-et12* (make-tuning))
-      (setf *default-tuning* *tuning-et12*))
-    "Allocation of the foreign memory and initialization when a saved
-core image starts up.")
+      (setf *default-tuning* *tuning-et12*)))
 
   (defvar *core-config-and-init-function*
     (lambda ()
       (incudine.config:load-incudinerc)
       (funcall *core-init-function*)))
 
+  ;;; Function to call before to save a core image.
   (defvar *core-save-function*
     (lambda ()
       (free-dsp-instances)
@@ -211,12 +212,11 @@ core image starts up.")
         (incudine.util::empty-cons-pool p))
       (incudine.util::empty-cons-pool *node-pool* :cancel-finalizations t)
       (clrhash incudine.analysis::*fft-plan*)
-      (values))
-    "Function to call before to save a core image.")
+      (values)))
 
+  ;;; Function to call when SBCL process exits.
   (defvar *exit-function*
-    (lambda () (rt-stop))
-    "Function to call when SBCL process exits.")
+    (lambda () (rt-stop)))
 
   (defvar *set-core-hooks-p* t)
   (when *set-core-hooks-p*

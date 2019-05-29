@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -28,22 +28,22 @@
 (defun expand-node-pool (pool &optional (delta 1))
   (expand-cons-pool pool delta (make-node nil 0)))
 
+;;; Pool of nodes used out of the graph in realtime.
 (defvar *rt-node-pool*
   (make-cons-pool
     :data (loop repeat +rt-node-pool-size+ collect (make-node nil 0))
     :size +rt-node-pool-size+
     :expand-function #'expand-node-pool
-    :grow +rt-node-pool-grow+)
-  "Pool of nodes used out of the graph in realtime.")
+    :grow +rt-node-pool-grow+))
 (declaim (type cons-pool *rt-node-pool*))
 
+;;; Pool of nodes used out of the graph in non-realtime.
 (defvar *nrt-node-pool*
   (make-cons-pool
     :data (loop repeat +nrt-node-pool-size+ collect (make-node nil 0))
     :size +nrt-node-pool-size+
     :expand-function #'expand-node-pool
-    :grow +nrt-node-pool-grow+)
-  "Pool of nodes used out of the graph in non-realtime.")
+    :grow +nrt-node-pool-grow+))
 (declaim (type cons-pool *nrt-node-pool*))
 
 (defglobal *nrt-node-pool-spinlock* (make-spinlock "NRT-NODE-POOL"))

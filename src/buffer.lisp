@@ -160,15 +160,15 @@ a non-NIL FILE argument, return the pathname.")
 
 (defsetf buffer-value set-buffer-value)
 
+;;; Check if FILE is a text file that contains numbers.
+;;; Returns T and the number of the counted values, or NIL if the file is
+;;; not valid.
+;;;
+;;; There is not the parsing of the numbers; a text file is valid if it
+;;; contains numbers separated with spaces, tabs or newlines.
+;;;
+;;; It is possible to use line comments that begin with the ';' character.
 (defun check-numeric-textfile (file)
-  "Check if FILE is a text file that contains numbers.
-Returns T and the number of the counted values, or NIL if the file is
-not valid.
-
-There is not the parsing of the numbers, a text file is valid if it
-contains numbers separated with spaces, tabs or newlines.
-
-It is possible to use line comments that begin with the ';' character."
   (flet ((valid-char-p (code)
            (or ;; [0-9]
                (< 47 code 58)

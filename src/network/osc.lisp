@@ -1,4 +1,4 @@
-;;; Copyright (c) 2015-2018 Tito Latini
+;;; Copyright (c) 2015-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -32,12 +32,12 @@
   "Maximum number of the values required by an OSC message.")
 (declaim (type positive-fixnum *max-values*))
 
+;;; addrinfo-flags for the argument 'hints' of the c-call getaddrinfo.
+;;; The default is 0.
 (defvar *addrinfo-hints-flags*
   (if (boundp 'incudine.config::*addrinfo-hints-flags*)
       incudine.config::*addrinfo-hints-flags*
-      0)
-  "addrinfo-flags for the argument 'hints' of the c-call getaddrinfo.
-The default is 0.")
+      0))
 (declaim (type non-negative-fixnum *addrinfo-hints-flags*))
 
 (defvar *before-close-hook* nil

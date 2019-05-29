@@ -121,8 +121,8 @@
   (declare (type fifo fifo))
   (setf (fifo-read-head fifo) (fifo-write-head fifo)))
 
+;;; Adds VALUE to the end of FIFO. Returns VALUE.
 (defun enqueue (value fifo)
-  "Adds VALUE to the end of FIFO. Returns VALUE."
   (declare (type fifo fifo))
   (let ((next (fifo-head-next fifo fifo-write-head)))
     (unless (fifo-head-equal next (fifo-read-head fifo))

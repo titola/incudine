@@ -1,6 +1,6 @@
 ;;; Common Lisp interface to interact with the sound editor Snd.
 ;;;
-;;; Copyright (c) 2015-2018 Tito Latini
+;;; Copyright (c) 2015-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -49,13 +49,13 @@
     (push #\) acc)
     (read-from-string (coerce (nreverse acc) 'string))))
 
+;;; Readtable for Snd output.
 (defvar *snd-readtable*
   (let ((rtab (copy-readtable nil)))
     (set-dispatch-macro-character #\# #\t #'|#t-reader| rtab)
     (set-dispatch-macro-character #\# #\f #'|#f-reader| rtab)
     (set-dispatch-macro-character #\# #\< #'|#<-reader| rtab)
-    rtab)
-  "Readtable for Snd output.")
+    rtab))
 
 (define-condition snd-error (error)
   ((text :initarg :text :reader text))

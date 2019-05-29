@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -65,9 +65,9 @@
   (declare (ignore rest))
   (values))
 
+;;; Count Trailing Zeroes.
 (declaim (inline ctz))
 (defun ctz (x)
-  "Count Trailing Zeroes."
   (let ((num-zeros 0))
     (declare (type (integer 0 64) num-zeros))
     (unless (zerop x)

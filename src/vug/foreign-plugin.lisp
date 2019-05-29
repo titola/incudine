@@ -128,8 +128,8 @@
 (defun audio-control-output-port-p (port)
   (and (output-port-p port) (not (event-port-p port))))
 
+;;; Lispify the name of a port.
 (defun lispify-name (name)
-  "Lispify the name of a port."
   (loop for c across name
         with acc = nil and skip-p = nil do
           (case c
