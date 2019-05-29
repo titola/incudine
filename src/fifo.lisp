@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -279,7 +279,6 @@ See also FAST-NRT-FUNCALL."
 If RETURN-VALUE-P is T, return the results of FORM."
   `(%rt-eval (lambda () ,@form) ,return-value-p))
 
-(declaim (inline exit))
 (defun exit (&optional (code 0))
   "Exit lisp with CODE from a non-real-time thread.
 

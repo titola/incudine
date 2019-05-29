@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -91,15 +91,12 @@
 (defvar *rt-executable-sync* (make-sync-condition "rt executable"))
 (declaim (type sync-condition *rt-executable-sync*))
 
-(declaim (inline find-toplevel-option))
 (defun find-toplevel-option (opt)
   (gethash opt *toplevel-options*))
 
-(declaim (inline add-toplevel-function))
 (defun add-toplevel-function (function tlevel-opt)
   (push function (toplevel-options-functions tlevel-opt)))
 
-(declaim (inline add-consumed-option))
 (defun add-consumed-option (toplevel-opt option &optional quoted-p)
   (let ((new (list (if quoted-p (format nil "~S" option) option)))
         (tl (toplevel-options-consumed toplevel-opt)))
@@ -111,11 +108,9 @@
 (defmacro shift-toplevel-option (opt options)
   `(add-consumed-option ,opt (pop ,options)))
 
-(declaim (inline consumed-options))
 (defun consumed-options (opt)
   (car (toplevel-options-consumed opt)))
 
-(declaim (inline changed-number-of-channels-p))
 (defun changed-number-of-channels-p (opt)
   (or (plusp (toplevel-options-ichans opt))
       (plusp (toplevel-options-ochans opt))))
@@ -164,7 +159,6 @@
              (read-sequence seq f)
              (equal seq '(#\# #\Space #\F #\A #\S #\L)))))))
 
-(declaim (inline stop-rt-executable))
 (defun stop-rt-executable ()
   (nrt-funcall (lambda () (sync-condition-signal *rt-executable-sync*))))
 

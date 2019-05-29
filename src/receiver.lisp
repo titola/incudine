@@ -29,7 +29,6 @@
 
 (defgeneric valid-input-stream-p (obj))
 
-(declaim (inline make-receiver))
 (defun make-receiver (stream &optional functions status)
   (when (valid-input-stream-p stream)
     (%make-receiver :stream stream
@@ -81,7 +80,6 @@ input available from STREAM."
   (let ((recv (receiver stream)))
     (when recv (receiver-functions recv))))
 
-(declaim (inline recv-set-priority))
 (defun recv-set-priority (thread priority)
   (when (bt:threadp thread)
     (setf (thread-priority thread) priority)))
@@ -99,7 +97,6 @@ input available from STREAM."
         (setf (receiver-thread recv) result))
       (setf (gethash stream *receivers*) recv))))
 
-(declaim (inline remove-receiver))
 (defun remove-receiver (stream)
   "Remove the receiver related to STREAM."
   (when stream

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -136,7 +136,6 @@ will be expanded in a time tagged lisp function
                      (subseq str 1 (1- len))))))
        ',name)))
 
-(declaim (inline delete-score-statement))
 (defun delete-score-statement (name)
   "Delete the score statement defined by DEFSCORE-STATEMENT
 or IGNORE-SCORE-STATEMENTS."
@@ -199,7 +198,6 @@ or IGNORE-SCORE-STATEMENTS."
 (defun string-trim-blank-and-quotation (string)
   (string-trim '(#\Space #\Tab #\") string))
 
-(declaim (inline line-parse-skip-string))
 (defun line-parse-skip-string (str index end)
   (declare (type string str) (type non-negative-fixnum index end))
   (labels ((skip-p (i)
@@ -474,7 +472,6 @@ or IGNORE-SCORE-STATEMENTS."
                     (t (end-of-rego)))))
           incudine::*to-free*))))
 
-(declaim (inline default-tempo-envelope))
 (defun default-tempo-envelope ()
   (make-tempo-envelope (list *default-bpm* *default-bpm*) '(0)))
 
@@ -717,7 +714,6 @@ event list at runtime when this function is called."
   (with-open-file (score path)
     (rego-stream->sexp score function-name compile-rego-p)))
 
-(declaim (inline regofile->function))
 (defun regofile->function (path &optional function-name compile-rego-p)
   "From a rego file PATH, define a function optionally named
 FUNCTION-NAME to evaluate the corresponding lisp form.

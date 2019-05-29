@@ -300,7 +300,6 @@ that terminated the parse, or the upper bounding index of the substring."
 (defun declare-form-p (lst)
   (eq (car lst) 'declare))
 
-(declaim (inline separate-declaration))
 (defun separate-declaration (form)
   (let (acc)
     (do ((l form (cdr l)))

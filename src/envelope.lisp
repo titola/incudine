@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -715,7 +715,6 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
 
 (defsetf envelope-curve set-envelope-curve)
 
-(declaim (inline envelope-levels))
 (defun envelope-levels (env)
   (loop for i below (envelope-points env) collect (envelope-level env i)))
 
@@ -853,7 +852,6 @@ is e^k and the curvature depends on the highest and lowest levels."
                                 (set-levels (1+ index) (+ offset 3))))))
               (set-levels 1 2))))))))
 
-(declaim (inline breakpoint-sequence-p))
 (defun breakpoint-sequence-p (seq)
   (if (or (arrayp seq) (consp seq))
       (let ((len (length seq)))
@@ -907,6 +905,7 @@ is e^k and the curvature depends on the highest and lowest levels."
   (declare (type (or list array) bp-seq))
   (multiple-value-bind (bp-seq-p size)
       (breakpoint-sequence-p bp-seq)
+    (declare (type non-negative-fixnum size))
     (if bp-seq-p
         (let ((bplist (let ((lst (coerce bp-seq 'list)))
                         (normalize-env-times
@@ -996,6 +995,7 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
   (declare (type (or list array) bp-seq))
   (multiple-value-bind (bp-seq-p size)
       (breakpoint-sequence-p bp-seq)
+    (declare (type non-negative-fixnum size))
     (if bp-seq-p
         (let* ((points (/ size 2))
                (curve (and (null base) (expand-curve-list curve points)))

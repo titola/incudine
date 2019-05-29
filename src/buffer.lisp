@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -517,7 +517,6 @@ FUNCTION is a function of as many arguments as there are buffers."
                       (+ min (* (- max min) old-delta (- value old-min))))
                     buffer)))))
 
-(declaim (inline sort-buffer))
 (defun sort-buffer (buffer)
   "Destructively sort BUFFER and return it."
   (incudine.util:sort-samples
@@ -570,7 +569,6 @@ content of the buffer."
     (dotimes (i size arr)
       (setf (aref arr i) (buffer-value buf i)))))
 
-(declaim (inline buffer->list))
 (defun buffer->list (buf)
   "Create a new list with the content of the buffer."
   (declare (type buffer-base buf))
