@@ -48,8 +48,7 @@ to a MIDI output STREAM."
       (portmidi-write-short stream (pm:message status data1 data2))
       (jackmidi:write-short stream (jackmidi:message status data1 data2)
                             ;; Size 2 if program change, otherwise 3.
-                            (integer-length
-                              (ash (+ (logxor status #xc0) #x70) -5))))
+                            (ash (+ (logxor status #xc0) #x170) -7)))
   stream)
 
 (declaim (inline midi-write-sysex))
