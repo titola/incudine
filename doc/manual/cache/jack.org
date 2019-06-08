@@ -238,11 +238,12 @@ of the MIDI Jack input ~stream~.
 #+attr_texinfo: :options jackmidi:input-stream-sysex-octets stream @andoptional{} octets start
 #+begin_defun
 Return the vector of octets stored in the buffer of the MIDI Jack
-input ~stream~.
+input ~stream~ and the MIDI SysEx message size.
 
 Create a new vector if ~octets~ is ~nil~ (default).
 
-~start~ and ~end~ are the bounding index designators of the vector.
+~start~ specifies an offset into ~octets~ and marks the beginning position
+of that vector.
 #+end_defun
 
 #+texinfo: @page

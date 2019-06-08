@@ -448,7 +448,8 @@
    #:make-responder #:make-osc-responder #:add-responder #:remove-responder
    #:remove-all-responders #:all-responders
    ;; midi
-   #:midiout #:midiout-sysex #:midi-tuning-sysex #:set-tuning-from-midi
+   #:midiout #:midiout-sysex #:midiin-sysex-octets
+   #:midi-tuning-sysex #:set-tuning-from-midi
    ;; serial
    #:open-serial-port #:serial-stream-p #:serial-flush
    ;; envelope

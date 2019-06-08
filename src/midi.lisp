@@ -87,6 +87,26 @@ SEQ is of type SEQUENCE."
          (midi-write-sysex stream (foreign-array-data obj) (length seq))
       (free obj))))
 
+(declaim (inline midiin-sysex-octets))
+(defun midiin-sysex-octets (stream &optional octets (start 0))
+  "Return the vector of octets stored in the buffer of the MIDI input
+STREAM and the MIDI SysEx message size.
+
+Create a new vector if OCTETS is NIL (default).
+
+START specifies an offset into OCTETS and marks the beginning position
+of that vector."
+  (declare (type midi-input-stream stream)
+           (type (or (simple-array (unsigned-byte 8) (*)) null) octets)
+           (type non-negative-fixnum start))
+  #-jack-midi
+  (portmidi:input-stream-sysex-octets stream octets start)
+  #+jack-midi
+  (funcall (if (pm:input-stream-p stream)
+               #'portmidi:input-stream-sysex-octets
+               #'jackmidi:input-stream-sysex-octets)
+           stream octets start))
+
 ;;; MIDI Tuning messages
 
 (define-constant +midi-bulk-tuning-dump-buffer-size+ 408)

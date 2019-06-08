@@ -865,6 +865,7 @@ Return the STFT frame offset of the pvbuffer. Setfable.
 ** MIDI
 ::: midiout
 ::: midiout-sysex
+::: midiin-sysex-octets
 ::: midi-tuning-sysex
 #+texinfo: @page
 ** Mouse Support
