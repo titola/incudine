@@ -711,11 +711,12 @@ buffer of the MIDI Jack input STREAM."
 
 (defun input-stream-sysex-octets (stream &optional octets (start 0))
   "Return the vector of octets stored in the buffer of the MIDI Jack
-input STREAM.
+input STREAM and the MIDI SysEx message size.
 
 Create a new vector if OCTETS is NIL (default).
 
-START and END are the bounding index designators of the vector."
+START specifies an offset into OCTETS and marks the beginning position
+of that vector."
   (declare (type input-stream stream) (type (or data null) octets)
            (type non-negative-fixnum start))
   (multiple-value-bind (ptr size) (input-stream-sysex-pointer stream)
@@ -724,7 +725,7 @@ START and END are the bounding index designators of the vector."
     (when (and (plusp size) (<= size +sysex-max-size+))
       (multiple-value-bind (buf start size)
           (if octets
-              (values octets start (min (length octets) size))
+              (values octets start (min size (- (length octets) start)))
               (values (make-array size :element-type '(unsigned-byte 8))
                       0 size))
         (declare (type non-negative-fixnum size start))
