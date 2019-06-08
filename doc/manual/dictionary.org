@@ -866,6 +866,61 @@ Return the STFT frame offset of the pvbuffer. Setfable.
 ::: midiout
 ::: midiout-sysex
 ::: midiin-sysex-octets
+
+Example:
+
+#+begin_example
+(in-package :scratch)
+
+;; Test with PortMidi.
+(defvar *midiin-test* (pm:open (pm:get-default-input-device-id)))
+
+(defun verbose-responder (status data1 data2)
+  (cond ((= status #xf0)
+         (format *logger-stream* "MIDI SysEx: ~A~%"
+                 (midiin-sysex-octets *midiin-test*)))
+        ((>= status #x80)
+         (format *logger-stream* "MIDI event: ~D ~D ~D~%"
+                 status data1 data2)))
+  (force-output *logger-stream*))
+
+(make-responder *midiin-test* #'verbose-responder)
+
+(recv-start *midiin-test*)
+
+;; Send a MIDI SysEx message from a sequencer...
+
+;; Get the octets of the last received MIDI SysEx.
+(midiin-sysex-octets *midiin-test*)
+
+(recv-stop *midiin-test*)
+(remove-all-responders *midiin-test*)
+(remove-receiver *midiin-test*)
+(pm:close *midiin-test*)
+
+;; The same test with JACK MIDI.
+(setf *midiin-test* (jackmidi:open))
+
+;; Start JACK.
+(rt-start)
+
+(make-responder *midiin-test* #'verbose-responder)
+
+(recv-start *midiin-test*)
+
+;; Connect a sequencer to the JACK MIDI input port "incudine:midi_in",
+;; send a MIDI SysEx message from the sequencer...
+
+;; Octets of the last received MIDI SysEx.
+(midiin-sysex-octets *midiin-test*)
+
+(recv-stop *midiin-test*)
+(remove-all-responders *midiin-test*)
+(remove-receiver *midiin-test*)
+(jackmidi:close *midiin-test*)
+(rt-stop)
+#+end_example
+
 ::: midi-tuning-sysex
 #+texinfo: @page
 ** Mouse Support
