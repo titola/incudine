@@ -140,6 +140,48 @@
                                  :pointer)))
      ,@body))
 
+(defun input-stream-sysex-octets (stream &optional octets (start 0))
+  (declare (type input-stream stream)
+           (type (or (simple-array (unsigned-byte 8) (*)) null) octets)
+           (type non-negative-fixnum start))
+  (with-input-sysex-event (ptr stream)
+    (let ((remain (input-stream-events-remain stream)))
+      (declare (type non-negative-fixnum remain)
+               (optimize speed (safety 0)))
+      (when (> remain 0)
+        (let* ((butlast-events (1- remain))
+               (last32 (cffi:mem-aref
+                         (cffi:inc-pointer ptr (the fixnum (* 8 butlast-events)))
+                         :uint32))
+               (i (max 1 (ash (integer-length last32) -3)))
+               (tail-size #+little-endian i #-little-endian (- 5 i))
+               ;; Buffer size in bytes.
+               (size (+ (* 4 butlast-events) tail-size)))
+          (declare (type non-negative-fixnum butlast-events size))
+          (when (<= size default-sysex-buffer-size)
+            (multiple-value-bind (buf start size)
+                (if octets
+                    (values octets start (min (- (length octets) start) size))
+                    (values (make-array size :element-type '(unsigned-byte 8))
+                            0 size))
+              (declare (type non-negative-fixnum start size))
+              (cffi:with-pointer-to-vector-data (aptr buf)
+                (if (> start 0) (cffi:incf-pointer aptr start))
+                ;; Move blocks of 32 bits.
+                (loop for i of-type fixnum from 0
+                      for j of-type fixnum below (* 2 butlast-events) by 2 do
+                        (setf (cffi:mem-aref aptr :int32 i)
+                              ;; event->message
+                              (cffi:mem-aref ptr :int32 j))
+                      finally
+                        ;; Last PortMidi message: move blocks of 8 bits.
+                        (loop for k below tail-size
+                              for m from (* i 4) below size
+                              with last-ptr = (cffi:mem-aptr ptr :int32 j) do
+                                (setf (cffi:mem-aref aptr :char m)
+                                      (cffi:mem-aref last-ptr :char k)))))
+              (values buf size))))))))
+
 (declaim (inline sysex-message-p))
 (defun sysex-message-p (msg)
   (= (logand msg #xFF) #xF0))

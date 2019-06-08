@@ -97,6 +97,7 @@
    #:decode-message
    #:decode-channel-message
    #:sysex-message-p
+   #:input-stream-sysex-octets
    #:before
    #:channel
    #:make-event-buffer
