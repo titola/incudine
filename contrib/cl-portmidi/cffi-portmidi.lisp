@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -59,10 +59,10 @@
   #+sbcl (sb-ext:cancel-finalization obj)
   #-sbcl (tg:cancel-finalization obj))
 
-(defun make-stream (ptr direction device-id device-interf device-name)
+(defun make-stream (ptr direction device-id device-interf device-name latency)
   (declare (type cffi:foreign-pointer ptr)
            (type (member :input :output) direction)
-           (type non-negative-fixnum device-id)
+           (type non-negative-fixnum device-id latency)
            (type string device-interf device-name))
   (if (eq direction :input)
       (let* ((sysex-ptr (cffi:foreign-alloc :pointer))
@@ -80,7 +80,8 @@
                                      :direction :output
                                      :device-id device-id
                                      :device-interf device-interf
-                                     :device-name device-name)))
+                                     :device-name device-name
+                                     :latency latency)))
         (finalize obj (lambda () (close ptr)))
         obj)))
 

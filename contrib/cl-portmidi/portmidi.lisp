@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -16,8 +16,8 @@
 
 (in-package :portmidi)
 
-(defvar *stream-opened* nil)
-(declaim (type list *stream-opened*))
+(defvar *opened-streams* nil)
+(declaim (type list *opened-streams*))
 
 (declaim (inline from-device-info-ptr))
 (defun from-device-info-ptr (ptr)
@@ -46,7 +46,7 @@
             (format stream "~D: ~A - ~A :IN ~D :OUT ~D ~:[(OPENED)~;~]~%"
                     id interf name input output (zerop opened)))))))
 
-(defun verify-opened (ptr direction device-id result)
+(defun register-stream (ptr direction device-id latency result)
   (declare (type cffi:foreign-pointer ptr) (type keyword direction result)
            (type non-negative-fixnum device-id))
   (if (eq result :pm-no-error)
@@ -55,23 +55,23 @@
           (cffi:with-foreign-slots
               ((interf name) (get-device-info% device-id) (:struct device-info))
             (let ((stream (make-stream (cffi:mem-ref ptr :pointer) direction
-                                       device-id interf name)))
-              (push stream *stream-opened*)
+                                       device-id interf name latency)))
+              (push stream *opened-streams*)
               stream)))
       (error-generic result)))
 
-(defmacro open (device-id &key (buffer-size default-sysex-buffer-size)
-                (direction :input) (latency 1) driver-info time-proc time-info)
-  (let ((ptr (gensym)))
-    (multiple-value-bind (open-func latency)
-        (if (eq direction :input)
-            (values 'open-input nil)
-            (values 'open-output `(,latency)))
-      `(cffi:with-foreign-object (,ptr :pointer)
-         (verify-opened ,ptr ,direction ,device-id
-           (,open-func ,ptr ,device-id ,(or driver-info '(cffi:null-pointer))
-                       ,buffer-size ,(or time-proc '(cffi:null-pointer))
-                       ,(or time-info '(cffi:null-pointer)) ,@latency))))))
+(defun open (device-id &key (buffer-size default-sysex-buffer-size)
+             (direction :input) (latency 1) (driver-info (cffi:null-pointer))
+             (time-proc (cffi:null-pointer)) (time-info (cffi:null-pointer)))
+  (cffi:with-foreign-object (stream-ptr :pointer)
+    (let ((args (list stream-ptr device-id driver-info buffer-size
+                      time-proc time-info latency)))
+      (multiple-value-bind (func args)
+          (if (eq direction :input)
+              (values #'open-input (butlast args))
+              (values #'open-output args))
+        (register-stream stream-ptr direction device-id latency
+                         (apply func args))))))
 
 (defstruct (event-buffer (:constructor %make-event-buffer)
                          (:copier nil))
@@ -79,7 +79,6 @@
   (size 0 :type non-negative-fixnum)
   (events 0 :type non-negative-fixnum))
 
-(declaim (inline make-event-buffer))
 (defun make-event-buffer (&optional (size default-sysex-buffer-size))
   (declare (type non-negative-fixnum size))
   (let* ((ptr (cffi:foreign-alloc '(:struct event) :count size))
@@ -126,12 +125,11 @@
       (cffi:foreign-free #1#)
       (setf #1# (cffi:null-pointer)))
     (cancel-finalization stream)
-    (setf *stream-opened* (remove stream *stream-opened*))
+    (setf *opened-streams* (remove stream *opened-streams*))
     result))
 
-(declaim (inline terminate))
 (defun terminate ()
-  (dolist (stream *stream-opened* (terminate%))
+  (dolist (stream *opened-streams* (terminate%))
     (close stream)))
 
 (defmacro event-slot (ev slot)
