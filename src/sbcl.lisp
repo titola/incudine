@@ -17,11 +17,13 @@
 (in-package :incudine.util)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
+  (require :sb-introspect)
   (import
     '(sb-ext:defglobal)
     "INCUDINE")
   (import
     '(sb-int:constant-form-value
+      sb-introspect:function-lambda-list
       sb-ext:defglobal
       sb-ext:gc
       sb-ext:get-time-of-day

@@ -109,11 +109,11 @@ input available from STREAM."
 
 (defmethod valid-input-stream-p ((obj portmidi:output-stream)) nil)
 
-(defun midi-recv-funcall-all (recv status data1 data2)
+(defun midi-recv-funcall-all (recv status data1 data2 stream)
   (declare (type receiver recv)
            (type (unsigned-byte 8) status data1 data2))
   (dolist (fn (receiver-functions recv))
-    (funcall (the function fn) status data1 data2)))
+    (funcall (the function fn) status data1 data2 stream)))
 
 (defun start-portmidi-recv (receiver update-midi-table-p)
   (declare #.*standard-optimize-settings*
@@ -131,7 +131,7 @@ input available from STREAM."
                   (pm:decode-message (logand msg #xFFFFFF))
                 (when update-midi-table-p
                   (incudine.vug::set-midi-message status data1 data2))
-                (midi-recv-funcall-all receiver status data1 data2))
+                (midi-recv-funcall-all receiver status data1 data2 stream))
             (condition (c) (nrt-msg error "~A" c)))))))
 
 (defun start-portmidi-recv-update-mtab (receiver)
@@ -363,14 +363,64 @@ receiver-functions."
       (unless (find resp resp-list :test #'eq)
         (%add-responder resp (receiver-stream recv))))))
 
+(defun midi-responder-wrapper (function)
+    (let* ((lambda-list (incudine.util::function-lambda-list function))
+           (len (length lambda-list))
+           (key-pos (position '&key lambda-list)))
+      (if (and key-pos (<= key-pos 2))
+          ;; Optional keywords are ignored with one argument `(stream &key ...)'
+          ;; but an error is signaled with more arguments.
+          (setf len key-pos))
+      ;; &optional makes sense only with three mandatory arguments.
+      (case (position '&optional lambda-list)
+        ((nil) (case len
+                 (1 ;; (func stream)
+                  (lambda (status data1 data2 stream)
+                    (declare (ignore status data1 data2))
+                    (funcall function stream)))
+                 (3 ;; (func status data1 data2)
+                  (lambda (status data1 data2 stream)
+                    (declare (ignore stream))
+                    (funcall function status data1 data2)))
+                 (4 ;; No wrapper:
+                    ;; (func status data1 data2 stream)
+                  function)
+                 (otherwise
+                  (if (eq (first lambda-list) '&rest)
+                      ;; No wrapper:
+                      ;; (func &rest arguments)
+                      function
+                      (error 'alexandria:simple-program-error
+                        :format-control "MIDI responder function with invalid ~
+                                         number of arguments: ~D"
+                        :format-arguments (list len))))))
+        ;; No wrapper:
+        ;; (func status data1 data2 &optional stream)
+        (3 function))))
+
+(defgeneric responder-wrapper (stream function))
+
+(defmethod responder-wrapper ((stream t) function)
+  function)
+
+(defmethod responder-wrapper ((stream pm:input-stream)
+                              (function function))
+  (midi-responder-wrapper function))
+
 (defun make-responder (stream function)
   "Create and return a responder for STREAM.
 
 FUNCTION is added to the list of receiver-functions called whenever
 there is input available from STREAM.
 
-If STREAM is a MIDI input stream, the function requires three
-arguments: status byte and two data bytes.
+If STREAM is a MIDI input stream, the function requires one, three
+or four arguments:
+
+    (func stream)
+    (func status-byte data-byte-1 data-byte-2)
+    (func status-byte data-byte-1 data-byte-2 stream)
+    (func status-byte data-byte-1 data-byte-2 &optional stream)
+    (func &rest arguments)
 
 If STREAM is a NET:INPUT-STREAM, the function takes the stream as
 argument.
@@ -382,7 +432,9 @@ returned by the read-function passed to RECV-START."
                   (add-receiver stream (make-receiver stream) #'identity
                                 *receiver-default-priority*))))
     (when recv
-      (let ((resp (%make-responder :receiver recv :function function)))
+      (let ((resp (%make-responder
+                    :receiver recv
+                    :function (responder-wrapper stream function))))
         (%add-responder resp stream)))))
 
 (defun remove-responder (resp)

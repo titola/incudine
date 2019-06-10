@@ -841,7 +841,7 @@ See also INCUDINE:MAKE-RESPONDER and INCUDINE:RECV-START."
                   (jackmidi:decode-message msg)
                 (when update-midi-table-p
                   (incudine.vug::set-midi-message status data1 data2))
-                (midi-recv-funcall-all receiver status data1 data2))
+                (midi-recv-funcall-all receiver status data1 data2 stream))
             (condition (c) (nrt-msg error "~A" c)))))))
 
 (defun start-jackmidi-recv-update-mtab (receiver)
@@ -849,6 +849,10 @@ See also INCUDINE:MAKE-RESPONDER and INCUDINE:RECV-START."
 
 (defun start-jackmidi-recv-no-mtab (receiver)
   (start-jackmidi-recv receiver nil))
+
+(defmethod responder-wrapper ((stream jackmidi:input-stream)
+                              (function function))
+  (midi-responder-wrapper function))
 
 (defmethod recv-start ((stream jackmidi:input-stream)
                        &key (priority *receiver-default-priority*)

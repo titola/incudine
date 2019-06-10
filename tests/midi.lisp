@@ -73,3 +73,30 @@
       (reset-midi-notes)
       (count t res))
   32)
+
+(deftest midi-responder-wrapper.1
+    (flet ((test (func &key wrapper-p)
+             (handler-case
+                 (let ((res (incudine::midi-responder-wrapper func)))
+                   (if wrapper-p
+                       (and
+                         (not (eq func res))
+                         (= 4 (length (incudine.util::function-lambda-list res))))
+                       (eq func res)))
+               (condition (c) c 'error))))
+      (let ((f0 (lambda (stream) stream))
+            (f1 (lambda (status d1 d2) (list status d1 d2)))
+            (f2 (lambda (status d1 d2 stream) (list status d1 d2 stream)))
+            (f3 (lambda (status d1 d2 &optional stream) (list status d1 d2 stream)))
+            (f4 (lambda (&rest args) args))
+            (f5 (lambda (erroneous function) (list erroneous function)))
+            (f6 (lambda (err one ous func ti on) (list err one ous func ti on))))
+        (values
+          (test f0 :wrapper-p t)
+          (test f1 :wrapper-p t)
+          (test f2 :wrapper-p nil)
+          (test f3 :wrapper-p nil)
+          (test f4 :wrapper-p nil)
+          (test f5)
+          (test f6))))
+  T T T T T ERROR ERROR)
