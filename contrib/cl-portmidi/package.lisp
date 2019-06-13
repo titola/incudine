@@ -79,6 +79,8 @@
    #:get-device-info
    #:print-devices-info
    #:port-name
+   #:get-stream-by-name
+   #:get-device-id-by-name
    #:open
    #:open-input
    #:open-output

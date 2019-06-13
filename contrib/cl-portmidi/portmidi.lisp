@@ -49,6 +49,22 @@
 (defun port-name (stream)
   (stream-device-name stream))
 
+(defun get-stream-by-name (port-name direction)
+  (declare (type string port-name) (type (member :input :output) direction))
+  (find port-name *opened-streams*
+        :test (lambda (name stream)
+                (and (string= name (port-name stream))
+                     (eq direction (stream-direction stream))))))
+
+(defun get-device-id-by-name (port-name direction)
+  (declare (type string port-name) (type (member :input :output) direction))
+  (dotimes (id (count-devices))
+    (cffi:with-foreign-slots
+        ((name input output) (get-device-info% id) (:struct device-info))
+      (if (and (plusp (if (eq direction :input) input output))
+               (string= port-name name))
+          (return id)))))
+
 (defun register-stream (ptr direction device-id latency result)
   (declare (type cffi:foreign-pointer ptr) (type keyword direction result)
            (type non-negative-fixnum device-id))
@@ -66,6 +82,8 @@
 (defun open (device-id &key (buffer-size default-sysex-buffer-size)
              (direction :input) (latency 1) (driver-info (cffi:null-pointer))
              (time-proc (cffi:null-pointer)) (time-info (cffi:null-pointer)))
+  ;; COUNT-DEVICES also initializes PortMidi if necessary.
+  (assert (< device-id (count-devices)))
   (cffi:with-foreign-object (stream-ptr :pointer)
     (let ((args (list stream-ptr device-id driver-info buffer-size
                       time-proc time-info latency)))
