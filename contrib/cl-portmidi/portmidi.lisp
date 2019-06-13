@@ -46,6 +46,9 @@
             (format stream "~D: ~A - ~A :IN ~D :OUT ~D ~:[(OPENED)~;~]~%"
                     id interf name input output (zerop opened)))))))
 
+(defun port-name (stream)
+  (stream-device-name stream))
+
 (defun register-stream (ptr direction device-id latency result)
   (declare (type cffi:foreign-pointer ptr) (type keyword direction result)
            (type non-negative-fixnum device-id))

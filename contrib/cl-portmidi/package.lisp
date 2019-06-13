@@ -78,6 +78,7 @@
    #:get-default-output-device-id
    #:get-device-info
    #:print-devices-info
+   #:port-name
    #:open
    #:open-input
    #:open-output
