@@ -19,6 +19,14 @@
 (defvar *opened-streams* nil)
 (declaim (type list *opened-streams*))
 
+(defun all-streams (&optional direction)
+  (declare (type (member nil :input :output) direction))
+  (if direction
+      (loop for stream in *opened-streams*
+            if (eq (stream-direction stream) direction)
+              collect stream)
+      (copy-list *opened-streams*)))
+
 (declaim (inline from-device-info-ptr))
 (defun from-device-info-ptr (ptr)
   (declare (cffi:foreign-pointer ptr))
@@ -65,34 +73,70 @@
                (string= port-name name))
           (return id)))))
 
-(defun register-stream (ptr direction device-id latency result)
-  (declare (type cffi:foreign-pointer ptr) (type keyword direction result)
-           (type non-negative-fixnum device-id))
-  (if (eq result :pm-no-error)
-      (if (cffi:null-pointer-p (cffi:mem-ref ptr :pointer))
-          (allocation-error 'stream)
-          (cffi:with-foreign-slots
-              ((interf name) (get-device-info% device-id) (:struct device-info))
-            (let ((stream (make-stream (cffi:mem-ref ptr :pointer) direction
-                                       device-id interf name latency)))
-              (push stream *opened-streams*)
-              stream)))
-      (error-generic result)))
+(defun alloc-foreign-stream (direction &rest args)
+  (let ((res (if (eq direction :input)
+                 (apply 'open-input (butlast args))
+                 (apply 'open-output args)))
+        (ptr (first args)))
+    (if (eq res :pm-no-error)
+        (if (cffi:null-pointer-p (cffi:mem-ref ptr :pointer))
+            (allocation-error 'stream))
+        (error-generic res))
+    ptr))
+
+(defun %open (device-id direction buffer-size latency driver-info
+              time-proc time-info &optional stream)
+  ;; COUNT-DEVICES also initializes PortMidi if necessary.
+  (assert (< device-id (count-devices)))
+  (let ((ptr (cffi:with-foreign-object (stream-ptr :pointer)
+               (cffi:mem-ref
+                 (alloc-foreign-stream
+                   direction stream-ptr device-id driver-info buffer-size
+                   time-proc time-info latency)
+                 :pointer))))
+    (if stream
+        ;; Reuse a lisp object. The Incudine code includes the utility
+        ;; PM:REINITIALIZE to call PM:TERMINATE, PM:INITIALIZE and
+        ;; reopen the streams without to create new lisp objects, so the
+        ;; references and bindings (i.e. from receivers, responders,
+        ;; variables, etc) continue to work. PM:REINITIALIZE is useful
+        ;; to plug-and-play MIDI devices. It is defined in Incudine to
+        ;; stop and restart the receivers if necessary.
+        (setf (stream-pointer stream) ptr
+              (stream-device-id stream) device-id
+              (stream-direction stream) direction)
+        ;; Create a new lisp object.
+        (let ((input-p (eq direction :input)))
+          (setf stream
+                (cffi:with-foreign-slots
+                    ((interf name) (get-device-info% device-id)
+                     (:struct device-info))
+                  (funcall (if input-p
+                               'make-input-stream
+                               'make-output-stream)
+                           :pointer ptr :direction direction
+                           :device-id device-id :device-interf interf
+                           :device-name name :buffer-size buffer-size
+                           :driver-info driver-info :time-proc time-proc
+                           :time-info time-info)))
+          (if input-p
+              (let ((sysex-ptr (cffi:foreign-alloc :pointer)))
+                (finalize stream
+                  (lambda ()
+                    (cffi:foreign-free sysex-ptr)
+                    (close ptr)))
+                (setf (input-stream-sysex-pointer stream) sysex-ptr))
+              (progn
+                (finalize stream (lambda () (close ptr)))
+                (setf (output-stream-latency stream) latency)))))
+    (push stream *opened-streams*)
+    stream))
 
 (defun open (device-id &key (buffer-size default-sysex-buffer-size)
              (direction :input) (latency 1) (driver-info (cffi:null-pointer))
              (time-proc (cffi:null-pointer)) (time-info (cffi:null-pointer)))
-  ;; COUNT-DEVICES also initializes PortMidi if necessary.
-  (assert (< device-id (count-devices)))
-  (cffi:with-foreign-object (stream-ptr :pointer)
-    (let ((args (list stream-ptr device-id driver-info buffer-size
-                      time-proc time-info latency)))
-      (multiple-value-bind (func args)
-          (if (eq direction :input)
-              (values #'open-input (butlast args))
-              (values #'open-output args))
-        (register-stream stream-ptr direction device-id latency
-                         (apply func args))))))
+  (%open
+    device-id direction buffer-size latency driver-info time-proc time-info))
 
 (defstruct (event-buffer (:constructor %make-event-buffer)
                          (:copier nil))

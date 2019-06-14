@@ -25,15 +25,17 @@
   stream
   (functions nil :type list)
   (status nil :type boolean)
-  (thread nil :type (or null bt:thread)))
+  (thread nil :type (or null bt:thread))
+  (timeout 0 :type non-negative-fixnum))
 
 (defgeneric valid-input-stream-p (obj))
 
-(defun make-receiver (stream &optional functions status)
+(defun make-receiver (stream &key functions status (timeout 0))
   (when (valid-input-stream-p stream)
     (%make-receiver :stream stream
                     :functions functions
-                    :status status)))
+                    :status status
+                    :timeout timeout)))
 
 (defmethod print-object ((obj receiver) stream)
   (format stream "#<RECEIVER ~S ~A>"
@@ -121,7 +123,7 @@ input available from STREAM."
   (if (receiver-status receiver)
       (msg warn "PortMidi receiver already started.")
       (let ((stream (receiver-stream receiver)))
-        (msg debug "PortMidi receiver for ~S with polling timeout ~D"
+        (msg debug "PortMidi receiver for ~S with polling timeout ~D."
              (portmidi::input-stream-device-name stream)
              *midi-input-timeout*)
         (pm:with-receiver ((receiver-status receiver) stream msg nil
@@ -145,8 +147,13 @@ input available from STREAM."
                        (update-midi-table-p t)
                        (timeout *midi-input-timeout*))
   (unless (eq (recv-status stream) :running)
-    (let ((*midi-input-timeout* (max 1 timeout)))
-      (add-receiver stream (or (receiver stream) (make-receiver stream))
+    (let ((*midi-input-timeout* (max 1 timeout))
+          (recv (receiver stream)))
+      (when recv
+        (setf (receiver-timeout recv) *midi-input-timeout*))
+      (add-receiver stream (or recv
+                               (make-receiver stream
+                                 :timeout *midi-input-timeout*))
                     (if update-midi-table-p
                         #'start-portmidi-recv-update-mtab
                         #'start-portmidi-recv-no-mtab)
@@ -157,7 +164,7 @@ input available from STREAM."
     (when (and recv (receiver-status recv))
       (compare-and-swap (receiver-status recv) t nil)
       (recv-unset-thread recv)
-      (msg debug "PortMidi receiver for ~S stopped"
+      (msg debug "PortMidi receiver for ~S stopped."
            (portmidi::input-stream-device-name stream))
       recv)))
 
@@ -320,7 +327,7 @@ Example:
     (when (and recv (receiver-status recv))
       (compare-and-swap (receiver-status recv) t nil)
       (let ((stream (receiver-stream recv)))
-        (msg debug "~A receiver for ~S stopped" (type-of stream) stream)
+        (msg debug "~A receiver for ~S stopped." (type-of stream) stream)
         (sleep 1)
         (when (and (bt:thread-alive-p (receiver-thread recv))
                    (not (listen stream)))

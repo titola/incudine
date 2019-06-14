@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2015 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -19,8 +19,8 @@
 (defpackage portmidi
   (:use #:cl)
   (:nicknames #:pm)
-  (:import-from #:alexandria #:non-negative-fixnum #:define-constant
-                #:with-gensyms)
+  (:import-from #:alexandria #:non-negative-fixnum #:positive-fixnum
+                #:define-constant #:with-gensyms)
   (:shadow #:read #:write #:open #:close #:abort #:error #:stream
            #:input-stream-p #:output-stream-p)
   (:export
@@ -84,6 +84,7 @@
    #:open
    #:open-input
    #:open-output
+   #:all-streams
    #:set-filter
    #:set-channel-mask
    #:abort

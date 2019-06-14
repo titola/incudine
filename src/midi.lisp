@@ -363,3 +363,41 @@ The checksum of the message is ignored."
     (if (pm:input-stream-p stream)
         (set-tuning-from-portmidi obj stream device-id)
         (set-tuning-from-jackmidi obj stream device-id)))
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (export 'pm::reinitialize (find-package "PORTMIDI")))
+
+(defun pm:reinitialize ()
+  (let ((streams (mapcar
+                   (lambda (stream)
+                     (list stream
+                           (when (and (pm:input-stream-p stream)
+                                      (eq (recv-status stream) :running))
+                             (msg debug "Stopping receiver for PortMidi stream ~S."
+                                  (pm:port-name stream))
+                             (recv-stop stream)
+                             t)))
+                   pm::*opened-streams*)))
+    (msg debug "Terminating PortMidi.")
+    (pm:terminate)
+    (msg debug "Initializing PortMidi.")
+    (pm:initialize)
+    (loop for (stream start-receiver-p) in streams do
+         (incudine.util::with-struct-slots
+             ((device-name buffer-size driver-info time-proc time-info)
+              stream "STREAM" "PORTMIDI")
+           (let* ((direction (if (pm:input-stream-p stream) :input :output))
+                  (id (pm:get-device-id-by-name device-name direction)))
+             (msg debug "Reopening PortMidi ~(~A~) stream ~S."
+                  direction device-name)
+             (pm::%open id direction buffer-size
+                        (and (pm:output-stream-p stream)
+                             (pm::output-stream-latency stream))
+                        driver-info time-proc time-info
+                        stream)))
+         (when start-receiver-p
+           (msg debug "Starting receiver for PortMidi stream ~S."
+                (pm:port-name stream))
+           (recv-start
+             stream :timeout (receiver-timeout (receiver stream)))))
+    (values)))

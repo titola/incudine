@@ -38,7 +38,11 @@
   (direction :closed :type (member :input :output :closed))
   (device-id 0 :type non-negative-fixnum)
   (device-interf "none" :type string)
-  (device-name "none" :type string))
+  (device-name "none" :type string)
+  (buffer-size 1024 :type positive-fixnum)
+  (driver-info (cffi:null-pointer) :type cffi:foreign-pointer)
+  (time-proc (cffi:null-pointer) :type cffi:foreign-pointer)
+  (time-info (cffi:null-pointer) :type cffi:foreign-pointer))
 
 (defstruct (input-stream (:include stream) (:copier nil))
   ;; Pointer to the PmEvent that contains the received SysEx message.
@@ -47,7 +51,7 @@
   (events-remain 0 :type non-negative-fixnum))
 
 (defstruct (output-stream (:include stream) (:copier nil))
-  (latency 1 :type non-negative-fixnum :read-only t))
+  (latency 1 :type non-negative-fixnum))
 
 (declaim (inline finalize))
 (defun finalize (obj function)
@@ -58,32 +62,6 @@
 (defun cancel-finalization (obj)
   #+sbcl (sb-ext:cancel-finalization obj)
   #-sbcl (tg:cancel-finalization obj))
-
-(defun make-stream (ptr direction device-id device-interf device-name latency)
-  (declare (type cffi:foreign-pointer ptr)
-           (type (member :input :output) direction)
-           (type non-negative-fixnum device-id latency)
-           (type string device-interf device-name))
-  (if (eq direction :input)
-      (let* ((sysex-ptr (cffi:foreign-alloc :pointer))
-             (obj (make-input-stream :pointer ptr
-                                    :direction :input
-                                    :device-id device-id
-                                    :device-interf device-interf
-                                    :device-name device-name
-                                    :sysex-pointer sysex-ptr)))
-        (finalize obj (lambda ()
-                        (cffi:foreign-free sysex-ptr)
-                        (close ptr)))
-        obj)
-      (let ((obj (make-output-stream :pointer ptr
-                                     :direction :output
-                                     :device-id device-id
-                                     :device-interf device-interf
-                                     :device-name device-name
-                                     :latency latency)))
-        (finalize obj (lambda () (close ptr)))
-        obj)))
 
 (defmethod print-object ((obj stream) stream)
   (format stream "#<PM:~A-STREAM \"~A - ~A\">"

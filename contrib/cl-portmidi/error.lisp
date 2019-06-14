@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -30,8 +30,8 @@
              (princ (get-error-text (error condition))
                     stream))))
 
-(defmacro allocation-error (obj-type)
-  `(cl:error 'allocation-error :object-type ,obj-type))
+(defun allocation-error (obj-type)
+  (cl:error 'allocation-error :object-type obj-type))
 
-(defmacro error-generic (error)
-  `(cl:error 'error-generic :error ,error))
+(defun error-generic (error)
+  (cl:error 'error-generic :error error))
