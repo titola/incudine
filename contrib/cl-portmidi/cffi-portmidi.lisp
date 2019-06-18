@@ -34,6 +34,7 @@
 
 (defstruct (stream (:constructor %make-stream)
                    (:copier nil))
+  "PortMidi stream type."
   (pointer (cffi:null-pointer) :type cffi:foreign-pointer)
   (direction :closed :type (member :input :output :closed))
   (device-id 0 :type non-negative-fixnum)
@@ -45,13 +46,27 @@
   (time-info (cffi:null-pointer) :type cffi:foreign-pointer))
 
 (defstruct (input-stream (:include stream) (:copier nil))
-  ;; Pointer to the PmEvent that contains the received SysEx message.
+  "PortMidi input stream type."
   (sysex-pointer (cffi:null-pointer) :type cffi:foreign-pointer)
-  ;; Number of the events starting from the received SysEx message.
   (events-remain 0 :type non-negative-fixnum))
 
 (defstruct (output-stream (:include stream) (:copier nil))
+  "PortMidi output stream type."
   (latency 1 :type non-negative-fixnum))
+
+(setf
+  (documentation 'stream-pointer 'function)
+  "Return the foreign pointer to the PORTMIDI:STREAM."
+  (documentation 'input-stream-p 'function)
+  "Return T if object is of type PORTMIDI:INPUT-STREAM."
+  (documentation 'input-stream-sysex-pointer 'function)
+  "Return the foreign pointer to the PmEvent that contains the
+received SysEx message."
+  (documentation 'input-stream-events-remain 'function)
+  "Return the number of the events starting from the received
+SysEx message."
+  (documentation 'output-stream-p 'function)
+  "Return T if object is of type PORTMIDI:OUTPUT-STREAM.")
 
 (declaim (inline finalize))
 (defun finalize (obj function)
@@ -234,7 +249,8 @@
   (msg    :string))
 
 (declaim (inline message))
-(defun message (status data1 data2)
+(defun message (status &optional (data1 0) (data2 0))
+  "Encode a short MIDI message into four bytes."
   (declare (type (unsigned-byte 8) status data1 data2))
   (locally (declare #.*standard-optimize-settings*)
     (logior (ash data2 16) (ash data1 8) status)))
@@ -258,6 +274,7 @@
 
 (declaim (inline decode-message))
 (defun decode-message (msg)
+  "Decode a MIDI message encoded into four bytes."
   (declare (type (unsigned-byte 24) msg))
   (let ((ash-8 (ldb (byte 16 8) msg)))
     (declare #.*standard-optimize-settings*)

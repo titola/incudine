@@ -1,0 +1,109 @@
+*** PortMidi
+Set the configuration variable ~*enable-portmidi-output-sample-offset*~
+to enable timestamp with sample offset for PortMidi output in real-time
+thread. Enabled by default if ~*audio-driver*~ is ~:portaudio~.
+
+#+texinfo: @noindent
+Set the configuration variable ~*midi-input-timeout*~ to specify the
+number of milliseconds before to test whether MIDI input is available.
+Useful with PortMidi because it does not support a blocking read.
+
+#+begin_example
+;; Add to ~/.incudinerc
+(setq *enable-portmidi-output-sample-offset* t)
+
+;; low value = low latency but minor CPU time for the system
+(setq *midi-input-timeout* 8)
+#+end_example
+
+::: portmidi:portmidi-error
+::: portmidi:allocation-error
+::: portmidi:error-generic
+::: portmidi:has-host-error
+::: portmidi:get-error-text
+::: portmidi:get-host-error-text
+::: portmidi:timestamp
+::: portmidi:initialize
+::: portmidi:terminate
+::: portmidi:reinitialize
+::: portmidi:stream
+::: portmidi:input-stream
+::: portmidi:input-stream-p
+::: portmidi:output-stream
+::: portmidi:output-stream-p
+::: portmidi:all-streams
+::: portmidi:get-stream-by-name
+::: portmidi:stream-pointer
+::: portmidi:port-name
+::: portmidi:count-devices
+::: portmidi:device-info
+::: portmidi:get-device-info
+::: portmidi:print-devices-info
+::: portmidi:get-default-input-device-id
+::: portmidi:get-default-output-device-id
+::: portmidi:get-device-id-by-name
+::: portmidi:open
+::: portmidi:open-input
+::: portmidi:open-output
+::: portmidi:close
+::: portmidi:message
+::: portmidi:message-status
+::: portmidi:message-data1
+::: portmidi:message-data2
+::: portmidi:decode-message
+::: portmidi:before
+::: portmidi:channel
+::: portmidi:event-buffer
+::: portmidi:doevent
+::: portmidi:with-receiver
+::: portmidi:make-event-buffer
+::: portmidi:with-event-buffer
+::: portmidi:free
+::: portmidi:read
+::: portmidi:write
+::: portmidi:write-short
+::: portmidi:write-sysex
+::: portmidi:default-sysex-buffer-size
+::: portmidi:sysex-message-p
+::: portmidi:with-input-sysex-event
+::: portmidi:input-stream-sysex-octets
+::: portmidi:input-stream-sysex-pointer
+::: portmidi:input-stream-events-remain
+::: portmidi:abort
+::: portmidi:poll
+::: portmidi:synchronize
+::: portmidi:set-channel-mask
+::: portmidi:set-filter
+::: portmidi:hdrlength
+::: portmidi:host-error-msg-len
+::: portmidi:no-device
+::: portmidi:filt-active
+::: portmidi:filt-sysex
+::: portmidi:filt-clock
+::: portmidi:filt-play
+::: portmidi:filt-tick
+::: portmidi:filt-fd
+::: portmidi:filt-undefined
+::: portmidi:filt-reset
+::: portmidi:filt-realtime
+::: portmidi:filt-note
+::: portmidi:filt-channel-aftertouch
+::: portmidi:filt-poly-aftertouch
+::: portmidi:filt-aftertouch
+::: portmidi:filt-program
+::: portmidi:filt-control
+::: portmidi:filt-pitchbend
+::: portmidi:filt-mtc
+::: portmidi:filt-song-position
+::: portmidi:filt-song-select
+::: portmidi:filt-tune
+::: portmidi:filt-systemcommon
+**** PortTime
+::: porttime:error
+::: porttime:timestamp
+::: porttime:start
+::: porttime:stop
+::: porttime:started
+::: porttime:time
+::: porttime:sleep
+#+texinfo: @page

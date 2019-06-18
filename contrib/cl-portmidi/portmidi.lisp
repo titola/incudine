@@ -20,6 +20,10 @@
 (declaim (type list *opened-streams*))
 
 (defun all-streams (&optional direction)
+  "Return the list of the opened streams.
+
+If DIRECTION is :INPUT or :OUTPUT, return the list of the input or
+output streams."
   (declare (type (member nil :input :output) direction))
   (if direction
       (loop for stream in *opened-streams*
@@ -38,10 +42,19 @@
 
 (declaim (inline get-device-info))
 (defun get-device-info (id)
+  "Return the property list related to the foreign struct
+PORTMIDI:DEVICE-INFO for the device ID."
   (from-device-info-ptr (get-device-info% id)))
 
-(defun print-devices-info (&optional (direction :all) (stream *standard-output*))
-  (declare (type keyword direction) (type cl:stream stream))
+(defun print-devices-info (&optional direction (stream *standard-output*))
+  "Print the list of the available MIDI devices.
+
+If DIRECTION is :INPUT or :OUTPUT, print the list of the input or
+output devices.
+
+The output STREAM defaults to *STANDARD-OUTPUT*."
+  (declare (type (member :input :output nil) direction)
+           (type cl:stream stream))
   (let ((fn (case direction
               (:output #'plusp)
               (:input #'zerop)
@@ -55,9 +68,13 @@
                     id interf name input output (zerop opened)))))))
 
 (defun port-name (stream)
+  "Return the port name of the PORTMIDI:STREAM."
   (stream-device-name stream))
 
 (defun get-stream-by-name (port-name direction)
+  "Return the PORTMIDI:STREAM with PORT-NAME and DIRECTION.
+
+DIRECTION is :INPUT or :OUTPUT."
   (declare (type string port-name) (type (member :input :output) direction))
   (find port-name *opened-streams*
         :test (lambda (name stream)
@@ -65,6 +82,9 @@
                      (eq direction (stream-direction stream))))))
 
 (defun get-device-id-by-name (port-name direction)
+  "Return the id of the MIDI device PORT-NAME.
+
+DIRECTION is :INPUT or :OUTPUT."
   (declare (type string port-name) (type (member :input :output) direction))
   (dotimes (id (count-devices))
     (cffi:with-foreign-slots
@@ -132,19 +152,45 @@
     (push stream *opened-streams*)
     stream))
 
-(defun open (device-id &key (buffer-size default-sysex-buffer-size)
-             (direction :input) (latency 1) (driver-info (cffi:null-pointer))
-             (time-proc (cffi:null-pointer)) (time-info (cffi:null-pointer)))
+(defun open (device-id &key (direction :input) (latency 1)
+             (buffer-size default-sysex-buffer-size)
+             (driver-info (cffi:null-pointer)) (time-proc (cffi:null-pointer))
+             (time-info (cffi:null-pointer)))
+  "Create and return a new PORTMIDI:STREAM.
+
+DIRECTION is :INPUT (default) or :OUTPUT to return a PORTMIDI:INPUT-STREAM
+or a PORTMIDI:OUTPUT-STREAM respectively.
+
+If DIRECTION is :OUTPUT, LATENCY is the delay in milliseconds (1 by default)
+applied to timestamps to determine when the output should actually occur.
+If LATENCY is zero, timestamps are ignored.
+
+BUFFER-SIZE defaults to PORTMIDI:DEFAULT-SYSEX-BUFFER-SIZE.
+
+DRIVER-INFO is a foreign pointer to an optional driver specific data
+structure containing additional information for device setup or handle
+processing. DRIVER-INFO is a foreign null pointer (default) if not used.
+
+TIME-PROC is a foreign pointer to a procedure that returns time in
+milliseconds. If it is the foreign null pointer (default), a default
+millisecond timebase (PortTime) is used.
+
+TIME-INFO is a foreign pointer passed to TIME-PROC and defaults to
+the foreign null pointer."
   (%open
     device-id direction buffer-size latency driver-info time-proc time-info))
 
 (defstruct (event-buffer (:constructor %make-event-buffer)
                          (:copier nil))
+  "PortMidi event buffer type."
   (pointer (cffi:null-pointer) :type cffi:foreign-pointer)
   (size 0 :type non-negative-fixnum)
   (events 0 :type non-negative-fixnum))
 
 (defun make-event-buffer (&optional (size default-sysex-buffer-size))
+  "Create and return a new EVENT-BUFFER structure of size SIZE.
+
+SIZE defaults to PORTMIDI:DEFAULT-SYSEX-BUFFER-SIZE."
   (declare (type non-negative-fixnum size))
   (let* ((ptr (cffi:foreign-alloc '(:struct event) :count size))
          (obj (%make-event-buffer :pointer ptr :size size)))
@@ -155,17 +201,20 @@
   (format stream "#<PM:EVENT-BUFFER :SIZE ~D>"
           (event-buffer-size obj)))
 
-(defun free (evbuf)
-  (declare (type event-buffer evbuf))
-  (setf (event-buffer-size evbuf) 0)
-  (let ((ptr (event-buffer-pointer evbuf)))
+(defun free (object)
+  "Deallocate the event buffer created by MAKE-EVENT-BUFFER."
+  (declare (type event-buffer object))
+  (setf (event-buffer-size object) 0)
+  (let ((ptr (event-buffer-pointer object)))
     (unless (cffi:null-pointer-p ptr)
       (cffi:foreign-free ptr)))
-  (cancel-finalization evbuf)
+  (cancel-finalization object)
   (values))
 
 (declaim (inline read))
 (defun read (stream evbuf length)
+    "Read the events received from a PortMidi input STREAM into an
+EVENT-BUFFER. Return the number of the events read."
   (declare (type stream stream) (type event-buffer evbuf)
            (type non-negative-fixnum length))
   (setf (event-buffer-events evbuf)
@@ -175,11 +224,14 @@
 
 (declaim (inline write))
 (defun write (stream evbuf length)
+  "Write LENGTH bytes of the MIDI data stored into an EVENT-BUFFER
+to the PortMidi output STREAM."
   (declare (type stream stream) (type event-buffer evbuf)
            (type non-negative-fixnum length))
   (write% stream (event-buffer-pointer evbuf) length))
 
 (defun close (stream)
+  "Close the PortMidi STREAM."
   (declare (type stream stream))
   (let ((result (close% stream)))
     (setf (stream-pointer stream) (cffi:null-pointer)
@@ -201,11 +253,20 @@
   `(cffi:mem-aref ,ev :int32 ,(if (eq slot 'message) 0 1)))
 
 (defmacro with-input-sysex-event ((ptr-var stream) &body body)
+  "Bind PTR-VAR to the foreign pointer to the MIDI SysEx message
+received from the PortMidi input STREAM with dynamic extent during BODY."
   `(let ((,ptr-var (cffi:mem-ref (input-stream-sysex-pointer ,stream)
                                  :pointer)))
      ,@body))
 
 (defun input-stream-sysex-octets (stream &optional octets (start 0))
+  "Return the vector of octets stored in the buffer of the PortMidi
+input STREAM and the MIDI SysEx message size.
+
+Create a new vector if OCTETS is NIL (default).
+
+START specifies an offset into OCTETS and marks the beginning position
+of that vector."
   (declare (type input-stream stream)
            (type (or (simple-array (unsigned-byte 8) (*)) null) octets)
            (type non-negative-fixnum start))
@@ -249,6 +310,7 @@
 
 (declaim (inline sysex-message-p))
 (defun sysex-message-p (msg)
+  "Whether the MIDI message MSG is a SysEx."
   (= (logand msg #xFF) #xF0))
 
 (declaim (inline sysex-eox-message-p))
@@ -260,6 +322,11 @@
 
 (defmacro doevent ((evbuf message-var stream &optional timestamp-var result)
                    &body body)
+  "Iterate over the events of a EVENT-BUFFER with MESSAGE-VAR bound to each
+MIDI message received from the PortMidi input STREAM, and execute the body
+once for each event, then RESULT form is evaluated.
+
+If TIMESTAMP-VAR is non-NIL, it is the variable bound to each MIDI timestamp."
   (with-gensyms (ptr events remain tmp i j)
     (let ((offset (cffi:foreign-type-size '(:struct event))))
       `(do ((,i 0 (1+ ,i))
@@ -296,6 +363,10 @@
 
 (defmacro with-event-buffer ((var &optional (size default-sysex-buffer-size))
                              &body body)
+  "Bind VAR to a newly allocated EVENT-BUFFER structure with dynamic
+extent during BODY.
+
+SIZE defaults to PORTMIDI:DEFAULT-SYSEX-BUFFER-SIZE."
   `(let ((,var (make-event-buffer ,size)))
      (declare (type event-buffer ,var))
      (unwind-protect
@@ -305,6 +376,15 @@
 (defmacro with-receiver ((state-form stream message-var
                           &optional timestamp-var (sleep-time 1) thread-name)
                          &body body)
+  "If the setfable STATE-FORM is T, start receiving from the PortMidi
+input STREAM with MESSAGE-VAR bound to the received MIDI message.
+
+If TIMESTAMP-VAR is non-NIL, it is the variable bound to the timestamp
+of each message.
+
+SLEEP-TIME (1 by default) is the polling timeout in milliseconds.
+
+Optionally, the receiver thread is named THREAD-NAME."
   (with-gensyms (evbuf timeout)
     `(if ,state-form
          (warn "PortMidi receiver already started.")

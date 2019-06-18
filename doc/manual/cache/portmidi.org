@@ -1,0 +1,472 @@
+*** PortMidi
+Set the configuration variable ~*enable-portmidi-output-sample-offset*~
+to enable timestamp with sample offset for PortMidi output in real-time
+thread. Enabled by default if ~*audio-driver*~ is ~:portaudio~.
+
+#+texinfo: @noindent
+Set the configuration variable ~*midi-input-timeout*~ to specify the
+number of milliseconds before to test whether MIDI input is available.
+Useful with PortMidi because it does not support a blocking read.
+
+#+begin_example
+;; Add to ~/.incudinerc
+(setq *enable-portmidi-output-sample-offset* t)
+
+;; low value = low latency but minor CPU time for the system
+(setq *midi-input-timeout* 8)
+#+end_example
+
+#+attr_texinfo: :options {Condition} pm:portmidi-error
+#+begin_deftp
+All types of PortMidi error conditions inherit from
+this condition.
+#+end_deftp
+
+#+attr_texinfo: :options {Condition} pm:allocation-error
+#+begin_deftp
+Signaled if an object allocation fails.
+
+Subtype of ~portmidi-error~ and ~storage-condition~.
+#+end_deftp
+
+#+attr_texinfo: :options pm:allocation-error object-type
+#+begin_defun
+Signal a ~portmidi:allocation-error~ for ~object-type~.
+#+end_defun
+
+#+attr_texinfo: :options {Condition} pm:error-generic
+#+begin_deftp
+Signaled if there is a generic PortMidi error.
+#+end_deftp
+
+#+attr_texinfo: :options pm:error-generic error
+#+begin_defun
+Signal a ~portmidi:error-generic~.
+#+end_defun
+
+#+attr_texinfo: :options pm:has-host-error stream
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options pm:get-error-text errnum
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options pm:get-host-error-text msg len
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options pm:initialize
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options pm:terminate
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options pm:reinitialize
+#+begin_defun
+Reinitialize PortMidi and reopen the streams without to create new
+lisp objects, so the references and bindings (i.e. from receivers,
+responders, variables, etc) continue to work.
+
+~pm:reinitialize~ should be called if ~portmidi:print-devices-info~
+doesn't print recently connected plug-and-play MIDI devices.
+#+end_defun
+
+#+attr_texinfo: :options {Structure} pm:stream
+#+begin_deftp
+PortMidi stream type.
+#+end_deftp
+
+#+attr_texinfo: :options {Structure} pm:input-stream
+#+begin_deftp
+PortMidi input stream type.
+#+end_deftp
+
+#+attr_texinfo: :options pm:input-stream-p object
+#+begin_defun
+Return ~t~ if object is of type ~portmidi:input-stream~.
+#+end_defun
+
+#+attr_texinfo: :options {Structure} pm:output-stream
+#+begin_deftp
+PortMidi output stream type.
+#+end_deftp
+
+#+attr_texinfo: :options pm:output-stream-p object
+#+begin_defun
+Return ~t~ if object is of type ~portmidi:output-stream~.
+#+end_defun
+
+#+attr_texinfo: :options pm:all-streams @andoptional{} direction
+#+begin_defun
+Return the list of the opened streams.
+
+If ~direction~ is ~:input~ or ~:output~, return the list of the input or
+output streams.
+#+end_defun
+
+#+attr_texinfo: :options pm:get-stream-by-name port-name direction
+#+begin_defun
+Return the ~portmidi:stream~ with ~port-name~ and ~direction~.
+
+~direction~ is ~:input~ or ~:output~.
+#+end_defun
+
+#+attr_texinfo: :options pm:stream-pointer instance
+#+begin_defun
+Return the foreign pointer to the ~portmidi:stream~.
+#+end_defun
+
+#+attr_texinfo: :options pm:port-name stream
+#+begin_defun
+Return the port name of the ~portmidi:stream~.
+#+end_defun
+
+#+attr_texinfo: :options pm:count-devices
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options pm:get-device-info id
+#+begin_defun
+Return the property list related to the foreign struct
+~portmidi:device-info~ for the device ~id~.
+#+end_defun
+
+#+attr_texinfo: :options pm:print-devices-info @andoptional{} direction stream
+#+begin_defun
+Print the list of the available MIDI devices.
+
+If ~direction~ is ~:input~ or ~:output~, print the list of the input or
+output devices.
+
+The output ~stream~ defaults to ~*standard-output*~.
+#+end_defun
+
+#+attr_texinfo: :options pm:get-default-input-device-id
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options pm:get-default-output-device-id
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options pm:get-device-id-by-name port-name direction
+#+begin_defun
+Return the id of the MIDI device ~port-name~.
+
+~direction~ is ~:input~ or ~:output~.
+#+end_defun
+
+#+attr_texinfo: :options pm:open device-id @andkey{} direction latency buffer-size driver-info time-proc time-info
+#+begin_defun
+Create and return a new ~portmidi:stream~.
+
+~direction~ is ~:input~ (default) or ~:output~ to return a ~portmidi:input-stream~
+or a ~portmidi:output-stream~ respectively.
+
+If ~direction~ is ~:output~, ~latency~ is the delay in milliseconds (1 by default)
+applied to timestamps to determine when the output should actually occur.
+If ~latency~ is zero, timestamps are ignored.
+
+~buffer-size~ defaults to ~portmidi:default-sysex-buffer-size~.
+
+~driver-info~ is a foreign pointer to an optional driver specific data
+structure containing additional information for device setup or handle
+processing. ~driver-info~ is a foreign null pointer (default) if not used.
+
+~time-proc~ is a foreign pointer to a procedure that returns time in
+milliseconds. If it is the foreign null pointer (default), a default
+millisecond timebase (PortTime) is used.
+
+~time-info~ is a foreign pointer passed to ~time-proc~ and defaults to
+the foreign null pointer.
+#+end_defun
+
+#+attr_texinfo: :options pm:open-input stream input-device input-driver-info buffer-size time-proc time-info
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options pm:open-output stream output-device output-driver-info buffer-size time-proc time-info latency
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options pm:close stream
+#+begin_defun
+Close the PortMidi ~stream~.
+#+end_defun
+
+#+attr_texinfo: :options pm:message status @andoptional{} data1 data2
+#+begin_defun
+Encode a short MIDI message into four bytes.
+#+end_defun
+
+#+attr_texinfo: :options pm:message-status msg
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options pm:message-data1 msg
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options pm:message-data2 msg
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options pm:decode-message msg
+#+begin_defun
+Decode a MIDI message encoded into four bytes.
+#+end_defun
+
+#+attr_texinfo: :options pm:before t1 t2
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options pm:channel chan
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options {Structure} pm:event-buffer
+#+begin_deftp
+PortMidi event buffer type.
+#+end_deftp
+
+#+attr_texinfo: :options {Macro} pm:doevent (evbuf message-var stream @andoptional{} timestamp-var result) @andbody{} body
+#+begin_deffn
+Iterate over the events of a ~event-buffer~ with ~message-var~ bound to each
+MIDI message received from the PortMidi input ~stream~, and execute the body
+once for each event, then ~result~ form is evaluated.
+
+If ~timestamp-var~ is non-NIL, it is the variable bound to each MIDI timestamp.
+#+end_deffn
+
+#+attr_texinfo: :options {Macro} pm:with-receiver (state-form stream message-var @andoptional{} timestamp-var sleep-time thread-name) @andbody{} body
+#+begin_deffn
+If the setfable ~state-form~ is ~t~, start receiving from the PortMidi
+input ~stream~ with ~message-var~ bound to the received MIDI message.
+
+If ~timestamp-var~ is non-NIL, it is the variable bound to the timestamp
+of each message.
+
+~sleep-time~ (1 by default) is the polling timeout in milliseconds.
+
+Optionally, the receiver thread is named ~thread-name~.
+#+end_deffn
+
+#+attr_texinfo: :options pm:make-event-buffer @andoptional{} size
+#+begin_defun
+Create and return a new ~event-buffer~ structure of size ~size~.
+
+~size~ defaults to ~portmidi:default-sysex-buffer-size~.
+#+end_defun
+
+#+attr_texinfo: :options {Macro} pm:with-event-buffer (var @andoptional{} size) @andbody{} body
+#+begin_deffn
+Bind ~var~ to a newly allocated ~event-buffer~ structure with dynamic
+extent during ~body~.
+
+~size~ defaults to ~portmidi:default-sysex-buffer-size~.
+#+end_deffn
+
+#+attr_texinfo: :options pm:free object
+#+begin_defun
+Deallocate the event buffer created by ~make-event-buffer~.
+#+end_defun
+
+#+attr_texinfo: :options pm:read stream evbuf length
+#+begin_defun
+Read the events received from a PortMidi input ~stream~ into an
+~event-buffer~. Return the number of the events read.
+#+end_defun
+
+#+attr_texinfo: :options pm:write stream evbuf length
+#+begin_defun
+Write ~length~ bytes of the MIDI data stored into an ~event-buffer~
+to the PortMidi output ~stream~.
+#+end_defun
+
+#+attr_texinfo: :options pm:write-short stream when msg
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options pm:write-sysex stream when msg
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options {Constant} pm:default-sysex-buffer-size
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options pm:sysex-message-p msg
+#+begin_defun
+Whether the MIDI message ~msg~ is a SysEx.
+#+end_defun
+
+#+attr_texinfo: :options {Macro} pm:with-input-sysex-event (ptr-var stream) @andbody{} body
+#+begin_deffn
+Bind ~ptr-var~ to the foreign pointer to the MIDI SysEx message
+received from the PortMidi input ~stream~ with dynamic extent during ~body~.
+#+end_deffn
+
+#+attr_texinfo: :options pm:input-stream-sysex-octets stream @andoptional{} octets start
+#+begin_defun
+Return the vector of octets stored in the buffer of the PortMidi
+input ~stream~ and the MIDI SysEx message size.
+
+Create a new vector if ~octets~ is ~nil~ (default).
+
+~start~ specifies an offset into ~octets~ and marks the beginning position
+of that vector.
+#+end_defun
+
+#+attr_texinfo: :options pm:input-stream-sysex-pointer instance
+#+begin_defun
+Return the foreign pointer to the PmEvent that contains the
+received SysEx message.
+#+end_defun
+
+#+attr_texinfo: :options pm:input-stream-events-remain instance
+#+begin_defun
+Return the number of the events starting from the received
+SysEx message.
+#+end_defun
+
+#+attr_texinfo: :options pm:abort stream
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options pm:poll stream
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options pm:synchronize stream
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options pm:set-channel-mask stream mask
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options pm:set-filter stream filters
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options {Constant} pm:hdrlength
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} pm:host-error-msg-len
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} pm:no-device
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} pm:filt-active
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} pm:filt-sysex
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} pm:filt-clock
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} pm:filt-play
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} pm:filt-tick
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} pm:filt-fd
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} pm:filt-undefined
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} pm:filt-reset
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} pm:filt-realtime
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} pm:filt-note
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} pm:filt-channel-aftertouch
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} pm:filt-poly-aftertouch
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} pm:filt-aftertouch
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} pm:filt-program
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} pm:filt-control
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} pm:filt-pitchbend
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} pm:filt-mtc
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} pm:filt-song-position
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} pm:filt-song-select
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} pm:filt-tune
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Constant} pm:filt-systemcommon
+#+begin_defvr
+#+end_defvr
+
+**** PortTime
+#+attr_texinfo: :options pt:start @andoptional{} resolution callback user-data
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options pt:stop
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options pt:started
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options pt:time
+#+begin_defun
+#+end_defun
+
+#+attr_texinfo: :options pt:sleep duration
+#+begin_defun
+#+end_defun
+
+#+texinfo: @page

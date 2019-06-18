@@ -368,6 +368,12 @@ The checksum of the message is ignored."
   (export 'pm::reinitialize (find-package "PORTMIDI")))
 
 (defun pm:reinitialize ()
+  "Reinitialize PortMidi and reopen the streams without to create new
+lisp objects, so the references and bindings (i.e. from receivers,
+responders, variables, etc) continue to work.
+
+PM:REINITIALIZE should be called if PORTMIDI:PRINT-DEVICES-INFO
+doesn't print recently connected plug-and-play MIDI devices."
   (let ((streams (mapcar
                    (lambda (stream)
                      (list stream

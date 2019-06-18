@@ -16,22 +16,30 @@
 
 (in-package :portmidi)
 
-(define-condition portmidi-error (simple-error) ())
+(define-condition portmidi-error (cl:error) ()
+  (:documentation "All types of PortMidi error conditions inherit from
+this condition."))
 
-(define-condition allocation-error (portmidi-error)
+(define-condition allocation-error (portmidi-error storage-condition)
   ((object-type :reader object-type-of :initarg :object-type))
   (:report (lambda (condition stream)
              (format stream "Failed object allocation for ~A."
-                     (object-type-of condition)))))
+                     (object-type-of condition))))
+  (:documentation "Signaled if an object allocation fails.
+
+Subtype of PORTMIDI-ERROR and STORAGE-CONDITION."))
 
 (define-condition error-generic (portmidi-error)
   ((error :reader error :initarg :error))
   (:report (lambda (condition stream)
              (princ (get-error-text (error condition))
-                    stream))))
+                    stream)))
+  (:documentation "Signaled if there is a generic PortMidi error."))
 
-(defun allocation-error (obj-type)
-  (cl:error 'allocation-error :object-type obj-type))
+(defun allocation-error (object-type)
+  "Signal a PORTMIDI:ALLOCATION-ERROR for OBJECT-TYPE."
+  (cl:error 'allocation-error :object-type object-type))
 
 (defun error-generic (error)
+  "Signal a PORTMIDI:ERROR-GENERIC."
   (cl:error 'error-generic :error error))

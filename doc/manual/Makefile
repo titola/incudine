@@ -35,6 +35,7 @@ sbcl --noinform --noprint --disable-debugger --load fill-dict.lisp \
   --eval '(incudine.doc:write-doc "cache/ladspa.dict" "cache/ladspa.org" :type "$(2)" :if-exists :supersede)' \
   --eval '(incudine.doc:write-doc "cache/lv2.dict" "cache/lv2.org" :type "$(2)" :if-exists :supersede)' \
   --eval '(incudine.doc:write-doc "cache/portaudio.dict" "cache/portaudio.org" :type "$(2)" :if-exists :supersede)' \
+  --eval '(incudine.doc:write-doc "cache/portmidi.dict" "cache/portmidi.org" :type "$(2)" :if-exists :supersede)' \
   --eval '(incudine.doc:write-doc "cache/snd.dict" "cache/snd.org" :type "$(2)" :if-exists :supersede)' \
   --eval '(sb-ext:exit)'
 endef
@@ -61,7 +62,7 @@ incudine.org: $(INCFILES) fill-dict.lisp
 	cat copying.org intro.org features.org install.org >> incudine.org
 	$(call write_config)
 	$(call write_dict,incudine.org,texinfo)
-	cat cache/jack.org cache/portaudio.org cache/snd.org cache/cudere-clm.org cache/fluidsynth.org cache/ladspa.org cache/lv2.org cache/emacs.org license.org index.org export.org version >> incudine.org
+	cat cache/jack.org cache/portaudio.org cache/portmidi.org cache/snd.org cache/cudere-clm.org cache/fluidsynth.org cache/ladspa.org cache/lv2.org cache/emacs.org license.org index.org export.org version >> incudine.org
 
 incudine.texi: incudine.org
 	$(call emacs_eval,org-texinfo-export-to-texinfo)
