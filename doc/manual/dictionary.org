@@ -1262,6 +1262,108 @@ Return ~t~ if the ~ugen-instance~ is deallocated.
 ::: vug:free-dsp-instances
 ::: vug:all-dsp-names
 #+texinfo: @page
+** The rule of the first expansion
+If a variable is bound to a performance-time value, for example:
+
+#+begin_example
+(define-vug first-expansion-test ((rain-p boolean))
+  (with-samples ((s (performance-time-humidity)))
+    (out (* s .5) (* s .3))))
+#+end_example
+
+#+texinfo: @noindent
+the variable is set the first time that it appears within the body of
+the definition:
+
+#+begin_example
+(out (* (setf s (performance-time-humidity)) .5)
+     (* s .3))
+#+end_example
+
+#+texinfo: @noindent
+It is generally correct. Unfortunately, there is the posibility to
+introduce a bug if the performance-time variable is updated inside a
+branching, for example:
+
+#+begin_example
+(define-vug first-expansion-test ((rain-p boolean))
+  (with-samples ((s (performance-time-humidity)))
+    (out (if rain-p s (* s 0.15)))))
+#+end_example
+
+#+texinfo: @noindent
+In this case, the result is
+
+#+begin_example
+(out (if rain-p
+         (setf s (performance-time-humidity))
+         (* s 0.15)))
+#+end_example
+
+#+texinfo: @noindent
+where S is performance-time only if it's raining. The simplest solution
+for this example is to explicitally set the variable before branching:
+
+#+begin_example
+(define-vug first-expansion-test ((rain-p boolean))
+  (with-samples (s)
+    (setf s (performance-time-humidity))
+    (out (if rain-p s (* s 0.15)))))
+#+end_example
+
+#+texinfo: @noindent
+However the problem persists with a VUG input (obviously only
+if it is performance-time):
+
+#+begin_example
+(define-vug first-expansion-test (s (rain-p boolean))
+  (out (if rain-p s (* s 0.15))))
+#+end_example
+
+#+texinfo: @noindent
+The definitive solution is to indicate where the variable is
+updated if necessary (the VUG input is possibly set before this
+point):
+
+#+begin_example
+(define-vug first-expansion-test (s (rain-p boolean))
+  (maybe-expand s)
+  (out (if rain-p s (* s 0.15))))
+#+end_example
+
+#+texinfo: @noindent
+Note: it is also possible to force the setting of a variable,
+for example:
+
+#+begin_example
+(define-vug snapshot ((gate fixnum) (start-offset fixnum) input)
+  (with-samples ((next-time (init-only (+ (now) gate)))
+                 (value (sample 0)))
+    (initialize (setf next-time (+ (now) start-offset)))
+    (cond ((plusp gate)
+           (unless (< (now) next-time)
+             (setf value (update input))
+             (setf next-time (+ (now) gate))))
+          ((minusp gate)
+           (setf value (update input) gate 0)))
+    value))
+#+end_example
+
+#+texinfo: @noindent
+in this case the performance-time loop is:
+
+#+begin_example
+(labels ((set-input[gensym-ed] ()
+           (setf input ...)))
+  (cond ((plusp gate)
+         (unless (< (now) next-time)
+           (setf value (set-input[gensym-ed]))
+           (setf next-time (+ (now) gate))))
+        ((minusp gate)
+         (setf value (set-input[gensym-ed]) gate 0)))
+  value))
+#+end_example
+
 ** Mixdown
 ::: incudine.util:*bounce-to-disk-guard-size*
 ::: bounce-to-disk
