@@ -170,7 +170,7 @@
           (*sample-rate* (sample 96000)))
       (flet ((zoom (l) (mapcar (lambda (x) (truncate (* x 1000))) l)))
         (values (zoom (loop for beats below 20 by 0.5
-                            collect (time-at tenv beats)))
+                            collect (beats->seconds tenv beats)))
                 (zoom (loop for beats below 20 by 0.5
                             collect (spb-at tenv beats)))
                 (zoom (loop for beats below 20 by 0.5

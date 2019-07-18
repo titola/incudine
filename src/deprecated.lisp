@@ -57,6 +57,15 @@ A deprecated symbol is obsolete after one year."
 
 ;;;---------------------[ Deprecated symbols ]----------------------
 
+(in-package :incudine)
+
+(incudine::deprecated-function
+   (time-at (tempo-env beats &optional (offset 0))
+     (beats->seconds tempo-env beats offset))
+   :replacement incudine:beats->seconds
+   :date 20190718
+   :package "INCUDINE")
+
 (in-package :incudine.util)
 
 (incudine::deprecated-function

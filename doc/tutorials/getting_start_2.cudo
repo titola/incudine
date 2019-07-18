@@ -250,7 +250,7 @@
 
 ;;; The utilities to get time, SPB, BPS and BPM are:
 
-(time-at tempo-env beats &optional offset)
+(beats->seconds tempo-env beats &optional offset)
 
 (spb-at tempo-env beats)
 
@@ -274,7 +274,7 @@
 (defvar *tenv1* (make-tempo-envelope '(60 60 120 120 96) '(8 4 2 2)
                                      :curve '(:step 4 :step :sin)))
 ;; *TENV1*
-(loop for beats below 20 by 0.5 collect (time-at *tenv1* beats))
+(loop for beats below 20 by 0.5 collect (beats->seconds *tenv1* beats))
 ;; (0.0d0 0.5d0 1.0d0 1.5d0 2.0d0 2.5d0 3.0d0 3.5d0 4.0d0 4.5d0 5.0d0 5.5d0 6.0d0
 ;;  6.5d0 7.0d0 7.5d0 8.0d0 8.498612626829395d0 8.993299378541845d0
 ;;  9.481513456442876d0 9.959055899352716d0 10.419003790659431d0

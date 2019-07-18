@@ -458,7 +458,7 @@ current level otherwise it restarts from the value RESTART-LEVEL."
       (fill-time-warp-data twarp-data spb-env)
       env)))
 
-(defun %time-at (tempo-env beats)
+(defun %beats->seconds (tempo-env beats)
   (declare (type tempo-envelope tempo-env) (type (real 0) beats))
   (if (zerop beats)
       +sample-zero+
@@ -491,14 +491,14 @@ current level otherwise it restarts from the value RESTART-LEVEL."
                                                (- pos-time t1))))))))
             (look 1 3))))))
 
-(declaim (inline time-at))
-(defun time-at (tempo-env beats &optional (offset 0))
-  "Return the time related to a TEMPO-ENVELOPE structure, starting
-from time OFFSET (zero by default)."
+(declaim (inline beats->seconds))
+(defun beats->seconds (tempo-env beats &optional (offset 0))
+  "Convert the time from number of beats to seconds by following a
+TEMPO-ENVELOPE structure, starting from OFFSET beats (zero by default)."
   (if (or (zerop offset) (tempo-envelope-constant-p tempo-env))
-      (%time-at tempo-env beats)
-      (- (%time-at tempo-env (+ offset beats))
-         (%time-at tempo-env offset))))
+      (%beats->seconds tempo-env beats)
+      (- (%beats->seconds tempo-env (+ offset beats))
+         (%beats->seconds tempo-env offset))))
 
 (declaim (inline spb-at))
 (defun spb-at (tempo-env beats)
@@ -540,7 +540,7 @@ at time BEATS."
              ,(if arg1
                   ;; ARG0 is a TEMPO-ENVELOPE and ARG1 is the
                   ;; start time in beats
-                  `(time-at ,arg0 (incudine.util:sample ,mult) ,arg1)
+                  `(beats->seconds ,arg0 (incudine.util:sample ,mult) ,arg1)
                   ;; ARG0 is an instance of TEMPO
                   `(* (incudine.util:sample ,mult) (spb ,(or arg0 '*tempo*))))))
     ;; s    -> seconds

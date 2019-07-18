@@ -461,15 +461,16 @@ or IGNORE-SCORE-STATEMENTS."
                      (declare (ignorable arg))
                      (free ,',to-free)
                      (nrt-msg info "end of rego")))
-              (cond ((and (plusp ,,max-time)
-                          (plusp (setf ,,max-time
-                                       (- (time-at ,,tempo-env ,,max-time)
-                                          (time-at ,,tempo-env ,,now)))))
-                     ;; End after the pending event.
-                     (at (+ (now) (* ,,max-time *sample-rate*))
-                         #'end-of-rego))
-                    ((rt-thread-p) (nrt-funcall #'end-of-rego))
-                    (t (end-of-rego)))))
+              (cond
+                ((and (plusp ,,max-time)
+                      (plusp (setf ,,max-time
+                                   (- (beats->seconds ,,tempo-env ,,max-time)
+                                      (beats->seconds ,,tempo-env ,,now)))))
+                 ;; End after the pending event.
+                 (at (+ (now) (* ,,max-time *sample-rate*))
+                     #'end-of-rego))
+                ((rt-thread-p) (nrt-funcall #'end-of-rego))
+                (t (end-of-rego)))))
           incudine::*to-free*))))
 
 (defun default-tempo-envelope ()
@@ -590,7 +591,7 @@ or IGNORE-SCORE-STATEMENTS."
     ;; seconds before the update.
     (setf (smp-ref time-ptr +rego-time-index+)
           (+ (smp-ref time-ptr +rego-time0-index+)
-             (* *sample-rate* (%time-at tempo-env value))))
+             (* *sample-rate* (%beats->seconds tempo-env value))))
     ;; Update without conversion from beats to seconds.
     (setf (smp-ref time-ptr +rego-time1-index+)
           (+ (smp-ref time-ptr +rego-time0-index+)
@@ -677,12 +678,12 @@ or IGNORE-SCORE-STATEMENTS."
                           (setf ,last-dur (sample ,beats))
                           (setf ,max-time
                                 (max ,max-time (+ ,last-time ,last-dur)))
-                          (time-at ,tempo-env ,beats ,sched))
+                          (beats->seconds ,tempo-env ,beats ,sched))
                         (,%sched (at-beat fn)
                           (incudine.edf:schedule-at
                             (+ ,smptime
                                (* *sample-rate*
-                                  (%time-at ,tempo-env
+                                  (%beats->seconds ,tempo-env
                                             (setf ,sched (sample at-beat)))))
                             fn (list at-beat))))
                    (declare (ignorable (function ,dur)))
@@ -761,11 +762,11 @@ event list at runtime when the function is called."
                         (setf ,last-dur (sample ,beats))
                         (setf ,max-time
                               (max ,max-time (+ ,last-time ,last-dur)))
-                        (time-at ,tempo-env ,beats ,sched))
+                        (beats->seconds ,tempo-env ,beats ,sched))
                       (,%sched (at-beat fn)
                         (push (list (+ (* ,smptime *sample-duration*)
-                                       (%time-at ,tempo-env
-                                                 (setf ,sched (sample at-beat))))
+                                       (%beats->seconds ,tempo-env
+                                         (setf ,sched (sample at-beat))))
                                     fn)
                               ,flist)))
                  (declare (ignorable (function ,dur)))

@@ -309,7 +309,7 @@ Return ~t~ if the ~tempo~ or ~tempo-envelope~ instance is deallocated.
 ::: bpm-at
 ::: bps-at
 ::: spb-at
-::: time-at
+::: beats->seconds
 ::: now
 ::: with-local-time
 ::: tempo-sync

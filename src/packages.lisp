@@ -427,7 +427,7 @@
    #:with-local-time
    #:tempo-envelope #:make-tempo-envelope #:tempo-envelope-p #:set-tempo-envelope
    #:copy-tempo-envelope
-   #:time-at #:bps-at #:bpm-at #:spb-at
+   #:beats->seconds #:bps-at #:bpm-at #:spb-at
    #:timestamp
    #:rt-funcall #:fast-rt-funcall #:nrt-funcall #:fast-nrt-funcall
    #:*sine-table* #:*cosine-table*
