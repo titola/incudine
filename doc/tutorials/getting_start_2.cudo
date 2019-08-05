@@ -252,6 +252,8 @@
 
 (beats->seconds tempo-env beats &optional offset)
 
+(seconds->beats tempo-env seconds &optional offset)
+
 (spb-at tempo-env beats)
 
 (bps-at tempo-env beats)

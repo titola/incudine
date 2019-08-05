@@ -201,7 +201,7 @@
 (deftest tempo-envelope.2
     (flet ((null-data-p (tenv)
              (cffi:null-pointer-p
-               (incudine::tempo-envelope-time-warp tenv))))
+               (incudine::tempo-envelope-cached-seconds tenv))))
       (let* ((tenv (make-tempo-envelope '(60 60) '(0)))
              (null-data0-p (null-data-p tenv))
              (points0 (incudine::tempo-envelope-points tenv)))
@@ -233,7 +233,7 @@
         (multiple-value-prog1
             (values (free-p tenv0) (free-p tenv1) (eq tenv0 tenv1)
                     (check-slot spb eq)
-                    (check-slot time-warp cffi:pointer-eq)
+                    (check-slot cached-seconds cffi:pointer-eq)
                     (check-slot points =)
                     (check-slot max-points =)
                     (check-slot constant-p eq)
@@ -252,3 +252,61 @@
               (let ((e0 (make-tempo-envelope '(90 60 90) '(4 2))))
                 (list e0 (copy-tempo-envelope e0)))))
   (T T))
+
+(deftest seconds->beats.1
+    (with-cleanup
+      (let ((tenv (make-tempo-envelope '(60 60 120 96 135 170) '(4 4 4 4 4)
+                                       :curve '(:step :lin :exp :sqr :cub))))
+        (loop for beats in (loop for i from 0 to 20 by 0.25
+                                 collect (beats->seconds tenv i))
+              collect (round (* 100000 (seconds->beats tenv beats))))))
+  #.(loop for i from 0 to 2000000 by 25000 collect i))
+
+(deftest seconds->beats.2
+    (with-cleanup
+      (let ((tenv (make-tempo-envelope '(120 60 60 135 106 72) '(3 4 5 6 7)
+                                       :curve '(:lin :step :exp :sqr :cub))))
+        (loop for beats in (loop for i from 0 to 25 by 0.25
+                                 collect (beats->seconds tenv i))
+              collect (round (* 100000 (seconds->beats tenv beats))))))
+  #.(loop for i from 0 to 2500000 by 25000 collect i))
+
+(deftest seconds->beats.3
+    (with-cleanup
+      (let* ((tenv (make-tempo-envelope '(60 60 120) '(8 4)
+                                        :curve '(:step :lin)))
+             (secs (loop for i to 6 collect (beats->seconds tenv i 8))))
+        (values (beats->seconds tenv 1 16)
+                (seconds->beats tenv 1 13.5)
+                (equal secs '(0d0 0.9375d0 1.75d0 2.4375d0 3d0 3.5d0 4d0))
+                (mapcar (lambda (x) (seconds->beats tenv x 8)) secs))))
+  0.5d0
+  2.0d0
+  T
+  (0d0 1d0 2d0 3d0 4d0 5d0 6d0))
+
+;;; Approximations with sinusoidal, Welch and custom curvatures.
+(deftest approximated-seconds->beats.1
+    (with-cleanup
+      (let ((tenv (make-tempo-envelope '(60 120 96 135) '(4 4 4)
+                                       :curve '(:sin :welch 3.5))))
+        (loop for beats in (loop for i from 0 to 12 by 0.25
+                                 collect (beats->seconds tenv i))
+              collect (round (* 100 (seconds->beats tenv beats) )))))
+  (0 24 48 73 99 124 149 175 200 225 249 274 298 322 347 372 400
+   424 449 474 499 524 549 575 600 625 651 676 701 726 751 776 800
+   824 849 873 898 923 949 974 1000 1026 1052 1078 1103 1129 1153
+   1177 1200))
+
+(deftest approximated-seconds->beats.2
+    (with-cleanup
+      (let ((tenv (make-tempo-envelope '(120 60 174 84) '(4 8 6)
+                                       :curve '(:sin :welch -3.5))))
+        (loop for beats in (loop for i from 0 to 18 by 0.25
+                                 collect (beats->seconds tenv i))
+              collect (round (* 100 (seconds->beats tenv beats) )))))
+  (0 28 53 78 102 126 151 175 200 225 251 276 301 327 352 376 400
+   423 446 469 493 517 542 567 592 617 643 669 695 721 747 773 800
+   826 853 879 906 932 959 985 1010 1036 1061 1086 1110 1133 1156
+   1178 1200 1219 1241 1264 1289 1314 1340 1366 1393 1420 1447 1473
+   1500 1526 1553 1579 1605 1630 1655 1680 1705 1729 1753 1777 1800))
