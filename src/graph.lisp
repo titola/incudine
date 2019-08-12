@@ -575,7 +575,7 @@ curve returned by NODE-FADE-CURVE."
     (when (plusp nodes)
       (dotimes (i nodes (setf (fill-pointer *dirty-nodes*) 0))
         (let ((n (reduce-warnings (aref *dirty-nodes* i))))
-          (call-free-hook n)
+          (call-node-free-hook n)
           (reset-gain-data n)
           (setf (node-enable-gain-p n) nil
                 (node-id n) nil))))))
@@ -880,20 +880,25 @@ of GROUP."
   (when (plusp (int-hash-table-count *node-hash*))
     (decf (int-hash-table-count *node-hash*))))
 
-(defun call-free-hook (node)
+(defun call-free-hooks (list node)
+  (dolist (fn list) (funcall fn node)))
+
+(defmethod incudine.edf::force-scheduled-function-p
+    ((obj (eql #'call-free-hooks)))
+  t)
+
+(defun call-node-free-hook (node)
   (when (node-free-hook node)
-    (flet ((free-fn (hook)
-             (dolist (fn hook)
-               (funcall fn node))))
+    (let ((hooks (node-free-hook node)))
       (if (rt-thread-p)
           ;; Scheduling for DONE-ACTION called from a DSP.
-          (at 0 #'free-fn (node-free-hook node))
-          (free-fn (node-free-hook node))))
+          (at 0 #'call-free-hooks hooks node)
+          (call-free-hooks hooks node)))
     (setf (node-free-hook node) nil)))
 
 (defun unlink-node (node)
   (declare #.*reduce-warnings*)
-  (call-free-hook node)
+  (call-node-free-hook node)
   (when #1=(node-stop-hook node) (setf #1# nil))
   (setf (node-done-p node) nil)
   (remove-node-from-hash node))

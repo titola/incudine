@@ -1200,7 +1200,7 @@ The default is T.")
                (declare (type (or null dsp) ,dsp))
                ;; If the DSP is recursive, it is necessary to call and
                ;; reset the FREE-HOOK after an error.
-               (incudine::call-free-hook ,node)
+               (incudine::call-node-free-hook ,node)
                (incudine::enqueue-node-function
                  (update-node-hooks ,node ,stop-hook ,free-hook)
                  (if ,dsp
