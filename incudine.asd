@@ -168,7 +168,7 @@
      (:file "voicer/midi" :depends-on ("voicer/event" "vug/midi"))
      (:file "vug/util" :depends-on ("fifo"))
      (:file "vug/vug" :depends-on ("vug/util" "buffer" "foreign-array" "node-pool"))
-     (:file "vug/dsp" :depends-on ("vug/vug"))
+     (:file "vug/dsp" :depends-on ("vug/vug" "edf-sched"))
      (:file "vug/codegen" :depends-on ("vug/dsp"))
      (:file "vug/ugen" :depends-on ("vug/codegen"))
      (:file "vug/util2" :depends-on ("vug/codegen"))

@@ -287,6 +287,27 @@ The list is empty after FLUSH-PENDING.")
         (incudine:fast-nrt-funcall
           (lambda () (incudine:fast-rt-funcall #'rt-flush))))))
 
+(defgeneric force-scheduled-function-p (obj))
+
+(defmethod force-scheduled-function-p ((obj function)) nil)
+
+(defun force-scheduled-event-p (node)
+  (force-scheduled-function-p (node-function node)))
+
+;;; Move the crucial internal events at the beginning of the heap
+;;; and discard the rest.
+(defun ignore-non-crucial-events ()
+  (let ((number-of-events (heap-count)))
+    ;; Reset the counters.
+    (setf (heap-next-node *heap*) +root-node+)
+    (setf (heap-ordering-tag *heap*) 0)
+    (loop for i from +root-node+ to number-of-events
+          for node = (heap-node i) do
+          (when (force-scheduled-event-p node)
+            ;; Reinsert the event.
+            (schedule-at (node-time node) (node-function node)
+                         (node-args node))))))
+
 (defun flush-pending (&optional time-step)
   "If TIME-STEP is NIL (default), remove all the scheduled events.
 If TIME-STEP is a number, the evaluation of a pending event is
@@ -295,8 +316,7 @@ forced every TIME-STEP samples."
   (if time-step
       (flush-pending-with-time-step time-step)
       (flet ((rt-flush ()
-               (setf (heap-next-node *heap*) 1)
-               (setf (heap-ordering-tag *heap*) 0))
+               (ignore-non-crucial-events))
              (nrt-flush ()
                (dolist (fun *flush-pending-hook*)
                  (funcall fun))

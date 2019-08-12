@@ -145,6 +145,10 @@
       ((null curr))
     (funcall function (car curr))))
 
+(defmethod incudine.edf::force-scheduled-function-p
+    ((obj (eql #'dealloc-dsp-instances)))
+  t)
+
 (defun rt-dsp-free-functions (instances)
   (let ((lst instances))
     (rt-eval ()
@@ -166,6 +170,9 @@
                  (clrhash (dsp-controls inst)))
                (rt-dsp-free-functions instances))
              (values))))
+    ;; Waiting for any free-hook called from `(incudine:free node)'.
+    (sleep .05) ; SR/20 samples.
+    (rt-eval (:return-value-p t))
     (if name
         (let ((dsp-prop (dsp name)))
           (when dsp-prop (free-instances dsp-prop)))
