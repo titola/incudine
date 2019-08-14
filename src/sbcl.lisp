@@ -22,8 +22,8 @@
     '(sb-ext:defglobal)
     "INCUDINE")
   (import
-    '(sb-int:constant-form-value
-      sb-introspect:function-lambda-list
+    `(sb-int:constant-form-value
+      ,(find-symbol "FUNCTION-LAMBDA-LIST" "SB-INTROSPECT")
       sb-ext:defglobal
       sb-ext:gc
       sb-ext:get-time-of-day
