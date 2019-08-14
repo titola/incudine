@@ -327,7 +327,7 @@
                 #:next-power-of-two #:power-of-two-p #:with-spinlock-held
                 #:rt-thread-p)
   (:export #:+root-node+ #:*heap* #:*heap-size*
-           #:node #:make-node #:heap #:make-heap #:schedule-at
+           #:node #:make-node #:heap #:make-heap #:schedule-at #:unschedule-if
            #:at #:aat #:sched-loop #:flush-pending #:heap-empty-p #:heap-count
            #:with-schedule
            #:last-time
@@ -381,8 +381,9 @@
                 #:rt-condition-wait #:rt-transfer-to-c-thread
                 #:rt-time-offset #:rt-set-busy-state #:rt-silent-errors
                 #:rt-buffer-size #:rt-sample-rate #:rt-xruns #:rt-get-error-msg)
-  (:import-from #:incudine.edf #:at #:aat #:with-schedule #:flush-pending
-                #:add-flush-pending-hook #:remove-flush-pending-hook)
+  (:import-from #:incudine.edf #:at #:aat #:unschedule-if #:with-schedule
+                #:flush-pending #:add-flush-pending-hook
+                #:remove-flush-pending-hook)
   (:import-from #:incudine.gen #:all-random-distributions #:rand-args)
   (:intern #:network-error)
   (:export
@@ -422,7 +423,7 @@
    #:rt-start #:rt-stop #:rt-status #:rt-cpu #:rt-buffer-size #:rt-sample-rate
    #:rt-xruns #:rt-loop-callback #:set-rt-block-size #:block-size
    #:rt-time-offset #:rt-silent-errors
-   #:at #:aat #:with-schedule #:flush-pending #:flush-all-fifos
+   #:at #:aat #:unschedule-if #:with-schedule #:flush-pending #:flush-all-fifos
    #:tempo #:*tempo* #:make-tempo #:tempo-p #:bpm #:bps #:spb #:now #:tempo-sync
    #:with-local-time
    #:tempo-envelope #:make-tempo-envelope #:tempo-envelope-p #:set-tempo-envelope

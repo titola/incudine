@@ -308,8 +308,57 @@ The list is empty after FLUSH-PENDING.")
             (schedule-at (node-time node) (node-function node)
                          (node-args node))))))
 
+(defun delete-event (index)
+  (declare (type positive-fixnum index))
+  (when (< index (heap-next-node *heap*))
+    (let ((parent index)
+          (curr (1+ index)))
+      (declare (type positive-fixnum parent curr)
+               #.*standard-optimize-settings*)
+      (decf (heap-next-node *heap*))
+      (node-move (heap-node (heap-next-node *heap*)) (heap-node index))
+      (node-copy (heap-node index) (heap-temp-node *heap*))
+      (loop while (< curr (heap-next-node *heap*)) do
+           (let ((sister (1+ curr)))
+             (when (and (< sister (heap-next-node *heap*))
+                        (node-time> (heap-node curr) (heap-node sister)))
+               (incf curr))
+             (cond ((node-time> (heap-temp-node *heap*) (heap-node curr))
+                    (node-copy (heap-node curr) (heap-node parent))
+                    (setf parent curr curr (ash parent 1)))
+                   (t (return)))))
+      (node-copy (heap-temp-node *heap*) (heap-node parent))
+      (when (= (heap-next-node *heap*) +root-node+)
+        (setf (heap-ordering-tag *heap*) 0))))
+  (values))
+
+(defun unschedule-if (test)
+  "Cancel the scheduled events that satisfy the TEST.
+
+The function TEST takes three arguments: time in samples, function and
+function arguments of a scheduled event.
+
+Example:
+
+    ;; Cancel the events with function PLAY-FUNCTION (i.e. scheduled
+    ;; from a sequencer during the playback and cancelled after stop).
+    (unschedule-if
+      (lambda (time function args)
+        (declare (ignore time args))
+        (eq function #'play-function)))"
+  (declare (type function test))
+  (do ((i +root-node+))
+      ((>= i (heap-next-node *heap*)))
+    (declare (type positive-fixnum i))
+    (let ((node (heap-node i)))
+      (if (and (not (force-scheduled-event-p node))
+               (funcall test (node-time node) (node-function node)
+                        (node-args node)))
+          (delete-event i)
+          (incf i)))))
+
 (defun flush-pending (&optional time-step)
-  "If TIME-STEP is NIL (default), remove all the scheduled events.
+  "If TIME-STEP is NIL (default), cancel all the scheduled events.
 If TIME-STEP is a number, the evaluation of a pending event is
 forced every TIME-STEP samples."
   (declare (type (or null non-negative-real) time-step))

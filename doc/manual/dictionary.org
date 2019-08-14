@@ -461,6 +461,7 @@ Return ~t~ if the ~tempo~ or ~tempo-envelope~ instance is deallocated.
 ::: at
 ::: aat
 ::: with-schedule
+::: unschedule-if
 ::: flush-pending
 ::: flush-all-fifos
 *** Earliest Deadline First Scheduling
