@@ -116,3 +116,25 @@
                               (nreverse (car acc)))
               #'<)))
   (21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39))
+
+(deftest edf-unschedule-if.3
+    (with-local-time ()
+      (let* ((acc (list nil))
+             (len (1- incudine.edf::*heap-size*))
+             (low (random (floor (* len .975))))
+             (high (+ low (random (- len low)))))
+        (dolist (i (alexandria:shuffle (alexandria:iota len)))
+          (at i #'edf-unschedule-test i acc))
+        (unschedule-if (lambda (time function args)
+                         (declare (ignore function args))
+                         (< low time high)))
+        (loop until (incudine.edf:heap-empty-p) do
+                (incudine.edf::sched-loop)
+                (incf (now)))
+        (loop for i in (sort (set-difference (loop for i below len collect i)
+                                             (nreverse (car acc)))
+                             #'<)
+              for j from (1+ low) below high
+              unless (= i j)
+                collect (cons j (- j i)))))
+  nil)
