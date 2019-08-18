@@ -358,7 +358,7 @@ Example:
   (incudine.util:rt-eval ()
     (do ((i +root-node+))
         ((>= i (heap-next-node *heap*)))
-      (declare (type positive-fixnum i))
+      (declare (type non-negative-fixnum i))
       (let ((node (heap-node i)))
         (cond ((and (not (force-scheduled-event-p node))
                     (funcall test (node-time node) (node-function node)
