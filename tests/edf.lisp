@@ -81,8 +81,9 @@
 
 (deftest edf-unschedule-if.1
     (with-local-time ()
-      (let ((acc (list nil)))
-        (dotimes (i 50)
+      (let ((acc (list nil))
+            (len (1- incudine.edf::*heap-size*)))
+        (dolist (i (alexandria:shuffle (alexandria:iota len)))
           (at i (if (oddp i)
                     #'edf-unschedule-test
                     (lambda (arg acc) (push arg (car acc))))
@@ -93,13 +94,17 @@
         (loop until (incudine.edf:heap-empty-p) do
                 (incudine.edf::sched-loop)
                 (incf (now)))
-        (nreverse (car acc))))
-  (0 2 4 6 8 10 12 14 16 18 20 22 24 26 28 30 32 34 36 38 40 42 44 46 48))
+        (loop for i below len by 2
+              for j in (nreverse (car acc))
+              unless (= i j)
+                 collect (cons j (- j i)))))
+  nil)
 
 (deftest edf-unschedule-if.2
     (with-local-time ()
-      (let ((acc (list nil)))
-        (dotimes (i 50)
+      (let ((acc (list nil))
+            (len (1- incudine.edf::*heap-size*)))
+        (dolist (i (alexandria:shuffle (alexandria:iota len)))
           (at i #'edf-unschedule-test i acc))
         (unschedule-if (lambda (time function args)
                          (declare (ignore function args))
@@ -107,6 +112,7 @@
         (loop until (incudine.edf:heap-empty-p) do
                 (incudine.edf::sched-loop)
                 (incf (now)))
-        (nreverse (car acc))))
-  (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
-   40 41 42 43 44 45 46 47 48 49))
+        (sort (set-difference (loop for i below len collect i)
+                              (nreverse (car acc)))
+              #'<)))
+  (21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39))
