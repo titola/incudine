@@ -358,14 +358,14 @@ Example:
   (incudine.util:rt-eval ()
     (do ((i +root-node+))
         ((>= i (heap-next-node *heap*)))
-      (declare (type non-negative-fixnum i))
+      (declare (type positive-fixnum i))
       (let ((node (heap-node i)))
         (cond ((and (not (force-scheduled-event-p node))
                     (funcall test (node-time node) (node-function node)
                              (node-args node)))
                (delete-event i)
                ;; Restart from the beginning of the current tree-level.
-               (setf i (logxor (1- (integer-length i)) 0)))
+               (setf i (1- (integer-length (logior i 2)))))
               (t
                (incf i)))))))
 

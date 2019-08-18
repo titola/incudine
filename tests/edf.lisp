@@ -96,11 +96,9 @@
                        (declare (ignore time args))
                        (eq function #'edf-unschedule-test)))
       (edf-sched-loop-test)
-      (loop for i below len by 2
-            for j in (nreverse (car acc))
-            unless (= i j)
-              collect (cons j (- j i))))
-  nil)
+      (equal (loop for i below len by 2 collect i)
+             (nreverse (car acc))))
+  t)
 
 (deftest edf-unschedule-if.2
     (let* ((acc (list nil))
@@ -129,11 +127,9 @@
                        (declare (ignore function args))
                        (< low time high)))
       (edf-sched-loop-test)
-      (loop for i in (sort (set-difference all-times (nreverse (car acc))) #'<)
-            for j from (1+ low) below high
-            unless (= i j)
-              collect (cons j (- j i))))
-  nil)
+      (equal (sort (set-difference all-times (nreverse (car acc))) #'<)
+             (loop for i from (1+ low) below high collect i)))
+  t)
 
 (deftest edf-unschedule-if.4
     (let* ((acc (list nil))
@@ -151,8 +147,6 @@
                        (declare (ignore function args))
                        (find time bad-times :test #'=)))
       (edf-sched-loop-test)
-      (loop for i in (sort (set-difference all-times (nreverse (car acc))) #'<)
-            for j in bad-times
-            unless (= i j)
-              collect (cons j (- j i))))
-  nil)
+      (equal (sort (set-difference all-times (nreverse (car acc))) #'<)
+             bad-times))
+  t)
