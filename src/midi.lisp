@@ -62,9 +62,7 @@ to a MIDI output STREAM."
 (defun midi-write-sysex (stream msg-ptr size)
   (if (pm:output-stream-p stream)
       (portmidi-write-sysex stream msg-ptr)
-      (rt-eval ()
-        (jackmidi:foreign-write stream msg-ptr size)
-        (values)))
+      (jackmidi:foreign-write stream msg-ptr size))
   stream)
 
 (defun sysex-sequence->foreign-array (seq &optional (dynamic-finalizer-p t))
@@ -83,10 +81,12 @@ to a MIDI output STREAM."
 
 SEQ is of type SEQUENCE."
   (declare (type sequence seq) (type midi-output-stream stream))
-  (let ((obj (sysex-sequence->foreign-array seq nil)))
-    (unwind-protect
-         (midi-write-sysex stream (foreign-array-data obj) (length seq))
-      (free obj))))
+  (#-jack-midi progn
+   #+jack-midi rt-eval ()
+   (let ((obj (sysex-sequence->foreign-array seq nil)))
+     (unwind-protect
+          (midi-write-sysex stream (foreign-array-data obj) (length seq))
+       (free obj)))))
 
 (declaim (inline midiin-sysex-octets))
 (defun midiin-sysex-octets (stream &optional octets (start 0))
