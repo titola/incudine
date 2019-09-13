@@ -515,6 +515,22 @@ will be used to initialize the contents of the newly allocated memory."
                (setf (mem-aref ptr type i) initial-element))))
       ptr)))
 
+(define-compiler-macro foreign-nrt-alloc (&whole form type &rest args
+                                          &key (count 1 count-p)
+                                          &allow-other-keys)
+  (if (or (and count-p (<= (length args) 2)) (null args))
+      (cond
+        ((and (constantp type) (constantp count))
+         `(incudine.external:foreign-alloc-ex
+            ,(* (eval count) (foreign-type-size (eval type)))
+            *foreign-nrt-memory-pool*))
+        ((constantp type)
+         `(incudine.external:foreign-alloc-ex
+            (* ,count ,(foreign-type-size (eval type)))
+            *foreign-nrt-memory-pool*))
+        (t form))
+      form))
+
 (defun foreign-nrt-free (ptr)
   (with-spinlock-held (*nrt-memory-lock*)
     (incudine.external:foreign-free-ex ptr *foreign-nrt-memory-pool*)))
