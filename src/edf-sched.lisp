@@ -353,6 +353,7 @@ Example:
     (unschedule-if
       (lambda (time function args)
         (declare (ignore time args))
+        ;; Warning: it returns NIL if PLAY-FUNCTION is an inlined function.
         (eq function #'play-function)))"
   (declare (type function test))
   (incudine.util:rt-eval ()
