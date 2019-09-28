@@ -35,7 +35,6 @@
                         pm:timestamp (if (rt-thread-p) (portmidi-time) 0)
                         :pointer msg-ptr :int))
 
-(declaim (inline midiout))
 (defun midiout (status data1 data2 stream)
   "Send three bytes STATUS, DATA1 and DATA2 of a generic MIDI message
 to a MIDI output STREAM."
