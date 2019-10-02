@@ -859,6 +859,39 @@ at time BEATS."
   (declare (type tempo-envelope tempo-env) (type (real 0) beats))
   (/ (spb-at tempo-env beats)))
 
+;;; Return the list
+;;;     ((0 bpm0) transition-curve (beats bpm1) transition-curve ...)
+(defun tempo-map (tempo-env)
+  (let* ((spb-env (tempo-envelope-spb tempo-env))
+         (points (envelope-points spb-env)))
+    (list* (list 0 (/ 60.0 (envelope-level spb-env 0)))
+           (unless (zerop (envelope-time spb-env 1))
+             (loop for i from 1 below points
+                   for beats = (envelope-time spb-env i)
+                             then (+ beats (envelope-time spb-env i))
+                   append (list (envelope-curve spb-env i)
+                                (list beats
+                                      (/ 60.0 (envelope-level spb-env i)))))))))
+
+(defun next-tempo-map-bpms (tempo-env curr-list transition-time-step)
+  (let ((curve (second curr-list)))
+    (if (or (null curve) (eq curve :step))
+        (first curr-list)
+        (loop for beats from (caar curr-list) below (caaddr curr-list)
+                        by transition-time-step
+              append (list beats (bpm-at tempo-env beats))))))
+
+(defun tempo-breakpoints (tempo-env &key (transition-time-step 1/8))
+  "Return a list of {beats bpm} break-point pairs obtained from a
+TEMPO-ENVELOPE structure.
+
+If the curve of a transition is not :STEP, TRANSITION-TIME-STEP is the
+time in beats between adjacent points during that transition.
+
+TRANSITION-TIME-STEP defaults to 1/8."
+  (loop for lst on (tempo-map tempo-env) by #'cddr
+        append (next-tempo-map-bpms tempo-env lst transition-time-step)))
+
 (defmacro case-char (char &body cases)
   (with-gensyms (c)
     `(let ((,c ,char))

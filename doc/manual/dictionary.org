@@ -306,6 +306,7 @@ Return ~t~ if the ~tempo~ or ~tempo-envelope~ instance is deallocated.
 #+end_deffn
 
 ::: set-tempo-envelope
+::: tempo-breakpoints
 ::: bpm-at
 ::: bps-at
 ::: spb-at

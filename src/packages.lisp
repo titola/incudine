@@ -428,6 +428,7 @@
    #:with-local-time
    #:tempo-envelope #:make-tempo-envelope #:tempo-envelope-p #:set-tempo-envelope
    #:copy-tempo-envelope
+   #:tempo-breakpoints
    #:beats->seconds #:seconds->beats #:bps-at #:bpm-at #:spb-at
    #:timestamp
    #:rt-funcall #:fast-rt-funcall #:nrt-funcall #:fast-nrt-funcall

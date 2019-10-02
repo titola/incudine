@@ -927,31 +927,28 @@ The octets DATA are optionally bounded by START and END."
              (setf (aref (stream-buffer mf) j) (aref data i))))
           (t (output-stream-buffer-index mf)))))
 
-(defun write-tempo-track (mf tempo-envelope)
+(defun write-tempo-track (mf tempo-envelope &key (transition-time-step 1/8))
   "Write a tempo track to a MIDIFILE:OUTPUT-STREAM MF with the tempo
 changes obtained from a INCUDINE:TEMPO-ENVELOPE.
 
 It fails if the current track contains events at non-zero time.
 
-An error is thrown if a curve of TEMPO-ENVELOPE is not a step function."
+If the curve of a transition is not :STEP, TRANSITION-TIME-STEP is the
+time in beats between adjacent points during that transition.
+
+TRANSITION-TIME-STEP defaults to 1/8.
+
+Return the number (zero based) of the next track."
   (declare (type midifile:output-stream mf)
            (type incudine:tempo-envelope tempo-envelope))
-  (let* ((spb-env (incudine::tempo-envelope-spb tempo-envelope))
-         (points (incudine:envelope-points spb-env)))
-    ;; Allowing meta-events just at time zero before the tempo changes.
-    (unless (zerop (stream-track-time mf))
-      (%midifile-error "WRITE-TEMPO-TRACK works from time zero."))
-    (do ((i 1 (1+ i)))
-        ((>= i points))
-      (unless (eq (incudine:envelope-curve spb-env i) :step)
-        (%midifile-error "WRITE-TEMPO-TRACK requires a TEMPO-ENVELOPE structure ~
-                          with step function curves.")))
-    (do* ((i 0 (1+ i))
-          (beats 0 (+ beats (incudine:envelope-time spb-env i))))
-         ((>= i points))
-      (write-event mf beats
-                   (tempo-message (incudine:bpm-at tempo-envelope beats))))
-    (next-track mf)))
+  ;; Allowing meta-events just at time zero before the tempo changes.
+  (unless (zerop (stream-track-time mf))
+    (%midifile-error "WRITE-TEMPO-TRACK works from time zero."))
+  (loop for (beats bpm) on (incudine:tempo-breakpoints tempo-envelope
+                             :transition-time-step transition-time-step)
+                        by #'cddr
+        do (write-event mf beats (tempo-message bpm)))
+  (next-track mf))
 
 (defgeneric tempo (obj)
   (:documentation "If the MIDI file contains more than one tempo event,

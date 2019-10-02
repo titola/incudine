@@ -309,11 +309,6 @@ NIL
         contains events at non-zero time.
       </p>
 
-      <p>
-        Note: an error is thrown if a curve of <code>TEMPO-ENVELOPE</code>
-        is not a step function.
-      </p>
-
       <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (<span style="color: #8deeee;">defvar</span> <span style="color: #eedd82;">*tenv*</span> (make-tempo-envelope '(96 135 120) '(8 12) <span style="color: #b0c4de;">:curve</span> <span style="color: #b0c4de;">:step</span>))
 
 <span class="prompt">SCRATCH&gt;</span> (setf *mf* (midifile:open *midi-file-test* <span style="color: #b0c4de;">:direction</span> <span style="color: #b0c4de;">:output</span>

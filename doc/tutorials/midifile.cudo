@@ -231,9 +231,6 @@
 ;; with the tempo changes obtained from a INCUDINE:TEMPO-ENVELOPE.
 ;; It fails if the current track contains events at non-zero time.
 
-;; Note: an error is thrown if a curve of TEMPO-ENVELOPE is not a step
-;; function.
-
 (defvar *tenv* (make-tempo-envelope '(96 135 120) '(8 12) :curve :step))
 
 (setf *mf* (midifile:open *midi-file-test* :direction :output
