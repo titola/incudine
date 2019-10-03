@@ -927,7 +927,8 @@ The octets DATA are optionally bounded by START and END."
              (setf (aref (stream-buffer mf) j) (aref data i))))
           (t (output-stream-buffer-index mf)))))
 
-(defun write-tempo-track (mf tempo-envelope &key (transition-time-step 1/8))
+(defun write-tempo-track (mf tempo-envelope &key (transition-time-step 1/8)
+                          (write-track-chunk-p t))
   "Write a tempo track to a MIDIFILE:OUTPUT-STREAM MF with the tempo
 changes obtained from a INCUDINE:TEMPO-ENVELOPE.
 
@@ -938,7 +939,17 @@ time in beats between adjacent points during that transition.
 
 TRANSITION-TIME-STEP defaults to 1/8.
 
-Return the number (zero based) of the next track."
+If WRITE-TRACK-CHUNK-P is T (default), write the track chunk and
+return the number (zero based) of the next track, otherwise return
+the number of the current track. Example:
+
+    (midifile:write-tempo-track mf tempo-env :write-track-chunk-p nil)
+    ;; Time signature.
+    (midifile:write-event mf 0 (midifile:data #xFF #x58 4 3 2 24 8))
+    ;; Write other MIDI messages.
+    [...]
+    ;; Write the track chunk.
+    (midifile:next-track mf)"
   (declare (type midifile:output-stream mf)
            (type incudine:tempo-envelope tempo-envelope))
   ;; Allowing meta-events just at time zero before the tempo changes.
@@ -948,7 +959,9 @@ Return the number (zero based) of the next track."
                              :transition-time-step transition-time-step)
                         by #'cddr
         do (write-event mf beats (tempo-message bpm)))
-  (next-track mf))
+  (if write-track-chunk-p
+      (next-track mf)
+      (current-track mf)))
 
 (defgeneric tempo (obj)
   (:documentation "If the MIDI file contains more than one tempo event,
