@@ -941,14 +941,23 @@ TRANSITION-TIME-STEP defaults to 1/8.
 
 If WRITE-TRACK-CHUNK-P is T (default), write the track chunk and
 return the number (zero based) of the next track, otherwise return
-the number of the current track. Example:
+the number of the current track.
 
-    (midifile:write-tempo-track mf tempo-env :write-track-chunk-p nil)
-    ;; Time signature.
+WRITE-TEMPO-TRACK works with a single time-signature (or two if the
+last doesn't precede the time of the last tempo change). If there
+are not location markers between the first and the last tempo changes,
+it is also possible to add markers before to write the track chunk.
+
+Example:
+
+    (midifile:write-event mf 0 (midifile:string-message 3 \"tempo track\"))
+    ;; Initial time signature.
     (midifile:write-event mf 0 (midifile:data #xFF #x58 4 3 2 24 8))
-    ;; Write other MIDI messages.
+    (midifile:write-tempo-track mf tempo-env :write-track-chunk-p nil)
+    ;; WRITE-TRACK-CHUNK-P NIL allows to insert other MIDI messages
+    ;; starting from the time of the last tempo change.
     [...]
-    ;; Write the track chunk.
+    ;; Write the track chunk (required if WRITE-TRACK-CHUNK-P is NIL).
     (midifile:next-track mf)"
   (declare (type midifile:output-stream mf)
            (type incudine:tempo-envelope tempo-envelope))
