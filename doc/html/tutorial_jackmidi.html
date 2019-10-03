@@ -111,7 +111,8 @@ T
         into a 32bit word; for example, a note-on:
       </p>
 
-      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (jackmidi:write-short *midiout* (jackmidi:message 144 60 96) 3)</pre>
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (at (now) #'jackmidi:write-short *midiout*
+             (jackmidi:message 144 60 96) 3)</pre>
 
       <p>
         If you test the MIDI output with the <code>jack_midi_dump</code>

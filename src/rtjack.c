@@ -621,10 +621,6 @@ void jm_process(jack_nframes_t frames)
 {
         struct jm_data **in, **out;
 
-        for (out = jm_outputs; *out != NULL; out++) {
-                (*out)->port_buffer = jack_port_get_buffer((*out)->port, frames);
-                jack_midi_clear_buffer((*out)->port_buffer);
-        }
         for (in = jm_inputs; *in != NULL; in++) {
                 struct jm_input_data *p;
                 int i, n;
@@ -662,6 +658,10 @@ void jm_process(jack_nframes_t frames)
                                 p->to_signal = 1;
                         }
                 }
+        }
+        for (out = jm_outputs; *out != NULL; out++) {
+                (*out)->port_buffer = jack_port_get_buffer((*out)->port, frames);
+                jack_midi_clear_buffer((*out)->port_buffer);
         }
 }
 

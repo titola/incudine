@@ -490,7 +490,7 @@ Example:
 
     (defvar *midiout* (jackmidi:open :direction :output))
     (rt-start)
-    (jackmidi:write-short *midiout* (jackmidi:message 144 60 96) 3)"
+    (at (now) #'jackmidi:write-short *midiout* (jackmidi:message 144 60 96) 3)"
   (declare (type output-stream stream) (type (unsigned-byte 32) message)
            (type positive-fixnum size))
   (rt-eval ()
@@ -509,15 +509,15 @@ Example:
     (defvar *msg0* (make-array 6 :element-type '(unsigned-byte 8)
                      :initial-contents '(#xf0 #x7e #x7f #x09 #x01 #xf7)))
     (rt-start)
-    (jackmidi:write *midiout* *msg0*)
+    (at (now) #'jackmidi:write *midiout* *msg0*)
 
-    (jackmidi:write *midiout*
+    (at (now) #'jackmidi:write *midiout*
       (jackmidi:data #xf0 #x7e #x7f #x09 #x01 #xf7))
 
     (defvar *msg1* (coerce '(144 60 96 128 60 0) 'jackmidi:data))
 
-    (jackmidi:write *midiout* *msg1* :end 3)           ; note on
-    (jackmidi:write *midiout* *msg1* :start 3 :end 6)  ; note off"
+    (at (now) #'jackmidi:write *midiout* *msg1* :end 3)           ; note on
+    (at (now) #'jackmidi:write *midiout* *msg1* :start 3 :end 6)  ; note off"
   (declare (type output-stream stream)
            (type data data)
            (type (or positive-fixnum null) end)

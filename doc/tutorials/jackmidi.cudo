@@ -70,7 +70,7 @@
 ;; JACKMIDI:WRITE-SHORT sends a MIDI message encoded into a 32bit word;
 ;; for example, a note-on:
 
-(jackmidi:write-short *midiout* (jackmidi:message 144 60 96) 3)
+(at (now) #'jackmidi:write-short *midiout* (jackmidi:message 144 60 96) 3)
 
 ;; If you test the MIDI output with the jack_midi_dump command, after the
 ;; follow line:
