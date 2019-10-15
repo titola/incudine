@@ -455,6 +455,7 @@ Return ~t~ if the ~tempo~ or ~tempo-envelope~ instance is deallocated.
 ::: incudine.util:spinlock
 ::: incudine.util:make-spinlock
 ::: incudine.util:acquire-spinlock
+::: incudine.util:try-acquire-spinlock
 ::: incudine.util:release-spinlock
 ::: incudine.util:with-spinlock-held
 #+texinfo: @page

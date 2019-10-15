@@ -135,7 +135,8 @@
    #:ptr-ref
    #:with-foreign-array #:with-samples #:with-samples*
    #:defun* #:lambda* #:defmacro* #:lambda-list-to-star-list
-   #:spinlock #:make-spinlock #:acquire-spinlock #:release-spinlock
+   #:spinlock #:make-spinlock
+   #:acquire-spinlock #:try-acquire-spinlock #:release-spinlock
    #:with-spinlock-held
    #:cons-pool #:make-cons-pool #:expand-cons-pool #:cons-pool-size
    #:cons-pool-push-cons #:cons-pool-pop-cons

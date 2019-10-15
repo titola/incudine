@@ -35,6 +35,32 @@
   (loop if (zerop (compare-and-swap (spinlock-state spinlock) 0 1))
         return t))
 
+(declaim (inline try-acquire-spinlock))
+(defun try-acquire-spinlock (spinlock)
+  "Return NIL if the SPINLOCK was already locked. Otherwise, acquire
+the SPINLOCK and return T.
+
+Example:
+
+    (defun do-something-out-of-audio-thread (lock)
+      (incudine.util:with-spinlock-held (lock)
+        (do-something)))
+
+    (defun maybe-do-something-in-audio-thread (lock)
+      (let ((ret nil))
+        (unwind-protect
+             (progn
+               ;; TRY-ACQUIRE-SPINLOCK is lock-free.
+               (setf ret (incudine.util:try-acquire-spinlock lock))
+               (if ret
+                   (do-something)
+                   (nrt-funcall #'do-something-out-of-audio-thread)))
+          (if ret (incudine.util:release-spinlock lock)))))
+
+    (at time #'maybe-do-something-in-audio-thread spinlock)"
+  (declare (type spinlock spinlock))
+  (zerop (compare-and-swap (spinlock-state spinlock) 0 1)))
+
 (declaim (inline release-spinlock))
 (defun release-spinlock (spinlock)
   "Release the SPINLOCK."
