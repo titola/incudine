@@ -931,10 +931,13 @@
   (format stream "~&;; <~A>" (timestring)))
 
 (defun play-without-wait (command)
-  (when (find-package "UIOP/RUN-PROGRAM")
-    (let ((run (find-symbol "%RUN-PROGRAM" "UIOP/RUN-PROGRAM")))
-      (when run
-        (setf *dac-process* (funcall run command :wait nil))))))
+  (let ((run (or (and (find-package "UIOP/LAUNCH-PROGRAM")
+                      (find-symbol "LAUNCH-PROGRAM" "UIOP/LAUNCH-PROGRAM"))
+                 ;; %RUN-PROGRAM is deprecated.
+                 (and (find-package "UIOP/RUN-PROGRAM")
+                      (find-symbol "%RUN-PROGRAM" "UIOP/RUN-PROGRAM")))))
+    (when run
+      (setf *dac-process* (funcall run command :wait nil)))))
 
 (defun* clm:play (file (start 0) end (wait *clm-dac-wait-default*))
   (let ((filename (if file
