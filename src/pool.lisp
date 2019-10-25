@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -19,8 +19,7 @@
 ;;; CONS-POOL
 
 (defstruct (cons-pool
-             (:constructor make-cons-pool (&key data (size (length data))
-                                           expand-function grow))
+             (:constructor %make-cons-pool)
              (:copier nil))
   "Cons pool type."
   (data (incudine:incudine-missing-arg "CONS-POOL without initial contents.")
@@ -29,28 +28,38 @@
   (expand-function #'default-expand-cons-pool :type function)
   (grow 128 :type non-negative-fixnum))
 
-(setf
- (documentation 'make-cons-pool 'function)
- "Create and return a new CONS-POOL structure initialized with the
-list DATA of length SIZE.
-
-The function EXPAND-FUNCTION is used to add new conses to the pool.
-
-The pool is incremented by GROW if more conses are required."
- (documentation 'cons-pool-size 'function)
- "Return the cons pool size.")
+(setf (documentation 'cons-pool-size 'function)
+      "Return the cons pool size.")
 
 (defmethod print-object ((obj cons-pool) stream)
   (format stream "#<CONS-POOL ~D>" (cons-pool-size obj)))
 
-(defmacro expand-cons-pool (pool delta new-form)
-  "Add DELTA cons cells to the POOL.
+(defun make-cons-pool (&key data (size 128) expand-function (grow 128))
+  "Create and return a new CONS-POOL structure initialized with the
+list DATA or a list of length SIZE (128 by default).
+
+If EXPAND-FUNCTION is a function of one argument, the pool, it is
+called to add new conses to the pool if necessary.
+See also EXPAND-CONS-POOL.
+
+The pool is incremented by GROW if more conses are required.
+GROW defaults to 128."
+  (%make-cons-pool
+    :data (or data (make-list size))
+    :size (if data (length data) size)
+    :expand-function (or expand-function #'default-expand-cons-pool)
+    :grow grow))
+
+(defmacro expand-cons-pool (pool delta &optional new-form)
+  "If DELTA is a number, add DELTA cons cells to the POOL.
+If DELTA is NIL, the pool size is incremented by the value specified
+with MAKE-CONS-POOL.
 
 NEW-FORM is evaluated to set the CAR of a CONS."
   (with-gensyms (lst p d i exp-size)
     `(let ((,p ,pool)
            (,d ,delta))
-       (declare (type cons-pool ,p) (type positive-fixnum ,d))
+       (declare (type cons-pool ,p) (type (or positive-fixnum null) ,d))
        (labels ((expand (,lst ,i)
                   (declare (type non-negative-fixnum ,i)
                            (type list ,lst))
@@ -58,12 +67,13 @@ NEW-FORM is evaluated to set the CAR of a CONS."
                       ,lst
                       (expand (cons ,new-form ,lst) (1- ,i)))))
          (with-struct-slots ((data size grow) ,p cons-pool)
-           (let ((,exp-size (max ,d grow)))
+           (let ((,exp-size (or ,d grow)))
              (incf size ,exp-size)
-             (setf data (expand data ,exp-size))))))))
+             (setf data (expand data ,exp-size)))))
+       ,p)))
 
-(defun default-expand-cons-pool (pool &optional (delta 1))
-  (expand-cons-pool pool delta nil))
+(defun default-expand-cons-pool (pool &optional delta)
+  (expand-cons-pool pool delta))
 
 (defmacro cons-pool-push-cons (pool cons)
   "Return the CONS cell to the POOL."

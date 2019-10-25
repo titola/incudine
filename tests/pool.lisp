@@ -2,10 +2,10 @@
 
 ;;;; CONS-POOL
 
-(defun cons-pool-default-expand-func (pool &optional (delta 1))
-  (expand-cons-pool pool delta nil))
+(defun cons-pool-default-expand-func (pool &optional delta)
+  (expand-cons-pool pool delta))
 
-(defun cons-pool-expand-func-2 (pool &optional (delta 1))
+(defun cons-pool-expand-func-2 (pool &optional delta)
   (let ((i 0))
     (expand-cons-pool pool delta (list (incf i)))))
 
@@ -61,7 +61,7 @@
       (cons-pool-pop-list pool 18)
       (let ((test1 (pool-size-test 16)))
         (loop repeat 3 do (cons-pool-pop-list pool 6))
-        (values test1 (pool-size-test 6)))))
+        (values test1 (pool-size-test 4)))))
   T T)
 
 (deftest cons-pool.5
