@@ -356,7 +356,7 @@ If TIMESTAMP-VAR is non-NIL, it is the variable bound to each MIDI timestamp."
                (declare (type non-negative-fixnum ,j)
                         (type cffi:foreign-pointer ,tmp))
                (when (sysex-eox-message-p (event-slot ,tmp message))
-                 (incf ,i ,j)
+                 (incf ,i (1+ ,j))
                  (decf ,remain ,j)
                  (setf ,ptr ,tmp)
                  (return)))))))))
