@@ -134,7 +134,7 @@
                  (incudine-maybe-recompile-source-file c "rt")))
      (:file "nrt" :depends-on ("rt"))
      (:file "score" :depends-on ("nrt"))
-     (:file "midi" :depends-on ("edf-sched" "tuning" #+jack-midi "jackmidi"))
+     (:file "midi" :depends-on ("edf-sched" "receiver" "tuning" #+jack-midi "jackmidi"))
      (:file "jack" :if-feature :jack-audio :depends-on ("foreign"))
      (:file "jackmidi" :if-feature :jack-midi :depends-on ("fifo" "receiver"))
      (:file "portaudio" :if-feature :portaudio :depends-on ("foreign" "logger"))

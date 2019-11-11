@@ -42,7 +42,6 @@
           (type-of (receiver-stream obj))
           (if (receiver-status obj) :RUNNING :STOPPED)))
 
-(declaim (inline receiver))
 (defun receiver (stream)
   "Return the receiver related to STREAM if it exists. Otherwise,
 return NIL."
@@ -68,7 +67,6 @@ file occurs, the receiver is stopped."))
 (defgeneric recv-stop (stream)
   (:documentation "Stop receiving from STREAM."))
 
-(declaim (inline recv-status))
 (defun recv-status (stream)
   "Receiver status for STREAM. Return :RUNNING, :STOPPED or :UNKNOWN."
   (let ((recv (receiver stream)))
@@ -344,7 +342,6 @@ Example:
   (receiver nil :type (or receiver null))
   (function nil :type (or function null)))
 
-(declaim (inline all-responders))
 (defun all-responders (stream)
   "Return the list of the responders for STREAM."
   (values (gethash stream *responders*)))
