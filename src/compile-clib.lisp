@@ -396,8 +396,10 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
         (let ((testfile (namestring
                           (merge-pathnames "fftw-stack-align-test.lisp"
                                            path))))
-          (run-program "~A --non-interactive --load ~S ~S"
-                       (list (first sb-ext:*posix-argv*) testfile path)
+          (run-program "~A --core ~S --non-interactive --load ~S ~S"
+                       (list sb-ext:*runtime-pathname*
+                             (namestring sb-ext:*core-pathname*)
+                             testfile path)
                        t t)))))
 
   (defun check-loaded-c-library ()
