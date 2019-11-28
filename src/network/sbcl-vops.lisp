@@ -31,6 +31,9 @@
             (inst bswap res-dword)
             (inst movsxd res res-dword))
          '(progn
+            #+#1=#.(cl:if (cl:ignore-errors (sb-ext:assert-version->= 1 5 9 17) t) '(and) '(or))
+            (inst bswap :dword res)
+            #-#1#
             (inst bswap (sb-vm::reg-in-size res :dword))
             (inst movsx '(:dword :qword) res res)))))
 
