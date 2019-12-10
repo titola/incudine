@@ -275,3 +275,56 @@
     (100 NIL T)
     (1105 NIL NIL) (1104 NIL NIL) (1103 NIL NIL)
     (1102 NIL NIL) (1101 NIL NIL) (1100 NIL NIL))))
+
+(deftest stop-group.1
+    (let ((res nil)
+          (g0 100)
+          (*logger-stream* *null-output*))
+      (bounce-to-buffer (*buffer-test-c1* :frames 1)
+        (flet ((update-result ()
+                 (push (node-test-list-id) res))
+               (fill-group (group)
+                 (node-test-loop (i 1000 1005)
+                   (play (lambda ()) :id i :tail group))))
+          (make-group 100)
+          (fill-group g0)
+          (update-result)
+          (stop 100)
+          (update-result)
+          (fill-group g0)
+          (update-result)
+          (stop 0)
+          (update-result)
+          (fill-group g0)
+          (move 1001 :head 0)
+          (move 1002 :tail 0)
+          (update-result)
+          (stop 100)
+          (update-result)
+          (stop 0)
+          (update-result)
+          (fill-group g0)
+          (move 1001 :head 0)
+          (move 1002 :tail 0)
+          (update-result)
+          (stop 0)
+          (update-result)))
+      (nreverse res))
+  (;; Fill group 100.
+   (100 1000 1001 1002 1003 1004 1005)
+   ;; STOP 100
+   (100)
+   ;; Refill.
+   (100 1000 1001 1002 1003 1004 1005)
+   ;; STOP 0
+   (100)
+   ;; Refill, then move 1001 and 1002.
+   (1001 100 1000 1003 1004 1005 1002)
+   ;; STOP 100
+   (1001 100 1002)
+   ;; STOP 0
+   (100)
+   ;; Refill, then move 1001 and 1002.
+   (1001 100 1000 1003 1004 1005 1002)
+   ;; STOP 0
+   (100)))
