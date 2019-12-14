@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -29,14 +29,15 @@
   (unless (cffi:foreign-library-loaded-p 'sndfile)
     (load-sndfile-library)))
 
-(defstruct (sndfile (:constructor %make-sndfile)
-                    (:copier nil))
-  (pointer (cffi:null-pointer) :type cffi:foreign-pointer))
-
 (defstruct (pointer-wrapper (:constructor %make-pointer-wrapper))
   (pointer (cffi:null-pointer) :type cffi:foreign-pointer))
 
-(defstruct (sndinfo (:include pointer-wrapper)))
+(defstruct (sndfile (:include pointer-wrapper)
+                    (:constructor %make-sndfile)
+                    (:copier nil)))
+
+(defstruct (sndinfo (:include pointer-wrapper)
+                    (:copier nil)))
 
 (declaim (inline pointer))
 (defun pointer (obj)
@@ -52,7 +53,6 @@
   #+sbcl (sb-ext:cancel-finalization obj)
   #-sbcl (tg:cancel-finalization obj))
 
-(declaim (inline close))
 (defun close (sfile)
   (declare (sndfile sfile))
   (let ((result (%close (sndfile-pointer sfile))))
@@ -68,7 +68,6 @@
     (finalize obj (lambda () (%close pointer)))
     obj))
 
-(declaim (inline make-pointer-wrapper))
 (defun make-pointer-wrapper (pointer)
   (let ((obj (%make-pointer-wrapper :pointer pointer)))
     (finalize obj (lambda () (cffi:foreign-free pointer)))

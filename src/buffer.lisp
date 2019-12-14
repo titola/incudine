@@ -360,10 +360,11 @@ DATA-FORMAT defaults to *DEFAULT-DATA-FORMAT*."
         (save-data-to-textfile data path (* (buffer-channels buf) frames))
         (sf:with-open (sf path
                        :info (sf:make-info
-                              :frames frames :sample-rate sr
-                              :channels (buffer-channels buf)
-                              :format (sf:get-format
-                                       (list header-type data-format)))
+                               :frames frames
+                               :sample-rate sr
+                               :channels (buffer-channels buf)
+                               :format (sf:get-format
+                                         (list header-type data-format)))
                        :mode sf:sfm-write)
           (writef-sample sf data frames)))
     buf))

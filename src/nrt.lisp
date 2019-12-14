@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -216,31 +216,31 @@ undefined.")
                                                           ,data-format)))))
      ,@body))
 
+(defun fd-from-path (obj fd-getter)
+  (and (stringp obj)
+       (string= obj "-")
+       (funcall fd-getter)))
+
 (defmacro with-sf-input ((var path data-var channels-var bufsize-var
                           input-remain input-index max-frames pad-at-the-end-p)
                          &body body)
-  (with-gensyms (info %path-or-stdin path-or-stdin open-stdin-p)
-    `(let ((,%path-or-stdin ,path)
+  (with-gensyms (info file)
+    `(let ((,file ,path)
            (,info (sf:make-info)))
-       (multiple-value-bind (,path-or-stdin ,open-stdin-p)
-           (if (and (stringp ,%path-or-stdin)
-                    (string= ,%path-or-stdin "-"))
-               ;; Read from standard input.
-               (values (incudine.util::stdin-fd) t)
-               (values ,%path-or-stdin nil))
-         (sf:with-open (,var ,path-or-stdin :info ,info :mode sf:sfm-read
-                             :open-fd-p ,open-stdin-p)
-           (let* ((,channels-var (sf:channels ,info))
-                  (,bufsize-var (* (round-sndfile-buffer-size ,channels-var)
-                                   *sample-size*))
-                  (,input-remain 0)
-                  (,input-index 0))
-             (declare (type non-negative-fixnum ,channels-var ,bufsize-var
-                            ,input-remain ,input-index))
-             (setf *block-input-samples* (* ,channels-var *block-size*))
-             (when ,pad-at-the-end-p
-               (setf ,max-frames (sf:frames ,info)))
-             (with-foreign-array (,data-var 'sample ,bufsize-var) ,@body)))))))
+       (sf:with-open (,var
+                      (or (fd-from-path ,file #'incudine.util::stdin-fd) ,file)
+                      :info ,info :mode sf:sfm-read)
+         (let* ((,channels-var (sf:channels ,info))
+                (,bufsize-var (* (round-sndfile-buffer-size ,channels-var)
+                                 *sample-size*))
+                (,input-remain 0)
+                (,input-index 0))
+           (declare (type non-negative-fixnum ,channels-var ,bufsize-var
+                          ,input-remain ,input-index))
+           (setf *block-input-samples* (* ,channels-var *block-size*))
+           (when ,pad-at-the-end-p
+             (setf ,max-frames (sf:frames ,info)))
+           (with-foreign-array (,data-var 'sample ,bufsize-var) ,@body))))))
 
 (defvar *cached-nrt-memory-p* nil)
 (declaim (type boolean *cached-nrt-memory-p*))
@@ -414,18 +414,15 @@ BPM is the tempo in beats per minute and defaults to *DEFAULT-BPM*."
             (funcall function)
             (with-sf-info (info max-frames *sample-rate* channels
                            header-type data-format)
-              (multiple-value-bind (path-or-stdout open-stdout-p)
-                  (if (and (stringp output-filename)
-                           (string= output-filename "-"))
-                      ;; Write to standard output.
-                      (values (incudine.util::stdout-fd) t)
-                      (values output-filename nil))
-                (sf:with-open (snd path-or-stdout :info info :mode sf:sfm-write
-                               :open-fd-p open-stdout-p)
-                  (write-to-disk (frame max-frames remain snd bufsize data
-                                  metadata count pad-at-the-end-p t)
-                    ;; COUNT is incremented by CHANNELS.
-                    (nrt-loop snd data bufsize count channels))))))
+              (sf:with-open (snd
+                             (or (fd-from-path
+                                   output-filename #'incudine.util::stdout-fd)
+                                 output-filename)
+                             :info info :mode sf:sfm-write)
+                (write-to-disk (frame max-frames remain snd bufsize data
+                                metadata count pad-at-the-end-p t)
+                  ;; COUNT is incremented by CHANNELS.
+                  (nrt-loop snd data bufsize count channels)))))
         (condition (c)
           (msg error "~A" c)
           (nrt-cleanup)))
@@ -470,23 +467,21 @@ BPM is the tempo in beats per minute and defaults to *DEFAULT-BPM*."
               (ensure-nrt-input-buffer)
               (with-sf-info (info max-frames *sample-rate* channels
                              header-type data-format)
-                (multiple-value-bind (path-or-stdout open-stdout-p)
-                    (if (and (stringp output-filename)
-                             (string= output-filename "-"))
-                        ;; Write to standard output.
-                        (values (incudine.util::stdout-fd) t)
-                        (values output-filename nil))
-                  (sf:with-open (snd-out path-or-stdout :info info
-                                 :mode sf:sfm-write :open-fd-p open-stdout-p)
-                    (write-to-disk (frame max-frames remain snd-out bufsize
-                                    data-out metadata count pad-at-the-end-p)
-                      ;; COUNT and INPUT-INDEX are incremented respectively
-                      ;; by CHANNELS and IN-CHANNELS.
-                      ;; INPUT-REMAIN is decremented by IN-CHANNELS.
-                      (nrt-loop-with-infile
-                        snd-in data-in snd-out data-out bufsize count channels
-                        input-remain input-index in-channels in-bufsize
-                        input-eof-p)))))))
+                (sf:with-open (snd-out
+                               (or (fd-from-path
+                                     output-filename #'incudine.util::stdout-fd)
+                                   output-filename)
+                               :info info
+                               :mode sf:sfm-write)
+                  (write-to-disk (frame max-frames remain snd-out bufsize
+                                  data-out metadata count pad-at-the-end-p)
+                    ;; COUNT and INPUT-INDEX are incremented respectively
+                    ;; by CHANNELS and IN-CHANNELS.
+                    ;; INPUT-REMAIN is decremented by IN-CHANNELS.
+                    (nrt-loop-with-infile
+                      snd-in data-in snd-out data-out bufsize count channels
+                      input-remain input-index in-channels in-bufsize
+                      input-eof-p))))))
         (condition (c)
           (msg error "~A" c)
           (nrt-cleanup)))

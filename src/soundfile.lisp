@@ -1,4 +1,4 @@
-;;; Copyright (c) 2017-2018 Tito Latini
+;;; Copyright (c) 2017-2019 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -89,7 +89,7 @@ Subtype of INCUDINE-SIMPLE-ERROR and FILE-ERROR."))
 (declaim (inline sf-seek))
 (defun sf-seek (sf pos)
    (cffi:foreign-funcall "sf_seek" :pointer (stream-sf-pointer sf)
-                         sf:sf-count pos :int SF:SEEK-SET sf:sf-count))
+                         sf:count pos :int SF:SEEK-SET sf:count))
 
 (defun read-into-buffer (sf &optional (update-status-p t))
   "Fill the internal stream buffer of SOUNDFILE:STREAM SF by reading
@@ -99,8 +99,8 @@ If UPDATE-STATUS-P is T (default), update the status of SF."
   (let ((frames (cffi:foreign-funcall "sf_readf_double"
                                       :pointer (stream-sf-pointer sf)
                                       :pointer (stream-buffer-pointer sf)
-                                      sf:sf-count (stream-buffer-max-frames sf)
-                                      sf:sf-count)))
+                                      sf:count (stream-buffer-max-frames sf)
+                                      sf:count)))
     (declare (type non-negative-fixnum frames))
     (when update-status-p
       (when (> frames 0)
@@ -499,8 +499,8 @@ Setfable."))
         (let ((frames (cffi:foreign-funcall "sf_writef_double"
                         :pointer (stream-sf-pointer sf)
                         :pointer (stream-buffer-pointer sf)
-                        sf:sf-count (1+ (output-stream-buffer-written-frames sf))
-                        sf:sf-count)))
+                        sf:count (1+ (output-stream-buffer-written-frames sf))
+                        sf:count)))
           (declare (type non-negative-fixnum frames))
           (when (> frames 0)
             (incf (stream-sf-position sf) frames)
@@ -735,7 +735,7 @@ Return the number of items read."
   (if (open-p sf)
       (let ((items (cffi:foreign-funcall "sf_read_double"
                      :pointer (stream-sf-pointer sf) :pointer buffer-pointer
-                     sf:sf-count buffer-size sf:sf-count)))
+                     sf:count buffer-size sf:count)))
         (declare (type non-negative-fixnum items))
         (when (> items 0)
           (when update-position-p
@@ -758,8 +758,8 @@ Return the number of the items written."
   (if (open-p sf)
       (let ((items (cffi:foreign-funcall "sf_write_double"
                      :pointer (output-stream-sf-pointer sf)
-                     :pointer buffer-pointer sf:sf-count buffer-size
-                     sf:sf-count)))
+                     :pointer buffer-pointer sf:count buffer-size
+                     sf:count)))
         (declare (type non-negative-fixnum items))
         (when (> items 0)
           (incf (stream-sf-position sf)

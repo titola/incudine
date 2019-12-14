@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2019 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -239,14 +239,12 @@
          :type cffi:foreign-pointer
          :accessor virtual-io-tell)))
 
-(declaim (inline make-info))
 (defun make-info (&key (frames 0) (sample-rate 48000) (channels 1)
                   (format 0) (sections 0) (seekable t))
   (make-instance 'info :frames frames :sample-rate sample-rate
                  :channels channels :format format :sections sections
                  :seekable seekable))
 
-(declaim (inline info-to-sndinfo))
 (defun info-to-sndinfo (info)
   (let* ((ptr (cffi:foreign-alloc '(:struct info)))
          (sinfo (make-pointer-wrapper ptr)))
@@ -263,7 +261,6 @@
               seekable (if seek-p 1 0))
         sinfo))))
 
-(declaim (inline sndinfo-to-info))
 (defun sndinfo-to-info (sndinfo &optional info)
   (cffi:with-foreign-slots ((frames sample-rate channels format
                             sections seekable)
@@ -307,7 +304,6 @@
                     (cffi:mem-aref iloop :int 3) (count loop))))
         foreign-instr))))
 
-(declaim (inline duration))
 (defun duration (info)
   (declare (info info))
   (with-slots (frames sample-rate) info
@@ -316,35 +312,32 @@
 (defvar *default-format*
   (get-format (list #-darwin "wav" #+darwin "aiff" "pcm-24")))
 
-(defun open (path-or-fd &key (mode sfm-read) info open-fd-p close-desc-p)
+(defun open (path-or-fd &key (mode sfm-read) info close-fd-p)
+  (declare (cl:type (or string pathname integer) path-or-fd)
+           (cl:type integer mode)
+           (cl:type (or info null) info)
+           (cl:type boolean close-fd-p))
+  (when (pathnamep path-or-fd)
+    (setf path-or-fd (namestring path-or-fd)))
   (let* ((sfinfo (if info
                      (info-to-sndinfo info)
                      (make-sndinfo
                        :pointer (cffi:foreign-alloc '(:struct info)))))
-         (sf (if open-fd-p
-                 (open-fd path-or-fd mode sfinfo (if close-desc-p true false))
+         (sf (if (numberp path-or-fd)
+                 (open-fd path-or-fd mode sfinfo (if close-fd-p true false))
                  (%open path-or-fd mode sfinfo))))
     (when info
       (sndinfo-to-info sfinfo info))
     (free sfinfo)
     sf))
 
-(defmacro with-open ((var path-or-fd &key info (mode sfm-read)
-                      (open-fd-p nil fdp) close-desc-p) &body body)
-  `(let ((,var (open ,(if fdp
-                          `(if ,open-fd-p
-                               ,path-or-fd
-                               (namestring ,path-or-fd))
-                          `(namestring ,path-or-fd))
-                     :mode ,mode :info ,(or info `(make-info))
-                     ,@(when fdp
-                         `(:open-fd-p ,open-fd-p
-                           :close-desc-p ,close-desc-p)))))
-     (unwind-protect
-          (multiple-value-prog1 ,@body)
+(defmacro with-open ((var path-or-fd &key info (mode sfm-read) close-fd-p)
+                     &body body)
+  `(let ((,var (open ,path-or-fd :mode ,mode :info ,info
+                     :close-fd-p ,close-fd-p)))
+     (unwind-protect (progn ,@body)
        (when ,var (close ,var)))))
 
-(declaim (inline command-to-int))
 (defun command-to-int (command-number)
   (cffi:with-foreign-object (i :int)
     (command (%make-sndfile) command-number i (cffi:foreign-type-size :int))
@@ -355,14 +348,12 @@
     (setf (cffi:mem-ref count 'sf-count) value)
     (command sndfile command-number count (cffi:foreign-type-size 'sf-count))))
 
-(declaim (inline command-to-double))
 (defun command-to-double (sndfile command-number)
   (cffi:with-foreign-object (d :double)
     (let ((res (command sndfile command-number d
                         (cffi:foreign-type-size :double))))
       (values (cffi:mem-ref d :double) res))))
 
-(declaim (inline command-to-format-info))
 (defun command-to-format-info (command-number format-number)
   (cffi:with-foreign-object (fmt-info '(:struct format-info))
     (cffi:with-foreign-slots ((format name extension) fmt-info
@@ -373,25 +364,21 @@
         (make-instance 'format-info :format format :name name
                        :extension extension)))))
 
-(declaim (inline command-set-bool))
 (defun command-set-bool (sndfile command-number bool)
   (declare (boolean bool))
   (command sndfile command-number (cffi:null-pointer) (if bool 1 0))
   bool)
 
-(declaim (inline get-lib-version))
 (defun get-lib-version ()
   (cffi:with-foreign-object (str :char 32)
     (command (%make-sndfile) #x1000 str 32)
     (values (cffi:foreign-string-to-lisp str))))
 
-(declaim (inline get-log-info))
 (defun get-log-info (sndfile)
   (cffi:with-foreign-object (str :char 2048)
     (command sndfile #x1001 str 2048)
     (values (cffi:foreign-string-to-lisp str))))
 
-(declaim (inline get-current-info))
 (defun get-current-info (sndfile)
   (let ((sfinfo (make-pointer-wrapper (cffi:foreign-alloc '(:struct info)))))
     (command sndfile #x1002 (pointer sfinfo)
