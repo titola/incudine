@@ -85,7 +85,7 @@ if [ ${aclrepl_p} = "yes" ]; then
         modules="(require :sb-aclrepl) (pushnew :sb-aclrepl *features*) ${modules}"
 fi
 
-sbcl ${options} \
+"${SBCL:-sbcl}" ${options} \
      --eval "(pushnew (asdf:system-source-directory :incudine) asdf:*central-registry* :test 'equal)" \
      --eval "(progn ${modules})" \
      --eval '(load (asdf:compile-file* "executable.lisp" :external-format :utf-8))' \
