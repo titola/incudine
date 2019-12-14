@@ -146,6 +146,7 @@
    #:sndfile
    #:format
    #:sf-count
+   #:count
    #:info
    #:format-info
    #:dither-info
@@ -227,6 +228,7 @@
    #:set-instrument
    #:get-loop-info
    ;; utils
+   #:pointer
    #:sndfile-p
    #:sndfile-null-p
    #:make-info

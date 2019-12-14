@@ -284,6 +284,8 @@
              sf::*formats*)))
 
 (cffi:defctype sf-count :int64)
+;; Alias.
+(cffi:defctype count :int64)
 
 (cffi:defcstruct info
   (frames sf-count)

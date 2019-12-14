@@ -129,10 +129,13 @@ undefined.")
 (defun clear-outputs ()
   (foreign-zero-sample (output-pointer) *number-of-output-bus-channels*))
 
-(defmacro read-sample (sndfile ptr items)
-  `(#+double-samples sf:read-double
-    #-double-samples sf:read-float
-    ,sndfile ,ptr ,items))
+(declaim (inline read-sample))
+(defun read-sample (sndfile ptr items)
+  (cffi:foreign-funcall
+    #+double-samples "sf_read_double"
+    #-double-samples "sf_read_float"
+    :pointer (sf:pointer sndfile) :pointer ptr sf:count items
+    sf:count))
 
 (defmacro write-sample (sndfile ptr items)
   `(#+double-samples sf:write-double
