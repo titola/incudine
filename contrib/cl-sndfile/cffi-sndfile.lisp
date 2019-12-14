@@ -37,6 +37,7 @@
                     (:copier nil)))
 
 (defstruct (sndinfo (:include pointer-wrapper)
+                    (:constructor %make-sndinfo)
                     (:copier nil)))
 
 (declaim (inline pointer))
@@ -65,8 +66,17 @@
 (declaim (inline make-sndfile))
 (defun make-sndfile (pointer)
   (let ((obj (%make-sndfile :pointer pointer)))
-    (finalize obj (lambda () (%close pointer)))
+    (unless (cffi:null-pointer-p pointer)
+      (finalize obj (lambda () (%close pointer))))
     obj))
+
+(declaim (inline make-sndinfo))
+(defun make-sndinfo (&optional pointer)
+  (%make-sndinfo
+    :pointer (or pointer
+                 (cffi:foreign-alloc :int8
+                   :count (cffi:foreign-type-size '(:struct info))
+                   :initial-element 0))))
 
 (defun make-pointer-wrapper (pointer)
   (let ((obj (%make-pointer-wrapper :pointer pointer)))

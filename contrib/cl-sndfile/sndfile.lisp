@@ -321,8 +321,7 @@
     (setf path-or-fd (namestring path-or-fd)))
   (let* ((sfinfo (if info
                      (info-to-sndinfo info)
-                     (make-sndinfo
-                       :pointer (cffi:foreign-alloc '(:struct info)))))
+                     (make-sndinfo)))
          (sf (if (numberp path-or-fd)
                  (open-fd path-or-fd mode sfinfo (if close-fd-p true false))
                  (%open path-or-fd mode sfinfo))))
