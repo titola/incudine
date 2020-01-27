@@ -1,6 +1,6 @@
 ;;; incudine.el --- major mode for editing Incudine sources
 
-;; Copyright (c) 2013-2018 Tito Latini
+;; Copyright (c) 2013-2020 Tito Latini
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -199,7 +199,7 @@ If ID is non-NIL, print info about the group with identifier ID."
 (defun incudine-live-nodes ()
   "Print the number of the live nodes."
   (interactive)
-  (incudine-eval "(live-nodes)"))
+  (incudine-eval "(incudine:live-nodes)"))
 
 (defun incudine-gc ()
   "Initiate a garbage collection."
