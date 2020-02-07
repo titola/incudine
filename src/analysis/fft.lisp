@@ -305,7 +305,10 @@ and the FFT window size."
 
 (declaim (inline fft-input))
 (defun fft-input (fft)
-  "Return the sample value of the current FFT input. Setfable.
+  "Return the sample value of the current FFT input.
+
+Setfable also with an input value of type REAL, but it is faster if
+the type is SAMPLE.
 
 The FFT structure uses a ring buffer internally and the input buffer
 is filled during the transform."
@@ -316,7 +319,7 @@ is filled during the transform."
 (declaim (inline set-fft-input))
 (defun set-fft-input (fft input)
   (setf (fft-input-changed-p fft) t)
-  (ring-input-buffer-put input (fft-ring-buffer fft)))
+  (ring-input-buffer-put (sample input) (fft-ring-buffer fft)))
 
 (defsetf fft-input set-fft-input)
 
