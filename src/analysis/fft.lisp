@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -250,7 +250,24 @@ the FFT structure OBJ and write the results into the FFT output buffer.
 COMPUTE-IFFT normalizes the input data before the inverse transform.
 
 If FORCE-P is NIL (default), the transform is computed once for the
-current time."
+current time.
+
+Example:
+
+    (in-package :scratch)
+
+    (defvar *fft* (make-fft 8 :window-function #'rectangular-window))
+
+    ;; Fill the internal ring buffer with an impulse.
+    (setf (fft-input *fft*) 1d0)
+    (loop repeat (1- (fft-size *fft*)) do (setf (fft-input *fft*) 0d0))
+
+    (compute-fft *fft* t)
+
+    ;; Output with 5 complex analysis bins.
+    (loop for i below (analysis-output-buffer-size *fft*)
+          collect (smp-ref (analysis-output-buffer *fft*) i))
+    ;; => (1.0d0 0.0d0 1.0d0 0.0d0 1.0d0 0.0d0 1.0d0 0.0d0 1.0d0 0.0d0)"
   (declare (type fft obj) (type boolean force-p))
   (when (or force-p (fft-input-changed-p obj))
     (let ((fftsize (fft-size obj))
@@ -426,10 +443,29 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
 IFFT structure OBJ and write the results into the IFFT output buffer.
 
 If ABUFFER is non-NIL, update that abuffer and copy the results into
-the IFFT input buffer before to calculate the transform.
+the IFFT input buffer before to calculate the transform. If the ABUFFER
+is linked to a FFT object, the copied analysis data are normalized
+because the fast Fourier transform of COMPUTE-FFT is unnormalized.
 
 If FORCE-P is NIL (default), the transform is computed once for the
-current time."
+current time.
+
+Example:
+
+    (in-package :scratch)
+
+    (defvar *ifft* (make-ifft 8 :window-function #'rectangular-window))
+
+    ;; Set the real part of the complex analysis bins to 1/8.
+    (dotimes (i (analysis-input-buffer-size *ifft*))
+      (setf (smp-ref (analysis-input-buffer *ifft*) i)
+            (if (evenp i) 125d-3 0d0)))
+
+    (compute-ifft *ifft* nil t)
+
+    ;; The output is an impulse.
+    (loop for i below (ifft-size *ifft*) collect (ifft-output *ifft*))
+    ;; => (1.0d0 0.0d0 0.0d0 0.0d0 0.0d0 0.0d0 0.0d0 0.0d0)"
   (declare (type ifft obj) (type (or abuffer null) abuffer)
            (type boolean force-p))
   (when (or force-p
