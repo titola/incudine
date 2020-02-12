@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -573,7 +573,8 @@
   (:nicknames :soundfile)
   (:shadow #:stream #:input-stream-p #:output-stream-p #:open #:close
            #:read #:write #:position #:concatenate #:merge)
-  (:import-from #:alexandria #:positive-fixnum #:non-negative-fixnum)
+  (:import-from #:alexandria #:positive-fixnum #:non-negative-fixnum
+                #:define-constant)
   (:import-from #:incudine #:incudine-simple-error #:incudine-missing-arg
                 #:incudine-finalize #:incudine-cancel-finalization)
   (:import-from #:incudine.util #:*sndfile-buffer-size* #:*sample-rate*
@@ -584,7 +585,7 @@
   (:export
    #:soundfile-error
    #:stream #:input-stream #:input-stream-p #:output-stream #:output-stream-p
-   #:open #:open-p #:close #:with-open-soundfile #:eof-p
+   #:open #:open-p #:close #:with-open-soundfile #:update-header #:eof-p
    #:read-header #:read-next #:read-into-buffer #:read #:write
    #:foreign-read #:foreign-write
    #:position #:offset #:buffer-data #:buffer-size #:buffer-index #:buffer-value

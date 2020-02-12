@@ -1,4 +1,4 @@
-;;; Copyright (c) 2017-2019 Tito Latini
+;;; Copyright (c) 2017-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -430,6 +430,29 @@ the body, either normally or abnormally, the SOUNDFILE:STREAM is
 automatically closed."
   `(let ((,stream (open ,filespec ,@options)))
      (unwind-protect (progn ,@body) (close ,stream))))
+
+(define-constant SFC-UPDATE-HEADER-NOW #x1060)
+(define-constant SFC-SET-UPDATE-HEADER-AUTO #x1061)
+
+(defun update-header (sf &key (auto-p nil auto))
+  "Update the header of the file connected to the SOUNDFILE:OUTPUT-STREAM SF.
+
+If AUTO-P is T, the file header is updated after each write to the stream.
+
+Turn off the auto header update if AUTO-P NIL is explicitly specified.
+
+Return T if the sound file header is updated, or if the auto header update
+is turned on. Otherwise, return NIL."
+  (declare (type soundfile:output-stream sf))
+  (multiple-value-bind (cmd value ret)
+      (if auto
+          (values
+            SFC-SET-UPDATE-HEADER-AUTO (if auto-p SF:TRUE SF:FALSE) SF:TRUE)
+          (values SFC-UPDATE-HEADER-NOW 0 0))
+    (= ret
+       (cffi:foreign-funcall "sf_command"
+         :pointer (stream-sf-pointer sf) :int cmd
+         :pointer (cffi:null-pointer) :int value :int))))
 
 (declaim (inline eof-p))
 (defun eof-p (sf)
