@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2020 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -370,17 +370,17 @@
 
 (defun get-lib-version ()
   (cffi:with-foreign-object (str :char 32)
-    (command (%make-sndfile) #x1000 str 32)
+    (command (%make-sndfile) SFC-GET-LIB-VERSION str 32)
     (values (cffi:foreign-string-to-lisp str))))
 
 (defun get-log-info (sndfile)
   (cffi:with-foreign-object (str :char 2048)
-    (command sndfile #x1001 str 2048)
+    (command sndfile SFC-GET-LOG-INFO str 2048)
     (values (cffi:foreign-string-to-lisp str))))
 
 (defun get-current-info (sndfile)
   (let ((sfinfo (make-pointer-wrapper (cffi:foreign-alloc '(:struct info)))))
-    (command sndfile #x1002 (pointer sfinfo)
+    (command sndfile SFC-GET-CURRENT-SF-INFO (pointer sfinfo)
              (cffi:foreign-type-size '(:struct info)))
     (prog1 (sndinfo-to-info sfinfo)
       (free sfinfo))))
@@ -392,110 +392,110 @@
         (get-current-info sf))))
 
 (defun get-norm-double (sndfile)
-  (= 1 (command sndfile #x1010 (cffi:null-pointer) 0)))
+  (= 1 (command sndfile SFC-GET-NORM-DOUBLE (cffi:null-pointer) 0)))
 
 (defun get-norm-float (sndfile)
-  (= 1 (command sndfile #x1011 (cffi:null-pointer) 0)))
+  (= 1 (command sndfile SFC-GET-NORM-FLOAT (cffi:null-pointer) 0)))
 
 (defun set-norm-double (sndfile norm-p)
-  (command-set-bool sndfile #x1012 norm-p))
+  (command-set-bool sndfile SFC-SET-NORM-DOUBLE norm-p))
 
 (defun set-norm-float (sndfile norm-p)
-  (command-set-bool sndfile #x1013 norm-p))
+  (command-set-bool sndfile SFC-SET-NORM-FLOAT norm-p))
 
 (defun set-scale-float-int-read (sndfile bool)
-  (command-set-bool sndfile #x1014 bool))
+  (command-set-bool sndfile SFC-SET-SCALE-FLOAT-INT-READ bool))
 
 (defun set-scale-int-float-write (sndfile bool)
-  (command-set-bool sndfile #x1015 bool))
+  (command-set-bool sndfile SFC-SET-SCALE-INT-FLOAT-WRITE bool))
 
 (defun get-simple-format-count ()
-  (command-to-int #x1020))
+  (command-to-int SFC-GET-SIMPLE-FORMAT-COUNT))
 
 (defun get-simple-format (format-number)
-  (command-to-format-info #x1021 format-number))
+  (command-to-format-info SFC-GET-SIMPLE-FORMAT format-number))
 
 (defun get-format-info (format)
-  (command-to-format-info #x1028 format))
+  (command-to-format-info SFC-GET-FORMAT-INFO format))
 
 (defun get-format-major-count ()
-  (command-to-int #x1030))
+  (command-to-int SFC-GET-FORMAT-MAJOR-COUNT))
 
 (defun get-format-major (format-number)
-  (command-to-format-info #x1031 format-number))
+  (command-to-format-info SFC-GET-FORMAT-MAJOR format-number))
 
 (defun get-format-subtype-count ()
-  (command-to-int #x1032))
+  (command-to-int SFC-GET-FORMAT-SUBTYPE-COUNT))
 
 (defun get-format-subtype (format-number)
-  (command-to-format-info #x1033 format-number))
+  (command-to-format-info SFC-GET-FORMAT-SUBTYPE format-number))
 
 (defun calc-signal-max (sndfile)
-  (command-to-double sndfile #x1040))
+  (command-to-double sndfile SFC-CALC-SIGNAL-MAX))
 
 (defun calc-norm-signal-max (sndfile)
-  (command-to-double sndfile #x1041))
+  (command-to-double sndfile SFC-CALC-NORM-SIGNAL-MAX))
 
 (defun calc-max-all-channels (sndfile)
-  (command-to-double sndfile #x1042))
+  (command-to-double sndfile SFC-CALC-MAX-ALL-CHANNELS))
 
 (defun calc-norm-max-all-channels (sndfile)
-  (command-to-double sndfile #x1043))
+  (command-to-double sndfile SFC-CALC-NORM-MAX-ALL-CHANNELS))
 
 (defun get-signal-max (sndfile)
-  (command-to-double sndfile #x1044))
+  (command-to-double sndfile SFC-GET-SIGNAL-MAX))
 
 (defun get-max-all-channels (sndfile)
-  (command-to-double sndfile #x1045))
+  (command-to-double sndfile SFC-GET-MAX-ALL-CHANNELS))
 
 (defun set-add-peak-chunk (sndfile peak-chunk-p)
-  (command-set-bool sndfile #x1050 peak-chunk-p))
+  (command-set-bool sndfile SFC-SET-ADD-PEAK-CHUNK peak-chunk-p))
 
 (defun set-add-header-pad-chunk (sndfile pad-chunk-p)
-  (command-set-bool sndfile #x1051 pad-chunk-p))
+  (command-set-bool sndfile SFC-SET-ADD-HEADER-PAD-CHUNK pad-chunk-p))
 
 (defun update-header-now (sndfile)
-  (command sndfile #x1060 (cffi:null-pointer) 0))
+  (command sndfile SFC-UPDATE-HEADER-NOW (cffi:null-pointer) 0))
 
 (defun set-update-header-auto (sndfile bool)
-  (command-set-bool sndfile #x1061 bool))
+  (command-set-bool sndfile SFC-SET-UPDATE-HEADER-AUTO bool))
 
 (defun file-truncate (sndfile frames)
-  (command-to-sf-count sndfile #x1080 frames))
+  (command-to-sf-count sndfile SFC-FILE-TRUNCATE frames))
 
 (defun set-raw-start-offset (sndfile offset)
-  (command-to-sf-count sndfile #x1090 offset))
+  (command-to-sf-count sndfile SFC-SET-RAW-START-OFFSET offset))
 
 (defun set-dither-on-write (sndfile bool)
-  (command-set-bool sndfile #x10a0 bool))
+  (command-set-bool sndfile SFC-SET-DITHER-ON-WRITE bool))
 
 (defun set-dither-on-read (sndfile bool)
-  (command-set-bool sndfile #x10a1 bool))
+  (command-set-bool sndfile SFC-SET-DITHER-ON-READ bool))
 
 (defun get-dither-info-count ()
-  (command-to-int #x10a2))
+  (command-to-int SFC-GET-DITHER-INFO-COUNT))
 
 (defun get-dither-info (number)
   (cffi:with-foreign-object (dinfo '(:struct dither-info))
     (cffi:with-foreign-slots ((type level name) dinfo (:struct dither-info))
       (setf type number)
-      (when (zerop (command (%make-sndfile) #x10a3 dinfo
+      (when (zerop (command (%make-sndfile) SFC-GET-DITHER-INFO dinfo
                             (cffi:foreign-type-size '(:struct dither-info))))
         (make-instance 'dither-info :type type :level level :name name)))))
 
 (defun get-embed-file-info (sndfile)
   (cffi:with-foreign-object (ef-info '(:struct embed-file-info))
     (cffi:with-foreign-slots ((offset length) ef-info (:struct embed-file-info))
-      (when (zerop (command sndfile #x10b0 ef-info
+      (when (zerop (command sndfile SFC-GET-EMBED-FILE-INFO ef-info
                             (cffi:foreign-type-size
                               '(:struct embed-file-info))))
         (make-instance 'embed-file-info :offset offset :length length)))))
 
 (defun set-clipping (sndfile bool)
-  (command-set-bool sndfile #x10c0 bool))
+  (command-set-bool sndfile SFC-SET-CLIPPING bool))
 
 (defun get-clipping (sndfile)
-  (= 1 (command sndfile #x10c1 (cffi:null-pointer) 0)))
+  (= 1 (command sndfile SFC-GET-CLIPPING (cffi:null-pointer) 0)))
 
 (defun instrument-loops (loops-ptr count)
   (loop for i below 16
@@ -513,7 +513,7 @@
     (cffi:with-foreign-slots ((gain basenote detune velocity-lo velocity-hi
                                key-lo key-hi loop-count loops)
                               instr (:struct instrument))
-      (when (= 1 (command sndfile #x10d0 instr
+      (when (= 1 (command sndfile SFC-GET-INSTRUMENT instr
                           (cffi:foreign-type-size '(:struct instrument))))
         (make-instance 'instrument
           :gain gain :basenote basenote :detune detune :velocity-lo velocity-lo
@@ -524,7 +524,7 @@
 
 (defun set-instrument (sndfile instr)
   (let ((i (instrument-to-foreign-instrument instr)))
-    (prog1 (= 1 (command sndfile #x10d1 (pointer i)
+    (prog1 (= 1 (command sndfile SFC-SET-INSTRUMENT (pointer i)
                          (cffi:foreign-type-size '(:struct instrument))))
       (free i))))
 
@@ -532,7 +532,7 @@
   (cffi:with-foreign-object (linfo '(:struct loop-info))
     (cffi:with-foreign-slots ((time-sig-num time-sig-den loop-mode num-beats bpm
                                root-key future) linfo (:struct loop-info))
-      (when (= 1 (command sndfile #x10e0 linfo
+      (when (= 1 (command sndfile SFC-GET-LOOP-INFO linfo
                           (cffi:foreign-type-size '(:struct loop-info))))
         (make-instance 'loop-info
           :time-sig-num time-sig-num :time-sig-den time-sig-den

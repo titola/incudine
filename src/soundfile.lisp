@@ -431,9 +431,6 @@ automatically closed."
   `(let ((,stream (open ,filespec ,@options)))
      (unwind-protect (progn ,@body) (close ,stream))))
 
-(define-constant SFC-UPDATE-HEADER-NOW #x1060)
-(define-constant SFC-SET-UPDATE-HEADER-AUTO #x1061)
-
 (defun update-header (sf &key (auto-p nil auto))
   "Update the header of the file connected to the SOUNDFILE:OUTPUT-STREAM SF.
 
@@ -447,8 +444,8 @@ is turned on. Otherwise, return NIL."
   (multiple-value-bind (cmd value ret)
       (if auto
           (values
-            SFC-SET-UPDATE-HEADER-AUTO (if auto-p SF:TRUE SF:FALSE) SF:TRUE)
-          (values SFC-UPDATE-HEADER-NOW 0 0))
+            SF:SFC-SET-UPDATE-HEADER-AUTO (if auto-p SF:TRUE SF:FALSE) SF:TRUE)
+          (values SF:SFC-UPDATE-HEADER-NOW 0 0))
     (= ret
        (cffi:foreign-funcall "sf_command"
          :pointer (stream-sf-pointer sf) :int cmd
