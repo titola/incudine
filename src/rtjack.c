@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 Tito Latini
+ * Copyright (c) 2013-2020 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -273,6 +273,7 @@ int ja_initialize(unsigned int input_channels, unsigned int output_channels,
                 ja_set_error_msg("jack_client_open failure");
                 return 1;
         }
+        ja_status = JA_INITIALIZING;
         ja_frames = jack_get_buffer_size(client);
         ja_sample_rate = (SAMPLE) jack_get_sample_rate(client);
         ja_sample_duration = 1.0 / ja_sample_rate;

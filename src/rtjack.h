@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 Tito Latini
+ * Copyright (c) 2013-2020 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,7 +30,8 @@
 enum {
         JA_RUNNING,
         JA_STOPPED,
-        JA_SHUTDOWN
+        JA_SHUTDOWN,
+        JA_INITIALIZING
 };
 
 #define SBCL_SIG_STOP_FOR_GC  SIGUSR2
