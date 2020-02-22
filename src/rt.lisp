@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -133,18 +133,119 @@
                (dochannels (,chan *number-of-output-bus-channels*)
                  (update-peak-values ,chan)))))))
 
-(defvar rt-state 1)
-(declaim (type bit rt-state))
+(defun maybe-porttime-start ()
+  (when (and incudine.config::*enable-portmidi-output-sample-offset*
+             (funcall (find-symbol "STARTED" "PORTTIME")))
+    (setf (smp-ref *portmidi-time* 0)
+          (sample (the (unsigned-byte 32)
+                       (funcall (find-symbol "TIME" "PORTTIME")))))
+    t))
+
+(defun rt-audio-cycle (frames block-size &key recover-p)
+  (declare (type non-negative-fixnum frames block-size))
+  (let ((pt-started-p (unless recover-p (maybe-porttime-start))))
+    #+jack-midi
+    (if recover-p
+        (jackmidi::read-cached-inputs frames)
+        (progn
+          (jackmidi::process frames)
+          (jackmidi::write-cached-outputs)))
+    (fifo-perform-functions *to-engine-fifo*)
+    (free-dirty-nodes)
+    (do ((i 0 (+ i block-size)))
+        ((>= i frames))
+      (declare (type non-negative-fixnum i))
+      (fifo-perform-functions *fast-to-engine-fifo*)
+      (incudine.edf:sched-loop)
+      (compute-tick)
+      (inc-io-pointers block-size)
+      (when (and pt-started-p (not recover-p))
+        (inc-portmidi-time incudine.util::*sample-duration-msec*))
+      (incf-sample-counter block-size))))
+
+;;; Continue the audio cycle started from C-thread during gc.
+(defun continue-last-audio-cycle (frames block-size)
+  (reset-io-pointers)
+  (incudine.external::rt-continue-cycle-begin frames)
+  (rt-audio-cycle frames block-size)
+  (rt-cycle-end frames))
+
+;;; Recovery of audio cycles suspended during gc by processing the
+;;; cached audio and MIDI inputs (audio outputs are ignored).
+(defun recover-suspended-audio-cycles (frames block-size)
+  (declare (type non-negative-fixnum frames block-size))
+  (maybe-porttime-start)
+  (loop for i of-type fixnum from 0
+        while (incudine.external::rt-cached-inputs-p) do
+          (reset-io-pointers)
+          (incudine.external::rt-inputs-from-cache-begin)
+          (rt-audio-cycle frames block-size :recover-p t)
+          (incudine.external::rt-inputs-from-cache-end)
+        finally (nrt-msg debug "~D suspended audio cycles" i)))
+
+(defvar *recover-suspended-audio-cycles-p*
+  #+jack-audio
+  (incudine.external::set-foreign-rt-thread-callback
+    (and (boundp 'incudine.config::*recover-suspended-audio-cycles-p*)
+         incudine.config::*recover-suspended-audio-cycles-p*))
+  #-jack-audio
+  nil)
+(declaim (type boolean *recover-suspended-audio-cycles-p*))
+
+(defun recover-suspended-audio-cycles-p ()
+  *recover-suspended-audio-cycles-p*)
+
+#+jack-audio
+(defun set-recover-suspended-audio-cycles-p (value)
+  (declare (type boolean value))
+  (unless (eq (rt-status) :stopped)
+    (rt-stop)
+    (msg warn "rt-thread stopped."))
+  (unless (eq *recover-suspended-audio-cycles-p* value)
+    (setf *recover-suspended-audio-cycles-p* value))
+  (incudine.external::set-foreign-rt-thread-callback value))
+
+#-jack-audio
+(defun set-recover-suspended-audio-cycles-p (value)
+  (declare (ignore value))
+  #+portaudio
+  (msg warn
+    "Currently, RECOVER-SUSPENDED-AUDIO-CYCLES-P for PortAudio doesn't work.")
+  nil)
+
+(defsetf recover-suspended-audio-cycles-p set-recover-suspended-audio-cycles-p)
+
+(defglobal rt-state nil)
+(declaim (type boolean rt-state))
 
 #-dummy-audio
-(defmacro with-restart-point ((label) &body body)
+(defmacro with-restart-point ((label frames block-size) &body body)
   `(tagbody
-    ;; [SBCL] Restart from here after the stop caused by the gc
+    ;; Lisp restarts from here after the stop caused by the gc.
     ,label
-      (when (zerop rt-state)
-        ;; Transfer the control of the client from c to lisp
+      (when rt-state
+        (when (recover-suspended-audio-cycles-p)
+          (recover-suspended-audio-cycles ,frames ,block-size))
         (rt-set-busy-state nil)
-        (rt-condition-wait))
+        (rt-condition-wait)
+        (when (recover-suspended-audio-cycles-p)
+          (incudine.util::without-gcing
+            (when (incudine.external::rt-cached-inputs-p)
+              (cond ((incudine.external::rt-last-cycle-p)
+                     ;; Continue the audio cycle started from C-thread.
+                     (continue-last-audio-cycle ,frames ,block-size)
+                     (incudine.external::rt-clear-cached-inputs)
+                     #+jack-midi (jackmidi::clear-cached-events)
+                     ;; Another gc here should be rare.
+                     (incudine.util::with-stop-for-gc-pending
+                       (rt-transfer-to-c-thread)
+                       (go ,label)))
+                    (t
+                     ;; There are other suspended cycles to recover.
+                     ;; The current cycle continues from C-thread.
+                     (rt-transfer-to-c-thread)
+                     (go ,label))))
+            nil)))
       ,@body))
 
 #-dummy-audio
@@ -152,7 +253,9 @@
   (declare (ignorable frames-var))
   `(incudine.util::without-gcing
      (setf ,frames-var (rt-cycle-begin))
-     (when sb-kernel:*stop-for-gc-pending*
+     (incudine.util::with-stop-for-gc-pending
+       (when (recover-suspended-audio-cycles-p)
+         (incudine.external::rt-cache-inputs))
        (setf ,frames-var 0))
      ,@body
      (incudine.util::without-float-overflow-trap
@@ -196,7 +299,7 @@
        (setf *block-size* ,block-size)
        (setf *block-input-samples* (* *block-size* *number-of-input-bus-channels*))
        (setf *block-output-samples* (* *block-size* *number-of-output-bus-channels*))
-       (setf rt-state 0)
+       (setf rt-state t)
        (reset-sample-counter)
        (let ((,frames ,frames-per-buffer)
              ,@(when incudine.config::*enable-portmidi-output-sample-offset*
@@ -206,8 +309,8 @@
                   ,@(when incudine.config::*enable-portmidi-output-sample-offset*
                       `((type boolean ,pt-started)
                         (type sample ,pm-time-delta))))
-         (with-restart-point (,reset)
-           (loop while (zerop rt-state) do
+         (with-restart-point (,reset ,frames-per-buffer ,block-size)
+           (loop while rt-state do
                 (reset-io-pointers)
                 (with-rt-cycle (,reset ,frames)
                   ,@(when incudine.config::*enable-portmidi-output-sample-offset*
@@ -425,7 +528,7 @@ the thread."
              (let ((thread *rt-thread*))
                (unset-rt-cpu)
                (setf *rt-thread* nil)
-               (setf rt-state 1)
+               (setf rt-state nil)
                (sleep .05)
                (loop while (bt:thread-alive-p thread))
                (msg debug "realtime thread stopped")))

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2016 Tito Latini
+;;; Copyright (c) 2013-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -38,6 +38,10 @@
 
 (declaim (inline rt-cycle-begin))
 (cffi:defcfun ("ja_cycle_begin" rt-cycle-begin) :uint32)
+
+(declaim (inline rt-continue-cycle-begin))
+(cffi:defcfun ("ja_continue_cycle_begin" rt-continue-cycle-begin) :void
+  (frames :uint32))
 
 (declaim (inline rt-cycle-end))
 (cffi:defcfun ("ja_cycle_end" rt-cycle-end) :void
@@ -82,6 +86,21 @@ the last xrun. If RESET-P is non-NIL, set the number of JACK xruns to zero."
 (declaim (inline rt-set-busy-state))
 (cffi:defcfun ("ja_set_lisp_busy_state" rt-set-busy-state) :void
   (status :boolean))
+
+(cffi:defcfun ("ja_set_thread_callback" set-foreign-rt-thread-callback) :boolean
+  (cached-inputs-p :boolean))
+
+(cffi:defcfun ("ja_clear_cached_inputs" rt-clear-cached-inputs) :void)
+
+(cffi:defcfun ("ja_cache_inputs" rt-cache-inputs) :boolean)
+
+(cffi:defcfun ("ja_has_cached_inputs" rt-cached-inputs-p) :boolean)
+
+(cffi:defcfun ("ja_is_last_cycle" rt-last-cycle-p) :boolean)
+
+(cffi:defcfun ("ja_inputs_from_cache_begin" rt-inputs-from-cache-begin) :boolean)
+
+(cffi:defcfun ("ja_inputs_from_cache_end" rt-inputs-from-cache-end) :boolean)
 
 (cffi:defcfun ("ja_get_error_msg" rt-get-error-msg) :string)
 

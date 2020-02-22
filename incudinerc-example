@@ -66,6 +66,16 @@
 ;; Used only with PortAudio.
 (setq *frames-per-buffer* 512)
 
+;; Recovery of audio cycles suspended during gc by processing the
+;; cached audio inputs and MIDI events (audio outputs are ignored).
+;; For example, this setting allows HD recording without losing audio
+;; inputs during gc if there aren't xruns.
+;; Note: if *RECOVER-SUSPENDED-AUDIO-CYCLES-P* is NIL (default), the
+;; time is not incremented after gc, therefore the old scheduled
+;; functions are delayed by the garbage collection time.
+;; Note: currently this setting works with JACK Audio and JACK MIDI.
+;(setq *recover-suspended-audio-cycles-p* t)
+
 ;; PORTAUDIO-DEVICE-INFO prints the list of the devices (-1 = default).
 ;(setq *portaudio-input-device* -1)
 ;(setq *portaudio-output-device* -1)

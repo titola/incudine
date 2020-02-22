@@ -68,6 +68,16 @@
 (cffi:defcfun ("pa_set_lisp_busy_state" rt-set-busy-state) :void
   (status :boolean))
 
+;;; TODO
+(defun rt-continue-cycle-begin (frames) frames nil)
+(defun set-foreign-rt-thread-callback (cached-inputs-p) cached-inputs-p nil)
+(defun rt-clear-cached-inputs () nil)
+(defun rt-cache-inputs () nil)
+(defun rt-cached-inputs-p () nil)
+(defun rt-last-cycle-p () nil)
+(defun rt-inputs-from-cache-begin () nil)
+(defun rt-inputs-from-cache-end () nil)
+
 (cffi:defcfun ("pa_get_error_msg" rt-get-error-msg) :string)
 
 (declaim (inline rt-buffer-size))

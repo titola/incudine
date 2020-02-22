@@ -1,4 +1,4 @@
-;;; Copyright (c) 2016-2019 Tito Latini
+;;; Copyright (c) 2016-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -175,7 +175,14 @@
 
 (declaim (inline process))
 (cffi:defcfun ("jm_process" process) :void
-  (frames :unsigned-int))
+  (frames :uint32))
+
+(cffi:defcfun ("jm_clear_cached_events" clear-cached-events) :void)
+
+(cffi:defcfun ("jm_read_cached_midi_inputs" read-cached-inputs) :int
+  (frames :uint32))
+
+(cffi:defcfun ("jm_write_cached_midi_outputs" write-cached-outputs) :int)
 
 (cffi:defcfun ("jm_alloc_data" new-stream-pointer) :pointer
   (input-p :boolean))

@@ -423,7 +423,7 @@
    #:*rt-thread-start-hook* #:*rt-thread-exit-hook*
    #:rt-start #:rt-stop #:rt-status #:rt-cpu #:rt-buffer-size #:rt-sample-rate
    #:rt-xruns #:rt-loop-callback #:set-rt-block-size #:block-size
-   #:rt-time-offset #:rt-silent-errors
+   #:rt-time-offset #:rt-silent-errors #:recover-suspended-audio-cycles-p
    #:at #:aat #:unschedule-if #:with-schedule #:flush-pending #:flush-all-fifos
    #:tempo #:*tempo* #:make-tempo #:tempo-p #:bpm #:bps #:spb #:now #:tempo-sync
    #:with-local-time

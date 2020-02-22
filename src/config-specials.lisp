@@ -39,6 +39,7 @@
   *portaudio-input-device*
   *portaudio-output-device*
   *receiver-default-priority*
+  *recover-suspended-audio-cycles-p*
   *rt-block-size*
   *rt-cpu*
   *rt-edf-heap-size*

@@ -22,6 +22,7 @@
 
 #include <signal.h>
 #include <pthread.h>
+#include <time.h>
 #include <jack/jack.h>
 #include <jack/midiport.h>
 #include <jack/ringbuffer.h>
@@ -35,10 +36,18 @@ enum {
 };
 
 #define SBCL_SIG_STOP_FOR_GC  SIGUSR2
+#define MAX_GC_TIME_SEC  0.33
 
 #define JA_ERROR_MSG_MAX_LENGTH  256
 #define JA_PORT_NAME_MAX_LENGTH  16
 #define JA_SAMPLE_SIZE  (sizeof(jack_default_audio_sample_t))
+#define JA_RESYNC_TIME_WINDOW_NSEC  300000
+#define JA_MAX_RECOVERED_CYCLES  32
+
+#define JA_SUSPENDED_CYCLE      0
+#define JA_CONTINUE_LAST_CYCLE  1
+
+#define JA_THREAD_CALLBACK_DEFAULT  0
 
 struct ja_xrun {
         unsigned int count;
@@ -54,9 +63,11 @@ static size_t ja_buffer_bytes;
 static int ja_status = JA_STOPPED;
 static int ja_lisp_busy;
 static SAMPLE *lisp_input, *lisp_output;
-static jack_default_audio_sample_t **ja_inputs, **ja_outputs;
+static jack_default_audio_sample_t **ja_inputs, **ja_outputs, *ja_tmp_inputs;
 static jack_port_t **input_ports, **output_ports;
 static char **input_port_names, **output_port_names;
+static jack_ringbuffer_t **ja_inputs_cache = NULL;
+static JackThreadCallback ja_thread_callback = NULL;
 static pthread_mutex_t ja_lisp_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  ja_lisp_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t ja_c_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -95,22 +106,44 @@ static sigset_t sig_stop_for_gc;
                 pthread_mutex_unlock(l);                \
         } while (0)
 
+/* Continue the audio cycle in Lisp after gc if it is the last cycle. */
+#define MAYBE_CONTINUE_IN_LISP(busy, label)                                   \
+        do {                                                                  \
+                if ((!(busy)) &&                                              \
+                    (!(ja_has_cached_inputs()))) {                            \
+                        ja_increment_cycle_counter(JA_CONTINUE_LAST_CYCLE);   \
+                        goto label;                                           \
+                }                                                             \
+        } while (0)
+
 static void ja_set_error_msg(const char *msg);
 static void ja_error(const char *msg);
 static void ja_default_error_callback(const char *msg);
 static void ja_silent_error_callback(const char *msg);
+static int ja_alloc_input_cache(void);
+static void ja_free_input_cache(void);
+static void ja_increment_cycle_counter(char type);
 static int ja_register_ports(void);
 static int ja_connect_client(void);
 static void *ja_process_thread(void *arg);
+static void* ja_process_thread_with_cached_inputs(void *arg);
 static int ja_xrun_cb(void *arg);
 static void ja_shutdown(void *arg);
 static void ja_terminate(void *arg);
+static unsigned int ja_next_pow_of_two(unsigned int n);
 
+int ja_cache_inputs(void);
+int ja_has_cached_inputs(void);
+int ja_is_last_cycle(void);
+void ja_clear_cached_inputs(void);
+int ja_inputs_from_cache_begin(void);
+int ja_inputs_from_cache_end(void);
 void ja_silent_errors(int silent);
 char *ja_get_error_msg(void);
 void ja_condition_wait(void);
 void ja_set_lisp_busy_state(int status);
 void ja_transfer_to_c_thread(void);
+int ja_set_thread_callback(int has_cached_inputs);
 int ja_get_buffer_size(void);
 SAMPLE ja_get_sample_rate(void);
 struct ja_xrun *ja_get_xruns(void);
@@ -122,6 +155,7 @@ int ja_start(void);
 int ja_stop(void);
 void ja_set_lisp_io(SAMPLE *input, SAMPLE *output);
 jack_nframes_t ja_cycle_begin(void);
+void ja_continue_cycle_begin(jack_nframes_t frames);
 void ja_cycle_end(jack_nframes_t frames);
 SAMPLE ja_get_cycle_start_time(void);
 double ja_get_time_offset_seconds(void);
@@ -134,6 +168,7 @@ jack_client_t *ja_client(void);
 #define JM_NUMBER_OF_PORTS_INCREMENT  8
 #define JM_RINGBUFFER_SIZE  65536
 #define JM_HEADER_SIZE  (sizeof(double) + sizeof(uint32_t))
+#define JM_CACHED_INPUTS  1
 
 #define JM_MEMORY_ERROR    -1
 #define JM_WRITE_ERROR     -2
@@ -143,12 +178,14 @@ struct jm_data {
         jack_port_t *port;
         void *port_buffer;
         jack_ringbuffer_t *rb;
+        jack_ringbuffer_t *cache;
 };
 
 struct jm_input_data {
         jack_port_t *port;
         void *port_buffer;
         jack_ringbuffer_t *rb;
+        jack_ringbuffer_t *cache;
         int to_signal;
         pthread_mutex_t lock;
         pthread_cond_t cond;
@@ -163,6 +200,14 @@ struct jm_data_vec {
 static struct jm_data **jm_inputs, **jm_outputs;
 static struct jm_data_vec jm_invec_tmp, jm_outvec_tmp;
 static char *jm_pad_buffer;
+
+static void jm_process2(jack_nframes_t frames, int has_cached_inputs,
+                        unsigned int time_offset);
+static unsigned int jm_next_midi_event_position(char *buffer,
+                                                unsigned int bufsize);
+static int jm_cached_midi_inputs_read_space(jack_ringbuffer_t *rb,
+                                            jack_nframes_t frames);
+static int jm_write_cached_midi_output(struct jm_data *p);
 
 jack_port_t *jm_port_register(const char *port_name, int is_input);
 struct jm_data *jm_alloc_data(int is_input);
@@ -179,5 +224,8 @@ int jm_read(struct jm_input_data *p, char *buffer, unsigned int bufsize);
 void jm_flush_pending(struct jm_data *p);
 void jm_waiting_for(struct jm_input_data *p);
 void jm_force_cond_signal(struct jm_input_data *p);
+void jm_clear_cached_events(void);
+int jm_read_cached_midi_inputs(jack_nframes_t frames);
+int jm_write_cached_midi_outputs(void);
 
 #endif  /* __RTJACK_H */
