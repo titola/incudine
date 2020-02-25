@@ -64,7 +64,8 @@
     :components
     ((:file "packages")
      (:file "conditions" :depends-on ("packages"))
-     (:file "compile-clib" :depends-on ("conditions"))
+     (:file "foreign-barrier" :depends-on ("packages"))
+     (:file "compile-clib" :depends-on ("conditions" "foreign-barrier"))
      (:module "clib" :depends-on ("compile-clib")
       :pathname ""
       :components ((:static-file "common.h") (:static-file "util.c")
@@ -99,6 +100,8 @@
                         (setf *incudine-force-compile-p* t)
                         (symbol-call :incudine.config '#:compile-c-library))
                        (t
+                        (symbol-call :incudine.config
+                                     '#:ensure-foreign-barrier-header-file)
                         (symbol-call :incudine.config '#:update-features)))
                  (prog1 (symbol-call :cffi '#:load-foreign-library
                                      (output-file 'compile-op c))

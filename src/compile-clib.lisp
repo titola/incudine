@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014-2018 Tito Latini
+;;; Copyright (c) 2014-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -210,7 +210,9 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
        (cons *audio-driver* drv)
        (cons :jack-midi (and *enable-jack-midi* :jack))
        (cons :lisp-features
-             `((incudine-fifo-circular-list
+             `((foreign-barrier-architecture
+                ,(foreign-barrier-architecture))
+               (incudine-fifo-circular-list
                 ,(uiop:featurep :incudine-fifo-circular-list))
                (portmidi-output-sample-offset
                 ,incudine.config::*enable-portmidi-output-sample-offset*))))))
@@ -302,6 +304,13 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
        (princ "INFO: " *error-output*)
        (format *error-output* ,datum ,@arguments)
        (terpri *error-output*)))
+
+  (defun ensure-foreign-barrier-header-file (&optional force-p)
+    (when (or force-p
+              (null (probe-file *foreign-barrier-header-pathname*))
+              (null (probe-file *cache-pathname*))
+              (changed-lisp-feature 'foreign-barrier-architecture))
+      (write-foreign-barrier-header-file)))
 
   (defun get-audio-driver ()
     (flet ((no-jack-or-pa ()
@@ -434,6 +443,7 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
                     (and force-p (mapcar #'car *c-source-deps-alist*)))))
       (when objs
         (check-c-compiler)
+        (ensure-foreign-barrier-header-file t)
         (flet ((to-compile-p (key)
                  (or (member key objs) (missing-c-object-p key))))
           (let ((ofiles nil)
