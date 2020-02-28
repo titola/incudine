@@ -69,6 +69,7 @@
      (:module "clib" :depends-on ("compile-clib")
       :pathname ""
       :components ((:static-file "common.h") (:static-file "util.c")
+                   (:static-file "ringbuffer.c") (:static-file "ringbuffer.h")
                    (:static-file "mouse.c") (:static-file "mouse.h")
                    (:static-file "nothing.c")
                    (:static-file "rtjack.c") (:static-file "rtjack.h")

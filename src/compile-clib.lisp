@@ -159,6 +159,7 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
                       (:portaudio "rtpa.c" "rtpa.h")
                       (:mouse "mouse.c" "mouse.h")
                       (:osc "network/osc.c" "network/osc.h")
+                      (:ringbuffer "ringbuffer.c" "ringbuffer.h")
                       (:util "util.c"))))))
 
   (defvar *c-source-pathnames*
@@ -469,6 +470,7 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
             ;; Open Sound Control
             (add-c-object-to-link :osc ofiles)
             ;; Utilities
+            (add-c-object-to-link :ringbuffer ofiles)
             (add-c-object-to-link :util ofiles)
             ;; TLSF Memory Storage allocator
             (add-c-object-to-link :tlsf ofiles nil
