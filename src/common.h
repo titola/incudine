@@ -13,4 +13,7 @@
 #define INCUDINE_SCHED_POLICY  SCHED_RR
 #endif
 
+#define FALSE  0
+#define TRUE   1
+
 #endif  /* __SAMPLE_DEF_H */

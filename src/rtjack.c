@@ -48,23 +48,23 @@ static int ja_alloc_input_cache(void)
         unsigned int i, size;
 
         /* Cached inputs + cycle counter. */
-        ja_inputs_cache = (jack_ringbuffer_t **)
-                malloc((ja_in_channels + 1) * sizeof(jack_ringbuffer_t*));
+        ja_inputs_cache = (struct incudine_ringbuffer **)
+                malloc((ja_in_channels + 1)
+                       * sizeof(struct incudine_ringbuffer*));
         RETURN_IF_NULLPTR(ja_inputs_cache, "malloc failure");
 
-        size = ja_next_pow_of_two(
-                (unsigned int)
-                  (ja_sample_rate * MAX_GC_TIME_SEC * JA_SAMPLE_SIZE));
+        size = (unsigned int)
+                 (ja_sample_rate * MAX_GC_TIME_SEC * JA_SAMPLE_SIZE);
         for (i = 0; i < ja_in_channels; i++) {
-                ja_inputs_cache[i] = jack_ringbuffer_create(size);
+                ja_inputs_cache[i] = incudine_ringbuffer_create(size);
                 RETURN_IF_NULLPTR(ja_inputs_cache[i],
-                                  "jack_ringbuffer_create() failure");
+                                  "incudine_ringbuffer_create() failure");
         }
         /* Cycle counter: 1 byte = 1 cycle. */
         ja_inputs_cache[ja_in_channels] =
-                jack_ringbuffer_create(JA_MAX_RECOVERED_CYCLES);
+                incudine_ringbuffer_create(JA_MAX_RECOVERED_CYCLES);
         RETURN_IF_NULLPTR(ja_inputs_cache[ja_in_channels],
-                          "jack_ringbuffer_create() failure");
+                          "incudine_ringbuffer_create() failure");
         return 0;
 }
 
@@ -75,7 +75,7 @@ static void ja_free_input_cache(void)
         if (ja_inputs_cache != NULL) {
                 for (i = 0; i <= ja_in_channels; i++) {
                         if (ja_inputs_cache[i] != NULL)
-                                jack_ringbuffer_free(ja_inputs_cache[i]);
+                                incudine_ringbuffer_free(ja_inputs_cache[i]);
                 }
                 free(ja_inputs_cache);
                 ja_inputs_cache = NULL;
@@ -89,7 +89,8 @@ static void ja_increment_cycle_counter(char type)
                  * The buffer value informs if the cycle is the last.
                  * type is JA_SUSPENDED_CYCLE or JA_CONTINUE_LAST_CYCLE.
                  */
-                jack_ringbuffer_write(ja_inputs_cache[ja_in_channels], &type, 1);
+                incudine_ringbuffer_write(
+                        ja_inputs_cache[ja_in_channels], &type, 1);
         }
 }
 
@@ -99,7 +100,7 @@ int ja_is_last_cycle(void)
                 int n;
                 char c;
 
-                n = jack_ringbuffer_peek(
+                n = incudine_ringbuffer_peek(
                         ja_inputs_cache[ja_in_channels], &c, 1);
                 if ((n == 1) && (c == JA_CONTINUE_LAST_CYCLE))
                         return 1;
@@ -114,9 +115,9 @@ int ja_cache_inputs(void)
         res = 0;
         if (ja_inputs_cache != NULL) {
                 for (i = 0; i < ja_in_channels; i++) {
-                        n = jack_ringbuffer_write(ja_inputs_cache[i],
-                                                  (const char *) ja_inputs[i],
-                                                  ja_buffer_bytes);
+                        n = incudine_ringbuffer_write(ja_inputs_cache[i],
+                                                      (char *) ja_inputs[i],
+                                                      ja_buffer_bytes);
                         res += (n > 0);
                 }
                 res = (res == ja_in_channels);
@@ -127,20 +128,11 @@ int ja_cache_inputs(void)
 
 int ja_has_cached_inputs(void)
 {
-        int n = 0;
+        int n = 1;
 
         if (ja_inputs_cache != NULL)
-                n = jack_ringbuffer_read_space(ja_inputs_cache[ja_in_channels]);
-        return (n > 0);
-}
-
-/* jack_ringbuffer_reset() is not thread safe. */
-static void ja_reset_ringbuffer(jack_ringbuffer_t *rb)
-{
-        int n;
-
-        n = jack_ringbuffer_read_space(rb);
-        if (n > 0) jack_ringbuffer_read_advance(rb, n);
+                n = incudine_ringbuffer_empty(ja_inputs_cache[ja_in_channels]);
+        return (n == 0);
 }
 
 void ja_clear_cached_inputs(void)
@@ -149,7 +141,7 @@ void ja_clear_cached_inputs(void)
 
         if (ja_inputs_cache != NULL) {
                 for (i = 0; i <= ja_in_channels; i++) {
-                        ja_reset_ringbuffer(ja_inputs_cache[i]);
+                        incudine_ringbuffer_reset(ja_inputs_cache[i]);
                 }
         }
 }
@@ -168,9 +160,9 @@ int ja_inputs_from_cache_begin(void)
                         SAMPLE *tmp;
                         int j;
 
-                        n = jack_ringbuffer_read(ja_inputs_cache[i],
-                                                 (char *) ja_tmp_inputs,
-                                                 ja_buffer_bytes);
+                        n = incudine_ringbuffer_read(ja_inputs_cache[i],
+                                                     (char *) ja_tmp_inputs,
+                                                     ja_buffer_bytes);
                         res |= (n > 0);
                         tmp = lisp_input + i;
                         for (j = 0; j < ja_frames; j++) {
@@ -189,7 +181,7 @@ int ja_inputs_from_cache_end(void)
 
         if (ja_inputs_cache != NULL) {
                 char c;
-                res = jack_ringbuffer_read(
+                res = incudine_ringbuffer_read(
                         ja_inputs_cache[ja_in_channels], &c, 1);
         }
         return res;
@@ -287,7 +279,11 @@ static void* ja_process_thread(void *arg)
         (void) arg;
 
         while (ja_status == JA_RUNNING) {
-                if (ja_lisp_busy) {
+                int lisp_busy;
+
+                lisp_busy = ja_lisp_busy;
+                read_memory_barrier();
+                if (lisp_busy) {
                         int i;
                         jack_nframes_t frames = jack_cycle_wait(client);
 
@@ -333,7 +329,11 @@ static void* ja_process_thread_with_cached_inputs(void *arg)
         (void) arg;
 
         while (ja_status == JA_RUNNING) {
-                if (ja_lisp_busy) {
+                int lisp_busy;
+
+                lisp_busy = ja_lisp_busy;
+                read_memory_barrier();
+                if (lisp_busy) {
                         int i;
                         jack_nframes_t frames;
 
@@ -374,9 +374,9 @@ static void* ja_process_thread_with_cached_inputs(void *arg)
                                                 jack_port_get_buffer(
                                                         input_ports[i],
                                                         ja_frames);
-                                        jack_ringbuffer_write(
+                                        incudine_ringbuffer_write(
                                                 ja_inputs_cache[i],
-                                                (const char *) ja_inputs[i],
+                                                (char *) ja_inputs[i],
                                                 ja_buffer_bytes);
                                 }
                         }
@@ -492,13 +492,15 @@ void ja_condition_wait(void)
 /* Lisp rt thread is busy ? */
 void ja_set_lisp_busy_state(int status)
 {
+        write_memory_barrier();
         ja_lisp_busy = status;
 }
 
 /* Transfer the control of the client to C realtime thread */
 void ja_transfer_to_c_thread(void)
 {
-        ja_lisp_busy = 1;
+        write_memory_barrier();
+        ja_lisp_busy = TRUE;
         __ja_condition_signal(&ja_c_cond, &ja_c_lock);
 }
 
@@ -610,7 +612,7 @@ int ja_initialize(unsigned int input_channels, unsigned int output_channels,
         sigemptyset(&sig_stop_for_gc);
         sigaddset(&sig_stop_for_gc, SBCL_SIG_STOP_FOR_GC);
 
-        ja_lisp_busy = 1;
+        ja_lisp_busy = TRUE;
 
         return 0;
 }
@@ -775,11 +777,11 @@ struct jm_data *jm_alloc_data(int is_input)
         p = (struct jm_data *) malloc(size);
         if (p != NULL) {
                 memset(p, 0, size);
-                p->rb = jack_ringbuffer_create(JM_RINGBUFFER_SIZE);
+                p->rb = incudine_ringbuffer_create(JM_RINGBUFFER_SIZE);
                 if (p->rb != NULL) {
-                        p->cache = jack_ringbuffer_create(JM_RINGBUFFER_SIZE);
+                        p->cache = incudine_ringbuffer_create(JM_RINGBUFFER_SIZE);
                         if (p->cache == NULL) {
-                                jack_ringbuffer_free(p->rb);
+                                incudine_ringbuffer_free(p->rb);
                                 p->rb = NULL;
                         }
                 }
@@ -797,8 +799,8 @@ struct jm_data *jm_alloc_data(int is_input)
                         }
                         if ((pthread_mutex_init(&q->lock, NULL) != 0) ||
                             (pthread_cond_init(&q->cond, NULL) != 0)) {
-                                jack_ringbuffer_free(q->rb);
-                                jack_ringbuffer_free(q->cache);
+                                incudine_ringbuffer_free(q->rb);
+                                incudine_ringbuffer_free(q->cache);
                                 free(q);
                                 return NULL;
                         }
@@ -811,11 +813,11 @@ void jm_free_data(struct jm_data *p, int is_input)
 {
         if (p != NULL) {
                 if (p->rb != NULL) {
-                        jack_ringbuffer_free(p->rb);
+                        incudine_ringbuffer_free(p->rb);
                         p->rb = NULL;
                 }
                 if (p->cache != NULL) {
-                        jack_ringbuffer_free(p->cache);
+                        incudine_ringbuffer_free(p->cache);
                         p->cache = NULL;
                 }
                 if (is_input == 0) {
@@ -931,7 +933,7 @@ static void jm_process2(jack_nframes_t frames, int has_cached_inputs,
                         unsigned int time_offset)
 {
         struct jm_data **in, **out;
-        jack_ringbuffer_t *rb;
+        struct incudine_ringbuffer *rb;
 
         for (in = jm_inputs; *in != NULL; in++) {
                 struct jm_input_data *p;
@@ -951,7 +953,7 @@ static void jm_process2(jack_nframes_t frames, int has_cached_inputs,
                                 continue;
                         size = ev.size + JM_HEADER_SIZE;
                         rb = (has_cached_inputs ? p->cache : p->rb);
-                        if (jack_ringbuffer_write_space(rb) >= size) {
+                        if (incudine_ringbuffer_write_space(rb) >= size) {
                                 double *time;
                                 uint32_t *len;
                                 time = (double *) jm_pad_buffer;
@@ -961,7 +963,7 @@ static void jm_process2(jack_nframes_t frames, int has_cached_inputs,
                                 len = (uint32_t *) (time + 1);
                                 *len = ev.size;
                                 memcpy(len + 1, ev.buffer, ev.size);
-                                jack_ringbuffer_write(rb, jm_pad_buffer, size);
+                                incudine_ringbuffer_write(rb, jm_pad_buffer, size);
                         }
                 }
                 if (n > 0 || p->to_signal) {
@@ -998,10 +1000,16 @@ int jm_write_short(struct jm_data *p, uint32_t msg, unsigned int data_size)
         if (data_size > 4)
                 return JM_DATASIZE_ERROR;
 
+        /*
+         * The variable ja_lisp_busy is:
+         *   - always FALSE from Lisp-thread
+         *   - TRUE from C-thread if the audio cycle is not the last
+         *   - TRUE or FALSE from C-thread if the audio cycle is the last
+         */
         if (ja_lisp_busy) {
                 int n;
                 /* Events cached during recovery of suspended cycles. */
-                n = jack_ringbuffer_write(p->cache, (char *) &msg, data_size);
+                n = incudine_ringbuffer_write(p->cache, (char *) &msg, data_size);
                 if (n == data_size)
                         return 0;
         } else {
@@ -1025,10 +1033,16 @@ int jm_write(struct jm_data *p, char *buffer, unsigned int data_size)
         if (p == NULL || p->port_buffer == NULL)
                 return JM_WRITE_ERROR;
 
+        /*
+         * The variable ja_lisp_busy is:
+         *   - always FALSE from Lisp-thread
+         *   - TRUE from C-thread if the audio cycle is not the last
+         *   - TRUE or FALSE from C-thread if the audio cycle is the last
+         */
         if (ja_lisp_busy) {
                 int n;
                 /* Events cached during recovery of suspended cycles. */
-                n = jack_ringbuffer_write(p->cache, buffer, data_size);
+                n = incudine_ringbuffer_write(p->cache, buffer, data_size);
                 if (n == data_size)
                         return 0;
         } else {
@@ -1057,11 +1071,11 @@ int jm_read(struct jm_input_data *p, char *buffer, unsigned int bufsize)
         b = buffer;
         count = 0;
         remain = bufsize;
-        n = jack_ringbuffer_read_space(p->rb);
+        n = incudine_ringbuffer_read_space(p->rb);
         if (n > 0)
                 memset(b, 0, bufsize);
         while (n > 0 && remain > JM_HEADER_SIZE) {
-                ret = jack_ringbuffer_peek(p->rb, (char *) b, JM_HEADER_SIZE);
+                ret = incudine_ringbuffer_peek(p->rb, (char *) b, JM_HEADER_SIZE);
                 /* Message length. */
                 len = ((uint32_t *) b)[2];
                 if (ret != JM_HEADER_SIZE || len == 0) {
@@ -1073,31 +1087,27 @@ int jm_read(struct jm_input_data *p, char *buffer, unsigned int bufsize)
                 pad = ((int) (-len) & 3);
                 ev_size = len + JM_HEADER_SIZE;
                 if (ev_size < remain) {
-                        ret = jack_ringbuffer_read(p->rb, b, ev_size);
+                        ret = incudine_ringbuffer_read(p->rb, b, ev_size);
                         ev_size += pad;
                         b += ev_size;
                         remain -= ev_size;
                         count++;
                 } else if (ev_size > bufsize) {
                         /* Ignore the event. */
-                        jack_ringbuffer_read_advance(p->rb, ev_size);
+                        incudine_ringbuffer_read_advance(p->rb, ev_size);
                 } else {
                         /* The buffer is full. */
                         break;
                 }
-                n = jack_ringbuffer_read_space(p->rb);
+                n = incudine_ringbuffer_read_space(p->rb);
         }
         return count;
 }
 
 void jm_flush_pending(struct jm_data *p)
 {
-        if (p != NULL) {
-                size_t n;
-                n = jack_ringbuffer_read_space(p->rb);
-                if (n > 0)
-                        jack_ringbuffer_read_advance(p->rb, n);
-        }
+        if (p != NULL)
+                incudine_ringbuffer_reset(p->rb);
 }
 
 void jm_waiting_for(struct jm_input_data *p)
@@ -1126,11 +1136,11 @@ void jm_clear_cached_events(void)
 
         for (p = jm_inputs; *p != NULL; p++) {
                 if ((*p)->cache != NULL)
-                        ja_reset_ringbuffer((*p)->cache);
+                        incudine_ringbuffer_reset((*p)->cache);
         }
         for (p = jm_outputs; *p != NULL; p++) {
                 if ((*p)->cache != NULL)
-                        ja_reset_ringbuffer((*p)->cache);
+                        incudine_ringbuffer_reset((*p)->cache);
         }
 }
 
@@ -1139,14 +1149,14 @@ static int jm_write_cached_midi_output(struct jm_data *p)
         jack_midi_data_t *jbuf;
         unsigned int data_size;
 
-        data_size = jack_ringbuffer_read_space(p->cache);
+        data_size = incudine_ringbuffer_read_space(p->cache);
         if (data_size == 0)
                 return 0;
         jbuf = jack_midi_event_reserve(p->port_buffer, 0, data_size);
         if (jbuf != NULL) {
                 int n;
 
-                n = jack_ringbuffer_read(p->cache, (char *) jbuf, data_size);
+                n = incudine_ringbuffer_read(p->cache, (char *) jbuf, data_size);
                 if (n == data_size)
                         return 0;
         }
@@ -1180,16 +1190,16 @@ static unsigned int jm_next_midi_event_position(char *buffer,
         return JM_HEADER_SIZE + len;
 }
 
-static int jm_cached_midi_inputs_read_space(jack_ringbuffer_t *rb,
+static int jm_cached_midi_inputs_read_space(struct incudine_ringbuffer *rb,
                                             jack_nframes_t frames)
 {
         char *b;
         int n, size, bufsize;
 
-        n = jack_ringbuffer_read_space(rb);
+        n = incudine_ringbuffer_read_space(rb);
         if (n == 0)
                 return 0;
-        bufsize = jack_ringbuffer_peek(rb, jm_pad_buffer, n);
+        bufsize = incudine_ringbuffer_peek(rb, jm_pad_buffer, n);
         if (bufsize != n)
                 return 0;
         b = jm_pad_buffer;
@@ -1227,24 +1237,16 @@ int jm_read_cached_midi_inputs(jack_nframes_t frames)
                         continue;
                 n = jm_cached_midi_inputs_read_space(p->cache, frames);
                 if (n > 0) {
-                        m = jack_ringbuffer_write_space(p->rb);
+                        m = incudine_ringbuffer_write_space(p->rb);
                         if (n <= m) {
-                                m = jack_ringbuffer_read(p->cache,
-                                                         jm_pad_buffer, n);
-                                n = jack_ringbuffer_write(p->rb,
-                                                          jm_pad_buffer, n);
+                                m = incudine_ringbuffer_read(
+                                        p->cache, jm_pad_buffer, n);
+                                n = incudine_ringbuffer_write(
+                                        p->rb, jm_pad_buffer, n);
                                 if (n != m)
                                         res = JM_WRITE_ERROR;
                         }
                 }
         }
         return res;
-}
-
-static unsigned int ja_next_pow_of_two(unsigned int n)
-{
-        int i;
-
-        for(i = 1; i < n; i *= 2);
-        return i;
 }
