@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -1073,12 +1073,11 @@ during the compilation of a UGEN or DSP. The default is NIL.")
 (defmacro foreach-frame-loop (in-ptr out-ptr now-var &body body)
   (declare (ignore in-ptr out-ptr))
   `(loop for current-input-sample of-type non-negative-fixnum
-                            below incudine::*block-input-samples*
-                            by *number-of-input-bus-channels*
+                                  by *number-of-input-bus-channels*
          for current-sample of-type non-negative-fixnum
-                            below incudine::*block-output-samples*
                             by *number-of-output-bus-channels*
-         for current-frame of-type non-negative-fixnum from 0
+         for current-frame of-type non-negative-fixnum
+                           below incudine::*block-size*
          do (progn ,@body ,@(if now-var `((incf ,now-var))))))
 
 (defun parse-foreach-frame-form (def flist mlist)
