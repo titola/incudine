@@ -4,6 +4,15 @@ Set the configuration variable ~*audio-driver*~ to enable PortAudio:
 #+begin_example
 ;; Add to ~/.incudinerc
 (setq *audio-driver* :portaudio)
+(setq *frames-per-buffer* ...)
+(setq *portaudio-input-device* -1)
+(setq *portaudio-output-device* -1)
+;; Latencies for PortAudio stream:
+;;     positive value: latency in seconds
+;;     negative value: the absolute value is the latency in number of periods
+;;                  0: default latency for interactive performance
+(setq *portaudio-input-latency* 0)
+(setq *portaudio-output-latency* 0)
 #+end_example
 
 #+attr_texinfo: :options portaudio-device-info @andoptional{} stream
@@ -21,6 +30,26 @@ If ~input~ is non-NIL, the indexes of the output and input devices are
 ~output~ and ~input~ respectively.
 
 See ~portaudio-device-info~.
+#+end_defun
+
+#+attr_texinfo: :options portaudio-stream-latency direction
+#+begin_defun
+Return the input or output latency of the PortAudio stream. Setfable.
+
+~direction~ is ~:input~ or ~:output~.
+
+If the value is a positive number, it is the latency in seconds.
+
+If the value is a negative number, the absolute value is the latency in
+number of periods. For example, -2 is
+
+: 2 * frames_per_buffer / sample_rate  [seconds]
+
+If the value is zero, the latency is the default for interactive performance.
+
+During the performance, the value provides the most accurate estimate of
+latency available to the implementation, and a new latency setting is ignored
+but stored for the next restart (the next ~rt-start~ after ~rt-stop~).
 #+end_defun
 
 #+texinfo: @page

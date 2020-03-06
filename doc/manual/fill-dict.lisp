@@ -87,6 +87,8 @@
 (defvar *incudine-symbols-to-ignore*
   '(;; Moved in dictionary cache/portaudio.dict
     incudine::portaudio-device-info
+    incudine::portaudio-input-latency
+    incudine::portaudio-output-latency
     incudine::portaudio-set-device))
 
 ;;; Replace `&sym' with `@andsym'.

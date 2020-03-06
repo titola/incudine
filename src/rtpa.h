@@ -71,6 +71,8 @@ static size_t pa_outbuf_bytes, pa_outbuf_samples;
 static SAMPLE *pa_sample_counter;
 static SAMPLE pa_cycle_start_time_smp;
 static PaTime pa_cycle_start_time_sec;
+static PaTime pa_input_latency = 0.0;
+static PaTime pa_output_latency = 0.0;
 static int pa_status = PA_STOPPED;
 static int pa_lisp_busy;
 static struct pa_xrun pa_xruns;
@@ -131,6 +133,8 @@ static void pa_free_input_cache(void);
 static void pa_increment_cycle_counter(char type);
 static void *pa_process_thread(void *arg);
 static int pa_set_xrun(void);
+static PaTime pa_update_latency(PaTime value, PaTime default_value,
+                                unsigned long nframes, double srate);
 
 int pa_is_last_cycle(void);
 int pa_cache_inputs(void);
@@ -144,6 +148,8 @@ void pa_set_lisp_busy_state(int status);
 void pa_transfer_to_c_thread(void);
 int pa_set_thread_callback(int has_cached_inputs);
 int pa_get_buffer_size(void);
+double pa_get_stream_latency(int is_input);
+void pa_set_stream_latency(double value, int is_input);
 SAMPLE pa_get_sample_rate(void);
 struct pa_xrun *pa_get_xruns(void);
 void pa_xrun_reset(void);

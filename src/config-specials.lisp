@@ -37,7 +37,9 @@
   *osc-max-values*
   *osc-package-nicknames*
   *portaudio-input-device*
+  *portaudio-input-latency*
   *portaudio-output-device*
+  *portaudio-output-latency*
   *receiver-default-priority*
   *recover-suspended-audio-cycles-p*
   *rt-block-size*

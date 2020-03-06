@@ -4,8 +4,18 @@ Set the configuration variable ~*audio-driver*~ to enable PortAudio:
 #+begin_example
 ;; Add to ~/.incudinerc
 (setq *audio-driver* :portaudio)
+(setq *frames-per-buffer* ...)
+(setq *portaudio-input-device* -1)
+(setq *portaudio-output-device* -1)
+;; Latencies for PortAudio stream:
+;;     positive value: latency in seconds
+;;     negative value: the absolute value is the latency in number of periods
+;;                  0: default latency for interactive performance
+(setq *portaudio-input-latency* 0)
+(setq *portaudio-output-latency* 0)
 #+end_example
 
 ::: portaudio-device-info
 ::: portaudio-set-device
+::: portaudio-stream-latency
 #+texinfo: @page

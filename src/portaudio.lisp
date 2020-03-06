@@ -17,7 +17,10 @@
 (in-package :incudine)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (export '(portaudio-device-info portaudio-set-device)))
+  (export
+    '(portaudio-device-info
+      portaudio-set-device
+      portaudio-stream-latency)))
 
 (in-package :incudine.external)
 
@@ -151,3 +154,57 @@ STREAM defaults to INCUDINE.UTIL:*LOGGER-STREAM*."
 
 (defvar incudine.config::*portaudio-input-device* -1)
 (defvar incudine.config::*portaudio-output-device* -1)
+
+(defvar incudine.config::*portaudio-input-latency* 0)
+(defvar incudine.config::*portaudio-output-latency* 0)
+
+(defun incudine::portaudio-input-latency ()
+  (cffi:foreign-funcall "pa_get_stream_latency" :boolean t :double))
+
+(defun incudine::portaudio-output-latency ()
+  (cffi:foreign-funcall "pa_get_stream_latency" :boolean nil :double))
+
+(defun incudine::portaudio-stream-latency (direction)
+  "Return the input or output latency of the PortAudio stream. Setfable.
+
+DIRECTION is :INPUT or :OUTPUT.
+
+If the value is a positive number, it is the latency in seconds.
+
+If the value is a negative number, the absolute value is the latency in
+number of periods. For example, -2 is
+
+    2 * frames_per_buffer / sample_rate  [seconds]
+
+If the value is zero, the latency is the default for interactive performance.
+
+During the performance, the value provides the most accurate estimate of
+latency available to the implementation, and a new latency setting is ignored
+but stored for the next restart (the next RT-START after RT-STOP)."
+  (declare (type (member :input :output) direction))
+  (if (eq direction :input)
+      (incudine::portaudio-input-latency)
+      (incudine::portaudio-output-latency)))
+
+(declaim (inline %set-portaudio-stream-latency))
+(defun %set-portaudio-stream-latency (direction value)
+  (cffi:foreign-funcall "pa_set_stream_latency"
+                        :double (coerce value 'double-float)
+                        :boolean (eq direction :input)
+                        :void))
+
+(defun set-portaudio-stream-latency (direction value)
+  (declare (type (member :input :output) direction)
+           (type real value))
+  (%set-portaudio-stream-latency direction value)
+  value)
+
+#+portaudio
+(defsetf incudine::portaudio-stream-latency (direction) (value)
+  `(set-portaudio-stream-latency ,direction ,value))
+
+(eval-when (:load-toplevel :execute)
+  (%set-portaudio-stream-latency
+    :input incudine.config::*portaudio-input-latency*)
+  (%set-portaudio-stream-latency
+    :output incudine.config::*portaudio-output-latency*))
