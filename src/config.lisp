@@ -313,7 +313,7 @@ real-time thread.")
 (defstruct (rt-params (:copier nil))
   (driver incudine.config:*audio-driver*)
   (priority *rt-priority*)
-  (frames-per-buffer incudine.util::*frames-per-buffer*)
+  (frames-per-buffer incudine.config:*frames-per-buffer*)
   (status :stopped))
 
 (defvar *rt-params* (make-rt-params))

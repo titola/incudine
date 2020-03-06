@@ -74,8 +74,8 @@
 (cffi:defcfun ("ja_get_sample_rate" rt-sample-rate) sample)
 
 (defun rt-xruns (&optional reset-p)
-  "Return the number of the occurred JACK xruns and the time in samples of
-the last xrun. If RESET-P is non-NIL, set the number of JACK xruns to zero."
+  "Return the number of the occurred xruns and the time in samples of
+the last xrun. If RESET-P is non-NIL, set the number of xruns to zero."
   (when reset-p
     (cffi:foreign-funcall "ja_xrun_reset" :void))
   (cffi:with-foreign-slots ((count last-time)

@@ -79,7 +79,8 @@
            #+jack-midi (nrt-funcall #'jackmidi::update-streams)
            (funcall loop-function buffer-size)))
         (t (setf *rt-thread* nil)
-           (msg error (rt-get-error-msg)))))
+           (msg error (rt-get-error-msg))
+           (rt-stop))))
 
 #+dummy-audio
 (defun rt-thread-callback (loop-function)
@@ -168,7 +169,9 @@
   (reset-io-pointers)
   (incudine.external::rt-continue-cycle-begin frames)
   (rt-audio-cycle frames block-size)
-  (rt-cycle-end frames))
+  (rt-cycle-end frames)
+  (incudine.external::rt-clear-cached-inputs)
+  #+jack-midi (jackmidi::clear-cached-events))
 
 ;;; Recovery of audio cycles suspended during gc by processing the
 ;;; cached audio and MIDI inputs (audio outputs are ignored).
@@ -184,18 +187,14 @@
         finally (nrt-msg debug "~D suspended audio cycles" i)))
 
 (defvar *recover-suspended-audio-cycles-p*
-  #+jack-audio
   (incudine.external::set-foreign-rt-thread-callback
     (and (boundp 'incudine.config::*recover-suspended-audio-cycles-p*)
-         incudine.config::*recover-suspended-audio-cycles-p*))
-  #-jack-audio
-  nil)
+         incudine.config::*recover-suspended-audio-cycles-p*)))
 (declaim (type boolean *recover-suspended-audio-cycles-p*))
 
 (defun recover-suspended-audio-cycles-p ()
   *recover-suspended-audio-cycles-p*)
 
-#+jack-audio
 (defun set-recover-suspended-audio-cycles-p (value)
   (declare (type boolean value))
   (unless (eq (rt-status) :stopped)
@@ -205,48 +204,53 @@
     (setf *recover-suspended-audio-cycles-p* value))
   (incudine.external::set-foreign-rt-thread-callback value))
 
-#-jack-audio
-(defun set-recover-suspended-audio-cycles-p (value)
-  (declare (ignore value))
-  #+portaudio
-  (msg warn
-    "Currently, RECOVER-SUSPENDED-AUDIO-CYCLES-P for PortAudio doesn't work.")
-  nil)
-
 (defsetf recover-suspended-audio-cycles-p set-recover-suspended-audio-cycles-p)
+
+(defun abort-recovery-audio-cycles (frames block-size)
+  (continue-last-audio-cycle frames block-size)
+  (nrt-msg warn "slow recovery of audio cycles during gc... aborting"))
+
+(define-constant +recovery-cycles-restart-limit+ 2)
 
 (defglobal rt-state nil)
 (declaim (type boolean rt-state))
 
 #-dummy-audio
 (defmacro with-restart-point ((label frames block-size) &body body)
-  `(tagbody
-    ;; Lisp restarts from here after the stop caused by the gc.
-    ,label
-      (when rt-state
-        (when (recover-suspended-audio-cycles-p)
-          (recover-suspended-audio-cycles ,frames ,block-size))
-        (rt-set-busy-state nil)
-        (rt-condition-wait)
-        (when (recover-suspended-audio-cycles-p)
-          (incudine.util::without-gcing
-            (when (incudine.external::rt-cached-inputs-p)
-              (cond ((incudine.external::rt-last-cycle-p)
-                     ;; Continue the audio cycle started from C-thread.
-                     (continue-last-audio-cycle ,frames ,block-size)
-                     (incudine.external::rt-clear-cached-inputs)
-                     #+jack-midi (jackmidi::clear-cached-events)
-                     ;; Another gc here should be rare.
-                     (incudine.util::with-stop-for-gc-pending
-                       (rt-transfer-to-c-thread)
-                       (go ,label)))
-                    (t
-                     ;; There are other suspended cycles to recover.
-                     ;; The current cycle continues from C-thread.
-                     (rt-transfer-to-c-thread)
-                     (go ,label))))
-            nil)))
-      ,@body))
+  (with-gensyms (recovery-cycles-restart)
+    `(let ((,recovery-cycles-restart 0))
+       (declare (fixnum ,recovery-cycles-restart))
+       (tagbody
+           ;; Lisp restarts from here after the stop caused by the gc.
+           ,label
+             (when rt-state
+               (when (recover-suspended-audio-cycles-p)
+                 (recover-suspended-audio-cycles ,frames ,block-size))
+               (rt-set-busy-state nil)
+               (rt-condition-wait)
+               (when (recover-suspended-audio-cycles-p)
+                 (incudine.util::without-gcing
+                   (when (incudine.external::rt-cached-inputs-p)
+                     (cond ((incudine.external::rt-last-cycle-p)
+                            ;; Continue the audio cycle started from C-thread.
+                            (continue-last-audio-cycle ,frames ,block-size)
+                            ;; Another gc here should be rare.
+                            (incudine.util::with-stop-for-gc-pending
+                              (rt-transfer-to-c-thread)
+                              (go ,label)))
+                           (t
+                            (when (< ,recovery-cycles-restart
+                                     ,+recovery-cycles-restart-limit+)
+                              (incf ,recovery-cycles-restart)
+                              ;; There are other suspended cycles to recover.
+                              ;; The current cycle continues from C-thread.
+                              (rt-transfer-to-c-thread)
+                              (go ,label))
+                            ;; Slow recovery tested with high latency setting
+                            ;; in PortAudio.
+                            (abort-recovery-audio-cycles ,frames ,block-size))))
+                   nil)))
+          ,@body))))
 
 #-dummy-audio
 (defmacro with-rt-cycle ((reset-label frames-var) &body body)
@@ -506,6 +510,7 @@ the thread."
                  :started)
                 (t (msg warn "failed to start the realtime thread")
                    (setf *rt-thread* nil)
+                   (setf *after-rt-stop-function* nil)
                    :stopped)))))
 
 (defun rt-status ()

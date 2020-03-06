@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -42,7 +42,9 @@
   (declare (type (member bus input output) type))
   (foreign-alloc-sample
    (+ (if (member type '(input output))
-          (* *max-buffer-size*
+          (* #-portaudio *max-buffer-size*
+             #+portaudio (max *max-buffer-size*
+                              incudine.config:*frames-per-buffer*)
              (max *number-of-input-bus-channels*
                   *number-of-output-bus-channels*))
           *number-of-bus-channels*)
@@ -218,18 +220,25 @@ No bounds checking."
 (defun set-number-of-channels (inputs outputs)
   "Safe way to change the number of the input/output channels."
   (declare (type channel-number inputs outputs))
-  (unless (and (= inputs *number-of-input-bus-channels*)
-               (= outputs *number-of-output-bus-channels*))
-    (let ((rt-started-p (eq (rt-status) :started)))
-      (rt-stop)
-      (let ((old-outputs *number-of-output-bus-channels*))
-        (setf *number-of-input-bus-channels* inputs
-              *number-of-output-bus-channels* outputs)
-        (realloc-audio-bus-pointer input)
-        (unless (= outputs old-outputs)
-          (realloc-audio-bus-pointer output)
-          (msg info "Realloc the foreign array for the output peak values")
-          (setf *output-peak-values*
-                (foreign-realloc *output-peak-values* 'sample :count outputs))
-          (setf *out-of-range-counter* (make-array outputs :initial-element 0))))
-      (and rt-started-p (rt-status)))))
+  (let ((set-inputs-p (/= inputs *number-of-input-bus-channels*))
+        (set-outputs-p (/= outputs *number-of-output-bus-channels*)))
+    (when (or set-inputs-p set-outputs-p)
+      (let ((rt-started-p (eq (rt-status) :started)))
+        (rt-stop)
+        (when set-inputs-p
+          (setf *number-of-input-bus-channels* inputs)
+          (if (= inputs 0)
+              (setf *input-increment-bytes* 0)
+              (realloc-audio-bus-pointer input)))
+        (when set-outputs-p
+          (setf *number-of-output-bus-channels* outputs)
+          (if (= outputs 0)
+              (setf *output-increment-bytes* 0)
+              (progn
+                (realloc-audio-bus-pointer output)
+                (msg info "Realloc the foreign array for the output peak values")
+                (setf *output-peak-values*
+                      (foreign-realloc *output-peak-values* 'sample :count outputs))
+                (setf *out-of-range-counter*
+                      (make-array outputs :initial-element 0)))))
+        (and rt-started-p (rt-status))))))

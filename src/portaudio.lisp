@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -21,6 +21,10 @@
 
 (in-package :incudine.external)
 
+(cffi:defcstruct rt-xrun
+  (count :unsigned-int)
+  (last-time sample))
+
 (cffi:defcfun ("pa_initialize" rt-audio-init) :int
   (input-channels :unsigned-int)
   (output-channels :unsigned-int)
@@ -39,6 +43,10 @@
 
 (declaim (inline rt-cycle-begin))
 (cffi:defcfun ("pa_cycle_begin" rt-cycle-begin) :unsigned-long)
+
+(declaim (inline rt-continue-cycle-begin))
+(cffi:defcfun ("pa_continue_cycle_begin" rt-continue-cycle-begin) :void
+  (nframes :unsigned-long))
 
 (declaim (inline rt-cycle-end))
 (cffi:defcfun ("pa_cycle_end" rt-cycle-end) :void
@@ -68,15 +76,20 @@
 (cffi:defcfun ("pa_set_lisp_busy_state" rt-set-busy-state) :void
   (status :boolean))
 
-;;; TODO
-(defun rt-continue-cycle-begin (frames) frames nil)
-(defun set-foreign-rt-thread-callback (cached-inputs-p) cached-inputs-p nil)
-(defun rt-clear-cached-inputs () nil)
-(defun rt-cache-inputs () nil)
-(defun rt-cached-inputs-p () nil)
-(defun rt-last-cycle-p () nil)
-(defun rt-inputs-from-cache-begin () nil)
-(defun rt-inputs-from-cache-end () nil)
+(cffi:defcfun ("pa_set_thread_callback" set-foreign-rt-thread-callback) :boolean
+  (cached-inputs-p :boolean))
+
+(cffi:defcfun ("pa_clear_cached_inputs" rt-clear-cached-inputs) :void)
+
+(cffi:defcfun ("pa_cache_inputs" rt-cache-inputs) :boolean)
+
+(cffi:defcfun ("pa_has_cached_inputs" rt-cached-inputs-p) :boolean)
+
+(cffi:defcfun ("pa_is_last_cycle" rt-last-cycle-p) :boolean)
+
+(cffi:defcfun ("pa_inputs_from_cache_begin" rt-inputs-from-cache-begin) :boolean)
+
+(cffi:defcfun ("pa_inputs_from_cache_end" rt-inputs-from-cache-end) :boolean)
 
 (cffi:defcfun ("pa_get_error_msg" rt-get-error-msg) :string)
 
@@ -84,6 +97,16 @@
 (cffi:defcfun ("pa_get_buffer_size" rt-buffer-size) :int)
 
 (cffi:defcfun ("pa_get_sample_rate" rt-sample-rate) sample)
+
+(defun rt-xruns (&optional reset-p)
+  "Return the number of the occurred xruns and the time in samples of
+the last xrun. If RESET-P is non-NIL, set the number of xruns to zero."
+  (when reset-p
+    (cffi:foreign-funcall "pa_xrun_reset" :void))
+  (cffi:with-foreign-slots ((count last-time)
+                            (cffi:foreign-funcall "pa_get_xruns" :pointer)
+                            (:struct rt-xrun))
+    (values count last-time)))
 
 (cffi:defcstruct pa-device-info
   (struct-version :int)

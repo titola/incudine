@@ -73,7 +73,6 @@
 ;; Note: if *RECOVER-SUSPENDED-AUDIO-CYCLES-P* is NIL (default), the
 ;; time is not incremented after gc, therefore the old scheduled
 ;; functions are delayed by the garbage collection time.
-;; Note: currently this setting works with JACK Audio and JACK MIDI.
 ;(setq *recover-suspended-audio-cycles-p* t)
 
 ;; PORTAUDIO-DEVICE-INFO prints the list of the devices (-1 = default).

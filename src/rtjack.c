@@ -292,7 +292,6 @@ static void* ja_process_thread(void *arg)
                                 ja_frames = frames;
                                 ja_buffer_bytes = frames * JA_SAMPLE_SIZE;
                         }
-
                         for (i = 0; i < ja_out_channels; i++) {
                                 ja_outputs[i] =
                                         jack_port_get_buffer(output_ports[i],
