@@ -169,9 +169,7 @@
   (reset-io-pointers)
   (incudine.external::rt-continue-cycle-begin frames)
   (rt-audio-cycle frames block-size)
-  (rt-cycle-end frames)
-  (incudine.external::rt-clear-cached-inputs)
-  #+jack-midi (jackmidi::clear-cached-events))
+  (rt-cycle-end frames))
 
 ;;; Recovery of audio cycles suspended during gc by processing the
 ;;; cached audio and MIDI inputs (audio outputs are ignored).
@@ -236,6 +234,8 @@
                             (continue-last-audio-cycle ,frames ,block-size)
                             ;; Another gc here should be rare.
                             (incudine.util::with-stop-for-gc-pending
+                              (incudine.external::rt-clear-cached-inputs)
+                              #+jack-midi (jackmidi::clear-cached-events)
                               (rt-transfer-to-c-thread)
                               (go ,label)))
                            (t
@@ -249,7 +249,9 @@
                             ;; Slow recovery tested with high latency setting
                             ;; in PortAudio.
                             (abort-recovery-audio-cycles ,frames ,block-size))))
-                   nil)))
+                   ;; Buffer indexes zero.
+                   (incudine.external::rt-clear-cached-inputs)
+                   #+jack-midi (jackmidi::clear-cached-events))))
           ,@body))))
 
 #-dummy-audio
