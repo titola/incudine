@@ -1,6 +1,9 @@
 (require "sb-introspect")
 (require "incudine")
 
+(unless (find-package "OSC")
+  (rename-package "INCUDINE.OSC" "INCUDINE.OSC" (list "OSC")))
+
 (defpackage :incudine.doc
   (:use :cl)
   (:import-from #:sb-ext #:defined-type-name-p)
