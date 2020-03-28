@@ -414,6 +414,7 @@ Return ~t~ if the ~tempo~ or ~tempo-envelope~ instance is deallocated.
 ::: *rt-thread-start-hook*
 ::: *rt-thread-exit-hook*
 ::: rt-cpu
+::: recover-suspended-audio-cycles-p
 ::: rt-buffer-size
 ::: rt-sample-rate
 ::: rt-xruns

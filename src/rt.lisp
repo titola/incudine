@@ -191,7 +191,15 @@
 (declaim (type boolean *recover-suspended-audio-cycles-p*))
 
 (defun recover-suspended-audio-cycles-p ()
-  *recover-suspended-audio-cycles-p*)
+  "Whether the audio cycles suspended during gc are recovered by processing
+the cached audio inputs and MIDI events (audio outputs are ignored). Setfable.
+
+If NIL, the time is not incremented after gc, therefore the old scheduled
+functions are delayed by the garbage collection time.
+
+The default is the value of the configuration variable
+*RECOVER-SUSPENDED-AUDIO-CYCLES-P*, or NIL if that variable is not set."
+*recover-suspended-audio-cycles-p*)
 
 (defun set-recover-suspended-audio-cycles-p (value)
   (declare (type boolean value))
