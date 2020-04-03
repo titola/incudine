@@ -252,7 +252,31 @@ of samples."
 (defmacro foreach-channel (&body body)
   "Used within the definition of a VUG, UGEN or DSP to iterate over
 the number of output channels with CURRENT-CHANNEL bound to each
-number of channel."
+number of channel.
+
+Examples:
+
+    (dsp! foreach-channel-example-1 (amp)
+      (foreach-channel
+        ;; Single noise generator for each output channel: the
+        ;; generator doesn't depend on CURRENT-CHANNEL.
+        (incf (audio-out current-channel) (white-noise amp))))
+
+    ;; The same example with the VUG-MACRO COUT.
+    (dsp! foreach-channel-example-1 (amp)
+      (foreach-channel (cout (white-noise amp))))
+
+    (dsp! foreach-channel-example-2 (amp)
+      (foreach-channel
+        ;; These noise generators depend on CURRENT-CHANNEL.
+        ;; In this case there are four generators for the
+        ;; first four output channels.
+        (cout (case current-channel
+                (0 (cs-tone (white-noise amp) 1000))
+                (1 (cs-atone (white-noise amp) 1000))
+                (2 (bpf (white-noise amp) 1000 50))
+                (3 (notch (white-noise amp) 1000 2))
+                (otherwise (sample 0))))))"
   (with-gensyms (i)
     `(dochannels (,i *number-of-output-bus-channels*)
        (let ((current-channel ,i))
