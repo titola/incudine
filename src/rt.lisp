@@ -415,7 +415,9 @@ The default is the value of the configuration variable
 
 #-dummy-audio
 (defmacro set-rt-block-size (value)
-  "Change the block size and update the default realtime loop callback."
+  "Change the block size and update the default realtime loop callback.
+
+This setting stops the real-time thread."
   `(%set-rt-block-size ,value ,(unless (member value '(1 64))
                                  `(rt-loop-callback ,value))))
 
@@ -556,6 +558,8 @@ the thread."
 
 If INPUT is non-NIL, the indexes of the output and input devices are
 OUTPUT and INPUT respectively.
+
+This setting stops the real-time thread.
 
 See PORTAUDIO-DEVICE-INFO."
   (declare (type fixnum output input))

@@ -218,7 +218,9 @@ No bounds checking."
        (setf ,inc-bytes (* ,channels +foreign-sample-size+)))))
 
 (defun set-number-of-channels (inputs outputs)
-  "Safe way to change the number of the input/output channels."
+  "Safe way to change the number of the input/output channels.
+
+This setting stops the real-time thread."
   (declare (type channel-number inputs outputs))
   (let ((set-inputs-p (/= inputs *number-of-input-bus-channels*))
         (set-outputs-p (/= outputs *number-of-output-bus-channels*)))
