@@ -267,16 +267,21 @@ Examples:
       (foreach-channel (cout (white-noise amp))))
 
     (dsp! foreach-channel-example-2 (amp)
-      (foreach-channel
-        ;; These noise generators depend on CURRENT-CHANNEL.
-        ;; In this case there are four generators for the
-        ;; first four output channels.
-        (cout (case current-channel
-                (0 (cs-tone (white-noise amp) 1000))
-                (1 (cs-atone (white-noise amp) 1000))
-                (2 (bpf (white-noise amp) 1000 50))
-                (3 (notch (white-noise amp) 1000 2))
-                (otherwise (sample 0))))))"
+      (vuglet ((randi (freq)
+                 (interpolate (white-noise) freq))
+               (sig (freq offset mult)
+                 (:defaults 1 2000 1950)
+                 (osc *sine-table* (+ offset (* mult (randi freq))) amp)))
+        (foreach-channel
+          ;; These generators depend on CURRENT-CHANNEL.
+          ;; In this case there are four generators for the
+          ;; first four output channels.
+          (cout (case current-channel
+                  (0 (sig 8))
+                  (1 (sig 19))
+                  (2 (sig 41))
+                  (3 (sig 23))
+                  (otherwise (sample 0)))))))"
   (with-gensyms (i)
     `(dochannels (,i *number-of-output-bus-channels*)
        (let ((current-channel ,i))
