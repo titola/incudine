@@ -87,7 +87,7 @@
    #:+pointer-size+ #:+foreign-sample-size+ #:+foreign-complex-size+
    #:+pointer-address-type+
    #:*sample-rate* #:*sample-duration* #:*sound-velocity* #:*r-sound-velocity*
-   #:*sample-rate-hook* #:*sound-velocity-hook*
+   #:*sample-rate-hook* #:*sound-velocity-hook* #:*block-size-hook*
    #:*max-number-of-channels* #:*client-name*
    #:*number-of-input-bus-channels* #:*number-of-output-bus-channels*
    #:*number-of-bus-channels* #:*rt-edf-heap-size* #:*nrt-edf-heap-size*

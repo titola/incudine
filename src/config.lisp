@@ -18,7 +18,7 @@
 
 (define-constant +incudine-major+ 0)
 (define-constant +incudine-minor+ 9)
-(define-constant +incudine-patch+ 27)
+(define-constant +incudine-patch+ 28)
 
 (in-package :incudine.util)
 
@@ -160,6 +160,11 @@ SET-SAMPLE-DURATION.")
     "A list of function designators which are called in an unspecified
 order when the sound velocity is changed via SET-SOUND-VELOCITY.")
   (declaim (type list *sound-velocity-hook*))
+
+  (defvar *block-size-hook* nil
+    "A list of function designators which are called in an unspecified
+order when the block size is changed via SET-RT-BLOCK-SIZE.")
+  (declaim (type list *block-size-hook*))
 
   (defvar *cps2inc* (* +table-maxlen+ *sample-duration*)
     "Division of +TABLE-MAXLEN+ by the sample rate.")

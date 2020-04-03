@@ -405,6 +405,7 @@ Return ~t~ if the ~tempo~ or ~tempo-envelope~ instance is deallocated.
 ::: incudine.util:get-bytes-consed-in
 #+texinfo: @page
 ** Realtime
+::: incudine.util:*block-size-hook*
 ::: set-rt-block-size
 ::: rt-loop-callback
 ::: rt-silent-errors

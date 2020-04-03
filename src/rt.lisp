@@ -411,11 +411,14 @@ The default is the value of the configuration variable
   (setf *block-input-samples* (* value *number-of-input-bus-channels*))
   (setf *block-output-samples* (* value *number-of-output-bus-channels*))
   (msg debug "set realtime block size to ~D" value)
-  (setf *block-size* value))
+  (setf *block-size* value)
+  (incudine::call-hooks "set-rt-block-size" incudine.util:*block-size-hook*)
+  value)
 
 #-dummy-audio
 (defmacro set-rt-block-size (value)
-  "Change the block size and update the default realtime loop callback.
+  "Change the block size, update the default realtime loop callback
+and run the hook INCUDINE.UTIL:*BLOCK-SIZE-HOOK*.
 
 This setting stops the real-time thread."
   `(%set-rt-block-size ,value ,(unless (member value '(1 64))
