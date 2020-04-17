@@ -469,12 +469,10 @@ port-name of the stream to close."
 (declaim (inline sysex-message-p))
 (defun sysex-message-p (msg)
   "Whether the MIDI message MSG is a SysEx."
-  (= (typecase msg
-       ((unsigned-byte 8) msg)
-       (data (aref msg 0))
-       (otherwise
-        #+little-endian (logand msg #xFF)
-        #-little-endian (ldb (byte 8 24) msg)))
+  (= (if (typep msg 'data)
+         (aref msg 0)
+         #+little-endian (logand msg #xFF)
+         #-little-endian (ldb (byte 8 24) msg))
      #xF0))
 
 (declaim (inline sysex-eox-message-p))
