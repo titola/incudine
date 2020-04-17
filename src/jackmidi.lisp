@@ -466,6 +466,7 @@ port-name of the stream to close."
               (ldb (byte 8 0) m2)
               (ldb (byte 8 0) m)))))
 
+(declaim (inline sysex-message-p))
 (defun sysex-message-p (msg)
   "Whether the MIDI message MSG is a SysEx."
   (= (typecase msg
