@@ -1,23 +1,32 @@
 ;;; Incudine
 ;;; Getting Start part 1
 
-;; There are simple examples in this tutorial, without a significant
-;; musical content, to highlight the main features of Incudine by
-;; writing few lines of code. It is not difficult to organize sounds
-;; and/or music after the understanding of the environment.
+;; This tutorial introduces the main features of Incudine through
+;; trivial examples.
 
-;; The INCUDINE.SCRATCH package is useful for the
-;; experiments:
+;; The INCUDINE.SCRATCH package, nicknamed SCRATCH, can be used
+;; for the experiments. It inherits the symbols exported from
+;; INCUDINE, INCUDINE.VUG, INCUDINE.UTIL and INCUDINE.ANALYSIS
+;; packages.
 
 (require :incudine)
 (in-package :scratch)
-(rt-start)
-;; :STARTED
 
-;; We start by defining a simple VUG (Virtual Unit Generator), a
-;; phasor (it is built-in but we can redefine it)
+;; A virtual unit generator (VUG) is a recipe to do something. It is
+;; named VUG instead of RECIPE, because it generally describes the
+;; ingredients and the steps to realize a unit generator for the sound
+;; synthesis. A digital signal processor (DSP) in this context is the
+;; "recipe processor", where a recipe is possibly the combination of
+;; more recipes and lisp functions.
 
+;; The syntax of a VUG remembers the definition of a lisp function.
+;; For example:
+
+;; Note: PHASOR is built-in but we can redefine it.
 (define-vug phasor (freq init)
+  "Produce a normalized moving phase value with frequency FREQ and
+initial value INIT (0 by default)."
+  (:defaults 1 0)
   (with-samples ((phase init)
                  (inc (* freq *sample-duration*)))
     (prog1 phase
@@ -25,7 +34,7 @@
       (cond ((>= phase 1.0) (decf phase))
             ((minusp phase) (incf phase))))))
 
-;; where WITH-SAMPLES is a shortcut for
+;; the WITH-SAMPLES macro is a shortcut for
 
 ;; (with ((phase init)
 ;;        (inc (* freq *sample-duration*)))
@@ -33,23 +42,28 @@
 ;;   ...
 
 ;; The SAMPLE type is DOUBLE-FLOAT by default. WITH is like LET* but
-;; it will create the bindings for the init function when the DSP will
-;; be defined.
+;; it will create the bindings for the function called to initialize a
+;; DSP instance.
 
 ;; Generally, an argument in DEFINE-VUG is a list where the first
-;; element is the name of the argument and the second is the type of
-;; the argument. However, we often use arguments with type SAMPLE, so
-;; it is the default when we use directly the name of the argument
-;; instead of the list (name type). For example, we can also define
-;; the PHASOR VUG in the following way:
+;; element is the argument name and the second is the argument type.
+;; However, we often use arguments of type SAMPLE, so it is the
+;; default if we directly use the argument name instead of the list
+;; (name type). For example, we can also define the PHASOR VUG in the
+;; following way:
 
 ;; (define-vug phasor ((freq sample) (init sample))
 ;;   ...
 
-;; The next example shows a VUG for a simple sinusoidal oscillator by
-;; using the previous PHASOR VUG and a VUG to describe ten harmonics:
+;; The next example shows a combination of recipes: SINE VUG describes
+;; a sinusoidal oscillator defined by following the recipe for moving
+;; phase value, and 10-HARM VUG is a sum of ten harmonics obtained by
+;; repeating the recipe to prepare the oscillator.
 
 (define-vug sine (freq amp phase)
+  "High precision sine wave oscillator with frequency FREQ, amplitude
+AMP and PHASE."
+  (:defaults 440 1 0)
   (* amp (sin (+ (* +twopi+ (phasor freq 0)) phase))))
 
 (define-vug 10-harm (freq)
@@ -59,12 +73,15 @@
                              (loop for i from 1 to n collect i)))))
     (sine-sum 10)))
 
-;; Now we can define a DSP
+;; The definition of a DSP (the "recipe processor") is similar:
 
 (dsp! simple (freq amp)
   (out (sine freq amp 0)))
 
-;; and the stereo version is
+;; If you have sense of humor, see the ironic example in
+;; incudine/doc/tutorials/spaghetti.cudo file.
+
+;; The stereo version of SIMPLE is
 
 (dsp! simple (freq amp)
   (with-samples ((in (sine freq amp 0)))
@@ -72,7 +89,7 @@
 
 ;; OUT is a VUG-MACRO (it is both a VUG and a macro) to write a signal
 ;; to the audio hardware (in realtime) or to a soundfile (non-realtime)
-;; by using the AUDIO-OUT function. The expansion of OUT is
+;; by using the AUDIO-OUT function. The OUT expansion is
 
 (macroexpand-1 '(out one two three four))
 ;; (PROGN
@@ -82,38 +99,43 @@
 ;;  (INCF (AUDIO-OUT 3) (SAMPLE FOUR))
 ;;  (VALUES))
 
-;; We can use FOREACH-CHANNEL to eval a chunk of code for every output
-;; channel. The value of the current channel is stored in the variable
-;; CURRENT-CHANNEL. We can rebind this variable, for example:
+;; The utility FOREACH-CHANNEL iterates over the number of output
+;; channels with CURRENT-CHANNEL bound to each number of channel.
+;; We can rebind CURRENT-CHANNEL, for example:
 
 (dsp! swap-channels ((buf buffer) rate start-pos (loop-p boolean))
   (foreach-channel
     (cout (let ((current-channel (if (zerop current-channel) 1 0)))
             (buffer-play buf rate start-pos loop-p #'stop)))))
 
-;; The BUFFER-PLAY VUG uses CURRENT-CHANNEL to play the content of a
-;; buffer.
+;; The BUFFER-PLAY VUG depends on CURRENT-CHANNEL to play the content
+;; of a buffer.
 
 ;; The BUFFER-FRAME VUG-MACRO, defined in incudine/src/vug/buffer.lisp,
 ;; is another useful example:
 
-(define-vug-macro buffer-frame (buffer phase &key wrap-p interpolation)
+(define-vug-macro buffer-frame (buffer frame &key wrap-p interpolation)
+  "Return the BUFFER FRAME.
+
+If WRAP-P is T, wrap around if necessary.
+
+INTERPOLATION is one of :LINEAR, :CUBIC or NIL (default)."
   (with-gensyms (bframe)
-    `(vuglet ((,bframe ((buf buffer) phase (wrap-p boolean))
+    `(vuglet ((,bframe ((buf buffer) frame (wrap-p boolean))
                 (with ((channels (buffer-channels buf))
                        (frame (make-frame channels)))
                   (dochannels (current-channel channels)
                     (setf (frame-ref frame current-channel)
-                          (buffer-read buf phase
+                          (buffer-read buf frame
                                        :wrap-p wrap-p
                                        :interpolation ,interpolation)))
                   frame)))
-       (,bframe ,buffer ,phase ,wrap-p))))
+       (,bframe ,buffer ,frame ,wrap-p))))
 
-;; COUT is similar to OUT but it is useful in combination with
+;; COUT is similar to OUT but it is generally used in combination with
 ;; FOREACH-CHANNEL. With only one argument, there aren't differences
 ;; between OUT and COUT. However, when the arguments of COUT are more
-;; than 1, the expansion of
+;; than one, the expansion of
 
 ;; (cout arg1 arg2 arg3 ...)
 
@@ -126,51 +148,27 @@
 ;;             ...
 ;;             (t +sample-zero+)))
 
-;; We can define a simple VUG to get a stereo output:
+;; Example for stereo output:
 
-(define-vug stereo (in) (out in in))
+(define-vug stereo (input)
+  "Mix the INPUT into the first two output busses."
+  (out input input))
 
-;; and the prior example becomes
+;; and the alternative definition of SIMPLE is
 
 (dsp! simple (freq amp)
   (stereo (sine freq amp 0)))
 
-;; The function to read a signal from the audio hardware (in realtime)
-;; or from a sound file (non-realtime) is AUDIO-IN.
+;; AUDIO-IN is the utility to read the input samples from the audio
+;; hardware (in realtime) or from a sound file (non-realtime).
 
-;; Ok, play the DSP on the node 1
+;; Ok, create and play an instance of SIMPLE on the node 1
 
+(rt-start)
+;; :STARTED
 (simple 440 .3 :id 1)
-;; ; No value
-(describe (node 1))
-;; #<NODE :ID 1>
-;;   [structure-object]
 
-;; Slots with :INSTANCE allocation:
-;;   ID               = 1
-;;   HASH             = 1193941380939624026
-;;   INDEX            = 602
-;;   NAME             = SIMPLE
-;;   START-TIME-PTR   = #.(SB-SYS:INT-SAP #X00692E10)
-;;   FUNCONS          = (#<CLOSURE (LAMBDA () :IN SIMPLE) {1003E3351B}>)
-;;   FUNCTION         = #<CLOSURE (LAMBDA () :IN SIMPLE) {1003E3351B}>
-;;   INIT-FUNCTION    = #<CLOSURE (LAMBDA (#:NODE64 FREQ AMP) :IN SIMPLE) {1003E334CB}>
-;;   INIT-ARGS        = (#<FUNCTION (LAMBDA (FREQ AMP) :IN SIMPLE) {1004D4015B}> 440.0d0 0.3d0)
-;;   CONTROLS         = #<HASH-TABLE :TEST EQUAL :COUNT 6 {10067944B3}>
-;;   GAIN-DATA        = #.(SB-SYS:INT-SAP #X00692E30)
-;;   ENABLE-GAIN-P    = NIL
-;;   DONE-P           = NIL
-;;   RELEASE-PHASE-P  = NIL
-;;   PAUSE-P          = NIL
-;;   STOP-HOOK        = NIL
-;;   FREE-HOOK        = (#<CLOSURE (LAMBDA (#:NODE113) :IN SIMPLE) {1003E32A5B}>)
-;;   PARENT           = #<NODE :ID 0>
-;;   PREV             = #<NODE :ID 0>
-;;   NEXT             = NIL
-;;   LAST             = NIL
-;; ; No value
-
-;; We can get and set the parameters of the DSP with CONTROL-VALUE
+;; We can get and set the DSP parameter controls with CONTROL-VALUE
 
 (control-value 1 'freq)
 ;; 440.0d0
@@ -185,8 +183,8 @@
 (control-list 1)
 ;; (880.0d0 0.2d0)
 
-;; SET-CONTROL and SET-CONTROLS are another way to set the parameters
-;; of the DSP
+;; SET-CONTROL and SET-CONTROLS are another way to set the DSP
+;; parameter controls.
 
 (set-control 1 :freq 2500)
 ;; 2500
@@ -203,7 +201,7 @@
 (control-names 1)
 ;; (FREQ AMP)
 
-;; Here is a "classic" recursive function to control the DSP:
+;; Here is a "classic" recursive function to control a DSP instance:
 
 (defun simple-test (time)
   (set-controls 1 :freq (+ 100 (random 1000)) :amp (+ .1 (random .3)))
@@ -212,7 +210,7 @@
 
 (simple-test (now))
 
-;; AAT is an anaphoric macro to simplify this type of functions:
+;; The anaphoric macro AAT simplifies this type of functions:
 
 (defun simple-test (time)
   (set-controls 1 :freq (+ 100 (random 1000)) :amp (+ .1 (random .3)))
@@ -221,12 +219,12 @@
 ;; where IT is bound to the time, the first argument of AAT.
 
 ;; The first argument of AT is the time in samples from the start of
-;; the realtime (or non realtime in BOUNCE-TO-DISK). The current time is
+;; realtime (or non realtime in BOUNCE-TO-DISK). The current time is
 
 (now)
 ;; 4.2066944d7
 
-;; The type of the time is SAMPLE and we can use NOW inside the
+;; The type of the time is SAMPLE and NOW also works inside the
 ;; definition of a VUG, UGEN or DSP:
 
 (dsp! sin-test (freq amp)
@@ -237,39 +235,41 @@
 (free 2)
 
 ;; The second argument of AT is a function and the rest of the
-;; arguments are the possible arguments of this function.
+;; arguments are passed to that function.
 
-;; TEMPO-SYNC is an useful function to synchronize an event to some
-;; period of time. For example
+;; The utility TEMPO-SYNC returns the time in samples synchronized to
+;; a time period. It is equivalent to
+;;
+;;     (- (+ (now) period) (mod (now) period))
+;;
+;; For example:
 
 (rt-eval (:return-value-p t) (list (now) (tempo-sync #[1 sec])))
 ;; (4.8462848d7 4.848d7)
 (rt-eval (:return-value-p t) (list (now) (tempo-sync #[1 sec])))
 ;; (4.8859136d7 4.8864d7)
 
-;; where RT-EVAL is a facility to evaluate a form in the realtime
-;; thread and to return the result if :RETURN-VALUE-P is T
-;; (CONTROL-VALUE and other utilities use this macro).
+;; RT-EVAL is a facility to evaluate a form in the realtime thread and
+;; to return the result if :RETURN-VALUE-P is T.
 
-;; The read-macro #[…] is useful to enter the time in samples by using
-;; different units. The possible units are:
-
-;;    unit     the symbol starts      examples
-;;                   with
-;; sample      sa                sa, samp, samps,
-;;                               samples
-;; millisecond ms                ms, msec
-;; second      s                 s, sec, seconds
-;; minute      mi                mi, min, minutes
-;; hour        h                 h, hours
-;; day         d                 d, days
-;; week        w                 w, weeks
-;; beat        b                 b, beats
-;; meter       m                 m, meters
-
-;; The number of beats depends on a TEMPO. The default is *TEMPO* but
-;; we can create and use another TEMPO. The default BPM for *TEMPO* is
-;; 60
+;; The reader syntax #[...] allows to enter the time in samples by
+;; using different units. The possible units are:
+;;
+;; |-------------+------------------------+--------------------------|
+;; | Unit        | The symbol starts with | Examples                 |
+;; |-------------+------------------------+--------------------------|
+;; | sample      | sa                     | sa, samp, samps, samples |
+;; | millisecond | ms                     | ms, msec                 |
+;; | second      | s                      | s, sec, seconds          |
+;; | minute      | mi                     | mi, min, minutes         |
+;; | hour        | h                      | h, hours                 |
+;; | day         | d                      | d, days                  |
+;; | week        | w                      | w, weeks                 |
+;; | beat        | b                      | b, beats                 |
+;; | meter       | m                      | m, meters                |
+;; |-------------+------------------------+--------------------------|
+;;
+;; The number of beats depends on a TEMPO structure (the default is *TEMPO*).
 
 *sample-rate*
 ;; 48000.0d0
@@ -301,7 +301,7 @@ my-tempo
 ;; 21333.333333333332d0
 
 ;; The number of meters depends on the velocity of the sound in m/s at
-;; 22°C, 1 atmosfera (the default is *SOUND-VELOCITY*)
+;; 22°C, 1 atmosfera (the default is *SOUND-VELOCITY*).
 
 *sound-velocity*
 ;; 345.0d0
@@ -310,34 +310,18 @@ my-tempo
 #[1 meter 340]
 ;; 141.1764705882353d0
 
-;; The expansion of the read-macro #[…] is the operation to compute
-;; the time:
-
-#[1/2 sec]
-;; 24000.0d0
-'#[1/2 sec]
-;; (* 1/2 *SAMPLE-RATE*)
-#[123 msec]
-;; 5904.0d0
-'#[123 msec]
-;; (* 123 (* 0.001d0 *SAMPLE-RATE*))
-#[4 beats]
-;; 85333.33333333333d0
-'#[4 beats]
-;; (* *SAMPLE-RATE* (* (SAMPLE 4) (SPB *TEMPO*)))
-
-;; We can redefine on-the-fly the SIMPLE-TEST function and stop it in
-;; at least two possible ways:
+;; We can redefine the SIMPLE-TEST function and stop it in at least
+;; two possible ways:
 
 ;;  1. (flush-pending)
 ;;  2. (defun simple-test (time) time)
 
-;; FLUSH-PENDING removes all the scheduled events; if the optional
+;; FLUSH-PENDING cancels all the scheduled events; if the optional
 ;; argument TIME-STEP is a number, the evaluation of a pending event
 ;; is forced every TIME-STEP samples.
 
-;; PEAK-INFO takes a number of the channel and returns two values, the
-;; peak and the number of the samples out of range.
+;; PEAK-INFO takes a number of channel (zero based) and returns two
+;; values, the peak and the number of samples out of range.
 
 (flush-pending)
 (peak-info 0)
@@ -352,9 +336,8 @@ my-tempo
 (free 1)
 (reset-peak-meters)
 
-;; There is a simple UGen in SuperCollider called Crackle, a noise
-;; generator based on a chaotic function. It is not difficult to
-;; define:
+;; There is a simple UGen in SuperCollider named Crackle, a noise
+;; generator based on a chaotic function. A possible VUG definition is
 
 (define-vug crackle (param amp)
   (with-samples (y0 (y1 0.3d0) y2)
@@ -362,25 +345,35 @@ my-tempo
           y2 y1 y1 y0)
     (* amp y0)))
 
-;; We can use a simple one-pole filter with the CRACKLE VUG
+;; We can filter that noise with a one-pole filter defined as
 
 (define-vug pole (in coef)
   (with-samples (y1)
     (setf y1 (+ in (* coef y1)))))
 
-;; Note: the anaphoric VUG-MACRO ~ is useful for recursive composition
-;; (the symbol ~ is inspired by FAUST programming language). An alternative
-;; definition is
+;; Often the anaphoric ~ VUG-MACRO simplifies the code with feedback
+;; parameters (the symbol ~ is inspired by FAUST programming language).
+;; An alternative definition of the filter is
 
 (define-vug pole (in coef)
+  "One pole filter."
   (~ (+ in (* coef it))))
 
-;; We can also simplify the CRACKLE VUG:
+;; and another definition for CRACKLE is
 
-(define-vug crackle (param amp)
-  (* amp (~ (abs (- (* it param) (delay1 it) 0.05)) :initial-value 0.3d0)))
+(define-vug crackle (param amp init-value)
+  "Noise generator based on a chaotic function with scale
+factor AMP (1 by default).
 
-;; And here is a DSP to play
+The formula is
+
+    y[n] = | param * y[n-1] - y[n-2] - 0.05 |
+
+INIT-VALUE is the initial value of y and defaults to 0.3."
+  (:defaults (incudine:incudine-missing-arg "PARAM") 1 .3)
+  (* amp (~ (abs (- (* it param) (delay1 it) 0.05)) :initial-value init-value)))
+
+;; Here is a DSP to play:
 
 (dsp! crackle-test (f1 f2 amp param-fmod coef)
   (with-samples ((thresh (* amp .1)))
@@ -408,16 +401,18 @@ my-tempo
 (set-controls 1 :f1 1234 :f2 3000 :param-fmod .1)
 (free 1)
 
-;; Here is a simple VUG for stereo panning, a VUG for a stereo
-;; sinusoidal oscillator and a DSP for the test:
+;; The next example includes a VUG for stereo panning, a VUG for a
+;; stereo sinusoidal oscillator through wavetable lookup, and a DSP for
+;; the test:
 
-(define-vug pan2 (input position)
-  "Stereo equal power panpot."
-  (with-samples ((alpha (* +half-pi+ position))
+(define-vug pan2 (in pos)
+  "Stereo equal power panpot with position POS between 0 (left)
+and 1 (right)."
+  (with-samples ((alpha (* +half-pi+ pos))
                  (left (cos alpha))
                  (right (sin alpha)))
-    (cond ((= current-channel 0) (* left input))
-          ((= current-channel 1) (* right input))
+    (cond ((= current-channel 0) (* left in))
+          ((= current-channel 1) (* right in))
           (t +sample-zero+))))
 
 (defvar *sintab* (make-buffer 8192 :fill-function (gen:partials '(1))))
@@ -428,9 +423,9 @@ my-tempo
 (dsp! simple2 (freq amp pos)
   (foreach-frame (foreach-channel (cout (sinosc freq amp pos)))))
 
-;; FOREACH-FRAME in SIMPLE2 VUG allows an alternative block by block
-;; processing. Now we restart the realtime with block size 64, play 8
-;; DSPs and divide them between two groups:
+;; FOREACH-FRAME in SIMPLE2 VUG allows block by block processing.
+;; Now we restart the real-time thread with block size 64, play 8 DSPs
+;; and divide them between two groups:
 
 (block-size)
 ;; 1
@@ -529,20 +524,22 @@ my-tempo
 (set-rt-block-size 1)
 (rt-start)
 
-;; ALL-VUG-NAMES returns the list of the defined VUGs.
+;; List of the defined VUGs.
+(all-vug-names)
 
-;; The definitions of the VUGs are in incudine/src/ vug/. Some of them
-;; appear complexes because they are flexible VUG-MACROs. For example,
-;; OSC is an unique VUG for a wavetable lookup oscillator with modulable
-;; amplitude, frequency and/or phase and selectionable interpolation
-;; (none, linear or cubic).
+;; The definitions of the built-in virtual unit generators are in
+;; incudine/src/vug/ directory. Some of them are flexible but
+;; complicated VUG-MACROs. For example, OSC is an unique VUG for
+;; a wavetable lookup oscillator with modulable amplitude,
+;; frequency and/or phase, and selectionable interpolation
+;; (:LINEAR, :CUBIC or NIL).
 
 (dsp! osc-cubic-test (freq amp pos)
   (foreach-channel
     (cout (pan2 (osc *sine-table* freq amp 0 :cubic) pos))))
 
 ;; BUZZ and GBUZZ can use wavetable lookup oscillators with
-;; selectionable interpolation or sin/cos functions and it is possible
+;; selectionable interpolation or sin/cos functions, and it is possible
 ;; to change the lag-time for the crossfade when the number of the
 ;; harmonics changes.
 
@@ -567,10 +564,11 @@ my-tempo
   (stereo (gbuzz freq amp nh lh (sine fmod amod 0)
                  :interpolation :cubic)))
 
-;; The RAND VUG-MACRO is a random number generator that can use all
-;; the distributions provided by GNU Scientific Library (GSL).
-;; ALL-RANDOM-DISTRIBUTIONS returns the list of these distr (the names
-;; in the sub-lists are alias):
+;; The RAND VUG-MACRO is the recipe for a noise generator with a random
+;; number distribution provided by GNU Scientific Library (GSL).
+;; The utility ALL-RANDOM-DISTRIBUTIONS returns the list of the
+;; available random number distributions (the keyword names of a
+;; sublist are aliases for the same distribution).
 
 (all-random-distributions)
 ;; ((:LINEAR :LOW :LOW-PASS :LP) (:HIGH :HIGH-PASS :HP)
@@ -583,7 +581,7 @@ my-tempo
 ;;  (:POISSON) (:BERNOULLI) (:BINOMIAL) (:NEGATIVE-BINOMIAL) (:PASCAL)
 ;;  (:GEOM :GEOMETRIC) (:HYPERGEOM :HYPERGEOMETRIC) (:LOG :LOGARITHMIC))
 
-;; Two simple tests for :GAUSS and :CAUCHY are
+;; Examples:
 
 (dsp! gauss-test (sigma)
   (stereo (rand :gauss :sigma sigma)))
@@ -598,21 +596,21 @@ my-tempo
 (cauchy-test 300 .5 .5 :replace 1)
 (free 1)
 
-;; It is really simple to add the interpolated
-;; version of any generator:
+;; It is really simple to define the interpolated version of any
+;; generator:
 
-;;; Csound opcode in only two lines
+;;; Csound opcode in just two lines.
 (define-vug randi (amp freq)
   (* amp (interpolate (white-noise 1) freq)))
 
-;;; SC3 ugen in two lines
+;;; SC3 ugen in two lines.
 (define-vug lfdnoise3 (amp freq)
   (* amp (interpolate (white-noise 1) freq :cubic)))
 
-;;; Gaussian distribution random generator with cubic interpolation
+;;; Gaussian distribution random generator with cubic interpolation.
 (define-vug gauss-cubic (sigma freq)
   (interpolate (rand :gauss :sigma sigma) freq :cubic))
 
-;;; Selectionable interpolation with a chaotic ugen
+;;; Chaotic ugen with selectionable interpolation.
 (define-vug henon-cubic (freq a b x0 x1)
   (henon freq a b x0 x1 :cubic))

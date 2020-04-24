@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="incudine.css" />
+    <title>Spaghetti aglio, olio e peperoncino</title>
+  </head>
+  <body>
+    <div id="content">
+      <table class="navtutor">
+        <tr>
+          <th class="center">Spaghetti aglio, olio e peperoncino</th>
+        </tr>
+      </table>
+      <hr>
+
+      <p>
+        This tutorial introduces an unusual system to write recipes.
+        The missing code depends on the reality where the
+        recipe-processor is run.
+      </p>
+
+      <pre class="src src-lisp">(<span style="color: #8deeee;">in-package</span> <span style="color: #b0c4de;">:scratch</span>)
+
+<span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">RECIPE, DEFINE-RECIPE-PROCESSOR and INGREDIENTS are aliases</span>
+<span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">for DEFINE-VUG, DSP! and WITH respectively.</span>
+
+(<span style="color: #8deeee;">defmacro</span> <span style="color: #87cefa;">recipe</span> (name arglist <span style="color: #98fb98;">&amp;body</span> body)
+  `(<span style="color: #8deeee;">define-vug</span> ,name ,arglist ,@body))
+
+(<span style="color: #8deeee;">defmacro</span> <span style="color: #87cefa;">define-recipe-processor</span> (name arglist <span style="color: #98fb98;">&amp;body</span> body)
+  `(<span style="color: #8deeee;">dsp!</span> ,name ,arglist ,@body))
+
+(<span style="color: #8deeee;">defmacro</span> <span style="color: #87cefa;">ingredients</span> (bindings <span style="color: #98fb98;">&amp;body</span> body)
+  `(with ,bindings ,@body))
+
+(<span style="color: #8deeee;">defmacro</span> <span style="color: #87cefa;">inspect-recipe</span> (form)
+  (with-gensyms (name) `(funcall (dsp-debug ,name () ,form))))
+
+<span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">We can use the reader syntax #[...] because the undefined</span>
+<span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">COOK RECIPE and SAUTE function require the time in samples.</span>
+(enable-sharp-square-bracket-syntax)
+
+(<span style="color: #8deeee;">recipe</span> <span style="color: #87cefa;">boil-spaghetti</span> ((container pot) (grams single-float))
+  <span style="color: #ffa07a;">"Boil spaghetti within a pot."</span>
+  (ingredients
+      ((spaghetti (make-spaghetti grams))
+       (liters-of-water (/ grams 100))
+       (water (make-water liters-of-water))
+       (salt (make-salt <span style="color: #b0c4de;">:spoons</span> liters-of-water)))
+    <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">This part is evaluated at initialization-time.</span>
+    (initialize (insert water container))
+    <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">The rest is evaluated during the performance.</span>
+    (<span style="color: #8deeee;">when</span> (and (boiled-p water)
+               (not (pasta-typep (content container) 'spaghetti)))
+      (shuffle (insert (list spaghetti salt) container)))
+    <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">BOIL RECIPE is performance-time and returns the pot.</span>
+    (boil container)))
+
+(<span style="color: #8deeee;">recipe</span> <span style="color: #87cefa;">prepare-saute</span>
+    ((container pan)
+     (cloves-of-garlic single-float)
+     (glasses-of-olive-oil single-float)
+     (bunches-of-parsley single-float)
+     (chilli (or chilli null)))
+  <span style="color: #ffa07a;">"Prepare a saute with garlic, olive-oil, parsley and optional chilli."</span>
+  (ingredients
+      ((garlic (make-garlic cloves-of-garlic))
+       (olive-oil (make-olive-oil glasses-of-olive-oil))
+       (parsley (make-parsley bunches-of-parsley)))
+    (initialize
+      (finely-chop parsley)
+      (insert (list (warm olive-oil) (slice garlic) chilli) container))
+    (<span style="color: #8deeee;">when</span> (well-coloured-p garlic)
+      (insert parsley container))
+    (brown container)))
+
+(<span style="color: #8deeee;">defun</span> <span style="color: #87cefa;">move-spaghetti-callback</span> (pot pan tureen <span style="color: #98fb98;">&amp;key</span> chilli pecorino-p)
+  <span style="color: #ffa07a;">"Return a function of one argument to move spaghetti from POT to TUREEN.</span>
+<span style="color: #ffa07a;">The function argument is the node in the network of the compiled recipes.</span>
+
+<span style="color: #ffa07a;">If CHILLI is NIL (default), the PAN contains chilli. It means that a</span>
+<span style="color: #ffa07a;">'forte spaghettata' is required, therefore the spaghetti are moved from</span>
+<span style="color: #ffa07a;">POT to PAN, sauted for two minutes, and finally moved from PAN to TUREEN.</span>
+<span style="color: #ffa07a;">If CHILLI is non-NIL, add CHILLI to spaghetti after the transition.</span>
+
+<span style="color: #ffa07a;">If PECORINO-P is T, add grated pecorino-cheese."</span>
+  (<span style="color: #8deeee;">lambda</span> (node)
+    <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">The cook-cycle allows locks (but the audio-cycle no).</span>
+    (brown-condition-wait pan)
+    (<span style="color: #8deeee;">let</span> ((spaghetti (drain (get-spaghetti pot))))
+      (<span style="color: #8deeee;">if</span> chilli
+          (insert (list spaghetti chilli) tureen)
+          (saut&#233; (insert spaghetti pan)
+                 <span style="color: #b0c4de;">:time</span> #[2 minutes]
+                 <span style="color: #b0c4de;">:fire</span> 'lively))
+      (shuffle
+        (insert (list (get-saute pan)
+                      (<span style="color: #8deeee;">if</span> pecorino-p (grate (make-pecorino))))
+                tureen))
+      (stop node))))
+
+(<span style="color: #8deeee;">recipe</span> <span style="color: #87cefa;">spaghetti-aglio-olio-e-peperoncino</span>
+    ((persons positive-fixnum)
+     (chilli-offset non-negative-fixnum)
+     (forte-spaghettata-p boolean)
+     (pecorino-p boolean))
+  <span style="color: #ffa07a;">"Return a tureen with spaghetti garlic, olive-oil and chilli</span>
+<span style="color: #ffa07a;">for a number of persons.</span>
+
+<span style="color: #ffa07a;">If FORTE-SPAGHETTATA-P is T (default), saut&#233; chilli and spaghetti for</span>
+<span style="color: #ffa07a;">two minutes.</span>
+
+<span style="color: #ffa07a;">If PECORINO-P is T (default), add grated pecorino-cheese."</span>
+  (<span style="color: #b0c4de;">:defaults</span> 4 0 t t)
+  (with ((k (/ persons 4.0))
+         (pot (make-pot))
+         (pan (make-pan))
+         (tureen (make-tureen)))
+    (ingredients
+        ((grams-of-spaghetti (* 300 k))
+         (cloves-of-garlic (* 2 k))
+         (glasses-of-olive-oil k)
+         (number-of-chillis (+ k chilli-offset))
+         (bunches-of-parsley k)
+         (chilli (make-chilli number-of-chillis)))
+      <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">The initialization of a recipe includes the initializations</span>
+      <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">of all the used recipes, in this case BOIL-SPAGHETTI and</span>
+      <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">PREPARE-SAUTE.</span>
+      (initialize (crumb chilli))
+      (cook (boil-spaghetti pot grams-of-spaghetti)
+            <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">The time between 8 and 10 minutes depends</span>
+            <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">on SPAGHETTO-THICKNESS.</span>
+            <span style="color: #b0c4de;">:time</span> #[8 minutes]
+            <span style="color: #b0c4de;">:done-action</span> (move-spaghetti-callback
+                           pot pan tureen
+                           (<span style="color: #8deeee;">unless</span> forte-spaghettata-p chilli)
+                           pecorino-p))
+      <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Meanwhile...</span>
+      (prepare-saute pan cloves-of-garlic glasses-of-olive-oil
+                     bunches-of-parsley
+                     (<span style="color: #8deeee;">if</span> forte-spaghettata-p chilli))
+      tureen)))
+
+(<span style="color: #8deeee;">define-recipe-processor</span> <span style="color: #87cefa;">eat-pasta</span> ((persons positive-fixnum)
+                                    (chilli-offset non-negative-fixnum))
+  <span style="color: #ffa07a;">"Spaghettata aglio, olio e peperoncino."</span>
+  (<span style="color: #b0c4de;">:defaults</span> 4 0)
+  (eat (spaghetti-aglio-olio-e-peperoncino persons chilli-offset)))</pre>
+
+      <p>
+        Enjoy your meal!
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (eat-pasta <span style="color: #b0c4de;">:chilli-offset</span> 3)</pre>
+
+      <p>
+        For the fussy chef:
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (inspect-recipe (spaghetti-aglio-olio-e-peperoncino <span style="color: #b0c4de;">:chilli-offset</span> 3))
+(<span style="color: #8deeee;">LAMBDA</span> (INCUDINE.VUG::%DSP-NODE%)
+  (<span style="color: #8deeee;">DECLARE</span> (OPTIMIZE SPEED (SAFETY 0))
+           (TYPE NODE INCUDINE.VUG::%DSP-NODE%))
+  (INCUDINE.VUG::WITH-DSP-PREAMBLE (#<span style="color: #b0c4de;">:DSP562</span> '#<span style="color: #b0c4de;">:NAME532</span> #<span style="color: #b0c4de;">:CONTROL-TABLE563</span>
+                                    #<span style="color: #b0c4de;">:TO-FREE564</span> #<span style="color: #b0c4de;">:FREE-HOOK565</span>)
+    (INCUDINE.VUG::WITH-FOREIGN-ARRAYS ((#<span style="color: #b0c4de;">:SMPVEC568</span> #<span style="color: #b0c4de;">:SMPVECW567</span> 'SAMPLE 0)
+                                        (#<span style="color: #b0c4de;">:F32VEC570</span> #<span style="color: #b0c4de;">:F32VECW569</span> <span style="color: #b0c4de;">:FLOAT</span> 0)
+                                        (#<span style="color: #b0c4de;">:F64VEC572</span> #<span style="color: #b0c4de;">:F64VECW571</span> <span style="color: #b0c4de;">:DOUBLE</span> 0)
+                                        (#<span style="color: #b0c4de;">:I32VEC574</span> #<span style="color: #b0c4de;">:I32VECW573</span> <span style="color: #b0c4de;">:INT32</span> 0)
+                                        (#<span style="color: #b0c4de;">:I64VEC576</span> #<span style="color: #b0c4de;">:I64VECW575</span> <span style="color: #b0c4de;">:INT64</span> 0)
+                                        (#<span style="color: #b0c4de;">:PTRVEC578</span> #<span style="color: #b0c4de;">:PTRVECW577</span> <span style="color: #b0c4de;">:POINTER</span> 0))
+      (INCUDINE.VUG::WITH-SAMPLE-VARIABLES (NIL #<span style="color: #b0c4de;">:SMPVEC568</span> 'SAMPLE)
+        (INCUDINE.VUG::WITH-FOREIGN-VARIABLES ((NIL #<span style="color: #b0c4de;">:F32VEC570</span> <span style="color: #b0c4de;">:FLOAT</span>)
+                                               (NIL #<span style="color: #b0c4de;">:F64VEC572</span> <span style="color: #b0c4de;">:DOUBLE</span>)
+                                               (NIL #<span style="color: #b0c4de;">:I32VEC574</span> <span style="color: #b0c4de;">:INT32</span>)
+                                               (NIL #<span style="color: #b0c4de;">:I64VEC576</span> <span style="color: #b0c4de;">:INT64</span>)
+                                               (NIL #<span style="color: #b0c4de;">:PTRVEC578</span> <span style="color: #b0c4de;">:POINTER</span>))
+          (INCUDINE.VUG::WITH-INIT-FRAMES
+            (<span style="color: #8deeee;">LET*</span> ((#<span style="color: #b0c4de;">:POT539</span> (MAKE-POT))
+                   (#<span style="color: #b0c4de;">:PAN540</span> (MAKE-PAN))
+                   (#<span style="color: #b0c4de;">:TUREEN541</span> (MAKE-TUREEN))
+                   (#<span style="color: #b0c4de;">:CHILLI547</span> (MAKE-CHILLI 4.0))
+                   (#<span style="color: #b0c4de;">:SPAGHETTI550</span> (MAKE-SPAGHETTI 300.0))
+                   (#<span style="color: #b0c4de;">:LITERS-OF-WATER551</span> (/ 300.0 100))
+                   (#<span style="color: #b0c4de;">:WATER552</span> (MAKE-WATER #<span style="color: #b0c4de;">:LITERS-OF-WATER551</span>))
+                   (#<span style="color: #b0c4de;">:SALT553</span> (MAKE-SALT <span style="color: #b0c4de;">:SPOONS</span> #<span style="color: #b0c4de;">:LITERS-OF-WATER551</span>))
+                   (#<span style="color: #b0c4de;">:CHILLI558</span>
+                    (<span style="color: #8deeee;">IF</span> T
+                        #<span style="color: #b0c4de;">:CHILLI547</span>))
+                   (#<span style="color: #b0c4de;">:GARLIC559</span> (MAKE-GARLIC 2.0))
+                   (#<span style="color: #b0c4de;">:OLIVE-OIL560</span> (MAKE-OLIVE-OIL 1.0))
+                   (#<span style="color: #b0c4de;">:PARSLEY561</span> (MAKE-PARSLEY 1.0)))
+              (<span style="color: #8deeee;">DECLARE</span> (TYPE POT #<span style="color: #b0c4de;">:POT539</span>))
+              (<span style="color: #8deeee;">DECLARE</span> (TYPE PAN #<span style="color: #b0c4de;">:PAN540</span>))
+              (<span style="color: #8deeee;">DECLARE</span> (TYPE (OR CHILLI NULL) #<span style="color: #b0c4de;">:CHILLI558</span>))
+              (<span style="color: #8deeee;">LABELS</span> ()
+                (<span style="color: #8deeee;">PROGN</span>
+                 (SETF (GETHASH <span style="color: #ffa07a;">"%CONTROL-LIST%"</span> #<span style="color: #b0c4de;">:CONTROL-TABLE563</span>)
+                         (CONS NIL
+                               (<span style="color: #8deeee;">LAMBDA</span> ()
+                                 (<span style="color: #8deeee;">DECLARE</span>
+                                  (SB-EXT:MUFFLE-CONDITIONS
+                                   SB-EXT:COMPILER-NOTE))
+                                 (LIST))))
+                 (SETF (GETHASH <span style="color: #ffa07a;">"%CONTROL-NAMES%"</span> #<span style="color: #b0c4de;">:CONTROL-TABLE563</span>)
+                         (CONS NIL (<span style="color: #8deeee;">LAMBDA</span> () 'NIL))))
+                NIL
+                (<span style="color: #8deeee;">PROGN</span>
+                 (SETF (INCUDINE.VUG::DSP-NAME #<span style="color: #b0c4de;">:DSP562</span>) '#<span style="color: #b0c4de;">:NAME532</span>)
+                 (SETF (INCUDINE::NODE-CONTROLS INCUDINE.VUG::%DSP-NODE%)
+                         #<span style="color: #b0c4de;">:CONTROL-TABLE563</span>)
+                 (INCUDINE.VUG::UPDATE-FREE-HOOK INCUDINE.VUG::%DSP-NODE%
+                                                 #<span style="color: #b0c4de;">:FREE-HOOK565</span>)
+                 (<span style="color: #8deeee;">PROGN</span>
+                  (CRUMB #<span style="color: #b0c4de;">:CHILLI547</span>)
+                  (INSERT #<span style="color: #b0c4de;">:WATER552</span> #<span style="color: #b0c4de;">:POT539</span>)
+                  (<span style="color: #8deeee;">PROGN</span>
+                   (FINELY-CHOP #<span style="color: #b0c4de;">:PARSLEY561</span>)
+                   (INSERT
+                    (LIST (WARM #<span style="color: #b0c4de;">:OLIVE-OIL560</span>) (SLICE #<span style="color: #b0c4de;">:GARLIC559</span>)
+                          #<span style="color: #b0c4de;">:CHILLI558</span>)
+                    #<span style="color: #b0c4de;">:PAN540</span>)))
+                 (SETF #<span style="color: #b0c4de;">:TO-FREE564</span> INCUDINE::*TO-FREE*)
+                 (INCUDINE.VUG::SET-DSP-OBJECT #<span style="color: #b0c4de;">:DSP562</span> <span style="color: #b0c4de;">:INIT-FUNCTION</span>
+                                               (<span style="color: #8deeee;">LAMBDA</span> (#<span style="color: #b0c4de;">:NODE566</span>)
+                                                 (<span style="color: #8deeee;">DECLARE</span>
+                                                  (SB-EXT:MUFFLE-CONDITIONS
+                                                   SB-EXT:COMPILER-NOTE))
+                                                 (INCUDINE.VUG::RESET-FOREIGN-ARRAYS
+                                                  #<span style="color: #b0c4de;">:SMPVEC568</span> 0 8 #<span style="color: #b0c4de;">:F32VEC570</span> 0
+                                                  4 #<span style="color: #b0c4de;">:F64VEC572</span> 0 8 #<span style="color: #b0c4de;">:I32VEC574</span>
+                                                  0 4 #<span style="color: #b0c4de;">:I64VEC576</span> 0 8
+                                                  #<span style="color: #b0c4de;">:PTRVEC578</span> 0 8)
+                                                 (SETF (INCUDINE::NODE-CONTROLS
+                                                        #<span style="color: #b0c4de;">:NODE566</span>)
+                                                         (INCUDINE.VUG::DSP-CONTROLS
+                                                          #<span style="color: #b0c4de;">:DSP562</span>))
+                                                 (SETF INCUDINE.VUG::%DSP-NODE%
+                                                         #<span style="color: #b0c4de;">:NODE566</span>)
+                                                 (SETF INCUDINE.VUG::*DSP-NODE*
+                                                         #<span style="color: #b0c4de;">:NODE566</span>)
+                                                 (INCUDINE.VUG::WITH-INIT-FRAMES
+                                                   (INCUDINE.VUG::FREE-INCUDINE-OBJECTS
+                                                    #<span style="color: #b0c4de;">:TO-FREE564</span>)
+                                                   (<span style="color: #8deeee;">LET</span> ((INCUDINE::*TO-FREE*
+                                                          NIL))
+                                                     (<span style="color: #8deeee;">PROGN</span>
+                                                      (SETF #<span style="color: #b0c4de;">:POT539</span>
+                                                              (MAKE-POT))
+                                                      (SETF #<span style="color: #b0c4de;">:PAN540</span>
+                                                              (MAKE-PAN))
+                                                      (SETF #<span style="color: #b0c4de;">:TUREEN541</span>
+                                                              (MAKE-TUREEN))
+                                                      (SETF #<span style="color: #b0c4de;">:CHILLI547</span>
+                                                              (MAKE-CHILLI
+                                                               4.0))
+                                                      (SETF #<span style="color: #b0c4de;">:SPAGHETTI550</span>
+                                                              (MAKE-SPAGHETTI
+                                                               300.0))
+                                                      (SETF #<span style="color: #b0c4de;">:LITERS-OF-WATER551</span>
+                                                              (/ 300.0 100))
+                                                      (SETF #<span style="color: #b0c4de;">:WATER552</span>
+                                                              (MAKE-WATER
+                                                               #<span style="color: #b0c4de;">:LITERS-OF-WATER551</span>))
+                                                      (SETF #<span style="color: #b0c4de;">:SALT553</span>
+                                                              (MAKE-SALT
+                                                               <span style="color: #b0c4de;">:SPOONS</span>
+                                                               #<span style="color: #b0c4de;">:LITERS-OF-WATER551</span>))
+                                                      (SETF #<span style="color: #b0c4de;">:CHILLI558</span>
+                                                              (<span style="color: #8deeee;">IF</span> T
+                                                                  #<span style="color: #b0c4de;">:CHILLI547</span>))
+                                                      (SETF #<span style="color: #b0c4de;">:GARLIC559</span>
+                                                              (MAKE-GARLIC
+                                                               2.0))
+                                                      (SETF #<span style="color: #b0c4de;">:OLIVE-OIL560</span>
+                                                              (MAKE-OLIVE-OIL
+                                                               1.0))
+                                                      (SETF #<span style="color: #b0c4de;">:PARSLEY561</span>
+                                                              (MAKE-PARSLEY
+                                                               1.0)))
+                                                     (INCUDINE.VUG::UPDATE-FREE-HOOK
+                                                      #<span style="color: #b0c4de;">:NODE566</span> #<span style="color: #b0c4de;">:FREE-HOOK565</span>)
+                                                     (<span style="color: #8deeee;">PROGN</span>
+                                                      (CRUMB #<span style="color: #b0c4de;">:CHILLI547</span>)
+                                                      (INSERT #<span style="color: #b0c4de;">:WATER552</span>
+                                                       #<span style="color: #b0c4de;">:POT539</span>)
+                                                      (<span style="color: #8deeee;">PROGN</span>
+                                                       (FINELY-CHOP
+                                                        #<span style="color: #b0c4de;">:PARSLEY561</span>)
+                                                       (INSERT
+                                                        (LIST
+                                                         (WARM #<span style="color: #b0c4de;">:OLIVE-OIL560</span>)
+                                                         (SLICE #<span style="color: #b0c4de;">:GARLIC559</span>)
+                                                         #<span style="color: #b0c4de;">:CHILLI558</span>)
+                                                        #<span style="color: #b0c4de;">:PAN540</span>)))
+                                                     (SETF #<span style="color: #b0c4de;">:TO-FREE564</span>
+                                                             INCUDINE::*TO-FREE*)))
+                                                 #<span style="color: #b0c4de;">:NODE566</span>)
+                                               <span style="color: #b0c4de;">:FREE-FUNCTION</span> (<span style="color: #8deeee;">LAMBDA</span> ())
+                                               <span style="color: #b0c4de;">:PERF-FUNCTION</span>
+                                               (<span style="color: #8deeee;">LAMBDA</span> ()
+                                                 (INCUDINE.VUG::WITH-INIT-FRAMES
+                                                   (<span style="color: #8deeee;">PROGN</span>
+                                                    NIL
+                                                    (COOK
+                                                     (<span style="color: #8deeee;">PROGN</span>
+                                                      NIL
+                                                      (<span style="color: #8deeee;">IF</span> (<span style="color: #8deeee;">IF</span> (BOILED-P
+                                                               #<span style="color: #b0c4de;">:WATER552</span>)
+                                                              (NOT
+                                                               (PASTA-TYPEP
+                                                                (CONTENT
+                                                                 #<span style="color: #b0c4de;">:POT539</span>)
+                                                                'SPAGHETTI)))
+                                                          (SHUFFLE
+                                                           (INSERT
+                                                            (LIST
+                                                             #<span style="color: #b0c4de;">:SPAGHETTI550</span>
+                                                             #<span style="color: #b0c4de;">:SALT553</span>)
+                                                            #<span style="color: #b0c4de;">:POT539</span>)))
+                                                      (BOIL #<span style="color: #b0c4de;">:POT539</span>))
+                                                     <span style="color: #b0c4de;">:TIME</span>
+                                                     (* 8
+                                                        (* 60.0d0
+                                                           *SAMPLE-RATE*))
+                                                     <span style="color: #b0c4de;">:DONE-ACTION</span>
+                                                     (MOVE-SPAGHETTI-CALLBACK
+                                                      #<span style="color: #b0c4de;">:POT539</span> #<span style="color: #b0c4de;">:PAN540</span>
+                                                      #<span style="color: #b0c4de;">:TUREEN541</span>
+                                                      (<span style="color: #8deeee;">IF</span> T
+                                                          NIL
+                                                          #<span style="color: #b0c4de;">:CHILLI547</span>)
+                                                      T))
+                                                    (<span style="color: #8deeee;">PROGN</span>
+                                                     NIL
+                                                     (<span style="color: #8deeee;">IF</span> (WELL-COLOURED-P
+                                                          #<span style="color: #b0c4de;">:GARLIC559</span>)
+                                                         (INSERT #<span style="color: #b0c4de;">:PARSLEY561</span>
+                                                          #<span style="color: #b0c4de;">:PAN540</span>))
+                                                     (BROWN #<span style="color: #b0c4de;">:PAN540</span>))
+                                                    #<span style="color: #b0c4de;">:TUREEN541</span>)
+                                                   (VALUES))))
+                 (INCUDINE.UTIL::FINALIZE
+                  (INCUDINE.VUG::DSP-INIT-FUNCTION #<span style="color: #b0c4de;">:DSP562</span>)
+                  (<span style="color: #8deeee;">LAMBDA</span> ()
+                    (FUNCALL (INCUDINE.VUG::DSP-FREE-FUNCTION #<span style="color: #b0c4de;">:DSP562</span>))
+                    (INCUDINE.VUG::%%FREE-DSP-INSTANCE #<span style="color: #b0c4de;">:DSP562</span>)))
+                 (VALUES (INCUDINE.VUG::DSP-INIT-FUNCTION #<span style="color: #b0c4de;">:DSP562</span>)
+                         (INCUDINE.VUG::DSP-PERF-FUNCTION #<span style="color: #b0c4de;">:DSP562</span>)))))))))))</pre>
+
+      <hr>
+      <table class="navtutor">
+        <tr>
+          <td style="width: 20%" class="left">
+            <a href="tutorial_01.html">Getting Started with Incudine</a>
+          </td>
+          <td style="width: 60%" class="center"><a href="index.html">Home</a></td>
+          <td style="width: 20%" class="right"></td>
+        </tr>
+      </table>
+    </div>
+    <div id="postamble">
+      <a href="http://sourceforge.net/projects/incudine">Sourceforge project page</a>
+    </div>
+  </body>
+</html>

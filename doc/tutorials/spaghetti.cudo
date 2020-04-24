@@ -1,0 +1,329 @@
+;;; Incudine
+;;; Spaghetti aglio, olio e peperoncino.
+
+;;; This tutorial introduces an unusual system to write recipes.
+;;; The missing code depends on the reality where the
+;;; recipe-processor is run.
+
+(in-package :scratch)
+
+;;; RECIPE, DEFINE-RECIPE-PROCESSOR and INGREDIENTS are aliases
+;;; for DEFINE-VUG, DSP! and WITH respectively.
+
+(defmacro recipe (name arglist &body body)
+  `(define-vug ,name ,arglist ,@body))
+
+(defmacro define-recipe-processor (name arglist &body body)
+  `(dsp! ,name ,arglist ,@body))
+
+(defmacro ingredients (bindings &body body)
+  `(with ,bindings ,@body))
+
+(defmacro inspect-recipe (form)
+  (with-gensyms (name) `(funcall (dsp-debug ,name () ,form))))
+
+;; We can use the reader syntax #[...] because the undefined
+;; COOK RECIPE and SAUTE function require the time in samples.
+(enable-sharp-square-bracket-syntax)
+
+(recipe boil-spaghetti ((container pot) (grams single-float))
+  "Boil spaghetti within a pot."
+  (ingredients
+      ((spaghetti (make-spaghetti grams))
+       (liters-of-water (/ grams 100))
+       (water (make-water liters-of-water))
+       (salt (make-salt :spoons liters-of-water)))
+    ;; This part is evaluated at initialization-time.
+    (initialize (insert water container))
+    ;; The rest is evaluated during the performance.
+    (when (and (boiled-p water)
+               (not (pasta-typep (content container) 'spaghetti)))
+      (shuffle (insert (list spaghetti salt) container)))
+    ;; BOIL RECIPE is performance-time and returns the pot.
+    (boil container)))
+
+(recipe prepare-saute
+    ((container pan)
+     (cloves-of-garlic single-float)
+     (glasses-of-olive-oil single-float)
+     (bunches-of-parsley single-float)
+     (chilli (or chilli null)))
+  "Prepare a saute with garlic, olive-oil, parsley and optional chilli."
+  (ingredients
+      ((garlic (make-garlic cloves-of-garlic))
+       (olive-oil (make-olive-oil glasses-of-olive-oil))
+       (parsley (make-parsley bunches-of-parsley)))
+    (initialize
+      (finely-chop parsley)
+      (insert (list (warm olive-oil) (slice garlic) chilli) container))
+    (when (well-coloured-p garlic)
+      (insert parsley container))
+    (brown container)))
+
+(defun move-spaghetti-callback (pot pan tureen &key chilli pecorino-p)
+  "Return a function of one argument to move spaghetti from POT to TUREEN.
+The function argument is the node in the network of the compiled recipes.
+
+If CHILLI is NIL (default), the PAN contains chilli. It means that a
+'forte spaghettata' is required, therefore the spaghetti are moved from
+POT to PAN, sauted for two minutes, and finally moved from PAN to TUREEN.
+If CHILLI is non-NIL, add CHILLI to spaghetti after the transition.
+
+If PECORINO-P is T, add grated pecorino-cheese."
+  (lambda (node)
+    ;; The cook-cycle allows locks (but the audio-cycle no).
+    (brown-condition-wait pan)
+    (let ((spaghetti (drain (get-spaghetti pot))))
+      (if chilli
+          (insert (list spaghetti chilli) tureen)
+          (sauté (insert spaghetti pan)
+                 :time #[2 minutes]
+                 :fire 'lively))
+      (shuffle
+        (insert (list (get-saute pan)
+                      (if pecorino-p (grate (make-pecorino))))
+                tureen))
+      (stop node))))
+
+(recipe spaghetti-aglio-olio-e-peperoncino
+    ((persons positive-fixnum)
+     (chilli-offset non-negative-fixnum)
+     (forte-spaghettata-p boolean)
+     (pecorino-p boolean))
+  "Return a tureen with spaghetti garlic, olive-oil and chilli
+for a number of persons.
+
+If FORTE-SPAGHETTATA-P is T (default), sauté chilli and spaghetti for
+two minutes.
+
+If PECORINO-P is T (default), add grated pecorino-cheese."
+  (:defaults 4 0 t t)
+  (with ((k (/ persons 4.0))
+         (pot (make-pot))
+         (pan (make-pan))
+         (tureen (make-tureen)))
+    (ingredients
+        ((grams-of-spaghetti (* 300 k))
+         (cloves-of-garlic (* 2 k))
+         (glasses-of-olive-oil k)
+         (number-of-chillis (+ k chilli-offset))
+         (bunches-of-parsley k)
+         (chilli (make-chilli number-of-chillis)))
+      ;; The initialization of a recipe includes the initializations
+      ;; of all the used recipes, in this case BOIL-SPAGHETTI and
+      ;; PREPARE-SAUTE.
+      (initialize (crumb chilli))
+      (cook (boil-spaghetti pot grams-of-spaghetti)
+            ;; The time between 8 and 10 minutes depends
+            ;; on SPAGHETTO-THICKNESS.
+            :time #[8 minutes]
+            :done-action (move-spaghetti-callback
+                           pot pan tureen
+                           (unless forte-spaghettata-p chilli)
+                           pecorino-p))
+      ;; Meanwhile...
+      (prepare-saute pan cloves-of-garlic glasses-of-olive-oil
+                     bunches-of-parsley
+                     (if forte-spaghettata-p chilli))
+      tureen)))
+
+(define-recipe-processor eat-pasta ((persons positive-fixnum)
+                                    (chilli-offset non-negative-fixnum))
+  "Spaghettata aglio, olio e peperoncino."
+  (:defaults 4 0)
+  (eat (spaghetti-aglio-olio-e-peperoncino persons chilli-offset)))
+
+;; Enjoy your meal!
+(eat-pasta :chilli-offset 3)
+
+;; For the fussy chef.
+(inspect-recipe (spaghetti-aglio-olio-e-peperoncino :chilli-offset 3))
+;; (LAMBDA (INCUDINE.VUG::%DSP-NODE%)
+;;   (DECLARE (OPTIMIZE SPEED (SAFETY 0))
+;;            (TYPE NODE INCUDINE.VUG::%DSP-NODE%))
+;;   (INCUDINE.VUG::WITH-DSP-PREAMBLE (#:DSP562 '#:NAME532 #:CONTROL-TABLE563
+;;                                     #:TO-FREE564 #:FREE-HOOK565)
+;;     (INCUDINE.VUG::WITH-FOREIGN-ARRAYS ((#:SMPVEC568 #:SMPVECW567 'SAMPLE 0)
+;;                                         (#:F32VEC570 #:F32VECW569 :FLOAT 0)
+;;                                         (#:F64VEC572 #:F64VECW571 :DOUBLE 0)
+;;                                         (#:I32VEC574 #:I32VECW573 :INT32 0)
+;;                                         (#:I64VEC576 #:I64VECW575 :INT64 0)
+;;                                         (#:PTRVEC578 #:PTRVECW577 :POINTER 0))
+;;       (INCUDINE.VUG::WITH-SAMPLE-VARIABLES (NIL #:SMPVEC568 'SAMPLE)
+;;         (INCUDINE.VUG::WITH-FOREIGN-VARIABLES ((NIL #:F32VEC570 :FLOAT)
+;;                                                (NIL #:F64VEC572 :DOUBLE)
+;;                                                (NIL #:I32VEC574 :INT32)
+;;                                                (NIL #:I64VEC576 :INT64)
+;;                                                (NIL #:PTRVEC578 :POINTER))
+;;           (INCUDINE.VUG::WITH-INIT-FRAMES
+;;             (LET* ((#:POT539 (MAKE-POT))
+;;                    (#:PAN540 (MAKE-PAN))
+;;                    (#:TUREEN541 (MAKE-TUREEN))
+;;                    (#:CHILLI547 (MAKE-CHILLI 4.0))
+;;                    (#:SPAGHETTI550 (MAKE-SPAGHETTI 300.0))
+;;                    (#:LITERS-OF-WATER551 (/ 300.0 100))
+;;                    (#:WATER552 (MAKE-WATER #:LITERS-OF-WATER551))
+;;                    (#:SALT553 (MAKE-SALT :SPOONS #:LITERS-OF-WATER551))
+;;                    (#:CHILLI558
+;;                     (IF T
+;;                         #:CHILLI547))
+;;                    (#:GARLIC559 (MAKE-GARLIC 2.0))
+;;                    (#:OLIVE-OIL560 (MAKE-OLIVE-OIL 1.0))
+;;                    (#:PARSLEY561 (MAKE-PARSLEY 1.0)))
+;;               (DECLARE (TYPE POT #:POT539))
+;;               (DECLARE (TYPE PAN #:PAN540))
+;;               (DECLARE (TYPE (OR CHILLI NULL) #:CHILLI558))
+;;               (LABELS ()
+;;                 (PROGN
+;;                  (SETF (GETHASH "%CONTROL-LIST%" #:CONTROL-TABLE563)
+;;                          (CONS NIL
+;;                                (LAMBDA ()
+;;                                  (DECLARE
+;;                                   (SB-EXT:MUFFLE-CONDITIONS
+;;                                    SB-EXT:COMPILER-NOTE))
+;;                                  (LIST))))
+;;                  (SETF (GETHASH "%CONTROL-NAMES%" #:CONTROL-TABLE563)
+;;                          (CONS NIL (LAMBDA () 'NIL))))
+;;                 NIL
+;;                 (PROGN
+;;                  (SETF (INCUDINE.VUG::DSP-NAME #:DSP562) '#:NAME532)
+;;                  (SETF (INCUDINE::NODE-CONTROLS INCUDINE.VUG::%DSP-NODE%)
+;;                          #:CONTROL-TABLE563)
+;;                  (INCUDINE.VUG::UPDATE-FREE-HOOK INCUDINE.VUG::%DSP-NODE%
+;;                                                  #:FREE-HOOK565)
+;;                  (PROGN
+;;                   (CRUMB #:CHILLI547)
+;;                   (INSERT #:WATER552 #:POT539)
+;;                   (PROGN
+;;                    (FINELY-CHOP #:PARSLEY561)
+;;                    (INSERT
+;;                     (LIST (WARM #:OLIVE-OIL560) (SLICE #:GARLIC559)
+;;                           #:CHILLI558)
+;;                     #:PAN540)))
+;;                  (SETF #:TO-FREE564 INCUDINE::*TO-FREE*)
+;;                  (INCUDINE.VUG::SET-DSP-OBJECT #:DSP562 :INIT-FUNCTION
+;;                                                (LAMBDA (#:NODE566)
+;;                                                  (DECLARE
+;;                                                   (SB-EXT:MUFFLE-CONDITIONS
+;;                                                    SB-EXT:COMPILER-NOTE))
+;;                                                  (INCUDINE.VUG::RESET-FOREIGN-ARRAYS
+;;                                                   #:SMPVEC568 0 8 #:F32VEC570 0
+;;                                                   4 #:F64VEC572 0 8 #:I32VEC574
+;;                                                   0 4 #:I64VEC576 0 8
+;;                                                   #:PTRVEC578 0 8)
+;;                                                  (SETF (INCUDINE::NODE-CONTROLS
+;;                                                         #:NODE566)
+;;                                                          (INCUDINE.VUG::DSP-CONTROLS
+;;                                                           #:DSP562))
+;;                                                  (SETF INCUDINE.VUG::%DSP-NODE%
+;;                                                          #:NODE566)
+;;                                                  (SETF INCUDINE.VUG::*DSP-NODE*
+;;                                                          #:NODE566)
+;;                                                  (INCUDINE.VUG::WITH-INIT-FRAMES
+;;                                                    (INCUDINE.VUG::FREE-INCUDINE-OBJECTS
+;;                                                     #:TO-FREE564)
+;;                                                    (LET ((INCUDINE::*TO-FREE*
+;;                                                           NIL))
+;;                                                      (PROGN
+;;                                                       (SETF #:POT539
+;;                                                               (MAKE-POT))
+;;                                                       (SETF #:PAN540
+;;                                                               (MAKE-PAN))
+;;                                                       (SETF #:TUREEN541
+;;                                                               (MAKE-TUREEN))
+;;                                                       (SETF #:CHILLI547
+;;                                                               (MAKE-CHILLI
+;;                                                                4.0))
+;;                                                       (SETF #:SPAGHETTI550
+;;                                                               (MAKE-SPAGHETTI
+;;                                                                300.0))
+;;                                                       (SETF #:LITERS-OF-WATER551
+;;                                                               (/ 300.0 100))
+;;                                                       (SETF #:WATER552
+;;                                                               (MAKE-WATER
+;;                                                                #:LITERS-OF-WATER551))
+;;                                                       (SETF #:SALT553
+;;                                                               (MAKE-SALT
+;;                                                                :SPOONS
+;;                                                                #:LITERS-OF-WATER551))
+;;                                                       (SETF #:CHILLI558
+;;                                                               (IF T
+;;                                                                   #:CHILLI547))
+;;                                                       (SETF #:GARLIC559
+;;                                                               (MAKE-GARLIC
+;;                                                                2.0))
+;;                                                       (SETF #:OLIVE-OIL560
+;;                                                               (MAKE-OLIVE-OIL
+;;                                                                1.0))
+;;                                                       (SETF #:PARSLEY561
+;;                                                               (MAKE-PARSLEY
+;;                                                                1.0)))
+;;                                                      (INCUDINE.VUG::UPDATE-FREE-HOOK
+;;                                                       #:NODE566 #:FREE-HOOK565)
+;;                                                      (PROGN
+;;                                                       (CRUMB #:CHILLI547)
+;;                                                       (INSERT #:WATER552
+;;                                                        #:POT539)
+;;                                                       (PROGN
+;;                                                        (FINELY-CHOP
+;;                                                         #:PARSLEY561)
+;;                                                        (INSERT
+;;                                                         (LIST
+;;                                                          (WARM #:OLIVE-OIL560)
+;;                                                          (SLICE #:GARLIC559)
+;;                                                          #:CHILLI558)
+;;                                                         #:PAN540)))
+;;                                                      (SETF #:TO-FREE564
+;;                                                              INCUDINE::*TO-FREE*)))
+;;                                                  #:NODE566)
+;;                                                :FREE-FUNCTION (LAMBDA ())
+;;                                                :PERF-FUNCTION
+;;                                                (LAMBDA ()
+;;                                                  (INCUDINE.VUG::WITH-INIT-FRAMES
+;;                                                    (PROGN
+;;                                                     NIL
+;;                                                     (COOK
+;;                                                      (PROGN
+;;                                                       NIL
+;;                                                       (IF (IF (BOILED-P
+;;                                                                #:WATER552)
+;;                                                               (NOT
+;;                                                                (PASTA-TYPEP
+;;                                                                 (CONTENT
+;;                                                                  #:POT539)
+;;                                                                 'SPAGHETTI)))
+;;                                                           (SHUFFLE
+;;                                                            (INSERT
+;;                                                             (LIST
+;;                                                              #:SPAGHETTI550
+;;                                                              #:SALT553)
+;;                                                             #:POT539)))
+;;                                                       (BOIL #:POT539))
+;;                                                      :TIME
+;;                                                      (* 8
+;;                                                         (* 60.0d0
+;;                                                            *SAMPLE-RATE*))
+;;                                                      :DONE-ACTION
+;;                                                      (MOVE-SPAGHETTI-CALLBACK
+;;                                                       #:POT539 #:PAN540
+;;                                                       #:TUREEN541
+;;                                                       (IF T
+;;                                                           NIL
+;;                                                           #:CHILLI547)
+;;                                                       T))
+;;                                                     (PROGN
+;;                                                      NIL
+;;                                                      (IF (WELL-COLOURED-P
+;;                                                           #:GARLIC559)
+;;                                                          (INSERT #:PARSLEY561
+;;                                                           #:PAN540))
+;;                                                      (BROWN #:PAN540))
+;;                                                     #:TUREEN541)
+;;                                                    (VALUES))))
+;;                  (INCUDINE.UTIL::FINALIZE
+;;                   (INCUDINE.VUG::DSP-INIT-FUNCTION #:DSP562)
+;;                   (LAMBDA ()
+;;                     (FUNCALL (INCUDINE.VUG::DSP-FREE-FUNCTION #:DSP562))
+;;                     (INCUDINE.VUG::%%FREE-DSP-INSTANCE #:DSP562)))
+;;                  (VALUES (INCUDINE.VUG::DSP-INIT-FUNCTION #:DSP562)
+;;                          (INCUDINE.VUG::DSP-PERF-FUNCTION #:DSP562)))))))))))
