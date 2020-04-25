@@ -640,7 +640,7 @@ content of the buffer."
            (type non-negative-fixnum start buffer-start buffer-end)
            (type list channel-map))
   (if (probe-file path)
-      (sf:with-open (sf path
+      (sf:with-open (sf (truename path)
                      :info (when headerless-p
                              (headerless-sf-info
                                (buffer-sample-rate buffer)
