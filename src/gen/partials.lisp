@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -38,51 +38,57 @@
         (if (minusp par)
             (push `(,i ,(- par) ,(sample 0.5) ,+sample-zero+) acc)
             (push `(,i ,par ,+sample-zero+ ,+sample-zero+) acc))
-        (destructuring-bind (n &optional (amp (sample 1)) (ph +sample-zero+)
-                             (os +sample-zero+))
-            par
-          (if (and (numberp n) (numberp amp) (numberp ph) (numberp os))
-              (push (list n amp ph os) acc)
-              (error 'incudine:incudine-memory-fault-error
-                     :format-control "Malformed list of partials ~A"
-                     :format-arguments (list par)))
-          (setf i (floor (car par)))))))
+        (handler-case
+            (destructuring-bind (n &optional (amp (sample 1))
+                                 (phase +sample-zero+ phase-p)
+                                 (os +sample-zero+))
+                par
+              (declare (type positive-fixnum n) (type real amp phase os))
+              (push (list n (abs amp)
+                          (if (or (>= amp 0) phase-p)
+                              phase
+                              (sample .5))
+                          os)
+                    acc)
+              (setf i (floor (car par))))
+          (error ()
+            (error 'incudine:incudine-memory-fault-error
+                   :format-control "Malformed list of partials:~%~A in ~A"
+                   :format-arguments (list par lst)))))))
 
 ;;; Inspired by GEN09, GEN10 and GEN19 of Csound.
-(defun partials (lst &key (periodic-p t) (normalize-p t))
+(defun partials (list &key (periodic-p t) (normalize-p t))
   "Return a function called to fill a foreign array with a composite
-waveform made up of weighted sums of simple sinusoids. If PERIODIC-P
-is T (default), the result is a cycle of a periodic waveform. LST is a
-list where each element is one of the following:
+waveform made up of weighted sums of sinusoids. If PERIODIC-P is T (default),
+the result is a cycle of a periodic waveform. LIST is a list where each element
+is one of the following:
 
-- value: relative stregth of the partial. The number of the partial is
-  the position in the list plus a possible offset introduced by a
-  previous list (par-number strength ...). Example:
-  generate the same waveform:
+- value: relative strength of the partial. A negative value implies a
+  phase inversion. The number of the partial is the position in the list
+  plus a possible offset introduced by a previous list (partial-number strength
+  [phase] [dc]). Example:
 
-    ;; Generate the same waveform.
-    (with-buffers
-      ((b0 16 :fill-function (gen:partials '(1 0 .5 0 0 0 .2 .1)))
-       (b1 16 :fill-function (gen:partials '(1 0 .5 (7 .2) .1))))
-      (equal (buffer->list b0) (buffer->list b1)))
-    ;; => T
+      (with-buffers
+        ((b0 16 :fill-function (gen:partials '(1 0 .5 0 0 0 .2 .1)))
+         (b1 16 :fill-function (gen:partials '(1 0 .5 (7 .2) .1))))
+        (equal (buffer->list b0) (buffer->list b1)))
+      ;; => T
 
-    Partials 1, 3, 7 and 8 with relative strengths 1, .5, .2 and .1
+- list (partial-number strength): STRENGTH is the strength of the partial
+  PARTIAL-NUMBER. A negative STRENGTH value implies a phase inversion.
 
-- list (par-number strength): STRENGTH is the strength of the partial
-  PAR-NUMBER.
+- list (partial-number strength phase): PHASE is the initial phase of the
+  partial. It is a multiplier for +TWOPI+.
 
-- list (par-number strength phase): PHASE is the initial phase of the partial.
-  It is a multiplier for +TWOPI+.
-
-- list (par-number strength phase dc): DC is the DC offset of the partial.
+- list (partial-number strength phase dc): DC is the DC offset of the partial.
 
 The returned function takes two arguments, the foreign pointer to the
 sample data and the data size, and returns three values: the foreign
 array, the scale factor to normalize the samples and the boolean
-NORMALIZE-P to specify whether the normalization is necessary."
-  (declare (type list lst) (type boolean periodic-p normalize-p))
-  (let ((pl (complete-partial-list lst)))
+NORMALIZE-P to specify whether the normalization is necessary.
+"
+  (declare (type list list) (type boolean periodic-p normalize-p))
+  (let ((pl (complete-partial-list list)))
     (declare (type list pl))
     (lambda (foreign-pointer size)
       (declare (type foreign-pointer foreign-pointer)

@@ -58,8 +58,8 @@
                  (buffer->list
                    (make-buffer 16
                      :fill-function (gen:partials lst :normalize-p nil))))))
-        (equal (partest '(1000 -1000 1000 -1000))
-               (partest '(1000 (2 1000 .5) 1000 (4 1000 .5))))))
+        (equal (partest '(1000 -1000 1000 (4 -1000) (7 -1000 .123)))
+               (partest '(1000 (2 1000 .5) 1000 (4 1000 .5) (7 1000 .123))))))
   t)
 
 (defun quasi-sawtooth-test (partials)
