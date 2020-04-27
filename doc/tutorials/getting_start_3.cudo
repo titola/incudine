@@ -37,8 +37,7 @@
 (free 1)
 (set-bus-test 0 0 0)
 
-;; Here is a minimal test to use the VUGs dedicated
-;; to MIDI messages:
+;; Here is an example to test some VUGs dedicated to MIDI messages:
 
 (dsp! midi-test ()
   (foreach-channel
@@ -54,7 +53,14 @@
 (recv-start *midiin* :timeout 64)
 ;; #<RECEIVER PORTMIDI:INPUT-STREAM RUNNING>
 (midi-test)
+
+;; Set the CC MIDI 7 (volume), 8 (cutoff frequency), 9 (Q factor)
+;; and 10 (panpot) to control the MIDI-TEST istance.
+
 (free 0)
+
+;; See incudine/doc/tutorials/jackmidi.cudo file for a tutorial
+;; about Jack MIDI interface.
 
 ;; It is possible to define one or more responders associated with a
 ;; PM:STREAM
@@ -72,13 +78,14 @@
 (all-responders *midiin*)
 ;; (#S(INCUDINE::RESPONDER
 ;;     :RECEIVER #<RECEIVER PORTMIDI:INPUT-STREAM RUNNING>
-;;     :FUNCTION #<FUNCTION (LAMBDA (ST D1 D2)) {1009E44DEB}>))
+;;     :FUNCTION #<CLOSURE ...))
 (remove-responder resp)
 (setf (logger-level) :warn)
 ;; :WARN
 (recv-stop *midiin*)
 
-;; The following example shows the steps to use a VOICER in Incudine:
+;; The following example shows the steps to use a VOICER for voice
+;; management:
 
 (dsp! simple (freq amp pos (env envelope) gate)
   (foreach-channel
@@ -87,29 +94,9 @@
                 pos))))
 
 (defparameter env1 (make-adsr .01 .09 .9 .2))
-;; ENV1
-(defparameter voi (voicer:create 20 (simple 440 .3 .5 env1 1)))
-;; VOI
-(describe voi)
-;; #<VOICER :POLYPHONY 20 :COUNT 0>
-;;   [structure-object]
 
-;; Slots with :INSTANCE allocation:
-;;   NODE-POOL             = #<CONS-POOL 20>
-;;   GENERIC-POOL          = #<CONS-POOL 60>
-;;   OBJECTS               = (NIL)
-;;   OBJECT-HASH           = #<HASH-TABLE :TEST EQL :COUNT 0 {1006AE5503}>
-;;   POLYPHONY             = 20
-;;   AVAILABLE-NODES       = 20
-;;   COUNT                 = 0
-;;   SPINLOCK              = #<SPINLOCK "Voicer">
-;;   TRIGGER-FUNCTION      = #<CLOSURE (LAMBDA (#:V82 #:TAG80 #:VNODE83)) {1006AE60AB}>
-;;   RELEASE-FUNCTION      = #<FUNCTION INCUDINE.VOICER::RELEASE-FUNCTION-DEFAULT>
-;;   OBJECT-FREE-FUNCTION  = #<FUNCTION (LAMBDA (INCUDINE.VOICER::ID)) {100553022B}>
-;;   STEAL-FUNCTION        = NIL
-;;   ARGUMENTS             = #<HASH-TABLE :TEST EQL :COUNT 5 {1006AE5963}>
-;;   ARGUMENT-MAPS         = #<HASH-TABLE :TEST EQL :COUNT 0 {1006AE5DA3}>
-;; ; No value
+(defparameter voi (voicer:create 20 (simple 440 .3 .5 env1 1)))
+
 (voicer:control-value voi 'freq)
 ;; 440
 ;; T
@@ -158,10 +145,9 @@ voi
 ;; The first argument of VOICER:CREATE is the max number of voices and
 ;; the second argument is a list
 
-;, (dsp-name dsp-arg1 dsp-arg2 ...)
+;;     (dsp-name dsp-arg1 dsp-arg2 ...)
 
-;; practically the function call to perform an
-;; instance of the DSP.
+;; practically the function call to perform an instance of a DSP.
 
 ;; VOICER:DEFINE-MAP is an utility to define a mapping function to
 ;; call immediately after a VOICER:TRIGGER, before the new event.
@@ -196,20 +182,22 @@ voi
 (voicer:remove-map voi 'foo)
 ;; NIL
 
-;; And now we see how to control our VOICER with the MIDI messages:
+;; VOICER:MIDI-BIND allows to control a VOICER with MIDI messages:
 
 (recv-start *midiin*)
 ;; #<RECEIVER PORTMIDI:INPUT-STREAM RUNNING>
 (voicer:midi-bind voi *midiin*)
 ;; #<MIDI-EVENT :VOICER #<VOICER :POLYPHONY 20 :COUNT 0>
-;;              :RESPONDER #S(INCUDINE::RESPONDER
-;;                            :RECEIVER #<RECEIVER PORTMIDI:INPUT-STREAM RUNNING>
-;;                            :FUNCTION #<CLOSURE (LAMBDA
-;;                                                    (#:STATUS805 #:DATA1806
-;;                                                     #:DATA2807))
-;;                                        {100D1ECE6B}>)>
+;;    :RESPONDER #S(RESPONDER
+;;                  :RECEIVER #<RECEIVER PORTMIDI:INPUT-STREAM RUNNING>
+;;                  :FUNCTION #<CLOSURE (LAMBDA
+;;                                          (INCUDINE::STATUS
+;;                                           INCUDINE::DATA1
+;;                                           INCUDINE::DATA2 STREAM)
+;;                                        :IN
+;;                                        INCUDINE::MIDI-RESPONDER-WRAPPER) {1006369ADB}>)>
 
-;; Done.
+;; Done. Now try to play a connected MIDI keyboard.
 
 (recv-stop *midiin*)
 ;; #<RECEIVER PORTMIDI:INPUT-STREAM STOPPED>
@@ -242,7 +230,7 @@ voi
 (defun nrt-test-2 (filename &optional (duration 10))
   (bounce-to-disk (filename :duration duration) (oscilla-events (now))))
 
-(init)  ; INIT is useless here if we called RT-START
+(init)  ; Note: INIT is useless after RT-START
 (nrt-test-1 "/tmp/nrt-test-1.wav")
 ;;            peak amps:     0.323     0.765
 ;; samples out of range:         0         0
@@ -290,7 +278,7 @@ voi
 ;; Game Over
 8 free 0
 
-;; and the lisp code to import it is
+;; and the lisp code is
 
 (dsp! simple2 (freq amp pos)
   (foreach-channel (cout (pan2 (sine freq amp 0) pos))))
@@ -307,9 +295,9 @@ voi
 ;; A line comment starts with `;' and there is a line continuation
 ;; with `\' at the end of the line.
 
-;; TIME and TEMPO-ENV are pre-defined local variables usable inside a
-;; rego file. They are respectively the time offset in beats and the
-;; temporal envelope of the events.
+;; TIME and TEMPO-ENV are pre-defined local variables usable within a
+;; rego file. They are the time offset in beats and the temporal
+;; envelope of the events, respectively.
 
 ;; It is possible to define other local variables by inserting the
 ;; bindings after WITH, at the beginning of the score. For example:
@@ -342,14 +330,12 @@ last       free 0
 4.5 foo 220 .02
 4.5 sev 772 .07
 
-;; We can also add a DECLARE expression after the
-;; bindings.
+;; We can also add a DECLARE expression after the bindings.
 
-;; DUR is a local function to convert the duration
-;; from beats to seconds with respect to TEMPO-ENV.
+;; DUR is a local function to convert the duration from beats to seconds
+;; with respect to TEMPO-ENV.
 
-;; TEMPO is a local macro to change the tempo of the
-;; score. The syntax is
+;; TEMPO is a local macro to change the tempo of the score. The syntax is
 
 ;; (tempo bpm)
 ;; (tempo bpms beats &key curve loop-node release-node

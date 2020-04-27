@@ -25,17 +25,17 @@
         <code>SAMPLE</code> type. For example:
       </p>
 
-      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">get-bus-test</span> ()
+      <pre class="src src-lisp">(<span style="color: #8deeee;">dsp!</span> <span style="color: #87cefa;">get-bus-test</span> ()
   (foreach-channel
     (cout (pan2 (sine (bus 0) (bus 1) 0) (bus 2)))))
 
-(dsp! <span style="color: #87cefa;">mod-bus-test</span> (fcar fmod amod)
+(<span style="color: #8deeee;">dsp!</span> <span style="color: #87cefa;">mod-bus-test</span> (fcar fmod amod)
   (setf (bus 0) (+ fcar (sine fmod amod 0))))
 
-(defun <span style="color: #87cefa;">set-bus-test</span> (freq amp pos)
+(<span style="color: #8deeee;">defun</span> <span style="color: #87cefa;">set-bus-test</span> (freq amp pos)
   (rt-eval () (setf (bus 0) freq (bus 1) amp (bus 2) pos)))
 
-(defun <span style="color: #87cefa;">bus-test-list</span> ()
+(<span style="color: #8deeee;">defun</span> <span style="color: #87cefa;">bus-test-list</span> ()
   (rt-eval (<span style="color: #b0c4de;">:return-value-p</span> t)
     (list (bus 0) (bus 1) (bus 2))))
 
@@ -57,10 +57,10 @@
 <span class="prompt">SCRATCH&gt;</span> (set-bus-test 0 0 0)</pre>
 
       <p>
-        Here is a minimal test to use the VUGs dedicated to MIDI messages:
+        Here is an example to test some VUGs dedicated to MIDI messages:
       </p>
 
-      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">midi-test</span> ()
+      <pre class="src src-lisp">(<span style="color: #8deeee;">dsp!</span> <span style="color: #87cefa;">midi-test</span> ()
   (foreach-channel
     (cout (pan2 (bpf (white-noise (lin-midi-cc 0 7 0 1))
                      (lag (exp-midi-cc 0 8 50 5000) .02)
@@ -69,24 +69,30 @@
 
 <span class="prompt">SCRATCH&gt;</span> (pm:initialize)
 <span style="color: #b0c4de;">:PM-NO-ERROR</span>
-<span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">*midiin*</span> (pm:open (pm:get-default-input-device-id)))
+<span class="prompt">SCRATCH&gt;</span> (<span style="color: #8deeee;">defvar</span> <span style="color: #eedd82;">*midiin*</span> (pm:open (pm:get-default-input-device-id)))
 *MIDIIN*
 <span class="prompt">SCRATCH&gt;</span> (recv-start *midiin* :timeout 64)
 #&lt;RECEIVER PORTMIDI:INPUT-STREAM RUNNING&gt;
 <span class="prompt">SCRATCH&gt;</span> (midi-test)
+
+<span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Set the CC MIDI 7 (volume), 8 (cutoff frequency), 9 (Q factor)</span>
+<span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">and 10 (panpot) to control the MIDI-TEST istance.</span>
+
 <span class="prompt">SCRATCH&gt;</span> (free 0)</pre>
 
       <p>
         N.B. if you want to use Jack MIDI, there is a specific tutorial
         <a href="tutorial_jackmidi.html">here</a>.
-      </p><p>
+      </p>
+
+      <p>
         It is possible to define one or more responders associated with a
         <code>PM:STREAM</code>
       </p>
 
-      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">resp</span>
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (<span style="color: #8deeee;">defvar</span> <span style="color: #eedd82;">resp</span>
            (make-responder *midiin*
-                           (lambda (st d1 d2)
+                           (<span style="color: #8deeee;">lambda</span> (st d1 d2)
                              (nrt-msg info <span style="color: #ffa07a;">"~D ~D ~D"</span> st d1 d2))))
 RESP
 <span class="prompt">SCRATCH&gt;</span> (setf (logger-level) <span style="color: #b0c4de;">:info</span>)
@@ -97,47 +103,25 @@ RESP
 <span class="prompt">SCRATCH&gt;</span> (all-responders *midiin*)
 (#S(INCUDINE::RESPONDER
     <span style="color: #b0c4de;">:RECEIVER</span> #&lt;RECEIVER PORTMIDI:INPUT-STREAM RUNNING&gt;
-    <span style="color: #b0c4de;">:FUNCTION</span> #&lt;FUNCTION (LAMBDA (ST D1 D2)) {1009E44DEB}&gt;))
+    <span style="color: #b0c4de;">:FUNCTION</span> #&lt;CLOSURE ...))
 <span class="prompt">SCRATCH&gt;</span> (remove-responder resp)
 <span class="prompt">SCRATCH&gt;</span> (setf (logger-level) <span style="color: #b0c4de;">:warn</span>)
 <span style="color: #b0c4de;">:WARN</span>
 <span class="prompt">SCRATCH&gt;</span> (recv-stop *midiin*)</pre>
 
       <p>
-        The following example shows the steps to use a <code>VOICER</code> in
-        <a href="index.html">Incudine</a>:
+        The following example shows the steps to use a <code>VOICER</code> for
+        voice management:
       </p>
 
-      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">simple</span> (freq amp pos (env envelope) gate)
+      <pre class="src src-lisp">(<span style="color: #8deeee;">dsp!</span> <span style="color: #87cefa;">simple</span> (freq amp pos (env envelope) gate)
   (foreach-channel
     (cout (pan2 (* (envelope env gate 1 #'free)
                    (sine freq amp 0))
                 pos))))
 
-<span class="prompt">SCRATCH&gt;</span> (defparameter <span style="color: #eedd82;">env1</span> (make-adsr .01 .09 .9 .2))
-ENV1
-<span class="prompt">SCRATCH&gt;</span> (defparameter <span style="color: #eedd82;">voi</span> (voicer:create 20 (simple 440 .3 .5 env1 1)))
-VOI
-<span class="prompt">SCRATCH&gt;</span> (describe voi)
-#&lt;VOICER <span style="color: #b0c4de;">:POLYPHONY</span> 20 <span style="color: #b0c4de;">:COUNT</span> 0&gt;
-  [structure-object]
-
-Slots with <span style="color: #b0c4de;">:INSTANCE</span> allocation:
-  NODE-POOL             = #&lt;CONS-POOL 20&gt;
-  GENERIC-POOL          = #&lt;CONS-POOL 60&gt;
-  OBJECTS               = (NIL)
-  OBJECT-HASH           = #&lt;HASH-TABLE <span style="color: #b0c4de;">:TEST</span> EQL <span style="color: #b0c4de;">:COUNT</span> 0 {1006AE5503}&gt;
-  POLYPHONY             = 20
-  AVAILABLE-NODES       = 20
-  COUNT                 = 0
-  SPINLOCK              = #&lt;SPINLOCK <span style="color: #ffa07a;">"Voicer"</span>&gt;
-  TRIGGER-FUNCTION      = #&lt;CLOSURE (LAMBDA (#<span style="color: #b0c4de;">:V82</span> #<span style="color: #b0c4de;">:TAG80</span> #<span style="color: #b0c4de;">:VNODE83</span>)) {1006AE60AB}&gt;
-  RELEASE-FUNCTION      = #&lt;FUNCTION INCUDINE.VOICER::RELEASE-FUNCTION-DEFAULT&gt;
-  OBJECT-FREE-FUNCTION  = #&lt;FUNCTION (LAMBDA (INCUDINE.VOICER::ID)) {100553022B}&gt;
-  STEAL-FUNCTION        = NIL
-  ARGUMENTS             = #&lt;HASH-TABLE <span style="color: #b0c4de;">:TEST</span> EQL <span style="color: #b0c4de;">:COUNT</span> 5 {1006AE5963}&gt;
-  ARGUMENT-MAPS         = #&lt;HASH-TABLE <span style="color: #b0c4de;">:TEST</span> EQL <span style="color: #b0c4de;">:COUNT</span> 0 {1006AE5DA3}&gt;
-<span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">No value</span>
+<span class="prompt">SCRATCH&gt;</span> (<span style="color: #8deeee;">defparameter</span> <span style="color: #eedd82;">env1</span> (make-adsr .01 .09 .9 .2))
+<span class="prompt">SCRATCH&gt;</span> (<span style="color: #8deeee;">defparameter</span> <span style="color: #eedd82;">voi</span> (voicer:create 20 (simple 440 .3 .5 env1 1)))
 <span class="prompt">SCRATCH&gt;</span> (voicer:control-value voi 'freq)
 440
 T
@@ -208,7 +192,7 @@ NIL</pre>
                  <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">Ignorable STYLE-WARNING, a defensive test is</span>
                  <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">(when freq</span>
                  <span style="color: #ff7f24;">;;   </span><span style="color: #ff7f24;">(setf amp (random (if (&gt; freq 800) .1 .3))))</span>
-                 amp (random (if (&gt; freq 800) .1 .3))
+                 amp (random (<span style="color: #8deeee;">if</span> (&gt; freq 800) .1 .3))
                  pos (random 1.0)))
 #&lt;VOICER <span style="color: #b0c4de;">:POLYPHONY</span> 20 <span style="color: #b0c4de;">:COUNT</span> 0&gt;
 <span class="prompt">SCRATCH&gt;</span> (voicer:trigger voi 123)
@@ -234,20 +218,25 @@ NIL
 NIL</pre>
 
       <p>
-        And now we see how to control our <code>VOICER</code> with the MIDI
-        messages:
+        <code>VOICER:MIDI-BIND</code> allows to control a <code>VOICER</code>
+        with MIDI messages:
       </p>
 
       <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (recv-start *midiin*)
 #&lt;RECEIVER PORTMIDI:INPUT-STREAM RUNNING&gt;
 <span class="prompt">SCRATCH&gt;</span> (voicer:midi-bind voi *midiin*)
 #&lt;MIDI-EVENT <span style="color: #b0c4de;">:VOICER</span> #&lt;VOICER <span style="color: #b0c4de;">:POLYPHONY</span> 20 <span style="color: #b0c4de;">:COUNT</span> 0&gt;
-             <span style="color: #b0c4de;">:RESPONDER</span> #S(INCUDINE::RESPONDER
-                           <span style="color: #b0c4de;">:RECEIVER</span> #&lt;RECEIVER PORTMIDI:INPUT-STREAM RUNNING&gt;
-                           <span style="color: #b0c4de;">:FUNCTION</span> #&lt;CLOSURE (LAMBDA #) {100717A0EB}&gt;)&gt;</pre>
+   <span style="color: #b0c4de;">:RESPONDER</span> #S(RESPONDER
+                 <span style="color: #b0c4de;">:RECEIVER</span> #&lt;RECEIVER PORTMIDI:INPUT-STREAM RUNNING&gt;
+                 <span style="color: #b0c4de;">:FUNCTION</span> #&lt;CLOSURE (<span style="color: #8deeee;">LAMBDA</span>
+                                         (INCUDINE::STATUS
+                                          INCUDINE::DATA1
+                                          INCUDINE::DATA2 STREAM)
+                                       <span style="color: #b0c4de;">:IN</span>
+                                       INCUDINE::MIDI-RESPONDER-WRAPPER) <span style="color: #ffc0cb; font-weight: bold;">{1006369ADB}&gt;)&gt;</span></pre>
 
       <p>
-        Done.
+        Done. Now try to play a connected MIDI keyboard.
       </p>
 
       <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (recv-stop *midiin*)
@@ -261,29 +250,29 @@ NIL</pre>
         <code>BOUNCE-TO-BUFFER</code>
       </p>
 
-      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">oscilla</span> (freq amp pos atk rel)
+      <pre class="src src-lisp">(<span style="color: #8deeee;">dsp!</span> <span style="color: #87cefa;">oscilla</span> (freq amp pos atk rel)
   (foreach-channel
     (cout (pan2 (* (envelope (make-perc atk rel) 1 1 #'free)
                    (osc *sine-table* freq amp 0 <span style="color: #b0c4de;">:cubic</span>))
                 pos))))
 
-(defun <span style="color: #87cefa;">nrt-test-1</span> (filename)
+(<span style="color: #8deeee;">defun</span> <span style="color: #87cefa;">nrt-test-1</span> (filename)
   <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">The bounce ends 2 seconds after the last event</span>
   (bounce-to-disk (filename <span style="color: #b0c4de;">:pad</span> 2)
     (at 0 #'oscilla 200 .3 (random 1.0) .5 1.8)
     (at #[1.5 beats] #'oscilla 400 .35 (random 1.0) .001 1)
     (at #[2.6 beats] #'oscilla 800 .8 (random 1.0) 1 .2)))
 
-(defun <span style="color: #87cefa;">oscilla-events</span> (time)
+(<span style="color: #8deeee;">defun</span> <span style="color: #87cefa;">oscilla-events</span> (time)
   (oscilla (+ 100 (random 1000)) (+ .1 (random .4)) (random 1.0)
            (+ .01 (random .5)) (+ .01 (random .5)))
   (let ((next-time (+ time (+ #[177 ms] (random #[3/2 s])))))
     (at next-time #'oscilla-events next-time)))
 
-(defun <span style="color: #87cefa;">nrt-test-2</span> (filename <span style="color: #98fb98;">&amp;optional</span> (duration 10))
+(<span style="color: #8deeee;">defun</span> <span style="color: #87cefa;">nrt-test-2</span> (filename <span style="color: #98fb98;">&amp;optional</span> (duration 10))
   (bounce-to-disk (filename <span style="color: #b0c4de;">:duration</span> duration) (oscilla-events (now))))
 
-<span class="prompt">SCRATCH&gt;</span> (init)  <span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">INIT is useless here if we called RT-START</span>
+<span class="prompt">SCRATCH&gt;</span> (init)  <span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">INIT is useless after RT-START</span>
 <span class="prompt">SCRATCH&gt;</span> (nrt-test-1 <span style="color: #ffa07a;">"/tmp/nrt-test-1.wav"</span>)
            peak amps:     0.323     0.765
 samples out of range:         0         0
@@ -340,13 +329,13 @@ samples out of range:         0         0
 8 free 0</pre>
 
       <p>
-        and the lisp code to import it is
+        and the lisp code is
       </p>
 
-      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">simple2</span> (freq amp pos)
+      <pre class="src src-lisp">(<span style="color: #8deeee;">dsp!</span> <span style="color: #87cefa;">simple2</span> (freq amp pos)
   (foreach-channel (cout (pan2 (sine freq amp 0) pos))))
 
-(defun <span style="color: #87cefa;">nrt-test-3</span> (outfile <span style="color: #98fb98;">&amp;optional</span> (regofile <span style="color: #ffa07a;">"/tmp/test.rego"</span>))
+(<span style="color: #8deeee;">defun</span> <span style="color: #87cefa;">nrt-test-3</span> (outfile <span style="color: #98fb98;">&amp;optional</span> (regofile <span style="color: #ffa07a;">"/tmp/test.rego"</span>))
   (bounce-to-disk (outfile <span style="color: #b0c4de;">:pad</span> 0)
     (funcall (regofile-&gt;function regofile))))
 
@@ -362,8 +351,8 @@ samples out of range:         0         0
 
       <p>
         <code>TIME</code> and <code>TEMPO-ENV</code> are pre-defined local
-        variables usable inside a rego file. They are respectively the
-        time offset in beats and the temporal envelope of the events.
+        variables usable within a rego file. They are the time offset in
+        beats and the temporal envelope of the events, respectively.
       </p>
 
       <p>
@@ -440,7 +429,7 @@ n  simple3  (+ 100 (random 1000))  0.3  (dur 0.5)
         A simple test:
       </p>
 
-      <pre class="src src-lisp">(dsp! <span style="color: #87cefa;">simple3</span> (freq amp dur)
+      <pre class="src src-lisp">(<span style="color: #8deeee;">dsp!</span> <span style="color: #87cefa;">simple3</span> (freq amp dur)
   (stereo (* (envelope (make-perc .1 .9) 1 dur #'free)
              (sine freq amp 0))))
 
