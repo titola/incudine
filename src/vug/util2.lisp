@@ -159,7 +159,7 @@ array of type foreign-pointer and size SIZE."
                                 initial-contents)
   "Associated with a variable in WITH binding to create an array of
 type (signed-byte 32) and size SIZE. The array is foreign on 32-bit
-platforms because the size of a fixnum is minor than 32 bits."
+platforms because the size of a fixnum is less than 32 bits."
   (declare (ignore zero-p initial-element initial-contents))
   (let ((fname (maybe-make-x32-array-fname make-i32-array)))
     `(,fname ,size ,@(cddr whole))))
@@ -168,7 +168,7 @@ platforms because the size of a fixnum is minor than 32 bits."
                                 initial-contents)
   "Associated with a variable in WITH binding to create an array of
 type (unsigned-byte 32) and size SIZE. The array is foreign on 32-bit
-platforms because the size of a fixnum is minor than 32 bits."
+platforms because the size of a fixnum is less than 32 bits."
   (declare (ignore zero-p initial-element initial-contents))
   (let ((fname (maybe-make-x32-array-fname make-u32-array)))
     `(,fname ,size ,@(cddr whole))))

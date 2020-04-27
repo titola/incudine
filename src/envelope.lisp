@@ -536,7 +536,7 @@ otherwise it restarts from the value RESTART-LEVEL."
                       (release-node -1) restart-level
                       (real-time-p (allow-rt-memory-p)))
   "Create and return a new ENVELOPE structure from a list of LEVELS and
-a list of TIMES.
+a list of TIMES in seconds.
 
 If BASE is a number, it is the envelope's base in the style of CLM
 (Common Lisp Music), where BASE is e^k and the curvature depends on

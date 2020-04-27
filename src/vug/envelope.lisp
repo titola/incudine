@@ -202,7 +202,7 @@ GATE is one of:
 
                 0   start the release phase
                -1   immediate cutoff
-    minor than -1   release stage with a custom duration -1 minus GATE
+     less than -1   release stage with a custom duration -1 minus GATE
 
 The envelope is re-triggered if the difference between the gate of the
 current audio cycle and the gate of the previous audio cycle is a
