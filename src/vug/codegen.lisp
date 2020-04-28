@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -821,7 +821,7 @@ value of a bound VARIABLE of type SAMPLE, POINTER or foreign array."
                           (set-dsp-object ,dsp
                             :init-function
                               (lambda (,node ,@',arg-names)
-                                (declare #.*reduce-warnings*)
+                                ,@(reduce-warnings-if-no-debug ,optimize)
                                 (reset-foreign-arrays
                                   ,smpvec ,,smpvec-size ,+foreign-sample-size+
                                   ,f32vec ,,f32vec-size 4
@@ -1239,6 +1239,16 @@ The default is T.")
     (if spec
         `'(optimize ,@(if ugen-spec-p spec (cadr spec)))
         '*standard-optimize-settings*)))
+
+(defun optimize-value (list quality)
+  (declare (type (member compilation-speed debug safety space speed) quality))
+  (dolist (q list 0)
+    (when (eq quality (if (consp q) (first q) q))
+      (return (if (consp q) (second q) 3)))))
+
+(defun reduce-warnings-if-no-debug (optimize-decl)
+  (when (zerop (optimize-value optimize-decl 'debug))
+    `((declare #.*reduce-warnings*))))
 
 (defmacro dsp! (name arglist &body body)
   "Define a new DSP and the auxiliary function named NAME.

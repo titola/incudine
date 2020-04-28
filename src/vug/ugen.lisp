@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014-2019 Tito Latini
+;;; Copyright (c) 2014-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -365,8 +365,8 @@ from the other packages."
                             ,(set-parameters-form ,ugen)
                             ;; Init function.
                             (lambda (,@',arg-names &optional ,init-node)
-                              (declare (type (or incudine:node null) ,init-node)
-                                       #.*reduce-warnings*)
+                              (declare (type (or incudine:node null) ,init-node))
+                              ,@(reduce-warnings-if-no-debug ,optimize)
                               (reset-foreign-arrays
                                 ,smpvec ,,smpvec-size ,+foreign-sample-size+
                                 ,f32vec ,,f32vec-size 4
