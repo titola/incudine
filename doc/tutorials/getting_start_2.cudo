@@ -209,7 +209,9 @@
 
 ;; We can also define local envelopes, for example:
 
-(dsp! env-test-5 (freq amp pos gate a d s r)
+(dsp! env-test-5 (freq amp pos gate
+                  (a single-float) (d single-float)
+                  (s single-float) (r single-float))
   (foreach-channel
     (cout (pan2 (* (envelope (make-adsr a d s r) gate 1 #'stop)
                    (sine freq amp 0))
