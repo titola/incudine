@@ -322,17 +322,18 @@ PERC is NIL or a list (attack-time release-time). CURVE defaults to -4.
 CUTOFF is NIL or the release time. CURVE defaults to :EXPONENTIAL and
 RELEASE-NODE is 0.
 
-ASR is NIL or the list (attack-time sustain-level release-time). CURVE
-defaults to -4 and RELEASE-NODE is 1.
+ASR is NIL or the list (attack-time sustain-level release-time).
+CURVE and RELEASE-NODE default to -4 and 1 respectively.
 
 ADSR is NIL or the list (attack-time decay-time sustain-level release-time).
-CURVE defaults to -4 and RELEASE-NODE is 2.
+CURVE and RELEASE-NODE default to -4 and 2 respectively.
+SUSTAIN-LEVEL is a ratio of PEAK-LEVEL.
 
 DADSR is NIL or the list (delay-time attack-time decay-time sustain-level release-time).
-CURVE defaults to -4 and RELEASE-NODE is 3.
+CURVE and RELEASE-NODE default to -4 and 3 respectively.
+SUSTAIN-LEVEL is a ratio of PEAK-LEVEL.
 
-PEAK-LEVEL is the peak level (1 by default) of the envelope when
-LEVELS and ASR are NIL.
+PEAK-LEVEL is the peak level (1 by default) when LEVELS and ASR are NIL.
 
 If RESTART-LEVEL is NIL, the envelope restarts from the current level
 otherwise it restarts from the value RESTART-LEVEL."
@@ -1077,7 +1078,15 @@ The curvature CURVE defaults to -4."
   "Create and return a new ENVELOPE structure with ATTACK-TIME,
 PEAK-LEVEL, DECAY-TIME, SUSTAIN-LEVEL and RELEASE-TIME.
 
-The curvature CURVE defaults to -4."
+PEAK-LEVELS defaults to 1.
+
+SUSTAIN-LEVEL is a ratio of PEAK-LEVEL for compatibility with
+Env.adsr in SuperCollider.
+
+The curvature CURVE defaults to -4.
+
+Other available keyword arguments are BASE, RESTART-LEVEL and
+REAL-TIME-P. See MAKE-ENVELOPE for details."
   (multiple-value-bind (peak-level sustain-level)
       (if peak-level
           (values peak-level (* peak-level sustain-level))
@@ -1094,7 +1103,15 @@ The curvature CURVE defaults to -4."
   "Create and return a new ENVELOPE structure with DELAY-TIME,
 ATTACK-TIME, PEAK-LEVEL, DECAY-TIME, SUSTAIN-LEVEL and RELEASE-TIME.
 
-The curvature CURVE defaults to -4."
+PEAK-LEVELS defaults to 1.
+
+SUSTAIN-LEVEL is a ratio of PEAK-LEVEL for compatibility with
+Env.adsr in SuperCollider.
+
+The curvature CURVE defaults to -4.
+
+Other available keyword arguments are BASE, RESTART-LEVEL and
+REAL-TIME-P. See MAKE-ENVELOPE for details."
   (multiple-value-bind (peak-level sustain-level)
       (if peak-level
           (values peak-level (* peak-level sustain-level))
