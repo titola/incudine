@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -240,20 +240,18 @@ a non-NIL FILE argument, return the pathname.")
 
 (defmacro with-open-sndfile ((var path offset frames channels sample-rate
                               headerless-p data-format) &body body)
-  `(if (probe-file ,path)
-       (let ((,channels (or ,channels 1))
-             (,sample-rate (or ,sample-rate *sample-rate*)))
-         (sf:with-open (,var ,path
-                        :info (when ,headerless-p
-                                (headerless-sf-info ,sample-rate ,channels
-                                                    ,data-format)))
-           (if (sf:sndfile-null-p ,var)
-               ;; Try to load a text file
-               (or (buffer-load-textfile ,path ,offset ,frames ,channels
-                                         ,sample-rate)
+  `(let ((,channels (or ,channels 1))
+         (,sample-rate (or ,sample-rate *sample-rate*)))
+     (sf:with-open (,var ,path
+                    :info (when ,headerless-p
+                            (headerless-sf-info
+                              ,sample-rate ,channels ,data-format)))
+       (if (sf:sndfile-null-p ,var)
+           ;; Try to load a text file
+           (or (buffer-load-textfile
+                 ,path ,offset ,frames ,channels ,sample-rate)
                    (incudine-error (sf:strerror ,var)))
-               ,@body)))
-       (incudine-error "file ~S not found" (namestring ,path))))
+           ,@body))))
 
 (defun buffer-load (path &key (offset 0) frames (channel -1) channels
                     sample-rate headerless-p data-format)
@@ -283,7 +281,11 @@ SAMPLE-RATE is *SAMPLE-RATE* by default."
            (type non-negative-real offset))
   (let ((offset (floor offset))
         (frames (and frames (floor frames)))
-        (path (truename path)))
+        (path (or (probe-file path)
+                  (error 'incudine-file-error
+                         :pathname path
+                         :format-control "file ~S not found"
+                         :format-arguments (list path)))))
     (declare (type non-negative-fixnum offset)
              (type (or non-negative-fixnum null) frames))
     (with-open-sndfile (sf path offset frames channels sample-rate
@@ -639,53 +641,55 @@ content of the buffer."
   (declare (type buffer buffer) (type (or string pathname) path)
            (type non-negative-fixnum start buffer-start buffer-end)
            (type list channel-map))
-  (if (probe-file path)
-      (sf:with-open (sf (truename path)
-                     :info (when headerless-p
-                             (headerless-sf-info
-                               (buffer-sample-rate buffer)
-                               (if channel-map
-                                   (1+ (reduce #'max channel-map :key #'first))
-                                   (buffer-channels buffer))
-                               data-format)))
-        (if (sf:sndfile-null-p sf)
-            ;; Perhaps it is a numeric text file
-            (set-buffer-from-textfile buffer path start buffer-start buffer-end)
-            (let* ((info (sf:info sf))
-                   (channels (sf:channels info))
-                   (selected-frames (min (- buffer-end buffer-start)
-                                         (- (sf:frames info) start))))
-              (declare (type non-negative-fixnum channels)
-                       (type fixnum selected-frames))
-              (when (plusp selected-frames)
-                (incudine-optimize
-                  (sf:seek sf start 0)
-                  (cond (channel-map
-                         (let ((channel-map-size (length channel-map)))
-                           (when (check-channel-map channel-map channel-map-size
-                                                    channels
-                                                    (buffer-channels buffer))
-                             (map-sndfile-ch-to-buffer
-                               (buffer-data buffer) sf selected-frames
-                               channels (buffer-channels buffer) buffer-start
-                               *sndfile-buffer-size* channel-map
-                               channel-map-size))))
-                        ((= (buffer-channels buffer) channels)
-                         (sndfile-to-buffer (buffer-data buffer) sf
-                                            selected-frames channels
-                                            buffer-start *sndfile-buffer-size*))
-                        (t (let ((channel-map
-                                  (loop for src below channels
-                                        for dest below (buffer-channels buffer)
-                                        collect `(,src ,dest))))
-                             (nrt-msg debug "use channel-map ~A" channel-map)
-                             (map-sndfile-ch-to-buffer
-                               (buffer-data buffer) sf selected-frames
-                               channels (buffer-channels buffer) buffer-start
-                               *sndfile-buffer-size* channel-map
-                               (min channels (buffer-channels buffer))))))))))
-        buffer)
-      (incudine-error "file ~S not found" (namestring path))))
+  (sf:with-open (sf (or (probe-file path)
+                        (error 'incudine-file-error
+                               :pathname path
+                               :format-control "file ~S not found"
+                               :format-arguments (list path)))
+                    :info (when headerless-p
+                            (headerless-sf-info
+                              (buffer-sample-rate buffer)
+                              (if channel-map
+                                  (1+ (reduce #'max channel-map :key #'first))
+                                  (buffer-channels buffer))
+                              data-format)))
+    (if (sf:sndfile-null-p sf)
+        ;; Perhaps it is a numeric text file.
+        (set-buffer-from-textfile buffer path start buffer-start buffer-end)
+        (let* ((info (sf:info sf))
+               (channels (sf:channels info))
+               (selected-frames (min (- buffer-end buffer-start)
+                                     (- (sf:frames info) start))))
+          (declare (type non-negative-fixnum channels)
+                   (type fixnum selected-frames))
+          (when (plusp selected-frames)
+            (incudine-optimize
+              (sf:seek sf start 0)
+              (cond (channel-map
+                     (let ((channel-map-size (length channel-map)))
+                       (when (check-channel-map channel-map channel-map-size
+                                                channels
+                                                (buffer-channels buffer))
+                         (map-sndfile-ch-to-buffer
+                           (buffer-data buffer) sf selected-frames
+                           channels (buffer-channels buffer) buffer-start
+                           *sndfile-buffer-size* channel-map
+                           channel-map-size))))
+                    ((= (buffer-channels buffer) channels)
+                     (sndfile-to-buffer (buffer-data buffer) sf
+                                        selected-frames channels
+                                        buffer-start *sndfile-buffer-size*))
+                    (t (let ((channel-map
+                              (loop for src below channels
+                                    for dest below (buffer-channels buffer)
+                                    collect `(,src ,dest))))
+                         (nrt-msg debug "use channel-map ~A" channel-map)
+                         (map-sndfile-ch-to-buffer
+                           (buffer-data buffer) sf selected-frames
+                           channels (buffer-channels buffer) buffer-start
+                           *sndfile-buffer-size* channel-map
+                           (min channels (buffer-channels buffer))))))))))
+    buffer))
 
 (defun fill-buffer (buffer obj &key (start 0) end (sndfile-start 0)
                     channel-map (normalize-p nil normalize-pp)

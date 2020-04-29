@@ -29,6 +29,8 @@ compilation of the Incudine library.
 
 Subtype of INCUDINE-SIMPLE-ERROR."))
 
+(define-condition incudine-file-error (incudine-simple-error file-error) ())
+
 (define-condition incudine-memory-fault-error (incudine-simple-error) ()
   (:documentation "Signaled if there is an unhandled memory fault.
 
