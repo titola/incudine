@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -1040,7 +1040,7 @@ straight line rise and decay pattern by default."
 (defun make-perc (attack-time release-time
                   &key (level 1) (curve -4) base restart-level
                   (real-time-p (allow-rt-memory-p)))
-    "Create and return a new ENVELOPE structure with peak LEVEL,
+  "Create and return a new ENVELOPE structure with peak LEVEL,
 ATTACK-TIME and RELEASE-TIME.
 
 The curvature CURVE defaults to -4."
@@ -1072,26 +1072,34 @@ The curvature CURVE defaults to -4."
 
 (declaim (inline make-adsr))
 (defun make-adsr (attack-time decay-time sustain-level release-time
-                  &key (peak-level 1) (curve -4) base restart-level
+                  &key peak-level (curve -4) base restart-level
                   (real-time-p (allow-rt-memory-p)))
-    "Create and return a new ENVELOPE structure with ATTACK-TIME,
+  "Create and return a new ENVELOPE structure with ATTACK-TIME,
 PEAK-LEVEL, DECAY-TIME, SUSTAIN-LEVEL and RELEASE-TIME.
 
 The curvature CURVE defaults to -4."
-  (make-envelope (list 0 peak-level (* peak-level sustain-level) 0)
-                 (list attack-time decay-time release-time)
-                 :curve curve :base base :release-node 2
-                 :restart-level restart-level :real-time-p real-time-p))
+  (multiple-value-bind (peak-level sustain-level)
+      (if peak-level
+          (values peak-level (* peak-level sustain-level))
+          (values 1 sustain-level))
+    (make-envelope (list 0 peak-level sustain-level 0)
+                   (list attack-time decay-time release-time)
+                   :curve curve :base base :release-node 2
+                   :restart-level restart-level :real-time-p real-time-p)))
 
 (declaim (inline make-dadsr))
 (defun make-dadsr (delay-time attack-time decay-time sustain-level
-                   release-time &key (peak-level 1) (curve -4) base
+                   release-time &key peak-level (curve -4) base
                    restart-level (real-time-p (allow-rt-memory-p)))
-      "Create and return a new ENVELOPE structure with DELAY-TIME,
+  "Create and return a new ENVELOPE structure with DELAY-TIME,
 ATTACK-TIME, PEAK-LEVEL, DECAY-TIME, SUSTAIN-LEVEL and RELEASE-TIME.
 
 The curvature CURVE defaults to -4."
-  (make-envelope (list 0 0 peak-level (* peak-level sustain-level) 0)
-                 (list delay-time attack-time decay-time release-time)
-                 :curve curve :base base :release-node 3
-                 :restart-level restart-level :real-time-p real-time-p))
+  (multiple-value-bind (peak-level sustain-level)
+      (if peak-level
+          (values peak-level (* peak-level sustain-level))
+          (values 1 sustain-level))
+    (make-envelope (list 0 0 peak-level sustain-level 0)
+                   (list delay-time attack-time decay-time release-time)
+                   :curve curve :base base :release-node 3
+                   :restart-level restart-level :real-time-p real-time-p)))
