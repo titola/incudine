@@ -517,10 +517,24 @@ and 1 (right)."
 ;; #<NODE :ID 100>
 (unpause 100)
 ;; #<NODE :ID 100>
-(free 100)
+(stop 100)
 ; No value
+(stop 200)
+; No value
+(dump (node 0))
+;; group 0
+;;     group 200
+;;     group 100
+;; NIL
 (free 200)
-; No value
+(dump (node 0))
+;; group 0
+;;     group 100
+;; NIL
+(free 0)
+;; (dump (node 0))
+;; group 0
+;; NIL
 (set-rt-block-size 1)
 (rt-start)
 

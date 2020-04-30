@@ -691,10 +691,24 @@ NIL
 #&lt;NODE <span style="color: #b0c4de;">:ID</span> 100&gt;
 <span class="prompt">SCRATCH&gt;</span> (unpause 100)
 #&lt;NODE <span style="color: #b0c4de;">:ID</span> 100&gt;
-<span class="prompt">SCRATCH&gt;</span> (free 100)
+<span class="prompt">SCRATCH&gt;</span> (stop 100)
 <span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">No value</span>
+<span class="prompt">SCRATCH&gt;</span> (stop 200)
+<span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">No value</span>
+<span class="prompt">SCRATCH&gt;</span> (dump (node 0))
+group 0
+    group 200
+    group 100
+NIL
 <span class="prompt">SCRATCH&gt;</span> (free 200)
-<span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">No value</span>
+<span class="prompt">SCRATCH&gt;</span> (dump (node 0))
+group 0
+    group 100
+NIL
+<span class="prompt">SCRATCH&gt;</span> (free 0)
+<span class="prompt">SCRATCH&gt;</span> (dump (node 0))
+group 0
+NIL
 <span class="prompt">SCRATCH&gt;</span> (set-rt-block-size 1)
 <span class="prompt">SCRATCH&gt;</span> (rt-start)</pre>
 
