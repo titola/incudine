@@ -1260,7 +1260,7 @@ Each element of the ARGLIST is a list
 or a symbol ARGUMENT-NAME if the control parameter is of type SAMPLE.
 
 If *UPDATE-DSP-INSTANCES-P* is T, update the running DSP instances
-with the same name.
+for NAME if the arguments remain the same.
 
 If the first forms in BODY are lists beginning with a keyword, they
 are DSP SPEC's. The keyword indicates the interpretation of the
