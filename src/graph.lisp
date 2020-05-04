@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -1556,10 +1556,10 @@ arguments ARGS."
         (indent-line)
         (cond ((group-p n)
                (dec-indent n)
-               (format stream "group ~D~:[~; (pause)~]~%" (node-id n)
+               (format stream "group ~D~@[ (pause)~]~%" (node-id n)
                        (node-pause-p n))
                (inc-indent n))
-              (t (format stream "node ~D~:[~; (pause)~]~%" (node-id n)
+              (t (format stream "node ~D~@[ (pause)~]~%" (node-id n)
                          (node-pause-p n))
                  (indent-line)
                  (reduce-warnings
