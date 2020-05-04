@@ -1,7 +1,9 @@
-#!/bin/bash
+#!/bin/sh
 # Run the unit tests.
 
-exec "${SBCL:-sbcl}" "$@" --quit \
+SBCL="${SBCL:-sbcl}"
+
+exec "${LISP:-${SBCL}}" "$@" --quit \
           --eval "(asdf:load-system \"incudine-tests\" :force t)" \
           --eval "(asdf:load-system \"cudere-clm-tests\" :force t)" \
           --eval "(incudine-tests:run-tests)" \
