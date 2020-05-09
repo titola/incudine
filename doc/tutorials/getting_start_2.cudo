@@ -339,7 +339,8 @@ waveform-1
 ;;     .5, .2 and .1
 
 ;;   * (partial-number strength) – STRENGTH is the strength of the partial
-;;     PARTIAL-NUMBER. A negative STRENGTH value implies a phase inversion.
+;;     PARTIAL-NUMBER (not necessarily an integer value). A negative
+;;     STRENGTH value implies a phase inversion.
 
 ;;   * (partial-number strength phase) – PHASE is the initial phase of the
 ;;     partial. It is a multiplier for +TWOPI+

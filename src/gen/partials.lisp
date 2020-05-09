@@ -18,8 +18,8 @@
 
 (declaim (inline partial-ref))
 (defun partial-ref (partial-number amp phase dc index size tmp-var)
-  (declare (type fixnum partial-number index size)
-           (type real amp phase dc))
+  (declare (type fixnum index size)
+           (type real partial-number amp phase dc))
   (setf (smp-ref tmp-var)
         (+ dc (* amp (sin (the limited-sample
                             (+ (/ (* +twopi+ index partial-number) size)
@@ -43,14 +43,14 @@
                                  (phase +sample-zero+ phase-p)
                                  (os +sample-zero+))
                 par
-              (declare (type positive-fixnum n) (type real amp phase os))
+              (declare (type (real 0) n) (type real amp phase os))
               (push (list n (abs amp)
                           (if (or (>= amp 0) phase-p)
                               phase
                               (sample .5))
                           os)
                     acc)
-              (setf i (floor (car par))))
+              (setf i (floor n)))
           (error ()
             (error 'incudine:incudine-memory-fault-error
                    :format-control "Malformed list of partials:~%~A in ~A"
@@ -75,7 +75,8 @@ is one of the following:
       ;; => T
 
 - list (partial-number strength): STRENGTH is the strength of the partial
-  PARTIAL-NUMBER. A negative STRENGTH value implies a phase inversion.
+  PARTIAL-NUMBER (not necessarily an integer value). A negative STRENGTH
+  value implies a phase inversion.
 
 - list (partial-number strength phase): PHASE is the initial phase of the
   partial. It is a multiplier for +TWOPI+.
