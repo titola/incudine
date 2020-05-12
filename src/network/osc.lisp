@@ -1,4 +1,4 @@
-;;; Copyright (c) 2015-2019 Tito Latini
+;;; Copyright (c) 2015-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -1070,7 +1070,7 @@ STREAM buffer are ADDRESS and TYPES."
 
 (declaim (inline typetag-to-foreign-type-p))
 (defun typetag-to-foreign-type-p (character)
-  (member character '(#\b #\c #\d #\f #\h #\i #\m #\s #\S #\t) :test #'char=))
+  (find character "bcdfhimsSt" :test #'char=))
 
 (defun data-getter (stream-var types index)
   (multiple-value-bind (type index)
