@@ -1003,7 +1003,26 @@ then index the required values."
                         address types)))
 
 (defmacro message (stream address types &rest values)
-  "Send an OSC message with OSC ADDRESS, OSC TYPES and arbitrary VALUES."
+  "Send an OSC message with OSC ADDRESS, OSC TYPES and arbitrary VALUES.
+
+|----------+---------------------------------------------------------|
+| OSC type | Lisp type                                               |
+|----------+---------------------------------------------------------|
+| b        | (or simple-vector (simple-array (unsigned-byte 8) (*))) |
+| c        | standard-char                                           |
+| d        | double-float                                            |
+| f        | single-float                                            |
+| F        | no required value                                       |
+| h        | (signed-byte 64)                                        |
+| i        | (signed-byte 32)                                        |
+| I        | no required value                                       |
+| m        | (unsigned-byte 32)  i.e. (midifile:message 176 7 42)    |
+| N        | no required value                                       |
+| s        | string                                                  |
+| S        | string                                                  |
+| t        | (or (unsigned-byte 64) double-float)                    |
+| T        | no required value                                       |
+|----------+---------------------------------------------------------|"
   (with-gensyms (s)
     `(let ((,s ,stream))
        (start-message ,s ,address ,types)
