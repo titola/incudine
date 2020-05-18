@@ -282,6 +282,16 @@
 (defun empty-line-p (str)
   (every #'whitespace-p str))
 
+(defun org-headline-p (line)
+  (and (> (length line) 1)
+       (char= (char line 0) #\*)
+       (every (lambda (c) (char= c #\*))
+              (subseq line 0 (position #\Space line)))))
+
+(defun org-table-p (line)
+  (and (> (length line) 2)
+       (char= #\| (char (string-left-trim " " line) 0))))
+
 (defun write-pending-empty-lines (n example-p stream)
   (when (plusp n)
     (dotimes (i n)
@@ -289,9 +299,9 @@
   stream)
 
 (defun write-docstring-line (line example-p empty-lines stream)
-  (write-line (if example-p
-                  (concatenate 'string ": " (subseq line 4))
-                  (filter-docstring-line line))
+  (write-line (cond (example-p (concatenate 'string ": " (subseq line 4)))
+                    ((org-table-p line) line)
+                    (t (filter-docstring-line line)))
               (write-pending-empty-lines empty-lines example-p stream)))
 
 (defun filter-docstring (str)
@@ -377,12 +387,6 @@
   (or (cdr (assoc type (list (cons "texinfo" #'write-texinfo-doc))
                   :test #'string-equal))
       (error "Unknown doc function for type ~A" type)))
-
-(defun org-headline-p (line)
-  (and (> (length line) 1)
-       (char= (char line 0) #\*)
-       (every (lambda (c) (char= c #\*))
-              (subseq line 0 (position #\Space line)))))
 
 (defun incudine-symbol (line)
   (let* ((*package* (find-package "INCUDINE"))
