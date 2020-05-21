@@ -1553,6 +1553,7 @@ ends after 6.5 beats.
 ::: net:last-recv-fd
 ::: net:socket-send
 ::: net:connect
+::: net:connected-p
 ::: net:connections
 ::: net:connections-fd
 ::: net:close-connections

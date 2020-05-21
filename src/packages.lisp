@@ -528,7 +528,8 @@
    #:*listen-backlog* #:*buffer-size* #:*max-values* #:*before-close-hook*
    #:stream #:input-stream #:input-stream-p #:output-stream #:output-stream-p
    #:with-stream #:open #:open-p #:close #:block-p #:without-block #:broadcast
-   #:connect #:reject #:close-connections #:last-recv-fd #:socket-send
+   #:connect #:connected-p #:reject #:close-connections #:last-recv-fd
+   #:socket-send
    #:connections #:connections-fd #:host #:port #:protocol #:protocolp
    #:socket-fd #:direction #:buffer-pointer #:buffer-size #:max-values #:latency
    #:message-pointer #:message-length #:message-encoding
@@ -549,8 +550,8 @@
   (:import-from #:incudine.osc #:+default-msg-flags+ #:*listen-backlog*
                 #:*before-close-hook*
                 #:with-stream #:open-p #:block-p #:without-block #:broadcast
-                #:connect #:reject #:close-connections #:connections
-                #:connections-fd #:last-recv-fd #:host #:port
+                #:connect #:connected-p #:reject #:close-connections
+                #:connections #:connections-fd #:last-recv-fd #:host #:port
                 #:protocol #:protocolp #:socket-fd #:socket-send #:direction
                 #:buffer-pointer #:buffer-size #:message-pointer #:message-length
                 #:message-encoding #:slip-encode #:slip-decode
@@ -561,7 +562,8 @@
    #:stream #:input-stream #:input-stream-p
    #:output-stream #:output-stream-p #:with-stream #:open #:open-p #:close
    #:read #:write #:foreign-read #:foreign-write
-   #:block-p #:without-block #:broadcast #:connect #:reject #:close-connections
+   #:block-p #:without-block #:broadcast
+   #:connect #:connected-p #:reject #:close-connections
    #:connections #:connections-fd #:last-recv-fd #:host #:port #:protocol
    #:protocolp #:socket-fd #:direction #:buffer-pointer #:buffer-size
    #:message-pointer #:message-length #:message-encoding #:slip-encode

@@ -35,6 +35,8 @@
 
 (define-constant n-fixnum-bits sb-vm:n-fixnum-bits)
 
+(define-constant incudine.osc::posix-enotconn sb-posix:enotconn)
+
 (defvar *reduce-warnings*
   '(sb-ext:muffle-conditions sb-ext:compiler-note)
   "Declaration to muffle compiler-notes.")

@@ -315,9 +315,17 @@ MESSAGE-ENCODING is NIL (default) or :SLIP."
       (handler-case
           (%open (init-stream obj latency))
         (error (c)
-          (close obj)
-          (network-error "OSC:OPEN ~A (~A)" c
-                         (incudine.external:errno-to-string)))))))
+          (cond ((and (eq (type-of c) 'incudine:incudine-network-error)
+                      (eq direction :output))
+                 (warn "OSC:OPEN connection failed (~A).~%    ~
+                        Try again by calling ~A:CONNECT on the output stream."
+                       (incudine.external:errno-to-string)
+                       (package-name (symbol-package (type-of obj))))
+                 obj)
+                (t
+                 (close obj)
+                 (network-error "OSC:OPEN ~A (~A)" c
+                   (incudine.external:errno-to-string)))))))))
 
 (defun alloc-fds (buf-ptr bufsize direction protocol)
   (if (and (eq direction :input) (eq protocol :tcp))
@@ -368,7 +376,8 @@ MESSAGE-ENCODING is NIL (default) or :SLIP."
                             :int fd :pointer (addrinfo-value stream 'ai-addr)
                             #.+socklen-type+ (addrinfo-value stream 'ai-addrlen)
                             :int))
-             (warn "OSC:OPEN connection failed")))))
+             (network-error "Connection failed:~%~S"
+                            (incudine.external:errno-to-string))))))
   stream)
 
 (declaim (inline open-p))
@@ -434,6 +443,20 @@ MESSAGE-ENCODING is NIL (default) or :SLIP."
     (dolist (fn *before-close-hook*)
       (funcall (the function fn) stream))
     (%open (close-fd stream))))
+
+(defun connected-p (stream)
+  "Whether STREAM socket is connected."
+  (declare (type incudine.osc:stream stream))
+  (if (output-stream-p stream)
+      (let ((fd (output-stream-socket-fd stream)))
+        (when (> fd 0)
+          (cffi:with-foreign-objects ((p :char 128) (len #.+socklen-type+))
+            (or (zerop (cffi:foreign-funcall "getpeername"
+                         :int fd :pointer p :pointer len :int))
+                (unless (= incudine.external::*errno* posix-enotconn)
+                  (network-error "getpeername failed (~A)"
+                    (incudine.external:errno-to-string)))))))
+      (plusp (connections stream))))
 
 (defmacro with-stream ((stream &rest arguments) &body body)
   "Use OSC:OPEN with ARGUMENTS to create an OSC:STREAM. When control
