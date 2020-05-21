@@ -204,7 +204,7 @@ a socket stream may grow.")
 
 (defun open (&key (host "localhost") (port #36ROSE) (direction :input)
              (protocol :udp) (buffer-size *buffer-size*) (latency 0)
-             (max-values *max-values*) message-encoding
+             (auto-connect-p t) (max-values *max-values*) message-encoding
              (input-stream-constructor #'make-input-stream)
              (output-stream-constructor #'make-output-stream))
   "Create and return a new OSC:STREAM.
@@ -215,7 +215,9 @@ The HOST address/name and PORT default to \"localhost\" and 32126
 DIRECTION is :INPUT (default) or :OUTPUT to return an OSC:INPUT-STREAM
 or an OSC:OUTPUT-STREAM respectively.
 
-PROTOCOL is :TCP or :UDP (default).
+PROTOCOL is :TCP or :UDP (default). If PROTOCOL is :TCP and
+AUTO-CONNECT-P is T (default), try to connect the output stream
+socket. See also INCUDINE.NET:CONNECT and INCUDINE.NET:CONNECTED-P.
 
 BUFFER-SIZE is the size in bytes of the buffer used to read or
 write octets. It defaults to OSC:*BUFFER-SIZE*.
@@ -313,7 +315,7 @@ MESSAGE-ENCODING is NIL (default) or :SLIP."
                 (list buf-ptr aux-ptr value-vec-ptr
                       type-vec-ptr))))
       (handler-case
-          (%open (init-stream obj latency))
+          (%open (init-stream obj latency) auto-connect-p)
         (error (c)
           (cond ((and (eq (type-of c) 'incudine:incudine-network-error)
                       (eq direction :output))
@@ -345,7 +347,7 @@ MESSAGE-ENCODING is NIL (default) or :SLIP."
                (unless (= fd -1)
                  (cffi:foreign-funcall "close" :int fd :int)))))))
 
-(defun %open (stream)
+(defun %open (stream &optional (connect-p t))
   (declare (type stream stream))
   (let ((fd (cffi:foreign-funcall "socket"
               :int (addrinfo-value stream 'ai-family)
@@ -372,12 +374,13 @@ MESSAGE-ENCODING is NIL (default) or :SLIP."
                (network-error "listen call failed."))
              (set-server-fd (stream-fds-ptr stream) fd)))
           ((protocolp stream :tcp)
-           (unless (zerop (cffi:foreign-funcall "connect"
-                            :int fd :pointer (addrinfo-value stream 'ai-addr)
-                            #.+socklen-type+ (addrinfo-value stream 'ai-addrlen)
-                            :int))
-             (network-error "Connection failed:~%~S"
-                            (incudine.external:errno-to-string))))))
+           (when connect-p
+             (unless (zerop (cffi:foreign-funcall "connect"
+                              :int fd :pointer (addrinfo-value stream 'ai-addr)
+                              #.+socklen-type+ (addrinfo-value stream 'ai-addrlen)
+                              :int))
+               (network-error "Connection failed:~%~S"
+                 (incudine.external:errno-to-string)))))))
   stream)
 
 (declaim (inline open-p))

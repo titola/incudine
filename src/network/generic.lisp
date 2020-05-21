@@ -68,7 +68,7 @@ Extension of OSC:STREAM."
   "Return the size in bytes of the STREAM buffer.")
 
 (defun open (&key (host "localhost") (port #36RIME) (direction :input)
-             (protocol :tcp) (buffer-size *buffer-size*)
+             (protocol :tcp) (buffer-size *buffer-size*) (auto-connect-p t)
              (max-values incudine.osc:*max-values*) message-encoding)
   "Create and return a new NET:STREAM.
 
@@ -78,7 +78,9 @@ The HOST address/name and PORT default to \"localhost\" and 24134
 DIRECTION is :INPUT (default) or :OUTPUT to return a NET:INPUT-STREAM
 or a NET:OUTPUT-STREAM respectively.
 
-PROTOCOL is :TCP (default) or :UDP.
+PROTOCOL is :TCP (default) or :UDP. If PROTOCOL is :TCP and
+AUTO-CONNECT-P is T (default), try to connect the output stream
+socket. See also INCUDINE.NET:CONNECT and INCUDINE.NET:CONNECTED-P.
 
 BUFFER-SIZE is the size in bytes of the buffer used to read or
 write octets. It defaults to NET:*BUFFER-SIZE*.
@@ -88,8 +90,9 @@ utilities (i.e. OSC:SEND and OSC:RECEIVE), MAX-VALUES is the maximum
 number of the required values of a OSC message. It defaults to
 OSC:*MAX-VALUES*. MESSAGE-ENCODING is NIL (default) or :SLIP."
   (incudine.osc:open :host host :port port :direction direction
-                     :protocol protocol :buffer-size buffer-size
-                     :max-values max-values :message-encoding message-encoding
+                     :protocol protocol :auto-connect-p auto-connect-p
+                     :buffer-size buffer-size :max-values max-values
+                     :message-encoding message-encoding
                      :input-stream-constructor #'make-input-stream
                      :output-stream-constructor #'make-output-stream))
 
