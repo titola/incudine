@@ -137,7 +137,7 @@
 ;;; SLIP encoding/decoding.
 (deftest open-sound-control-slip-enc.1
     (incudine.osc:with-stream (oscout :direction :output :protocol :tcp
-                               :message-encoding :slip)
+                               :auto-connect-p nil :message-encoding :slip)
       (incudine.osc:start-message oscout "/osc/slip/test" "iibi")
       (setf (incudine.osc:value oscout 0) 12345)
       (setf (incudine.osc:value oscout 1) 192) ; SLIP END
@@ -169,7 +169,7 @@
 
 (deftest open-sound-control-slip-enc.2
     (incudine.osc:with-stream (oscout :direction :output :protocol :tcp
-                               :message-encoding :slip)
+                               :auto-connect-p nil :message-encoding :slip)
       (incudine.osc:simple-bundle oscout 3704513491 "/test/bundle/slip/" "iii" 1 2 3)
       (loop for i below (+ (incudine.osc::stream-bundle-length oscout) 2)
             collect (cffi:mem-aref (incudine.osc::stream-aux-buffer-pointer oscout)
