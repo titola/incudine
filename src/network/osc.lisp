@@ -500,6 +500,12 @@ automatically closed."
 
 (defsetf message-length set-message-length)
 
+(declaim (inline update-length-count-prefix))
+(defun update-length-count-prefix (ptr value)
+  (let ((len (htonl value)))
+    (unless (= len #1=(cffi:mem-ref ptr :uint32))
+      (setf #1# len))))
+
 (defun set-message-encoding (stream value)
   (declare (type (member nil :slip) value))
   (if (eq value :slip)
@@ -696,8 +702,8 @@ send and sendto for details on the FLAGS argument."
                     (address-value stream 'socklen)))
           (t
            ;; OSC 1.0 spec: length-count prefix on the start of the packet.
-           (setf (cffi:mem-ref (stream-message-length-pointer stream) :uint32)
-                 (htonl (stream-message-length stream)))
+           (update-length-count-prefix (stream-message-length-pointer stream)
+                                       (stream-message-length stream))
            (%send (stream-socket-fd stream)
                   (stream-message-length-pointer stream)
                   (+ 4 (stream-message-length stream)) flags)))))
@@ -930,17 +936,23 @@ multiple of four (bytes)."
       (set-double ptr value)))
 
 (defmacro maybe-reserve-space (stream index data-size)
-  (with-gensyms (s i)
-    `(let ((,s ,stream)
-           (,i ,index))
-         (setf (stream-message-length ,s)
-               (%maybe-reserve-space (stream-message-pointer ,s)
-                                     (stream-value-vec-ptr ,s) ,i
-                                     ,data-size))
+  (with-gensyms (s i len)
+    `(let* ((,s ,stream)
+            (,i ,index)
+            (,len (%maybe-reserve-space
+                    (stream-message-pointer ,s)
+                    (stream-value-vec-ptr ,s)
+                    ,i ,data-size)))
+       (unless (= (stream-message-length ,s) ,len)
+         (setf (stream-message-length ,s) ,len)
          (when (output-stream-p ,s)
            (setf (stream-bundle-length ,s)
                  (+ (stream-message-length ,s) ,+bundle-reserved-bytes+))
-           (set-bundle-first-element-length ,s))
+           (when (and (protocolp ,s :tcp)
+                      (null (stream-message-encoding ,s)))
+             (setf (cffi:mem-ref (stream-buffer-pointer ,s) :uint32)
+                   (htonl (stream-bundle-length ,s))))
+           (set-bundle-first-element-length ,s)))
          ,s)))
 
 (defun set-string (stream index string)
