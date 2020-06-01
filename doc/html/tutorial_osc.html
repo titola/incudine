@@ -228,6 +228,20 @@
 3.704630902676296d9</pre>
 
       <p>
+        If <code>OSC:SIMPLE-BUNDLE</code> is called with no values, it prepares
+        the OSC message but doesn't send it. The previous example is equivalent to
+      </p>
+
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (osc:simple-bundle *oscout* 0 <span style="color: #ffa07a;">"/osc/test"</span> <span style="color: #ffa07a;">"iii"</span>)
+0
+
+<span class="prompt">SCRATCH&gt;</span> (setf (osc:value *oscout* 0) 1)
+<span class="prompt">SCRATCH&gt;</span> (setf (osc:value *oscout* 1) 2)
+<span class="prompt">SCRATCH&gt;</span> (setf (osc:value *oscout* 2) 3)
+<span class="prompt">SCRATCH&gt;</span> (osc:send-bundle *oscout* .5)
+52</pre>
+
+      <p>
         We don't send OSC bundles in the past, therefore we can use the time with
         dual meaning: if it is greater than 63103 seconds (about 17 hours), the
         time is absolute otherwise it is added to the current time.

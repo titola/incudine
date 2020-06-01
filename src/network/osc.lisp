@@ -1066,16 +1066,34 @@ then index the required values."
        (start-message ,s ,address ,types)
        ,@(loop for val in values for i from 0
                collect `(set-value ,s ,i ,val))
-       (send ,s))))
+       ,(if values `(send ,s) 0))))
 
 (defmacro simple-bundle (stream seconds address types &rest values)
   "Send an OSC message with timestamp SECONDS plus stream latency,
 OSC ADDRESS, OSC TYPES and arbitrary VALUES.
 
+If there are no VALUES, prepare the OSC message but don't send it.
+
 The OSC timestamp SECONDS is used with dual meaning: if it is greater
 than 63103 seconds (about 17 hours), the time is absolute otherwise it
 is added to the current time. 63104 is the offset of the NTP Timestamp
-Era 1 (from 8 Feb 2036), so this hack will work for centuries."
+Era 1 (from 8 Feb 2036), so this hack will work for centuries.
+
+Example:
+
+    (osc:simple-bundle stream .5 \"/osc/test\" \"iii\" 1 2 3)
+    ;; => 52
+
+is equivalent to
+
+    (osc:simple-bundle stream 0 \"/osc/test\" \"iii\")
+    ;; => 0
+
+    (setf (osc:value stream 0) 1)
+    (setf (osc:value stream 1) 2)
+    (setf (osc:value stream 2) 3)
+    (osc:send-bundle stream .5)
+    ;; => 52"
   (with-gensyms (s)
     `(let ((,s ,stream))
        (start-message ,s ,address ,types)
@@ -1087,7 +1105,7 @@ Era 1 (from 8 Feb 2036), so this hack will work for centuries."
          (setf (cffi:mem-ref (stream-buffer-pointer ,s) :uint32)
                (swap-bytes:htonl (stream-bundle-length ,s))))
        (set-bundle-first-element-length ,s)
-       (send-bundle ,s ,seconds))))
+       ,(if values `(send-bundle ,s ,seconds) 0))))
 
 (declaim (inline address-pattern))
 (defun address-pattern (stream &optional typetag-p)

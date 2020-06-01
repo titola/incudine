@@ -173,6 +173,18 @@ osc:*max-values*
 (timestamp)
 ;; 3.704630902676296d9
 
+;; If OSC:SIMPLE-BUNDLE is called with no values, it prepares the OSC
+;; message but doesn't send it. The previous example is equivalent to
+
+(osc:simple-bundle *oscout* 0 "/osc/test" "iii")
+;; => 0
+
+(setf (osc:value *oscout* 0) 1)
+(setf (osc:value *oscout* 1) 2)
+(setf (osc:value *oscout* 2) 3)
+(osc:send-bundle *oscout* .5)
+;; => 52
+
 ;; We don't send OSC bundles in the past, therefore we can use the time
 ;; with dual meaning: if it is greater than 63103 seconds (about 17 hours),
 ;; the time is absolute otherwise it is added to the current time.
