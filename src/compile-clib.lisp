@@ -103,13 +103,15 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
                    *foreign-library-directories*
                    :test #'equal))
       (format nil "~{ -L\"~A\"~}"
-              (mapcar #'cffi-mini-eval cffi:*foreign-library-directories*))))
+              (alexandria:flatten
+               (mapcar #'cffi-mini-eval cffi:*foreign-library-directories*)))))
 
   (defvar *foreign-header-file-directories* nil)
 
   (defvar *c-header-file-paths*
     (format nil "~{ -I\"~A\"~}"
-            (mapcar #'cffi-mini-eval *foreign-header-file-directories*)))
+            (alexandria:flatten
+             (mapcar #'cffi-mini-eval *foreign-header-file-directories*))))
 
   (defvar *c-compiler-flags*
     (concatenate 'string "-O3 -Wall"
