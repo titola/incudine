@@ -1660,6 +1660,10 @@ Example:
 ;; Stop playing before the end if necessary.
 (flush-pending)
 (free 0)
+
+;; Write a sound file.
+(bounce-to-disk ("oscilla-test.wav" :channels 2 :duration 60)
+  (play-midifile "/path/to/file.mid"))
 #+end_example
 
 ::: midifile:write-short-event
