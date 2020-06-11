@@ -130,7 +130,7 @@
 
 (defun number-of-midi-events (path)
   (with-open-midifile (mf path)
-    (loop for n from 0 while (midifile:read-event mf) finally (return n))))
+    (loop while (midifile:read-event mf) sum 1)))
 
 ;; The next example is a minimal MIDI player for Jack MIDI.
 

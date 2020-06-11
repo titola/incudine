@@ -1650,8 +1650,7 @@ Example:
 ;; Note: all the events are scheduled if the value of the configuration
 ;; variable *RT-EDF-HEAP-SIZE* in ${HOME}/.incudinerc is at least:
 (with-open-midifile (mf "/path/to/file.mid")
-  (loop for n from 0 while (midifile:read-event mf)
-        finally (return (next-power-of-two n))))
+  (next-power-of-two (loop while (midifile:read-event mf) sum 1)))
 
 (rt-start)
 

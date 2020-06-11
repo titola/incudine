@@ -174,7 +174,7 @@ NIL</pre>
 
       <pre class="src src-lisp">(<span style="color: #8deeee;">defun</span> <span style="color: #87cefa;">number-of-midi-events</span> (path)
   (with-open-midifile (mf path)
-    (<span style="color: #8deeee;">loop</span> for n from 0 while (midifile:read-event mf) finally (<span style="color: #8deeee;">return</span> n))))</pre>
+    (<span style="color: #8deeee;">loop</span> while (midifile:read-event mf) sum 1)))</pre>
 
       <p>
         The next example is a minimal MIDI player for Jack MIDI.
