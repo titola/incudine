@@ -1612,6 +1612,56 @@ ends after 6.5 beats.
 ::: midifile:read-header
 ::: midifile:write-header
 ::: midifile:read-event
+
+#+texinfo: @noindent
+Example:
+
+#+begin_example
+(in-package :scratch)
+
+(dsp! oscilla ((keynum fixnum) (velocity fixnum) scaler gate)
+  (with-samples ((freq (tuning-cps *default-tuning* keynum))
+                 (amp (* scaler velocity (sample 1/127))))
+    (stereo (* (envelope (make-adsr .001 .09 .8 .7) gate 1 #'free)
+               (sine freq amp)))))
+
+(defun get-id-by-midi-note (channel keynum)
+  (+ (ash channel 7) keynum 1))
+
+(defun oscillante (status data1 data2)
+  (let ((ch (logand status #xF)))
+    (cond ((midi-note-on-p status)
+           (oscilla data1 data2 1/10 1
+                    :id (get-id-by-midi-note ch data1)))
+          ((midi-note-off-p status)
+           (set-control (get-id-by-midi-note ch data1) :gate 0)))))
+
+(defun play-midifile (path)
+  (with-schedule
+    (with-open-midifile (mf path)
+      (loop for st = (midifile:read-event mf)
+            while st
+            when (< st #xF0)
+              do (at (* (midifile:event-seconds mf) *sample-rate*)
+                     #'oscillante st
+                     (midifile:message-data1 mf)
+                     (midifile:message-data2 mf))))))
+
+;; Note: all the events are scheduled if the value of the configuration
+;; variable *RT-EDF-HEAP-SIZE* in ${HOME}/.incudinerc is at least:
+(with-open-midifile (mf "/path/to/file.mid")
+  (loop for n from 0 while (midifile:read-event mf)
+        finally (return (next-power-of-two n))))
+
+(rt-start)
+
+(play-midifile "/path/to/file.mid")
+
+;; Stop playing before the end if necessary.
+(flush-pending)
+(free 0)
+#+end_example
+
 ::: midifile:write-short-event
 ::: midifile:write-event
 ::: midifile:write-tempo-track
