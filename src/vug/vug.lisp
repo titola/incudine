@@ -2208,8 +2208,9 @@ Example:
             (list* name
                    (if defaults
                        (list '(&rest optional-keywords)
-                             (incudine.util::defmacro*-body 'optional-keywords
-                               args (mapcar #'list args defaults) (list form)))
+                             (incudine.util::simple-defmacro*-body
+                               'optional-keywords args
+                               (mapcar #'list args defaults) (list form)))
                        (list args form)))))))))
 
 (defmacro vuglet (definitions &body body-forms)

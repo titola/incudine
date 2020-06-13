@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -483,26 +483,88 @@ You can have more than one &rest parameter."
          (declare (ignore ,aux-var))
          ,(defun*-body args kargs body)))))
 
-;;; DEFMACRO*-BODY is also used in local VUG with :DEFAULTS spec.
-(defun defmacro*-body (optkey-var args kargs body)
+(defun macro*-arguments (lambda-list
+                         &optional type local-args lambda-list-keyword-p)
+  (flet ((optional-keys-p (x)
+           (and (consp x)
+                (symbolp (car x))
+                (string= (symbol-name (car x)) "&OPTIONAL-KEY"))))
+    (let ((fst (car lambda-list)))
+      (if (optional-keys-p fst)
+          (let ((lambda-list-keyword (and (eq type 'documentation)
+                                          (not (optional-keys-p (cadr fst)))
+                                          '(&any))))
+            (cons (append lambda-list-keyword
+                          (macro*-arguments (cdr fst) type (car local-args)))
+                  (macro*-arguments
+                    (cdr lambda-list) type (cdr local-args) t)))
+          (let ((args (lambda*-arguments-without-dot lambda-list)))
+            (if (eq type 'call)
+                ;; Arguments passed to the local macro.
+                (lambda*-arguments (lambda*-list-keywords args) local-args)
+                (if (eq type 'lambda-list)
+                    ;; Lambda list for the local macro.
+                    (let ((args (remove '&rest args)))
+                      (and args `(&key ,@args)))
+                    ;; Lambda list for the documentation.
+                    (if (and lambda-list-keyword-p args)
+                        (cons '&any args)
+                        args))))))))
+
+;;; A simplified version for default values in VUGLET.
+(defun simple-defmacro*-body (optkey-var args kargs body)
   `(with-gensyms (kname)
      `(macrolet ((,kname (,(cons '&key ',kargs)) ,',@body))
-        (,kname ,(lambda*-arguments ',(lambda*-list-keywords args)
-                                    ,optkey-var)))))
+        (,kname ,(lambda*-arguments
+                   ',(lambda*-list-keywords args) ,optkey-var)))))
 
-(defmacro defmacro* (name (&rest args) &body body)
-  "See DEFUN*."
+(defun defmacro*-body (optkey-var args kargs body)
+  `(with-gensyms (kname)
+     `(macrolet ((,kname (,',kargs) ,',@body))
+        (,kname ,(macro*-arguments ',args 'call ,optkey-var)))))
+
+(defmacro defmacro* (name (&rest arguments) &body body)
+  "See DEFUN* for details.
+
+A nested lambda list with optional keywords begins with the special keyword
+&optional-key, and precedes the optional keywords of the (possibly nested)
+lambda list. For example:
+
+    (defmacro* optkey-test-1 ((a 1) (b 2) (c 3))
+      `(list ,a ,b ,c))
+
+    (defmacro* optkey-test-2 ((&optional-key (a 1) (b 2)) &rest rest)
+      `(list ,a ,b ,@rest))
+
+    (defmacro* optkey-test-3 ((&optional-key (a 1) (b 2))
+                              (&optional-key
+                               (&optional-key (c 3) (d 4)) (e 5))
+                              (f 6) g . h)
+      `(list ,a ,b ,c ,d ,e ,f ,g ,@h))
+
+    (optkey-test-1)                   ; => (1 2 3)
+    (optkey-test-1 :b 123)            ; => (1 123 3)
+    (optkey-test-2)                   ; => (1 2)
+    (optkey-test-2 (:b 3) 4 5 6)      ; => (1 3 4 5 6)
+    (optkey-test-3)                   ; => (1 2 3 4 5 6 NIL)
+    (optkey-test-3 () ((:d 123)))     ; => (1 2 3 123 5 6 NIL)
+    (optkey-test-3 () () :h (1 2 3))  ; => (1 2 3 4 5 6 NIL 1 2 3)
+
+    (optkey-test-3 (10) ((20) 30) :g 40 :f 50 :h (60))
+    ;; => (10 2 20 4 30 50 40 60)"
   (with-doc-string (doc-string body)
-    (with-lambda*-arguments (args kargs aux-var args)
-      (let ((lambda-list `(&rest optional-keywords &aux (,aux-var ',args))))
+    (let* ((args (macro*-arguments arguments 'documentation))
+           (kargs (macro*-arguments arguments 'lambda-list))
+           (aux-var (make-symbol "LAMBDA-LIST"))
+           (lambda-list `(&rest optional-keywords &aux (,aux-var ',args))))
         `(progn
            (defmacro ,name ,lambda-list ,@doc-string
              (declare (ignore ,aux-var))
-             ,(defmacro*-body 'optional-keywords args kargs body))
+             ,(defmacro*-body 'optional-keywords arguments kargs body))
            ;; The compiler could remove the lambda list keywords &AUX
            ;; but we use them to read the optional-key arguments.
            #+sbcl (force-macro-lambda-list ',name ',lambda-list)
-           #-sbcl ',name)))))
+           #-sbcl ',name))))
 
 (defun lambda-list-to-star-list (arglist)
   "Return the optional-key arguments of ARGLIST."
@@ -511,7 +573,14 @@ You can have more than one &rest parameter."
       (let ((arglist (assoc "LAMBDA-LIST" (cdr (subseq arglist aux-pos))
                             :key #'symbol-name :test #'string=)))
         (when arglist
-          (cons '&any (cadadr arglist)))))))
+          (labels ((optional-keywords-p (x)
+                     (if (consp x)
+                         (optional-keywords-p (car x))
+                         (and (symbolp x) (string= (symbol-name x) "&ANY")))))
+            (let ((args (cadadr arglist)))
+              (if (optional-keywords-p (car args))
+                  args
+                  (cons '&any args)))))))))
 
 (in-package :incudine)
 
