@@ -19,7 +19,7 @@
 (defun dsp-free-hook-test (dsp-fn)
   (let ((hook nil)
         (fn (lambda (n) (msg info "FREE-HOOK test for node ~A" n))))
-    (with-local-logger (*logger-stream* :info)
+    (with-logger (:level :info)
       (bounce-to-buffer (*buffer-test-c1*)
         (funcall dsp-fn fn :id 123)
         (setf hook (copy-list (free-hook 123)))))

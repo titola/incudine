@@ -554,7 +554,7 @@ Deallocate the ~node~.
 ::: incudine.util:logger-time
 ::: incudine.util:logger-time-function
 ::: incudine.util:default-logger-time-function
-::: incudine.util:with-local-logger
+::: incudine.util:with-logger
 #+texinfo: @page
 ** defun*, lambda* and defmacro*
 ~defun*~, ~lambda*~ and ~defmacro*~ are inspired by the extensions
@@ -1661,8 +1661,9 @@ Example:
 (free 0)
 
 ;; Write a sound file.
-(bounce-to-disk ("oscilla-test.wav" :channels 2 :duration 60)
-  (play-midifile "/path/to/file.mid"))
+(with-logger (:level :info)
+  (bounce-to-disk ("oscilla-test.wav" :channels 2 :duration 60)
+    (play-midifile "/path/to/file.mid")))
 #+end_example
 
 ::: midifile:write-short-event

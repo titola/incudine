@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -103,10 +103,9 @@ for the log messages. Setfable."
 
 (defsetf logger-time-function set-logger-time-function)
 
-(defmacro with-local-logger ((&optional stream level (time-unit nil time-unit-p)
-                              time-format-function) &body body)
-  "Log LEVEL, TIME-UNIT and TIME-FORMAT-FUNCTION to log messages
-inside BODY."
+(defmacro* with-logger ((&optional-key stream level (time-unit nil time-unit-p)
+                        time-format-function) &rest body)
+  "Log LEVEL, TIME-UNIT and TIME-FORMAT-FUNCTION to log messages inside BODY."
   `(let (,@(if stream `((*logger-stream* ,stream)))
          ,@(if level `((*logger-mask* (get-logger-mask ,level))))
          ,@(if time-unit-p `((*logger-time* ,time-unit)))

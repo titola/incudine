@@ -188,9 +188,19 @@
     (declare (ignore n))
     (eq w :external)))
 
+;;; The manual prefers &OPTIONAL-KEY instead of &ANY lambda keyword.
+(defun replace-andany-keyword (args)
+  (when args
+    (cons (cond ((and (symbolp (car args))
+                      (string= (symbol-name (car args)) "&ANY"))
+                 '&optional-key)
+                ((consp (car args)) (replace-andany-keyword (car args)))
+                (t (car args)))
+          (replace-andany-keyword (cdr args)))))
+
 (defun lambda-star-arguments (lambda-list)
-  (let ((args (incudine.util:lambda-list-to-star-list lambda-list)))
-    (and args (cons '&optional-key (cdr args)))))
+  (replace-andany-keyword
+    (incudine.util:lambda-list-to-star-list lambda-list)))
 
 (defun whitespace-p (c)
   (member c '(#\Space #\Tab)))

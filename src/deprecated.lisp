@@ -80,6 +80,16 @@ A deprecated symbol is obsolete after one year."
    :date 20181209
    :package "INCUDINE.UTIL")
 
+(incudine::deprecated-macro
+   (with-local-logger (&whole whole
+                       (&optional stream level (time-unit nil time-unit-p)
+                        time-format-function) &body body)
+     (declare (ignore stream level time-unit time-unit-p time-format-function body))
+     `(with-logger ,@(cdr whole)))
+   :replacement incudine.util:with-logger
+   :date 20200613
+   :package "INCUDINE.UTIL")
+
 (in-package :incudine.analysis)
 
 (incudine::deprecated-function

@@ -120,7 +120,7 @@
    #:channel-number #:bus-number
    #:*reduce-warnings* #:reduce-warnings
    #:*logger-stream* #:*null-output* #:*logger-force-output-p*
-   #:msg #:nrt-msg #:logger-level #:with-local-logger
+   #:msg #:nrt-msg #:logger-level #:with-logger
    #:logger-time #:logger-time-function #:default-logger-time-function
    #:compare-and-swap #:barrier
    #:get-bytes-consed-in

@@ -102,9 +102,9 @@
     (let ((output-buffer (format-symbol *package* "*BUFFER-TEST-C~D*"
                                         channels)))
       `(deftest ,name
-           (with-local-logger (*standard-output*
-                               (if (eq (logger-level) :debug) :debug :info)
-                               (or (logger-time) :sec))
+           (with-logger (*standard-output*
+                         (if (eq (logger-level) :debug) :debug :info)
+                         (or (logger-time) :sec))
              (let ,bindings
                (dsp-test-header ',name)
                (md5sum-buffer-test
