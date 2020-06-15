@@ -1,6 +1,16 @@
 (in-package :incudine)
 
 (define-condition incudine-deprecation-warning (simple-warning) ())
+(define-condition incudine-deprecation-error (incudine-simple-error) ())
+
+(defun deprecation-error (name replacement obsolete-p)
+  (multiple-value-bind (func type)
+      (if obsolete-p
+          (values #'error 'incudine-deprecation-error)
+          (values #'warn 'incudine-deprecation-warning))
+    (funcall func type
+      :format-control "~S is ~:[deprecated~;obsolete~],~%use ~S instead."
+      :format-arguments (list name obsolete-p replacement))))
 
 (defvar *deprecated* nil)
 
@@ -23,33 +33,33 @@ A deprecated symbol is obsolete after one year."
 
 (defmacro deprecated-function ((name args &rest body)
                                &key run-time-message-p date package
-                               (replacement (car body)))
+                               (replacement (car body)) obsolete-p)
   (with-gensyms (form rest)
     `(progn
        (export ',name ,(or package *package*))
        (pushnew (list ',name :from ,date) *deprecated*)
        (defun ,name ,args
-         ,@(if run-time-message-p
-               `((incudine::deprecated-msg ',name ',replacement)))
+         ,@(cond (obsolete-p
+                  `((with-simple-restart (continue "Use symbol anyway.")
+                      (incudine::deprecation-error ',name ',replacement t))))
+                 (run-time-message-p
+                  `((incudine::deprecated-msg ',name ',replacement))))
          ,@body)
        (define-compiler-macro ,name (&whole ,form &rest ,rest)
          (declare (ignore ,rest))
-         (warn (make-condition 'incudine-deprecation-warning
-                 :format-control "~S is deprecated,~%use ~S instead."
-                 :format-arguments (list ',name ',replacement)))
+         (incudine::deprecation-error ',name ',replacement ,obsolete-p)
          ,form))))
 
 (defmacro deprecated-macro ((name args &rest body)
-                            &key date package (replacement (car body)))
+                            &key date package (replacement (car body))
+                            obsolete-p)
   (multiple-value-bind (decl form)
       (incudine.util::separate-declaration body)
     `(progn
        (export ',name ,(or package *package*))
        (pushnew (list ',name :from ,date) *deprecated*)
        (defmacro ,name ,args ,@decl
-         (warn (make-condition 'incudine-deprecation-warning
-           :format-control "~S is deprecated,~%use ~S instead."
-           :format-arguments (list ',name ',replacement)))
+         (incudine::deprecation-error ',name ',replacement ,obsolete-p)
          ,@form))))
 
 (defun deprecated-msg (old new)
@@ -72,12 +82,14 @@ A deprecated symbol is obsolete after one year."
    (db->lin (value) (db->linear value))
    :replacement incudine.util:db->linear
    :date 20181209
+   :obsolete-p t
    :package "INCUDINE.UTIL")
 
 (incudine::deprecated-function
    (lin->db (value) (linear->db value))
    :replacement incudine.util:linear->db
    :date 20181209
+   :obsolete-p t
    :package "INCUDINE.UTIL")
 
 (incudine::deprecated-macro
@@ -97,5 +109,6 @@ A deprecated symbol is obsolete after one year."
      (make-part-convolve-buffer buf partsize :start start :frames frames))
    :replacement incudine.analysis:make-part-convolve-buffer
    :date 20190222
+   :obsolete-p t
    :package "INCUDINE.ANALYSIS"
    :run-time-message-p t)
