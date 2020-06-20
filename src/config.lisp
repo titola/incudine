@@ -18,7 +18,7 @@
 
 (define-constant +incudine-major+ 0)
 (define-constant +incudine-minor+ 9)
-(define-constant +incudine-patch+ 30)
+(define-constant +incudine-patch+ 31)
 
 (in-package :incudine.util)
 
@@ -316,12 +316,11 @@ real-time thread.")
 (in-package :incudine)
 
 (defstruct (rt-params (:copier nil))
+  (lock (bordeaux-threads:make-lock "RT-THREAD"))
   (driver incudine.config:*audio-driver*)
   (priority *rt-priority*)
   (frames-per-buffer incudine.config:*frames-per-buffer*)
   (status :stopped))
-
-(defvar *rt-params* (make-rt-params))
 
 (defvar *rt-thread-start-hook* nil
   "A list of function designators which are called in an unspecified

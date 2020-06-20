@@ -168,6 +168,7 @@ static void *pa_process_thread(void *arg)
                 return 0;
         }
         pa_status = PA_RUNNING;
+        pa_proc_thread.status = PA_RUNNING;
 
         while(pa_status == PA_RUNNING) {
                 int lisp_busy;
@@ -195,6 +196,7 @@ static void *pa_process_thread(void *arg)
                         __pa_condition_wait(&pa_c_cond, &pa_c_lock);
                 }
         }
+        pa_proc_thread.status = PA_STOPPED;
         return 0;
 }
 
@@ -215,6 +217,7 @@ static void *pa_process_thread_with_cached_inputs(void *arg)
                 return 0;
         }
         pa_status = PA_RUNNING;
+        pa_proc_thread.status = PA_RUNNING;
 loop_start:
         while(pa_status == PA_RUNNING) {
                 int lisp_busy;
@@ -294,6 +297,7 @@ loop_start:
                         cycles = 0;
                 }
         }
+        pa_proc_thread.status = PA_STOPPED;
         return 0;
 }
 
@@ -403,12 +407,12 @@ int pa_initialize(unsigned int input_channels, unsigned int output_channels,
         PaError err;
         sigset_t sset;
 
+        pa_cleanup();
 #ifdef PA_HAVE_JACK
         PaJack_SetClientName(client_name);    
 #else
         (void) client_name;
 #endif
-
         if (input_channels == 0 && output_channels == 0) {
                 pa_set_error_msg(
                         "Zero input channels and zero output channels.");
@@ -420,6 +424,7 @@ int pa_initialize(unsigned int input_channels, unsigned int output_channels,
                 fprintf(stderr, "Pa_Initialize() failed.\n");
                 return 1;
         }
+        pa_proc_thread.status = PA_STOPPED;
         pa_status = PA_INITIALIZING;
         pa_in_channels = input_channels;
         pa_out_channels = output_channels;
@@ -526,7 +531,7 @@ int pa_start(void)
          * Auxiliary C realtime thread. If lisp is busy, it continues the work
          * to avoid xruns.
          */
-        err = pthread_create(&process_thread, NULL, pa_thread_callback, NULL);
+        err = pthread_create(&(pa_proc_thread.id), NULL, pa_thread_callback, NULL);
         if (err) {
                 pa_set_error_msg("Failed to create the C realtime thread");
                 pa_stop();
@@ -535,19 +540,48 @@ int pa_start(void)
         return 0;
 }
 
+static void pa_process_thread_wait(void)
+{
+        struct timespec time;
+        int i, ret;
+
+        time.tv_sec = 0;
+        time.tv_nsec = 1000000;
+        /* Maximum 3 seconds. */
+        for (i = 0; i < 3000; i++) {
+                nanosleep(&time, NULL);
+                if (pa_proc_thread.status == PA_STOPPED) return;
+        }
+        __pa_condition_signal(&pa_c_cond, &pa_c_lock);
+        /* Maximum 2 seconds. */
+        for (i = 0; i < 2000; i++) {
+                nanosleep(&time, NULL);
+                if (pa_proc_thread.status == PA_STOPPED) return;
+        }
+        fprintf(stderr, "Detaching the foreign process thread.\n");
+        ret = pthread_detach(pa_proc_thread.id);
+        if (ret != 0 && pa_proc_thread.status != PA_STOPPED) {
+                fprintf(stderr, "Cannot detach the foreign process thread.\n"
+                                "PortAudio shutdown\n");
+                kill(getpid(), SIGQUIT);
+        }
+}
+
+static void pa_cleanup(void)
+{
+        pa_stop();
+}
+
 int pa_stop(void)
 {
         PaError err;
-        int status;
 
-        if (pa_status == PA_STOPPED)
-                return 0;
-
+        if (pa_status == PA_STOPPED) return paNoError;
+        pthread_mutex_lock(&pa_lock);
         err = paNoError;
-        status = pa_status;
-        pa_status = PA_STOPPED;
-        if (status == PA_RUNNING)
-                pthread_join(process_thread, NULL);
+        pa_status = PA_STOPPING;
+        if (pa_proc_thread.status != PA_STOPPED)
+                pa_process_thread_wait();
         if (stream != NULL) {
                 err = Pa_IsStreamStopped(stream);
                 if (err == 0) {
@@ -573,6 +607,8 @@ int pa_stop(void)
         *pa_sample_counter = (SAMPLE) 0.0;
         pa_cycle_start_time_smp = (SAMPLE) 0.0;
         pa_cycle_start_time_sec = (PaTime) 0.0;
+        pa_status = PA_STOPPED;
+        pthread_mutex_unlock(&pa_lock);
         return err;
 }
 

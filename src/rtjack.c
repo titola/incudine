@@ -278,6 +278,9 @@ static void* ja_process_thread(void *arg)
 {
         (void) arg;
 
+        ja_proc_thread.id = pthread_self();
+        ja_proc_thread.status = JA_RUNNING;
+
         while (ja_status == JA_RUNNING) {
                 int lisp_busy;
 
@@ -319,6 +322,7 @@ static void* ja_process_thread(void *arg)
                         __ja_condition_wait(&ja_c_cond, &ja_c_lock);
                 }
         }
+        ja_proc_thread.status = JA_STOPPED;
         return 0;
 }
 
@@ -326,6 +330,9 @@ static void* ja_process_thread_with_cached_inputs(void *arg)
 {
         unsigned int cycle_time_offset = 0;
         (void) arg;
+
+        ja_proc_thread.id = pthread_self();
+        ja_proc_thread.status = JA_RUNNING;
 
         while (ja_status == JA_RUNNING) {
                 int lisp_busy;
@@ -346,6 +353,7 @@ static void* ja_process_thread_with_cached_inputs(void *arg)
                                                 (jack_default_audio_sample_t *)
                                                   malloc(ja_buffer_bytes);
                                         if (ja_tmp_inputs == NULL) {
+                                                ja_proc_thread.status = JA_STOPPED;
                                                 ja_error("malloc failure");
                                                 return 0;
                                         }
@@ -409,6 +417,7 @@ static void* ja_process_thread_with_cached_inputs(void *arg)
                         ja_cycle_start_time = *ja_sample_counter;
                 }
         }
+        ja_proc_thread.status = JA_STOPPED;
         return 0;
 }
 
@@ -439,42 +448,73 @@ static void ja_shutdown(void *arg)
         kill(getpid(), SIGQUIT);
 }
 
-static void ja_terminate(void *arg)
+static void ja_process_thread_wait(void)
 {
+        struct timespec time;
+        int i, ret;
+
+        time.tv_sec = 0;
+        time.tv_nsec = 1000000;
+        /* Maximum 3 seconds. */
+        for (i = 0; i < 3000; i++) {
+                nanosleep(&time, NULL);
+                if (ja_proc_thread.status == JA_STOPPED) return;
+        }
+        __ja_condition_signal(&ja_c_cond, &ja_c_lock);
+        /* Maximum 2 seconds. */
+        for (i = 0; i < 2000; i++) {
+                nanosleep(&time, NULL);
+                if (ja_proc_thread.status == JA_STOPPED) return;
+        }
+        fprintf(stderr, "Detaching the foreign process thread.\n");
+        ret = pthread_detach(ja_proc_thread.id);
+        if (ret != 0 && ja_proc_thread.status != JA_STOPPED) {
+                fprintf(stderr, "Cannot detach the foreign process thread.\n");
+                ja_shutdown(NULL);
+        }
+}
+
+static void ja_cleanup(void *arg)
+{
+        int i;
         (void) arg;
 
-        if (ja_status != JA_STOPPED) {
-                int i;
-
-                ja_status = JA_STOPPED;
-
-                if (client != NULL) {
-                        jack_deactivate(client);
-                        jack_client_close(client);
-                        client = NULL;
-                }
-                ja_free(ja_inputs);
-                ja_free(ja_tmp_inputs);
-                ja_free(ja_outputs);
-                ja_free_input_cache();
-                ja_free(input_ports);
-                ja_free(output_ports);
-                ja_free(jm_pad_buffer);
-                ja_free(jm_inputs);
-                ja_free(jm_outputs);
-                ja_free(jm_invec_tmp.data);
-                ja_free(jm_outvec_tmp.data);
-
-                for (i = 0; i < ja_in_channels; i++)
-                        free(input_port_names[i]);
-                ja_free(input_port_names);
-
-                for (i = 0; i < ja_out_channels; i++)
-                        free(output_port_names[i]);
-                ja_free(output_port_names);
-                *ja_sample_counter = (SAMPLE) 0.0;
-                ja_cycle_start_time = (SAMPLE) 0.0;
+        if (ja_status == JA_STOPPED) return;
+        pthread_mutex_lock(&ja_lock);
+        ja_status = JA_STOPPING;
+        if (ja_proc_thread.status != JA_STOPPED)
+                ja_process_thread_wait();
+        if (client != NULL) {
+                jack_deactivate(client);
+                jack_client_close(client);
+                client = NULL;
         }
+        ja_free(ja_inputs);
+        ja_free(ja_tmp_inputs);
+        ja_free(ja_outputs);
+        ja_free_input_cache();
+        ja_free(input_ports);
+        ja_free(output_ports);
+        ja_free(jm_pad_buffer);
+        ja_free(jm_inputs);
+        ja_free(jm_outputs);
+        ja_free(jm_invec_tmp.data);
+        ja_free(jm_outvec_tmp.data);
+
+        for (i = 0; i < ja_in_channels; i++)
+                ja_free(input_port_names[i]);
+        ja_in_channels = 0;
+        ja_free(input_port_names);
+
+        for (i = 0; i < ja_out_channels; i++)
+                ja_free(output_port_names[i]);
+        ja_out_channels = 0;
+        ja_free(output_port_names);
+
+        *ja_sample_counter = (SAMPLE) 0.0;
+        ja_cycle_start_time = (SAMPLE) 0.0;
+        ja_status = JA_STOPPED;
+        pthread_mutex_unlock(&ja_lock);
 }
 
 char *ja_get_error_msg(void)
@@ -529,12 +569,14 @@ int ja_initialize(unsigned int input_channels, unsigned int output_channels,
         int err;
         (void) nframes;
 
+        ja_cleanup(NULL);
         ja_error_msg[0] = '\0';
         client = jack_client_open(client_name, JackNoStartServer, NULL);
         if (client == NULL) {
                 ja_set_error_msg("jack_client_open failure");
                 return 1;
         }
+        ja_proc_thread.status = JA_STOPPED;
         ja_status = JA_INITIALIZING;
         ja_frames = jack_get_buffer_size(client);
         ja_sample_rate = (SAMPLE) jack_get_sample_rate(client);
@@ -634,7 +676,7 @@ int ja_start(void)
 
 int ja_stop(void)
 {
-        ja_terminate(NULL);
+        ja_cleanup(NULL);
         return 0;
 }
 

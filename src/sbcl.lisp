@@ -200,6 +200,9 @@ Example: 8 processors
 
 (defsetf thread-affinity set-thread-affinity)
 
+(defmacro with-available-mutex ((mutex) &body body)
+  `(sb-thread:with-mutex (,mutex :wait-p nil) ,@body))
+
 (declaim (inline seed-from-random-state))
 (defun seed-from-random-state (state)
   (aref (sb-kernel::random-state-state state) 3))

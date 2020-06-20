@@ -17,7 +17,7 @@
 (in-package :incudine)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (defvar *after-gc-fn* (lambda () (nrt-msg debug "gc happened")))
+  (defglobal *after-gc-fn* (lambda () (nrt-msg debug "gc happened")))
 
   (incudine.util::add-after-gc-hook *after-gc-fn*)
 
@@ -26,6 +26,8 @@
   ;;; The default is to hide these messages.
   #+jack-audio
   (pushnew #'incudine.external::silent-jack-errors *initialize-hook*))
+
+(defglobal *rt-params* (make-rt-params))
 
 (defmacro with-new-thread ((varname name priority debug-message) &body body)
   `(unless ,varname
@@ -59,7 +61,7 @@
     (msg debug "fast non-realtime thread stopped")
     (setf *nrt-thread* nil *fast-nrt-thread* nil)))
 
-(defvar *foreign-client-name* (cffi:null-pointer))
+(defglobal *foreign-client-name* (cffi:null-pointer))
 
 #-dummy-audio
 (defun rt-thread-callback (loop-function)
@@ -78,9 +80,7 @@
            (set-sample-rate (rt-sample-rate))
            #+jack-midi (nrt-funcall #'jackmidi::update-streams)
            (funcall loop-function buffer-size)))
-        (t (setf *rt-thread* nil)
-           (msg error (rt-get-error-msg))
-           (rt-stop))))
+        (t (msg error (rt-get-error-msg)))))
 
 #+dummy-audio
 (defun rt-thread-callback (loop-function)
@@ -184,7 +184,7 @@
           (incudine.external::rt-inputs-from-cache-end)
         finally (nrt-msg debug "~D suspended audio cycles" i)))
 
-(defvar *recover-suspended-audio-cycles-p*
+(defglobal *recover-suspended-audio-cycles-p*
   (incudine.external::set-foreign-rt-thread-callback
     (and (boundp 'incudine.config::*recover-suspended-audio-cycles-p*)
          incudine.config::*recover-suspended-audio-cycles-p*)))
@@ -308,7 +308,6 @@ The default is the value of the configuration variable
              (msg warn
                   "Block size ~D is not a multiple of ~D (frames per buffer)"
                   ,block-size ,frames-per-buffer)
-             (call-after-stop)
              (return-from nil))))
        (setf *block-size* ,block-size)
        (setf *block-input-samples* (* *block-size* *number-of-input-bus-channels*))
@@ -346,7 +345,10 @@ The default is the value of the configuration variable
                             (inc-portmidi-time ,pm-time-delta))))
                     (incf-sample-counter ,block-size))))
            (rt-transfer-to-c-thread)
-           (nrt-funcall #'rt-stop))))))
+           (incudine.util::with-available-mutex ((rt-params-lock *rt-params*))
+             ;; If the mutex is not available, it means that RT-STOP
+             ;; is running from another thread.
+             (nrt-funcall #'rt-stop)))))))
 
 ;;; Real-time loop callback for sample by sample computation.
 #-dummy-audio
@@ -424,10 +426,10 @@ This setting stops the real-time thread."
   `(%set-rt-block-size ,value ,(unless (member value '(1 64))
                                  `(rt-loop-callback ,value))))
 
-(defvar *after-rt-stop-function* nil)
+(defglobal *after-rt-stop-function* nil)
 (declaim (type (or function null) *after-rt-stop-function*))
 
-(defvar *threads-with-altered-affinity* (make-hash-table))
+(defglobal *threads-with-altered-affinity* (make-hash-table))
 (declaim (type hash-table *threads-with-altered-affinity*))
 
 (defun set-rt-cpu (n)
@@ -512,48 +514,56 @@ the thread."
            (type function thread-function)
            (type cons thread-function-args)
            (type boolean gc-p))
-  (unless *rt-thread*
-    (init)
-    (setf *after-rt-stop-function* after-stop-function)
-    (when preamble-function (funcall preamble-function))
-    (when gc-p (incudine.util::gc :full t))
-    (make-rt-thread thread-name thread-function thread-function-args)
-    (sleep .1)
-    (setf (rt-params-status *rt-params*)
-          (cond ((and *rt-thread* (bt:thread-alive-p *rt-thread*))
-                 (when cpu (set-rt-cpu cpu))
-                 :started)
-                (t (msg warn "failed to start the realtime thread")
-                   (setf *rt-thread* nil)
-                   (setf *after-rt-stop-function* nil)
-                   :stopped)))))
+  (bordeaux-threads:with-lock-held ((rt-params-lock *rt-params*))
+    (unless *rt-thread*
+      (init)
+      (setf *after-rt-stop-function* after-stop-function)
+      (when preamble-function (funcall preamble-function))
+      (when gc-p (incudine.util::gc :full t))
+      (setf rt-state nil)
+      (make-rt-thread thread-name thread-function thread-function-args)
+      (sleep .1)
+      (loop while (and *rt-thread*
+                       (bt:thread-alive-p *rt-thread*)
+                       (null rt-state))
+            do (sleep .05))
+      (setf (rt-params-status *rt-params*)
+            (cond ((and *rt-thread* (bt:thread-alive-p *rt-thread*))
+                   (when cpu (set-rt-cpu cpu))
+                   :started)
+                  (t (msg warn "failed to start the realtime thread")
+                     (setf *rt-thread* nil)
+                     (setf rt-state nil)
+                     (when (functionp *after-rt-stop-function*)
+                       (funcall *after-rt-stop-function*))
+                     (setf *after-rt-stop-function* nil)
+                     :stopped))))))
 
 (defun rt-status ()
   "Real-time thread status. Return :STARTED or :STOPPED."
   (rt-params-status *rt-params*))
 
 (defun call-after-stop ()
-  (nrt-funcall (lambda ()
-                 (when *after-rt-stop-function*
-                   (funcall *after-rt-stop-function*)
-                   (setf *after-rt-stop-function* nil)
-                   (msg debug "after realtime stop")))))
+  (when (functionp *after-rt-stop-function*)
+    (funcall *after-rt-stop-function*)
+    (setf *after-rt-stop-function* nil)
+    (msg debug "after realtime stop")))
 
 (defun rt-stop ()
   "Stop the real-time thread and return :STOPPED."
   (unless (eq (rt-status) :stopped)
-    (cond ((rt-thread-p) (nrt-funcall #'rt-stop))
-          (t
-           (when *rt-thread*
-             (let ((thread *rt-thread*))
-               (unset-rt-cpu)
-               (setf *rt-thread* nil)
-               (setf rt-state nil)
-               (sleep .05)
-               (loop while (bt:thread-alive-p thread))
-               (msg debug "realtime thread stopped")))
-           (call-after-stop)
-           (setf (rt-params-status *rt-params*) :stopped)))))
+    (if (rt-thread-p)
+        (nrt-funcall #'rt-stop)
+        (bordeaux-threads:with-lock-held ((rt-params-lock *rt-params*))
+          (let ((thread *rt-thread*))
+            (when thread
+              (unset-rt-cpu)
+              (setf *rt-thread* nil)
+              (setf rt-state nil)
+              (loop while (bt:thread-alive-p thread) do (sleep .05))
+              (msg debug "realtime thread stopped")
+              (call-after-stop)))
+          (setf (rt-params-status *rt-params*) :stopped)))))
 
 #+portaudio
 (defun portaudio-set-device (output &optional (input output))

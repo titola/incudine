@@ -35,7 +35,8 @@
 enum {
         PA_RUNNING,
         PA_STOPPED,
-        PA_INITIALIZING
+        PA_INITIALIZING,
+        PA_STOPPING
 };
 
 #define MAX_GC_TIME_SEC  0.33
@@ -52,6 +53,11 @@ enum {
 struct pa_xrun {
         unsigned int count;
         SAMPLE last_time;
+};
+
+struct pa_thread {
+        pthread_t id;
+        int status;
 };
 
 static unsigned int pa_in_channels, pa_out_channels;
@@ -78,7 +84,8 @@ static int pa_lisp_busy;
 static struct pa_xrun pa_xruns;
 static char pa_error_msg[PA_ERROR_MSG_MAX_LENGTH];
 static void *(*pa_thread_callback)(void *) = NULL;
-static pthread_t process_thread;
+static struct pa_thread pa_proc_thread;
+static pthread_mutex_t pa_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t pa_lisp_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  pa_lisp_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t pa_c_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -130,6 +137,8 @@ static void pa_set_error_msg(const char *msg);
 static void pa_error(const char *msg);
 static int pa_alloc_input_cache(void);
 static void pa_free_input_cache(void);
+static void pa_process_thread_wait(void);
+static void pa_cleanup(void);
 static void pa_increment_cycle_counter(char type);
 static void *pa_process_thread(void *arg);
 static int pa_set_xrun(void);

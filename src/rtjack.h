@@ -33,7 +33,8 @@ enum {
         JA_RUNNING,
         JA_STOPPED,
         JA_SHUTDOWN,
-        JA_INITIALIZING
+        JA_INITIALIZING,
+        JA_STOPPING
 };
 
 #define SBCL_SIG_STOP_FOR_GC  SIGUSR2
@@ -55,6 +56,11 @@ struct ja_xrun {
         SAMPLE last_time;
 };
 
+struct ja_thread {
+        pthread_t id;
+        int status;
+};
+
 static jack_client_t *client = NULL;
 static SAMPLE ja_sample_rate, ja_sample_duration;
 static SAMPLE *ja_sample_counter;
@@ -69,6 +75,8 @@ static jack_port_t **input_ports, **output_ports;
 static char **input_port_names, **output_port_names;
 static struct incudine_ringbuffer **ja_inputs_cache = NULL;
 static JackThreadCallback ja_thread_callback = NULL;
+static struct ja_thread ja_proc_thread;
+static pthread_mutex_t ja_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t ja_lisp_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  ja_lisp_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t ja_c_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -133,7 +141,8 @@ static void *ja_process_thread(void *arg);
 static void* ja_process_thread_with_cached_inputs(void *arg);
 static int ja_xrun_cb(void *arg);
 static void ja_shutdown(void *arg);
-static void ja_terminate(void *arg);
+static void ja_process_thread_wait(void);
+static void ja_cleanup(void *arg);
 
 int ja_cache_inputs(void);
 int ja_has_cached_inputs(void);
