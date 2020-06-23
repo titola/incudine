@@ -1025,7 +1025,7 @@ value of a bound VARIABLE of type SAMPLE, POINTER or foreign array."
                 ((string= obj "%CONTROL-LIST%")
                  `(cons nil ,(dsp-control-list-func)))
                 ((string= obj "%CONTROL-NAMES%")
-                 `(cons nil (lambda () ',arg-names))))))
+                 `(cons nil (lambda () (copy-list ',arg-names)))))))
 
 (declaim (inline reorder-vug-parameter-vars-to-update))
 (defun reorder-vug-parameter-vars-to-update (param)

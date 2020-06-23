@@ -41,12 +41,16 @@
       (voicer:set-controls *voi* :freq 1234 :amp .25 :pos .5)
       (setf (voicer:control-value *voi* 'pos) .88)
       (setf (voicer:polyphony *voi*) 100)
+      ;; CONTROL-NAMES and CONTROL-LIST return a fresh list.
+      (setf (nth 1 (voicer:control-names *voi*)) 'bug)
+      (setf (nth 1 (voicer:control-list *voi*)) 12345)
       (values (voicer:polyphony *voi*)
+              (voicer:control-names *voi*)
               (voicer:control-list *voi*)
               (voicer:control-value *voi* 'freq)
               (voicer:control-value *voi* 'amp)
               (voicer:control-value *voi* 'pos)))
-  100 (1234 0.25 0.88 1) 1234 0.25 0.88)
+  100 (FREQ AMP POS GATE) (1234 0.25 0.88 1) 1234 0.25 0.88)
 
 (deftest voicer.2
     (flet ((voicer-maps ()

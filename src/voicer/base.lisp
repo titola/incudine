@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -430,7 +430,7 @@ Should be one of :FIRST, :LAST or NIL. Setfable."
        (setf (gethash "%CONTROL-LIST%" ,hash)
              (cons nil (lambda () (list ,@arguments))))
        (setf (gethash "%CONTROL-NAMES%" ,hash)
-             (cons nil (lambda () ',arguments))))))
+             (cons nil (lambda () (copy-list ',arguments)))))))
 
 (defun remove-unused-maps (mapping-hash args)
   (maphash (lambda (key value)
