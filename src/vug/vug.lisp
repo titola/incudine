@@ -702,6 +702,10 @@ during the compilation of a UGEN or DSP. The default is NIL.")
 (defun setter-form-p (obj)
   (member obj '(setf setq incf decf psetf psetq)))
 
+(defun set-multiple-values-p (lst)
+  (let ((arg (second lst)))
+    (and (consp arg) (eq (first arg) 'values))))
+
 (declaim (inline quote-symbol-p))
 (defun quote-symbol-p (lst)
   (and (eq (first lst) 'quote) (atom (second lst))))
@@ -1310,7 +1314,9 @@ Example:
         ((and (macro-function name)
               ;; Avoid the expansion of the setter forms.
               ;; This information is used during the code generation.
-              (not (setter-form-p name)))
+              (not (and (setter-form-p name)
+                        ;; Expanding (SETF (VALUES ...) ...)
+                        (not (set-multiple-values-p def)))))
          (let ((expansion (maybe-transform-macro name def)))
            (if (vug name)
                `(mark-vug-block

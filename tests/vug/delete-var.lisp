@@ -26,6 +26,14 @@
            (stereo (~ (delay (- (impulse 1 .5) (* .5 (zero it -1))) .001 .001))))
          (delete-var-test-2*))))))
 
+(dsp! delete-var-test-3 ()
+  (with-samples (a b c d)
+    (initialize
+      ;; Bug fixed: expanding (SETF (VALUES ...) ...)
+      (multiple-value-setq (a b) (values (sample .2) (sample .3)))
+      (setf (values c d) (values (sample .2) (sample .3))))
+    (out (+ a b) (+ c d))))
+
 (with-dsp-test (delete-var.1
       :md5 #(53 186 250 177 0 178 241 139 224 231 126 34 95 170 167 51))
   (let ((b (copy-buffer *sine-table*)))
@@ -36,3 +44,7 @@
 (with-dsp-test (delete-var.2 :channels 2
       :md5 #(115 66 180 157 85 94 218 87 71 84 23 50 2 232 113 74))
   (delete-var-test-2))
+
+(with-dsp-test (delete-var.3 :channels 2
+      :md5 #(2 137 205 126 140 66 41 71 73 191 58 153 177 159 173 31))
+  (delete-var-test-3))
