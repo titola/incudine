@@ -993,7 +993,8 @@ value of a bound VARIABLE of type SAMPLE, POINTER or foreign array."
   (and (cdr (vug-parameter-vars-to-update param))
        `(lambda ()
           (declare #.*reduce-warnings*)
-          ,@(control-dependence param))))
+          ,@(control-dependence param)
+          (values))))
 
 (defun dsp-control-list-func ()
   `(lambda ()
