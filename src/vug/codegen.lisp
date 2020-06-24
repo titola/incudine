@@ -990,10 +990,10 @@ value of a bound VARIABLE of type SAMPLE, POINTER or foreign array."
      ,(vug-parameter-aux-varname param)))
 
 (defun dsp-control-update-ptr-dep-func (param)
-  `(lambda ()
-     ,@(when (cdr (vug-parameter-vars-to-update param))
-         `((declare #.*reduce-warnings*)
-           ,@(control-dependence param)))))
+  (and (cdr (vug-parameter-vars-to-update param))
+       `(lambda ()
+          (declare #.*reduce-warnings*)
+          ,@(control-dependence param))))
 
 (defun dsp-control-list-func ()
   `(lambda ()

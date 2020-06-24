@@ -60,6 +60,7 @@
      (:file "vug/variables" :depends-on ("vug/base"))
      (:file "vug/binding-lambda" :depends-on ("vug/base"))
      (:file "vug/initialize" :depends-on ("vug/base"))
+     (:file "vug/control-pointer" :depends-on ("vug/base"))
      (:file "vug/defaults" :depends-on ("vug/base"))
      (:file "vug/foreach-frame" :depends-on ("vug/base"))
      (:file "vug/with-or-without-follow" :depends-on ("vug/base"))

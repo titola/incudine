@@ -442,8 +442,8 @@
    #:node-fade-curve #:node-fade-in #:node-fade-out #:node-segment
    #:pause #:unpause #:pause-p #:move #:before-p #:after-p #:head-p #:tail-p
    #:done-p #:node-free-all #:stop-hook #:free-hook #:dograph #:dogroup #:dump
-   #:set-control #:set-controls #:control-value #:control-getter
-   #:control-setter #:control-list #:control-names
+   #:set-control #:set-controls #:control-value #:control-pointer
+   #:control-getter #:control-setter #:control-list #:control-names
    #:reinit
    ;; responder
    #:receiver #:remove-receiver #:remove-all-receivers

@@ -541,6 +541,7 @@ Deallocate the ~node~.
 ::: control-list
 ::: control-names
 ::: control-value
+::: control-pointer
 ::: set-control
 ::: set-controls
 #+texinfo: @page

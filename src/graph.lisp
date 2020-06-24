@@ -1299,7 +1299,7 @@ If MOVE-ACTION is :AFTER, move NODE immediately after TARGET."
     (declare (type node obj))
     (unless (null-node-p obj)
       (let ((ht (node-controls obj)))
-        (declare (type (or hash-table null)))
+        (declare (type (or hash-table null) ht))
         (when ht (gethash (symbol-name control-name) ht))))))
 
 (declaim (inline control-getter))
@@ -1387,14 +1387,66 @@ parameter names and values."
             (set-control node control-name (car pl)))))))
   (values))
 
-(declaim (inline control-list))
+(defun control-pointer (obj control-name)
+  "If the control parameter CONTROL-NAME is represented by a foreign
+object (i.e. a control of type SAMPLE), the first returned value is a
+foreign pointer to the control value. The second returned value is the
+function of no arguments called to update the dependencies if it exists.
+
+Example:
+
+    (in-package :scratch)
+
+    (dsp! dsp-control ((node (or fixnum node)) (control-name symbol)
+                       initial-value value duration)
+      (with ((ptr (cffi:null-pointer))
+             (func nil)
+             (this (dsp-node)))
+        (declare (type pointer ptr)
+                 (type (or function null) func)
+                 (type node this))
+        (initialize
+          ;; The foreign pointer is useless if the controlled node is freed.
+          (push (lambda (n) n (free this))
+                (free-hook node))
+          (setf (values ptr func)
+                (control-pointer node control-name)))
+        (setf (smp-ref ptr) (line initial-value value duration))
+        (if func (funcall (the function func)))))
+
+    (dsp! oscilla (freq amp)
+      (stereo (sine freq amp)))
+
+    (rt-start)
+
+    (oscilla 440 .3 :id 1
+      :action (lambda (n) (dsp-control n 'freq 440 880 1 :id 2 :before n)))
+
+    (set-controls 2 :value 100 :duration 3)
+    (set-controls 2 :value 440 :duration .25)
+
+    ;; `(free 2)' is called from the free-hook of node 1.
+    (free 1)"
+  (declare (type (or non-negative-fixnum node) obj)
+           (type symbol control-name))
+  (incudine-optimize
+    (let ((obj (if (node-p obj) obj (getihash obj))))
+      (declare (type node obj))
+      (unless (null-node-p obj)
+        (let ((ht (node-controls obj)))
+          (declare (type (or hash-table null) ht))
+          (when ht
+            (let ((cons (gethash
+                          (list :pointer (symbol-name control-name))
+                          ht)))
+              (values (car cons) (cdr cons)))))))))
+
 (defun control-list (obj)
   "Return the list of the values of the control parameters related to
 the node OBJ."
   (declare (type (or non-negative-fixnum node) obj))
   (rt-eval (:return-value-p t) (control-value obj :%control-list%)))
 
-(declaim (inline control-names))
 (defun control-names (obj)
   "Return the list of the names of the control parameters related to
 the node OBJ."
