@@ -778,7 +778,7 @@ during the compilation of a UGEN or DSP. The default is NIL.")
     (labels ((expand-let* (bindings body)
                (if bindings
                    (let ((var (caar bindings)))
-                     `(let ((,init ,@(parse-vug-def (cdar bindings) nil
+                     `(let ((,init ,@(parse-vug-def (cdar bindings) t
                                                     flist mlist floop-info))
                             (,var (make-local-vug-variable ',var)))
                         (push (list ,var ,init) ,init-forms)
