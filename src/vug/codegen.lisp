@@ -831,10 +831,10 @@ value of a bound VARIABLE of type SAMPLE, POINTER or foreign array."
                                   ,ptrvec ,,ptrvec-size ,+pointer-size+)
                                 (setf (node-controls ,node) (dsp-controls ,dsp))
                                 (setf %dsp-node% ,node)
-                                (setf *dsp-node* ,node)
                                 (with-init-frames
                                   (free-incudine-objects ,to-free)
-                                  (let ((incudine::*to-free* nil))
+                                  (let ((incudine::*to-free* nil)
+                                        (*dsp-node* ,node))
                                     ,(reinit-bindings-form)
                                     (update-free-hook ,node ,free-hook)
                                     ,@(initialization-code)
