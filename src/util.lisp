@@ -50,9 +50,6 @@ LIMITED-SAMPLE."
 
 ;;; MISC
 
-(defvar *dummy-function-without-args* (lambda ()))
-(declaim (type function *dummy-function-without-args*))
-
 (defvar *sf-metadata-keywords*
   '(:title :copyright :software :artist :comment
     :date :album :license :tracknumber :genre))

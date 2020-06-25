@@ -122,7 +122,7 @@
            (handler-case (funcall ,fn)
              (condition (,c)
                ;; Set a dummy function and free the node at the next tick
-               (let ((,dummy-fn (lambda (ch) (declare (ignore ch)))))
+               (let ((,dummy-fn (lambda ())))
                  (setf (car ,flist) ,dummy-fn ,fn ,dummy-fn)
                  (dograph (,n)
                    (unless (group-p ,n)

@@ -261,7 +261,7 @@ See also FAST-NRT-FUNCALL."
                                  (lambda () res))
                    (condition (c)
                      (uiop:symbol-call :incudine.util '#:%nrt-msg 'error "~A" c)
-                     *dummy-function-without-args*)))))
+                     (constantly nil))))))
     (loop until fn do (sleep 1e-7))
     (funcall (the function fn))))
 
