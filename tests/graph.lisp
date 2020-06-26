@@ -328,16 +328,3 @@
    (1001 100 1000 1003 1004 1005 1002)
    ;; STOP 0
    (100)))
-
-(dsp! silence () (out 0))
-
-(deftest dsp-node.1
-    (with-logger (*null-output*)
-      (bounce-to-buffer (*buffer-test-c1* :frames 4)
-        (at 0 #'silence)
-        (at 1 #'free 0)
-        (at 2 #'silence)
-        (at 3 #'free 0))
-      ;; Bug fixed: side effect from the reused DSP instance.
-      (dsp-node))
-  NIL)

@@ -834,6 +834,10 @@ value of a bound VARIABLE of type SAMPLE, POINTER or foreign array."
                                 (with-init-frames
                                   (free-incudine-objects ,to-free)
                                   (let ((incudine::*to-free* nil)
+                                        ;; A direct call to DSP-NODE is
+                                        ;; transformed to %DSP-NODE%.
+                                        ;; *DSP-NODE* is necessary for the
+                                        ;; indirect calls.
                                         (*dsp-node* ,node))
                                     ,(reinit-bindings-form)
                                     (update-free-hook ,node ,free-hook)
@@ -851,7 +855,8 @@ value of a bound VARIABLE of type SAMPLE, POINTER or foreign array."
                             :perf-function
                               (lambda ()
                                 (with-init-frames
-                                  ,@,vug-body
+                                  (let ((*dsp-node* %dsp-node%))
+                                    ,@,vug-body)
                                   (values))))
                           ;; There is a pool of instances of DSP, so the
                           ;; free-function is called if the init-function is
