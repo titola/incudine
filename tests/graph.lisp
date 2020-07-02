@@ -138,6 +138,25 @@
       (every #'null res))
   T)
 
+(deftest move-node.3
+    (let ((initially nil)
+          (finally nil))
+      (with-logger (*null-output*)
+        (bounce-to-buffer (*buffer-test-c1* :frames 1)
+          (make-group 1)
+          (play (lambda ()) :id 2 :head 1)
+          (dograph (n) (push (node-id n) initially))
+          (move 1 :head 1)
+          (move 1 :tail 1)
+          (move 1 :before 1)
+          (move 1 :after 1)
+          (move 2 :before 2)
+          (move 2 :after 2)
+          (dograph (n) (push (node-id n) finally)))
+        (values initially finally)))
+  (2 1 0)
+  (2 1 0))
+
 (deftest move-node-loop-error.1
     (let ((loop-errors 0)
           (*logger-stream* *null-output*))

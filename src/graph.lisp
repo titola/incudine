@@ -1244,17 +1244,18 @@ If MOVE-ACTION is :AFTER, move NODE immediately after TARGET."
   (let ((src (if (numberp node) (node node) node))
         (dest (if (numberp target) (node target) target)))
     (declare (type node src dest) #.*standard-optimize-settings*)
-    (rt-eval ()
-      (unless (or (null-node-p src) (null-node-p dest))
-        (if (move-group-loop-p src dest)
-            (error 'incudine-node-error
-                   :format-control "~D -> ~D generates a loop."
-                   :format-arguments (list (node-id src) (node-id dest)))
-            (action-case (move-action src dest)
-              (:before move-node-before)
-              (:after move-node-after)
-              (:head move-node-head)
-              (:tail move-node-tail)))))))
+    (unless (eq src dest)
+      (rt-eval ()
+        (unless (or (null-node-p src) (null-node-p dest))
+          (if (move-group-loop-p src dest)
+              (error 'incudine-node-error
+                     :format-control "~D -> ~D generates a loop."
+                     :format-arguments (list (node-id src) (node-id dest)))
+              (action-case (move-action src dest)
+                (:before move-node-before)
+                (:after move-node-after)
+                (:head move-node-head)
+                (:tail move-node-tail))))))))
 
 (defun before-p (node0 node1)
   "Return T if NODE0 precedes NODE1."
