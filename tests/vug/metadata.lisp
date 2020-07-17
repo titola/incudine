@@ -42,9 +42,9 @@
                (metadata obj :outputs)
                (funcall (metadata obj 'test-function)))))
       (values
-        (test 'ugen-metadata-test-1)
+        (test (vug 'ugen-metadata-test-1))
         (test 'vug-macro-metadata-test-1)
-        (test 'ugen-metadata-test-1)
+        (test (ugen 'ugen-metadata-test-1))
         (test 'dsp-metadata-test-1)))
   ;; VUG
   ((("Test" . "UGEN metadata test 1") (:INPUTS . 1) (:OUTPUTS . 2)
