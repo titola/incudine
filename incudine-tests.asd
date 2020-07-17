@@ -59,6 +59,7 @@
      (:file "vug/types" :depends-on ("vug/base"))
      (:file "vug/variables" :depends-on ("vug/base"))
      (:file "vug/binding-lambda" :depends-on ("vug/base"))
+     (:file "vug/metadata" :depends-on ("vug/base"))
      (:file "vug/initialize" :depends-on ("vug/base"))
      (:file "vug/dsp-node" :depends-on ("vug/base"))
      (:file "vug/control-pointer" :depends-on ("vug/base"))

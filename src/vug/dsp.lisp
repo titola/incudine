@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -32,7 +32,8 @@
   (nrt-instances nil :type list)
   (arguments nil :type list)
   (arg-types nil :type list)
-  (defaults nil :type list))
+  (defaults nil :type list)
+  (metadata nil :type list))
 
 (define-constant +dsp-properties-pool-initial-size+ 200)
 
@@ -104,6 +105,9 @@
                         (dsp-properties-arg-types prop))
                 (copy-tree (dsp-properties-defaults prop)))
         (error 'incudine:incudine-undefined-dsp :name name))))
+
+(defmethod metadata ((obj dsp-properties) &optional type)
+  (get-metadata obj type #'dsp-properties-metadata))
 
 (defun all-dsp-names ()
   "Return the name list of the defined DSP's."

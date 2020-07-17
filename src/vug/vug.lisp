@@ -109,7 +109,8 @@ during the compilation of a UGEN or DSP. The default is NIL.")
   (callback nil :type (or function null))
   (args nil :type list)
   (arg-types nil :type list)
-  (defaults nil :type list))
+  (defaults nil :type list)
+  (metadata-list nil :type list))
 
 (defstruct (vug-macro (:include vug) (:copier nil))
   "Virtual Unit Generator Macro type.")
@@ -213,7 +214,8 @@ during the compilation of a UGEN or DSP. The default is NIL.")
   (args nil :type list)
   (arg-types nil :type list)
   (defaults nil :type list)
-  (control-flags nil :type list))
+  (control-flags nil :type list)
+  (metadata-list nil :type list))
 
 (defmethod print-object ((obj vug) stream)
   (format stream "#<~A ~A>"
@@ -1859,23 +1861,50 @@ Example:
 (defun vug-spec-p (list)
   (and (consp (car list)) (keywordp (caar list))))
 
+(defun check-metadata-type (obj)
+  (let ((obj (if (and (consp obj) (quote-symbol-p obj))
+                 (second obj)
+                 obj)))
+    (if (and obj (or (symbolp obj) (stringp obj)))
+        obj
+        (error 'simple-type-error
+          :format-control "~S is not a valid metadata type."
+          :format-arguments (list obj)))))
+
 ;;; SBCL VOP style for optional VUG SPEC's.
 (defun extract-vug-specs (code)
   (declare (type list code))
   (let ((doc (when (stringp (car code))
                (car code))))
     (do ((l (if doc (cdr code) code) (cdr l))
-         (acc nil))
-        ((not (vug-spec-p l)) (values doc acc l))
+         (acc nil)
+         (metadata nil))
+        ((not (vug-spec-p l))
+         (when metadata
+           (setf acc (list* :metadata
+                            `(list ,@(mapcar (lambda (x)
+                                               `(cons ',(car x) ,(cdr x)))
+                                             (reverse metadata)))
+                            acc)))
+         (values doc acc l))
       (let ((key (caar l))
             (value (cdar l)))
         (unless (member key '(:constructor :defaults :optimize :instance-type
-                              :readers :writers :accessors :pre-hook))
+                              :readers :writers :accessors :metadata :pre-hook))
           (incudine-error "Unknown SPEC ~S" key))
-        (setf acc (list* key (if (unquoting-spec-p key)
-                                 (list* 'list value)
-                                 (list 'quote value))
-                         acc))))))
+        (if (eq key :metadata)
+            (cond ((find (first value) metadata :key #'first)
+                   (incudine-error "Duplicated metadata SPEC ~S" (first value)))
+                  ((cddr value)
+                   (incudine-error "Malformed metadata SPEC ~S" value))
+                  (t
+                   (setf metadata
+                         (acons (check-metadata-type (first value))
+                                (second value) metadata))))
+            (setf acc (list* key (if (unquoting-spec-p key)
+                                     (list* 'list value)
+                                     (list 'quote value))
+                             acc)))))))
 
 (defun get-vug-spec (name specs)
   (getf specs name))
@@ -1893,10 +1922,12 @@ Example:
                (push 'sample types))))
     (values (nreverse names) (nreverse types))))
 
-(defun add-vug (name args arg-types defaults callback &optional macro-p)
+(defun add-vug (name args arg-types defaults metadata callback
+                &optional macro-p)
   (let ((obj (funcall (if macro-p #'make-vug-macro #'make-vug)
                       :name name :callback callback :args args
-                      :arg-types arg-types :defaults defaults)))
+                      :arg-types arg-types :defaults defaults
+                      :metadata-list metadata)))
     (when (ugen name)
       (destroy-ugen name)
       (nrt-msg debug "destroy UGEN ~A" name))
@@ -1930,6 +1961,9 @@ other forms in the specification:
     :DEFAULTS default-values
         Default values for VUG parameter controls.
 
+    :METADATA Type Value
+        Set the metadata Type to Value.
+
 If the specification :DEFAULTS is defined, all the arguments of the
 auxiliary function are optional keywords.
 
@@ -1939,7 +1973,8 @@ Return the new VUG structure."
       (with-gensyms (fn s)
         (multiple-value-bind (args types) (arg-names-and-types arglist)
           (multiple-value-bind (doc specs vug-body) (extract-vug-specs body)
-            (let ((defaults (cadr (get-vug-spec :defaults specs))))
+            (let ((defaults (cadr (get-vug-spec :defaults specs)))
+                  (metadata (get-vug-spec :metadata specs)))
               (check-default-args args defaults 'vug)
               (let ((optional-keys (mapcar #'list args defaults)))
                 `(eval-when (:compile-toplevel :load-toplevel :execute)
@@ -1957,7 +1992,8 @@ Return the new VUG structure."
                                      (call-vug-pre-hooks ,s)
                                      (,fn ,@args))))))
                      (setf (symbol-function ',name) ,fn)
-                     (add-vug ',name ',args ',types ',defaults ,fn))))))))))
+                     (add-vug ',name ',args ',types ',defaults
+                              ,metadata ,fn))))))))))
 
 (defmacro define-vug-macro (name lambda-list &body body)
   "Define a new VUG-MACRO and the auxiliary macro named NAME.
@@ -1993,6 +2029,9 @@ other forms in the specification:
     :DEFAULTS default-values
         Default values for VUG parameter controls.
 
+    :METADATA Type Value
+        Set the metadata Type to Value.
+
 If the specification :DEFAULTS is defined, all the arguments of the
 auxiliary macro are optional keywords.
 
@@ -2000,14 +2039,15 @@ Return the new VUG-MACRO structure."
   (if (dsp name)
       (incudine-error "~A was defined to be a DSP." name)
       (multiple-value-bind (doc specs vug-body) (extract-vug-specs body)
-        (let ((defaults (cadr (get-vug-spec :defaults specs))))
+        (let ((defaults (cadr (get-vug-spec :defaults specs)))
+              (metadata (get-vug-spec :metadata specs)))
           (check-default-args lambda-list defaults 'vug-macro)
           `(eval-when (:compile-toplevel :load-toplevel :execute)
              (,@(if defaults
                     `(defmacro* ,name ,(mapcar #'list lambda-list defaults))
                     `(defmacro ,name ,lambda-list))
                 ,@(and doc `(,doc)) ,@vug-body)
-             (add-vug ',name ',lambda-list nil ',defaults
+             (add-vug ',name ',lambda-list nil ',defaults ,metadata
                       (macro-function ',name) t))))))
 
 (defun vug-lambda-list (name)
@@ -2023,6 +2063,30 @@ NAME can also be a VUG structure."
               (mapcar #'list (vug-args vug) (copy-tree (vug-arg-types vug))))
           (copy-tree (vug-defaults vug)))
         (error 'incudine:incudine-undefined-vug :name name))))
+
+(defun get-metadata (obj type get-alist-function)
+  (declare (type function get-alist-function))
+  (let ((alist (funcall get-alist-function obj)))
+    (when alist
+      (if type
+          (let ((pair (assoc type alist :test #'equal)))
+            (values (cdr pair) (and pair t)))
+          (copy-alist alist)))))
+
+(defgeneric metadata (obj &optional type)
+  (:documentation
+   "If the metadata TYPE is NIL (default), return the association list of the
+metadata for the object OBJ. If TYPE is non-NIL, return its corresponding
+metadata value.
+
+The metadata TYPE is a symbol or a string."))
+
+(defmethod metadata ((obj vug) &optional type)
+  (get-metadata obj type #'vug-metadata-list))
+
+(defmethod metadata ((obj symbol) &optional type)
+  (cond (obj (metadata (or (dsp obj) (vug obj) (ugen obj)) type))
+        (type (values nil nil))))
 
 (defun rename-vug (old-name new-name)
   "Rename the VUG named OLD-NAME to NEW-NAME."

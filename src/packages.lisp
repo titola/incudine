@@ -248,7 +248,7 @@
    #:with
    #:with-vug-inputs #:vug-input
    #:get-pointer
-   #:dsp! #:dsp-debug #:dsp-lambda-list #:all-dsp-names
+   #:dsp! #:dsp-debug #:dsp-lambda-list #:metadata #:all-dsp-names
    #:free-dsp-instances #:destroy-dsp
    #:*update-dsp-instances-p*
    #:current-channel #:current-frame #:current-sample #:current-input-sample

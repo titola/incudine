@@ -1173,11 +1173,12 @@ The default is T.")
          (values (dsp-init-function ,obj)
                  (dsp-perf-function ,obj))))))
 
-(defun set-dsp-arguments (dsp-name names types defaults)
+(defun set-dsp-arguments (dsp-name names types defaults metadata)
   (let ((prop (get-dsp-properties dsp-name)))
     (setf (dsp-properties-arguments prop) names
           (dsp-properties-arg-types prop) types
-          (dsp-properties-defaults prop) defaults)
+          (dsp-properties-defaults prop) defaults
+          (dsp-properties-metadata prop) metadata)
     prop))
 
 ;;; Returns the function to parse the arguments of a DSP.
@@ -1275,6 +1276,9 @@ other forms in the specification:
     :DEFAULTS default-values
         Default values for DSP parameter controls.
 
+    :METADATA Type Value
+        Set the metadata Type to Value.
+
     :OPTIMIZE {Quality | (Quality Value)}*
         Optimization qualities for the declaration OPTIMIZE.
 
@@ -1313,7 +1317,8 @@ Return the auxiliary function NAME."
       (let* ((arg-names (argument-names arglist))
              (arg-types (argument-types arglist))
              (dsp-arg-bindings (dsp-coercing-arguments arglist))
-             (defaults (cadr (get-vug-spec :defaults specs)))
+             (defaults (second (get-vug-spec :defaults specs)))
+             (metadata (get-vug-spec :metadata specs))
              (optimize (optimize-settings specs))
              (keywords '(id head tail before after replace action
                          stop-hook free-hook fade-time fade-curve)))
@@ -1330,7 +1335,8 @@ Return the auxiliary function NAME."
                  (t
                   ;; If there is a DSP called NAME, remove the cached instances.
                   (free-dsp-instances ',name)
-                  (set-dsp-arguments ',name ',arg-names ',arg-types ',defaults)
+                  (set-dsp-arguments
+                    ',name ',arg-names ',arg-types ',defaults ,metadata)
                   (,@(if defaults
                          `(defun* ,name ,(dsp-optional-keywords
                                            arg-names defaults keywords))

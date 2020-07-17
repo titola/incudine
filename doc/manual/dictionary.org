@@ -1265,6 +1265,35 @@ Return ~t~ if the ~ugen-instance~ is deallocated.
 ::: vug:dsp!
 ::: vug:dsp-debug
 ::: vug:dsp-lambda-list
+::: vug:metadata
+
+Example:
+
+#+begin_example
+(in-package :scratch)
+
+(dsp! panner ((buffer buffer) pan)
+  (:defaults (incudine-missing-arg "BUFFER") 0.5)
+  (:metadata :inputs 1)
+  (:metadata :outputs 2)
+  (with-samples ((alpha (* +half-pi+ pan))
+                 (left (cos alpha))
+                 (right (sin alpha)))
+    (loop for i below (buffer-size buffer) by 2 do
+         (setf (buffer-value buffer (1+ i))
+               (* right (buffer-value buffer i)))
+         (setf (buffer-value buffer i)
+               (* left (buffer-value buffer i))))))
+
+(metadata 'panner)
+;; => ((:INPUTS . 1) (:OUTPUTS . 2))
+
+(defparameter *effect-chain-buffer*
+  (make-buffer (block-size)
+    :channels (max (metadata 'panner :inputs)
+                   (metadata 'panner :outputs))))
+#+end_example
+
 ::: vug:destroy-dsp
 ::: vug:free-dsp-instances
 ::: vug:all-dsp-names
