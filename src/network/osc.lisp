@@ -1066,13 +1066,14 @@ then index the required values."
        (start-message ,s ,address ,types)
        ,@(loop for val in values for i from 0
                collect `(set-value ,s ,i ,val))
-       ,(if values `(send ,s) 0))))
+       ,(if (or values (string= types "")) `(send ,s) 0))))
 
 (defmacro simple-bundle (stream seconds address types &rest values)
   "Send an OSC message with timestamp SECONDS plus stream latency,
 OSC ADDRESS, OSC TYPES and arbitrary VALUES.
 
-If there are no VALUES, prepare the OSC message but don't send it.
+If TYPES is not \"\" and there are no VALUES, prepare the OSC message
+but don't send it.
 
 The OSC timestamp SECONDS is used with dual meaning: if it is greater
 than 63103 seconds (about 17 hours), the time is absolute otherwise it
@@ -1105,7 +1106,9 @@ is equivalent to
          (setf (cffi:mem-ref (stream-buffer-pointer ,s) :uint32)
                (swap-bytes:htonl (stream-bundle-length ,s))))
        (set-bundle-first-element-length ,s)
-       ,(if values `(send-bundle ,s ,seconds) 0))))
+       ,(if (or values (string= types ""))
+            `(send-bundle ,s ,seconds)
+            0))))
 
 (declaim (inline address-pattern))
 (defun address-pattern (stream &optional typetag-p)
