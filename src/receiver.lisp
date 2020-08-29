@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -85,7 +85,17 @@ input available from STREAM."
     (setf (thread-priority thread) priority)))
 
 (defun recv-unset-thread (receiver)
-  (loop while (bt:thread-alive-p (receiver-thread receiver)))
+  (loop for i from 0
+        with recv-thread = (receiver-thread receiver)
+        while (bt:thread-alive-p recv-thread) do
+       (sleep .1)
+       ;; Force DESTROY-THREAD after 5 seconds.
+       (cond ((= i 50)
+              (msg warn "forcing destroy-thread on ~A" recv-thread)
+              (bt:destroy-thread recv-thread))
+             ((= i 100)
+              (setf i 70)
+              (msg warn "the thread ~A is still alive" recv-thread))))
   (setf (receiver-thread receiver) nil)
   receiver)
 
