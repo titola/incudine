@@ -1,5 +1,5 @@
 ;;; Incudine version of Common Lisp Music.
-;;; Copyright (c) 2017-2018 Tito Latini
+;;; Copyright (c) 2017-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -179,7 +179,7 @@
                 #:with #:initialize #:with-follow #:vuglet #:get-pointer
                 #:make-frame #:maybe-expand #:~ #:delay1 #:nclip)
   (:import-from #:alexandria #:non-negative-fixnum #:positive-fixnum
-                #:define-constant #:with-gensyms #:format-symbol)
+                #:positive-real #:define-constant #:with-gensyms #:format-symbol)
   (:import-from #:incudine #:incudine-simple-error #:incudine-missing-arg)
   (:import-from #:incudine.soundfile #:with-open-soundfile))
 

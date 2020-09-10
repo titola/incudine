@@ -1,5 +1,5 @@
 ;;; Incudine version of CLM
-;;; Copyright (c) 2017-2018 Tito Latini
+;;; Copyright (c) 2017-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -2128,32 +2128,126 @@
   (declare (type (integer 1 #.+max-clm-sinc-width+) width)
            (type (or function null) gen-window-function))
   (let* ((size (1+ (* 2 (+ (* width +sinc-table-density+) +sinc-table-pad+))))
+         (winsize (- size (* 2 +sinc-table-pad+)))
          (table (make-double-array size)))
-    (with-buffer (w size :fill-function (or gen-window-function (gen:hanning)))
+    (with-buffer (w winsize :fill-function (or gen-window-function (gen:hanning)))
       (cffi:with-pointer-to-vector-data (data table)
         ;; Table size is an odd number so we have 1 at the center.
         (funcall (gen:sinc (+ width (/ +sinc-table-pad+ +sinc-table-density+)))
                  data size)
-        (dotimes (i size)
-          (setf #1=(cffi:mem-aref data :double i)
+        (loop for i below winsize
+              for j from +sinc-table-pad+ do
+          (setf #1=(cffi:mem-aref data :double j)
                 (* #1# (buffer-value w i))))))
     table))
 
 (defvar *sinc-tables*
   (let ((ht (make-hash-table)))
-    (setf (gethash *clm-src-width* ht) (make-sinc-table))
+    (setf (gethash *clm-src-width* ht) (list (make-sinc-table)))
     ht))
 (declaim (type hash-table *sinc-tables*))
 
-(defun sinc-table (&optional (width *clm-src-width*))
-  (declare (type (integer 1 #.+max-clm-sinc-width+) width))
-  (or #1=(gethash width *sinc-tables*)
-      (setf #1# (make-sinc-table width))))
+(defun sinc-table (&optional (width *clm-src-width*) window-beta)
+  (declare (type (integer 1 #.+max-clm-sinc-width+) width)
+           (type (or positive-real null) window-beta))
+  (let ((tab (gethash width *sinc-tables*)))
+    (or (and (eq window-beta (cdr tab)) (car tab))
+        (let ((new (make-sinc-table
+                     width (and window-beta (gen:kaiser window-beta)))))
+          (setf (gethash width *sinc-tables*) (cons new window-beta))
+          new))))
 
+;;; SRC here is not the original version of CLM.
+;;;
+;;; The conversion is performed through the convolution between the input,
+;;; upsampled by rate, and the polyphase filters obtained from the windowed
+;;; sinc table. The delay between the polyphase filters is not one sample,
+;;; but it depends on the rate. For example, if rate is 1.9, the phase shift
+;;; is pi/5:
+;;;
+;;;     2 pi (1 - frac(1.9)) = 2 pi 0.1 = pi/5
+;;;
+;;; therefore the index of the first coefficient for the next polyphase
+;;; filter is
+;;;
+;;;     SINC-TABLE-DENSITY * 0.1 = 2000 * 0.1 = 200
+;;;
+;;; The aliasing is remarkably reduced and the code is simplified.
 (define-clm-ugen src sample ((rd (or null soundfile:input-stream)) sr-change
                              srate (sinc-table (simple-array double-float (*)))
                              (width positive-fixnum) (input function))
   (:instance-type src-instance)
+  (:readers (rd :arg-name gen) (sinc-table :arg-name gen) (width :arg-name gen))
+  (:accessors (input :arg-name gen)
+              (srate :name mus-increment :arg-name gen :method-p t)
+              (sr-change :arg-name gen))
+  (with ((x 0d0)
+         (srx 0d0)
+         (sum 0d0)
+         (width-1 (- 1d0 width))
+         (fsinc-loc 0d0)
+         (fsinc-incr 0d0)
+         (lim (* 2 width))
+         (start 0)
+         (loc 0)
+         (fsx 0)
+         (data (make-frame (1+ (* 2 lim)) :zero-p t))
+         (int-p nil))
+    (declare (type sample x srx sum  width-1 fsinc-loc fsinc-incr)
+             (type fixnum lim start loc fsx)
+             (type boolean int-p))
+    (initialize
+      rd ; ignore
+      (loop for i from (1- width) below lim
+            with dir = (if (minusp srate) -1 1) do
+              (setf (smp-ref data i) (funcall input dir))
+              (setf (smp-ref data (+ i lim)) (smp-ref data i))))
+    (setf loc start)
+    (nclip sr-change #.(sample (- +max-clm-src+)) #.(sample +max-clm-src+))
+    (setf srx (+ srate sr-change))
+    (when (>= x 1)
+      (setf fsx (sample->fixnum x))
+      (decf x fsx)
+      (loop for i below fsx
+            with dir = (if (< srx 0) -1 1) do
+              (setf (smp-ref data loc) (funcall input dir))
+              (setf (smp-ref data (+ loc lim)) (smp-ref data loc))
+              (incf loc)
+              (when (= loc lim)
+                (setf loc 0)))
+      (setf start loc))
+    (when (< srx 0)
+      (setf srx (- srx)))
+    (setf int-p
+          (if (> srx 1)
+              (let ((zf (/ +sinc-table-density+ srx)))
+                (<= (abs (* (- (sample->fixnum zf :roundp t) zf) lim)) 2))
+              t))
+    (setf sum +sample-zero+)
+    (cond (int-p
+           (loop for i of-type fixnum from loc below (+ loc lim)
+                 for j of-type fixnum
+                       from (+ (- +sinc-table-density+
+                                  (sample->fixnum (* +sinc-table-density+ x)))
+                               +sinc-table-pad+)
+                       by +sinc-table-density+
+                 do (incf sum (* (smp-ref data i) (aref sinc-table j)))))
+          (t
+           (setf fsinc-loc (sample (+ (* +sinc-table-density+ (- 1 x)) +sinc-table-pad+)))
+           (setf fsinc-incr (sample +sinc-table-density+))
+           (loop for i of-type fixnum from loc below (+ loc lim) do
+                   (incf sum (* (smp-ref data i)
+                                (aref sinc-table (sample->fixnum fsinc-loc))))
+                   (incf fsinc-loc fsinc-incr))))
+    (incf x srx)
+    sum))
+
+;;; From the original version of SRC.
+(define-clm-ugen src-original sample
+    ((rd (or null soundfile:input-stream)) sr-change
+     srate (sinc-table (simple-array double-float (*)))
+     (width positive-fixnum) (input function))
+  (:instance-type src-original-instance)
   (:readers (rd :arg-name gen) (sinc-table :arg-name gen) (width :arg-name gen))
   (:accessors (input :arg-name gen)
               (srate :name mus-increment :arg-name gen :method-p t)
@@ -2225,9 +2319,10 @@
     (incf x srx)
     (* sum factor)))
 
-(defun* make-src (input (srate 1.0) (width *clm-src-width*))
+(defun* make-src (input (srate 1.0) (width *clm-src-width*) window-beta)
   (declare (type (real #.(- +max-clm-src+) #.+max-clm-src+) srate)
-           (type (integer 1 #.+max-clm-sinc-width+) width))
+           (type (integer 1 #.+max-clm-sinc-width+) width)
+           (type (or positive-real null) window-beta))
   (let* ((width (if (< width (floor (* (abs srate) 2)))
                     (* (ceiling (abs srate)) 2)
                     width))
@@ -2247,7 +2342,9 @@
                       (constantly 0d0)))))
     (when (and (= srate 2) (oddp width))
       (incf width))
-    (funcall (cudere-clm.ugens:src rd 0 srate (sinc-table width) width func))))
+    (funcall
+      (cudere-clm.ugens:src
+        rd 0 srate (sinc-table width window-beta) width func))))
 
 (declaim (inline src))
 (defun src (s &optional (sr-change 0 sr-p) input-function)
