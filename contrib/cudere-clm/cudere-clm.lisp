@@ -2159,11 +2159,16 @@
 
 ;;; SRC here is not the original version of CLM.
 ;;;
+;;; Note: currently, pre-filtering of the input is sometimes required
+;;; if the rate is greater than one. It is to fix. In practice, the
+;;; current filter is good for decimation, but the upsampling requires
+;;; another filter (or other polyphase filters from the same table).
+;;;
 ;;; The conversion is performed through the convolution between the input,
-;;; upsampled by rate, and the polyphase filters obtained from the windowed
-;;; sinc table. The delay between the polyphase filters is not one sample,
-;;; but it depends on the rate. For example, if rate is 1.9, the phase shift
-;;; is pi/5:
+;;; upsampled or downsampled by rate, and the polyphase filters obtained
+;;; from the windowed sinc table. The delay between the polyphase filters
+;;; is not one sample, but it depends on the rate. For example, if rate is
+;;; 1.9, the phase shift is pi/5:
 ;;;
 ;;;     2 pi (1 - frac(1.9)) = 2 pi 0.1 = pi/5
 ;;;
@@ -2172,11 +2177,13 @@
 ;;;
 ;;;     SINC-TABLE-DENSITY * 0.1 = 2000 * 0.1 = 200
 ;;;
-;;; The aliasing is remarkably reduced and the code is simplified.
-(define-clm-ugen src sample ((rd (or null soundfile:input-stream)) sr-change
-                             srate (sinc-table (simple-array double-float (*)))
-                             (width positive-fixnum) (input function))
-  (:instance-type src-instance)
+;;; The distortion is remarkably reduced and the code is simplified
+;;; (but it requires pre-filtering if rate >1).
+(define-clm-ugen src-tmp sample
+    ((rd (or null soundfile:input-stream)) sr-change
+     srate (sinc-table (simple-array double-float (*)))
+     (width positive-fixnum) (input function))
+  (:instance-type src-tmp-instance)
   (:readers (rd :arg-name gen) (sinc-table :arg-name gen) (width :arg-name gen))
   (:accessors (input :arg-name gen)
               (srate :name mus-increment :arg-name gen :method-p t)
@@ -2243,11 +2250,11 @@
     sum))
 
 ;;; From the original version of SRC.
-(define-clm-ugen src-original sample
+(define-clm-ugen src sample
     ((rd (or null soundfile:input-stream)) sr-change
      srate (sinc-table (simple-array double-float (*)))
      (width positive-fixnum) (input function))
-  (:instance-type src-original-instance)
+  (:instance-type src-instance)
   (:readers (rd :arg-name gen) (sinc-table :arg-name gen) (width :arg-name gen))
   (:accessors (input :arg-name gen)
               (srate :name mus-increment :arg-name gen :method-p t)
@@ -2319,10 +2326,14 @@
     (incf x srx)
     (* sum factor)))
 
-(defun* make-src (input (srate 1.0) (width *clm-src-width*) window-beta)
+;;; Use SRC-TYPE EXPERIMENTAL to test the new version.
+;;; The parameter WINDOW-BETA for the Kaiser window doesn't work
+;;; with the original SRC.
+(defun* make-src (input (srate 1.0) (width *clm-src-width*) window-beta src-type)
   (declare (type (real #.(- +max-clm-src+) #.+max-clm-src+) srate)
            (type (integer 1 #.+max-clm-sinc-width+) width)
-           (type (or positive-real null) window-beta))
+           (type (or positive-real null) window-beta)
+           (type symbol src-type))
   (let* ((width (if (< width (floor (* (abs srate) 2)))
                     (* (ceiling (abs srate)) 2)
                     width))
@@ -2343,8 +2354,11 @@
     (when (and (= srate 2) (oddp width))
       (incf width))
     (funcall
-      (cudere-clm.ugens:src
-        rd 0 srate (sinc-table width window-beta) width func))))
+      (funcall (if (string= (symbol-name src-type) "EXPERIMENTAL")
+                   #'cudere-clm.ugens::src-tmp
+                   ;; Original version.
+                   #'cudere-clm.ugens:src)
+               rd 0 srate (sinc-table width window-beta) width func))))
 
 (declaim (inline src))
 (defun src (s &optional (sr-change 0 sr-p) input-function)
