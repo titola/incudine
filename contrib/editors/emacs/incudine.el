@@ -68,7 +68,6 @@ vice versa.")
       (setq buffer (get-buffer-create incudine-scratch-buffer))
       (with-current-buffer buffer
         (incudine-mode)
-        (use-local-map incudine-scratch-mode-map)
         (slime-mode t)
         (if incudine-scratch-message
             (insert incudine-scratch-message))))
@@ -473,7 +472,10 @@ rego file or call `tags-loop-continue'."
   "Major mode for incudine.
 
 \\{incudine-mode-map}"
-  (use-local-map incudine-mode-map)
+  (use-local-map
+    (if (buffer-file-name)
+        incudine-mode-map
+        incudine-scratch-mode-map))
   (easy-menu-add incudine-mode-menu)
   (run-hooks 'incudine-mode-hook))
 
