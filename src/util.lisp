@@ -565,7 +565,9 @@ lambda list. For example:
 
 (defun lambda-list-to-star-list (arglist)
   "Return the optional-key arguments of ARGLIST."
-  (let ((aux-pos (position '&aux arglist)))
+  (let ((aux-pos (and ;; Ignore the lists ({arguments} . rest)
+                      (null (cdr (last arglist)))
+                      (position '&aux arglist))))
     (when aux-pos
       (let ((arglist (assoc "LAMBDA-LIST" (cdr (subseq arglist aux-pos))
                             :key #'symbol-name :test #'string=)))
