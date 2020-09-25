@@ -86,6 +86,13 @@
       (incudine.osc:value oscout 0))
   3 144 60 96)
 
+(deftest open-sound-control.6
+    (values (every #'incudine.osc::required-values-p
+                   '("bcdfhimsSt" "iiiffffsshbibi" "TFNIi"))
+            (every (complement #'incudine.osc::required-values-p)
+                   '("TFNI" "UNKNOWN")))
+  T T)
+
 (deftest open-sound-control-bundle.1
     (incudine.osc:with-stream (oscout :direction :output)
       (incudine.osc:simple-bundle oscout 0 "/osc/test/bundle" "isf" 1 "two" 3.0)

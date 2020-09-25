@@ -1066,14 +1066,19 @@ then index the required values."
        (start-message ,s ,address ,types)
        ,@(loop for val in values for i from 0
                collect `(set-value ,s ,i ,val))
-       ,(if (or values (string= types "")) `(send ,s) 0))))
+       ,(if (or values
+                (not (stringp types))
+                (not (required-values-p types)))
+            `(send ,s)
+            0))))
 
 (defmacro simple-bundle (stream seconds address types &rest values)
   "Send an OSC message with timestamp SECONDS plus stream latency,
 OSC ADDRESS, OSC TYPES and arbitrary VALUES.
 
-If TYPES is not \"\" and there are no VALUES, prepare the OSC message
-but don't send it.
+
+If there are no VALUES and the string TYPES implies some
+required values, prepare the OSC message but don't send it.
 
 The OSC timestamp SECONDS is used with dual meaning: if it is greater
 than 63103 seconds (about 17 hours), the time is absolute otherwise it
@@ -1106,7 +1111,9 @@ is equivalent to
          (setf (cffi:mem-ref (stream-buffer-pointer ,s) :uint32)
                (swap-bytes:htonl (stream-bundle-length ,s))))
        (set-bundle-first-element-length ,s)
-       ,(if (or values (string= types ""))
+       ,(if (or values
+                (not (stringp types))
+                (not (required-values-p types)))
             `(send-bundle ,s ,seconds)
             0))))
 
@@ -1149,6 +1156,9 @@ STREAM buffer are ADDRESS and TYPES."
 (declaim (inline typetag-to-foreign-type-p))
 (defun typetag-to-foreign-type-p (character)
   (find character "bcdfhimsSt" :test #'char=))
+
+(defun required-values-p (types)
+  (some #'typetag-to-foreign-type-p types))
 
 (defun data-getter (stream-var types index)
   (multiple-value-bind (type index)
