@@ -1597,7 +1597,7 @@ To load ~cudere-clm~ use ~asdf:load-system~ or ~require~.
 #+begin_defun
 #+end_defun
 
-#+attr_texinfo: :options clm:make-src @andoptionalkey{} input srate width
+#+attr_texinfo: :options clm:make-src @andoptionalkey{} input srate width window-beta src-type
 #+begin_defun
 #+end_defun
 
