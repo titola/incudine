@@ -228,6 +228,14 @@ If CH is a negative number, reset the meters."
         (incudine-eval "(incudine:reset-peak-meters)")
         (incudine-eval "(incudine:peak-info %d)" value))))
 
+(defun incudine-xruns-info (&optional reset-p)
+  "Display the number of the occurred xruns and the time in samples of
+the last xrun.
+
+If RESET-P is non-NIL, set the number of xruns to zero."
+  (interactive "P")
+  (incudine-eval "(incudine:rt-xruns %S)" (and reset-p t)))
+
 (defun incudine-set-logger-level (value)
   (incudine-eval "(setf (incudine.util:logger-level) %s)" value))
 
@@ -380,6 +388,7 @@ rego file or call `tags-loop-continue'."
   (define-key map "\C-cim" 'incudine-rt-memory-free-size)
   (define-key map "\C-cin" 'incudine-live-nodes)
   (define-key map "\C-cip" 'incudine-peak-info)
+  (define-key map "\C-cix" 'incudine-xruns-info)
   (define-key map "\C-cll" 'incudine-logger-level-choice)
   (define-key map "\C-clt" 'incudine-logger-time-choice))
 
@@ -426,7 +435,9 @@ rego file or call `tags-loop-continue'."
                (incudine-peak-info
                  (string-to-number (read-from-minibuffer "Channel: " "0")))
                :keys "C-c i p"]
-              ["Reset Peak Meters" (incudine-peak-info -1) t])
+              ["Xruns Info" incudine-xruns-info t]
+              ["Reset Peak Meters" (incudine-peak-info -1) t]
+              ["Reset Xruns" (incudine-xruns-info t) t])
         (list "Graph"
               ["Stop Playing" incudine-free-node t]
               ["Pause" incudine-pause-node t]

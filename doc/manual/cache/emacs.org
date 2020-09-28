@@ -32,12 +32,20 @@ Hook called when a buffer enters Incudine mode.
 
      With a negative argument, reset the meters.
 
+- @@texinfo:@kbd{C-c i x}@@ (~incudine-xruns-info~) ::
+
+     Display the number of the occurred xruns and the time in samples of
+     the last xrun.
+
+     With a non-NIL argument, set the number of xruns to zero.
+
 - @@texinfo:@kbd{C-M-Return}@@ (~incudine-free-node~) ::
      Stop to play a node of the graph.
 
      With a negative argument, call ~incudine:stop~ instead of ~incudine:free~.
 
-     With zero argument, call ~incudine:flush-pending~ before ~incudine:free~.
+     With zero argument (default), call ~incudine:flush-pending~ before
+     ~incudine:free~.
 
 - @@texinfo:@kbd{C-c p}@@ (~incudine-pause-node~) ::
      Pause node.
