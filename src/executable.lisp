@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -80,7 +80,7 @@
   (userinit-p t :type boolean)
   (inform-p t :type boolean)
   (print-p t :type boolean)
-  (disable-debugger-p nil :type boolean)
+  (disable-debugger-p nil :type symbol)
   (quit-p nil :type boolean)
   (interactive-p nil :type boolean)
   (functions (list #'set-default-logger-time) :type list))
@@ -528,7 +528,7 @@ SBCL options:
         (load (sb-ext:native-pathname value)))))
 
   (def-toplevel-opt "--disable-debugger"
-    (setf (toplevel-options-disable-debugger-p opt) t)
+    (setf (toplevel-options-disable-debugger-p opt) :force)
     options)
 
   (def-toplevel-opt "--noinform"
@@ -870,7 +870,9 @@ the argument is parsed with READ-FROM-STRING."
           :report "Exit Incudine."
           :test (lambda (c) (declare (ignore c)) (not #1#))
           (sb-ext:exit :code 1))))
-    (sb-impl::flush-standard-output-streams)
+    (unless (eq (toplevel-options-disable-debugger-p opt) :force)
+      (sb-ext:enable-debugger))
+    (sb-int:flush-standard-output-streams)
     (when (toplevel-options-inform-p opt) (banner))
     #+linedit
     (if (and (interactive-stream-p *standard-input*)
