@@ -6,6 +6,7 @@
 PREFIX="${PREFIX:-/usr/local}"
 SWANK_LOADER_PATH=""
 options="--noinform"
+save_options=""
 modules="(require \"INCUDINE\")"
 before_save="(progn"
 aclrepl_p="yes"
@@ -29,6 +30,7 @@ Create and install the standalone executable.
   --with-lv2            support for LV2 plugins.
   --with-snd            support for the sound editor Snd.
   --with-module=NAME    load the module NAME before to create the executable.
+  --save-options=OPTS   further arguments for SAVE-LISP-AND-DIE.
   --sbcl-options=OPTS   options for SBCL.
   --before-save=FORM    read and evaluate FORM before to create the executable.
 
@@ -64,6 +66,7 @@ for arg in "$@"; do
         --with-lv2)         add_system "INCUDINE-LV2" ;;
         --with-snd)         add_system "INCUDINE-SND" ;;
         --with-module=*)    add_system "${arg#*=}" ;;
+        --save-options=*)   save_options="${arg#*=}" ;;
         --sbcl-options=*)   add_opt "${arg#*=}" ;;
         --before-save=*)    add_before_save_form "${arg#*=}" ;;
         *)                  usage ;;
@@ -90,7 +93,7 @@ fi
      --eval "(progn ${modules})" \
      --eval '(load (asdf:compile-file* "executable.lisp" :external-format :utf-8))' \
      --eval "${before_save})" \
-     --eval "(save-lisp-and-die \"incudine\" :executable t :toplevel 'incudine::incudine-toplevel :save-runtime-options t)" || exit
+     --eval "(save-lisp-and-die \"incudine\" :executable t :toplevel 'incudine::incudine-toplevel :save-runtime-options t ${save_options})" || exit
 
 BINDIR="${BINDIR:-${PREFIX}/bin}"
 readonly install_dir="${DESTDIR}${BINDIR}"

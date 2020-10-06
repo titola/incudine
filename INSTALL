@@ -81,6 +81,7 @@ The options for the script `install_executable' are:
     --with-lv2            support for LV2 plugins.
     --with-snd            support for the sound editor Snd.
     --with-module=NAME    load the module NAME before to create the executable.
+    --save-options=OPTS   further arguments for SAVE-LISP-AND-DIE.
     --sbcl-options=OPTS   options for SBCL.
     --before-save=FORM    read and evaluate FORM before to create the executable.
 
