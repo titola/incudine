@@ -248,7 +248,7 @@
          (setf sb-ext:*runtime-pathname* ,true-runtime-pathname)))))
 
 (defun load-compiled-cudo-file (pathname opt &optional rego-file-p)
-  (declare (type string pathname) (type toplevel-options opt)
+  (declare (type (or string pathname) pathname) (type toplevel-options opt)
            (type boolean rego-file-p))
   (flet ((try-with-type (type)
            (probe-file (make-pathname :defaults pathname :type type)))
@@ -272,7 +272,7 @@
          (score-function-name ()
            (format-symbol *package* "SCORE-~:@(~A~)" (pathname-name pathname))))
     (let* ((type (pathname-type pathname))
-           (stdin-p (string= pathname "-"))
+           (stdin-p (equal pathname "-"))
            (lisp-pathname
             (cond ((and (not rego-file-p)
                         (not stdin-p)
@@ -789,6 +789,11 @@ the argument is parsed with READ-FROM-STRING."
                        "The specified ~A file ~A was not found."
                        context specified-pathname)))))))
 
+(defun parse-filename (string)
+  (if (string= string "-")
+      string
+      (sb-ext:parse-native-namestring string)))
+
 ;;; Adapted to SB-IMPL::TOPLEVEL-INIT in `sbcl/src/code/toplevel.lisp'.
 (defun incudine-toplevel ()
   (let ((options (cdr sb-ext:*posix-argv*))
@@ -802,10 +807,12 @@ the argument is parsed with READ-FROM-STRING."
                         (cond ((char= (char option 1) #\s)
                                ;; rego file
                                (shift-toplevel-option opt options)
-                               (load-compiled-cudo-file (car options) opt
+                               (load-compiled-cudo-file
+                                 (parse-filename (car options)) opt
                                  (not (string= (car options) "-"))))
                               (t (find-toplevel-option option)))
-                        (load-compiled-cudo-file option opt))))
+                        (load-compiled-cudo-file
+                          (parse-filename option) opt))))
            (declare (type (or function null) fn))
            (cond (fn (shift-toplevel-option opt options)
                      (setf options (funcall fn opt options))

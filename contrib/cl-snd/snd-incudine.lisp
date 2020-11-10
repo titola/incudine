@@ -1,4 +1,4 @@
-;;; Copyright (c) 2015-2018 Tito Latini
+;;; Copyright (c) 2015-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -56,7 +56,7 @@ Suppress output if OUTPUT-P is NIL."
 (defmacro with-buffer-load (args control-string &rest format-args)
   (let ((fname (gensym "FILENAME")))
     `(let ((,fname (eval (format nil ,control-string ,@format-args))))
-       (when (and (stringp ,fname) (probe-file ,fname))
+       (when (and (stringp ,fname) (incudine.util::probe-file* ,fname))
          (apply #'incudine:buffer-load ,fname ,args)))))
 
 (defun sound->buffer (id-or-filename &rest buffer-load-args)

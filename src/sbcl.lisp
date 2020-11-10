@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
       sb-ext:defglobal
       sb-ext:gc
       sb-ext:get-time-of-day
+      sb-ext:native-namestring
       sb-ext:octets-to-string
       sb-ext:string-to-octets
       sb-ext:truly-the)))
@@ -102,6 +103,18 @@
   ;; WARN: symbol SB-INT:FILE-NAME exported but with a FIXME-note in
   ;; sbcl/src/code/fd-stream.lisp
   (sb-int:file-name stream))
+
+(defun %parse-filepath (pathspec)
+  (if (stringp pathspec)
+      (namestring (sb-ext:parse-native-namestring pathspec))
+      pathspec))
+
+;;; PROBE-FILE* and TRUENAME* work with "~/some/path [test one two three]/to/file"
+(defun probe-file* (pathspec)
+  (probe-file (%parse-filepath pathspec)))
+
+(defun truename* (pathspec)
+  (truename (%parse-filepath pathspec)))
 
 (defmacro compare-and-swap (place old new)
   "See documentation for SB-EXT:COMPARE-AND-SWAP."

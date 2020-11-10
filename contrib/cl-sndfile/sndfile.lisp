@@ -318,7 +318,9 @@
            (cl:type (or info null) info)
            (cl:type boolean close-fd-p))
   (when (pathnamep path-or-fd)
-    (setf path-or-fd (namestring path-or-fd)))
+    (setf path-or-fd (#+sbcl sb-ext:native-namestring
+                      #-sbcl namestring
+                      path-or-fd)))
   (let* ((sfinfo (if info
                      (info-to-sndinfo info)
                      (make-sndinfo)))

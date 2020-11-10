@@ -1,6 +1,6 @@
 ;;; Common Lisp interface to interact with the sound editor Snd.
 ;;;
-;;; Copyright (c) 2015-2019 Tito Latini
+;;; Copyright (c) 2015-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -194,7 +194,9 @@ If OUTPUT-P is T (default), return the output of Snd."
            (if output-p (from-process parser) (flush-stream))))))
 
 (defun truenamestring (pathspec)
-  (namestring (truename pathspec)))
+  (namestring (#+incudine incudine.util::truename*
+               #-incudine truename
+               pathspec)))
 
 (defun load (scmfile &optional s7-env-string)
   "Load the scheme FILE in Snd.

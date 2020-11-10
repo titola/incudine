@@ -281,7 +281,7 @@ SAMPLE-RATE is *SAMPLE-RATE* by default."
            (type non-negative-real offset))
   (let ((offset (floor offset))
         (frames (and frames (floor frames)))
-        (path (or (probe-file path)
+        (path (or (incudine.util::probe-file* path)
                   (error 'incudine-file-error
                          :pathname path
                          :format-control "file ~S not found"
@@ -641,7 +641,7 @@ content of the buffer."
   (declare (type buffer buffer) (type (or string pathname) path)
            (type non-negative-fixnum start buffer-start buffer-end)
            (type list channel-map))
-  (sf:with-open (sf (or (probe-file path)
+  (sf:with-open (sf (or (incudine.util::probe-file* path)
                         (error 'incudine-file-error
                                :pathname path
                                :format-control "file ~S not found"

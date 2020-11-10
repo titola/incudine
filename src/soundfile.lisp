@@ -80,7 +80,8 @@ Subtype of INCUDINE-SIMPLE-ERROR and FILE-ERROR."))
   (when (and (eq if-exists :supersede) (probe-file file))
     ;; Truncate to length 0 before to reopen in access mode read/write.
     (cl:with-open-file (f file :direction :output :if-exists :supersede)))
-  (cffi:foreign-funcall "sf_open" :string (namestring file)
+  (cffi:foreign-funcall "sf_open"
+                        :string (incudine.util::native-namestring file)
                         :int (if input-p SF:SFM-READ SF:SFM-RDWR)
                         :pointer info-ptr :pointer))
 
@@ -263,12 +264,12 @@ data format."))
 
 (defmethod read-header ((obj pathname))
   (multiple-value-bind (ptr sample-rate frames channels header-type data-format)
-      (open-file (namestring obj))
+      (open-file obj)
     (sf-close ptr)
     (values sample-rate frames channels header-type data-format)))
 
 (defmethod read-header ((obj string))
-  (read-header (truename obj)))
+  (read-header (incudine.util::truename* obj)))
 
 (defmacro header-value (obj n)
   (let* ((lst '(a b c d e))
@@ -314,12 +315,15 @@ data format."))
     (values)))
 
 (defun check-file (filename direction if-exists)
-  (cond ((and (eq direction :input) (null (probe-file filename)))
+  (cond ((and (eq direction :input)
+              (null (incudine.util::probe-file* filename)))
          (error 'soundfile-error
                 :pathname filename
                 :format-control "error opening ~S: File not found"
                 :format-arguments (list filename)))
-        ((and (eq direction :output) (eq if-exists :error) (probe-file filename))
+        ((and (eq direction :output)
+              (eq if-exists :error)
+              (incudine.util::probe-file* filename))
          (error 'soundfile-error
                 :pathname filename
                 :format-control "error opening ~S: File exists"
@@ -361,8 +365,9 @@ BUFFER-SIZE is the size of the internal stream buffer and defaults to
          (sf-ptr nil)
          (input-p (eq direction :input))
          (pathname (if input-p
-                       (truename filename)
-                       (make-pathname :defaults filename))))
+                       (incudine.util::truename* filename)
+                       (make-pathname
+                         :defaults (incudine.util::%parse-filepath filename)))))
     (handler-case
         (let ((sf (multiple-value-bind (ptr sample-rate frames channels
                                         header-type data-format)
@@ -487,7 +492,7 @@ Setfable."))
   (with-open-soundfile (sf obj) (metadata sf type)))
 
 (defmethod metadata ((obj string) type)
-  (metadata (truename obj) type))
+  (metadata (incudine.util::truename* obj) type))
 
 (defmethod (setf metadata) ((string string) (obj soundfile:stream) type)
   (let ((sf-type (metadata-sf-type type)))
@@ -503,7 +508,7 @@ Setfable."))
     (setf (metadata sf type) string)))
 
 (defmethod (setf metadata) ((string string) (obj string) type)
-  (setf (metadata (truename obj) type) string))
+  (setf (metadata (incudine.util::truename* obj) type) string))
 
 (declaim (inline clear-buffer))
 (defun clear-buffer (sf frames)

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -498,11 +498,11 @@ BPM is the tempo in beats per minute and defaults to *DEFAULT-BPM*."
         `(lambda () ,@form))))
 
 (defun outfile-truename (path)
-  (merge-pathnames (truename (directory-namestring path)) path))
+  (merge-pathnames (incudine.util::truename* (directory-namestring path)) path))
 
 (defun soundfile-truename (path &key input-p)
   (cond ((and (stringp path) (string= path "-")) path)
-        (input-p (truename path))
+        (input-p (incudine.util::truename* path))
         (t (outfile-truename path))))
 
 (defmacro bounce-to-disk ((output-filename &key input-filename

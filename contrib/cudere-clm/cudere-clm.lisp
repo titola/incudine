@@ -1768,7 +1768,7 @@
   (soundfile:write obj samp val chan))
 
 (defun continue-sample->file (file)
-  (if (probe-file file)
+  (if (incudine.util::probe-file* file)
       (soundfile:open file :direction :output :if-exists :mix
                       :buffer-size *clm-file-buffer-size*
                       :output-stream-constructor #'%make-sample->file)
@@ -1800,7 +1800,7 @@
     (soundfile:write obj samp (aref val i) i)))
 
 (defun continue-frample->file (file)
-  (if (probe-file file)
+  (if (incudine.util::probe-file* file)
       (soundfile:open file :direction :output :if-exists :mix
                       :buffer-size *clm-file-buffer-size*
                       :output-stream-constructor #'%make-frample->file)

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -377,7 +377,8 @@ or IGNORE-SCORE-STATEMENTS."
   (if (include-regofile-p line)
       (multiple-value-bind (path time)
           (include-rego-path-and-time line)
-        (let ((incfile (truename (merge-pathnames path (car args)))))
+        (let ((incfile (incudine.util::truename*
+                         (merge-pathnames path (car args)))))
           (cond ((find incfile *include-rego-stack* :test #'equal)
                  (msg error "recursive inclusion of ~S~%  => ~A" incfile
                       (reverse *include-rego-stack*)))
@@ -544,7 +545,9 @@ or IGNORE-SCORE-STATEMENTS."
   `(prog*
      ,@(progn
          (unless included-p
-           (push (if (file-name score) (truename score) score)
+           (push (if (file-name score)
+                     (incudine.util::truename* score)
+                     score)
                  *include-rego-stack*))
          (with-ensure-symbols (time tempo-env)
            (with-gensyms (parent-time parent-tempo-env)
@@ -712,7 +715,7 @@ definition of a function optionally named FUNCTION-NAME.
 
 If COMPILE-REGO-P is NIL (default), use an interpreter to evaluate the
 event list at runtime when this function is called."
-  (with-open-file (score path)
+  (with-open-file (score (incudine.util::truename* path))
     (rego-stream->sexp score function-name compile-rego-p)))
 
 (defun regofile->function (path &optional function-name compile-rego-p)
@@ -735,8 +738,11 @@ file PATH with file extension \"cudo\".
 If COMPILE-REGO-P is NIL (default), use an interpreter to evaluate the
 event list at runtime when the function is called."
   (declare (type (or pathname string null) path lisp-file))
-  (let ((lisp-file (or lisp-file (make-pathname :defaults path
-                                                :type "cudo"))))
+  (let ((lisp-file (or (and lisp-file
+                            (incudine.util::%parse-filepath lisp-file))
+                       (make-pathname
+                         :defaults (incudine.util::%parse-filepath path)
+                         :type "cudo"))))
     (with-open-file (lfile lisp-file :direction :output :if-exists :supersede)
       (write (regofile->sexp path function-name compile-rego-p)
              :stream lfile :gensym nil)
@@ -820,11 +826,12 @@ event list at runtime when the function is called."
 (defun regofile->list (path)
   "From a rego file PATH, return the corresponding event list as a
 list of lists (time function-name &rest arguments)."
-  (with-open-file (f path) (stream->regolist f)))
+  (with-open-file (f (incudine.util::truename* path)) (stream->regolist f)))
 
 (defun regolist->file (list path)
   "Write a rego file PATH with the event list obtained from a list of
 lists (time function-name &rest arguments)."
-  (with-open-file (f path :direction :output :if-exists :supersede)
+  (with-open-file (f (incudine.util::%parse-filepath path)
+                   :direction :output :if-exists :supersede)
     (write-regolist list f)
     path))

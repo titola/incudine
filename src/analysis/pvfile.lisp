@@ -1,4 +1,4 @@
-;;; Copyright (c) 2019 Tito Latini
+;;; Copyright (c) 2019-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -285,7 +285,7 @@ PATH is of type string or pathname."
 
 PATH is of type string or pathname."
   (declare (type (or string pathname) path))
-  (let* ((path (namestring (truename path)))
+  (let* ((path (namestring (incudine.util::truename* path)))
          (fd (sb-posix:open path sb-posix:o-rdonly)))
     (unwind-protect
          (cffi:with-foreign-object (buf '(:struct pvoc-file-header))

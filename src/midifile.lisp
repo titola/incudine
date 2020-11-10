@@ -1,4 +1,4 @@
-;;; Copyright (c) 2016-2019 Tito Latini
+;;; Copyright (c) 2016-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -356,7 +356,7 @@ format, number of tracks, ppqn-or-smpte-format and ticks-per-frame."))
           (stream-ticks-per-frame obj)))
 
 (defmethod read-header ((obj string))
-  (read-header (truename obj)))
+  (read-header (incudine.util::truename* obj)))
 
 (defgeneric format (obj)
   (:documentation "Return the format of a MIDI file."))
@@ -365,7 +365,7 @@ format, number of tracks, ppqn-or-smpte-format and ticks-per-frame."))
   (values (read-header obj)))
 
 (defmethod format ((obj string))
-  (format (truename obj)))
+  (format (incudine.util::truename* obj)))
 
 (defmethod format ((obj stream))
   (stream-format obj))
@@ -379,7 +379,7 @@ format, number of tracks, ppqn-or-smpte-format and ticks-per-frame."))
     ntracks))
 
 (defmethod number-of-tracks ((obj string))
-  (number-of-tracks (truename obj)))
+  (number-of-tracks (incudine.util::truename* obj)))
 
 (defmethod number-of-tracks ((obj stream))
   (stream-number-of-tracks obj))
@@ -393,7 +393,7 @@ format, number of tracks, ppqn-or-smpte-format and ticks-per-frame."))
     ppqn))
 
 (defmethod ppqn ((obj string))
-  (ppqn (truename obj)))
+  (ppqn (incudine.util::truename* obj)))
 
 (defmethod ppqn ((obj stream))
   (stream-ppqn obj))
@@ -411,7 +411,7 @@ format, number of tracks, ppqn-or-smpte-format and ticks-per-frame."))
         (values 0 0))))
 
 (defmethod smpte ((obj string))
-  (smpte (truename obj)))
+  (smpte (incudine.util::truename* obj)))
 
 (defmethod smpte ((obj stream))
   (values (stream-smpte-format obj) (stream-ticks-per-frame obj)))
@@ -562,7 +562,7 @@ Per Quarter Note) defaults to 480."
            (type non-negative-fixnum ppqn))
   (let* ((input-p (eq direction :input))
          (pathname (if input-p
-                       (truename filename)
+                       (incudine.util::truename* filename)
                        (make-pathname :defaults filename)))
          (mf nil)
          (buffer (make-buffer (if input-p 8 (max 16 buffer-size))))
@@ -1001,4 +1001,4 @@ If there aren't changes, return the tempo in BPM."))
     (tempo mf)))
 
 (defmethod tempo ((obj string))
-  (tempo (truename obj)))
+  (tempo (incudine.util::truename* obj)))
