@@ -1,5 +1,14 @@
 (in-package :incudine-tests)
 
+(defvar *sclfile*
+  (merge-pathnames "tests/test.scl" (asdf:system-source-directory :incudine)))
+
+(deftest sclfile.1
+    (load-sclfile *sclfile*)
+  (7/4 2147483647/2147483646 3 3 123.0 123.0 -1200.4243 200.0 1/2 100.0 5/4)
+  11
+  "Example with valid pitch lines")
+
 (deftest tuning.1
     (let* ((tun (make-tuning))
            (res1 (list (tuning-description tun) (tuning-cents tun)

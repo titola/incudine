@@ -1,0 +1,21 @@
+! test.scl
+!
+Example with valid pitch lines
+11
+!
+7/4
+2147483647/2147483646
+3/1!or 3
+3
+123.0
+123.
+! Negative value in cents.
+-1200.42429
+
+! Empty lines.
+
+! Anything after a valid pitch value is ignored.
+200.0 cents
+ 10/20 < 1
+  100.0 C#
+  5/4   E\

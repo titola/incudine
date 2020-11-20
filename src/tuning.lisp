@@ -1,4 +1,4 @@
-;;; Copyright (c) 2015-2019 Tito Latini
+;;; Copyright (c) 2015-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -44,7 +44,10 @@
   (documentation 'tuning-description 'function)
   "Return the description of the tuning.")
 
-(define-constant +last-sample-ratio-reciprocal-index+ 128)
+(define-constant +tuning-max-number-of-notes+ 128)
+
+(define-constant +last-sample-ratio-reciprocal-index+
+                 +tuning-max-number-of-notes+)
 
 (define-constant +tuning-number-of-aux-data+ 5)
 
@@ -82,6 +85,17 @@
                                      :initial-element 1)))
        ,@body)))
 
+(defmacro tuning-limit-number-of-notes (notes length description)
+  `(when (> ,length +tuning-max-number-of-notes+)
+     (msg warn "reducing the number of notes to ~D"
+          +tuning-max-number-of-notes+)
+     (setf ,length +tuning-max-number-of-notes+)
+     (setf ,notes (subseq ,notes 0 +tuning-max-number-of-notes+))
+     (setf ,description
+           (format nil "~A. Number of notes reduced to ~D."
+                   (string-right-trim '(#\. #\space #\tab) ,description)
+                   +tuning-max-number-of-notes+))))
+
 (defun %%make-tuning (notes length keynum-base freq-base degree-index
                       descr real-time-p)
   (declare (type list notes) (type fixnum length)
@@ -91,13 +105,13 @@
   (multiple-value-bind (cents ratios)
       (with-tuning-cents-and-ratios (cents ratios length)
         (scl-notes-to-cents-and-ratios notes cents ratios))
-    (let* ((%size 128)
-           (data-bytes (* %size +foreign-sample-size+))
-           ;; DATA: size
-           ;; SUM-RATIOS plus last-sample-ratio-reciprocal: (1+ size)
-           ;; AUX-DATA: (1- +tuning-number-of-aux-data+)
-           (foreign-size (+ (* %size 2) +tuning-number-of-aux-data+))
-           (rt-p (and real-time-p *allow-rt-memory-pool-p*)))
+    (let ((data-bytes (* +tuning-max-number-of-notes+ +foreign-sample-size+))
+          ;; DATA: size
+          ;; SUM-RATIOS plus last-sample-ratio-reciprocal: (1+ size)
+          ;; AUX-DATA: (1- +tuning-number-of-aux-data+)
+          (foreign-size (+ (* +tuning-max-number-of-notes+ 2)
+                           +tuning-number-of-aux-data+))
+          (rt-p (and real-time-p *allow-rt-memory-pool-p*)))
       (declare #.*reduce-warnings*)
       (multiple-value-bind (%data obj free-fn pool)
           (if rt-p
@@ -118,7 +132,7 @@
                     size real-time-p foreign-free)
                    obj tuning)
                 (setf data-ptr %data
-                      size %size
+                      size +tuning-max-number-of-notes+
                       description descr
                       %cents cents
                       %ratios ratios
@@ -170,6 +184,7 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
             (t (values *default-tuning-notes*
                        (length *default-tuning-notes*)
                        *default-tuning-description*)))
+    (tuning-limit-number-of-notes notes num-of-notes description)
     (%%make-tuning notes num-of-notes keynum-base freq-base degree-index
                    description real-time-p)))
 
@@ -285,7 +300,7 @@ Setfable."
     (do ((k (1+ kbase) (1+ k))
          (deg (mod (1+ degree-interval-index) degrees)
               (mod (1+ deg) degrees)))
-        ((>= k 128))
+        ((>= k +tuning-max-number-of-notes+))
       (declare (type (unsigned-byte 8) k deg))
       (when (zerop deg)
         ;; Update the 1/1 frequency.
@@ -303,15 +318,16 @@ Setfable."
 
 (defun set-tuning-notes (tuning notes length description)
   (declare (type tuning tuning) (type list notes)
-           (type (unsigned-byte 8) length)
-           (type string description)
-           #.*standard-optimize-settings*)
-  (maybe-rewrite-tuning-cents-and-ratios tuning length)
-  (scl-notes-to-cents-and-ratios notes (tuning-cents tuning)
-                                 (tuning-ratios tuning))
-  (tuning-update-sample-ratios tuning)
-  (setf (tuning-description tuning) description)
-  (update-tuning-data tuning))
+           (type positive-fixnum length)
+           (type string description))
+  (tuning-limit-number-of-notes notes length description)
+  (incudine-optimize
+    (maybe-rewrite-tuning-cents-and-ratios tuning length)
+    (scl-notes-to-cents-and-ratios notes (tuning-cents tuning)
+                                   (tuning-ratios tuning))
+    (tuning-update-sample-ratios tuning)
+    (setf (tuning-description tuning) description)
+    (update-tuning-data tuning)))
 
 (defun check-tuning-notes (notes)
   (every (lambda (x) (typep x '(or single-float positive-rational))) notes))
@@ -344,7 +360,7 @@ that file."
             (incudine-error "incorrect note list ~A" notes-or-file))
         (multiple-value-bind (notes len descr)
             (load-sclfile notes-or-file)
-          (declare (type (unsigned-byte 8) len))
+          (declare (type positive-fixnum len))
           (set-tuning-notes tuning notes len descr)))))
 
 ;;; We can use the ears to directly set the frequencies of a TUNING
@@ -395,17 +411,17 @@ significand of the floating point numbers. The error is 0.0005% by default."
                       (cdr (coerce (tuning-ratios tuning) 'list)))
               (tuning-description tuning)))
 
-(declaim (inline scl-string))
 (defun scl-string (string)
   (string-trim '(#\space #\tab) string))
 
-(declaim (inline scl-comment-p))
 (defun scl-comment-p (string)
-  (char= (char string 0) #\!))
+  (and (string/= "" string) (char= #\! (char string 0))))
 
-(declaim (inline scl-valid-pitch-p))
+(defun scl-skip-line-p (string)
+  (or (string= "" string) (scl-comment-p string)))
+
 (defun scl-valid-pitch-p (value)
-  (and (numberp value) (not (minusp value))))
+  (typep value '(or alexandria:positive-rational float)))
 
 (defun scl-number-dot-p (string)
   (let ((dot-pos (position #\. string)))
@@ -423,19 +439,36 @@ significand of the floating point numbers. The error is 0.0005% by default."
   (with-scl-read (str stream) (return str)))
 
 (defun scl-num-of-notes (stream)
-  (with-scl-read (str stream) (return (read-from-string str))))
+  (with-scl-read (str stream)
+    (let ((n (read-from-string str nil)))
+      (if (typep n 'positive-fixnum)
+          (return n)
+          (error 'simple-type-error
+            :format-control "The value~%  ~S~%is not a correct number of notes."
+            :format-arguments (list n))))))
 
 (defun read-pitch-from-string (string)
-  (let ((value (read-from-string string)))
-    (when (scl-valid-pitch-p value)
-      (if (floatp value)
-          value
-          (if (scl-number-dot-p string)
-              (coerce value 'single-float)
-              value)))))
+  (unless (scl-skip-line-p string)
+    (let ((comment-pos (position #\! string)))
+      (when comment-pos
+        (let ((prev (char string (1- comment-pos))))
+          (unless (or (char= prev #\space)
+                      (char= prev #\tab))
+            ;; Example: 5/4!c = 5/4
+            (setf (char string comment-pos) #\space))))
+      (let ((value (read-from-string string nil)))
+        (cond ((not (scl-valid-pitch-p value))
+               (error 'simple-type-error
+                 :format-control
+                   "The value~%  ~S~%~
+                   is not a positive rational or a value in cents."
+                 :format-arguments (list value)))
+              ((floatp value) value)
+              ((scl-number-dot-p string) (coerce value 'single-float))
+              (t value))))))
 
 (defun scl-read-notes (num-of-notes stream)
-  (declare (type (unsigned-byte 8) num-of-notes)
+  (declare (type non-negative-fixnum num-of-notes)
            (type stream stream))
   (let ((acc))
     (with-scl-read (str stream)
@@ -450,7 +483,8 @@ significand of the floating point numbers. The error is 0.0005% by default."
 the scale stored in the Scala file PATH."
   (declare (type (or string pathname) path))
   (with-open-file (scl path)
-    (let ((descr (scl-description scl)))
+    (let* ((*read-eval* nil)
+           (descr (scl-description scl)))
       (when descr
         (let ((n (scl-num-of-notes scl)))
           (when (and (numberp n) (plusp n))
