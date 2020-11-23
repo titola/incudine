@@ -59,7 +59,7 @@
                   (cond-expand-var (%make-vug-variable :name var-name
                                                        :value nil
                                                        :type 'boolean)))
-             (setf (vug-variable-conditional-expansion value) var-name)
+             (setf (vug-variable-conditional-expansion value) cond-expand-var)
              (push cond-expand-var (vug-variables-bindings *vug-variables*)))))
         ((vug-function-p value)
          (mapc #'resolve-conditional-expansion (vug-function-inputs value)))))
@@ -110,12 +110,13 @@
                        (%update-vug-variable var)
                        `(setf ,(vug-object-name var) ,form))))
     (cond (cond-expand-var
+           (incf (vug-variable-ref-count cond-expand-var))
            ;; COND-EXPAND-VAR is NIL during the process of the
            ;; first sample because the expansion of the code is
            ;; in the INITIALIZE block.
-           `(if ,cond-expand-var
+           `(if ,(vug-variable-name cond-expand-var)
                 ,set-form
-                (progn (setq ,cond-expand-var t)
+                (progn (setq ,(vug-variable-name cond-expand-var) t)
                        ,(vug-object-name var))))
           ((ugen-variable-p var) form)
           ((and (< (vug-variable-ref-count var) 2)
@@ -544,9 +545,18 @@
           (setf (vug-variable-type var) type)
           (msg debug "derived type of ~A is ~A" var type))))))
 
+(defun vug-variable-unused-p (var)
+  (or (vug-variable-deleted-p var)
+      (and (zerop (vug-variable-ref-count var))
+           (not (vug-parameter-p (vug-variable-value var)))
+           (not (vug-variable-to-preserve-p var)))))
+
 (defun format-vug-code (vug-block)
-  (macrolet ((remove-deleted-vars (vars)
-               `(setf ,vars (delete-if #'vug-variable-deleted-p ,vars))))
+  (macrolet ((remove-deleted-vars (vars &key ignore-unused-vars-p)
+               `(setf ,vars (delete-if ,(if ignore-unused-vars-p
+                                            '#'vug-variable-unused-p
+                                            '#'vug-variable-deleted-p)
+                                       ,vars))))
     (let ((vug-form (cond ((vug-progn-function-p vug-block)
                            (vug-function-inputs vug-block))
                           ((atom vug-block) (list vug-block))
@@ -558,7 +568,7 @@
       (prog1 (blockexpand vug-form nil t)
         (check-unused-parameters)
         ;; Some variables could be deleted during the generation of the code.
-        (remove-deleted-vars #1#)
+        (remove-deleted-vars #1# :ignore-unused-vars-p t)
         (mapc #'vug-variable-type-inference #1#)))))
 
 (macrolet (;; Add and count the variables with the foreign TYPE

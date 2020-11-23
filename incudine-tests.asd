@@ -68,6 +68,7 @@
      (:file "vug/with-or-without-follow" :depends-on ("vug/base"))
      (:file "vug/reinit" :depends-on ("vug/base"))
      (:file "vug/reducible" :depends-on ("vug/base"))
+     (:file "vug/conditional-expansion" :depends-on ("vug/base"))
      (:file "vug/delete-var" :depends-on ("vug/base"))
      (:file "vug/param-side-effects" :depends-on ("vug/base"))
      (:file "vug/frame-slot-names" :depends-on ("vug/base"))
