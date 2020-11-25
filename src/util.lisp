@@ -611,6 +611,16 @@ lambda list. For example:
 (defvar *rt-sample-counter* *sample-counter*)
 (declaim (type foreign-pointer *rt-sample-counter*))
 
+(defglobal *null-counter*
+    (cffi:foreign-alloc 'sample :initial-element +sample-zero+))
+(declaim (type cffi:foreign-pointer *null-counter*))
+
+(defmacro with-null-counter (&body body)
+  `(let ((*sample-counter* *null-counter*)
+         ;; The counter is read-only.
+         (*rt-sample-counter* *null-counter*))
+     ,@body))
+
 (declaim (inline now))
 (defun now ()
   "Return the current time in samples."

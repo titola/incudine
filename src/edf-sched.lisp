@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2020 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -506,7 +506,17 @@ forced every TIME-STEP samples."
 (defmacro with-schedule (&body body)
   "Fast way to schedule multiple events in realtime without an extensive use
 of memory barriers and/or CAS. It fills a temporary queue in non-realtime,
-then it pours the content of the queue on the realtime EDF heap."
+then it pours the content of the queue on the realtime EDF heap.
+
+The sample counter is zero and read-only inside WITH-SCHEDULE:
+
+    (with-schedule (incf (now)) (princ (now)))
+    ;; => 0.0d0
+
+However, we can require a SETFable local counter:
+
+    (with-schedule (with-local-time () (incf (now)) (princ (now))))
+    ;; => 1.0d0"
   (with-gensyms (tmp-heap heap)
     `(flet ((sched ()
               (let ((,tmp-heap *heap*)
@@ -514,7 +524,7 @@ then it pours the content of the queue on the realtime EDF heap."
                                 *heap*
                                 (heap-pool-pop))))
                 (declare (special *heap*))
-                ,@body
+                (incudine::with-null-counter ,@body)
                 (unless (eq *heap* ,tmp-heap)
                   (let ((,heap *heap*)
                         ;; Realtime EDF heap.

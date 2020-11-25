@@ -46,3 +46,18 @@
   (181894 30315 170666 3 12345 96000 48000 1248000 556 834 1420
    5760000 17280000 9600 32064 345600000 8294400000 8294400000
    58060800000 58060800000 232243200000))
+
+(deftest with-schedule-time.1
+    (let ((times nil))
+      (with-schedule
+        (incf (now))
+        (push (now) times)
+        (with-local-time ()
+          (incf (now))
+          (push (now) times)
+          (with-local-time (:start 124d0)
+            (decf (now))
+            (push (now) times)))
+        (push (now) times))
+      (reverse times))
+  (0.0d0 1.0d0 123d0 0.0d0))

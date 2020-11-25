@@ -113,6 +113,8 @@
       (setf *sample-counter*
             (foreign-alloc 'sample :initial-element +sample-zero+))
       (setf *rt-sample-counter* *sample-counter*)
+      (setf *null-counter*
+            (cffi:foreign-alloc 'sample :initial-element +sample-zero+))
       ;; graph
       (setf *node-hash* (make-node-hash *max-number-of-nodes*))
       (setf *root-node*
