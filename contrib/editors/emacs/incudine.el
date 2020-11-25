@@ -200,6 +200,12 @@ If ID is non-NIL, print info about the group with identifier ID."
   (interactive)
   (incudine-eval "(incudine:live-nodes)"))
 
+(defun incudine-scheduled-events ()
+  "Print the number of the scheduled events."
+  (interactive)
+  (incudine-eval
+    "(incudine.util:rt-eval (:return-value-p t) (incudine.edf:heap-count))"))
+
 (defun incudine-gc ()
   "Initiate a garbage collection."
   (interactive)
@@ -384,6 +390,7 @@ rego file or call `tags-loop-continue'."
   (define-key map "\C-cgc" 'incudine-gc)
   (define-key map "\C-cgb" 'incudine-bytes-consed-in)
   (define-key map "\C-cid" 'incudine-dsp/ugen-expand)
+  (define-key map "\C-cie" 'incudine-scheduled-events)
   (define-key map "\C-cig" 'incudine-dump-graph)
   (define-key map "\C-cim" 'incudine-rt-memory-free-size)
   (define-key map "\C-cin" 'incudine-live-nodes)
@@ -431,6 +438,7 @@ rego file or call `tags-loop-continue'."
         (list "Realtime"
               ["RT Start" incudine-rt-start t]
               ["RT Stop" incudine-rt-stop t]
+              ["Number of Scheduled Events" incudine-scheduled-events t]
               ["Peak Info"
                (incudine-peak-info
                  (string-to-number (read-from-minibuffer "Channel: " "0")))

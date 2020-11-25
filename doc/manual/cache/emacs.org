@@ -25,6 +25,9 @@ Hook called when a buffer enters Incudine mode.
 - @@texinfo:@kbd{C-c r q}@@ (~incudine-rt-stop~) ::
      Stop the real-time thread.
 
+- @@texinfo:@kbd{C-c i e}@@ (~incudine-scheduled-events~) ::
+     Print the number of the scheduled events.
+
 - @@texinfo:@kbd{C-c i p}@@ (~incudine-peak-info~) ::
      Display the peak info of a channel (0 by default).
 
