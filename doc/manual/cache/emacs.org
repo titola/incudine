@@ -123,7 +123,12 @@ Hook called when a buffer enters Incudine mode.
      With a numeric argument, do it that many times.
 
 - @@texinfo:@kbd{C-j}@@ ::
-     Evaluate sexp before point; print value into the current buffer.
+     If the current buffer is not a file buffer, evaluate sexp before point
+     and print value into the current buffer.
+
+- @@texinfo:@kbd{C-J}@@ ::
+     If the current buffer is not a file buffer, evaluate sexp before point,
+     save point and print value into the current buffer.
 
 *** Incudine Rego Mode
 Major mode for editing incudine rego files.

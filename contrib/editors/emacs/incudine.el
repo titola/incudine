@@ -133,6 +133,19 @@ If N is non-NIL, do it that many times."
   (slime-eval-defun)
   (incudine-prev-defun))
 
+(defun incudine-eval-print-last-expression (string &optional save-point-p)
+  (interactive (list (slime-last-expression) t))
+  (if save-point-p
+      ;; A version of `slime-eval-print' with `save-excursion'.
+      (slime-eval-async `(swank:eval-and-grab-output ,string)
+        (lambda (result)
+          (save-excursion
+            (cl-destructuring-bind (output value) result
+              (insert "\n" output value)))))
+      (progn
+        (insert "\n")
+        (slime-eval-print string))))
+
 (defun prefix-numeric-value0 (n)
   (if n (prefix-numeric-value n) 0))
 
@@ -416,7 +429,8 @@ rego file or call `tags-loop-continue'."
     map))
 
 (slime-define-keys incudine-scratch-mode-map
-  ("\C-j" 'slime-eval-print-last-expression))
+  ("\C-j" 'slime-eval-print-last-expression)
+  ((kbd "C-S-j") 'incudine-eval-print-last-expression))
 
 (defvar incudine-rego-mode-map
   (let ((map (make-sparse-keymap "Incudine Rego")))
