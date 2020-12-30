@@ -153,6 +153,16 @@
    (2.0 REGO-TEST-1 1100 0.03)
    (3.11 FREE 0)))
 
+(regofile->list-test regofile->list.11-fromdos "org-mode-dos.rego"
+  ((0.0 REGO-TEST-1 440 0.5)
+   (0.44 REGO-TEST-1 448 0.35)
+   (0.89 REGO-TEST-1 2200 0.1)
+   (1.33 REGO-TEST-1 770 0.03)
+   (1.56 REGO-TEST-1 880 0.03)
+   (1.78 REGO-TEST-1 990 0.03)
+   (2.0 REGO-TEST-1 1100 0.03)
+   (3.11 FREE 0)))
+
 (regofile->list-test regofile->list.12 "paral-1.rego"
   ((0.0 REGO-TEST-1 440 0.08)
    (0.0 REGO-TEST-1 550 0.1)

@@ -192,11 +192,11 @@ or IGNORE-SCORE-STATEMENTS."
 
 (declaim (inline string-trim-blank))
 (defun string-trim-blank (string)
-  (string-trim '(#\Space #\Tab) string))
+  (string-trim '(#\Space #\Tab #\Return) string))
 
 (declaim (inline string-trim-blank-and-quotation))
 (defun string-trim-blank-and-quotation (string)
-  (string-trim '(#\Space #\Tab #\") string))
+  (string-trim '(#\Space #\Tab #\Return #\") string))
 
 (defun line-parse-skip-string (str index end)
   (declare (type string str) (type non-negative-fixnum index end))
@@ -396,7 +396,7 @@ or IGNORE-SCORE-STATEMENTS."
                 (read-from-string
                   (format nil "(INCUDINE::%AT-SAMPLE ~A ~A)" at-fname line))))
             ;; Tag or lisp statement.
-            (read-from-string (string-left-trim '(#\Space #\Tab) line))))))
+            (read-from-string (string-left-trim '(#\Space #\Tab #\Return) line))))))
 
 (defun score-lines->sexp (stream at-fname args)
   (declare (type stream stream) (type list args))
