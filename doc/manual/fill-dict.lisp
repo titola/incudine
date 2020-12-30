@@ -118,7 +118,8 @@
 
 (defun format-texinfo (name args type docstring stream)
   (case type
-    (function (format-texinfo-block name args docstring stream))
+    ((compiled-function function)
+     (format-texinfo-block name args docstring stream))
     ((standard-generic-function macro ugen vug vug-macro)
      (format-texinfo-block
        name args docstring stream "deffn"
