@@ -48,6 +48,9 @@
    unordered lists, blocks, properties, hyperlinks, todo items, tags,
    deadlines, scheduling, etc.
 
+ - It is possible to create and edit a rego file in SES (Simple Emacs
+   Spreadsheet) mode.
+
  - Optional interface to interact with the sound editor [[http://ccrma.stanford.edu/software/snd/][Snd]].
 
  - Optional cudere-clm package, the Incudine version of CLM.

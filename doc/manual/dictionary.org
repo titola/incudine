@@ -1541,6 +1541,11 @@ ends after 3 beats but
 #+texinfo: @noindent
 ends after 6.5 beats.
 
+#+texinfo: @noindent
+A line with a form feed character marks the end of score.
+For example, we can create and edit a rego file in Emacs SES
+(Simple Emacs Spreadsheet) mode.
+
 ::: defscore-statement
 ::: delete-score-statement
 ::: ignore-score-statements

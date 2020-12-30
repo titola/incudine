@@ -222,3 +222,9 @@ open ~output-filename~ in Snd.
 By default ~output-filename~ is derived from the rego filename with
 extension "wav".
 #+end_defun
+
+*** SES Mode
+
+It is possible to create and edit a rego file in SES (Simple Emacs
+Spreadsheet) mode, because the form feed character marks the beginning
+of the data area of a SES file and the end of a rego file.

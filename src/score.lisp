@@ -402,10 +402,15 @@ or IGNORE-SCORE-STATEMENTS."
   (declare (type stream stream) (type list args))
   (loop for line of-type (or string null)
                  = (read-score-line stream)
-        while line
+        until (end-of-score-p line)
         unless (score-skip-line-p line stream)
         collect (score-line->sexp line at-fname
                                   (and (include-regofile-p line) args))))
+
+(defun end-of-score-p (line)
+  (or (null line)
+      (and (string/= line "")
+           (char= (char line 0) #\Page))))
 
 (defun find-score-local-bindings (stream at args)
   (declare (type stream stream) (type symbol at))

@@ -180,6 +180,11 @@
    (2.3 REGO-TEST-1 220 0.02)
    (2.3 REGO-TEST-1 772 0.07)))
 
+(regofile->list-test regofile->list.14 "ses-mode.rego"
+  ((0.0 REGO-TEST-1 440.0 0.1)
+   (1.0 REGO-TEST-1 660.0 0.2)
+   (2.0 REGO-TEST-1 880.0 0.3)))
+
 (with-dsp-test (rego.1 :channels 2
       :md5 #(245 220 65 244 25 76 31 230 109 144 248 153 16 170 160 134))
   (test-regofile "t1.rego"))
