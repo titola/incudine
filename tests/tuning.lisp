@@ -154,6 +154,11 @@
    527404 558765 591991 627192 664487 703999 745862 790213 837201
    886984 939727 995606 1054808 1117530 1183982 1254385))
 
+;; The number of pitch values is always greater than one.
+(deftest tuning.8
+    (with-cleanup (length (tuning-cents (make-tuning :notes '(1)))))
+  2)
+
 (deftest with-cleanup-tuning.1
     (free-p (with-cleanup (make-tuning)))
   T)

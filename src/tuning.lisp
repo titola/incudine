@@ -1,4 +1,4 @@
-;;; Copyright (c) 2015-2020 Tito Latini
+;;; Copyright (c) 2015-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -265,16 +265,20 @@ Setfable."
           (/ (smp-ref (tuning-sample-ratios tuning) (1- len))))
     tuning))
 
+(declaim (inline tuning-degrees))
+(defun tuning-degrees (tuning)
+  (the (integer 1 127) (1- (length (tuning-cents tuning)))))
+
 (defun update-tuning-data (tuning)
   (declare (type tuning tuning)
            #.*standard-optimize-settings*)
   (let* ((data (tuning-data tuning))
          (aux-data (tuning-aux-data tuning))
          (kbase (tuning-keynum-base tuning))
-         (degrees (1- (length (tuning-cents tuning))))
+         (degrees (tuning-degrees tuning))
          (degree-interval-index (mod (1- (tuning-degree-index tuning))
                                      degrees)))
-    (declare (type (integer 0 127) degrees))
+    (declare (type (integer 1 127) degrees))
     (setf (smp-ref data kbase) (tuning-freq-base tuning))
     ;; 1/1 frequency.
     (setf (smp-ref aux-data +tuning-temp-value-1-index+)
@@ -311,7 +315,7 @@ Setfable."
     tuning))
 
 (defun maybe-rewrite-tuning-cents-and-ratios (tuning new-length)
-  (unless (= new-length (1- (length (tuning-cents tuning))))
+  (unless (= new-length (tuning-degrees tuning))
     (with-tuning-cents-and-ratios (cents ratios new-length)
       (setf (tuning-%cents tuning) cents)
       (setf (tuning-%ratios tuning) ratios))))
@@ -329,8 +333,17 @@ Setfable."
     (setf (tuning-description tuning) description)
     (update-tuning-data tuning)))
 
+(defun tuning-pitch-type-error (value)
+  (error 'simple-type-error
+    :format-control
+      "The value~%  ~S~%~
+      is not a positive rational or a value in cents."
+    :format-arguments (list value)))
+
 (defun check-tuning-notes (notes)
-  (every (lambda (x) (typep x '(or single-float positive-rational))) notes))
+  (dolist (pch notes)
+    (unless (scl-valid-pitch-p pch)
+     (tuning-pitch-type-error pch))))
 
 (defun set-tuning (tuning notes-or-file &optional description keynum-base
                    freq-base degree-index)
@@ -354,10 +367,10 @@ that file."
         (setf (smp-ref (tuning-aux-data tuning) +tuning-freq-base-index+)
               (sample freq-base))))
     (if (listp notes-or-file)
-        (if (check-tuning-notes notes-or-file)
-            (set-tuning-notes tuning notes-or-file (length notes-or-file)
-                              (or description ""))
-            (incudine-error "incorrect note list ~A" notes-or-file))
+        (progn
+          (check-tuning-notes notes-or-file)
+          (set-tuning-notes
+            tuning notes-or-file (length notes-or-file) (or description "")))
         (multiple-value-bind (notes len descr)
             (load-sclfile notes-or-file)
           (declare (type positive-fixnum len))
@@ -421,7 +434,7 @@ significand of the floating point numbers. The error is 0.0005% by default."
   (or (string= "" string) (scl-comment-p string)))
 
 (defun scl-valid-pitch-p (value)
-  (typep value '(or alexandria:positive-rational float)))
+  (typep value '(or alexandria:positive-rational single-float)))
 
 (defun scl-number-dot-p (string)
   (let ((dot-pos (position #\. string)))
@@ -458,11 +471,7 @@ significand of the floating point numbers. The error is 0.0005% by default."
             (setf (char string comment-pos) #\space))))
       (let ((value (read-from-string string nil)))
         (cond ((not (scl-valid-pitch-p value))
-               (error 'simple-type-error
-                 :format-control
-                   "The value~%  ~S~%~
-                   is not a positive rational or a value in cents."
-                 :format-arguments (list value)))
+               (tuning-pitch-type-error value))
               ((floatp value) value)
               ((scl-number-dot-p string) (coerce value 'single-float))
               (t value))))))
@@ -503,10 +512,16 @@ the scale stored in the Scala file PATH."
         for i from 1 do
           (multiple-value-bind (cent ratio)
               (reduce-warnings
-                (if (floatp pch)
-                    (values pch (rationalize (expt 2 (* (the single-float pch)
-                                                        1/1200))))
-                    (values (* (the single-float (log pch 2)) 1200.0) pch)))
+                (typecase pch
+                  (single-float
+                   (values pch (rationalize (expt 2 (* pch 1/1200)))))
+                  (positive-rational
+                   (values (* 1200.0
+                              ;; Result type depends on the implementation.
+                              (coerce (log pch 2) 'single-float))
+                           pch))
+                  (otherwise
+                   (tuning-pitch-type-error pch))))
             (setf (aref cents i) cent)
             (setf (aref ratios i) ratio)))
   (values cents ratios))
@@ -516,7 +531,7 @@ the scale stored in the Scala file PATH."
 
 (defun scl-cents-prevalence-p (tuning)
   (do ((i 1 (1+ i))
-       (len (1- (length (tuning-cents tuning))))
+       (len (tuning-degrees tuning))
        (cents 0))
       ((>= i len) (> (/ cents len) 1/2))
     (when (scl-cent-prevalence-p (aref (tuning-cents tuning) i)
@@ -538,7 +553,7 @@ the scale stored in the Scala file PATH."
 in Scale file format."
   (declare (type tuning tuning) (type (or string pathname) path))
   (with-open-file (scl path :direction :output :if-exists :supersede)
-    (let ((degrees (1- (length (tuning-cents tuning)))))
+    (let ((degrees (tuning-degrees tuning)))
       (format scl "! ~A~%!~%~A~%~D~%!~%" (file-namestring path)
               (tuning-description tuning) degrees)
       (loop for i from 1 to degrees
@@ -577,8 +592,7 @@ in Scale file format."
   (values (the (integer 0 127)
             (- (tuning-keynum-base tuning)
                (tuning-degree-index tuning)))
-          (the non-negative-fixnum
-            (1- (length (tuning-cents tuning))))))
+          (tuning-degrees tuning)))
 
 ;;; Return the keynum related to the first degree of TUNING after the
 ;;; start of OCTAVE.  For convention, octave zero starts with one cycle
@@ -652,7 +666,7 @@ Example with ET12 scale:
     (multiple-value-bind (oct index frac) (decode-pitch-class pitch-class)
       (declare (type fixnum oct index) (type single-float frac))
       (when (and (= oct min-oct) (plusp degree0))
-        (decf index (1- (length (tuning-cents tuning)))))
+        (decf index (tuning-degrees tuning)))
       (when (>= oct min-oct)
         (incf index (the fixnum (tuning-start-index tuning oct)))
         (when (minusp index)
