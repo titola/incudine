@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -188,7 +188,8 @@ of that vector."
     (prepare-midi-bulk-tuning-dump-buffer buf device-id program)
     (set-midi-bulk-tuning-name buf (tuning-description tuning))
     (labels ((set-freqs (k i j degrees os)
-               (declare (type (unsigned-byte 8) k i j degrees)
+               (declare (type (unsigned-byte 8) k i j)
+                        (type (integer 1 127) degrees)
                         (type single-float os))
                (when (< k 128)
                  (let ((xx (position-nearest-et12-frequency tuning k)))
@@ -207,7 +208,7 @@ of that vector."
                                   (+ os (aref (tuning-cents tuning) degrees))
                                   os))))))
       (set-freqs 0 0 +midi-bulk-tuning-dump-freq-data-index+
-                 (1- (length (tuning-cents tuning)))
+                 (tuning-degrees tuning)
                  (tuning-et12-cents-offset tuning))
       (setf (u8-ref buf +midi-bulk-tuning-dump-checksum-index+)
             (funcall checksum-function buf +midi-bulk-tuning-dump-buffer-size+))
@@ -231,7 +232,8 @@ of that vector."
            #.*standard-optimize-settings*)
   (with-midi-single-note-tuning-change-buffer (buf device-id program)
     (labels ((send (k i degrees os)
-               (declare (type (unsigned-byte 8) k i degrees)
+               (declare (type (unsigned-byte 8) k i)
+                        (type (integer 1 127) degrees)
                         (type single-float os))
                (when (< k 128)
                  (setf (u8-ref buf 7) k)
@@ -250,8 +252,7 @@ of that vector."
                              ;; Increment the offset with the last interval.
                              (+ os (aref (tuning-cents tuning) degrees))
                              os))))))
-      (send 0 0 (1- (length (tuning-cents tuning)))
-            (tuning-et12-cents-offset tuning))
+      (send 0 0 (tuning-degrees tuning) (tuning-et12-cents-offset tuning))
       object)))
 
 (defun midi-tuning-sysex (tuning stream &optional (device-id 0) (program 0)
