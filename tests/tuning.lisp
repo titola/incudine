@@ -102,7 +102,7 @@
 
 (deftest tuning.5
     (let ((tun (make-tuning)))
-      (loop for freq in '(264 281.6 297 316.80002 330 352 369.6
+      (loop for freq in '(264 281.6 297 316.80002d0 330 352 369.6
                           396 422.4 440 475.19998 495 528)
             for keynum from 60
             do (setf (tuning-cps tun keynum) freq))

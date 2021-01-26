@@ -340,11 +340,6 @@ Setfable."
       is not a positive rational or a value in cents."
     :format-arguments (list value)))
 
-(defun check-tuning-notes (notes)
-  (dolist (pch notes)
-    (unless (scl-valid-pitch-p pch)
-     (tuning-pitch-type-error pch))))
-
 (defun set-tuning (tuning notes-or-file &optional description keynum-base
                    freq-base degree-index)
   "Change the notes and optionally the DESCRIPTION, the reference
@@ -367,10 +362,8 @@ that file."
         (setf (smp-ref (tuning-aux-data tuning) +tuning-freq-base-index+)
               (sample freq-base))))
     (if (listp notes-or-file)
-        (progn
-          (check-tuning-notes notes-or-file)
-          (set-tuning-notes
-            tuning notes-or-file (length notes-or-file) (or description "")))
+        (set-tuning-notes
+          tuning notes-or-file (length notes-or-file) (or description ""))
         (multiple-value-bind (notes len descr)
             (load-sclfile notes-or-file)
           (declare (type positive-fixnum len))
@@ -520,6 +513,11 @@ the scale stored in the Scala file PATH."
                               ;; Result type depends on the implementation.
                               (coerce (log pch 2) 'single-float))
                            pch))
+                  (double-float
+                   ;; Coercing before the conversion from cents to ratio,
+                   ;; otherwise the integers are too big.
+                   (let ((pch (coerce pch 'single-float)))
+                     (values pch (rationalize (expt 2 (* pch 1/1200))))))
                   (otherwise
                    (tuning-pitch-type-error pch))))
             (setf (aref cents i) cent)
