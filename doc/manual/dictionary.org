@@ -535,6 +535,7 @@ Example: low-passed noise with single-float values
 (no consing on 64-bit platforms).
 
 #+begin_example
+(set-rt-block-size 1)
 (rt-start)
 
 (play
@@ -553,7 +554,6 @@ Example: low-passed noise with single-float values
 A similar example with buses and double-float values:
 
 #+begin_example
-(set-rt-block-size 1)
 (rt-start)
 
 (play
