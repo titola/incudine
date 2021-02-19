@@ -529,6 +529,46 @@ Deallocate the ~node~.
 ::: head-p
 ::: tail-p
 ::: play
+
+#+texinfo: @noindent
+Example: low-passed noise with single-float values
+(no consing on 64-bit platforms).
+
+#+begin_example
+(rt-start)
+
+(play
+  (let ((y0 0.0)
+        (y1 0.0))
+    (declare (single-float y0 y1))
+    (lambda ()
+      (setf y0 (- (random .04) .02))
+      (setf y1 (+ y0 (* .995 y1)))
+      (incf (audio-out 0) (sample y1))
+      ;; Consing if the function returns a double-float value.
+      (values))))
+#+end_example
+
+#+texinfo: @noindent
+A similar example with buses and double-float values:
+
+#+begin_example
+(set-rt-block-size 1)
+(rt-start)
+
+(play
+  (symbol-macrolet ((y0 (bus 0))
+                    (y1 (bus 1))
+                    (coef (bus 2)))
+    (setf y1 (sample 0))
+    (setf coef (sample .995))
+    (lambda ()
+      (setf y0 (- (random (sample .04)) (sample .02)))
+      (setf y1 (+ y0 (* coef y1)))
+      (incf (audio-out 0) y1)
+      (values))))
+#+end_example
+
 ::: stop
 ::: pause
 ::: unpause
