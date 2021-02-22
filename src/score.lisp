@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2020 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -749,8 +749,11 @@ event list at runtime when the function is called."
                          :defaults (incudine.util::%parse-filepath path)
                          :type "cudo"))))
     (with-open-file (lfile lisp-file :direction :output :if-exists :supersede)
-      (write (regofile->sexp path function-name compile-rego-p)
-             :stream lfile :gensym nil)
+      (let ((form (regofile->sexp path function-name compile-rego-p)))
+        (write (if compile-rego-p
+                   `(eval-when (:compile-toplevel :load-toplevel :execute) ,form)
+                   form)
+               :stream lfile :gensym nil))
       (terpri lfile)
       (msg debug "convert ~A -> ~A" path lisp-file)
       lisp-file)))
