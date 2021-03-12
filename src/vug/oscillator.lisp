@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -589,7 +589,9 @@ RATE is the multiply factor of the rate."
 
 FREQ, AMP and PHASE default to 440, 1 and 0 respectively.
 
-INTERPOLATION is one of :LINEAR, :CUBIC or NIL (default)."
+INTERPOLATION is one of :LINEAR, :CUBIC or NIL (default).
+
+The buffer size is assumed to be a power of two."
   (with-gensyms (osc)
     `(vuglet ((,osc ((buf buffer) freq amp phase)
                 (%osc buf freq amp phase ,(null (constantp phase))
@@ -665,6 +667,7 @@ PHASE defaults to zero.
 
 If TABLE-LOOKUP-P is T, use the BUFFER with a single cycle sinusoid
 instead of the function SIN. BUFFER defaults to *SINE-TABLE*.
+The buffer size is assumed to be a power of two.
 
 HARM-CHANGE-LAG is the lag-time for the crossfade when the number of
 the harmonics changes.
@@ -702,6 +705,7 @@ is the strength of the partial (+ lowest-harm n).
 
 If TABLE-LOOKUP-P is T, use the BUFFER with a single cycle sinusoid
 instead of the function COS. BUFFER defaults to *COSINE-TABLE*.
+The buffer size is assumed to be a power of two.
 
 HARM-CHANGE-LAG is the lag-time for the crossfade when the number of
 the harmonics changes.

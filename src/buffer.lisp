@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2020 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -56,7 +56,21 @@
   "Return the buffer sample rate."
   (documentation 'buffer-file 'function)
   "If the buffer is created with BUFFER-LOAD or MAKE-BUFFER with
-a non-NIL FILE argument, return the pathname.")
+a non-NIL FILE argument, return the pathname."
+  (documentation 'buffer-mask 'function)
+  "If the buffer size is a power of two, return that size minus one,
+otherwise the returned value is
+
+    (1- (next-power-of-two (ash (buffer-size instance) -1)))"
+  (documentation 'buffer-lobits 'function)
+  "The phase computed for a table of size +TABLE-MAXLEN+ is shifted
+right by BUFFER-LOBITS bits to get the index for a table lookup.
+
+Return the number of bits for the arithmetic shift operation."
+  (documentation 'buffer-lomask 'function)
+  "Return the division of +TABLE-MAXLEN+ by the buffer size, minus one."
+  (documentation 'buffer-lodiv 'function)
+  "Return the division of the buffer size by +TABLE-MAXLEN+.")
 
 (define-constant +buffer-pool-initial-size+ 4000)
 

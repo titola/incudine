@@ -20,7 +20,8 @@
     (stereo (smp-ref frm index))))
 
 (with-dsp-test (svf.1
-      :md5 #(239 28 103 51 254 245 75 218 34 62 228 36 181 61 40 85))
+      :md5 #+64-bit #(198 16 88 205 6 212 194 69 128 56 112 238 148 92 10 130)
+           #-64-bit #(239 28 103 51 254 245 75 218 34 62 228 36 181 61 40 85))
   (svf-test-1 2000 0 0 0 :id 1)                    ; lp
   (at #[1 s] #'set-control 1 :index 1)             ; hp
   (at #[2 s] #'set-control 1 :index 2)             ; bp
@@ -28,7 +29,8 @@
   (at #[4 s] #'set-controls 1 :res .8 :index 4))   ; peaking
 
 (with-dsp-test (svf.2
-      :md5 #(198 221 141 213 234 65 62 142 111 238 204 151 104 126 107 32))
+      :md5 #+64-bit #(113 62 255 39 167 63 81 21 203 35 127 231 21 189 181 227)
+           #-64-bit #(198 221 141 213 234 65 62 142 111 238 204 151 104 126 107 32))
   (svf-test-2 100 8000 1 .8 0 0 :id 1)
   (at #[1 s] #'set-controls 1 :f1 100 :dur 1 :index 1)
   (at #[1.5 s] #'set-control 1 :drive .09)
@@ -40,7 +42,8 @@
   (at #[4.5 s] #'set-control 1 :drive .09))
 
 (with-dsp-test (svf.3 :channels 2
-      :md5 #(101 118 237 225 90 24 197 40 9 217 20 69 239 143 46 98))
+      :md5 #+64-bit #(240 84 42 34 146 72 121 59 26 17 137 116 72 34 16 144)
+           #-64-bit #(101 118 237 225 90 24 197 40 9 217 20 69 239 143 46 98))
   (svf-test-3 0 :id 1)
   (at #[1 s] #'set-control 1 :index 1)
   (at #[2 s] #'set-control 1 :index 2)

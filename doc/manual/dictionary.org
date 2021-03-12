@@ -160,6 +160,52 @@ Return ~t~ if the ~buffer~ is deallocated.
 ::: buffer-lobits
 ::: buffer-lodiv
 ::: buffer-lomask
+
+#+texinfo: @noindent
+Example: wavetable lookup oscillator with phase of type integer
+between 0 and ~+table-maxlen+~. Buffer size is assumed to be a
+power of two.
+
+#+texinfo: @noindent
+The following DSP
+
+#+begin_example
+(dsp! oscillator-test ((buf buffer) freq amp)
+  (out (osc buf freq amp 0 :linear)))
+#+end_example
+
+#+texinfo: @noindent
+is equivalent to
+
+#+begin_example
+(dsp! oscillator-test ((buf buffer) freq amp)
+  (with ((frac (sample 0))
+         (phase 0)
+         ;; Memo: *CPS2INC* is table_maxlen/sample_rate
+         (phase-increment (sample->fixnum (* freq *cps2inc*)))
+         (minus-lobits (- (buffer-lobits buf)))
+         (index 0))
+    (declare (type sample frac)
+             (type fixnum phase phase-increment index)
+             (type (integer #.(- +max-lobits+) 0) minus-lobits))
+    (setf frac (* (buffer-lodiv buf) (logand phase (buffer-lomask buf))))
+    (setf index (ash phase minus-lobits))
+    (out (* amp (linear-interp frac
+                  (buffer-value buf index)
+                  (buffer-value buf (logand (the fixnum (1+ index))
+                                            (buffer-mask buf))))))
+    ;; Phase increment without branching.
+    (setf phase (logand (the fixnum (+ phase phase-increment))
+                        +phase-mask+))))
+
+;; Buffer size 8192 = 2^13
+(defvar *waveform* (make-buffer 8192 :fill-function (gen:partials '(1))))
+
+(rt-start)
+
+(oscillator-test *waveform* 440 .3)
+#+end_example
+
 ::: buffer-value
 ::: buffer-load
 ::: buffer-save

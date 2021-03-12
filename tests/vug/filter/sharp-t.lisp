@@ -25,5 +25,6 @@
     (SOME-FILTER X (SOME-FILTER X (SOME-FILTER X (SOME-FILTER X IN Y) Y) Y) Y))
 
 (with-dsp-test (sharp-t.3
-      :md5 #(77 208 28 188 203 248 7 149 171 236 1 228 108 206 48 17))
+      :md5 #+64-bit #(30 218 16 53 229 36 210 214 173 140 82 18 129 212 13 6)
+           #-64-bit #(77 208 28 188 203 248 7 149 171 236 1 228 108 206 48 17))
   (moog-vcf-test-1))

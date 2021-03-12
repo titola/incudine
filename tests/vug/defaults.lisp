@@ -58,7 +58,8 @@
   (out (vug-default-test-4 t :amp .5 :phase 0 :freq 440)))
 
 (with-dsp-test (defaults.1 :channels 2
-      :md5 #(66 12 5 72 208 226 193 134 68 106 21 60 138 81 161 114))
+      :md5 #+64-bit #(217 24 50 65 209 39 14 178 22 205 170 18 236 154 173 150)
+           #-64-bit #(66 12 5 72 208 226 193 134 68 106 21 60 138 81 161 114))
   (default-test-1))
 
 (with-dsp-test (defaults.2

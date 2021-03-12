@@ -18,7 +18,7 @@
 
 (define-constant +incudine-major+ 0)
 (define-constant +incudine-minor+ 9)
-(define-constant +incudine-patch+ 38)
+(define-constant +incudine-patch+ 39)
 
 (in-package :incudine.util)
 
@@ -118,8 +118,10 @@
                                        (* +pointer-size+ 8)))
     :documentation "Foreign address type. Should be one of :INT32, :INT64.")
 
-  (define-constant +table-maxlen+ #x1000000
-    :documentation "Maximum table length. It is assumed to be a power of two.")
+  (define-constant +table-maxlen+ (ash 1 #+64-bit 53
+                                         #-64-bit 24)
+    :documentation "Maximum table length used to compute the phase of type
+integer for a wavetable lookup oscillator with power-of-two buffer size.")
 
   (define-constant +max-lobits+ (integer-length (1- +table-maxlen+))
     :documentation "Number of bits needed to represent the bitmask +PHASE-MASK+.")
