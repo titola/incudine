@@ -754,7 +754,8 @@ If NORMALIZE-P is T, normalize the buffer data between -1 and 1."
     (let ((size (buffer-size buffer)))
       (unless (free-p buffer)
         (cond ((functionp obj)
-               (let ((chunk-size (- (if end (min end size) size) start)))
+               (let* ((end (if end (min end size) size))
+                      (chunk-size (- end start)))
                  (when (plusp chunk-size)
                    (multiple-value-bind (c-array mult norm-p)
                        (funcall obj (inc-pointer (buffer-data buffer)
@@ -764,7 +765,9 @@ If NORMALIZE-P is T, normalize the buffer data between -1 and 1."
                      (declare (ignore c-array))
                      (let ((norm-p (if normalize-pp normalize-p norm-p)))
                        (when (and norm-p (numberp mult) (/= mult 1))
-                         (scale-buffer buffer mult)))))))
+                         (loop for i from start below end do
+                              (setf (buffer-value buffer i)
+                                    (* (buffer-value buffer i) mult)))))))))
               ((consp obj) (loop-sequence in obj))
               ((or (stringp obj) (pathnamep obj))
                (set-buffer-from-sndfile buffer obj sndfile-start start
