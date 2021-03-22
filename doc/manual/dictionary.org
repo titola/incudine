@@ -1155,6 +1155,7 @@ Deallocate the ~voicer~.
 ::: vug:vdelay
 ::: vug:vtap
 ::: vug:delay-feedback
+::: vug:allpass-s
 ::: vug:allpass
 ::: vug:vallpass
 ::: vug:fb-comb

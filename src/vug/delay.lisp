@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -186,12 +186,21 @@ and DECAY-TIME."
                                          ,interpolation))))))
        (,fb-comb ,in ,max-delay-time ,delay-time ,coef))))
 
+(define-vug allpass-s
+    (in (max-delay-time positive-fixnum) (delay-time positive-fixnum) gain)
+  "Allpass filter without interpolation and DELAY-TIME in samples."
+  (with-samples (x y)
+    (setf x (+ in (* gain y)))
+    (prog1 (- y (* gain x))
+      (setf y (delay-s x max-delay-time (1- delay-time))))))
+
 (define-vug allpass (in max-delay-time delay-time gain)
   "Allpass filter without interpolation and DELAY-TIME in seconds."
-  (with-samples (y dx)
-    (prog1 y
-      (setf y (+ (* (- gain) in) dx))
-      (setf dx (delay (+ in (* gain y)) max-delay-time delay-time)))))
+  (allpass-s in
+    ;; Rounding to the nearest integer works better than truncation
+    ;; when the delay time is (* samples *sample-duration*)
+    (sample->fixnum (* max-delay-time *sample-rate*) :roundp t)
+    (sample->fixnum (* delay-time *sample-rate*) :roundp t) gain))
 
 (define-vug-macro vallpass (in max-delay-time delay-time gain
                             &optional (interpolation :linear))

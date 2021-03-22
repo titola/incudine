@@ -2,7 +2,7 @@
 ;;;
 ;;; ASDF system definition for INCUDINE unit tests.
 ;;;
-;;; Copyright (c) 2013-2020 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -89,6 +89,7 @@
      (:file "vug/envelope" :depends-on ("vug/ugen-base"))
      (:file "vug/voicer" :depends-on ("vug/base"))
      (:file "vug/amplitude/balance" :depends-on ("vug/base"))
+     (:file "vug/filter/allpass" :depends-on ("vug/base"))
      (:file "vug/filter/reson" :depends-on ("vug/base"))
      (:file "vug/filter/sharp-t" :depends-on ("vug/base"))
      (:file "vug/filter/svf" :depends-on ("vug/base"))

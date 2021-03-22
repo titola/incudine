@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2020 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -285,7 +285,7 @@
    #:standard-map #:lorenz #:gendy
    ;; delay
    #:buf-delay-s #:buf-delay #:delay-s #:delay #:buf-vdelay #:vtap #:vdelay
-   #:ff-comb #:fb-comb #:allpass #:vallpass
+   #:ff-comb #:fb-comb #:allpass-s #:allpass #:vallpass
    #:delay-feedback #:delay1
    ;; filter
    #:~ #:pole #:pole* #:zero #:zero* #:two-pole #:two-zero
