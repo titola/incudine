@@ -368,7 +368,9 @@ START-OFFSET (0 by default) is the initial offset for the internal counter."
        (,kperiod ,n ,start-offset))))
 
 (define-vug samphold (input gate initial-value initial-threshold)
-  "Sample and hold the INPUT controlled by GATE.
+  "Sample and hold the INPUT whenever GATE decreases from one sample
+to the next, for example when a phasor wraps around. This mechanism is
+similar to the Pd-version.
 
 INITIAL-VALUE and INITIAL-THRESHOLD default to 0 and 1 respectively."
   (:defaults (incudine:incudine-missing-arg "INPUT") 0 0 1)
