@@ -622,6 +622,42 @@ A similar example with buses and double-float values:
 ::: done-p
 ::: reinit
 ::: dump
+
+#+texinfo: @noindent
+Example: DSP cycle on demand through ~unpause~
+
+#+begin_example
+(dsp! cycle-on-demand ()
+  (with ((i 1))
+    (declare (fixnum i))
+    (nrt-msg warn "DSP cycle number ~D" i)
+    (incf i)
+    (pause (dsp-node))))
+
+(rt-start)
+
+(cycle-on-demand :id 1)  ; WARN: DSP cycle number 1
+(pause-p 1)
+;; => T
+
+(dump (node 0))
+;; group 0
+;;     node 1 (pause)
+;;       CYCLE-ON-DEMAND
+
+(unpause 1)              ; WARN: DSP cycle number 2
+(unpause 1)              ; WARN: DSP cycle number 3
+(unpause 1)              ; WARN: DSP cycle number 4
+
+(reinit 1)
+
+(unpause 1)              ; WARN: DSP cycle number 1
+(unpause 1)              ; WARN: DSP cycle number 2
+(unpause 1)              ; WARN: DSP cycle number 3
+
+(free 1)
+#+end_example
+
 ::: control-getter
 ::: control-setter
 ::: control-list
