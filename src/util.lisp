@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2020 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -563,14 +563,21 @@ lambda list. For example:
            #+sbcl (force-macro-lambda-list ',name ',lambda-list)
            #-sbcl ',name))))
 
+(defun aux-lambda-list-p (arg)
+  (when (consp arg)
+    (let ((fst (first arg)))
+      (and (symbolp fst)
+           (null (symbol-package fst))
+           (string= "LAMBDA-LIST" (symbol-name fst))))))
+
 (defun lambda-list-to-star-list (arglist)
   "Return the optional-key arguments of ARGLIST."
   (let ((aux-pos (and ;; Ignore the lists ({arguments} . rest)
                       (null (cdr (last arglist)))
                       (position '&aux arglist))))
     (when aux-pos
-      (let ((arglist (assoc "LAMBDA-LIST" (cdr (subseq arglist aux-pos))
-                            :key #'symbol-name :test #'string=)))
+      (let ((arglist (find-if #'aux-lambda-list-p
+                              (cdr (subseq arglist aux-pos)))))
         (when arglist
           (labels ((optional-keywords-p (x)
                      (if (consp x)

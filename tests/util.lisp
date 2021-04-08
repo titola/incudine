@@ -280,3 +280,11 @@
       (values (= (free-objects) r0)
               (= (- r0 r1) allocated))))
   T T)
+
+(deftest lambda-list-to-star-list.1
+    (mapcar #'lambda-list-to-star-list
+      '((x &key y &aux z)
+        (&rest incudine.util::optional-keywords &aux (#:lambda-list '(x y z)))
+        (&rest incudine.util::optional-keywords &aux (lambda-list '(x y z)))
+        (x &key y &aux (z 123) (lambda-list '(1 2 3)))))
+  (NIL (INCUDINE.UTIL::&ANY X Y Z) NIL NIL))
