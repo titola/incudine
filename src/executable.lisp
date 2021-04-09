@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2020 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -26,7 +26,19 @@
   (pushnew 'incudine.config:load-incudinerc sb-ext:*init-hooks*)
 
   #+linedit
-  (let ((repl-prompt-fun sb-int:*repl-prompt-fun*))
+  (let ((repl-prompt-fun sb-int:*repl-prompt-fun*)
+        (linedit-repl-p nil))
+    (defun uninstall-linedit-repl (&optional connection)
+      (declare (ignore connection))
+      (linedit:uninstall-repl))
+
+    (defun install-linedit-repl (&optional closed-connection)
+      (unless closed-connection
+        (setf linedit-repl-p t))
+      (when linedit-repl-p
+        (linedit::install-repl :wrap-current t :eof-quits t
+          :history (merge-pathnames ".incudine_history" (user-homedir-pathname)))))
+
     (defun clear-screen (chord editor)
       (declare (ignore chord editor))
         (ti:tputs ti:clear-screen)
@@ -761,11 +773,26 @@ the argument is parsed with READ-FROM-STRING."
   #+sb-aclrepl (format t "~%Type `:help' for the list of commands.")
   #-linedit (terpri))
 
+#+linedit
+(defun swank-connection-hooks ()
+  (flet ((q (s) (find-symbol s "SWANK")))
+    (let ((new-connection-hook (q "*NEW-CONNECTION-HOOK*")))
+      (if (null new-connection-hook)
+          (warn "No SWANK::*NEW-CONNECTION-HOOK* variable")
+          (let ((connection-closed-hook (q "*CONNECTION-CLOSED-HOOK*")))
+            (if (null connection-closed-hook)
+                (warn "No SWANK::*CONNECTION-CLOSED-HOOK* variable")
+                (flet ((add-hook (place function)
+                         (pushnew function (symbol-value place))))
+                  (add-hook new-connection-hook 'uninstall-linedit-repl)
+                  (add-hook connection-closed-hook 'install-linedit-repl))))))))
+
 (defun start-swank-server (port log-p)
   (flet ((q (s) (find-symbol s "SWANK")))
     (let ((res (string-trim '(#\; #\Space #\Tab #\Newline)
                  (with-output-to-string (s)
                    (progv (list (q "*LOG-OUTPUT*")) (list s)
+                     #+linedit (swank-connection-hooks)
                      (funcall (q "CREATE-SERVER") :port port :dont-close t))))))
       (when log-p (format t "~&~A" res)))))
 
@@ -885,9 +912,7 @@ the argument is parsed with READ-FROM-STRING."
     (if (and (interactive-stream-p *standard-input*)
              (toplevel-options-inform-p opt)
              (toplevel-options-print-p opt))
-        (linedit::install-repl :wrap-current t :eof-quits t
-                               :history (merge-pathnames ".incudine_history"
-                                                         (user-homedir-pathname)))
+        (install-linedit-repl)
         #+sb-aclrepl (when (toplevel-options-inform-p opt) (terpri)))
     (when (plusp (toplevel-options-swank-server-port opt))
       (let ((sb-ext:*muffled-warnings* 'style-warning))
