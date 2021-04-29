@@ -187,7 +187,7 @@
      (:file "vug/moog-vcf" :depends-on ("vug/codegen"))
      (:file "vug/noise" :depends-on ("gen/random" "vug/codegen"))
      (:file "vug/chaos" :depends-on ("vug/util2"))
-     (:file "vug/gendy" :depends-on ("vug/util2"))
+     (:file "vug/gendy" :depends-on ("vug/noise"))
      (:file "vug/pan" :depends-on ("vug/in-out"))
      (:file "vug/note-priority" :depends-on ("vug/codegen"))
      (:file "vug/midi" :depends-on ("tuning" "vug/note-priority"))

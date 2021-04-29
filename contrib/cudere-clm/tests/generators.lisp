@@ -326,7 +326,7 @@
             (setf (mus-frequency r) 13)
             (mus-reset r))
           (outa i (rand r)))))
-  #(168 168 62 173 131 103 164 196 41 78 207 71 3 54 87 83))
+  #(133 244 211 19 162 208 55 77 116 55 102 43 251 146 184 46))
 
 (deftest rand.2
     (with-sound-test ()
@@ -339,7 +339,7 @@
             (setf (mus-increment r) (hz->radians 8))
             (setf (mus-scaler r) 1))
           (outa i (rand r)))))
-  #(74 119 65 220 59 97 34 167 170 208 6 49 16 219 71 110))
+  #(161 133 121 235 136 36 58 75 151 235 239 208 66 180 97 101))
 
 ;;; RAND-INTERP
 
@@ -353,7 +353,7 @@
             (setf (mus-frequency r) 13)
             (mus-reset r))
           (outa i (rand-interp r)))))
-  #(252 54 120 27 139 177 39 16 255 191 125 19 221 118 145 71))
+  #(30 143 186 100 225 188 84 205 169 137 215 89 132 52 35 118))
 
 (deftest rand-interp.2
     (with-sound-test ()
@@ -366,7 +366,7 @@
             (setf (mus-increment r) (hz->radians 8))
             (setf (mus-scaler r) 1))
           (outa i (rand-interp r)))))
-  #(47 201 216 157 13 157 125 157 2 94 183 96 216 49 166 96))
+  #(59 104 127 11 168 3 63 155 98 154 143 98 170 220 90 123))
 
 ;;; ONE-POLE
 
@@ -421,7 +421,7 @@
         (assert (= (round (mus-frequency f)) 2000))
         (dotimes (i *test-length*)
           (outa i (* .15 (two-zero f (rand cs)))))))
-  #(24 152 240 54 23 248 54 132 162 113 215 66 128 220 201 69))
+  #(227 20 78 65 195 160 206 228 84 252 37 206 110 140 223 166))
 
 (deftest two-zero.2
     (with-sound-test ()
@@ -432,7 +432,7 @@
         (dotimes (i *test-length*)
           (setf (mus-frequency f) (+ 20 (* i k)))
           (outa i (* .25 (two-zero f (rand cs)))))))
-  #(30 135 14 49 121 233 226 87 18 242 196 246 73 170 150 0))
+  #(116 125 66 192 42 237 63 69 173 96 40 97 143 172 11 199))
 
 ;;; FORMANT
 
@@ -443,7 +443,7 @@
             (cs (make-rand (* .5 *srate*))))
         (dotimes (i *test-length*)
           (outa i (formant f (rand cs))))))
-  #(170 52 240 252 20 235 253 236 106 149 251 241 29 80 144 134))
+  #(93 39 118 42 10 245 5 209 82 75 165 134 239 186 75 220))
 
 (deftest formant.2
     (with-sound-test ()
@@ -454,7 +454,7 @@
         (dotimes (i *test-length*)
           (setf (mus-frequency f) (+ 20 (* i k)))
           (outa i (* 8 (formant f (rand cs)))))))
-  #(128 106 99 159 31 118 15 252 148 220 66 68 110 79 102 182))
+  #(184 62 74 86 133 183 93 51 49 160 208 68 102 76 200 53))
 
 ;;; FIRMANT
 
@@ -465,7 +465,7 @@
             (cs (make-rand (* .5 *srate*))))
         (dotimes (i *test-length*)
           (outa i (firmant f (rand cs))))))
-  #(58 214 29 116 74 222 138 19 218 125 17 47 118 24 66 50))
+  #(203 112 27 186 76 164 152 7 214 187 144 80 226 215 162 102))
 
 (deftest firmant.2
     (with-sound-test ()
@@ -476,7 +476,7 @@
         (dotimes (i *test-length*)
           (setf (mus-frequency f) (+ 20 (* i k)))
           (outa i (* 8 (firmant f (rand cs)))))))
-  #(76 68 58 23 16 164 226 198 184 11 138 18 107 64 50 55))
+  #(79 37 9 39 130 32 212 200 108 31 209 212 213 189 238 28))
 
 ;;; CONVOLVE-FILES and READIN
 

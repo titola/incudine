@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -26,33 +26,31 @@
 ;;; Nick Collins for SuperCollider to fix some numerical problems
 (declaim (inline gendy-cauchy))
 (defun gendy-cauchy (a)
-  (* 0.1 (/ 1.0 a) (tan (* (atan (* 10.0 a))
-                           (- (* 2.0 (random (sample 1))) 1.0)))))
+  (* 0.1 (/ 1.0 a) (tan (* (atan (* 10.0 a)) (random-sample -1 1)))))
 
 (declaim (inline gendy-logist))
 (defun gendy-logist (a)
   (let* ((b (+ .5 (* .499 a)))
          (c (the sample (log (/ (- 1.0 b) b))))
-         (r (+ (* (- (random (sample 0.998)) 0.499) a) 0.5)))
+         (r (+ (* (random-sample -.499 .499) a) 0.5)))
     (/ (the sample (log (/ (- 1.0 r) r))) c)))
 
 (declaim (inline gendy-hyperbcos))
 (defun gendy-hyperbcos (a)
   (let ((r (/ (tan (the maybe-limited-sample
-                     (* 1.5692255 a (random (sample 1.0)))))
+                     (* a (random-sample 0 1.5692255))))
               (tan (the maybe-limited-sample (* 1.5692255 a))))))
     (- (* 2.0 (* (the sample (log (+ (* r 0.999) .001))) -0.1447648))
        1.0)))
 
 (declaim (inline gendy-arcsine))
 (defun gendy-arcsine (a)
-  (/ (sin (the maybe-limited-sample (* (sample pi)
-                                       (- (random (sample 1)) 0.5) a)))
+  (/ (sin (the maybe-limited-sample (* (random-sample (- +half-pi+) +half-pi+) a)))
      (sin (the maybe-limited-sample (* 1.5707963 a)))))
 
 (declaim (inline gendy-expon))
 (defun gendy-expon (a)
-  (- (* 2.0 (/ (the sample (log (- 1.0 (* (random (sample 0.999)) a))))
+  (- (* 2.0 (/ (the sample (log (- 1.0 (* (random-sample 0 0.999) a))))
                (the sample (log (- 1.0 (* 0.999 a))))))
      1.0))
 
@@ -65,7 +63,7 @@
           ((= which 4) (gendy-arcsine a))
           ((= which 5) (gendy-expon a))
           ((= which 6) (- (* a (sample 2)) (sample 1))) ; external
-          (t (- (random (sample 2)) (sample 1))))))     ; linear
+          (t (random-sample -1 1)))))                   ; linear
 
 (defmacro gendy-update-value (data index dist-var dist-value
                               dist-param scale min max)
@@ -139,8 +137,8 @@ INTERPOLATION is one of :LINEAR (default), :COS, :CUBIC or NIL."
                                (type non-negative-fixnum index points))
                       (initialize
                         (dotimes (i max-points)
-                          (setf (smp-ref amps i) (- (random (sample 2)) 1.0)
-                                (smp-ref durs i) (random (sample 1)))))
+                          (setf (smp-ref amps i) (random-sample -1 1)
+                                (smp-ref durs i) (random-sample 0 1))))
                       (interpolate
                         (tick
                          (prog1 (smp-ref amps index)

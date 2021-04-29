@@ -609,7 +609,7 @@ A similar example with buses and double-float values:
     (setf y1 (sample 0))
     (setf coef (sample .995))
     (lambda ()
-      (setf y0 (- (random (sample .04)) (sample .02)))
+      (setf y0 (sample (- (random .04) .02)))
       (setf y1 (+ y0 (* coef y1)))
       (incf (audio-out 0) y1)
       (values))))

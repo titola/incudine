@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -16,11 +16,15 @@
 
 (in-package :incudine.vug)
 
+(defmacro random-sample (a b)
+  `(incudine.gen::ran-flat (incudine.external::gsl-random-generator)
+                           (sample ,a) (sample ,b)))
+
 (define-vug white-noise (amp)
   "White noise generator with output optionally scaled by AMP."
   (:defaults 1)
-  (with-samples ((rmax (* amp 2.0)))
-    (- (random rmax) amp)))
+  (with-samples ((amp0 (- amp)))
+    (random-sample amp0 amp)))
 
 ;;; Reference:
 ;;;

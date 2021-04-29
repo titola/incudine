@@ -1,5 +1,5 @@
 ;;; Incudine version of CLM
-;;; Copyright (c) 2017-2018 Tito Latini
+;;; Copyright (c) 2017-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -293,13 +293,18 @@
 
 (defsetf mus-rand-seed mus-set-rand-seed)
 
+(defmacro random-double-float (a b)
+  `(incudine.gen::ran-flat (incudine.external::gsl-random-generator)
+                           (coerce ,a 'double-float)
+                           (coerce ,b 'double-float)))
+
 (declaim (inline clm-random))
 (defun clm-random (amp)
-  (random (coerce amp 'double-float)))
+  (random-double-float 0d0 amp))
 
 (declaim (inline centered-random))
 (defun centered-random (amp)
-  (* amp (- (random 2d0) 1d0)))
+  (random-double-float (- amp) amp))
 
 (declaim (inline mus-random))
 (defun mus-random (amp)
