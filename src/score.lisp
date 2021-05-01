@@ -227,7 +227,6 @@ or IGNORE-SCORE-STATEMENTS."
                            (otherwise (stmt-p (1+ i) unmatched-parens)))))))
           (stmt-p 1 1)))))
 
-(declaim (inline time-tagged-function-p))
 (defun time-tagged-function-p (string)
   (declare (type string string))
   (if (char= (char string 0) #\()
@@ -309,16 +308,17 @@ or IGNORE-SCORE-STATEMENTS."
 
 (define-constant +include-strlen+ (length "include"))
 
+(defun %score-statement-p (line name min-length)
+  (and (>= (length line) min-length)
+       (let ((pos (string< name line)))
+         (and pos (= pos (length name))))))
+
 ;;; Score statement used to include the content of another rego file:
 ;;;
 ;;;     include "regofile" [time]
 ;;;
-(declaim (inline include-regofile-p))
 (defun include-regofile-p (line)
-  (and (>= (length line) #.(length "include \"x\""))
-       (string= line "include" :end1 7)
-       (blank-char-p (char line 7))
-       t))
+  (%score-statement-p line "include" #.(length "include \"x\"")))
 
 (defun include-rego-path-and-time (line)
   (declare (type string line))
@@ -328,6 +328,84 @@ or IGNORE-SCORE-STATEMENTS."
             (read-from-string (string-trim-blank-and-quotation
                                 (subseq line time-pos))
                               nil))))
+
+;;; The score statement `call' pushes the return position on the stack
+;;; and transfers program control to the point labeled by a tag.
+;;; The score statement `return' transfers control to the return position
+;;; located on the top of the stack.
+;;;
+;;; Syntax for call statement (a tag between [[ ]] is a facility for Org mode):
+;;;
+;;;     call tag
+;;;     call tag time
+;;;     call [[tag]] time                ; the target label is <<tag>>
+;;;     call [[tag][description]] time   ; the target label is <<tag>>
+;;;
+;;; Example:
+;;;
+;;;     call p1 0
+;;;     call [[p2][pattern two]] 1
+;;;     call p3 1.5
+;;;     call p1 2
+;;;     return              ; end of score
+;;;
+;;;     p1
+;;;     0 write-line "pattern 1" // force-output
+;;;     call p3 .1
+;;;     call p3 .25
+;;;     return
+;;;
+;;;     <<p2>>
+;;;     0 write-line "pattern 2" // force-output
+;;;     return
+;;;
+;;;     p3
+;;;     0 write-line "pattern 3" // force-output
+;;;     return
+;;;
+(defun score-call-statement-p (line)
+  (%score-statement-p line "call" #.(length "call x")))
+
+(defun score-call-org-internal-link (line)
+  (let* ((l (string-trim "[]" line))
+         (end (position #\] l))
+         (time-start-pos (position #\] line :from-end t)))
+    (format nil "<<~A>>~@[ ~A~]"
+            (if end (subseq l 0 end) l)
+            (and time-start-pos
+                 (subseq line (1+ time-start-pos))))))
+
+(defun score-call-arguments (line)
+  (let* ((label-start (string-trim-blank (subseq line (next-blank-position line))))
+         (args (read-from-string
+                 (format nil "(~A)"
+                         (if (char= (char label-start 0) #\[)
+                             (score-call-org-internal-link label-start)
+                             label-start)))))
+    (if (<= 1 (length args) 2)
+        (values-list args)
+        (msg error "malformed call statement: ~S" line))))
+
+(defmacro score-jump (label ret-label time)
+  (let ((time (if (and (numberp time) (= time 0)) nil time)))
+    `(progn
+       (push ,(if time
+                  `(let ((t0 time))
+                     (lambda () (setf time t0) (go ,ret-label)))
+                  `(lambda () (go ,ret-label)))
+             __stack__)
+       ,@(and time `((incf time ,time)))
+       (go ,label))))
+
+(defun expand-score-call-statement (line)
+  (multiple-value-bind (label time) (score-call-arguments line)
+    (when label
+      (let ((ret-label (gensym "CONTINUE")))
+        `((score-jump ,label ,ret-label ,time) ,ret-label)))))
+
+(defun score-return-statement-p (line)
+  (let ((pos (string<= "return" line)))
+    (and pos (= 6 pos) (= 6 (length (string-trim-blank line))))))
 
 ;;; If we use the symbol // to separate the functions with the same
 ;;; time-tag, we get a polyphonic vertical sequencer in text files.
@@ -390,13 +468,16 @@ or IGNORE-SCORE-STATEMENTS."
             (*readtable* *score-readtable*)
             (*read-default-float-format* incudine.config:*sample-type*))
         (declare (type string line))
-        (if (time-tagged-function-p line)
-            (score-expand-parallel-functions
-              (macroexpand-1
-                (read-from-string
-                  (format nil "(INCUDINE::%AT-SAMPLE ~A ~A)" at-fname line))))
-            ;; Tag or lisp statement.
-            (read-from-string (string-left-trim '(#\Space #\Tab #\Return) line))))))
+        (cond ((score-return-statement-p line)
+               '(funcall (pop __stack__)))
+              ((time-tagged-function-p line)
+               (score-expand-parallel-functions
+                (macroexpand-1
+                  (read-from-string
+                    (format nil "(INCUDINE::%AT-SAMPLE ~A ~A)" at-fname line)))))
+              (t
+               ;; Tag or lisp statement.
+               (read-from-string (string-left-trim '(#\Space #\Tab #\Return) line)))))))
 
 (defun score-lines->sexp (stream at-fname args)
   (declare (type stream stream) (type list args))
@@ -404,8 +485,10 @@ or IGNORE-SCORE-STATEMENTS."
                  = (read-score-line stream)
         until (end-of-score-p line)
         unless (score-skip-line-p line stream)
-        collect (score-line->sexp line at-fname
-                                  (and (include-regofile-p line) args))))
+        if (score-call-statement-p line)
+          append (expand-score-call-statement line)
+        else collect (score-line->sexp
+                       line at-fname (and (include-regofile-p line) args))))
 
 (defun end-of-score-p (line)
   (or (null line)
@@ -427,7 +510,9 @@ or IGNORE-SCORE-STATEMENTS."
                       ;; Local bindings at the beginning of the score
                       (read-from-string (format-bindings line)))
                      (t ;; There aren't local bindings
-                      (list nil (score-line->sexp line at args)))))))
+                      (if (score-call-statement-p line)
+                          (cons nil (expand-score-call-statement line))
+                          (list nil (score-line->sexp line at args))))))))
     (first-score-stmt (read-score-line stream))))
 
 (defun read-score-line (stream)
@@ -562,15 +647,16 @@ or IGNORE-SCORE-STATEMENTS."
                                      dur-var max-time tenv)))
                (append
                  (let ((vars (find-score-local-bindings score at-fname
-                                                        write-args)))
+                                                        write-args))
+                       (stack '(__stack__ (list (lambda () (return))))))
                    (cond (included-p
                           (with-gensyms (time-offset-var)
                             (rego-local-tempo vars time parent-time time-offset
                                               time-offset-var tempo-env
                                               parent-tempo-env)))
-                         ((car vars) (list vars))
+                         ((car vars) (list (cons stack vars)))
                          ;; No local bindings.
-                         (t vars)))
+                         (t `((,stack) ,@(cdr vars)))))
                  (score-lines->sexp score at-fname write-args)
                  (cond (included-p
                         ;; End of the included regofile.
