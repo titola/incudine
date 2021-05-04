@@ -26,7 +26,9 @@
 ;;; Nick Collins for SuperCollider to fix some numerical problems
 (declaim (inline gendy-cauchy))
 (defun gendy-cauchy (a)
-  (* 0.1 (/ 1.0 a) (tan (* (atan (* 10.0 a)) (random-sample -1 1)))))
+  (* 0.1 (/ 1.0 a) (tan (* (atan (* 10.0 a))
+                           (the (sample #.(sample -1) #.(sample 1))
+                             (random-sample -1 1))))))
 
 (declaim (inline gendy-logist))
 (defun gendy-logist (a)
