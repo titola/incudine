@@ -1531,7 +1531,11 @@ in this case the performance-time loop is:
 #+texinfo: @page
 ** Rego File
 A rego file can contain time-tagged lisp functions, lisp statements,
-arbitrary score statements and lisp tags.
+arbitrary score statements and lisp tags. Besides, the rego file
+format supports the [[https://orgmode.org][Org]] markup language. It is possible to edit and
+organize score files with spreedsheet-like capabilities, headlines,
+unordered lists, blocks, properties, hyperlinks, todo items, tags,
+deadlines, scheduling, etc.
 
 #+texinfo: @noindent
 The syntax of a time-tagged lisp function is:
@@ -1668,6 +1672,55 @@ ends after 6.5 beats.
 A line with a form feed character marks the end of score.
 For example, we can create and edit a rego file in Emacs SES
 (Simple Emacs Spreadsheet) mode.
+
+#+texinfo: @noindent
+The score statement ~call~ pushes the return position on the stack
+and transfers program control to the point labeled by a tag.
+The score statement ~return~ transfers control to the return position
+located on the top of the stack.
+
+#+texinfo: @noindent
+Syntax for ~call~ statement (a tag between ~[[]]~ is a facility for
+the Org markup language):
+
+#+texinfo: @exampleindent 4
+#+begin_example
+call tag
+call tag time
+call [[tag]] time                ; the target label is <<tag>>
+call [[tag][description]] time   ; the target label is <<tag>>
+#+end_example
+
+#+texinfo: @noindent
+Example:
+
+#+texinfo: @exampleindent 4
+#+begin_example
+,* score
+,** sequence
+call p1 0
+call [[p2][pattern two]] 1
+call p3 1.5
+call p1 2
+return              ; end of score
+
+,** pattern 1
+p1
+0 write-line "pattern 1" // force-output
+call p3 .1
+call p3 .25
+return
+
+,** pattern 2
+<<p2>>
+0 write-line "pattern 2" // force-output
+return
+
+,** pattern 3
+p3
+0 write-line "pattern 3" // force-output
+return
+#+end_example
 
 ::: defscore-statement
 ::: delete-score-statement
