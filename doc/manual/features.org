@@ -24,7 +24,7 @@
 
  - Collection of GEN routines.
 
- - MIDI support via [[http://portmedia.sourceforge.net/portmidi][PortMidi]] and [[http://jackaudio.org][Jack MIDI]].
+ - MIDI support via [[http://portmedia.sourceforge.net/portmidi][PortMidi]] and [[https://jackaudio.org][Jack MIDI]].
 
  - MIDI File I/O support.
 
@@ -43,7 +43,7 @@
 
  - Flexible voicer.
 
- - The score (rego) files are [[http://orgmode.org][Org]] friendly. It is possible to edit and
+ - The score (rego) files are [[https://orgmode.org][Org]] friendly. It is possible to edit and
    organize score files with spreedsheet-like capabilities, headlines,
    unordered lists, blocks, properties, hyperlinks, todo items, tags,
    deadlines, scheduling, etc.
@@ -51,15 +51,15 @@
  - It is possible to create and edit a rego file in SES (Simple Emacs
    Spreadsheet) mode.
 
- - Optional interface to interact with the sound editor [[http://ccrma.stanford.edu/software/snd/][Snd]].
+ - Optional interface to interact with the sound editor [[https://ccrma.stanford.edu/software/snd/][Snd]].
 
  - Optional cudere-clm package, the Incudine version of CLM.
 
- - Optional interface to use a [[http://www.ladspa.org][LADSPA audio plugin]] in a Virtual UGen.
+ - Optional interface to use a [[https://www.ladspa.org][LADSPA audio plugin]] in a Virtual UGen.
 
- - Optional interface to use a [[http://lv2plug.in][LV2 audio plugin]] in a Virtual UGen.
+ - Optional interface to use a [[https://lv2plug.in][LV2 audio plugin]] in a Virtual UGen.
 
- - Optional [[http://www.fluidsynth.org/][FluidSynth]] SoundFont synthesizer support.
+ - Optional [[https://www.fluidsynth.org/][FluidSynth]] SoundFont synthesizer support.
 
  - Incudine is released under the GNU General Public License (GPL)
    version 2 or later.

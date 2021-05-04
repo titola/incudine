@@ -5,21 +5,21 @@ high-performance native compiler.
 
 *** Common Lisp packages
 
-- [[http://common-lisp.net/project/alexandria][Alexandria]]
+- [[https://common-lisp.net/project/alexandria][Alexandria]]
 
-- [[http://common-lisp.net/project/bordeaux-threads][Bordeaux-threads]]
+- [[https://common-lisp.net/project/bordeaux-threads][Bordeaux-threads]]
 
-- [[http://common-lisp.net/project/cffi][CFFI]]
+- [[https://common-lisp.net/project/cffi][CFFI]]
 
 - [[https://github.com/sionescu/swap-bytes][Swap-bytes]]
 
-- [Optional] [[http://common-lisp.net/project/linedit/][Linedit]] for incudine command
+- [Optional] [[https://common-lisp.net/project/linedit/][Linedit]] for incudine command
 
 *** Foreign libraries
 
 - Pthread
 
-- [[http://jackaudio.org][JACK]] or [[http://www.portaudio.com][PortAudio >= 1.9]]
+- [[https://jackaudio.org][JACK]] or [[http://www.portaudio.com][PortAudio >= 1.9]]
 
 - [[http://portmedia.sourceforge.net/portmidi][PortMidi]]
 
@@ -27,9 +27,9 @@ high-performance native compiler.
 
 - [[http://www.fftw.org][FFTW >= 3.0]]
 
-- [[http://www.gnu.org/software/gsl][GNU Scientific Library (GSL)]]
+- [[https://www.gnu.org/software/gsl][GNU Scientific Library (GSL)]]
 
-- [Optional] [[http://www.fluidsynth.org/][FluidSynth]]
+- [Optional] [[https://www.fluidsynth.org/][FluidSynth]]
 
 - [Optional] [[http://drobilla.net/software/lilv][LILV]]
 
