@@ -612,7 +612,8 @@ or IGNORE-SCORE-STATEMENTS."
 ;;; the time of the parent regofile.
 (defun rego-local-tempo (local-bindings time parent-time time-offset
                          time-offset-var tempo-env parent-tempo-env)
-  (let ((time-bind `(,parent-time ,time))
+  (let ((stack-bind `(__stack__ (list (lambda () (return)))))
+        (time-bind `(,parent-time ,time))
         ;; TIME-OFFSET should be altered if it is defined with a
         ;; parent's variable shadowed in the included rego file,
         ;; therefore it is safe to create a new variable binding.
@@ -621,13 +622,13 @@ or IGNORE-SCORE-STATEMENTS."
         (local-tempo `(progn
                         ,@(and time-offset `((incf ,time ,time-offset-var)))
                         (setf ,tempo-env (copy-tempo-envelope ,tempo-env))))
-        (decl `(declare (ignorable ,time-offset-var))))
+        (decl `(declare (ignorable __stack__ ,time-offset-var))))
     (if (car local-bindings)
         ;; Update the local bindings.
-        `((,time-bind ,time-os-bind ,tenv-bind ,@local-bindings)
+        `((,stack-bind ,time-bind ,time-os-bind ,tenv-bind ,@local-bindings)
           ,decl ,local-tempo)
         ;; Set the local bindings.
-        `((,time-bind ,time-os-bind ,tenv-bind) ,decl ,local-tempo
+        `((,stack-bind ,time-bind ,time-os-bind ,tenv-bind) ,decl ,local-tempo
           ,@(cdr local-bindings)))))
 
 (defun %write-regofile (score at-fname time-var dur-var max-time tenv
@@ -648,15 +649,16 @@ or IGNORE-SCORE-STATEMENTS."
                (append
                  (let ((vars (find-score-local-bindings score at-fname
                                                         write-args))
-                       (stack '(__stack__ (list (lambda () (return))))))
+                       (stack-bind '(__stack__ (list (lambda () (return)))))
+                       (decl '(declare (ignorable __stack__))))
                    (cond (included-p
                           (with-gensyms (time-offset-var)
                             (rego-local-tempo vars time parent-time time-offset
                                               time-offset-var tempo-env
                                               parent-tempo-env)))
-                         ((car vars) (list (cons stack vars)))
+                         ((car vars) (list (cons stack-bind vars) decl))
                          ;; No local bindings.
-                         (t `((,stack) ,@(cdr vars)))))
+                         (t `((,stack-bind) ,decl ,@(cdr vars)))))
                  (score-lines->sexp score at-fname write-args)
                  (cond (included-p
                         ;; End of the included regofile.

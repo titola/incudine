@@ -229,6 +229,11 @@
    (4.22 REGO-TEST-3 4674 0.3 0.13)
    (4.27 REGO-TEST-3 4788 0.3 0.13)))
 
+(regofile->list-test regofile->list.16 "include-4.rego"
+  ((0.0 REGO-TEST-1 110 0.5)
+   (2.0 REGO-TEST-1 220 0.12)
+   (5.0 REGO-TEST-1 440 0.25)))
+
 (with-dsp-test (rego.1 :channels 2
       :md5 #(245 220 65 244 25 76 31 230 109 144 248 153 16 170 160 134))
   (test-regofile "t1.rego"))
