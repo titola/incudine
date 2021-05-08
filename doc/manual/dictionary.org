@@ -1674,6 +1674,38 @@ For example, we can create and edit a rego file in Emacs SES
 (Simple Emacs Spreadsheet) mode.
 
 #+texinfo: @noindent
+The score statement ~:score-float-format:~ sets the variable
+~*read-default-float-format*~ to read the rest of the score lines.
+The name is surrounded by colons, so it is also a valid keyword
+for properties in Org markup language.
+
+#+texinfo: @noindent
+~:score-float-format:~ defaults to ~double-float~ (the sample type).
+
+#+texinfo: @noindent
+Example:
+
+#+texinfo: @exampleindent 4
+#+begin_example
+0 print (list 1.0 1.2345 1.125s3 123.456d0 1f-3 1d-3 1e-3 1.234l0)
+;; => (1.0d0 1.2345d0 1125.0 123.456d0 0.001 0.001d0 0.001d0 1.234d0)
+
+:score-float-format: single-float
+0 print (list 1.0 1.2345 1.125s3 123.456d0 1f-3 1d-3 1e-3 1.234l0)
+;; => (1.0 1.2345 1125.0 123.456d0 0.001 0.001d0 0.001 1.234d0)
+
+,** double-float again
+   :PROPERTIES:
+   :score-float-format: double-float
+   :END:
+
+0 print (list 1.0 1.2345 1.125s3 123.456d0 1f-3 1d-3 1e-3 1.234l0)
+;; => (1.0d0 1.2345d0 1125.0 123.456d0 0.001 0.001d0 0.001d0 1.234d0)
+
+0 force-output
+#+end_example
+
+#+texinfo: @noindent
 The score statement ~call~ pushes the return position on the stack
 and transfers program control to the point labeled by a tag.
 The score statement ~return~ transfers control to the return position

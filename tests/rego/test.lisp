@@ -234,6 +234,21 @@
    (2.0 REGO-TEST-1 220 0.12)
    (5.0 REGO-TEST-1 440 0.25)))
 
+(regofile->list-test score-float-format.1 "float-format.rego"
+  ((0.0d0 FLOAT-TEST 1.0d0 1.2345d0)
+   (0.0d0 FLOAT-TEST 0.001125 123.456d0)
+   (0.0d0 FLOAT-TEST 0.001 0.001d0)
+   (0.0d0 FLOAT-TEST 0.001d0 1.234d0)
+   (1.0d0 FLOAT-TEST 1.0 1.2345)
+   (1.0d0 FLOAT-TEST 0.001125 123.456d0)
+   (1.0d0 FLOAT-TEST 0.001 0.001d0)
+   (1.0d0 FLOAT-TEST 0.001 1.234d0)
+   (2.0d0 FLOAT-TEST 1.0d0 1.2345d0)
+   (2.0d0 FLOAT-TEST 0.001125 123.456d0)
+   (2.0d0 FLOAT-TEST 0.001 0.001d0)
+   (2.0d0 FLOAT-TEST 0.001d0 1.234d0))
+  nil)
+
 (with-dsp-test (rego.1 :channels 2
       :md5 #(245 220 65 244 25 76 31 230 109 144 248 153 16 170 160 134))
   (test-regofile "t1.rego"))

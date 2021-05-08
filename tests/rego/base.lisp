@@ -18,18 +18,23 @@
                                    (or *compile-file-pathname*
                                        *load-pathname*)))))))
 
-(defmacro regofile->list-test (name path list)
-  `(deftest ,name
-       (mapcar (lambda (l)
-                 (mapcar (lambda (x)
-                           (if (typep x 'float) (two-decimals x) x))
-                         l))
-               (let ((*package* (find-package "INCUDINE-TESTS")))
-                 (regofile->list
-                   (merge-pathnames ,path #.(load-time-value
-                                             (or *compile-file-pathname*
-                                                 *load-pathname*))))))
-     ,list))
+(defmacro regofile->list-test (name path list
+                               &optional (reduce-float-precision-p t))
+  (with-gensyms (lst)
+    `(deftest ,name
+         (let ((,lst (let ((*package* (find-package "INCUDINE-TESTS")))
+                       (regofile->list
+                        (merge-pathnames ,path #.(load-time-value
+                                                  (or *compile-file-pathname*
+                                                      *load-pathname*)))))))
+           ,(if reduce-float-precision-p
+                `(mapcar (lambda (l)
+                           (mapcar (lambda (x)
+                                     (if (typep x 'float) (two-decimals x) x))
+                                   l))
+                         ,lst)
+                lst))
+       ,list)))
 
 (defscore-statement i1 (time dur freq amp)
   (list time 'rego-test-3 freq amp `(dur ,dur)))

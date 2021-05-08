@@ -29,6 +29,10 @@
            *include-rego-stack*)
          (type list *include-rego-stack*))
 
+(defvar *score-float-format* incudine.config:*sample-type*)
+(declaim (type (member single-float double-float short-float long-float rational)
+               *score-float-format*))
+
 (defvar *score-statements* (make-hash-table :test #'equal))
 (declaim (type hash-table *score-statements*))
 
@@ -247,11 +251,14 @@ or IGNORE-SCORE-STATEMENTS."
               (null (find name *features* :key #'symbol-name
                           :test #'string=))))))
 
-(declaim (inline ignore-score-statement-with-colon-p))
 (defun ignore-score-statement-with-colon-p (name)
   (declare (type string name))
   ;; A keyword is not ignored because it could be a label.
-  (find #\: name :start 1))
+  (and (find #\: name :start 1)
+       (not (score-property-statement-p name))))
+
+(defun score-property-statement-p (name)
+  (string= name ":SCORE-FLOAT-FORMAT:"))
 
 (declaim (inline org-table-line-p))
 (defun org-table-line-p (string)
@@ -407,6 +414,19 @@ or IGNORE-SCORE-STATEMENTS."
   (let ((pos (string<= "return" line)))
     (and pos (= 6 pos) (= 6 (length (string-trim-blank line))))))
 
+;;; The score statement `:score-float-format:' sets the variable
+;;; *READ-DEFAULT-FLOAT-FORMAT* to read the rest of the score lines.
+;;; The default is double-float (the sample type).
+;;; Note: the name is surrounded by colons, so it is also a valid
+;;; keyword for properties in Org markup language.
+(defun score-float-format-statement-p (line)
+  (%score-statement-p
+    line ":score-float-format:" #.(length ":score-float-format: x")))
+
+(defun set-score-float-format (line)
+  (setf *score-float-format*
+        (read-from-string (subseq line (next-blank-position line)))))
+
 ;;; If we use the symbol // to separate the functions with the same
 ;;; time-tag, we get a polyphonic vertical sequencer in text files.
 ;;; A quoted function name is ignored; useful to mute an instrument.
@@ -466,9 +486,11 @@ or IGNORE-SCORE-STATEMENTS."
                             `(,at-fname ,@(cdr args) t ,time)))))))
       (let ((line (or (expand-score-statement line) (org-table-filter line)))
             (*readtable* *score-readtable*)
-            (*read-default-float-format* incudine.config:*sample-type*))
+            (*read-default-float-format* *score-float-format*))
         (declare (type string line))
-        (cond ((score-return-statement-p line)
+        (cond ((score-float-format-statement-p line)
+               (set-score-float-format line))
+              ((score-return-statement-p line)
                '(funcall (pop __stack__)))
               ((time-tagged-function-p line)
                (score-expand-parallel-functions
@@ -760,7 +782,8 @@ or IGNORE-SCORE-STATEMENTS."
   (with-ensure-symbols (time dur tempo tempo-env)
     (let ((%sched (ensure-complex-gensym "AT"))
           (sched (ensure-complex-gensym "AT"))
-          (*include-rego-stack* nil))
+          (*include-rego-stack* nil)
+          (*score-float-format* '#.incudine.config:*sample-type*))
       (with-complex-gensyms (smptime0 smptime1 smptime beats last-time
                              last-dur max-time c-array-wrap)
         (prog1
@@ -850,7 +873,8 @@ event list at runtime when the function is called."
 (defun %stream->regolist (stream)
   (let ((%sched (ensure-complex-gensym "AT"))
         (sched (ensure-complex-gensym "AT"))
-        (incudine::*include-rego-stack* nil))
+        (incudine::*include-rego-stack* nil)
+        (*score-float-format* '#.incudine.config:*sample-type*))
     (with-ensure-symbols (time dur tempo tempo-env)
       (with-gensyms (c-array-wrap smptime0 smptime1 smptime beats last-time
                      last-dur max-time flist)
