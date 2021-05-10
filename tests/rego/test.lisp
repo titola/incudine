@@ -234,6 +234,9 @@
    (2.0 REGO-TEST-1 220 0.12)
    (5.0 REGO-TEST-1 440 0.25)))
 
+(regofile->list-test score-statement-names.1 "test-name.rego"
+  ((0.0 INSTR-3 T) (0.0 INSTR-2 T) (0.0 INSTR-1 T)))
+
 (regofile->list-test score-float-format.1 "float-format.rego"
   ((0.0d0 FLOAT-TEST 1.0d0 1.2345d0)
    (0.0d0 FLOAT-TEST 0.001125 123.456d0)

@@ -38,3 +38,7 @@
 
 (defscore-statement i1 (time dur freq amp)
   (list time 'rego-test-3 freq amp `(dur ,dur)))
+
+(defscore-statement "InstrName1" (x) (list 0 'instr-1 x))
+(defscore-statement |InstrName2| (x) (list 0 'instr-2 x))
+(defscore-statement instrname3 (x) (list 0 'instr-3 x))

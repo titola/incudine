@@ -57,14 +57,28 @@
     *readtable*)
   "Readtable to read a rego file.")
 
+(defun normalize-score-statement-name (name)
+  (if (stringp name)
+      (if (or (and (char= #\# (char name 0))
+                   (char= #\+ (char name 1)))
+              (char= #\: (char name 0) (char name (1- (length name)))))
+          ;; Org syntax.
+          (string-upcase name)
+          name)
+      (let ((name (symbol-name name)))
+        (if (every (lambda (c)
+                     (or (not (alpha-char-p c))
+                         (upper-case-p c)))
+                   name)
+            (string-downcase name)
+            name))))
+
 (defun ignore-score-statements (name-list)
   "Ignore the score statements in NAME-LIST. The name of a statement is
 a symbol, a string or a list of two score statements which delimit a
 score block to ignore."
   (flet ((string-or-symbol-p (x)
-           (or (stringp x) (symbolp x)))
-         (statement-name (x)
-           (if (stringp x) x (symbol-name x))))
+           (or (stringp x) (symbolp x))))
     (assert (every (lambda (x)
                      (or (string-or-symbol-p x)
                          (and (consp x)
@@ -75,7 +89,7 @@ score block to ignore."
     (dolist (i name-list name-list)
       (let ((name (typecase i
                     (symbol (symbol-name i))
-                    (cons (statement-name (car i)))
+                    (cons (normalize-score-statement-name (car i)))
                     (otherwise i))))
         (setf (gethash name *score-statements*)
               (if (consp i)
@@ -84,7 +98,10 @@ score block to ignore."
 
 (defun score-statement-to-ignore-p (name)
   (declare (type string name))
-  (let ((res (gethash name *score-statements*)))
+  (let ((res (gethash (if (string-lessp "#+BEGIN_" name)
+                          (string-upcase name)
+                          name)
+                      *score-statements*)))
     (unless (null res)
       (if (consp res)
           (values (eq (car res) :ignore) (cdr res))
@@ -113,6 +130,8 @@ score block to ignore."
 elements of the returned list.
 
 The name of the score statement is a symbol or a string.
+The symbol SomeName is equivalent to the string \"somename\".
+The symbol |SomeName| is equivalent to the string \"SomeName\".
 
 Example:
 
@@ -129,8 +148,7 @@ will be expanded in a time tagged lisp function
   (multiple-value-bind (decl rest)
       (incudine.util::separate-declaration body)
     `(progn
-       (setf (gethash ,(if (stringp name) name `(symbol-name ',name))
-                      *score-statements*)
+       (setf (gethash ,(normalize-score-statement-name name) *score-statements*)
              (lambda ,args ,@decl
                (let* ((*print-pretty* nil)
                       (str (format nil "~S" (progn ,@rest)))
@@ -143,17 +161,15 @@ will be expanded in a time tagged lisp function
 (defun delete-score-statement (name)
   "Delete the score statement defined by DEFSCORE-STATEMENT
 or IGNORE-SCORE-STATEMENTS."
-  (remhash (if (stringp name) name (symbol-name name)) *score-statements*))
+  (remhash (normalize-score-statement-name name) *score-statements*))
 
 (declaim (inline next-blank-position))
 (defun next-blank-position (string)
   (position-if #'blank-char-p string))
 
-(declaim (inline score-statement-name))
 (defun score-statement-name (str)
   (let ((name-endpos (next-blank-position str)))
-    (values (string-upcase (subseq str 0 name-endpos))
-            name-endpos)))
+    (values (subseq str 0 name-endpos) name-endpos)))
 
 (declaim (inline score-statement-args))
 (defun score-statement-args (str name-endpos)
@@ -183,7 +199,8 @@ or IGNORE-SCORE-STATEMENTS."
             (expand-score-statement
               (skip-org-table-char
                 (score-statement-args-string str name-endpos))))
-          (let ((fn (gethash name *score-statements*)))
+          (let ((fn (gethash (normalize-score-statement-name name)
+                             *score-statements*)))
             (declare (type (or function symbol cons) fn))
             (when (functionp fn)
               (apply fn (when name-endpos
@@ -247,7 +264,7 @@ or IGNORE-SCORE-STATEMENTS."
        (char/= (char line 2) #\()
        (let ((name (string-upcase
                      (subseq line 2 (next-blank-position line)))))
-         (and (null (gethash name  *score-statements*))
+         (and (null (gethash name *score-statements*))
               (null (find name *features* :key #'symbol-name
                           :test #'string=))))))
 
@@ -255,10 +272,11 @@ or IGNORE-SCORE-STATEMENTS."
   (declare (type string name))
   ;; A keyword is not ignored because it could be a label.
   (and (find #\: name :start 1)
-       (not (score-property-statement-p name))))
+       (not (or (gethash (string-upcase name) *score-statements*)
+                (score-property-statement-p name)))))
 
 (defun score-property-statement-p (name)
-  (string= name ":SCORE-FLOAT-FORMAT:"))
+  (string-equal name ":score-float-format:"))
 
 (declaim (inline org-table-line-p))
 (defun org-table-line-p (string)
@@ -294,8 +312,9 @@ or IGNORE-SCORE-STATEMENTS."
         (when ignore-p
           (when block-end
             (do ((line (read-line stream) (read-line stream)))
-                ((string= (score-statement-name (string-trim-blank line))
-                          block-end))))
+                ((string-equal
+                   (score-statement-name (string-trim-blank line))
+                   block-end))))
           t))
       (ignore-score-statement-with-colon-p name)))
 
@@ -488,9 +507,7 @@ or IGNORE-SCORE-STATEMENTS."
             (*readtable* *score-readtable*)
             (*read-default-float-format* *score-float-format*))
         (declare (type string line))
-        (cond ((score-float-format-statement-p line)
-               (set-score-float-format line))
-              ((score-return-statement-p line)
+        (cond ((score-return-statement-p line)
                '(funcall (pop __stack__)))
               ((time-tagged-function-p line)
                (score-expand-parallel-functions
@@ -501,14 +518,26 @@ or IGNORE-SCORE-STATEMENTS."
                ;; Tag or lisp statement.
                (read-from-string (string-left-trim '(#\Space #\Tab #\Return) line)))))))
 
+(defun read-time-score-statement-p (line)
+  (or (score-call-statement-p line)
+      (and (char= #\: (char line 0))
+           (score-float-format-statement-p line))))
+
+(defun expand-read-time-score-statement (line)
+  (cond ((score-call-statement-p line)
+         (expand-score-call-statement line))
+        ((score-float-format-statement-p line)
+         (set-score-float-format line)
+         nil)))
+
 (defun score-lines->sexp (stream at-fname args)
   (declare (type stream stream) (type list args))
   (loop for line of-type (or string null)
                  = (read-score-line stream)
         until (end-of-score-p line)
         unless (score-skip-line-p line stream)
-        if (score-call-statement-p line)
-          append (expand-score-call-statement line)
+        if (read-time-score-statement-p line)
+          append (expand-read-time-score-statement line)
         else collect (score-line->sexp
                        line at-fname (and (include-regofile-p line) args))))
 
@@ -532,8 +561,8 @@ or IGNORE-SCORE-STATEMENTS."
                       ;; Local bindings at the beginning of the score
                       (read-from-string (format-bindings line)))
                      (t ;; There aren't local bindings
-                      (if (score-call-statement-p line)
-                          (cons nil (expand-score-call-statement line))
+                      (if (read-time-score-statement-p line)
+                          (cons nil (expand-read-time-score-statement line))
                           (list nil (score-line->sexp line at args))))))))
     (first-score-stmt (read-score-line stream))))
 
