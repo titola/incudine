@@ -143,7 +143,7 @@ will be expanded in a time tagged lisp function
 (defun delete-score-statement (name)
   "Delete the score statement defined by DEFSCORE-STATEMENT
 or IGNORE-SCORE-STATEMENTS."
-  (remhash (symbol-name name) *score-statements*))
+  (remhash (if (stringp name) name (symbol-name name)) *score-statements*))
 
 (declaim (inline next-blank-position))
 (defun next-blank-position (string)
