@@ -234,6 +234,28 @@
    (2.0 REGO-TEST-1 220 0.12)
    (5.0 REGO-TEST-1 440 0.25)))
 
+(regofile->list-test org-properties.1 "org-properties-1.rego"
+  ((3.06 REGO-TEST-2 440 0.3 0.5)
+   (3.86 REGO-TEST-2 880 0.3 0.5)
+   (4.29 SET-CONTROL 1 :FREQ 200)
+   (4.29 SET-CONTROL 2 :FREQ 208)
+   (5.51 SET-CONTROLS 1 :FREQ 300 :AMP 0.1 :POS 0.1)
+   (5.51 SET-CONTROLS 2 :FREQ 312 :AMP 0.1 :POS 0.9)
+   (6.55 SET-CONTROL 1 :FREQ 220)
+   (6.55 SET-CONTROL 2 :FREQ 231)
+   (7.96 FREE 0)))
+
+(regofile->list-test org-properties.2 "org-properties-2.rego"
+  ((0.0 REGO-TEST-2 440 0.3 0.5)
+   (1.16 REGO-TEST-2 880 0.3 0.5)
+   (1.69 SET-CONTROL 1 :FREQ 200)
+   (1.69 SET-CONTROL 2 :FREQ 208)
+   (2.89 SET-CONTROLS 1 :FREQ 300 :AMP 0.1 :POS 0.1)
+   (2.89 SET-CONTROLS 2 :FREQ 312 :AMP 0.1 :POS 0.9)
+   (3.74 SET-CONTROL 1 :FREQ 220)
+   (3.74 SET-CONTROL 2 :FREQ 231)
+   (4.89 FREE 0)))
+
 (regofile->list-test score-statement-names.1 "test-name.rego"
   ((0.0 INSTR-3 T) (0.0 INSTR-2 T) (0.0 INSTR-1 T)))
 

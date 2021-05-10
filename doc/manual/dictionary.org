@@ -1583,6 +1583,22 @@ TEMPO-ENV     temporal envelope of the events
 #+end_example
 
 #+texinfo: @noindent
+The score statement ~:score-time:~ sets the variable ~time~.
+The name is surrounded by colons, so it is also a valid property
+in Org markup language. For example:
+
+#+texinfo: @exampleindent 4
+#+begin_example
+:PROPERTIES:
+:score-time: 8
+:END:
+#+end_example
+
+is equivalent to
+
+:    (setf time 8)
+
+#+texinfo: @noindent
 It is possible to define other local variables by inserting
 the bindings after ~with~, at the beginning of the score.
 For example:
@@ -1603,6 +1619,9 @@ last       free 0
 We can also add a ~declare~ expression after the bindings.
 
 #+texinfo: @noindent
+The score statement ~:score-bindings:~ is an alias of ~with~.
+
+#+texinfo: @noindent
 ~dur~ is a local function to convert the duration from
 beats to seconds with respect to ~tempo-env~.
 
@@ -1615,6 +1634,16 @@ The syntax is
 (tempo bpm)
 (tempo bpms beats &key curve loop-node release-node
                        restart-level real-time-p)
+#+end_example
+
+#+texinfo: @noindent
+The score statement ~:score-tempo:~ is an alternative to the local
+macro ~tempo~:
+
+#+texinfo: @exampleindent 4
+#+begin_example
+:score-tempo: bpm
+:score-tempo: bpms beats &key curve [...]
 #+end_example
 
 #+texinfo: @noindent
@@ -1676,8 +1705,6 @@ For example, we can create and edit a rego file in Emacs SES
 #+texinfo: @noindent
 The score statement ~:score-float-format:~ sets the variable
 ~*read-default-float-format*~ to read the rest of the score lines.
-The name is surrounded by colons, so it is also a valid keyword
-for properties in Org markup language.
 
 #+texinfo: @noindent
 ~:score-float-format:~ defaults to ~double-float~ (the sample type).

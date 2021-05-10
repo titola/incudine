@@ -148,7 +148,7 @@ will be expanded in a time tagged lisp function
   (multiple-value-bind (decl rest)
       (incudine.util::separate-declaration body)
     `(progn
-       (setf (gethash ,(normalize-score-statement-name name) *score-statements*)
+       (setf (gethash (normalize-score-statement-name ',name) *score-statements*)
              (lambda ,args ,@decl
                (let* ((*print-pretty* nil)
                       (str (format nil "~S" (progn ,@rest)))
@@ -162,6 +162,31 @@ will be expanded in a time tagged lisp function
   "Delete the score statement defined by DEFSCORE-STATEMENT
 or IGNORE-SCORE-STATEMENTS."
   (remhash (normalize-score-statement-name name) *score-statements*))
+
+;;; The score statement `:score-tempo:' is an alternative to the local
+;;; macro TEMPO:
+;;;
+;;;     :score-tempo: bpm
+;;;     :score-tempo: bpms beats &key curve loop-node [...]
+;;;
+;;; Note: the name is surrounded by colons, so it is also a valid
+;;; property in Org markup language.
+(defscore-statement ":score-tempo:" (&rest args)
+  `((,(find-symbol "TEMPO") ,@args)))
+
+;;; The score statement `:score-time:' sets the time offset in beats.
+;;; For example:
+;;;
+;;;     :PROPERTIES:
+;;;     :score-time: 8
+;;;     :END:
+;;;
+;;; is equivalent to
+;;;
+;;;     (setf time 8)
+;;;
+(defscore-statement ":score-time:" (value)
+  `((setf time ,value)))
 
 (declaim (inline next-blank-position))
 (defun next-blank-position (string)
@@ -268,10 +293,12 @@ or IGNORE-SCORE-STATEMENTS."
               (null (find name *features* :key #'symbol-name
                           :test #'string=))))))
 
-(defun ignore-score-statement-with-colon-p (name)
+(defun ignore-score-statement-with-colon-p (name &optional (ignore-bindings-p t))
   (declare (type string name))
   ;; A keyword is not ignored because it could be a label.
   (and (find #\: name :start 1)
+       (or ignore-bindings-p
+           (string-not-equal name ":score-bindings:"))
        (not (or (gethash (string-upcase name) *score-statements*)
                 (score-property-statement-p name)))))
 
@@ -305,7 +332,7 @@ or IGNORE-SCORE-STATEMENTS."
             line))
       line))
 
-(defun ignore-score-statement (name stream)
+(defun ignore-score-statement (name stream &optional (ignore-bindings-p t))
   (declare (type string name) (type stream stream))
   (or (multiple-value-bind (ignore-p block-end)
           (score-statement-to-ignore-p name)
@@ -316,16 +343,17 @@ or IGNORE-SCORE-STATEMENTS."
                    (score-statement-name (string-trim-blank line))
                    block-end))))
           t))
-      (ignore-score-statement-with-colon-p name)))
+      (ignore-score-statement-with-colon-p name ignore-bindings-p)))
 
-(defun score-skip-line-p (line stream)
+(defun score-skip-line-p (line stream &optional (ignore-bindings-p t))
   (declare (type string line) (type stream stream))
   (let ((str (string-trim-blank line)))
     (or (zerop (length str))
         (let ((c (char str 0)))
           (and (char/= c #\()
                (or (char= c #\;)
-                   (ignore-score-statement (score-statement-name str) stream)
+                   (ignore-score-statement (score-statement-name str) stream
+                                           ignore-bindings-p)
                    (org-table-line-to-skip-p str)
                    (sharp-plus-to-skip str)))))))
 
@@ -334,9 +362,9 @@ or IGNORE-SCORE-STATEMENTS."
 
 (define-constant +include-strlen+ (length "include"))
 
-(defun %score-statement-p (line name min-length)
+(defun %score-statement-p (line name min-length &optional (string-test #'string<))
   (and (>= (length line) min-length)
-       (let ((pos (string< name line)))
+       (let ((pos (funcall string-test name line)))
          (and pos (= pos (length name))))))
 
 ;;; Score statement used to include the content of another rego file:
@@ -436,8 +464,6 @@ or IGNORE-SCORE-STATEMENTS."
 ;;; The score statement `:score-float-format:' sets the variable
 ;;; *READ-DEFAULT-FLOAT-FORMAT* to read the rest of the score lines.
 ;;; The default is double-float (the sample type).
-;;; Note: the name is surrounded by colons, so it is also a valid
-;;; keyword for properties in Org markup language.
 (defun score-float-format-statement-p (line)
   (%score-statement-p
     line ":score-float-format:" #.(length ":score-float-format: x")))
@@ -549,13 +575,19 @@ or IGNORE-SCORE-STATEMENTS."
 (defun find-score-local-bindings (stream at args)
   (declare (type stream stream) (type symbol at))
   (labels ((score-bindings-p (line)
-             (string-equal (subseq line 0 (min 5 (length line))) "with "))
+             (or (%score-statement-p
+                   line "with" #.(length "with ()") #'string-lessp)
+                 ;; The score statement `:score-bindings:' is an alias of WITH.
+                 (%score-statement-p
+                   line ":score-bindings:" #.(length ":score-bindings: ()")
+                   #'string-lessp)))
            (format-bindings (line)
-             (concatenate 'string "(" (subseq line 5) ")"))
+             (concatenate 'string
+               "(" (subseq line (if (char= #\: (char line 0)) 17 5)) ")"))
            (first-score-stmt (line)
              (declare (type (or string null) line))
              (when line
-               (cond ((score-skip-line-p line stream)
+               (cond ((score-skip-line-p line stream nil)
                       (first-score-stmt (read-score-line stream)))
                      ((score-bindings-p line)
                       ;; Local bindings at the beginning of the score
