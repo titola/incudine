@@ -288,7 +288,8 @@ The number of channels is CHANNELS or the number of channels of the
 sound file if CHANNELS is NIL (default).
 
 If HEADERLESS-P is T, load a headerless file with sample type DATA-FORMAT
-(defaults to \"double\")
+(defaults to \"double\"). See BOUNCE-TO-DISK for the list of available
+data formats.
 
 SAMPLE-RATE is *SAMPLE-RATE* by default."
   (declare (type (or string pathname) path) (type fixnum channel)
@@ -356,7 +357,10 @@ If TEXTFILE-P is T, save the buffer data to a text file.
 
 HEADER-TYPE defaults to *DEFAULT-HEADER-TYPE*.
 
-DATA-FORMAT defaults to *DEFAULT-DATA-FORMAT*."
+DATA-FORMAT defaults to *DEFAULT-DATA-FORMAT*.
+
+See BOUNCE-TO-DISK for the list of available header types and data
+formats."
   (declare (type buffer buf) (type (or string pathname) path)
            (type non-negative-real start end)
            (type (or positive-real null) sample-rate))
@@ -718,8 +722,9 @@ the buffer.
 If OBJ is of type string or pathname, load that file. If the file is
 a sound file, load OBJ starting from SNDFILE-START sample frame
 (defaults to 0). If HEADERLESS-P is T, load a headerless file with
-sample type DATA-FORMAT (defaults to \"double\").  If OBJ corresponds
-to a text file that contains numbers, fill the buffer with that values.
+sample type DATA-FORMAT (defaults to \"double\"). See BOUNCE-TO-DISK for
+the list of available data formats. If OBJ corresponds to a text file
+that contains numbers, fill the buffer with that values.
 There is not the parsing of the numbers, a text file is valid if it
 contains numbers separated with spaces, tabs or newlines. It is
 possible to use line comments that begin with the ';' character.

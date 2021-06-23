@@ -348,7 +348,8 @@ during the output operations on the stream, the writing continues in mix mode).
 
 SAMPLE-RATE, CHANNELS, HEADER-TYPE and DATA-FORMAT determine the header of
 the new sound file and default to *SAMPLE-RATE*, 1, *DEFAULT-HEADER-TYPE*
-and *DEFAULT-DATA-FORMAT*, respectively.
+and *DEFAULT-DATA-FORMAT*, respectively. See INCUDINE:BOUNCE-TO-DISK for the
+list of available header types and data formats.
 
 BUFFER-SIZE is the size of the internal stream buffer and defaults to
 *SNDFILE-BUFFER-SIZE*."
@@ -869,7 +870,10 @@ and DATA-FORMAT. The resultant sound file OUTFILE is overwritten if it
 already exists.
 
 The sample data is possibly normalized to NORMALIZE dB or SCALE-TO [0.0,1.0],
-or scaled by SCALE-BY."
+or scaled by SCALE-BY.
+
+See INCUDINE:BOUNCE-TO-DISK for the list of available header types and data
+formats."
   (flet ((r-maxamp (in)
            (incudine-optimize (/ (the double-float (maxamp in))))))
     (let ((mult (or (and scale-by (coerce scale-by 'double-float))
@@ -919,7 +923,8 @@ or scaled by SCALE-BY."
 The input files must have the same sampling rate and number of channels.
 
 OUTPUT-FILE is written with HEADER-TYPE and DATA-FORMAT that default to
-*DEFAULT-HEADER-TYPE* and *DEFAULT-DATA-FORMAT*.
+*DEFAULT-HEADER-TYPE* and *DEFAULT-DATA-FORMAT*. See INCUDINE:BOUNCE-TO-DISK
+for the list of available header types and data formats.
 
 IF-EXISTS is :ERROR by default. See SOUNDFILE:OPEN for details.
 
@@ -948,7 +953,8 @@ BUFFER-SIZE is the size of the internal stream buffer."
 The input files must have the same sampling rate and number of channels.
 
 OUTPUT-FILE is written with HEADER-TYPE and DATA-FORMAT that default to
-*DEFAULT-HEADER-TYPE* and *DEFAULT-DATA-FORMAT*.
+*DEFAULT-HEADER-TYPE* and *DEFAULT-DATA-FORMAT*. See INCUDINE:BOUNCE-TO-DISK
+for the list of available header types and data formats.
 
 IF-EXISTS is :ERROR by default. See SOUNDFILE:OPEN for details.
 
