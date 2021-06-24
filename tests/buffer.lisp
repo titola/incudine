@@ -49,6 +49,21 @@
         (free buf)))
   (-3 -2 -1 0 1 2 3 4))
 
+(deftest buffer-load.4
+    (let ((buf (buffer-load *data-raw-file*
+                 :headerless-p t :channels 2 :data-location 8)))
+      (prog1 (mapcar #'floor (butlast (buffer->list buf)))
+        (free buf)))
+  (8 7 6 5 4 3 2 1 0))
+
+(deftest buffer-load.5
+    (let ((buf (buffer-load *data-raw-file*
+                 :offset 80 :data-location 4 :headerless-p t
+                 :data-format "pcm-s8")))
+      (prog1 (mapcar (lambda (x) (round (* x 10))) (buffer->list buf))
+        (free buf)))
+  (1 2 3 4))
+
 (deftest buffer->array.1
     (with-buffer (buf 8 :initial-contents '(1 2 3 4 5 6 7 8))
       (coerce (buffer->array buf) 'list))
@@ -130,6 +145,21 @@
   (-3 -2 -1 0 1 2 3 4))
 
 (deftest fill-buffer.10
+    (with-buffer (buf 3 :channels 2)
+      (mapcar #'floor
+              (buffer->list (fill-buffer buf *data-raw-file*
+                              :headerless-p t :data-location 24))))
+  (6 5 4 3 2 1))
+
+(deftest fill-buffer.11
+    (with-buffer (buf 5)
+      (fill-buffer buf *data-raw-file*
+        :sndfile-start 80 :data-location 3 :headerless-p t
+        :data-format "pcm-s8")
+      (mapcar (lambda (x) (round (* x 10))) (buffer->list buf)))
+  (0 1 2 3 4))
+
+(deftest fill-buffer.12
     (with-buffer (buf 128)
       (do* ((i 0 (+ i 16))
             (j 1.0 (* j .5))

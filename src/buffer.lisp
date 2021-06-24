@@ -268,7 +268,7 @@ Return the number of bits for the arithmetic shift operation."
            ,@body))))
 
 (defun buffer-load (path &key (offset 0) frames (channel -1) channels
-                    sample-rate headerless-p data-format)
+                    sample-rate headerless-p data-format (data-location 0))
   "Create a new buffer by loading the file PATH (string or pathname).
 
 If PATH represents a sound file, load that file starting from OFFSET
@@ -287,9 +287,9 @@ of the sound file, otherwise import all the channels (default).
 The number of channels is CHANNELS or the number of channels of the
 sound file if CHANNELS is NIL (default).
 
-If HEADERLESS-P is T, load a headerless file with sample type DATA-FORMAT
-(defaults to \"double\"). See BOUNCE-TO-DISK for the list of available
-data formats.
+If HEADERLESS-P is T, load a headerless file with DATA-LOCATION in bytes
+(defaults to 0) and sample type DATA-FORMAT (defaults to \"double\").
+See BOUNCE-TO-DISK for the list of available data formats.
 
 SAMPLE-RATE is *SAMPLE-RATE* by default."
   (declare (type (or string pathname) path) (type fixnum channel)
@@ -302,12 +302,17 @@ SAMPLE-RATE is *SAMPLE-RATE* by default."
                          :format-control "file ~S not found"
                          :format-arguments (list path)))))
     (declare (type non-negative-fixnum offset)
-             (type (or non-negative-fixnum null) frames))
+             (type (or non-negative-fixnum null) frames)
+             (type (unsigned-byte 64) data-location))
     (with-open-sndfile (sf path offset frames channels sample-rate
                         headerless-p data-format)
       (let* ((info (sf:info sf))
              (channels (sf:channels info))
-             (%frames (- (sf:frames info) offset))
+             (%frames (- (sf:frames info)
+                         offset
+                         (if (and headerless-p (> data-location 0))
+                             (floor data-location (sf::frame-size sf))
+                             0)))
              (frames (if frames (min (floor frames) %frames) %frames)))
         (declare (type non-negative-fixnum channels)
                  (type fixnum %frames frames))
@@ -315,7 +320,9 @@ SAMPLE-RATE is *SAMPLE-RATE* by default."
           (let ((buffer (make-buffer frames
                           :channels (if (minusp channel) channels 1))))
             (declare (type buffer buffer) #.*standard-optimize-settings*)
-            (sf:seek sf offset 0)
+            (when (and headerless-p (> data-location 0))
+              (sf:set-raw-start-offset sf data-location))
+            (sf:seek sf offset SF:SEEK-SET)
             (if (minusp channel)
                 ;; All channels
                 (sndfile-to-buffer (buffer-data buffer) sf
@@ -655,10 +662,12 @@ content of the buffer."
         (rec 0 channel-map)))))
 
 (defun set-buffer-from-sndfile (buffer path start buffer-start buffer-end
-                                &optional channel-map headerless-p data-format)
+                                &optional channel-map headerless-p data-format
+                                (data-location 0))
   (declare (type buffer buffer) (type (or string pathname) path)
            (type non-negative-fixnum start buffer-start buffer-end)
-           (type list channel-map))
+           (type list channel-map)
+           (type (unsigned-byte 64) data-location))
   (sf:with-open (sf (or (incudine.util::probe-file* path)
                         (error 'incudine-file-error
                                :pathname path
@@ -676,13 +685,20 @@ content of the buffer."
         (set-buffer-from-textfile buffer path start buffer-start buffer-end)
         (let* ((info (sf:info sf))
                (channels (sf:channels info))
-               (selected-frames (min (- buffer-end buffer-start)
-                                     (- (sf:frames info) start))))
+               (selected-frames
+                 (min (- buffer-end buffer-start)
+                      (- (sf:frames info)
+                         start
+                         (if (and headerless-p (> data-location 0))
+                             (floor data-location (sf::frame-size sf))
+                             0)))))
           (declare (type non-negative-fixnum channels)
                    (type fixnum selected-frames))
           (when (plusp selected-frames)
             (incudine-optimize
-              (sf:seek sf start 0)
+              (when (and headerless-p (> data-location 0))
+                (sf:set-raw-start-offset sf data-location))
+              (sf:seek sf start SF:SEEK-SET)
               (cond (channel-map
                      (let ((channel-map-size (length channel-map)))
                        (when (check-channel-map channel-map channel-map-size
@@ -711,7 +727,7 @@ content of the buffer."
 
 (defun fill-buffer (buffer obj &key (start 0) end (sndfile-start 0)
                     channel-map (normalize-p nil normalize-pp)
-                    headerless-p data-format)
+                    headerless-p data-format (data-location 0))
   "If OBJ is a function, fill the buffer to contain the results of
 applying OBJ. The function arguments are the foreign pointer to the
 buffer data and the buffer size (i.e. GEN routines are valid functions).
@@ -722,9 +738,10 @@ the buffer.
 If OBJ is of type string or pathname, load that file. If the file is
 a sound file, load OBJ starting from SNDFILE-START sample frame
 (defaults to 0). If HEADERLESS-P is T, load a headerless file with
-sample type DATA-FORMAT (defaults to \"double\"). See BOUNCE-TO-DISK for
-the list of available data formats. If OBJ corresponds to a text file
-that contains numbers, fill the buffer with that values.
+DATA-LOCATION in bytes (defaults to 0) and sample type DATA-FORMAT
+(defaults to \"double\"). See BOUNCE-TO-DISK for the list of available
+data formats. If OBJ corresponds to a text file that contains numbers,
+fill the buffer with that values.
 There is not the parsing of the numbers, a text file is valid if it
 contains numbers separated with spaces, tabs or newlines. It is
 possible to use line comments that begin with the ';' character.
@@ -741,7 +758,8 @@ a stereo sound file.
 
 If NORMALIZE-P is T, normalize the buffer data between -1 and 1."
   (declare (type buffer buffer) (type boolean normalize-p)
-           (type non-negative-fixnum start sndfile-start))
+           (type non-negative-fixnum start sndfile-start)
+           (type (unsigned-byte 64) data-location))
   (macrolet ((loop-sequence (clause seq)
                 (with-gensyms (i j max scale)
                   `(let ((end (if end (min end size) size)))
@@ -779,7 +797,8 @@ If NORMALIZE-P is T, normalize the buffer data between -1 and 1."
                                         (if end
                                             (min end (buffer-frames buffer))
                                             (buffer-frames buffer))
-                                        channel-map headerless-p data-format))
+                                        channel-map headerless-p data-format
+                                        data-location))
               ((vectorp obj) (loop-sequence across obj))
               ((envelope-p obj)
                (fill-buffer buffer (gen:envelope obj)

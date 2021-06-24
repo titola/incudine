@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2020 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -308,6 +308,24 @@
   (declare (info info))
   (with-slots (frames sample-rate) info
     (coerce (/ frames sample-rate) 'float)))
+
+;;; An alternative frame size calculation requires a file descriptor
+;;; as argument:
+;;;
+;;;     (sf:seek sf 1 SF:SEEK-SET)
+;;;     (sb-posix:lseek fd 0 SB-POSIX:SEEK-CUR)
+;;;
+;;; then close fd or reset position.
+(defun frame-size (sndfile)
+  (let ((frames (sf:frames (sf:info sndfile))))
+    (declare (cl:type non-negative-fixnum frames))
+    (assert (> frames 0))
+    (locally (declare (optimize speed (safety 0)))
+      (values
+        (the fixnum
+          (floor (the (unsigned-byte 64)
+                   (sf:length (sf:get-embed-file-info sndfile)))
+                 frames))))))
 
 (defvar *default-format*
   (get-format (list #-darwin "wav" #+darwin "aiff" "pcm-24")))
