@@ -1,4 +1,4 @@
-;;; Copyright (c) 2018 Tito Latini
+;;; Copyright (c) 2018-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -20,7 +20,8 @@
   (pool-ptr nil :type list))
 
 (defmethod print-object ((obj incudine-object) stream)
-  (format stream "#<INCUDINE-OBJECT ~A>" (type-of obj)))
+  (print-unreadable-object (obj stream :identity t)
+    (format stream "INCUDINE-OBJECT ~A" (type-of obj))))
 
 (defstruct (incudine-object-pool
              (:include cons-pool)
@@ -31,7 +32,8 @@
   (spinlock (make-spinlock) :type spinlock))
 
 (defmethod print-object ((obj incudine-object-pool) stream)
-  (format stream "#<INCUDINE-OBJECT-POOL ~D>" (incudine-object-pool-size obj)))
+  (print-unreadable-object (obj stream)
+    (format stream "INCUDINE-OBJECT-POOL ~D" (incudine-object-pool-size obj))))
 
 (defun new-incudine-object-pointer (constructor &optional object-list)
   (let ((ptr (cons (funcall constructor) object-list)))

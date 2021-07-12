@@ -1,4 +1,4 @@
-;;; Copyright (c) 2016-2020 Tito Latini
+;;; Copyright (c) 2016-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -101,9 +101,10 @@
 
 (defmethod print-object ((obj stream) stream)
   (let ((port-name (stream-port-name obj)))
-    (format stream "#<JACKMIDI:~A-STREAM~:[ ~S~;~]>"
-            (stream-direction obj) (zerop (length port-name))
-            port-name)))
+    (print-unreadable-object (obj stream)
+      (format stream "JACKMIDI:~A-STREAM~:[ ~S~;~]"
+              (stream-direction obj) (zerop (length port-name))
+              port-name))))
 
 ;;; Ordered list of opened Jack MIDI streams.
 (defvar *streams* nil)
@@ -657,8 +658,8 @@ or output streams, respectively."
     (incudine-finalize obj (lambda () (cffi:foreign-free ptr)))))
 
 (defmethod print-object ((obj event-buffer) stream)
-  (format stream "#<JACKMIDI:EVENT-BUFFER :SIZE ~D>"
-          (event-buffer-size obj)))
+  (print-unreadable-object (obj stream)
+    (format stream "JACKMIDI:EVENT-BUFFER :SIZE ~D" (event-buffer-size obj))))
 
 (defmethod free-p ((obj event-buffer))
   (cffi:null-pointer-p (event-buffer-pointer obj)))

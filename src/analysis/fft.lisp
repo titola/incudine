@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2020 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -43,8 +43,9 @@ Otherwise, return NIL."
   (remhash size *fft-plan*))
 
 (defmethod print-object ((obj fft-plan) stream)
-  (format stream "#<FFT-PLAN :SIZE ~D :FLAGS ~D>"
-          (fft-plan-size obj) (fft-plan-flags obj)))
+  (print-unreadable-object (obj stream)
+    (format stream "FFT-PLAN :SIZE ~D :FLAGS ~D"
+            (fft-plan-size obj) (fft-plan-flags obj))))
 
 (defun fft-plan-list (&optional only-size-p)
   "Return the list of the cached FFT-PLAN instances.
@@ -142,8 +143,9 @@ FFT-PLAN, FLAGS defaults to +FFT-PLAN-FAST+."
     (values)))
 
 (defmethod print-object ((obj fft) stream)
-    (format stream "#<FFT :SIZE ~D :WINDOW-SIZE ~D :NBINS ~D>"
-            (fft-size obj) (fft-window-size obj) (fft-nbins obj)))
+  (print-unreadable-object (obj stream)
+    (format stream "FFT :SIZE ~D :WINDOW-SIZE ~D :NBINS ~D"
+            (fft-size obj) (fft-window-size obj) (fft-nbins obj))))
 
 (defun make-fft (size &key (window-size 0)
                  (window-function *fft-default-window-function*)
@@ -324,8 +326,9 @@ is filled during the transform."
 (defsetf fft-input set-fft-input)
 
 (defmethod print-object ((obj ifft) stream)
-  (format stream "#<IFFT :SIZE ~D :WINDOW-SIZE ~D :NBINS ~D>"
-          (ifft-size obj) (ifft-window-size obj) (ifft-nbins obj)))
+  (print-unreadable-object (obj stream)
+    (format stream "IFFT :SIZE ~D :WINDOW-SIZE ~D :NBINS ~D"
+            (ifft-size obj) (ifft-window-size obj) (ifft-nbins obj))))
 
 (defmethod circular-shift ((obj fft) n &key)
   ;; Lazy operation: the shift is applied during COMPUTE-FFT.

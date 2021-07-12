@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -198,8 +198,8 @@ SIZE defaults to PORTMIDI:DEFAULT-SYSEX-BUFFER-SIZE."
     obj))
 
 (defmethod print-object ((obj event-buffer) stream)
-  (format stream "#<PM:EVENT-BUFFER :SIZE ~D>"
-          (event-buffer-size obj)))
+  (print-unreadable-object (obj stream)
+    (format stream "PM:EVENT-BUFFER :SIZE ~D" (event-buffer-size obj))))
 
 (defun free (object)
   "Deallocate the event buffer created by MAKE-EVENT-BUFFER."

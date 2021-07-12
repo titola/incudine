@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -51,8 +51,9 @@
   (note-off-p t :type boolean))
 
 (defmethod print-object ((obj midi-event) stream)
-  (format stream "#<MIDI-EVENT :VOICER ~A~%~13t:RESPONDER ~A>"
-          (event-voicer obj) (event-responder obj)))
+  (print-unreadable-object (obj stream)
+    (format stream "MIDI-EVENT :VOICER ~A~%~13t:RESPONDER ~A"
+            (event-voicer obj) (event-responder obj))))
 
 (defun set-freq-table-from-portmidi (ev stream)
   (declare (type midi-event ev) (type pm:input-stream stream))

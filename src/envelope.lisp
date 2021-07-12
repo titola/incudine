@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2020 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -76,9 +76,10 @@ envelope is without sustain.")
   (envelope-data-ptr obj))
 
 (defmethod print-object ((obj envelope) stream)
-  (format stream "#<~S :POINTS ~D :LOOP-NODE ~D :RELEASE-NODE ~D>"
-          (type-of obj) (envelope-points obj) (envelope-loop-node obj)
-          (envelope-release-node obj)))
+  (print-unreadable-object (obj stream :type t)
+    (format stream ":POINTS ~D :LOOP-NODE ~D :RELEASE-NODE ~D"
+            (envelope-points obj) (envelope-loop-node obj)
+            (envelope-release-node obj))))
 
 (defmethod free-p ((obj envelope))
   (null-pointer-p (envelope-data obj)))

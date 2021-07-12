@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -41,8 +41,9 @@
   (foreign-free #'foreign-free :type function))
 
 (defmethod print-object ((obj ring-buffer) stream)
-  (format stream "#<~A size ~D head ~D>" (type-of obj) (ring-buffer-size obj)
-          (ring-buffer-head obj)))
+  (print-unreadable-object (obj stream :type t)
+    (format stream "size ~D head ~D" (ring-buffer-size obj)
+            (ring-buffer-head obj))))
 
 (defstruct (ring-input-buffer (:include ring-buffer)
                               (:constructor %make-ring-input-buffer)

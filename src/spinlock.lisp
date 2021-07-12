@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2017 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -26,7 +26,8 @@
       "Create and return a SPINLOCK with optional NAME.")
 
 (defmethod print-object ((obj spinlock) stream)
-  (format stream "#<~A ~S>" (type-of obj) (spinlock-name obj)))
+  (print-unreadable-object (obj stream :type t)
+    (prin1 (spinlock-name obj) stream)))
 
 (declaim (inline acquire-spinlock))
 (defun acquire-spinlock (spinlock)

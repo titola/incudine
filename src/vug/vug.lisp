@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2020 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -218,12 +218,14 @@ during the compilation of a UGEN or DSP. The default is NIL.")
   (metadata-list nil :type list))
 
 (defmethod print-object ((obj vug) stream)
-  (format stream "#<~A ~A>"
-          (if (vug-macro-p obj) 'vug-macro 'vug)
-          (vug-name obj)))
+  (print-unreadable-object (obj stream)
+    (format stream "~A ~A"
+            (if (vug-macro-p obj) 'vug-macro 'vug)
+            (vug-name obj))))
 
 (defmethod print-object ((obj vug-object) stream)
-  (format stream "#<~A ~A>" (type-of obj) (vug-object-name obj)))
+  (print-unreadable-object (obj stream :type t)
+    (prin1 (vug-object-name obj) stream)))
 
 (declaim (inline init-time-p))
 (defun init-time-p (obj)

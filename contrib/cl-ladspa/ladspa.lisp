@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014-2018 Tito Latini
+;;; Copyright (c) 2014-2021 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -63,9 +63,9 @@
                                    copyright port-count implementation-data)))
 
 (defmethod print-object ((obj handle) stream)
-  (format stream "#<~S ~S :ACTIVE-P ~A :DELETED-P ~A>"
-          (type-of obj) (label (descriptor obj)) (active-p obj)
-          (deleted-p obj)))
+  (print-unreadable-object (obj stream :type t)
+    (format stream "~S :ACTIVE-P ~A :DELETED-P ~A"
+            (label (descriptor obj)) (active-p obj) (deleted-p obj))))
 
 (defun port-descriptors (descriptor)
   (let ((ptr (descriptor-slot-value descriptor 'port-descriptors)))

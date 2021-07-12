@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2020 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -24,7 +24,8 @@
   (prev nil :type (or node null)))
 
 (defmethod print-object ((obj node) stream)
-  (format stream "#<VOICER-NODE ~A>" (node-tag obj)))
+  (print-unreadable-object (obj stream)
+    (format stream "VOICER-NODE ~A" (node-tag obj))))
 
 (define-constant +node-pool-size+ incudine.util:*max-number-of-nodes*)
 
@@ -172,8 +173,9 @@ Setfable."
 (defsetf polyphony set-polyphony)
 
 (defmethod print-object ((obj voicer) stream)
-  (format stream "#<VOICER :POLYPHONY ~D :COUNT ~D>"
-          (polyphony obj) (voicer-count obj)))
+  (print-unreadable-object (obj stream)
+    (format stream "VOICER :POLYPHONY ~D :COUNT ~D"
+            (polyphony obj) (voicer-count obj))))
 
 (defmethod incudine:free ((obj voicer))
   (let ((npool-size (cons-pool-size (voicer-node-pool obj)))

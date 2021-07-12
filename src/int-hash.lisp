@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -32,7 +32,8 @@
       (make-array size :initial-element nil)))
 
 (defmethod print-object ((obj int-hash-table) stream)
-  (format stream "#<~S :COUNT ~D>" (type-of obj) (int-hash-table-count obj)))
+  (print-unreadable-object (obj stream :type t)
+    (format stream ":COUNT ~D" (int-hash-table-count obj))))
 
 (defun make-int-hash-table (&key (size +min-int-hash-table-size+)
                             initial-element-fn)

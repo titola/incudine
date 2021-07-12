@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2020 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -25,7 +25,8 @@
   (real-time-p nil :type boolean))
 
 (defmethod print-object ((obj dsp) stream)
-  (format stream "#<DSP ~A>" (dsp-name obj)))
+  (print-unreadable-object (obj stream)
+    (format stream "DSP ~A" (dsp-name obj))))
 
 (defstruct (dsp-properties (:include incudine-object) (:copier nil))
   (rt-instances nil :type list)

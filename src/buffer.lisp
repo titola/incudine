@@ -151,11 +151,11 @@ Return the number of bits for the arithmetic shift operation."
           (incudine-object-pool-expand pool 1))))))
 
 (defmethod print-object ((obj buffer) stream)
-  (format stream "#<~S :FRAMES ~D :CHANNELS ~D :SR ~F>"
-          (type-of obj)
-          (if (free-p obj) 0 (buffer-frames obj))
-          (buffer-channels obj)
-          (buffer-sample-rate obj)))
+  (print-unreadable-object (obj stream :type t)
+    (format stream ":FRAMES ~D :CHANNELS ~D :SR ~F"
+            (if (free-p obj) 0 (buffer-frames obj))
+            (buffer-channels obj)
+            (buffer-sample-rate obj))))
 
 (defmethod free-p ((obj buffer-base))
   (null-pointer-p (buffer-base-data-ptr obj)))

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2016-2020 Tito Latini
+;;; Copyright (c) 2016-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -210,8 +210,9 @@ Subtype of MIDIFILE-PARSE-ERROR."))
       (if (plusp (stream-ppqn obj))
           (values :ppqn (stream-ppqn obj))
           (values :fps (stream-smpte-format obj)))
-    (cl:format stream "#<MIDIFILE:~A-STREAM :NUMBER-OF-TRACKS ~D ~S ~D>"
-               (stream-direction obj) (stream-number-of-tracks obj) k v)))
+    (print-unreadable-object (obj stream)
+      (cl:format stream "MIDIFILE:~A-STREAM :NUMBER-OF-TRACKS ~D ~S ~D"
+                 (stream-direction obj) (stream-number-of-tracks obj) k v))))
 
 (declaim (inline open-p))
 (defun open-p (mf)

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014-2019 Tito Latini
+;;; Copyright (c) 2014-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -31,7 +31,8 @@
                 :default default :value-type value-type)))
 
 (defmethod print-object ((obj port) stream)
-  (format stream "#<PLUGIN-PORT ~D ~A>" (port-id obj) (port-lisp-name obj)))
+  (print-unreadable-object (obj stream)
+    (format stream "PLUGIN-PORT ~D ~A" (port-id obj) (port-lisp-name obj))))
 
 (defstruct (plugin (:constructor %make-plugin))
   "Foreign plugin type."
@@ -69,9 +70,9 @@
   (plugin-instance-handle-pointer obj))
 
 (defmethod print-object ((obj plugin-instance) stream)
-  (format stream "#<~A ~S #X~8,'0X>" (type-of obj)
-          (plugin-instance-label obj)
-          (cffi:pointer-address (plugin-instance-pointer obj))))
+  (print-unreadable-object (obj stream :type t)
+    (format stream "~S #X~8,'0X" (plugin-instance-label obj)
+            (cffi:pointer-address (plugin-instance-pointer obj)))))
 
 (declaim (inline plugin-port-pointer))
 (defun plugin-port-pointer (obj index)
@@ -95,9 +96,9 @@
   (update-io-number (apply #'%make-plugin args)))
 
 (defmethod print-object ((obj plugin) stream)
-  (format stream "#<~A ~S #X~8,'0X>" (type-of obj)
-          (plugin-label obj)
-          (cffi:pointer-address (plugin-pointer obj))))
+  (print-unreadable-object (obj stream :type t)
+    (format stream "~S #X~8,'0X" (plugin-label obj)
+            (cffi:pointer-address (plugin-pointer obj)))))
 
 (define-constant +input-port+     1)
 (define-constant +output-port+    2)

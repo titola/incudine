@@ -189,7 +189,8 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
                    description real-time-p)))
 
 (defmethod print-object ((obj tuning) stream)
-  (format stream "#<~S ~S>" (type-of obj) (tuning-description obj)))
+  (print-unreadable-object (obj stream :type t)
+    (prin1 (tuning-description obj) stream)))
 
 (defmethod free ((obj tuning))
   (unless (free-p obj)

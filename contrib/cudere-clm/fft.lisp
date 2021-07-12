@@ -1,5 +1,5 @@
 ;;; Incudine version of CLM
-;;; Copyright (c) 2017-2018 Tito Latini
+;;; Copyright (c) 2017-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -44,7 +44,8 @@
 (defstruct (fft (:constructor %make-fft) (:include %fft)  (:copier nil)))
 
 (defmethod print-object ((obj fft) stream)
-  (format stream "#<CLM:FFT :SIZE ~D>" (fft-size obj)))
+  (print-unreadable-object (obj stream)
+    (format stream "CLM:FFT :SIZE ~D" (fft-size obj))))
 
 (defun free-fft-data (pointers)
   (loop for i below 4

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2020 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -38,9 +38,10 @@
                     :timeout timeout)))
 
 (defmethod print-object ((obj receiver) stream)
-  (format stream "#<RECEIVER ~S ~A>"
-          (type-of (receiver-stream obj))
-          (if (receiver-status obj) :RUNNING :STOPPED)))
+  (print-unreadable-object (obj stream)
+    (format stream "RECEIVER ~S ~A"
+            (type-of (receiver-stream obj))
+            (if (receiver-status obj) :RUNNING :STOPPED))))
 
 (defun receiver (stream)
   "Return the receiver related to STREAM if it exists. Otherwise,

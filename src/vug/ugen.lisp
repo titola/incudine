@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014-2020 Tito Latini
+;;; Copyright (c) 2014-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -17,11 +17,13 @@
 (in-package :incudine.vug)
 
 (defmethod print-object ((obj ugen) stream)
-  (format stream "#<UGEN ~A>" (ugen-name obj)))
+  (print-unreadable-object (obj stream)
+    (format stream "UGEN ~A" (ugen-name obj))))
 
 (defmethod print-object ((obj ugen-instance) stream)
-  (format stream "#<~A ~A>" (class-name (class-of obj))
-          (or (ugen-instance-name obj) "(free)")))
+  (print-unreadable-object (obj stream)
+    (format stream "~A ~A" (class-name (class-of obj))
+            (or (ugen-instance-name obj) "(free)"))))
 
 (declaim (inline index-of-ugen-control))
 (defun index-of-ugen-control (ugen control-name)

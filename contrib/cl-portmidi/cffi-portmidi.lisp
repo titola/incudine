@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -79,9 +79,10 @@ SysEx message."
   #-sbcl (tg:cancel-finalization obj))
 
 (defmethod print-object ((obj stream) stream)
-  (format stream "#<PM:~A-STREAM \"~A - ~A\">"
-          (stream-direction obj) (stream-device-interf obj)
-          (stream-device-name obj)))
+  (print-unreadable-object (obj stream)
+    (format stream "PM:~A-STREAM \"~A - ~A\""
+            (stream-direction obj) (stream-device-interf obj)
+            (stream-device-name obj))))
 
 (cffi:define-foreign-type stream-type ()
   ()

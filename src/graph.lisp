@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2020 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -354,7 +354,8 @@ TARGET defaults to *ROOT-NODE*."
   (node-parent (if (node-p obj) obj (node obj))))
 
 (defmethod print-object ((obj node) stream)
-  (format stream "#<NODE :ID ~D>" (node-id obj)))
+  (print-unreadable-object (obj stream)
+    (format stream "NODE :ID ~D" (node-id obj))))
 
 (declaim (inline graph-empty-p))
 (defun graph-empty-p ()

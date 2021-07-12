@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -109,7 +109,8 @@
 
 (defmethod print-object ((obj fifo) stream)
   (let ((*print-circle* t))
-    (format stream "#<FIFO ~S>" (fifo-name obj))))
+    (print-unreadable-object (obj stream)
+      (format stream "FIFO ~S" (fifo-name obj)))))
 
 (declaim (inline fifo-empty-p))
 (defun fifo-empty-p (fifo)

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2017-2020 Tito Latini
+;;; Copyright (c) 2017-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -69,12 +69,12 @@ Subtype of INCUDINE-SIMPLE-ERROR and FILE-ERROR."))
   "Return T if object is of type SOUNDFILE:OUTPUT-STREAM.")
 
 (defmethod print-object ((obj soundfile:stream) stream)
-  (let ((type (type-of obj)))
+  (print-unreadable-object (obj stream :type t)
     (if (stream-open-p obj)
-        (format stream "#<~S :FRAMES ~D :CHANNELS ~D :SR ~F>"
-                type (stream-frames obj) (stream-channels obj)
+        (format stream ":FRAMES ~D :CHANNELS ~D :SR ~F"
+                (stream-frames obj) (stream-channels obj)
                 (stream-sample-rate obj))
-        (format stream "#<~S (closed)>" type))))
+        (format stream "(closed)"))))
 
 (defun sf-open (file input-p info-ptr if-exists)
   (when (and (eq if-exists :supersede) (probe-file file))

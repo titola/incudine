@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -133,7 +133,8 @@ The value is initially *DEFAULT-BPM* beats per minute.")
 (defsetf bps set-bps)
 
 (defmethod print-object ((obj tempo) stream)
-  (format stream "#<TEMPO ~,2F>" (if (free-p obj) .0 (bpm obj))))
+  (print-unreadable-object (obj stream)
+    (format stream "TEMPO ~,2F" (if (free-p obj) .0 (bpm obj)))))
 
 (declaim (inline incf-sample-counter))
 (defun incf-sample-counter (&optional (delta 1))
@@ -183,10 +184,10 @@ The value is initially *DEFAULT-BPM* beats per minute.")
 
 (defmethod print-object ((obj tempo-envelope) stream)
   (let ((spb-env (tempo-envelope-spb obj)))
-    (format stream "#<~S :POINTS ~D :LOOP-NODE ~D :RELEASE-NODE ~D>"
-            (type-of obj)
-            (tempo-envelope-points obj) (envelope-loop-node spb-env)
-            (envelope-release-node spb-env))))
+    (print-unreadable-object (obj stream :type t)
+      (format stream ":POINTS ~D :LOOP-NODE ~D :RELEASE-NODE ~D"
+              (tempo-envelope-points obj) (envelope-loop-node spb-env)
+              (envelope-release-node spb-env)))))
 
 (declaim (inline tenv-constant-p))
 (defun tenv-constant-p (values)

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -32,7 +32,8 @@
       "Return the cons pool size.")
 
 (defmethod print-object ((obj cons-pool) stream)
-  (format stream "#<CONS-POOL ~D>" (cons-pool-size obj)))
+  (print-unreadable-object (obj stream)
+    (format stream "CONS-POOL ~D" (cons-pool-size obj))))
 
 (defun make-cons-pool (&key data (size 128) expand-function (grow 128))
   "Create and return a new CONS-POOL structure initialized with the

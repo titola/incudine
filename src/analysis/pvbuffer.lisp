@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -208,8 +208,9 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
           (values 0 0 1 0)
           (values (pvbuffer-size obj) (pvbuffer-frames obj)
                   (pvbuffer-channels obj) (pvbuffer-block-size obj)))
-    (format stream "#<PVBUFFER :SIZE ~D :FRAMES ~D :CHANNELS ~D :BLOCK-SIZE ~D>"
-            size frames channels block-size)))
+    (print-unreadable-object (obj stream)
+      (format stream "PVBUFFER :SIZE ~D :FRAMES ~D :CHANNELS ~D :BLOCK-SIZE ~D"
+              size frames channels block-size))))
 
 (defun pvbuffer-data (instance &optional (frame 0) (channel 0))
   "Return the foreign pointer to the data FRAME of a PVbuffer CHANNEL.

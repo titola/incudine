@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -130,7 +130,8 @@
   `(make-lv2-plugin ,(lv2-plugin-path obj)))
 
 (defmethod print-object ((obj lv2-plugin) stream)
-  (format stream "#<LV2-PLUGIN ~S>" (lv2-plugin-path obj)))
+  (print-unreadable-object (obj stream)
+    (format stream "LV2-PLUGIN ~S" (lv2-plugin-path obj))))
 
 (defun lv2-port-type (plugin port)
   (flet ((portp (port-class class-value)

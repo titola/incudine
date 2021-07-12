@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2020 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -44,8 +44,8 @@
   (ordering-tag 0 :type non-negative-fixnum))
 
 (defmethod print-object ((obj heap) stream)
-  (declare (ignore obj))
-  (format stream "#<EDF:HEAP>"))
+  (print-unreadable-object (obj stream)
+    (princ "EDF:HEAP" stream)))
 
 (defun corrupted-heap ()
   (incudine:incudine-error "Corrupted EDF heap."))

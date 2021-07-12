@@ -1,4 +1,4 @@
-;;; Copyright (c) 2015-2018 Tito Latini
+;;; Copyright (c) 2015-2021 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -38,8 +38,8 @@
   (ptr (cffi:null-pointer) :type cffi:foreign-pointer))
 
 (defmethod print-object ((obj wrap-pointer) stream)
-  (format stream "#<~S #X~8,'0X>" (type-of obj)
-          (cffi:pointer-address (wrap-pointer-ptr obj))))
+  (print-unreadable-object (obj stream :type t)
+    (format stream "#X~8,'0X" (cffi:pointer-address (wrap-pointer-ptr obj)))))
 
 (declaim (inline deleted-p))
 (defun deleted-p (obj)
