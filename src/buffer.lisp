@@ -320,7 +320,7 @@ SAMPLE-RATE is *SAMPLE-RATE* by default."
           (let ((buffer (make-buffer frames
                           :channels (if (minusp channel) channels 1))))
             (declare (type buffer buffer) #.*standard-optimize-settings*)
-            (when (and headerless-p (> data-location 0))
+            (when (and headerless-p (/= data-location 0))
               (sf:set-raw-start-offset sf data-location))
             (sf:seek sf offset SF:SEEK-SET)
             (if (minusp channel)
@@ -696,7 +696,7 @@ content of the buffer."
                    (type fixnum selected-frames))
           (when (plusp selected-frames)
             (incudine-optimize
-              (when (and headerless-p (> data-location 0))
+              (when (and headerless-p (/= data-location 0))
                 (sf:set-raw-start-offset sf data-location))
               (sf:seek sf start SF:SEEK-SET)
               (cond (channel-map
