@@ -201,6 +201,6 @@
           (let ((used (- (get-nrt-memory-used-size) size)))
             (and (plusp used)
                  (= used (- remain (get-nrt-memory-free-size))))))
-        (zerop (- (get-nrt-memory-used-size) size))
-        (zerop (- remain (get-nrt-memory-free-size)))))
+        (= size (get-nrt-memory-used-size))
+        (= remain (get-nrt-memory-free-size))))
   T T T)
