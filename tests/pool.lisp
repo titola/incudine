@@ -190,3 +190,17 @@
         (incudine.util::foreign-rt-free-sample ptr)
         (values test1 (= size (get-foreign-sample-free-size)))))
   T T)
+
+;;; FOREIGN NRT MEMORY POOL
+
+(deftest foreign-nrt-alloc.1
+    (let ((size (get-nrt-memory-used-size))
+          (remain (get-nrt-memory-free-size)))
+      (values
+        (with-samples (a b c d)
+          (let ((used (- (get-nrt-memory-used-size) size)))
+            (and (plusp used)
+                 (= used (- remain (get-nrt-memory-free-size))))))
+        (zerop (- (get-nrt-memory-used-size) size))
+        (zerop (- remain (get-nrt-memory-free-size)))))
+  T T T)
