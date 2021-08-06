@@ -19,11 +19,13 @@
 (defstruct (spinlock (:constructor make-spinlock (&optional name))
                      (:copier nil))
   "Spinlock type."
-  (name "Anonymous spinlock" :type string)
-  (state 0 :type fixnum))
+  (state 0 :type fixnum)
+  (name "Anonymous spinlock" :type string))
 
 (setf (documentation 'make-spinlock 'function)
-      "Create and return a SPINLOCK with optional NAME.")
+      "Create and return a SPINLOCK with optional NAME."
+      (documentation 'spinlock-name 'function)
+      "The name of the spinlock. Setfable.")
 
 (defmethod print-object ((obj spinlock) stream)
   (print-unreadable-object (obj stream :type t)
