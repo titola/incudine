@@ -1,6 +1,6 @@
 ;;; incudine.el --- major mode for editing Incudine sources
 
-;; Copyright (c) 2013-2020 Tito Latini
+;; Copyright (c) 2013-2021 Tito Latini
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -269,6 +269,19 @@ If RESET-P is non-NIL, set the number of xruns to zero."
         (?i ":INFO")
         (?d ":DEBUG")))))
 
+(defun incudine-set-logger-stream (value)
+  (incudine-eval "(setf incudine.util:*logger-stream* %s)" value))
+
+(defun incudine-logger-stream-choice (c)
+  "Set Logger Stream from a single character."
+  (interactive "cLogger stream? (e)rror-output, (s)tandard-output or (d)ebug-io")
+  (when (member c '(?e ?s ?d))
+    (incudine-set-logger-stream
+      (case c
+        (?e "CL:*ERROR-OUTPUT*")
+        (?s "CL:*STANDARD-OUTPUT*")
+        (?d "CL:*DEBUG-IO*")))))
+
 (defun incudine-set-logger-time (value)
   (incudine-eval "(setf (incudine.util:logger-time) %s)" value))
 
@@ -410,6 +423,7 @@ rego file or call `tags-loop-continue'."
   (define-key map "\C-cip" 'incudine-peak-info)
   (define-key map "\C-cix" 'incudine-xruns-info)
   (define-key map "\C-cll" 'incudine-logger-level-choice)
+  (define-key map "\C-cls" 'incudine-logger-stream-choice)
   (define-key map "\C-clt" 'incudine-logger-time-choice))
 
 (defvar incudine-mode-map
@@ -473,6 +487,7 @@ rego file or call `tags-loop-continue'."
               ["DSP/UGEN Generated Code" incudine-dsp/ugen-expand t])
         (list "Logger"
               ["Log Level" incudine-logger-level-choice t]
+              ["Log Stream" incudine-logger-stream-choice t]
               ["Log Time"  incudine-logger-time-choice t])
         ["Scratch buffer" incudine-scratch t]))
 

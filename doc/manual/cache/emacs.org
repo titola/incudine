@@ -94,6 +94,15 @@ Hook called when a buffer enters Incudine mode.
 - @@texinfo:@kbd{C-c l l d}@@ ::
      Set the logger level to ~:debug~.
 
+- @@texinfo:@kbd{C-c l s e}@@ ::
+     Set the logger stream to ~*error-output*~.
+
+- @@texinfo:@kbd{C-c l s s}@@ ::
+     Set the logger stream to ~*standard-output*~.
+
+- @@texinfo:@kbd{C-c l s d}@@ ::
+     Set the logger stream to ~*debug-io*~.
+
 - @@texinfo:@kbd{C-c l t n}@@ ::
      Log messages without timestamp.
 
