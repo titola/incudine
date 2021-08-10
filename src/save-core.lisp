@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -72,6 +72,7 @@
               do (ensure-incudine-object-pool-size pool size)))
       (set-sample-rate (sample (or incudine.config::*sample-rate* 48000)))
       (set-sound-velocity (sample (or incudine.config::*sound-velocity* 345)))
+      (setf incudine.util:*null-output* (incudine.util::make-null-output-stream))
       ;; gsl random
       (setf incudine.external::*gsl-random-generator*
             (incudine.external::make-gsl-rng))

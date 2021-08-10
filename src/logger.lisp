@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2020 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -35,6 +35,9 @@
 (defvar *logger-stream* *error-output*
   "Stream for log messages.")
 (declaim (type stream *logger-stream*))
+
+(sb-ext:defglobal *null-output* (make-null-output-stream)
+  "Output stream for null output.")
 
 (defvar *logger-force-output-p* t
   "Whether FORCE-OUTPUT is called after a log message.")

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2020 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@
   '(sb-ext:muffle-conditions sb-ext:compiler-note)
   "Declaration to muffle compiler-notes.")
 
-(sb-ext:defglobal *null-output*
+(defun make-null-output-stream ()
   (sb-sys:make-fd-stream
     (sb-unix:unix-open #-win32 "/dev/null" #+win32 "nul" sb-unix:o_wronly #o666)
     :name "null output"
@@ -52,8 +52,7 @@
     :element-type :default
     :serve-events nil
     :auto-close t
-    :external-format (stream-external-format sb-sys:*stdout*))
-  "Output stream for null output.")
+    :external-format (stream-external-format sb-sys:*stdout*)))
 
 (defmacro var-globally-special-p (symbol)
   `(sb-walker:var-globally-special-p ,symbol))
