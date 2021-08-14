@@ -671,6 +671,10 @@ current time."
   (setf (abuffer-time obj) (1- (now)))
   obj)
 
+(defun real-output-p (obj)
+  (let ((obj (if (abuffer-p obj) (abuffer-link obj) obj)))
+    (and obj (eq (analysis-output-data-type obj) 'real))))
+
 (defmacro dofft ((index-var nbins-var abuffer-src-list abuffer-dest-list
                   x-var-prefix y-var-prefix &key coord-complex-p
                   (index-start 0) index-end (coord-check-p t) init result)

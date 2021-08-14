@@ -1,4 +1,4 @@
-;;; Copyright (c) 2015-2018 Tito Latini
+;;; Copyright (c) 2015-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -24,13 +24,29 @@ The returned function takes two arguments, the foreign pointer to the
 sample data and the data size, and returns the foreign array."
   (declare (type (or incudine.analysis:analysis incudine.analysis:abuffer) obj))
   (lambda (foreign-array size)
-    (unless (incudine:free-p obj)
-      (multiple-value-bind (src-ptr src-size)
-          (if (incudine.analysis:abuffer-p obj)
-              (values (incudine.analysis:abuffer-data obj)
-                      (incudine.analysis:abuffer-size obj))
-              (values (incudine.analysis:analysis-output-buffer obj)
-                      (incudine.analysis:analysis-output-buffer-size obj)))
-        (incudine.external:foreign-copy-samples foreign-array src-ptr
-                                                (min size src-size))))
-    foreign-array))
+    (declare (type foreign-pointer foreign-array)
+             (type non-negative-fixnum size))
+    (incudine-optimize
+      (declare #.*reduce-warnings*)
+      (unless (incudine:free-p obj)
+        (multiple-value-bind (src-ptr src-size)
+            (if (incudine.analysis:abuffer-p obj)
+                (values (incudine.analysis:abuffer-data obj)
+                        (incudine.analysis:abuffer-size obj))
+                (values (incudine.analysis:analysis-output-buffer obj)
+                        (incudine.analysis:analysis-output-buffer-size obj)))
+          (cond ((incudine.analysis::real-output-p obj)
+                 ;; Possible normalization from FILL-BUFFER.
+                 (with-samples (abs-value max-value)
+                   (dotimes (i (min size src-size))
+                     (setf abs-value
+                           (abs (setf (smp-ref foreign-array i)
+                                      (smp-ref src-ptr i))))
+                     (when (< max-value abs-value)
+                       (setf max-value abs-value)))
+                   (values foreign-array
+                           (if (zerop max-value) max-value (/ max-value)))))
+                (t
+                 (incudine.external:foreign-copy-samples
+                   foreign-array src-ptr (min size src-size))
+                 foreign-array)))))))
