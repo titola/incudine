@@ -157,6 +157,32 @@
   (2 1 0)
   (2 1 0))
 
+(deftest move-node.4
+    (let ((res nil))
+      (flet ((dump-node-list ()
+               (let ((acc nil))
+                 (dograph (n (node 0) (push (nreverse acc) res))
+                   (push (if (eq n *root-node*)
+                             0
+                             (list (node-id (group n)) (node-id n)))
+                         acc)))))
+        (with-logger (*null-output*)
+          (bounce-to-buffer (*buffer-test-c1* :frames 1)
+            (make-group 100)
+            (dotimes (i 4)
+              (play #'* :id (+ i 1) :head 100)
+              (play #'* :id (+ i 5) :tail 0))
+            (dump-node-list)
+            (move 5 :after 1)
+            (dump-node-list)
+            (move 4 :before 100)
+            (move 5 :before 6)
+            (dump-node-list))))
+      (nreverse res))
+  ((0 (0 100) (100 4) (100 3) (100 2) (100 1) (0 5) (0 6) (0 7) (0 8))
+   (0 (0 100) (100 4) (100 3) (100 2) (100 1) (100 5) (0 6) (0 7) (0 8))
+   (0 (0 4) (0 100) (100 3) (100 2) (100 1) (0 5) (0 6) (0 7) (0 8))))
+
 (deftest move-node-loop-error.1
     (let ((loop-errors 0)
           (*logger-stream* *null-output*))
