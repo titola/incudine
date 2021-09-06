@@ -16,7 +16,9 @@
              (y (car cdr))
              (a (+ x y)))
         (declare (single-float x y a))
-        (setf cdr a)))
+        ;; Compiler note on 32-bit machines:
+        ;; doing float to pointer coercion (cost 13).
+        (reduce-warnings (setf cdr a))))
     (out (+ .2 car) cdr)))
 
 (with-dsp-test (performance-time-vug-variable.1

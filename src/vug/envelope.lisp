@@ -387,7 +387,7 @@ of the envelope."
                       ;; OFFSET is 1 if it is the last segment, so CARRY
                       ;; is incremented by 0.5 to prevent rounding errors.
                       (setf offset (truncate (/ index last-dur-index)))
-                      (incf carry (* offset 0.5))
+                      (incf carry (* offset (sample 0.5)))
                       (envelope-update-dur dur env-data index time-scale
                                            carry (- offset))
                       (setf remain (+ dur offset)
