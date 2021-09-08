@@ -56,8 +56,7 @@
             (if name-end
                 ;; (object-name "...")
                 (list (read-from-string
-                        (string-upcase
-                          (string-right-trim ":" (subseq str 0 name-end))))
+                        (string-right-trim ":" (subseq str 0 name-end)))
                       (string-left-trim " " (subseq str name-end)))
                 ;; Not transformed.
                 (concatenate 'string "#<" str ">"))))))))
