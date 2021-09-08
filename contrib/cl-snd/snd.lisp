@@ -1,6 +1,6 @@
 ;;; Common Lisp interface to interact with the sound editor Snd.
 ;;;
-;;; Copyright (c) 2015-2020 Tito Latini
+;;; Copyright (c) 2015-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -40,14 +40,27 @@
   nil)
 
 ;;; Used with the Snd output to transform #<...> in (...)
+;;; when it is possible.
 (defun |#<-reader| (stream subchar arg)
   (declare (ignore subchar arg))
-  (let ((acc (list #\()))
+  (let ((acc nil))
     (do ((c (read-char stream) (read-char stream)))
         ((char= c #\>))
       (push c acc))
-    (push #\) acc)
-    (read-from-string (coerce (nreverse acc) 'string))))
+    (let ((str (coerce (nreverse acc) 'string)))
+      (handler-case
+          ;; (object-name ...)
+          (read-from-string (concatenate 'string "(" str ")"))
+        (reader-error ()
+          (let ((name-end (position #\space str)))
+            (if name-end
+                ;; (object-name "...")
+                (list (read-from-string
+                        (string-upcase
+                          (string-right-trim ":" (subseq str 0 name-end))))
+                      (string-left-trim " " (subseq str name-end)))
+                ;; Not transformed.
+                (concatenate 'string "#<" str ">"))))))))
 
 ;;; Readtable for Snd output.
 (defvar *snd-readtable*
