@@ -12,7 +12,7 @@ Example with block size 1:
 #+begin_example
 (set-rt-block-size 1)
 
-(ladspa->vug \"caps\" \"Plate\" plate-reverb)
+(ladspa->vug "caps" "Plate" plate-reverb)
 
 (dsp! plate-reverb-test (trig-freq input-decay input-scale bw tail
                          damping blend)
