@@ -19,6 +19,7 @@
 ;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
+  (asdf:load-system "cffi")
   (load #.(load-time-value
             (merge-pathnames "src/features.lisp"
                              (or *compile-file-pathname* *load-pathname*)))))
@@ -38,7 +39,7 @@
     (perform 'compile-op c)))
 
 (defsystem "incudine"
-  :version "0.9.49"
+  :version "0.9.50"
   :description "Incudine is a Music/DSP programming environment."
   :licence "GPL v2"
   :author "Tito Latini"
@@ -102,10 +103,12 @@
                         (symbol-call :incudine.config '#:compile-c-library))
                        (t
                         (symbol-call :incudine.config
-                                     '#:ensure-foreign-barrier-header-file)
-                        (symbol-call :incudine.config '#:update-features)))
+                                     '#:ensure-foreign-barrier-header-file)))
                  (prog1 (symbol-call :cffi '#:load-foreign-library
                                      (output-file 'compile-op c))
+                   (unintern 'cl-user::__incudine_c_compiler__ :cl-user)
+                   (unintern 'cl-user::__incudine_c_library_paths__ :cl-user)
+                   (unintern 'cl-user::__incudine_c_header_file_paths__ :cl-user)
                    (symbol-call :incudine.config '#:check-loaded-c-library))))
      (:file "config" :depends-on ("compile-clib"))
      (:file "logger" :depends-on ("edf-sched"))

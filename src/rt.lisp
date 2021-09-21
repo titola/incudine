@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2020 Tito Latini
+;;; Copyright (c) 2013-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -165,14 +165,21 @@
       (incf-sample-counter block-size))))
 
 ;;; Continue the audio cycle started from C-thread during gc.
+#-dummy-audio
 (defun continue-last-audio-cycle (frames block-size)
   (reset-io-pointers)
   (incudine.external::rt-continue-cycle-begin frames)
   (rt-audio-cycle frames block-size)
   (rt-cycle-end frames))
 
+#+dummy-audio
+(defun continue-last-audio-cycle (frames block-size)
+  (declare (ignore frames block-size))
+  nil)
+
 ;;; Recovery of audio cycles suspended during gc by processing the
 ;;; cached audio and MIDI inputs (audio outputs are ignored).
+#-dummy-audio
 (defun recover-suspended-audio-cycles (frames block-size)
   (declare (type non-negative-fixnum frames block-size))
   (maybe-porttime-start)
@@ -184,10 +191,18 @@
           (incudine.external::rt-inputs-from-cache-end)
         finally (nrt-msg debug "~D suspended audio cycles" i)))
 
+#+dummy-audio
+(defun recover-suspended-audio-cycles (frames block-size)
+  (declare (ignore frames block-size))
+  nil)
+
 (defglobal *recover-suspended-audio-cycles-p*
+  #-dummy-audio
   (incudine.external::set-foreign-rt-thread-callback
     (and (boundp 'incudine.config::*recover-suspended-audio-cycles-p*)
-         incudine.config::*recover-suspended-audio-cycles-p*)))
+         incudine.config::*recover-suspended-audio-cycles-p*))
+  #+dummy-audio
+  nil)
 (declaim (type boolean *recover-suspended-audio-cycles-p*))
 
 (defun recover-suspended-audio-cycles-p ()
@@ -208,6 +223,7 @@ The default is the value of the configuration variable
     (msg warn "rt-thread stopped."))
   (unless (eq *recover-suspended-audio-cycles-p* value)
     (setf *recover-suspended-audio-cycles-p* value))
+  #-dummy-audio
   (incudine.external::set-foreign-rt-thread-callback value))
 
 (defsetf recover-suspended-audio-cycles-p set-recover-suspended-audio-cycles-p)

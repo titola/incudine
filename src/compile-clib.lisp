@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014-2020 Tito Latini
+;;; Copyright (c) 2014-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -71,9 +71,14 @@
   ;;; :PORTAUDIO and :PORTAUDIO-JACK are the same, but with the last
   ;;; it is possible to set the Jack client name.
   ;;;
-  (defvar *audio-driver*
-    #+(or linux jack-audio) :jack
-    #-(or linux jack-audio) :portaudio
+  (defparameter *audio-driver*
+    (cond ((uiop:featurep :jack-audio) :jack)
+          ((uiop:featurep :portaudio)
+           (if (and (boundp '*audio-driver*)
+                    (eq *audio-driver* :portaudio-jack))
+               :portaudio-jack
+               :portaudio))
+          (t :dummy))
     "Driver for real-time audio.")
 
   (defvar *enable-jack-midi* nil)
@@ -81,37 +86,11 @@
   (defvar *enable-portmidi-output-sample-offset*
     (not (eq *audio-driver* :jack)))
 
-  ;; The default is "cc" but if it is not available, it will be changed
-  ;; with "gcc" in CHECK-C-COMPILER
-  (defvar *c-compiler* "cc")
+  (defparameter *c-compiler* cl-user::__incudine_c_compiler__)
 
-  ;;; MINI-EVAL copied from cffi/src/libraries.lisp
-  (defun cffi-mini-eval (form)
-    "Simple EVAL-like function to evaluate the elements of
-CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
-    (typecase form
-      (cons (apply (car form) (mapcar #'cffi-mini-eval (cdr form))))
-      (symbol (symbol-value form))
-      (t form)))
+  (defparameter *c-library-paths* cl-user::__incudine_c_library_paths__)
 
-  (defvar *foreign-library-directories* nil)
-
-  (defvar *c-library-paths*
-    (progn
-      (setf cffi:*foreign-library-directories*
-            (union cffi:*foreign-library-directories*
-                   *foreign-library-directories*
-                   :test #'equal))
-      (format nil "~{ -L\"~A\"~}"
-              (alexandria:flatten
-               (mapcar #'cffi-mini-eval cffi:*foreign-library-directories*)))))
-
-  (defvar *foreign-header-file-directories* nil)
-
-  (defvar *c-header-file-paths*
-    (format nil "~{ -I\"~A\"~}"
-            (alexandria:flatten
-             (mapcar #'cffi-mini-eval *foreign-header-file-directories*))))
+  (defparameter *c-header-file-paths* cl-user::__incudine_c_header_file_paths__)
 
   (defvar *c-compiler-flags*
     (concatenate 'string "-O3 -Wall"
@@ -212,6 +191,7 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
        (cons *sched-policy* :util)
        (cons *audio-driver* drv)
        (cons :jack-midi (and *enable-jack-midi* :jack))
+       (cons :x11 (and (uiop:featurep :x11) :mouse))
        (cons :lisp-features
              `((foreign-barrier-architecture
                 ,(foreign-barrier-architecture))
@@ -280,13 +260,6 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
       (declare (ignore out err))
       (zerop exit-code)))
 
-  (defvar *c-libtest-fmt*
-    (format nil "~A -o /dev/null~A ~S -l" *c-compiler* *c-library-paths*
-            (namestring (merge-pathnames "nothing.c" *c-source-dir*))))
-
-  (defun probe-c-library (name)
-    (run-program "~A ~A" (list *c-libtest-fmt* name)))
-
   (defun compile-c-object (key &optional cflags)
     (let* ((src-path (get-c-source-by-key key))
            (obj (namestring (c-object-pathname src-path)))
@@ -301,61 +274,12 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
           obj
           (compile-error "C library compilation failed"))))
 
-  (defmacro info (datum &rest arguments)
-    `(progn
-       (fresh-line *error-output*)
-       (princ "INFO: " *error-output*)
-       (format *error-output* ,datum ,@arguments)
-       (terpri *error-output*)))
-
   (defun ensure-foreign-barrier-header-file (&optional force-p)
     (when (or force-p
               (null (probe-file *foreign-barrier-header-pathname*))
               (null (probe-file *cache-pathname*))
               (changed-lisp-feature 'foreign-barrier-architecture))
       (write-foreign-barrier-header-file)))
-
-  (defun get-audio-driver ()
-    (flet ((no-jack-or-pa ()
-             (info "Jack or PortAudio not installed; using dummy audio driver")
-             (setf *audio-driver* :dummy)))
-      (case *audio-driver*
-        (:jack
-         (cond ((probe-c-library "jack") :jack)
-               ((probe-c-library "portaudio")
-                (info "Jack not installed; audio driver changed to PortAudio.")
-                (setf *audio-driver* :portaudio))
-               (t (no-jack-or-pa))))
-        (:portaudio
-         (cond ((probe-c-library "portaudio") :portaudio)
-               ((probe-c-library "jack")
-                (info "PortAudio not installed; audio driver changed to Jack")
-                (setf *audio-driver* :jack))
-               (t (no-jack-or-pa))))
-        (:portaudio-jack
-         (cond ((probe-c-library "portaudio")
-                (if (probe-c-library "jack")
-                    :portaudio-jack
-                    (progn
-                      (info "Jack not installed; ~
-                             no JACK-specific extensions for PortAudio.")
-                      (setf *audio-driver* :portaudio))))
-               ((probe-c-library "jack")
-                (info "PortAudio not installed; audio driver changed to Jack")
-                (setf *audio-driver* :jack))
-               (t (no-jack-or-pa))))
-        (:dummy :dummy)
-        (t (unless (null *audio-driver*)
-             (info "~S is unknown; *AUDIO-DRIVER* must be ~
-                    :JACK, :PORTAUDIO, :PORTAUDIO-JACK or :DUMMY"
-                   *audio-driver*))
-           ;; The default is Jack for Linux and PortAudio for the other OS.
-           (setf *audio-driver*
-                 (cond
-           #+linux ((probe-c-library "jack") :jack)
-                   ((probe-c-library "portaudio") :portaudio)
-           #-linux ((probe-c-library "jack") :jack)
-                   (t (no-jack-or-pa))))))))
 
   (defmacro add-c-object-to-link (key objlist &optional to-compile-p cflags)
     (let ((to-compile-form `(compile-c-object ,key ,cflags)))
@@ -365,29 +289,6 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
                        ,to-compile-form
                        (namestring (get-c-object-by-key ,key))))
              ,objlist)))
-
-  ;;; Probably useful only when "cc" is not available.
-  (defun check-c-compiler ()
-    (flet ((check (cc)
-             (run-program "which ~A" (list cc))))
-      (unless (stringp *c-compiler*)
-        (info "*C-COMPILER* is ~S but it should be a string" *c-compiler*)
-        (setf *c-compiler* "cc"))
-      (or (check *c-compiler*)
-          ;; Try an alternative.
-          (let ((cc (if (string= *c-compiler* "cc") "gcc" "cc")))
-            (cond ((check cc)
-                   (info "no ~S in the search path; C compiler changed to ~S"
-                         *c-compiler* cc)
-                   (setf *c-compiler* cc)
-                   t)
-                  (t (compile-error "Command ~S or ~S not found"
-                                    *c-compiler* cc)))))))
-
-  (defun update-features ()
-    (when (probe-c-library "X11")
-      (pushnew :x11 *features*))
-    (values))
 
   ;;; Test for FFTW and unaligned stack pointer with SBCL on x86.
   ;;;
@@ -423,13 +324,13 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
                 then recompile Incudine."
                *audio-driver* *c-library-pathname* required
                (namestring *c-source-dir*))))
-    (cond ((and (eq *audio-driver* :jack)
-                (not (cffi:foreign-symbol-pointer "ja_start")))
-           (clib-error "Jack"))
-          ((and (member *audio-driver* '(:portaudio :portaudio-jack))
-                (not (cffi:foreign-symbol-pointer "pa_start")))
-           (clib-error "PortAudio")))
-    (values)))
+      (cond ((and (eq *audio-driver* :jack)
+                  (not (cffi:foreign-symbol-pointer "ja_start")))
+             (clib-error "Jack"))
+            ((and (member *audio-driver* '(:portaudio :portaudio-jack))
+                  (not (cffi:foreign-symbol-pointer "pa_start")))
+             (clib-error "PortAudio")))
+      (values)))
 
   (defun %compile-c-library (ofiles libs-dep)
     (let ((cmd (format nil "~A ~A ~A -o ~S~{ ~S~}~{ -l~A~}"
@@ -445,16 +346,14 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
     (let ((objs (or (c-objects-to-compile)
                     (and force-p (mapcar #'car *c-source-deps-alist*)))))
       (when objs
-        (check-c-compiler)
         (ensure-foreign-barrier-header-file t)
         (flet ((to-compile-p (key)
                  (or (member key objs) (missing-c-object-p key))))
           (let ((ofiles nil)
-                (libs-dep '("pthread" "m"))
-                (drv (get-audio-driver)))
+                (libs-dep '("pthread" "m")))
             (terpri)
             ;; RT Audio
-            (case drv
+            (case *audio-driver*
               ((:jack)
                (push "jack" libs-dep)
                (add-c-object-to-link :jack ofiles))
@@ -462,12 +361,11 @@ CFFI:*FOREIGN-LIBRARY-DIRECTORIES* and CFFI:*DARWIN-FRAMEWORK-DIRECTORIES*."
                (when (to-compile-p :portaudio)
                  (push "portaudio" libs-dep)
                  (add-c-object-to-link :portaudio ofiles t
-                                       (if (eq drv :portaudio-jack)
-                                         "-DPA_HAVE_JACK")))))
+                                       (if (eq *audio-driver* :portaudio-jack)
+                                           "-DPA_HAVE_JACK")))))
             ;; Mouse support
-            (when (probe-c-library "X11")
+            (when (uiop:featurep :x11)
               (push "X11" libs-dep)
-              (pushnew :x11 *features*)
               (add-c-object-to-link :mouse ofiles))
             ;; Open Sound Control
             (add-c-object-to-link :osc ofiles)
