@@ -7,7 +7,7 @@
   (let ((name (gensym)))
     `(let ((,name ,program-name))
        (sb-ext:run-program ,name ,args ,@rest
-                           :search (null (probe-file ,name))))))
+                           :search (null (pathname-name (probe-file ,name)))))))
 
 (defun process-stream ()
   (sb-ext:process-pty *snd*))
