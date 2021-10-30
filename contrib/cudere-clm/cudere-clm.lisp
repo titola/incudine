@@ -1,5 +1,5 @@
 ;;; Incudine version of CLM
-;;; Copyright (c) 2017-2020 Tito Latini
+;;; Copyright (c) 2017-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -1655,19 +1655,48 @@
              (type sample ccos csin yh yd))
     (+ (* ccos yd) (* csin yh))))
 
-(defun* make-ssb-am ((frequency *clm-default-frequency*) (order 41))
+(defun make-default-hilbert-fir-filter (order)
+  (declare (type positive-fixnum order))
+  (let ((xcoeffs (make-double-float-array (the fixnum (1+ (* 2 order))))))
+    (declare (type (simple-array double-float (*)) xcoeffs))
+    (loop for i of-type positive-fixnum from 1 to order by 2
+          for j from (1- order) downto 0 by 2
+          for k from (1+ order) by 2
+          with c of-type limited-sample = (/ pi order) do
+            (setf (aref xcoeffs j)
+                  (- (setf (aref xcoeffs k)
+                           (* (/ #.(/ 2 pi) i)
+                              ;; Hamming window.
+                              (+ 54d-2
+                                 (* 46d-2 (cos (the limited-sample (* c i))))))))))
+    xcoeffs))
+
+(defun make-hilbert-fir-filter (order window-type beta mu)
+  (declare (type non-negative-fixnum order window-type)
+           (type real beta mu))
+  (if (= window-type hamming-window)
+      (make-default-hilbert-fir-filter order)
+      (let ((xcoeffs (make-fft-window
+                       window-type (the fixnum (1+ (* 2 order))) beta mu)))
+        (declare (type (simple-array double-float (*)) xcoeffs))
+        (setf (aref xcoeffs order) 0d0)
+        (loop for i of-type positive-fixnum from 1 to order
+              for j from (1- order) downto 0
+              for k from (1+ order) do
+                (if (evenp i)
+                    (setf (aref xcoeffs j) 0d0
+                          (aref xcoeffs k) 0d0)
+                    (setf (aref xcoeffs j)
+                          (- (setf (aref xcoeffs k)
+                                   (* (/ #.(/ 2 pi) i) (aref xcoeffs k)))))))
+        xcoeffs)))
+
+(defun* make-ssb-am ((frequency *clm-default-frequency*) (order 41)
+                     (window-type hamming-window) (beta 0.0) (mu 0.0))
+  (declare (type non-negative-fixnum order window-type) (type real beta mu))
   (let* ((order (logior order 1))
-         (xcoeffs (make-double-float-array (* 2 (1+ order)))))
-    (loop for i from (- order) to order
-          for k from 0 do
-            (setf (aref xcoeffs k)
-                  (if (= i 0)
-                      0d0
-                      (let ((c (* pi i)))
-                        (declare (type limited-sample c))
-                        (* (/ (- 1d0 (cos c)) c)
-                           (+ 54d-2 (* 46d-2 (cos (the limited-sample
-                                                    (/ c order))))))))))
+         (xcoeffs (make-hilbert-fir-filter order window-type beta mu)))
+    (declare (type (simple-array double-float (*)) xcoeffs))
     (funcall (cudere-clm.ugens:ssb-am 0 0 (hz->radians (abs frequency))
                                       (if (plusp frequency) pi 0)
                                       +half-pi+
@@ -1703,9 +1732,7 @@
 (defmethod mus-interp-type ((gen ssb-am-instance)) mus-interp-none)
 
 (defmethod mus-xcoeff ((gen ssb-am-instance) loc)
-  (if (< loc (ssb-am-order gen))
-      (aref (ssb-am-xcoeffs gen) loc)
-      0d0))
+  (aref (ssb-am-xcoeffs gen) loc))
 
 (defmethod mus-reset ((gen ssb-am-instance))
   (setf (mus-phase gen) 0)

@@ -1361,7 +1361,7 @@ To load ~cudere-clm~ use ~asdf:load-system~ or ~require~.
 #+begin_defun
 #+end_defun
 
-#+attr_texinfo: :options clm:make-ssb-am @andoptionalkey{} frequency order
+#+attr_texinfo: :options clm:make-ssb-am @andoptionalkey{} frequency order window-type beta mu
 #+begin_defun
 #+end_defun
 
