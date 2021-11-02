@@ -117,9 +117,10 @@ and lowest levels."
 filter coefficients necessary to approximate a Hilbert transform.
 
 If WINDOW-FUNCTION is non-NIL, it is a function of two arguments
-(i.e. the function created by GEN:KAISER), a foreign array of type
-SAMPLE and the array size, called to scale the filter coefficients.
-The window function is the Hamming window by default.
+(i.e. the function created by GEN:KAISER), the foreign pointer to
+the data window of type SAMPLE and the window size, called to scale
+the filter coefficients. The window function is the Hamming window
+by default.
 
 The returned function takes two arguments, the foreign pointer to the
 sample data and the data size, and returns two values: the foreign
