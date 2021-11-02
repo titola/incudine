@@ -1,4 +1,4 @@
-;;; Copyright (c) 2017-2018 Tito Latini
+;;; Copyright (c) 2017-2021 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -81,3 +81,65 @@ and lowest levels."
           (values foreign-array
                   (if (zerop max) max (/ max))
                   normalize-p))))))
+
+(defmacro fir-hilbert-loop (i j k order data size mult &rest variable-clauses)
+  `(loop for ,i of-type positive-fixnum from 1 to ,order
+         for ,j of-type non-negative-fixnum from (1- ,order) downto 0
+         for ,k of-type positive-fixnum from (1+ ,order)
+         ,@variable-clauses
+         do (if (evenp ,i)
+                (setf (smp-ref ,data ,j) ,(sample 0)
+                      (smp-ref ,data ,k) ,(sample 0))
+                (setf (smp-ref ,data ,j)
+                      (- (setf (smp-ref ,data ,k)
+                               (* (/ ,(/ 2 pi) ,i) ,mult)))))
+         finally
+           (when (evenp ,size)
+             (setf (smp-ref ,data (1- ,size)) ,(sample 0)))
+           (setf (smp-ref ,data ,order) ,(sample 0))
+           (return (values ,data (when (> ,size 1)
+                                   (/ (smp-ref ,data (1+ ,order))))))))
+
+(defmacro fir-hilbert-function ((foreign-array size order filter-length)
+                                &body body)
+  `(lambda (,foreign-array ,size)
+     (declare (type foreign-pointer ,foreign-array)
+              (type non-negative-fixnum ,size))
+     (if (plusp ,size)
+         (let* ((,filter-length (logior (1- ,size) 1))
+                (,order (ash ,filter-length -1)))
+           (declare (type non-negative-fixnum ,filter-length ,order))
+           ,@body)
+         (values ,foreign-array ,(sample 0)))))
+
+(defun hilbert (&key window-function)
+  "Return a function called to fill a foreign array with the FIR
+filter coefficients necessary to approximate a Hilbert transform.
+
+If WINDOW-FUNCTION is non-NIL, it is a function of two arguments
+(i.e. the function created by GEN:KAISER), a foreign array of type
+SAMPLE and the array size, called to scale the filter coefficients.
+The window function is the Hamming window by default.
+
+The returned function takes two arguments, the foreign pointer to the
+sample data and the data size, and returns two values: the foreign
+array and the (generally unnecessary) scale factor to normalize the
+samples. If the data size is an even number, the last coefficient
+value is zero.
+
+The FIR Hilbert filter is causal with the coefficients for the
+zero-phase impulse response shifted right by order:
+
+    (datasize - 1)/2  for datasize odd
+    datasize/2 - 1    for datasize even"
+  (declare (type (or function null) window-function))
+  (if window-function
+      (fir-hilbert-function (foreign-array size order filter-length)
+        (fir-hilbert-loop i j k order foreign-array size
+          (smp-ref foreign-array k)
+          initially (funcall window-function foreign-array filter-length)))
+      (fir-hilbert-function (foreign-array size order filter-length)
+        (fir-hilbert-loop i j k order foreign-array size
+          ;; Hamming window.
+          (+ 54d-2 (* 46d-2 (cos (the limited-sample (* c i)))))
+          with c of-type limited-sample = (/ pi order)))))

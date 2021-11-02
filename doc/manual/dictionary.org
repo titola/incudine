@@ -967,6 +967,39 @@ Return the STFT frame offset of the pvbuffer. Setfable.
 ::: gen:envelope
 *** Filter
 ::: gen:fir
+::: gen:hilbert
+
+Example:
+
+#+begin_example
+(in-package :scratch)
+
+(define-vug ssb-am (input (fir-hilbert buffer) frequency-shift)
+  "Single side-band AM."
+  (with ((order (ash (logior (1- (buffer-size fir-hilbert)) 1) -1)))
+    (declare (type non-negative-fixnum order))
+    (- (* (delay-s input 4000 order) (sine frequency-shift 1 +half-pi+))
+       (* (direct-convolve input fir-hilbert) (sine frequency-shift)))))
+
+(dsp! ssb-am-test ((fir-hilbert buffer) frequency-shift)
+  "Modulation of the sound obtained from the first input channel."
+  (out (ssb-am (butter-lp (audio-in 0) 8000) fir-hilbert frequency-shift)))
+
+;; Order 149 => causal FIR filter with 149*2 + 1 coefficients.
+(defvar *fir-hilbert* (make-buffer 299 :fill-function (gen:hilbert)))
+
+(defun set-fir-hilbert-window-function (func)
+  (fill-buffer *fir-hilbert* (gen:hilbert :window-function func)))
+
+(rt-start)
+
+(ssb-am-test *fir-hilbert* 567)
+
+(rt-eval () (set-fir-hilbert-window-function #'rectangular-window))
+
+(rt-eval () (set-fir-hilbert-window-function (gen:kaiser 6)))
+#+end_example
+
 *** Partials
 ::: gen:partials
 ::: gen:gbuzz

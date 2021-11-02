@@ -211,8 +211,8 @@
 
 (defvar *special-char-lists*
   (mapcar (lambda (str) (nreverse (coerce str 'list)))
-          '("C" "DC" "DSP" "FFT" "IFFT" "STFT" "LADSPA" "LV2" "MIDI" "NTP" "OSC"
-            "UGEN" "URID" "VUG")))
+          '("C" "DC" "DSP" "FIR" "IIR" "FFT" "IFFT" "STFT" "LADSPA" "LV2" "MIDI"
+            "NTP" "OSC" "UGEN" "URID" "VUG")))
 
 (defun tildelize-p (char-list)
   (null (or (let ((pos (position-if #'alpha-char-p char-list)))
