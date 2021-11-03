@@ -112,6 +112,16 @@ and lowest levels."
            ,@body)
          (values ,foreign-array ,(sample 0)))))
 
+;;; Impulse response of a 90-degree phase shifter:
+;;;
+;;;             2 n π
+;;;        2 sin (---)
+;;;                2     1 - cos(n π)    2
+;;; h[n] = ----------- = ------------ = ---,  n odd
+;;;            n π           n π        n π
+;;;
+;;; h[n] = 0, n even
+;;;
 (defun hilbert (&key window-function)
   "Return a function called to fill a foreign array with the FIR
 filter coefficients necessary to approximate a Hilbert transform.
