@@ -169,3 +169,18 @@
           (destroy-vug 'vug-test-4)
           (values n1 n2 (null (vug 'vug-test-3)) (null (vug 'vug-test-4))))))
   vug-test-3 vug-test-4 t t)
+
+;;; Trivial VUG definitions.
+(define-vug vug-body-is-number () 12345)
+(define-vug vug-body-is-symbol () *sample-rate*)
+
+(deftest vug.4
+    (incudine.vug::vug-function-inputs
+      (funcall (incudine.vug::vug-callback (vug 'vug-body-is-number))))
+  (12345))
+
+(deftest vug.5
+    (mapcar (lambda (x) (string (incudine.vug::vug-symbol-name x)))
+            (incudine.vug::vug-function-inputs
+              (funcall (incudine.vug::vug-callback (vug 'vug-body-is-symbol)))))
+  ("*SAMPLE-RATE*"))

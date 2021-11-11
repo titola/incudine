@@ -1989,7 +1989,7 @@ Return the new VUG structure."
                                             (vug-block nil
                                               (with-argument-bindings
                                                   (,args ,types t)
-                                                ,@vug-body)))))
+                                                (progn ,@vug-body))))))
                                    (let ((,s (list ,@specs)))
                                      (call-vug-pre-hooks ,s)
                                      (,fn ,@args))))))
