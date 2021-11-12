@@ -1911,6 +1911,11 @@ Example:
 (defun get-vug-spec (name specs)
   (getf specs name))
 
+(defun get-vug-form (body)
+  (if (or (cdr body) (consp (car body)))
+      body
+      `((progn ,(car body)))))
+
 (defun call-vug-pre-hooks (specs)
   (dolist (fn (get-vug-spec :pre-hook specs)) (funcall fn)))
 
@@ -1989,7 +1994,7 @@ Return the new VUG structure."
                                             (vug-block nil
                                               (with-argument-bindings
                                                   (,args ,types t)
-                                                (progn ,@vug-body))))))
+                                                ,@(get-vug-form vug-body))))))
                                    (let ((,s (list ,@specs)))
                                      (call-vug-pre-hooks ,s)
                                      (,fn ,@args))))))
