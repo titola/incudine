@@ -980,10 +980,13 @@ of GROUP."
            (unlink-group node)
            (nrt-msg info "free group 0")))
         ((temp-node-p node)
-         (setf (node-id node) nil)
-         (setf (node-done-p node) nil)
-         (incudine.util::free-object node *node-pool*)
-         (nrt-msg info "free temporary node"))
+         ;; There is a finalizer for the cached node if the ID is
+         ;; accidentally NIL (see MAKE-CACHED-NODE).
+         (when (node-id node)
+           (setf (node-id node) nil)
+           (setf (node-done-p node) nil)
+           (incudine.util::free-object node *node-pool*)
+           (nrt-msg info "free temporary node")))
         ((node-id node)
          (let ((id (node-id node)))
            (declare (type non-negative-fixnum id))

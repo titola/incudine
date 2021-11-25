@@ -58,6 +58,20 @@
       res)
   (0 1024 T))
 
+;; Double free of a temporary node.
+(deftest temp-node.1
+    (flet ((pool-size ()
+             (let ((data (incudine.util::cons-pool-data incudine::*node-pool*)))
+               (if (alexandria:circular-list-p data)
+                   -123
+                   (length data)))))
+      (let ((n (incudine::make-temp-node))
+            (initial-pool-size (pool-size)))
+        (free n)
+        (free n)
+        (= (pool-size) (1+ initial-pool-size))))
+  T)
+
 (deftest group.1
     (progn
       (free 0)
