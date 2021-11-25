@@ -26,6 +26,9 @@
          ;; Rebinding to inhibit side effects.
          (pos location))
     (declare (fixnum pos) (inline envelope))
+    (initialize
+      ;; No STYLE-WARNING "The variable POS is assigned but never read".
+      pos)
     (multiple-value-bind (e i) (envelope env 1 duration #'free location)
       (declare (sample e) (fixnum i))
       (setf pos i)

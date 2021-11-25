@@ -1147,6 +1147,8 @@
          (dsize (if zdly max-size size)))
     (declare (type sample yn1) (type non-negative-fixnum dsize))
     (initialize
+      ;; No STYLE-WARNING "The variable YN1-PTR is assigned but never read".
+      yn1-ptr
       (setf yn1-ptr (get-pointer yn1))
       (setf loc 0)
       (setf zloc (- max-size size))

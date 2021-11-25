@@ -368,6 +368,19 @@
           (outa i (rand-interp r)))))
   #(59 104 127 11 168 3 63 155 98 154 143 98 170 220 90 123))
 
+;;; COMB
+
+;; From zc instrument in the original clm-5/clm.html
+;; (zc 0 test-duration 100 .1 90 100 .95)
+(deftest comb.1
+    (with-sound-test ()
+      (let ((s (make-pulse-train 100))
+            (d0 (make-comb :size 90 :max-size 100 :scaler .95))
+            (zenv (make-env '(0 0 1 1) :scaler 10 :end *test-length*)))
+        (dotimes (i *test-length*)
+          (outa i (comb d0 (* .1 (pulse-train s)) (env zenv))))))
+  #(129 235 44 225 33 40 44 97 249 225 175 59 73 87 207 34))
+
 ;;; ONE-POLE
 
 (deftest one-pole.1
