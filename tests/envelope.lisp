@@ -226,6 +226,10 @@
 (deftest tempo-envelope.3
     (let* ((tenv0 (make-tempo-envelope '(60 135 94) '(4 8) :curve :sine))
            (tenv1 (copy-tempo-envelope tenv0)))
+      (assert (not (cffi:null-pointer-p
+                     (incudine::tempo-envelope-cached-seconds tenv1))))
+      (assert (not (cffi:null-pointer-p
+                     (incudine::tempo-envelope-cached-beats tenv1))))
       (macrolet ((check-slot (slot-name test)
                    (let ((reader (format-symbol (find-package "INCUDINE")
                                                 "TEMPO-ENVELOPE-~A" slot-name)))
@@ -234,13 +238,14 @@
             (values (free-p tenv0) (free-p tenv1) (eq tenv0 tenv1)
                     (check-slot spb eq)
                     (check-slot cached-seconds cffi:pointer-eq)
+                    (check-slot cached-beats cffi:pointer-eq)
                     (check-slot points =)
                     (check-slot max-points =)
                     (check-slot constant-p eq)
                     (every (lambda (b) (= (bpm-at tenv0 b) (bpm-at tenv1 b)))
                            '(0 1 2 3 4 5 6 7 8)))
           (free (list tenv0 tenv1)))))
-  NIL NIL NIL NIL NIL T T T T)
+  NIL NIL NIL NIL NIL NIL T T T T)
 
 (deftest with-cleanup-tempo-envelope.1
     (free-p (with-cleanup (make-tempo-envelope '(90 60 90) '(4 2))))

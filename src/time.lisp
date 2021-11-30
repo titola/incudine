@@ -289,17 +289,18 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
   (declare (type tempo-envelope tenv))
   (if (free-p tenv)
       (incudine-error "The temporal envelope is unusable.")
-      (let ((%points (tempo-envelope-points tenv))
-            (%max-points (tempo-envelope-max-points tenv))
-            (rt-p (allow-rt-memory-p)))
+      (let* ((%points (tempo-envelope-points tenv))
+             (%max-points (tempo-envelope-max-points tenv))
+             (cached-data-size (* %max-points 2))
+             (rt-p (allow-rt-memory-p)))
         (multiple-value-bind (twarp-data new free-fn pool)
             (reduce-warnings
               (if rt-p
-                  (values (foreign-rt-alloc 'sample :count %max-points)
+                  (values (foreign-rt-alloc 'sample :count cached-data-size)
                           (incudine.util::alloc-rt-object *rt-tempo-envelope-pool*)
                           #'safe-foreign-rt-free
                           *rt-tempo-envelope-pool*)
-                  (values (foreign-alloc-sample %max-points)
+                  (values (foreign-alloc-sample cached-data-size)
                           (incudine.util::alloc-object *tempo-envelope-pool*)
                           #'foreign-free
                           *tempo-envelope-pool*)))
@@ -316,7 +317,9 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
                 (funcall free-fn twarp-data)
                 (incudine-object-pool-expand pool 1)))
             (foreign-copy-samples
-              twarp-data (tempo-envelope-cached-seconds tenv) %points)
+              twarp-data (tempo-envelope-cached-seconds tenv) cached-data-size)
+            (setf (tempo-envelope-cached-beats new)
+                  (cffi:mem-aptr twarp-data 'sample %max-points))
             new)))))
 
 ;;; Integrated curves to get BEATS->SECONDS.
