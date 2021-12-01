@@ -1633,6 +1633,11 @@ is equivalent to
 :    (setf time 8)
 
 #+texinfo: @noindent
+The score statement ~:score-start-time:~ sets the start time in beats.
+The events scheduled before that time and the score start time of the
+included files are ignored.
+
+#+texinfo: @noindent
 It is possible to define other local variables by inserting
 the bindings after ~with~, at the beginning of the score.
 For example:

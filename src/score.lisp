@@ -26,7 +26,8 @@
 
 (declaim (special
            ;; Stack used to check recursive inclusions of rego files.
-           *include-rego-stack*)
+           *include-rego-stack*
+           *score-start-time*)
          (type list *include-rego-stack*))
 
 (defvar *score-float-format* incudine.config:*sample-type*)
@@ -303,7 +304,8 @@ or IGNORE-SCORE-STATEMENTS."
                 (score-property-statement-p name)))))
 
 (defun score-property-statement-p (name)
-  (string-equal name ":score-float-format:"))
+  (or (string-equal name ":score-float-format:")
+      (string-equal name ":score-start-time:")))
 
 (declaim (inline org-table-line-p))
 (defun org-table-line-p (string)
@@ -382,6 +384,9 @@ or IGNORE-SCORE-STATEMENTS."
             (read-from-string (string-trim-blank-and-quotation
                                 (subseq line time-pos))
                               nil))))
+
+(defun included-regofile-p ()
+  (and (cdr *include-rego-stack*) t))
 
 ;;; The score statement `call' pushes the return position on the stack
 ;;; and transfers program control to the point labeled by a tag.
@@ -472,6 +477,18 @@ or IGNORE-SCORE-STATEMENTS."
   (setf *score-float-format*
         (read-from-string (subseq line (next-blank-position line)))))
 
+;;; The score statement `:score-start-time:' sets the start time in beats.
+;;; The default is zero.
+(defun score-start-time-statement-p (line)
+  (%score-statement-p
+    line ":score-start-time:" #.(length ":score-start-time: x")))
+
+(defun set-score-start-time (line)
+  (unless (included-regofile-p)
+    (let ((time (read-from-string (subseq line (next-blank-position line)))))
+      (when (and (realp time) (> time 0.0))
+        (setf *score-start-time* time)))))
+
 ;;; If we use the symbol // to separate the functions with the same
 ;;; time-tag, we get a polyphonic vertical sequencer in text files.
 ;;; A quoted function name is ignored; useful to mute an instrument.
@@ -547,11 +564,15 @@ or IGNORE-SCORE-STATEMENTS."
 (defun read-time-score-statement-p (line)
   (or (score-call-statement-p line)
       (and (char= #\: (char line 0))
-           (score-float-format-statement-p line))))
+           (or (score-start-time-statement-p line)
+               (score-float-format-statement-p line)))))
 
 (defun expand-read-time-score-statement (line)
   (cond ((score-call-statement-p line)
          (expand-score-call-statement line))
+        ((score-start-time-statement-p line)
+         (set-score-start-time line)
+         nil)
         ((score-float-format-statement-p line)
          (set-score-float-format line)
          nil)))
@@ -646,6 +667,42 @@ or IGNORE-SCORE-STATEMENTS."
                 ((rt-thread-p) (nrt-funcall #'end-of-rego))
                 (t (end-of-rego)))))
           incudine::*to-free*))))
+
+(defun advance-score-start-time (start-time)
+  (do ((i incudine.edf:+root-node+))
+      ((>= i (incudine.edf::heap-next-node incudine.edf:*heap*)))
+    (declare (type positive-fixnum i))
+    (let ((node (incudine.edf::heap-node i)))
+      (cond ((>= (incudine.edf::node-time node) start-time)
+             (decf (incudine.edf::node-time node) start-time)
+             (incf i))
+            ((incudine.edf::force-scheduled-event-p node)
+             (setf (incudine.edf::node-time node) (sample 0))
+             (incf i))
+            (t
+             (incudine.edf::delete-event i)
+             ;; Restart from the beginning of the current tree-level.
+             (setf i (1- (integer-length (logior i 2)))))))))
+
+(defun maybe-advance-score-start-time (tempo-env max-time)
+  (when (> *score-start-time* 0.0)
+    (with-gensyms (start-time)
+      `(let ((,start-time (* *sample-rate*
+                             (beats->seconds ,tempo-env ,*score-start-time*))))
+         (decf ,max-time ,start-time)
+         (advance-score-start-time ,start-time)))))
+
+(defun get-regolist (r-events tempo-env beats)
+  (let ((events (sort (nreverse r-events) '< :key 'first)))
+    (if beats
+        (let ((start-time (beats->seconds tempo-env beats)))
+          (loop for (time func) in events
+             if (>= time start-time)
+               collect (let ((new-time (- time start-time)))
+                         (cons new-time (funcall func new-time)))))
+        (mapcar (lambda (l)
+                  (cons (first l) (funcall (second l) (first l))))
+                events))))
 
 (defun default-tempo-envelope ()
   (make-tempo-envelope (list *default-bpm* *default-bpm*) '(0)))
@@ -751,7 +808,9 @@ or IGNORE-SCORE-STATEMENTS."
                         (pop *include-rego-stack*)
                         `((setf ,time ,parent-time ,tempo-env ,parent-tempo-env)))
                        (extend-time-p
-                        (list (maybe-extend-time at-fname max-time tenv)))))))))))
+                        (list
+                          (maybe-advance-score-start-time tenv max-time)
+                          (maybe-extend-time at-fname max-time tenv)))))))))))
 
 (define-constant +rego-time0-index+ 0)
 (define-constant +rego-time1-index+ 1)
@@ -847,6 +906,7 @@ or IGNORE-SCORE-STATEMENTS."
     (let ((%sched (ensure-complex-gensym "AT"))
           (sched (ensure-complex-gensym "AT"))
           (*include-rego-stack* nil)
+          (*score-start-time* 0.0)
           (*score-float-format* '#.incudine.config:*sample-type*))
       (with-complex-gensyms (smptime0 smptime1 smptime beats last-time
                              last-dur max-time c-array-wrap)
@@ -938,6 +998,7 @@ event list at runtime when the function is called."
   (let ((%sched (ensure-complex-gensym "AT"))
         (sched (ensure-complex-gensym "AT"))
         (incudine::*include-rego-stack* nil)
+        (*score-start-time* 0.0)
         (*score-float-format* '#.incudine.config:*sample-type*))
     (with-ensure-symbols (time dur tempo tempo-env)
       (with-gensyms (c-array-wrap smptime0 smptime1 smptime beats last-time
@@ -977,10 +1038,9 @@ event list at runtime when the function is called."
                                           ,tempo-env)))
                      ,(incudine::%write-regofile stream sched last-time last-dur
                                                  max-time tempo-env nil nil nil)
-                     (mapcar (lambda (l)
-                               (cons (first l)
-                                     (funcall (second l) (first l))))
-                             (sort (nreverse ,flist) '< :key 'first))))))))))))
+                     (incudine::get-regolist ,flist ,tempo-env
+                                             ,(if (> *score-start-time* 0.0)
+                                                  *score-start-time*))))))))))))
 
 (defun quote-var-special (x)
   (cond ((and (symbolp x)

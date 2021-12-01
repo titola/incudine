@@ -274,6 +274,17 @@
    (2.0d0 FLOAT-TEST 0.001d0 1.234d0))
   nil)
 
+(regofile->list-test score-start-time.1 "start-time-1.rego"
+  ((0.0 REGO-TEST-1 500 0.1)
+   (0.23 REGO-TEST-1 4000 0.15)
+   (0.5 REGO-TEST-1 600 0.1)
+   (1.0 REGO-TEST-1 700 0.1)
+   (1.5 REGO-TEST-1 800 0.1)
+   (1.75 REGO-TEST-1 1000 0.18)
+   (2.08 REGO-TEST-1 2000 0.17)
+   (2.42 REGO-TEST-1 3000 0.16)
+   (2.75 REGO-TEST-1 4000 0.15)))
+
 (with-dsp-test (rego.1 :channels 2
       :md5 #(245 220 65 244 25 76 31 230 109 144 248 153 16 170 160 134))
   (test-regofile "t1.rego"))
@@ -316,6 +327,10 @@
       :md5 #(98 130 80 23 173 199 134 29 162 36 18 244 15 47 123 198))
   ;; Lisp tag shadowed in the included rego file.
   (test-regofile "include-3.rego"))
+
+(with-dsp-test (score-start-time.2
+      :md5 #(3 226 25 22 231 135 111 119 114 2 194 94 191 19 10 38))
+  (test-regofile "start-time-1.rego"))
 
 (with-dsp-test (org-mode.1
       :md5 #(216 196 146 164 88 88 197 20 138 165 207 215 200 7 22 251))
