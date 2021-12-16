@@ -714,6 +714,11 @@ value of a bound VARIABLE of type SAMPLE, POINTER or foreign array."
 
 (defun %free-incudine-objects (lst)
   (dolist (obj lst)
+    ;; The ugen instances, implicitly allocated within the definition of a DSP
+    ;; or UGEN, are reused to avoid consing and freed during FREE-DSP-INSTANCES.
+    ;; The memory for the other local ugen instances is not automatically
+    ;; managed (however there is a finalizer) because there is not a generic
+    ;; pool for this type of object.
     (unless (ugen-instance-p obj)
       (incudine:free obj)))
   (if (allow-rt-memory-p)

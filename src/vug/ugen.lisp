@@ -285,6 +285,10 @@ from the other packages."
          (fn (reduce-warnings
                (apply (the function (ugen-callback ugen)) args))))
     (declare (type ugen ugen) (type function fn))
+    ;; `(without-cleanup (funcall fn))' and the simplification of
+    ;; %FREE-INCUDINE-OBJECTS make sense, however the explicit local
+    ;; allocations are rare. This ugen instance is reused and freed
+    ;; during FREE-DSP-INSTANCES.
     (funcall fn)))
 
 (defmacro reinit-ugen (vug-varname args)
