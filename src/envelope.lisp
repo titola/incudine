@@ -466,7 +466,8 @@ otherwise it restarts from the value RESTART-LEVEL."
           (setf a2 (* (+ end beg) 0.5))
           (setf b1 (* 2.0 (cos (the maybe-limited-sample w))))
           (setf y2 (- a2 (+ beg (* a3 (- 1 (cos (the maybe-limited-sample
-                                                  (* w (1- delta)))))))))
+                                                  (* w (the fixnum
+                                                         (1- delta))))))))))
           (incf beg (* a3 (- 1 (cos (the maybe-limited-sample (* w delta))))))
           (setf y1 (- a2 beg))))
        (+seg-welch-func+
@@ -474,7 +475,8 @@ otherwise it restarts from the value RESTART-LEVEL."
               (a3 (- end beg)))
           (setf a2 beg)
           (setf b1 (* 2.0 (cos (the maybe-limited-sample w))))
-          (setf y2 (* a3 (sin (the maybe-limited-sample (* w (1- delta))))))
+          (setf y2 (* a3 (sin (the maybe-limited-sample
+                                (* w (the fixnum (1- delta)))))))
           (incf beg (* a3 (sin (the maybe-limited-sample (* w delta)))))
           (setf y1 (- beg a2))))
        (+seg-square-func+
