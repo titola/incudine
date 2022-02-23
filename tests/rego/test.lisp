@@ -259,6 +259,14 @@
 (regofile->list-test score-statement-names.1 "test-name.rego"
   ((0.0 INSTR-3 T) (0.0 INSTR-2 T) (0.0 INSTR-1 T)))
 
+(regofile->list-test score-radix.1 "radix.rego"
+  ((0.0 I1 127 255 31 26)
+   (8.23 I3 1/255 3/2)
+   (11.0 I1 43 8 12 60)
+   (12.0 I2 60 100)
+   (15.0 I2 63 78)
+   (26.0 ADD 170 203)))
+
 (regofile->list-test score-float-format.1 "float-format.rego"
   ((0.0d0 FLOAT-TEST 1.0d0 1.2345d0)
    (0.0d0 FLOAT-TEST 0.001125 123.456d0)

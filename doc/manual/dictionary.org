@@ -1742,6 +1742,32 @@ For example, we can create and edit a rego file in Emacs SES
 (Simple Emacs Spreadsheet) mode.
 
 #+texinfo: @noindent
+The score statement ~:score-radix:~ sets the variable
+~*read-base*~ to read the rest of the score lines.
+
+#+texinfo: @noindent
+~:score-radix:~ defaults to 10.
+
+#+texinfo: @noindent
+Example:
+
+#+texinfo: @exampleindent 4
+#+begin_example
+12 i2 60 100
+15 i2 63 78
+
+:score-radix: 16
+00 i1 7f ff 1f 1a
+0b i1 2b 08 0c 3c
+
+;; Ratios are affected by *READ-BASE*
+ff/1f i3 1/ff f/a
+
+:score-radix: 2
+00011010 add 10101010 11001011
+#+end_example
+
+#+texinfo: @noindent
 The score statement ~:score-float-format:~ sets the variable
 ~*read-default-float-format*~ to read the rest of the score lines.
 

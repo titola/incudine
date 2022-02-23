@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2021 Tito Latini
+;;; Copyright (c) 2013-2022 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -29,6 +29,9 @@
            *include-rego-stack*
            *score-start-time*)
          (type list *include-rego-stack*))
+
+(defvar *score-radix* 10)
+(declaim (type (integer 2 36) *score-radix*))
 
 (defvar *score-float-format* incudine.config:*sample-type*)
 (declaim (type (member single-float double-float short-float long-float rational)
@@ -305,6 +308,7 @@ or IGNORE-SCORE-STATEMENTS."
 
 (defun score-property-statement-p (name)
   (or (string-equal name ":score-float-format:")
+      (string-equal name ":score-radix:")
       (string-equal name ":score-start-time:")))
 
 (declaim (inline org-table-line-p))
@@ -477,6 +481,17 @@ or IGNORE-SCORE-STATEMENTS."
   (setf *score-float-format*
         (read-from-string (subseq line (next-blank-position line)))))
 
+;;; The score statement `:score-radix:' sets the variable *READ-BASE*
+;;; to read the rest of the score lines.
+;;; The default is 10.
+(defun score-radix-statement-p (line)
+  (%score-statement-p
+    line ":score-radix:" #.(length ":score-radix: x")))
+
+(defun set-score-radix (line)
+  (setf *score-radix*
+        (read-from-string (subseq line (next-blank-position line)))))
+
 ;;; The score statement `:score-start-time:' sets the start time in beats.
 ;;; The default is zero.
 (defun score-start-time-statement-p (line)
@@ -548,6 +563,7 @@ or IGNORE-SCORE-STATEMENTS."
                             `(,at-fname ,@(cdr args) t ,time)))))))
       (let ((line (or (expand-score-statement line) (org-table-filter line)))
             (*readtable* *score-readtable*)
+            (*read-base* *score-radix*)
             (*read-default-float-format* *score-float-format*))
         (declare (type string line))
         (cond ((score-return-statement-p line)
@@ -565,6 +581,7 @@ or IGNORE-SCORE-STATEMENTS."
   (or (score-call-statement-p line)
       (and (char= #\: (char line 0))
            (or (score-start-time-statement-p line)
+               (score-radix-statement-p line)
                (score-float-format-statement-p line)))))
 
 (defun expand-read-time-score-statement (line)
@@ -572,6 +589,9 @@ or IGNORE-SCORE-STATEMENTS."
          (expand-score-call-statement line))
         ((score-start-time-statement-p line)
          (set-score-start-time line)
+         nil)
+        ((score-radix-statement-p line)
+         (set-score-radix line)
          nil)
         ((score-float-format-statement-p line)
          (set-score-float-format line)
@@ -907,6 +927,7 @@ or IGNORE-SCORE-STATEMENTS."
           (sched (ensure-complex-gensym "AT"))
           (*include-rego-stack* nil)
           (*score-start-time* 0.0)
+          (*score-radix* 10)
           (*score-float-format* '#.incudine.config:*sample-type*))
       (with-complex-gensyms (smptime0 smptime1 smptime beats last-time
                              last-dur max-time c-array-wrap)
@@ -999,6 +1020,7 @@ event list at runtime when the function is called."
         (sched (ensure-complex-gensym "AT"))
         (incudine::*include-rego-stack* nil)
         (*score-start-time* 0.0)
+        (*score-radix* 10)
         (*score-float-format* '#.incudine.config:*sample-type*))
     (with-ensure-symbols (time dur tempo tempo-env)
       (with-gensyms (c-array-wrap smptime0 smptime1 smptime beats last-time
