@@ -267,6 +267,16 @@
    (15.0 I2 63 78)
    (26.0 ADD 170 203)))
 
+(regofile->list-test score-radix.2 "radix-parent.rego"
+  ((0.0 START 10 20 30)
+   (83.0 I1 127 255 31 26)
+   (84.0 I0 420 493)
+   (91.23 I3 1/255 3/2)
+   (94.0 I1 43 8 12 60)
+   (95.0 I2 60 100)
+   (98.0 I2 63 78)
+   (109.0 ADD 170 203)))
+
 (regofile->list-test score-float-format.1 "float-format.rego"
   ((0.0d0 FLOAT-TEST 1.0d0 1.2345d0)
    (0.0d0 FLOAT-TEST 0.001125 123.456d0)
@@ -279,7 +289,34 @@
    (2.0d0 FLOAT-TEST 1.0d0 1.2345d0)
    (2.0d0 FLOAT-TEST 0.001125 123.456d0)
    (2.0d0 FLOAT-TEST 0.001 0.001d0)
-   (2.0d0 FLOAT-TEST 0.001d0 1.234d0))
+   (2.0d0 FLOAT-TEST 0.001d0 1.234d0)
+   (3.0d0 FLOAT-TEST 1.0 1.2345)
+   (3.0d0 FLOAT-TEST 0.001125 123.456d0)
+   (3.0d0 FLOAT-TEST 0.001 0.001d0)
+   (3.0d0 FLOAT-TEST 0.001 1.234d0))
+  nil)
+
+(regofile->list-test score-float-format.2 "float-format-parent.rego"
+  ((0.0d0 FLOAT-TEST 1.0d0 1.2345d0)
+   (0.0d0 FLOAT-TEST 0.001125 123.456d0)
+   (0.0d0 FLOAT-TEST 0.001 0.001d0)
+   (0.0d0 FLOAT-TEST 0.001d0 1.234d0)
+   (1.0d0 FLOAT-TEST 1.0 1.2345)
+   (1.0d0 FLOAT-TEST 0.001125 123.456d0)
+   (1.0d0 FLOAT-TEST 0.001 0.001d0)
+   (1.0d0 FLOAT-TEST 0.001 1.234d0)
+   (2.0d0 FLOAT-TEST 1.0d0 1.2345d0)
+   (2.0d0 FLOAT-TEST 0.001125 123.456d0)
+   (2.0d0 FLOAT-TEST 0.001 0.001d0)
+   (2.0d0 FLOAT-TEST 0.001d0 1.234d0)
+   (3.0d0 FLOAT-TEST 1.0 1.2345)
+   (3.0d0 FLOAT-TEST 0.001125 123.456d0)
+   (3.0d0 FLOAT-TEST 0.001 0.001d0)
+   (3.0d0 FLOAT-TEST 0.001 1.234d0)
+   (9.0d0 FLOAT-TEST 1.0d0 1.2345d0)
+   (9.0d0 FLOAT-TEST 0.001125 123.456d0)
+   (9.0d0 FLOAT-TEST 0.001 0.001d0)
+   (9.0d0 FLOAT-TEST 0.001d0 1.234d0))
   nil)
 
 (regofile->list-test score-start-time.1 "start-time-1.rego"

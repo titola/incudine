@@ -385,9 +385,10 @@ or IGNORE-SCORE-STATEMENTS."
   (let ((time-pos (position #\" line :from-end t)))
     (values (string-trim-blank-and-quotation (subseq line (1+ +include-strlen+)
                                                      time-pos))
-            (read-from-string (string-trim-blank-and-quotation
-                                (subseq line time-pos))
-                              nil))))
+            (let ((*read-base* *score-radix*))
+              (read-from-string (string-trim-blank-and-quotation
+                                 (subseq line time-pos))
+                                nil)))))
 
 (defun included-regofile-p ()
   (and (cdr *include-rego-stack*) t))
@@ -472,7 +473,8 @@ or IGNORE-SCORE-STATEMENTS."
 
 ;;; The score statement `:score-float-format:' sets the variable
 ;;; *READ-DEFAULT-FLOAT-FORMAT* to read the rest of the score lines.
-;;; The default is double-float (the sample type).
+;;; The default is double-float (the sample type) if there is not a
+;;; parent rego file.
 (defun score-float-format-statement-p (line)
   (%score-statement-p
     line ":score-float-format:" #.(length ":score-float-format: x")))
@@ -483,7 +485,7 @@ or IGNORE-SCORE-STATEMENTS."
 
 ;;; The score statement `:score-radix:' sets the variable *READ-BASE*
 ;;; to read the rest of the score lines.
-;;; The default is 10.
+;;; The default is 10 if there is not a parent rego file.
 (defun score-radix-statement-p (line)
   (%score-statement-p
     line ":score-radix:" #.(length ":score-radix: x")))
@@ -559,8 +561,10 @@ or IGNORE-SCORE-STATEMENTS."
                       (reverse *include-rego-stack*)))
                 (t (push incfile *include-rego-stack*)
                    (with-open-file (score incfile)
-                     (apply #'%write-regofile score
-                            `(,at-fname ,@(cdr args) t ,time)))))))
+                     (let ((*score-radix* *score-radix*)
+                           (*score-float-format* *score-float-format*))
+                       (apply #'%write-regofile score
+                              `(,at-fname ,@(cdr args) t ,time))))))))
       (let ((line (or (expand-score-statement line) (org-table-filter line)))
             (*readtable* *score-readtable*)
             (*read-base* *score-radix*)

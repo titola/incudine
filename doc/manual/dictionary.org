@@ -1746,7 +1746,7 @@ The score statement ~:score-radix:~ sets the variable
 ~*read-base*~ to read the rest of the score lines.
 
 #+texinfo: @noindent
-~:score-radix:~ defaults to 10.
+~:score-radix:~ defaults to 10 if there is not a parent rego file.
 
 #+texinfo: @noindent
 Example:
@@ -1772,7 +1772,8 @@ The score statement ~:score-float-format:~ sets the variable
 ~*read-default-float-format*~ to read the rest of the score lines.
 
 #+texinfo: @noindent
-~:score-float-format:~ defaults to ~double-float~ (the sample type).
+~:score-float-format:~ defaults to ~double-float~ (the sample type)
+if there is not a parent rego file.
 
 #+texinfo: @noindent
 Example:
