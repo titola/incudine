@@ -1,6 +1,6 @@
 ;;; incudine.el --- major mode for editing Incudine sources
 
-;; Copyright (c) 2013-2021 Tito Latini
+;; Copyright (c) 2013-2022 Tito Latini
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -105,7 +105,7 @@ If N is non-NIL, do it that many times."
   (end-of-defun)
   (beginning-of-defun)
   (if n
-      (loop repeat n do (beginning-of-defun))
+      (dotimes (i n) (beginning-of-defun))
       (beginning-of-defun))
   (forward-sexp))
 
@@ -116,7 +116,7 @@ If N is non-NIL, do it that many times."
   (interactive "p")
   (end-of-defun)
   (if n
-      (loop repeat n do (end-of-defun))
+      (dotimes (i n) (end-of-defun))
       (forward-sexp))
   (beginning-of-defun)
   (forward-sexp))
