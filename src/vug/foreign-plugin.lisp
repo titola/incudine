@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014-2021 Tito Latini
+;;; Copyright (c) 2014-2022 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -13,6 +13,14 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with this program; if not, write to the Free Software
 ;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+(in-package :incudine.vug)
+
+(define-condition foreign-plugin-error (incudine-simple-error) ()
+  (:documentation "All types of error conditions about foreign plugin
+inherit from this condition.
+
+Subtype of INCUDINE-SIMPLE-ERROR."))
 
 (in-package :incudine.vug-foreign)
 
@@ -240,7 +248,9 @@
     ((foreign-float f32) 'make-f32-array)
     ((foreign-double f64) 'make-f64-array)
     (otherwise
-     (incudine-error "unknown port type ~A" (port-value-type port)))))
+     (error 'foreign-plugin-error
+            :format-control "unknown port type ~A"
+            :format-arguments (list (port-value-type port))))))
 
 (defmacro add-vug-declaration (var type plist array-p)
   `(push ,var (getf ,plist (if ,array-p 'cffi:foreign-pointer ,type))))

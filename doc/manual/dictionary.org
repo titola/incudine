@@ -19,6 +19,7 @@
 ::: midifile:invalid-track-chunk-length
 ::: soundfile:soundfile-error
 ::: ana:analysis-file-error
+::: vug:foreign-plugin-error
 #+texinfo: @page
 ** Bus
 ::: bus

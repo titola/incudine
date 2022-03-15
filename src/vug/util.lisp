@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2022 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (import
    '(incudine:incudine-error
+     incudine:incudine-simple-error
      incudine:now
      incudine:audio-in
      incudine:audio-out

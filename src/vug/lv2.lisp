@@ -72,7 +72,8 @@
          (interface (lilv:instance-get-extension-data
                       obj "http://lv2plug.in/ns/ext/worker#interface")))
     (if (cffi:null-pointer-p interface)
-        (error "Missing LV2 worker interface")
+        (error 'foreign-plugin-error
+               :format-control "Missing LV2 worker interface")
         (setf (lv2-plugin-instance-worker-state instance)
               (lv2::make-worker-state (plugin-instance-pointer instance)
                                       interface)))

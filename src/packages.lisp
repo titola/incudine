@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2021 Tito Latini
+;;; Copyright (c) 2013-2022 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -236,6 +236,7 @@
                 #:abuffer-polar #:abuffer-complex #:compute-abuffer
                 #:rectangular-window #:dofft #:dofft-polar #:dofft-complex)
   (:export
+   #:foreign-plugin-error
    #:vug #:vug-p #:define-vug #:vug-macro #:vug-macro-p #:define-vug-macro
    #:vug-lambda-list #:destroy-vug #:rename-vug #:all-vug-names #:fix-vug
    #:ugen #:ugen-instance #:with-ugen-instance #:with-ugen-instances
@@ -501,7 +502,7 @@
   (:import-from #:alexandria #:define-constant #:make-keyword
                 #:format-symbol #:ensure-symbol #:with-gensyms
                 #:non-negative-fixnum)
-  (:import-from #:incudine #:block-size #:incudine-error #:incudine-missing-arg)
+  (:import-from #:incudine #:block-size #:incudine-missing-arg)
   (:export
    #:+input-port+ #:+output-port+ #:+control-port+ #:+audio-port+
    #:+event-port+ #:+midi-port+
