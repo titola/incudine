@@ -99,18 +99,22 @@
 ;;; in LilvInstanceImpl struct within a UGEN/DSP.
 (defun make-lv2-plugin (uri)
   (update-io-number
-    (let* ((ptr (lilv:plugin-pointer uri))
-           (name (safe-lilv-node-as-string (lilv:plugin-get-name ptr))))
-      (%make-lv2-plugin
-        :name name
-        :label name
-        :path uri
-        :pointer ptr
-        :author (safe-lilv-node-as-string (lilv:plugin-get-author-name ptr))
-        :realtime-p t
-        :ports (make-lv2-ports ptr)
-        :sample-type 'foreign-float
-        :worker-interface-flags (get-worker-interface-flags uri)))))
+    (let ((ptr (lilv:plugin-pointer uri)))
+      (when (cffi:null-pointer-p ptr)
+        (error 'foreign-plugin-error
+               :format-control "The LV2 plugin ~S does not exist."
+               :format-arguments (list uri)))
+      (let ((name (safe-lilv-node-as-string (lilv:plugin-get-name ptr))))
+        (%make-lv2-plugin
+          :name name
+          :label name
+          :path uri
+          :pointer ptr
+          :author (safe-lilv-node-as-string (lilv:plugin-get-author-name ptr))
+          :realtime-p t
+          :ports (make-lv2-ports ptr)
+          :sample-type 'foreign-float
+          :worker-interface-flags (get-worker-interface-flags uri))))))
 
 (defun make-lv2-ports (plugin)
   (cffi:with-foreign-object (ptr :pointer)

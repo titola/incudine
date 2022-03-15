@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014-2019 Tito Latini
+;;; Copyright (c) 2014-2022 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -32,7 +32,12 @@
 
 (defun make-ladspa-plugin (filename label)
   (update-io-number
-    (let* ((descr (ladspa:plugin-descriptor filename label)))
+    (let ((descr (ladspa:plugin-descriptor filename label)))
+      (unless descr
+        (error 'foreign-plugin-error
+               :format-control
+                 "The LADSPA plugin ~S from ~S does not exist."
+               :format-arguments (list label filename)))
       (%make-ladspa-plugin
         :name (ladspa:name descr)
         :path filename
