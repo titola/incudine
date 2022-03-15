@@ -306,7 +306,7 @@ arguments and display the generated code."
                        "ugen"))
              (args (read-from-minibuffer (concat type " args: ")))
              (form (format "(funcall (incudine.vug:%s-debug %s %s)"
-                           type (subseq string (match-end 0)) args)))
+                           type (substring string (match-end 0)) args)))
         (slime-eval-async `(swank:interactive-eval ,form)
           #'slime-initialize-macroexpansion-buffer)))))
 
