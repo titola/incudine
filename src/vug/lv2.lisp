@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2021 Tito Latini
+;;; Copyright (c) 2013-2022 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -87,6 +87,11 @@
 
 (setf lv2::*worker-schedule-function* (cffi:callback worker-schedule))
 
+(defun safe-lilv-node-as-string (ptr)
+  (if (cffi:null-pointer-p ptr)
+      ""
+      (lilv:node-as-string ptr)))
+
 ;;; MEMO: don't use a temporary lilv instance to retrieve the pointers
 ;;; of the callbacks because it causes a crash during the initialization
 ;;; of the first UGEN/DSP instance. It is safe to use the descriptor
@@ -94,13 +99,13 @@
 (defun make-lv2-plugin (uri)
   (update-io-number
     (let* ((ptr (lilv:plugin-pointer uri))
-           (name (lilv:node-as-string (lilv:plugin-get-name ptr))))
+           (name (safe-lilv-node-as-string (lilv:plugin-get-name ptr))))
       (%make-lv2-plugin
         :name name
         :label name
         :path uri
         :pointer ptr
-        :author (lilv:node-as-string (lilv:plugin-get-author-name ptr))
+        :author (safe-lilv-node-as-string (lilv:plugin-get-author-name ptr))
         :realtime-p t
         :ports (make-lv2-ports ptr)
         :sample-type 'foreign-float
