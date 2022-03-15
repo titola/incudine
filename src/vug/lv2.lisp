@@ -276,6 +276,8 @@
               (lv2-ptr (lilv::instance-pointer lv2-obj))
               (lv2-handle (lv2-handle lv2-ptr))
               (lv2-descr (lv2-descriptor lv2-ptr))
+              (port-vec (make-array
+                          ,(lilv:plugin-get-num-ports (plugin-pointer plugin))))
               (lv2-state
                 (reduce-warnings
                   (make-lv2-plugin-instance
@@ -283,9 +285,7 @@
                     :uri ,(plugin-path plugin)
                     :handle-pointer lv2-handle
                     :lilv-instance lv2-obj
-                    :port-pointers
-                      (make-array
-                        ,(lilv:plugin-get-num-ports (plugin-pointer plugin))))))
+                    :port-pointers port-vec)))
               ,@(unless control-arguments-p
                   `((controls (make-f32-array
                                 ,(port-control-inputs plugin))))))
