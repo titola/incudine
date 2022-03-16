@@ -223,22 +223,16 @@ Subtype of INCUDINE-SIMPLE-ERROR."))
             (or control-arguments-p (audio-port-p p)))
       collect (port-input-arg p block-size)))
 
-(defun port-input-defaults-p (plugin)
-  (port-loop (p i plugin)
-    if (and (input-port-p p) (port-default p))
-      do (return t)))
-
 (defun port-input-defaults (plugin control-arguments-p missing-arg-format-control)
-  (when (port-input-defaults-p plugin)
-    (port-loop (p i plugin)
-      if (and (input-port-p p)
-              (not (event-port-p p))
-              (or control-arguments-p (audio-port-p p)))
-        collect (or (port-default p)
-                    (when missing-arg-format-control
-                      `(incudine-missing-arg
-                         ,(format nil missing-arg-format-control
-                                  (port-name p))))))))
+  (port-loop (p i plugin)
+    if (and (input-port-p p)
+            (not (event-port-p p))
+            (or control-arguments-p (audio-port-p p)))
+      collect (or (port-default p)
+                  (when missing-arg-format-control
+                    `(incudine-missing-arg
+                       ,(format nil missing-arg-format-control
+                                (port-name p)))))))
 
 (defun io-array-p (port block-size)
   (and (> block-size 1) (audio-port-p port)))
