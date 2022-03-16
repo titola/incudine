@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2020 Tito Latini
+;;; Copyright (c) 2013-2022 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -598,7 +598,10 @@ file and defaults to *DEFAULT-DATA-FORMAT*.
 METADATA is a property list to set string metadata in OUTPUT-FILENAME.
 Not all file types support metadata. The valid properties are: title,
 copyright, software, artist, comment, date, album, license, tracknumber
-and genre."
+and genre.
+
+The max number of scheduled events is the value of the configuration
+variable *NRT-EDF-HEAP-SIZE* (a power of two)."
   (with-gensyms (fname infile)
     `(let ((,infile ,input-filename))
        (multiple-value-bind (,fname ,infile)
@@ -716,6 +719,9 @@ accessible via AUDIO-IN.
 
 SAMPLE-RATE defaults to *SAMPLE-RATE*.
 
-If MIX-P is T, mix the new data with the old content of the buffer."
+If MIX-P is T, mix the new data with the old content of the buffer.
+
+The max number of scheduled events is the value of the configuration
+variable *NRT-EDF-HEAP-SIZE* (a power of two)."
   `(%bounce-to-buffer ,output-buffer ,input-buffer ,start ,frames ,sample-rate
                       ,mix-p (bounce-function ,body)))
