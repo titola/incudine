@@ -162,13 +162,13 @@
        (with ((reinit-p nil)
               (ladspa-obj (ladspa-plugin-instantiate ,plugin reinit-p))
               (ladspa-ptr (ladspa::handle-ptr ladspa-obj))
+              (port-vec (make-array ,(length (plugin-ports plugin))))
               (ladspa-state
                 (reduce-warnings
                   (make-ladspa-plugin-instance
                     :label ,(plugin-label plugin)
                     :handle-pointer ladspa-ptr
-                    :port-pointers
-                      (make-array ,(length (plugin-ports plugin)))))))
+                    :port-pointers port-vec))))
          (declare (type foreign-pointer ladspa-ptr)
                   (type boolean reinit-p)
                   (preserve reinit-p))
