@@ -1,10 +1,12 @@
-#+TITLE: Piangere come una vite tagliata (dos text file format)
-#+AUTHOR: Dado Del Bullone
+#+TITLE: Test in Org markup language (dos text file format)
+#+AUTHOR: A neat and very painstaking blacksmith always punctual
 
 * prova
   :PROPERTIES:
   :Rate: 5 stars
   :END:
+
+- [[info:incudine#Rego File]]
 
 with (n 2) (frq 660)
 
