@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2021 Tito Latini
+;;; Copyright (c) 2013-2022 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -161,6 +161,11 @@
       (setf incudine.vug:*linear-midi-table*
             (incudine:make-buffer 128
               :initial-contents (loop for i below 128 collect (/ i 127))))
+      ;; ghost buffer for foreign plugins
+      (setf incudine.vug-foreign::*ghost-buffer*
+            (cffi:foreign-alloc :char
+              :count incudine.vug-foreign::+ghost-buffer-size+
+              :initial-element 0))
       ;; mouse
       (setf incudine.vug::*mouse-event* (incudine.vug::alloc-mouse-event))
       ;; init

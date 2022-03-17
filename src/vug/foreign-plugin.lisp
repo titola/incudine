@@ -394,3 +394,20 @@ Subtype of INCUDINE-SIMPLE-ERROR."))
                      collect (funcall reset-event-form
                                       (arg-symbol p))))
              ,@(get-output plugin block-size)))))))
+
+(define-constant +ghost-buffer-size+ (* 1024 1024))
+
+;;; Preallocated buffer to neutralize an unwanted access.
+;;; See INCUDINE:FREE method for PLUGIN-INSTANCE and LV2:EVENT.
+(defvar *ghost-buffer*
+  (cffi:foreign-alloc :char :count +ghost-buffer-size+ :initial-element 0))
+
+(defmacro nop-update-object (vug-varname args)
+  (declare (ignore vug-varname args))
+  nil)
+
+(defmethod incudine:free ((obj plugin-instance))
+  (let ((ports (plugin-instance-port-pointers obj))
+        (ptr *ghost-buffer*))
+    (dotimes (i (length ports))
+      (setf (svref ports i) ptr))))

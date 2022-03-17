@@ -25,7 +25,7 @@
   (object-to-free incudine.vug-foreign::lv2-plugin-instantiate
                   incudine.vug-foreign::update-lv2-instance)
   (object-to-free incudine.vug-foreign::lv2-object
-                  incudine.vug-foreign::update-lv2-object))
+                  incudine.vug-foreign::nop-update-object))
 
 (in-package :incudine.vug-foreign)
 
@@ -184,13 +184,17 @@
   ;; and the plugin-instance is activated.
   `(setf ,(second args) t))
 
-(defmacro update-lv2-object (vug-varname args)
-  (declare (ignore vug-varname args))
-  nil)
-
 (defmethod incudine:free ((obj lilv:instance))
   (msg debug "Cleanup LV2 plugin")
   (lilv:free obj))
+
+(defmethod incudine:free ((obj lv2:event))
+  (msg debug "Cleanup LV2 ~A" (type-of obj))
+  ;; The foreign array is managed by DSP/UGEN. Here it is replaced
+  ;; with a preallocated buffer to neutralize an unwanted access
+  ;; (for example via LV2:WRITE-EVENT).
+  (setf (lv2::event-pointer obj) *ghost-buffer*)
+  nil)
 
 (defun lv2-connect-control-ports (controls instance descriptor handle)
   (let ((plugin (lilv:plugin-pointer (lv2-plugin-instance-uri instance)))
