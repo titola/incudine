@@ -243,7 +243,7 @@ If ID is non-NIL, print info about the group with identifier ID."
 If CH is a negative number, reset the meters."
   (interactive "P")
   (let ((value (prefix-numeric-value0 ch)))
-    (if (minusp value)
+    (if (< value 0)
         (incudine-eval "(incudine:reset-peak-meters)")
         (incudine-eval "(incudine:peak-info %d)" value))))
 
@@ -263,7 +263,7 @@ If RESET-P is non-NIL, set the number of xruns to zero."
   (interactive "cLogger level? (e)rror, (w)arn, (i)nfo or (d)ebug")
   (when (member c '(?e ?w ?i ?d))
     (incudine-set-logger-level
-      (case c
+      (pcase c
         (?e ":ERROR")
         (?w ":WARN")
         (?i ":INFO")
@@ -277,7 +277,7 @@ If RESET-P is non-NIL, set the number of xruns to zero."
   (interactive "cLogger stream? (e)rror-output, (s)tandard-output or (d)ebug-io")
   (when (member c '(?e ?s ?d))
     (incudine-set-logger-stream
-      (case c
+      (pcase c
         (?e "CL:*ERROR-OUTPUT*")
         (?s "CL:*STANDARD-OUTPUT*")
         (?d "CL:*DEBUG-IO*")))))
@@ -290,7 +290,7 @@ If RESET-P is non-NIL, set the number of xruns to zero."
   (interactive "cLogger time? (S)amples, (s)econds or (n)il")
   (when (member c '(?S ?s ?n))
     (incudine-set-logger-time
-      (case c
+      (pcase c
         (?n "NIL")
         (?s ":SEC")
         (?S ":SAMP")))))
