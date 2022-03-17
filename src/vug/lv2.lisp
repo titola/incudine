@@ -24,8 +24,8 @@
           (find-package "INCUDINE.VUG-FOREIGN"))
   (object-to-free incudine.vug-foreign::lv2-plugin-instantiate
                   incudine.vug-foreign::update-lv2-instance)
-  (object-to-free incudine.vug-foreign::make-lv2-plugin-instance
-                  incudine.vug-foreign::update-lv2-plugin-state))
+  (object-to-free incudine.vug-foreign::lv2-object
+                  incudine.vug-foreign::update-lv2-object))
 
 (in-package :incudine.vug-foreign)
 
@@ -37,6 +37,14 @@
   (worker-state (cffi:null-pointer) :type foreign-pointer)
   (lilv-instance nil :type (or null lilv:instance))
   (uri "" :type string))
+
+(declaim (inline lv2-object))
+(defun lv2-object (constructor &rest args)
+  ;; Silence compiler notes about SAP to pointer coercion during the
+  ;; allocation (init-time) because these instances are reused
+  ;; (DSP/UGEN reinitialization without consing). These objects
+  ;; are freed when the DSP/UGEN is removed or redefined.
+  (reduce-warnings (apply constructor args)))
 
 (declaim (inline plugin-lilv-instance))
 (defun plugin-lilv-instance (plugin-instance)
@@ -176,7 +184,7 @@
   ;; and the plugin-instance is activated.
   `(setf ,(second args) t))
 
-(defmacro update-lv2-plugin-state (vug-varname args)
+(defmacro update-lv2-object (vug-varname args)
   (declare (ignore vug-varname args))
   nil)
 
@@ -257,7 +265,7 @@
           (lv2-plugin-name p) (lv2-plugin-author p) (lv2-plugin-path p)))
 
 (defun lv2-make-event-form (ptr &key output-p)
-  `(,(if output-p 'lv2::make-atom-chunk 'lv2::make-atom-sequence)
+  `(lv2-object #',(if output-p 'lv2::make-atom-chunk 'lv2::make-atom-sequence)
      :pointer ,ptr))
 
 (defun lv2-reset-event-form (obj &key init-time-p output-p)
@@ -279,13 +287,12 @@
               (port-vec (make-array
                           ,(lilv:plugin-get-num-ports (plugin-pointer plugin))))
               (lv2-state
-                (reduce-warnings
-                  (make-lv2-plugin-instance
-                    :label ,(plugin-label plugin)
-                    :uri ,(plugin-path plugin)
-                    :handle-pointer lv2-handle
-                    :lilv-instance lv2-obj
-                    :port-pointers port-vec)))
+                (lv2-object #'make-lv2-plugin-instance
+                  :label ,(plugin-label plugin)
+                  :uri ,(plugin-path plugin)
+                  :handle-pointer lv2-handle
+                  :lilv-instance lv2-obj
+                  :port-pointers port-vec))
               ,@(unless control-arguments-p
                   `((controls (make-f32-array
                                 ,(port-control-inputs plugin))))))
