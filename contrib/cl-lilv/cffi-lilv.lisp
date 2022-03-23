@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2022 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -92,8 +92,17 @@
   (lv2:handle     :pointer)
   (pimpl          :pointer))
 
-(defcfun ("lilv_uri_to_path" uri-to-path) :string
-  (uri :string))
+;;; lilv_uri_to_path() is deprecated.
+(when (cffi:foreign-symbol-pointer "lilv_uri_to_path")
+  (defcfun ("lilv_uri_to_path" uri-to-path) :string (uri :string))
+  (define-compiler-macro uri-to-path (&whole form uri)
+    (declare (ignore uri))
+    (warn "LILV:URI-TO-PATH is deprecated, use LILV:FILE-URI-PARSE instead.")
+    form))
+
+(defcfun ("lilv_file_uri_parse" file-uri-parse) :pointer
+  (uri :string)
+  (hostname :pointer))
 
 (defcfun ("lilv_new_uri" new-uri) node-ptr
   (world world)
@@ -148,6 +157,10 @@
 
 (defcfun ("lilv_node_as_string" node-as-string) :string
   (value node-ptr))
+
+(defcfun ("lilv_node_get_path" node-get-path) :pointer
+  (value node-ptr)
+  (hostname :pointer))
 
 (defcfun ("lilv_node_is_float" node-is-float) :boolean
   (value node-ptr))

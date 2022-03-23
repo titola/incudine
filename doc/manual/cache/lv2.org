@@ -234,6 +234,10 @@ Initialize the Lilv World that represents all Lilv state.
 #+begin_defun
 #+end_defun
 
+#+attr_texinfo: :options lilv:file-uri-parse uri hostname
+#+begin_defun
+#+end_defun
+
 #+attr_texinfo: :options lilv:new-uri world uri
 #+begin_defun
 #+end_defun
@@ -298,6 +302,10 @@ Initialize the Lilv World that represents all Lilv state.
 #+begin_defun
 #+end_defun
 
+#+attr_texinfo: :options lilv:node-get-path value hostname
+#+begin_defun
+#+end_defun
+
 #+attr_texinfo: :options lilv:node-is-float value
 #+begin_defun
 #+end_defun
@@ -321,6 +329,28 @@ Initialize the Lilv World that represents all Lilv state.
 #+attr_texinfo: :options lilv:node-as-bool value
 #+begin_defun
 #+end_defun
+
+#+attr_texinfo: :options {Macro} lilv:with-node (var type value) @andbody{} body
+#+begin_deffn
+Bind ~var~ to a newly allocated Lilv node of ~type~ with dynamic extent
+during ~body~.
+
+~type~ is one of ~:bool~, ~:float~, ~:int~, ~:string~ or ~:uri~.
+#+end_deffn
+
+#+attr_texinfo: :options {Macro} lilv:with-nodes bindings @andbody{} body
+#+begin_deffn
+Create bindings to newly allocated Lilv nodes with dynamic extent
+during ~body~.
+
+~bindings~ is a list of lists
+
+: (var type value)
+
+where ~var~ is the variable bound to a node of ~type~.
+
+~type~ is one of ~:bool~, ~:float~, ~:int~, ~:string~ or ~:uri~.
+#+end_deffn
 
 #+attr_texinfo: :options lilv:plugin-classes-free collection
 #+begin_defun
@@ -350,6 +380,12 @@ Initialize the Lilv World that represents all Lilv state.
 #+begin_defun
 #+end_defun
 
+#+attr_texinfo: :options {Macro} lilv:plugin-class-loop (var plugin-classes) @andrest{} keywords-and-forms
+#+begin_deffn
+Iterate over the ~plugin-classes~ with ~var~ bound to each class.
+~lilv:plugin-class-loop~ supports ~keywords-and-forms~ of the ~loop~ macro.
+#+end_deffn
+
 #+attr_texinfo: :options lilv:scale-points-free collection
 #+begin_defun
 #+end_defun
@@ -373,6 +409,12 @@ Initialize the Lilv World that represents all Lilv state.
 #+attr_texinfo: :options lilv:scale-points-is-end collection i
 #+begin_defun
 #+end_defun
+
+#+attr_texinfo: :options {Macro} lilv:scale-point-loop (var scale-points) @andrest{} keywords-and-forms
+#+begin_deffn
+Iterate over the ~scale-points~ with ~var~ bound to each point.
+~lilv:scale-point-loop~ supports ~keywords-and-forms~ of the ~loop~ macro.
+#+end_deffn
 
 #+attr_texinfo: :options lilv:uis-free collection
 #+begin_defun
@@ -401,6 +443,12 @@ Initialize the Lilv World that represents all Lilv state.
 #+attr_texinfo: :options lilv:uis-get-by-uri uis uri
 #+begin_defun
 #+end_defun
+
+#+attr_texinfo: :options {Macro} lilv:ui-loop (var uis) @andrest{} keywords-and-forms
+#+begin_deffn
+Iterate over the ~uis~ with ~var~ bound to each ~ui~.
+~lilv:ui-loop~ supports ~keywords-and-forms~ of the ~loop~ macro.
+#+end_deffn
 
 #+attr_texinfo: :options lilv:nodes-free collection
 #+begin_defun
@@ -440,8 +488,8 @@ Initialize the Lilv World that represents all Lilv state.
 
 #+attr_texinfo: :options {Macro} lilv:node-loop (var nodes) @andrest{} keywords-and-forms
 #+begin_deffn
-Iterate over the ~nodes~ with ~var~ bound to each node and the
-~keywords-and-forms~ of the ~loop~ macro.
+Iterate over the ~nodes~ with ~var~ bound to each node.
+~lilv:node-loop~ supports ~keywords-and-forms~ of the ~loop~ macro.
 
 Example:
 
@@ -472,6 +520,18 @@ Example:
 #+attr_texinfo: :options lilv:plugins-get-by-uri plugins uri
 #+begin_defun
 #+end_defun
+
+#+attr_texinfo: :options {Macro} lilv:plugin-loop (var plugins) @andrest{} keywords-and-forms
+#+begin_deffn
+Iterate over the ~plugins~ with ~var~ bound to each plugin.
+~lilv:plugin-loop~ supports ~keywords-and-forms~ of the ~loop~ macro.
+
+Example:
+
+: (lilv:init-world)
+: (lilv:plugin-loop (p (lilv:world-get-all-plugins lilv:*world*))
+:   collect (lilv:node-as-uri (lilv:plugin-get-uri p)))
+#+end_deffn
 
 #+attr_texinfo: :options lilv:init-world
 #+begin_defun

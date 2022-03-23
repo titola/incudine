@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2022 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -51,14 +51,44 @@
     (set-var *uri-midi-port* "http://lv2plug.in/ns/ext/midi#MidiEvent")
     (values)))
 
+(defmacro with-node ((var type value) &body body)
+  "Bind VAR to a newly allocated Lilv node of TYPE with dynamic extent
+during BODY.
+
+TYPE is one of :BOOL, :FLOAT, :INT, :STRING or :URI."
+  (let ((func (find-symbol (format nil "NEW-~A" (string type)) "LILV")))
+    (unless func
+      (error 'simple-type-error
+             :format-control "Unknown Lilv node type ~S"
+             :format-arguments (list type)))
+    `(let ((,var (,func *world* ,value)))
+       (unwind-protect
+            (progn ,@body)
+         (lilv:node-free ,var)))))
+
+(defmacro with-nodes (bindings &body body)
+  "Create bindings to newly allocated Lilv nodes with dynamic extent
+during BODY.
+
+BINDINGS is a list of lists
+
+    (var type value)
+
+where VAR is the variable bound to a node of TYPE.
+
+TYPE is one of :BOOL, :FLOAT, :INT, :STRING or :URI."
+  (if bindings
+      `(with-node ,(car bindings)
+         (with-nodes ,(cdr bindings)
+           ,@body))
+      `(progn ,@body)))
+
 (defun plugin-pointer (uri)
   (declare (type string uri))
   (when (lilv:free-p lilv:*world*) (lv2-init))
-  (let ((node (lilv:new-uri lilv:*world* uri)))
-    (unwind-protect
-         (lilv:plugins-get-by-uri
-           (lilv:world-get-all-plugins lilv:*world*) node)
-      (lilv:node-free node))))
+  (with-node (node :uri uri)
+    (lilv:plugins-get-by-uri
+      (lilv:world-get-all-plugins lilv:*world*) node)))
 
 (declaim (inline lv2:features))
 (defun lv2:features ()
@@ -90,16 +120,64 @@ Lilv World."
       (setf (instance-pointer obj) (cffi:null-pointer))
       (values))))
 
+;;; Iterator similar to LILV_FOREACH(colltype, iter, collection) in lilv.h.
+(defmacro iter ((var type collection &optional coll-var)
+                &rest keywords-and-forms)
+  (flet ((f (control type)
+           (find-symbol (format nil control type) "LILV")))
+    (let* ((type (string type))
+           (begin (f "~A-BEGIN" type)))
+      (unless begin
+        (error 'simple-type-error
+               :format-control "Unknown Lilv iterator for type ~S"
+               :format-arguments (list type)))
+      (let ((endp (f "~A-IS-END" type))
+            (next (f "~A-NEXT" type))
+            (coll (or coll-var (gensym))))
+        `(loop :with ,coll = ,collection
+               :for ,var = (,begin ,coll) :then (,next ,coll ,var)
+               :until (,endp ,coll ,var)
+               ,@keywords-and-forms)))))
+
+(defmacro object-loop ((var type collection) &body body)
+  (let ((get (find-symbol (format nil "~A-GET" type) "LILV")))
+    (with-gensyms (i coll)
+      `(iter (,i ,type ,collection ,coll)
+         :for ,var = (,get ,coll ,i)
+         ,@body))))
+
 (defmacro node-loop ((var nodes) &rest keywords-and-forms)
-  "Iterate over the NODES with VAR bound to each node and the
-KEYWORDS-AND-FORMS of the LOOP macro.
+  "Iterate over the NODES with VAR bound to each node.
+LILV:NODE-LOOP supports KEYWORDS-AND-FORMS of the LOOP macro.
 
 Example:
 
     (lilv:node-loop (n lilv-nodes)
       if (lilv:node-is-uri n) collect (lilv:node-as-uri n))"
-  (let ((n (gensym)))
-    `(loop for ,n = (nodes-begin ,nodes) then (nodes-next ,nodes ,n)
-           for ,var = (nodes-get ,nodes ,n)
-           until (nodes-is-end ,nodes ,n)
-          ,@keywords-and-forms)))
+  `(object-loop (,var nodes ,nodes) ,@keywords-and-forms))
+
+(defmacro plugin-class-loop ((var plugin-classes) &rest keywords-and-forms)
+  "Iterate over the PLUGIN-CLASSES with VAR bound to each class.
+LILV:PLUGIN-CLASS-LOOP supports KEYWORDS-AND-FORMS of the LOOP macro."
+  `(object-loop (,var plugin-classes ,plugin-classes) ,@keywords-and-forms))
+
+(defmacro plugin-loop ((var plugins) &rest keywords-and-forms)
+  "Iterate over the PLUGINS with VAR bound to each plugin.
+LILV:PLUGIN-LOOP supports KEYWORDS-AND-FORMS of the LOOP macro.
+
+Example:
+
+    (lilv:init-world)
+    (lilv:plugin-loop (p (lilv:world-get-all-plugins lilv:*world*))
+      collect (lilv:node-as-uri (lilv:plugin-get-uri p)))"
+  `(object-loop (,var plugins ,plugins) ,@keywords-and-forms))
+
+(defmacro scale-point-loop ((var scale-points) &rest keywords-and-forms)
+  "Iterate over the SCALE-POINTS with VAR bound to each point.
+LILV:SCALE-POINT-LOOP supports KEYWORDS-AND-FORMS of the LOOP macro."
+  `(object-loop (,var scale-points ,scale-points) ,@keywords-and-forms))
+
+(defmacro ui-loop ((var uis) &rest keywords-and-forms)
+  "Iterate over the UIS with VAR bound to each UI.
+LILV:UI-LOOP supports KEYWORDS-AND-FORMS of the LOOP macro."
+  `(object-loop (,var uis ,uis) ,@keywords-and-forms))

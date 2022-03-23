@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2022 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -27,6 +27,14 @@
    #:handle
    #:feature
    #:descriptor
+   #:uri
+   #:instantiate
+   #:connect-port
+   #:activate
+   #:run
+   #:deactivate
+   #:cleanup
+   #:extension-data
    #:atom
    #:atom-event
    #:atom-sequence
@@ -41,6 +49,7 @@
 (defpackage lilv
   (:use #:cl)
   (:import-from #:cffi #:defctype #:defcstruct #:defcfun)
+  (:import-from #:alexandria #:with-gensyms)
   (:export
    #:*world*
    #:*uri-atom-port*
@@ -60,6 +69,7 @@
    #:lv2-init
    #:plugin-pointer
    #:uri-to-path
+   #:file-uri-parse
    #:new-uri
    #:new-string
    #:new-int
@@ -76,6 +86,7 @@
    #:node-is-literal
    #:node-is-string
    #:node-as-string
+   #:node-get-path
    #:node-is-float
    #:node-as-float
    #:node-is-int
@@ -211,4 +222,10 @@
    #:ui-is-supported
    #:ui-get-bundle-uri
    #:ui-get-binary-uri
-   #:node-loop))
+   #:with-node
+   #:with-nodes
+   #:node-loop
+   #:plugin-class-loop
+   #:plugin-loop
+   #:scale-point-loop
+   #:ui-loop))

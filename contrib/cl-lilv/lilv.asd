@@ -1,6 +1,6 @@
 ;;;; -*- Mode: lisp -*-
 ;;;
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2022 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -20,7 +20,7 @@
 
 (defsystem "lilv"
   :description "Wrapper for Lilv, a C API for using LV2 plugins"
-  :version "1.1"
+  :version "1.2"
   :author "Tito Latini"
   :licence "LGPL"
   :depends-on (cffi alexandria #-sbcl trivial-garbage)

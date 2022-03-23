@@ -210,7 +210,7 @@
                  (setf (cffi:mem-ref ptr :float)
                        (or (lv2-port-default plugin port node) 0.0))
                  (lilv:connect-port
-                   (lilv:descriptor-slot-value descriptor 'lv2::connect-port)
+                   (lilv:descriptor-slot-value descriptor 'lv2:connect-port)
                    handle i ptr)
                  (setf (aref (plugin-instance-port-pointers instance) i) ptr)
                  (incf j))))))
@@ -231,7 +231,7 @@
                               (t `(get-pointer ,name)))))
                `(progn
                   (lilv:connect-port
-                    (lilv:descriptor-slot-value ,descriptor 'lv2::connect-port)
+                    (lilv:descriptor-slot-value ,descriptor 'lv2:connect-port)
                     ,handle ,i ,ptr)
                   (setf (aref (plugin-instance-port-pointers ,instance) ,i)
                         ,ptr))))))
@@ -239,7 +239,7 @@
 (defmacro lv2-instance-?activate (instance descriptor handle activate-p)
   (with-gensyms (cb)
     `(let ((,cb (lilv:descriptor-slot-value ,descriptor
-                  ',(if activate-p 'lv2::activate 'lv2::deactivate))))
+                  ',(if activate-p 'lv2:activate 'lv2:deactivate))))
        (unless (cffi:null-pointer-p ,cb)
          (cffi:foreign-funcall-pointer ,cb () :pointer ,handle :void)
          (setf (lilv::instance-active-p ,instance) ,(not activate-p))))))
@@ -255,7 +255,7 @@
 (declaim (inline lv2-run))
 (defun lv2-run (descriptor handle sample-count)
   (cffi:foreign-funcall-pointer
-    (lilv:descriptor-slot-value descriptor 'lv2::run) nil :pointer handle
+    (lilv:descriptor-slot-value descriptor 'lv2:run) nil :pointer handle
     :uint32 sample-count :void))
 
 (defmacro lv2-handle (instance-pointer)
