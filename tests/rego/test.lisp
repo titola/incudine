@@ -277,6 +277,13 @@
    (98.0 I2 63 78)
    (109.0 ADD 170 203)))
 
+(regofile->list-test score-radix.3 "radix-call.rego"
+  ((0.0 TEST-PATTERN 100)
+   (4.0 TEST-PATTERN 200)
+   (8.0 TEST-PATTERN 100)
+   (12.0 TEST-PATTERN 200)
+   (16.0 TEST-PATTERN 100)))
+
 (regofile->list-test score-float-format.1 "float-format.rego"
   ((0.0d0 FLOAT-TEST 1.0d0 1.2345d0)
    (0.0d0 FLOAT-TEST 0.001125 123.456d0)

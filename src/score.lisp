@@ -441,6 +441,7 @@ or IGNORE-SCORE-STATEMENTS."
 
 (defun score-call-arguments (line)
   (let* ((label-start (string-trim-blank (subseq line (next-blank-position line))))
+         (*read-base* *score-radix*)
          (args (read-from-string
                  (format nil "(~A)"
                          (if (char= (char label-start 0) #\[)
