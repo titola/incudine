@@ -1,4 +1,4 @@
-;;; Copyright (c) 2017-2021 Tito Latini
+;;; Copyright (c) 2017-2022 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -213,6 +213,34 @@ channel of the current frame."
           (unwind-protect (incudine.util::lseek fd 0 SF:SEEK-CUR)
             (cffi:foreign-funcall "sf_close" :pointer sf :int)))))))
 
+(defun check-format (header-type data-format)
+  (unless (sf::major-format-p header-type)
+    (error 'soundfile-error
+           :format-control "The header type ~S is not recognised."
+           :format-arguments (list header-type)))
+  (unless (sf::minor-format-p data-format)
+    (error 'soundfile-error
+           :format-control "The data format ~S is not recognised."
+           :format-arguments (list data-format))))
+
+(defun check-opened-sound (sf header-type data-format)
+  (declare (type (or sf:sndfile soundfile:stream) sf)
+           (type string header-type data-format))
+  (let ((ptr (if (stream-p sf)
+                 (soundfile::stream-sf-pointer sf)
+                 (sf:pointer sf))))
+    (when (cffi:null-pointer-p ptr)
+      (error 'soundfile-error
+        ;; The error string could introduce directives.
+        :format-control "~A"
+        :format-arguments
+          (list (if (= SF:ERR-UNRECOGNISED-FORMAT
+                       (cffi:foreign-funcall "sf_error" :pointer ptr :int))
+                    (format nil "The sound file format with header type ~S~%~
+                                 and data format ~S is not recognised."
+                            header-type data-format)
+                    (cffi:foreign-funcall "sf_strerror" :pointer ptr :string)))))))
+
 (defun update-sf-info (ptr sample-rate frames channels header-type data-format)
   (cffi:with-foreign-slots ((sf:sample-rate sf:frames sf:channels sf:format
                              sf:sections sf:seekable)
@@ -369,6 +397,7 @@ BUFFER-SIZE is the size of the internal stream buffer and defaults to
                        (incudine.util::truename* filename)
                        (make-pathname
                          :defaults (incudine.util::%parse-filepath filename)))))
+    (check-format header-type data-format)
     (handler-case
         (let ((sf (multiple-value-bind (ptr sample-rate frames channels
                                         header-type data-format)
@@ -398,6 +427,7 @@ BUFFER-SIZE is the size of the internal stream buffer and defaults to
                                           (if (eq if-exists :append)
                                               frames
                                               0)))))))))
+          (check-opened-sound sf header-type data-format)
           (unless input-p
             (case if-exists
               (:append

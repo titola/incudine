@@ -419,6 +419,7 @@ BPM is the tempo in beats per minute and defaults to *DEFAULT-BPM*."
                                    output-filename #'incudine.util::stdout-fd)
                                  output-filename)
                              :info info :mode sf:sfm-write)
+                (soundfile::check-opened-sound snd header-type data-format)
                 (write-to-disk (frame max-frames remain snd bufsize data
                                 metadata count pad-at-the-end-p t)
                   ;; COUNT is incremented by CHANNELS.
@@ -473,6 +474,7 @@ BPM is the tempo in beats per minute and defaults to *DEFAULT-BPM*."
                                    output-filename)
                                :info info
                                :mode sf:sfm-write)
+                  (soundfile::check-opened-sound snd-out header-type data-format)
                   (write-to-disk (frame max-frames remain snd-out bufsize
                                   data-out metadata count pad-at-the-end-p)
                     ;; COUNT and INPUT-INDEX are incremented respectively
@@ -562,36 +564,49 @@ output file and defaults to *DEFAULT-HEADER-TYPE*.
 | ogg   | OGG (OGG Container format)         |
 | mpc2k | MPC (Akai MPC 2k)                  |
 | rf64  | RF64 (RIFF 64)                     |
+| mpeg  | MPEG-1/2 Audio                     |
 |-------+------------------------------------|
 
 The string DATA-FORMAT is the format (*) of the sample for the output
 file and defaults to *DEFAULT-DATA-FORMAT*.
 
-|-----------+--------------------|
-| Format    | Description        |
-|-----------+--------------------|
-| pcm-s8    | Signed 8 bit PCM   |
-| pcm-16    | Signed 16 bit PCM  |
-| pcm-24    | Signed 24 bit PCM  |
-| pcm-32    | Signed 32 bit PCM  |
-| pcm-u8    | Unsigned 8 bit PCM |
-| float     | 32 bit float       |
-| double    | 64 bit float       |
-| ulaw      | U-Law              |
-| alaw      | A-Law              |
-| ima-adpcm | IMA ADPCM          |
-| ms-adpcm  | Microsoft ADPCM    |
-| gsm610    | GSM 6.10           |
-| vox-adpcm | VOX ADPCM          |
-| g721-32   | 32kbs G721 ADPCM   |
-| g723-24   | 24kbs G723 ADPCM   |
-| dwvw-12   | 12 bit DWVW        |
-| dwvw-16   | 16 bit DWVW        |
-| dwvw-24   | 24 bit DWVW        |
-| dpcm-8    | 8 bit DPCM         |
-| dpcm-16   | 16 bit DPCM        |
-| vorbis    | Vorbis             |
-|-----------+--------------------|
+|----------------+--------------------|
+| Format         | Description        |
+|----------------+--------------------|
+| pcm-s8         | Signed 8 bit PCM   |
+| pcm-16         | Signed 16 bit PCM  |
+| pcm-24         | Signed 24 bit PCM  |
+| pcm-32         | Signed 32 bit PCM  |
+| pcm-u8         | Unsigned 8 bit PCM |
+| float          | 32 bit float       |
+| double         | 64 bit float       |
+| ulaw           | U-Law              |
+| alaw           | A-Law              |
+| ima-adpcm      | IMA ADPCM          |
+| ms-adpcm       | Microsoft ADPCM    |
+| gsm610         | GSM 6.10           |
+| vox-adpcm      | VOX ADPCM          |
+| nms-adpcm-16   | 16kbs NMS ADPCM    |
+| nms-adpcm-24   | 24kbs NMS ADPCM    |
+| nms-adpcm-32   | 32kbs NMS ADPCM    |
+| g721-32        | 32kbs G721 ADPCM   |
+| g723-24        | 24kbs G723 ADPCM   |
+| g723-40        | 40kbs G723 ADPCM   |
+| dwvw-12        | 12 bit DWVW        |
+| dwvw-16        | 16 bit DWVW        |
+| dwvw-24        | 24 bit DWVW        |
+| dpcm-8         | 8 bit DPCM         |
+| dpcm-16        | 16 bit DPCM        |
+| vorbis         | Vorbis             |
+| opus           | Opus               |
+| alac-16        | 16 bit ALAC        |
+| alac-20        | 20 bit ALAC        |
+| alac-24        | 24 bit ALAC        |
+| alac-32        | 32 bit ALAC        |
+| mpeg-layer-I   | MPEG Layer I       |
+| mpeg-layer-II  | MPEG Layer II      |
+| mpeg-layer-III | MPEG Layer III     |
+|----------------+--------------------|
 
 (*) The recognized headers and formats depend on the version of libsndfile.
 
@@ -602,8 +617,11 @@ and genre.
 
 The max number of scheduled events is the value of the configuration
 variable *NRT-EDF-HEAP-SIZE* (a power of two)."
-  (with-gensyms (fname infile)
-    `(let ((,infile ,input-filename))
+  (with-gensyms (fname infile htype dformat)
+    `(let ((,infile ,input-filename)
+           (,htype ,(or header-type '*default-header-type*))
+           (,dformat ,(or data-format '*default-data-format*)))
+       (soundfile::check-format ,htype ,dformat)
        (multiple-value-bind (,fname ,infile)
            (if ,infile
                (values #'%bounce-to-disk-with-infile
@@ -612,12 +630,8 @@ variable *NRT-EDF-HEAP-SIZE* (a power of two)."
          (funcall ,fname
            ,infile
            (soundfile-truename ,output-filename)
-           (or ,duration (- ,pad))
-           ,channels
-           ,sample-rate
-           (or ,header-type *default-header-type*)
-           (or ,data-format *default-data-format*)
-           ,metadata
+           ,(or duration `(- ,pad))
+           ,channels ,sample-rate ,htype ,dformat ,metadata
            (bounce-function ,body))))))
 
 (defmacro nrt-write-buffer-loop (in-data out-data in-count out-count

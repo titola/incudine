@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2021 Tito Latini
+;;; Copyright (c) 2013-2022 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -264,7 +264,9 @@ Return the number of bits for the arithmetic shift operation."
            ;; Try to load a text file
            (or (buffer-load-textfile
                  ,path ,offset ,frames ,channels ,sample-rate)
-                   (incudine-error (sf:strerror ,var)))
+               (error 'soundfile:soundfile-error
+                      :format-control "~A"
+                      :format-arguments (list (sf:strerror ,var))))
            ,@body))))
 
 (defun buffer-load (path &key (offset 0) frames (channel -1) channels
@@ -385,15 +387,18 @@ formats."
     (declare (type non-negative-fixnum offset max-frames frames sr))
     (if textfile-p
         (save-data-to-textfile data path (* (buffer-channels buf) frames))
-        (sf:with-open (sf path
-                       :info (sf:make-info
-                               :frames frames
-                               :sample-rate sr
-                               :channels (buffer-channels buf)
-                               :format (sf:get-format
-                                         (list header-type data-format)))
-                       :mode sf:sfm-write)
-          (writef-sample sf data frames)))
+        (progn
+          (soundfile::check-format header-type data-format)
+          (sf:with-open (sf path
+                         :info (sf:make-info
+                                  :frames frames
+                                  :sample-rate sr
+                                  :channels (buffer-channels buf)
+                                  :format (sf:get-format
+                                            (list header-type data-format)))
+                         :mode sf:sfm-write)
+            (soundfile::check-opened-sound sf header-type data-format)
+            (writef-sample sf data frames))))
     buf))
 
 (defmethod free ((obj buffer))

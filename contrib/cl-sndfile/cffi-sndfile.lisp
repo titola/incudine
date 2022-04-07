@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2020 Tito Latini
+;;; Copyright (c) 2013-2022 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -132,7 +132,13 @@
          `(progn
             ,@(mapcar (lambda (x)
                         (let ((key (string-downcase
-                                     (subseq (cl:format nil "~A" (car x)) 7))))
+                                     (subseq (symbol-name (car x))
+                                             #.(cl:length "FORMAT-"))
+                                     :end (when (member (car x)
+                                                  '(FORMAT-MPEG-LAYER-I
+                                                    FORMAT-MPEG-LAYER-II
+                                                    FORMAT-MPEG-LAYER-III))
+                                            #.(cl:length "MPEG-LAYER-")))))
                           `(progn
                              ,(cons 'define-constant x)
                              (setf (gethash ,key *formats*) ,(car x)))))
@@ -164,6 +170,7 @@
          (FORMAT-OGG        #x200000)
          (FORMAT-MPC2K      #x210000)
          (FORMAT-RF64       #x220000)
+         (FORMAT-MPEG       #x230000)
          ;; Subtypes from here on.
          (FORMAT-PCM-S8     #x0001)
          (FORMAT-PCM-16     #x0002)
@@ -178,6 +185,9 @@
          (FORMAT-MS-ADPCM   #x0013)
          (FORMAT-GSM610     #x0020)
          (FORMAT-VOX-ADPCM  #x0021)
+         (FORMAT-NMS-ADPCM-16 #x0022)
+         (FORMAT-NMS-ADPCM-24 #x0023)
+         (FORMAT-NMS-ADPCM-32 #x0024)
          (FORMAT-G721-32    #x0030)
          (FORMAT-G723-24    #x0031)
          (FORMAT-G723-40    #x0032)
@@ -188,6 +198,14 @@
          (FORMAT-DPCM-8     #x0050)
          (FORMAT-DPCM-16    #x0051)
          (FORMAT-VORBIS     #x0060)
+         (FORMAT-OPUS       #x0064)
+         (FORMAT-ALAC-16    #x0070)
+         (FORMAT-ALAC-20    #x0071)
+         (FORMAT-ALAC-24    #x0072)
+         (FORMAT-ALAC-32    #x0073)
+         (FORMAT-MPEG-LAYER-I   #x0080)
+         (FORMAT-MPEG-LAYER-II  #x0081)
+         (FORMAT-MPEG-LAYER-III #x0082)
          ;; Endian-ness options.
          (ENDIAN-FILE       #x00000000)
          (ENDIAN-LITTLE     #x10000000)
@@ -256,12 +274,16 @@
          (CHANNEL-MAP-AMBISONIC-B-Y          25)
          (CHANNEL-MAP-AMBISONIC-B-Z          26)
          (CHANNEL-MAP-MAX                    27)
+         ;; Bitrate mode values.
+         (BITRATE-MODE-CONSTANT      0)
+         (BITRATE-MODE-AVERAGE       1)
+         (BITRATE-MODE-VARIABLE      2)
          ;; Dither.
          (SFD-DEFAULT-LEVEL          0)
          (SFD-CUSTOM-LEVEL  #x40000000)
          (SFD-NO-DITHER            500)
          (SFD-WHITE                501)
-         (SFD-TRIANGULAR-PD        502)
+         (SFD-TRIANGULAR-PDF       502)
          ;; Loop mode field.
          (LOOP-NONE        800)
          (LOOP-FORWARD     801)
@@ -319,13 +341,29 @@
          (SFC-RF64-AUTO-DOWNGRADE        #x1210)
          (SFC-SET-VBR-ENCODING-QUALITY   #x1300)
          (SFC-SET-COMPRESSION-LEVEL      #x1301)
+         (SFC-SET-OGG-PAGE-LATENCY-MS    #x1302)
+         (SFC-SET-OGG-PAGE-LATENCY       #x1303)
+         (SFC-GET-BITRATE-MODE           #x1304)
+         (SFC-SET-BITRATE-MODE           #x1305)
          (SFC-SET-CART-INFO              #x1400)
          (SFC-GET-CART-INFO              #x1401)
+         (SFC-SET-ORIGINAL-SAMPLERATE    #x1500)
+         (SFC-GET-ORIGINAL-SAMPLERATE    #x1501)
          (SFC-TEST-IEEE-FLOAT-REPLACE    #x6001)
          (SFC-SET-ADD-DITHER-ON-WRITE    #x1070)
          (SFC-SET-ADD-DITHER-ON-READ     #x1071)
 
          (COUNT-MAX #x7FFFFFFFFFFFFFFF)))))
+
+(defun check-format (fmt min max)
+  (let ((value (gethash fmt *formats*)))
+    (and value (<= min value max))))
+
+(defun major-format-p (fmt)
+  (check-format fmt FORMAT-WAV FORMAT-MPEG))
+
+(defun minor-format-p (fmt)
+  (check-format fmt FORMAT-PCM-S8 FORMAT-MPEG-LAYER-III))
 
 (defun get-format (fmt-list)
   (flet ((value (x)

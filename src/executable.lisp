@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2021 Tito Latini
+;;; Copyright (c) 2013-2022 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -494,7 +494,9 @@ SBCL options:
 
   (defun sf-data-format-list ()
     (sf-format-list sf:get-format-subtype-count sf:get-format-subtype
-                    "~A~12t~A~%"))
+      #.(format nil "~~A~~~Dt~~A~~%"
+          (+ 2 (reduce #'max (alexandria:hash-table-keys sf::*formats*)
+                       :key #'length)))))
 
   ;;; SBCL options
 
