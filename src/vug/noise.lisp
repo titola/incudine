@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2021 Tito Latini
+;;; Copyright (c) 2013-2022 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -91,7 +91,7 @@ INIT-VALUE is the initial value of y and defaults to 0.3."
   (* amp (~ (abs (- (* it param) (delay1 it) 0.05)) :initial-value init-value)))
 
 (define-vug-macro rand (&whole whole distribution &key a b c n n1 n2 p alpha
-                        beta mu nu sigma tt zeta seed)
+                        beta mu nu nu1 nu2 sigma tt zeta seed)
   "Noise generator with random number DISTRIBUTION.
 
 |--------------------+------------+------------+-----------+-------------|
@@ -134,7 +134,7 @@ INIT-VALUE is the initial value of y and defaults to 0.3."
 |--------------------+------------+------------+-----------+-------------|
 
 See also GEN:ALL-RANDOM-DISTRIBUTIONS and GEN:RAND-ARGS."
-  (declare (ignorable a b c n n1 n2 p alpha beta mu nu sigma tt zeta))
+  (declare (ignorable a b c n n1 n2 p alpha beta mu nu nu1 nu2 sigma tt zeta))
   (let ((spec (gen::find-rand-func-spec distribution))
         (pl (cddr whole)))
     (destructuring-bind (type-list (lisp-name foreign-name) return-type
