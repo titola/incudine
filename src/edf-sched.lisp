@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2021 Tito Latini
+;;; Copyright (c) 2013-2022 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -63,16 +63,17 @@
     "Max number of scheduled events. It is assumed to be a power of two.")
   (declaim (type non-negative-fixnum *heap-size*)))
 
+(defun make-heap-data (size)
+  (make-array size :element-type 'node
+              :initial-contents (loop repeat size collect (make-node))))
+
 (defun make-heap (&optional (size *heap-size*))
   "Create and return a new HEAP structure to schedule at maximum SIZE events.
 
 SIZE defaults to *heap-size*."
-  (declare (type non-negative-fixnum size))
+  (declare (type positive-fixnum size))
   (let ((size (next-power-of-two size)))
-    (%make-heap
-      :data (make-array size :element-type 'node
-                        :initial-contents (loop repeat size
-                                                collect (make-node))))))
+    (%make-heap :data (make-heap-data size))))
 
 (defvar *heap* (make-heap)
   "Default EDF heap.")
@@ -243,6 +244,23 @@ scheduled at the current time."
                        (if (< n 2) (+ n 1) (next-power-of-two n))))))
       (declare (type non-negative-fixnum start))
       (rec (1+ start) (node-time (heap-node start))))))
+
+(defun resize-heap (size)
+  (declare (type positive-fixnum size))
+  (let ((obj *heap*)
+        (size (next-power-of-two size)))
+    (unless (= size (length (heap-data obj)))
+      (let ((data (make-heap-data size)))
+        (dotimes (i (min size (1- (heap-next-node obj))))
+          (setf (svref data i)
+                (svref (heap-data obj) i)))
+        (setf (heap-data obj) data)))
+    (if (= size *heap-size*)
+        size
+        (setf *heap-size* size))))
+
+(defun check-heap-size (size)
+  (= size (length (heap-data *heap*))))
 
 (defvar *flush-pending-hook* nil
   "List of functions without arguments to invoke during the next call

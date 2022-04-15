@@ -150,3 +150,20 @@
       (equal (sort (set-difference all-times (nreverse (car acc))) #'<)
              bad-times))
   t)
+
+(deftest resize-nrt-edf-heap.1
+    (let ((size *nrt-edf-heap-size*)
+          (resize-1 0)
+          (resize-2 0)
+          (*logger-stream* *null-output*))
+      (flet ((resize-test ()
+               (list incudine.edf:*heap-size*
+                     (length (incudine.edf::heap-data incudine.edf:*heap*)))))
+        (let ((*nrt-edf-heap-size* 8192))
+          (bounce-to-buffer (*buffer-test-c1* :frames 1)
+            (setf resize-1 (resize-test))))
+        (bounce-to-buffer (*buffer-test-c1* :frames 1)
+          (setf resize-2 (resize-test)))
+        (values resize-1
+                (equal resize-2 (list size size)))))
+  (8192 8192) T)

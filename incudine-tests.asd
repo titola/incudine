@@ -2,7 +2,7 @@
 ;;;
 ;;; ASDF system definition for INCUDINE unit tests.
 ;;;
-;;; Copyright (c) 2013-2021 Tito Latini
+;;; Copyright (c) 2013-2022 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -31,11 +31,11 @@
      (:file "logger" :depends-on ("util"))
      (:file "pool" :depends-on ("util"))
      (:file "fifo" :depends-on ("util"))
-     (:file "edf" :depends-on ("util"))
-     (:file "graph" :depends-on ("util"))
+     (:file "edf" :depends-on ("vug/base"))
+     (:file "graph" :depends-on ("vug/base"))
      (:file "time" :depends-on ("util"))
      (:file "bus" :depends-on ("util"))
-     (:file "channels" :depends-on ("util"))
+     (:file "channels" :depends-on ("vug/base"))
      (:file "buffer" :depends-on ("util"))
      (:file "foreign-ringbuffer" :depends-on ("util"))
      (:file "tuning" :depends-on ("util"))

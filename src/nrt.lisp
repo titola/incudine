@@ -88,6 +88,14 @@ undefined.")
 (defun nrt-edf-heap-p ()
   (eq incudine.edf:*heap* *nrt-edf-heap*))
 
+(defun maybe-resize-nrt-edf-heap ()
+  (assert (not (incudine.edf::rt-heap-p)))
+  (let* ((required-size *nrt-edf-heap-size*)
+         (size (maybe-resize-edf-heap required-size)))
+    (if (= size required-size)
+        size
+        (setf *nrt-edf-heap-size* size))))
+
 (defmacro perform-fifos ()
   `(loop until (and (fifo-empty-p *nrt-fifo*)
                     (fifo-empty-p *nrt-from-world-fifo*)) do
@@ -350,6 +358,8 @@ BPM is the tempo in beats per minute and defaults to *DEFAULT-BPM*."
                 (*tempo* *nrt-tempo*)
                 (*sample-counter* *nrt-sample-counter*))
            (setf (bpm *tempo*) ,bpm)
+           (nrt-cleanup)
+           (maybe-resize-nrt-edf-heap)
            ,@body)))))
 
 (defmacro write-to-disk-loop ((index limit) &body body)
@@ -404,7 +414,6 @@ BPM is the tempo in beats per minute and defaults to *DEFAULT-BPM*."
       (declare (type non-negative-fixnum bufsize count)
                (type non-negative-fixnum64 remain max-frames frame)
                (type boolean pad-at-the-end-p))
-      (nrt-cleanup)
       (zeroes-nrt-bus-channels)
       (reset-sample-counter)
       (%reset-peak-meters)
@@ -452,7 +461,6 @@ BPM is the tempo in beats per minute and defaults to *DEFAULT-BPM*."
       (declare (type non-negative-fixnum bufsize count)
                (type non-negative-fixnum64 remain max-frames frame)
                (type boolean pad-at-the-end-p input-eof-p))
-      (nrt-cleanup)
       (zeroes-nrt-bus-channels)
       (reset-sample-counter)
       (%reset-peak-meters)
@@ -689,7 +697,6 @@ variable *NRT-EDF-HEAP-SIZE* (a power of two)."
           (setf *number-of-input-bus-channels* in-channels)
           (setf *block-input-samples* (* in-channels *block-size*))
           (ensure-nrt-input-buffer))
-        (nrt-cleanup)
         (zeroes-nrt-bus-channels)
         (reset-sample-counter)
         (%reset-peak-meters)

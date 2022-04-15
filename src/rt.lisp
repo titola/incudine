@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2021 Tito Latini
+;;; Copyright (c) 2013-2022 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -490,6 +490,26 @@ Setfable."
 
 (defsetf rt-cpu set-rt-cpu)
 
+(defun maybe-resize-edf-heap (size)
+  (let ((size (next-power-of-two size)))
+    (cond ((incudine.edf::check-heap-size size) size)
+          ((< (incudine.edf:heap-count) size)
+           (msg debug "set the EDF heap size to ~D" size)
+           (incudine.edf::resize-heap size))
+          (t
+           (msg warn "cannot change the EDF heap size from ~D to ~D~%~
+                      because there are ~D entries."
+                incudine.edf:*heap-size* size (incudine.edf:heap-count))
+           size))))
+
+(defun maybe-resize-rt-edf-heap ()
+  (assert (incudine.edf::rt-heap-p))
+  (let* ((required-size *rt-edf-heap-size*)
+         (size (maybe-resize-edf-heap required-size)))
+    (if (= size required-size)
+        size
+        (setf *rt-edf-heap-size* size))))
+
 (defun rt-start (&key (cpu incudine.config:*rt-cpu*)
                  (preamble-function #'rt-preamble)
                  (thread-name "audio-rt-thread")
@@ -533,6 +553,7 @@ the thread."
   (bordeaux-threads:with-lock-held ((rt-params-lock *rt-params*))
     (unless *rt-thread*
       (init)
+      (maybe-resize-rt-edf-heap)
       (setf *after-rt-stop-function* after-stop-function)
       (when preamble-function (funcall preamble-function))
       (when gc-p (incudine.util::gc :full t))
