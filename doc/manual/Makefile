@@ -26,7 +26,9 @@ define emacs_eval =
 endef
 
 define write_dict =
-sbcl --noinform --noprint --disable-debugger --load fill-dict.lisp \
+sbcl --noinform --noprint --disable-debugger \
+  --eval '(pushnew :make-incudine-manual *features*)' \
+  --load fill-dict.lisp \
   --eval '(incudine.doc:write-incudine-version "version")' \
   --eval '(incudine.doc:write-doc "dictionary.org" "$(1)" :type "$(2)" :out-of-dictionary-file "out-of-dict.lisp")' \
   --eval '(incudine.doc:write-doc "cache/cudere-clm.dict" "cache/cudere-clm.org" :type "$(2)" :if-exists :supersede)' \
@@ -41,7 +43,9 @@ sbcl --noinform --noprint --disable-debugger --load fill-dict.lisp \
 endef
 
 define write_undoc =
-sbcl --noinform --noprint --load fill-dict.lisp \
+sbcl --noinform --noprint \
+  --eval '(pushnew :make-incudine-manual *features*)' \
+  --load fill-dict.lisp \
   --eval '(incudine.doc:write-undocumented-symbols "$(1)" "$(2)")' \
   --eval '(sb-ext:exit)'
 echo "* Export Setup :noexport:" >> $@

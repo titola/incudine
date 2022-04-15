@@ -101,7 +101,9 @@
 (let ((init-file (merge-pathnames ".incudinerc" (user-homedir-pathname))))
   (when (probe-file init-file)
     (load init-file
-      :external-format '(:utf-8 :replacement #\replacement_character)))
+      :external-format '(:utf-8 :replacement #\replacement_character))
+    #+make-incudine-manual
+    (defparameter cl-user::__make_incudine_manual__ t))
   (setf cl-user::__incudine_c_compiler__
         (flet ((check (cc)
                  (and (zerop

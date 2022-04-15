@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014-2021 Tito Latini
+;;; Copyright (c) 2014-2022 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -48,8 +48,15 @@
             (let ((init-file (merge-pathnames ".incudinerc"
                                               (user-homedir-pathname))))
               (if (probe-file init-file)
-                  (load init-file
-                    :external-format '(:utf-8 :replacement #\replacement_character))
+                  (progn
+                    (load init-file
+                      :external-format '(:utf-8 :replacement #\replacement_character))
+                    (when (find-symbol "__MAKE_INCUDINE_MANUAL__" "CL-USER")
+                      ;; Low values because these objects are unnecessary
+                      ;; during the compilation of the manual.
+                      (setq *rt-edf-heap-size* 16
+                            *nrt-edf-heap-size* 16
+                            *default-table-size* 16)))
                   t)))))
 
   (unless *incudinerc-loaded-p*
