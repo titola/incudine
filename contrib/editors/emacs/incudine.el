@@ -204,7 +204,12 @@ If ID is non-NIL, print info about the group with identifier ID."
                       (prefix-numeric-value0 id))))
     (slime-eval-async `(swank:pprint-eval ,form)
       (lambda (result)
-        (slime-with-popup-buffer ("*incudine-node-tree*")
+        (slime-with-popup-buffer
+            ("*incudine-node-tree*"
+             :mode (when (and (boundp 'text-scale-mode)
+                              (symbol-value 'text-scale-mode))
+                     ;; Keep text-scale minor mode.
+                     'text-scale-mode))
           (insert result)
           (kill-line -1))))))
 
