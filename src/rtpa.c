@@ -26,7 +26,7 @@
 
 static void pa_set_error_msg(const char *msg)
 {
-        strncpy(pa_error_msg, msg, PA_ERROR_MSG_MAX_LENGTH);
+        strncpy(pa_error_msg, msg, PA_ERROR_MSG_MAX_LENGTH - 1);
 }
 
 static void pa_error(const char *msg)

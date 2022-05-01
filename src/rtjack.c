@@ -25,7 +25,7 @@
 
 static void ja_set_error_msg(const char *msg)
 {
-        strncpy(ja_error_msg, msg, JA_ERROR_MSG_MAX_LENGTH);
+        strncpy(ja_error_msg, msg, JA_ERROR_MSG_MAX_LENGTH - 1);
 }
 
 static void ja_error(const char *msg) {
