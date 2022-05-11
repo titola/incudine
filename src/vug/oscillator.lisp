@@ -359,7 +359,7 @@ RATE is the multiply factor of the rate."
                  c0 c1 c2 c3 c1-mult c2-mult c3-mult old-lowest-harm old-c0
                  old-c1 old-c2 old-c3 old-c1-mult old-c2-mult old-c3-mult
                  old-mul abs-mul two-mul squared-mul-plus-one old-two-mul
-                 old-squared-mul-plus-one rsum0 rsum1 nh0 nh1 res0 res1 num0
+                 old-squared-mul-plus-one rsum0 rsum1 nh1 res0 res1 num0
                  num1 denom0 denom1 denom-osc index count cross inc-interp out)
     `(with ((,freq-inc (sample->fixnum (* ,freq *cps2inc*)))
             (,phs 0)
@@ -371,7 +371,6 @@ RATE is the multiply factor of the rate."
             (,nh-lag (sample->fixnum (* ,harm-change-lag *sample-rate*)))
             (,inc-interp (/ (sample 1) ,nh-lag))
             (,old-num-harm 999999)
-            (,nh0 1)
             (,nh1 1)
             (,c0 0)
             (,c1 0)
@@ -386,7 +385,7 @@ RATE is the multiply factor of the rate."
                       ,old-lowest-harm ,c0 ,c1 ,c2 ,c3 ,old-c0 ,old-c1
                       ,old-c2 ,old-c3)
                 (type (integer #.(- +max-lobits+) 0) ,minus-lobits)
-                (type (integer 0 1000000) ,nh0 ,nh1 ,old-num-harm)
+                (type (integer 0 1000000) ,nh1 ,old-num-harm)
                 (type sample ,inc-interp) (type foreign-pointer ,data))
        (with-samples (,c1-mult ,c2-mult ,c3-mult ,old-c1-mult ,old-c2-mult
                       ,old-c3-mult ,old-mul ,abs-mul ,old-two-mul ,two-mul
@@ -415,7 +414,6 @@ RATE is the multiply factor of the rate."
                    ,old-lowest-harm ,lowest-harm
                    ,count ,nh-lag
                    ,cross +sample-zero+
-                   ,nh0 ,nh1
                    ,nh1 (max 1 (abs ,num-harm))
                    ,old-c0 ,c0
                    ,old-c1 ,c1
@@ -485,7 +483,6 @@ RATE is the multiply factor of the rate."
          (nh-lag (sample->fixnum (* harm-change-lag *sample-rate*)))
          (inc-interp (/ (sample 1) nh-lag))
          (old-num-harm 999999)
-         (nh0 1)
          (nh1 1)
          (c0 0)
          (c1 0)
@@ -498,7 +495,7 @@ RATE is the multiply factor of the rate."
          (old-c3 0))
     (declare (type fixnum nh-lag count old-lowest-harm c0 c1 c2 c3
                    old-c0 old-c1 old-c2 old-c3)
-             (type (integer 0 1000000) nh0 nh1 old-num-harm)
+             (type (integer 0 1000000) nh1 old-num-harm)
              (type sample inc-interp))
     (with-samples (c1-mult c2-mult c3-mult old-c1-mult old-c2-mult old-c3-mult
                    old-mul abs-mul old-two-mul two-mul squared-mul-plus-one
@@ -524,7 +521,6 @@ RATE is the multiply factor of the rate."
               old-lowest-harm lowest-harm
               count nh-lag
               cross +sample-zero+
-              nh0 nh1
               nh1 (max 1 (abs num-harm))
               old-c0 c0
               old-c1 c1
