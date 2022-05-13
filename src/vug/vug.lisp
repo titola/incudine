@@ -1018,14 +1018,11 @@ during the compilation of a UGEN or DSP. The default is NIL.")
 (defun parse-go-form (form)
   `(make-vug-function :name ',(car form) :inputs '(,(cadr form))))
 
-(declaim (inline parse-tick-form))
 (defun parse-tick-form (form flist mlist floop-info)
-  (if (atom (cadr form))
-      `(make-vug-symbol :name ',(cadr form) :block-p t)
-      `(make-vug-function
-         :name 'progn
-         :inputs (list ,@(parse-vug-def (cdr form) t flist mlist floop-info))
-         :block-p t)))
+  `(make-vug-function
+     :name 'progn
+     :inputs (list ,@(parse-vug-def (cdr form) t flist mlist floop-info))
+     :block-p t))
 
 (defmacro return-ugen-foreign-value (ugen-name type)
   `(cffi:mem-ref (ugen-instance-return-pointer ,ugen-name)
