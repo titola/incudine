@@ -73,6 +73,7 @@
      (:file "vug/param-side-effects" :depends-on ("vug/base"))
      (:file "vug/frame-slot-names" :depends-on ("vug/base"))
      (:file "vug/vuglet" :depends-on ("vug/base"))
+     (:file "vug/non-local-exit" :depends-on ("vug/base"))
      (:file "vug/let-over-vug-1" :depends-on ("vug/base"))
      (:file "vug/let-over-vug-2" :depends-on ("vug/base"))
      (:file "vug/local-func-over-vug" :depends-on ("vug/base"))

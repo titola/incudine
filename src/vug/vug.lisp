@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2021 Tito Latini
+;;; Copyright (c) 2013-2022 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -736,11 +736,15 @@ during the compilation of a UGEN or DSP. The default is NIL.")
                                          nil flist mlist floop-info))))))
           lst))
 
-(declaim (inline parse-block-form))
 (defun parse-block-form (form flist mlist floop-info)
-  (let ((body (cddr form)))
+  (let ((block-name (cadr form))
+        (body (cddr form)))
     `(make-vug-function :name ',(car form)
-       :inputs (list ',(cadr form)
+       :inputs (list ',(or ;; Perhaps a gensymed name from a local function
+                           ;; otherwise (block y (flet ((y () ... (return-from y))) ...))
+                           ;; doesn't work.
+                           (cdr (assoc block-name flist))
+                           block-name)
                      ,@(parse-vug-def (if (consp (car body))
                                           body
                                           `((progn ,@body)))
@@ -940,7 +944,11 @@ during the compilation of a UGEN or DSP. The default is NIL.")
                           (let ((f (make-local-function-object (car def))))
                             (push f acc)
                             (parse-local-function
-                              def (local-function-real-name f) flist mlist
+                              def (local-function-real-name f)
+                              ;; Add gensymed function name for nested
+                              ;; blocks and RETURN-FROM.
+                              (cons f flist)
+                              mlist
                               floop-info)))
                         (cadr form)))
          (names (mapcar #'local-function-real-name acc)))
@@ -1325,7 +1333,7 @@ Example:
                (parse-vug-def expansion nil flist mlist floop-info))))
         ((quote-symbol-p def)
          `(make-vug-symbol :name '',(second def)))
-        ((member name '(block catch throw))
+        ((member name '(block return-from catch throw))
          (parse-block-form def flist mlist floop-info))
         ((eq name 'the)
          `(make-vug-function :name 'the
