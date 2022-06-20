@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 Tito Latini
+ * Copyright (c) 2013-2022 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -511,7 +511,7 @@ static void ja_cleanup(void *arg)
         ja_out_channels = 0;
         ja_free(output_port_names);
 
-        *ja_sample_counter = (SAMPLE) 0.0;
+        ja_sample_counter = NULL;
         ja_cycle_start_time = (SAMPLE) 0.0;
         ja_status = JA_STOPPED;
         pthread_mutex_unlock(&ja_lock);
@@ -584,7 +584,7 @@ int ja_initialize(unsigned int input_channels, unsigned int output_channels,
         ja_in_channels = input_channels;
         ja_out_channels = output_channels;
         ja_buffer_bytes = ja_frames * JA_SAMPLE_SIZE;
-        ja_cycle_start_time = (SAMPLE) 0.0;
+        ja_cycle_start_time = *sample_counter;
         ja_sample_counter = sample_counter;
 
         if (input_channels > 0) {

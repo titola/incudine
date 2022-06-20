@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 Tito Latini
+ * Copyright (c) 2013-2022 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -517,7 +517,7 @@ int pa_initialize(unsigned int input_channels, unsigned int output_channels,
                 pa_set_thread_callback(PA_THREAD_CALLBACK_DEFAULT);
         pa_xrun_reset();
         pa_cycle_start_time_sec = (PaTime) 0.0;
-        pa_cycle_start_time_smp = (SAMPLE) 0.0;
+        pa_cycle_start_time_smp = *sample_counter;
         pa_sample_counter = sample_counter;
         pa_lisp_busy = TRUE;
         return err;
@@ -604,7 +604,7 @@ int pa_stop(void)
         pa_free(pa_tmp_inputs);
         pa_free_input_cache();
 
-        *pa_sample_counter = (SAMPLE) 0.0;
+        pa_sample_counter = NULL;
         pa_cycle_start_time_smp = (SAMPLE) 0.0;
         pa_cycle_start_time_sec = (PaTime) 0.0;
         pa_status = PA_STOPPED;

@@ -329,7 +329,6 @@ The default is the value of the configuration variable
        (setf *block-input-samples* (* *block-size* *number-of-input-bus-channels*))
        (setf *block-output-samples* (* *block-size* *number-of-output-bus-channels*))
        (setf rt-state t)
-       (reset-sample-counter)
        (let ((,frames ,frames-per-buffer)
              ,@(when incudine.config::*enable-portmidi-output-sample-offset*
                  `((,pt-started (pt:started))
