@@ -213,6 +213,16 @@ channel of the current frame."
           (unwind-protect (incudine.util::lseek fd 0 SF:SEEK-CUR)
             (cffi:foreign-funcall "sf_close" :pointer sf :int)))))))
 
+(defun set-raw-start-offset (sf value)
+  (declare (type soundfile:input-stream sf)
+           (type (unsigned-byte 64) value))
+  (cffi:with-foreign-object (count 'sf:sf-count)
+    (setf (cffi:mem-ref count 'sf:sf-count) value)
+    (cffi:foreign-funcall "sf_command"
+      :pointer (stream-sf-pointer sf) :int SF:SFC-SET-RAW-START-OFFSET
+      :pointer count :int #.(cffi:foreign-type-size 'sf:sf-count) :int)
+    value))
+
 (defun check-format (header-type data-format)
   (unless (sf::major-format-p header-type)
     (error 'soundfile-error
@@ -258,7 +268,7 @@ channel of the current frame."
     (let ((read-info-p (or input-p
                            (and (not (eq if-exists :supersede))
                                 (probe-file file)))))
-      (unless read-info-p
+      (unless (and read-info-p (not (string= header-type "raw")))
         (update-sf-info info-ptr sample-rate 0 chans header-type data-format))
       (let ((sf (sf-open file input-p info-ptr if-exists)))
         (if read-info-p
@@ -361,6 +371,7 @@ data format."))
              (sample-rate *sample-rate*) (channels 1)
              (header-type *default-header-type*)
              (data-format *default-data-format*)
+             (data-location 0)
              (buffer-size *sndfile-buffer-size*)
              (input-stream-constructor #'make-input-stream)
              (output-stream-constructor #'make-output-stream))
@@ -379,12 +390,15 @@ the new sound file and default to *SAMPLE-RATE*, 1, *DEFAULT-HEADER-TYPE*
 and *DEFAULT-DATA-FORMAT*, respectively. See INCUDINE:BOUNCE-TO-DISK for the
 list of available header types and data formats.
 
+DATA-LOCATION is the data start offset in bytes for a hederless file.
+
 BUFFER-SIZE is the size of the internal stream buffer and defaults to
 *SNDFILE-BUFFER-SIZE*."
   (declare (type (or string pathname) filename)
            (type (member :input :output) direction)
            (type (member :append :error :mix :overwrite :supersede) if-exists)
            (type alexandria:positive-real sample-rate)
+           (type (unsigned-byte 64) data-location)
            (type non-negative-fixnum channels buffer-size)
            (type string header-type data-format))
   (check-file filename direction if-exists)
@@ -428,16 +442,20 @@ BUFFER-SIZE is the size of the internal stream buffer and defaults to
                                               frames
                                               0)))))))))
           (check-opened-sound sf header-type data-format)
-          (unless input-p
-            (case if-exists
-              (:append
-               ;; Offset by SF-POSITION-OFFSET
-               (setf (position sf) 0))
-              (:mix
-               (sf-seek sf 0)
-               (read-before-mix sf))
-              (:overwrite
-               (sf-seek sf 0))))
+          (cond ((not input-p)
+                 (case if-exists
+                   (:append
+                    ;; Offset by SF-POSITION-OFFSET
+                    (setf (position sf) 0))
+                   (:mix
+                    (sf-seek sf 0)
+                    (read-before-mix sf))
+                   (:overwrite
+                    (sf-seek sf 0))))
+                ((and (string= header-type "raw")
+                      (> data-location 0))
+                 (set-raw-start-offset sf data-location)
+                 (sf-seek sf 0)))
           (incudine-finalize sf
             (lambda () (free-foreign-pointers sf-ptr buf-ptr))
             nil))

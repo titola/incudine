@@ -37,6 +37,7 @@
      (:file "bus" :depends-on ("util"))
      (:file "channels" :depends-on ("vug/base"))
      (:file "buffer" :depends-on ("util"))
+     (:file "soundfile" :depends-on ("util"))
      (:file "foreign-ringbuffer" :depends-on ("util"))
      (:file "tuning" :depends-on ("util"))
      (:file "quantize" :depends-on ("util"))
