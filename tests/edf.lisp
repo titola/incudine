@@ -170,7 +170,8 @@
 
 (deftest edf-next-time.1
     (flet ((times (length offset)
-             (loop for i below length collect (+ offset 1d9 (random 1d6))))
+             (loop for i below length
+                   collect (+ offset 1d9 (sample (random 1000000)))))
            (sched (time-list function)
              (loop for time in time-list
                    for i from 0 do
