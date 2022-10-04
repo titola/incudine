@@ -167,3 +167,34 @@
         (values resize-1
                 (equal resize-2 (list size size)))))
   (8192 8192) T)
+
+(deftest edf-next-time.1
+    (flet ((times (length offset)
+             (loop for i below length collect (+ offset 1d9 (random 1d6))))
+           (sched (time-list function)
+             (loop for time in time-list
+                   for i from 0 do
+                   (at time (or function (lambda (x) x)) i))))
+      (let* ((len (1- incudine.edf::*heap-size*))
+             (n (ash len -1))
+             (m (ash n -1))
+             (start (now))
+             (time-list-1 (times n start))
+             (time-list-2 (times (- len n) start)))
+        (flush-pending)
+        (sched time-list-1 nil)
+        (sched time-list-2 #'identity)
+        (setf time-list-1 (sort (nconc time-list-1 (copy-list time-list-2)) #'<))
+        (setf time-list-2 (sort time-list-2 #'<))
+        (prog1 (list
+                 (= (incudine.edf:next-time)
+                    (first time-list-1))
+                 (= (incudine.edf:next-time nil (+ (nth m time-list-1) 1d-1))
+                    (nth (1+ m) time-list-1))
+                 (= (incudine.edf:next-time #'identity)
+                    (first time-list-2))
+                 (= (incudine.edf:next-time #'identity
+                                            (+ (nth m time-list-2) 1d-1))
+                    (nth (1+ m) time-list-2)))
+          (flush-pending))))
+  (T T T T))

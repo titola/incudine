@@ -230,8 +230,46 @@ scheduled at the current time."
                         (node-time (heap-node ,+root-node+))))
          do (call-node-function (get-heap))))
 
+(defun next-time (&optional function start-time)
+  "Return the time in samples of the next scheduled FUNCTION, starting
+its search at START-TIME (zero by default). Otherwise, return zero if
+the searched event is not available.
+
+If FUNCTION is NIL (default), return the time of the next scheduled event.
+
+Example:
+
+    ;; The bass line is synchronized with the next drum pattern.
+    ;; Note: the time is more reliable from rt-thread.
+    (rt-eval ()
+      (at (incudine.edf:next-time #'drum-pattern) #'bass-line ...))"
+  (declare (type (or function null) function)
+           (type (or non-negative-real null) start-time))
+  (let ((end (heap-next-node *heap*)))
+    (declare (type positive-fixnum end))
+    (labels ((next (i)
+               (declare (type positive-fixnum i))
+               (when (< i end)
+                 (if (and (or (null function)
+                              (eq function (node-function (heap-node i))))
+                          (or (null start-time)
+                              (>= (node-time (heap-node i)) start-time)))
+                     (heap-node i)
+                     (let ((left (ash i 1)))
+                       (declare (positive-fixnum left))
+                       (test (next left) (next (1+ left)))))))
+             (test (left right)
+               (declare (type (or node null) left right))
+               (if (and (node-p left)
+                        (node-p right))
+                   (if (node-time> right left) left right)
+                   (or left right))))
+      (let ((obj (next +root-node+)))
+        (declare (type (or node null) obj))
+        (if obj (node-time obj) +sample-zero+)))))
+
 (defun last-time ()
-  "Return the time of the last scheduled function to call."
+  "Return the time in samples of the last scheduled function to call."
   (declare #.*standard-optimize-settings* #.incudine.util:*reduce-warnings*)
   (labels ((rec (i t0)
              (declare (type non-negative-fixnum i) (type sample t0))

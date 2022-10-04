@@ -332,7 +332,7 @@
            #:node #:make-node #:heap #:make-heap #:schedule-at #:unschedule-if
            #:at #:aat #:sched-loop #:flush-pending #:heap-empty-p #:heap-count
            #:with-schedule
-           #:last-time
+           #:next-time #:last-time
            #:add-flush-pending-hook #:remove-flush-pending-hook
            #:reduce-heap-pool))
 

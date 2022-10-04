@@ -528,6 +528,7 @@ Return ~t~ if the ~tempo~ or ~tempo-envelope~ instance is deallocated.
 ::: incudine.edf:+root-node+
 ::: incudine.edf:schedule-at
 ::: incudine.edf:sched-loop
+::: incudine.edf:next-time
 ::: incudine.edf:last-time
 ::: incudine.edf:add-flush-pending-hook
 ::: incudine.edf:remove-flush-pending-hook
