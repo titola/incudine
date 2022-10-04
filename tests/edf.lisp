@@ -171,7 +171,7 @@
 (deftest edf-next-time.1
     (flet ((times (length offset)
              (loop for i below length
-                   collect (+ offset 1d9 (sample (random 1000000)))))
+                   collect (+ offset 1d9 (random 1d6))))
            (sched (time-list function)
              (loop for time in time-list
                    for i from 0 do
@@ -187,15 +187,17 @@
         (sched time-list-2 #'identity)
         (setf time-list-1 (sort (nconc time-list-1 (copy-list time-list-2)) #'<))
         (setf time-list-2 (sort time-list-2 #'<))
-        (prog1 (list
-                 (= (incudine.edf:next-time)
-                    (first time-list-1))
-                 (= (incudine.edf:next-time nil (+ (nth m time-list-1) 1d-1))
-                    (nth (1+ m) time-list-1))
-                 (= (incudine.edf:next-time #'identity)
-                    (first time-list-2))
-                 (= (incudine.edf:next-time #'identity
-                                            (+ (nth m time-list-2) 1d-1))
-                    (nth (1+ m) time-list-2)))
+        (prog1 (flet ((test (time-list &optional function start-time-p)
+                        (let ((start-time (and start-time-p
+                                               (+ (nth m time-list) 1d-1))))
+                          (= (incudine.edf:next-time function start-time)
+                             (if start-time-p
+                                 (or (find-if (lambda (x) (>= x start-time)) time-list)
+                                     +sample-zero+)
+                                 (first time-list))))))
+                 (list (test time-list-1)
+                       (test time-list-1 nil t)
+                       (test time-list-2 #'identity)
+                       (test time-list-2 #'identity t)))
           (flush-pending))))
   (T T T T))
