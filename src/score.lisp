@@ -627,22 +627,36 @@ or IGNORE-SCORE-STATEMENTS."
                  (%score-statement-p
                    line ":score-bindings:" #.(length ":score-bindings: ()")
                    #'string-lessp)))
-           (format-bindings (line)
-             (concatenate 'string
-               "(" (subseq line (if (char= #\: (char line 0)) 17 5)) ")"))
-           (first-score-stmt (line)
-             (declare (type (or string null) line))
+           (get-bindings (line)
+             (read-from-string
+               (concatenate 'string
+                 "(" (subseq line (if (char= #\: (char line 0)) 17 5)) ")")))
+           (first-score-stmt (line bindings declarations)
+             (declare (type (or string null) line)
+                      (type list bindings declarations))
              (when line
                (cond ((score-skip-line-p line stream nil)
-                      (first-score-stmt (read-score-line stream)))
+                      (first-score-stmt
+                        (read-score-line stream) bindings declarations))
                      ((score-bindings-p line)
-                      ;; Local bindings at the beginning of the score
-                      (read-from-string (format-bindings line)))
-                     (t ;; There aren't local bindings
-                      (if (read-time-score-statement-p line)
-                          (cons nil (expand-read-time-score-statement line))
-                          (list nil (score-line->sexp line at args))))))))
-    (first-score-stmt (read-score-line stream))))
+                      (first-score-stmt
+                        (read-score-line stream)
+                        ;; Local bindings at the beginning of the score.
+                        (get-bindings line)
+                        nil))
+                     ((read-time-score-statement-p line)
+                      (values bindings (nreverse declarations)
+                              (expand-read-time-score-statement line)))
+                     (t
+                      (let ((form (score-line->sexp line at args)))
+                        (if (and (consp form)
+                                 (eq (car form) 'declare))
+                            (first-score-stmt
+                              (read-score-line stream)
+                              bindings (cons form declarations))
+                            (values bindings (nreverse declarations)
+                                    (list form)))))))))
+    (first-score-stmt (read-score-line stream) nil nil)))
 
 (defun read-score-line (stream)
   (declare (type stream stream))
@@ -775,7 +789,7 @@ or IGNORE-SCORE-STATEMENTS."
 
 ;;; An included regofile doesn't change the temporal envelope and/or
 ;;; the time of the parent regofile.
-(defun rego-local-tempo (local-bindings time parent-time time-offset
+(defun rego-local-tempo (vars declarations body time parent-time time-offset
                          time-offset-var tempo-env parent-tempo-env)
   (let ((stack-bind '(__stack__ nil))
         (time-bind `(,parent-time ,time))
@@ -787,15 +801,10 @@ or IGNORE-SCORE-STATEMENTS."
         (local-tempo `(progn
                         ,@(and time-offset `((incf ,time ,time-offset-var)))
                         (setf ,tempo-env (copy-tempo-envelope ,tempo-env))))
-        (decl `(declare (ignorable ,time-offset-var)))
+        (decl `((declare (ignorable ,time-offset-var)) ,@declarations))
         (init-stack '(push (lambda () (go __end_of_score__)) __stack__)))
-    (if (car local-bindings)
-        ;; Update the local bindings.
-        `((,stack-bind ,time-bind ,time-os-bind ,tenv-bind ,@local-bindings)
-          ,decl ,init-stack ,local-tempo)
-        ;; Set the local bindings.
-        `((,stack-bind ,time-bind ,time-os-bind ,tenv-bind) ,decl ,init-stack
-          ,local-tempo ,@(cdr local-bindings)))))
+    `((,stack-bind ,time-bind ,time-os-bind ,tenv-bind ,@vars)
+      ,@decl ,init-stack ,local-tempo ,@body)))
 
 (defun %write-regofile (score at-fname time-var dur-var max-time tenv
                         &optional included-p time-offset (extend-time-p t))
@@ -813,19 +822,18 @@ or IGNORE-SCORE-STATEMENTS."
                                      time-var
                                      dur-var max-time tenv)))
                (append
-                 (let ((vars (find-score-local-bindings score at-fname
-                                                        write-args))
-                       (stack-bind '(__stack__ nil))
-                       (init-stack
-                        '(push (lambda () (go __end_of_score__)) __stack__)))
-                   (cond (included-p
-                          (with-gensyms (time-offset-var)
-                            (rego-local-tempo vars time parent-time time-offset
-                                              time-offset-var tempo-env
-                                              parent-tempo-env)))
-                         ((car vars) (list (cons stack-bind vars) init-stack))
-                         ;; No local bindings.
-                         (t `((,stack-bind) ,init-stack ,@(cdr vars)))))
+                 (multiple-value-bind (vars decl body)
+                     (find-score-local-bindings score at-fname write-args)
+                   (let ((stack-bind '(__stack__ nil))
+                         (init-stack
+                           '(push (lambda () (go __end_of_score__)) __stack__)))
+                     (if included-p
+                         (with-gensyms (time-offset-var)
+                           (rego-local-tempo vars decl body
+                                             time parent-time time-offset
+                                             time-offset-var tempo-env
+                                             parent-tempo-env))
+                         `(,(cons stack-bind vars) ,@decl ,init-stack ,@body))))
                  (score-lines->sexp score at-fname write-args)
                  '(__end_of_score__)
                  (cond (included-p

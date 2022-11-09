@@ -234,6 +234,14 @@
    (2.0 REGO-TEST-1 220 0.12)
    (5.0 REGO-TEST-1 440 0.25)))
 
+(regofile->list-test regofile-declarations.1 "declare-1.rego"
+  ((0.0 TYPE-TEST X ERROR)
+   (0.0 TYPE-TEST Y 1)))
+
+(regofile->list-test regofile-declarations.2 "declare-2.rego"
+  ((0.0 TYPE-TEST X ERROR)
+   (0.0 TYPE-TEST Y 1)))
+
 (regofile->list-test org-properties.1 "org-properties-1.rego"
   ((3.06 REGO-TEST-2 440 0.3 0.5)
    (3.86 REGO-TEST-2 880 0.3 0.5)
