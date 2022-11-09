@@ -1818,6 +1818,26 @@ ff/1f i3 1/ff f/a
 #+end_example
 
 #+texinfo: @noindent
+Warning: we could introduce some bugs if ~:score-radix:~ is greater
+than 10. For example:
+
+#+texinfo: @exampleindent 4
+#+begin_example
+:score-radix: 16
+0 cc 10 7f
+1 foo 'babba
+#+end_example
+
+#+texinfo: @noindent
+is equivalent to
+
+#+texinfo: @exampleindent 4
+#+begin_example
+0 204 16 127
+1 foo 764858
+#+end_example
+
+#+texinfo: @noindent
 The score statement ~:score-float-format:~ sets the variable
 ~*read-default-float-format*~ to read the rest of the score lines.
 
