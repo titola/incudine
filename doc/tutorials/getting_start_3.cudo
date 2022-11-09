@@ -249,14 +249,26 @@ voi
 ;; arguments.
 
 ;; It is possible to import the events from a rego file, which
-;; contains time-tagged lisp functions, lisp statements and lisp tags
-;; (for Algol-like style).
+;; contains time-tagged lisp functions, lisp statements and lisp tags.
 
 ;; The syntax of a time-tagged lisp function is:
-
-;; start-time-in-beats function-name [arg1] [arg2] ...
-
-;; Here is a rego file for the test
+;;
+;;   start-time-in-beats [time-increment]* function-name [arg1] [arg2] ...
+;;
+;; The optional numbers between `start-time-in-beats' and `function-name'
+;; increment the start time. For example:
+;;
+;;   0.8          foo 220 .2
+;;   2.5 .15      foo 440 .5
+;;   3.2 .25 -.11 foo 432 .2
+;;
+;; is equivalent to
+;;
+;;   0.8              foo 220 .2
+;;   (+ 2.5 .15)      foo 440 .5
+;;   (+ 3.2 .25 -.11) foo 432 .2
+;;
+;; Here is a rego file for the test:
 
 ;;; /tmp/test.rego
 
@@ -278,7 +290,9 @@ voi
 ;; Game Over
 8 free 0
 
-;; and the lisp code is
+;;; End of file
+
+;; The lisp code is
 
 (dsp! simple2 (freq amp pos)
   (foreach-channel (cout (pan2 (sine freq amp 0) pos))))
@@ -292,15 +306,16 @@ voi
 ;; samples out of range:         0         0
 ;; "/tmp/nrt-test-3.wav"
 
-;; A line comment starts with `;' and there is a line continuation
-;; with `\' at the end of the line.
+;; A line comment starts with a semicolon. A line continuation requires
+;; the character `\' at the end of the line. The comments and the blocks
+;; in Org markup language are ignored too.
 
-;; TIME and TEMPO-ENV are pre-defined local variables usable within a
-;; rego file. They are the time offset in beats and the temporal
+;; TIME and TEMPO-ENV are predefined variable bindings usable within
+;; a rego file. They are the time offset in beats and the temporal
 ;; envelope of the events, respectively.
 
-;; It is possible to define other local variables by inserting the
-;; bindings after WITH, at the beginning of the score. For example:
+;; It is possible to create other variable bindings through WITH
+;; at the beginning of the score. For example:
 
 ;;; /tmp/test2.rego
 with (id 1) (last 4)
@@ -310,6 +325,8 @@ with (id 1) (last 4)
 1          simple 448 .2 :id (+ id 1)
 (1- last)  simple 661 .2 :id (+ id 2)
 last       free 0
+
+;; We can also add a DECLARE expression after the bindings.
 
 ;; If we use the symbol // to separate the functions with the same
 ;; time-tag, we get a polyphonic vertical sequencer in text files.
@@ -330,7 +347,24 @@ last       free 0
 4.5 foo 220 .02
 4.5 sev 772 .07
 
-;; We can also add a DECLARE expression after the bindings.
+;; Another example:
+
+0 .11 i1 1 2 3 // .25 i2 1 2 3 //  .05 i3 1 2 3
+1
+2     i1 1 2 3 // .05 i2 1 2 3 // -.15 i3 1 2 3
+3
+
+;; is equivalent to
+
+0.05 i3 1 2 3
+0.11 i1 1 2 3
+0.25 i2 1 2 3
+1.85 i3 1 2 3
+2.00 i1 1 2 3
+2.05 i2 1 2 3
+
+;; An isolated number is not a lisp tag otherwise a time-tagged function
+;; gets confused. A single column of numbers is useful for rhythm templates.
 
 ;; DUR is a local function to convert the duration from beats to seconds
 ;; with respect to TEMPO-ENV.

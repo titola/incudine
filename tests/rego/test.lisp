@@ -180,12 +180,30 @@
    (2.3 REGO-TEST-1 220 0.02)
    (2.3 REGO-TEST-1 772 0.07)))
 
-(regofile->list-test regofile->list.14 "ses-mode.rego"
+(regofile->list-test regofile->list.14 "paral-3.rego"
+  ((0.0 REGO-TEST-1 440 0.08)
+   (0.1 REGO-TEST-1 660 0.05)
+   (0.15 REGO-TEST-1 550 0.1)
+   (0.7 REGO-TEST-1 770 0.1)
+   (1.55 REGO-TEST-1 330 0.03)
+   (2.3 REGO-TEST-1 220 0.02)
+   (2.65 REGO-TEST-1 772 0.07)))
+
+(regofile->list-test regofile->list.15 "paral-4.rego"
+  ((0.0 REGO-TEST-1 440 0.08)
+   (0.1 REGO-TEST-1 660 0.05)
+   (0.15 REGO-TEST-1 550 0.1)
+   (0.7 REGO-TEST-1 770 0.1)
+   (1.55 REGO-TEST-1 330 0.03)
+   (2.3 REGO-TEST-1 220 0.02)
+   (2.65 REGO-TEST-1 772 0.07)))
+
+(regofile->list-test regofile->list.16 "ses-mode.rego"
   ((0.0 REGO-TEST-1 440.0 0.1)
    (1.0 REGO-TEST-1 660.0 0.2)
    (2.0 REGO-TEST-1 880.0 0.3)))
 
-(regofile->list-test regofile->list.15 "call-return-1.rego"
+(regofile->list-test regofile->list.17 "call-return-1.rego"
   ((0.0 REGO-TEST-3 114 0.3 0.3)
    (0.05 REGO-TEST-3 228 0.3 0.3)
    (0.1 REGO-TEST-3 342 0.3 0.3)
@@ -229,7 +247,7 @@
    (4.22 REGO-TEST-3 4674 0.3 0.13)
    (4.27 REGO-TEST-3 4788 0.3 0.13)))
 
-(regofile->list-test regofile->list.16 "include-4.rego"
+(regofile->list-test regofile->list.18 "include-4.rego"
   ((0.0 REGO-TEST-1 110 0.5)
    (2.0 REGO-TEST-1 220 0.12)
    (5.0 REGO-TEST-1 440 0.25)))
@@ -403,6 +421,14 @@
 (with-dsp-test (paral.2
       :md5 #(225 98 8 15 231 24 109 114 111 196 54 172 233 204 51 11))
   (test-regofile "paral-2.rego"))
+
+(with-dsp-test (paral.3
+      :md5 #(102 122 61 84 160 219 90 86 10 12 242 228 75 49 234 48))
+  (test-regofile "paral-3.rego"))
+
+(with-dsp-test (paral.4
+      :md5 #(102 122 61 84 160 219 90 86 10 12 242 228 75 49 234 48))
+  (test-regofile "paral-4.rego"))
 
 (with-dsp-test (call-return-1 :channels 2
       :md5 #(113 104 208 77 42 108 112 93 141 199 210 176 138 9 223 112))

@@ -6,10 +6,22 @@
 2 set-control 1 :freq 200
 2 set-control 2 :freq 208
 
-5.7 set-control 1 :freq 220
-5.7 set-control 2 :freq 231
+5 .7    set-control 1 :freq 220
+5 .5 .2 set-control 2 :freq 231
 
 4 set-controls 1 :freq 300 :amp .1 :pos .1
 4 set-controls 2 :freq 312 :amp .1 :pos .9
 
 8 free 0
+
+;; A single column of numbers is useful for rhythm templates.
+0
+1
+2
+3
+
+;; The test fails if the numbers are accidentally lisp tags.
+0
+1
+2
+3

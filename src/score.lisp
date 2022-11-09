@@ -21,8 +21,20 @@
 ;;;
 ;;; The syntax of a time-tagged lisp function is:
 ;;;
-;;;     start-time-in-beats   function-name   [arg1]   [arg2]   ...
+;;;     start-time-in-beats [time-increment]* function-name [arg1] [arg2] ...
 ;;;
+;;; The optional numbers between start-time-in-beats and function-name
+;;; increment the start time. For example:
+;;;
+;;;     0.8          foo 220 .2
+;;;     2.5 .15      foo 440 .5
+;;;     3.2 .25 -.11 foo 432 .2
+;;;
+;;; is equivalent to
+;;;
+;;;     0.8              foo 220 .2
+;;;     (+ 2.5 .15)      foo 440 .5
+;;;     (+ 3.2 .25 -.11) foo 432 .2
 
 (declaim (special
            ;; Stack used to check recursive inclusions of rego files.
@@ -526,29 +538,70 @@ or IGNORE-SCORE-STATEMENTS."
 ;;;     4.5 foo 220 .02
 ;;;     4.5 sev 772 .07
 ;;;
+;;; Example with delay-time:
+;;;
+;;;     0 .11 i1 1 2 3 // .25 i2 1 2 3 // .05 i3 1 2 3
+;;;     1     i1 1 2 3 // .05 i2 1 2 3 // .36 i3 1 2 3
+;;;
+;;; is equivalent to
+;;;
+;;;     0.05 i3 1 2 3
+;;;     0.11 i1 1 2 3
+;;;     0.25 i2 1 2 3
+;;;     1.00 i1 1 2 3
+;;;     1.05 i2 1 2 3
+;;;     1.36 i3 1 2 3
 (defun score-expand-parallel-functions (form)
   (labels ((ignore-func-p (fname)
              (or (eq fname 'quote)
                  (and (consp fname) (eq (car fname) 'quote))))
+           (function-position (list i delimiter-position)
+             (if list
+                 (let ((delim (if (eq (car list) '//) i)))
+                   (if (and delimiter-position (not delim))
+                       (values i delimiter-position)
+                       (function-position (cdr list) (1+ i)
+                                          (or delimiter-position delim))))
+                 (values nil delimiter-position)))
            (next (at-fname time form)
-             (let ((end (position '// form)))
-               (if end
-                   (let ((next (next at-fname time (subseq form (1+ end)))))
-                     (if (ignore-func-p (car form))
+             (multiple-value-bind (func-pos delim-pos)
+                 (function-position form 0 nil)
+               (if func-pos
+                   (let ((next (next at-fname time (subseq form func-pos))))
+                     (if (ignore-func-p (find-if-not #'numberp form))
                          next
-                         (cons `(,at-fname ,time ,@(subseq form 0 end)) next)))
+                         (cons (normalize-score-statement-form
+                                 (list* at-fname time (subseq form 0 delim-pos)))
+                               next)))
                    (unless (ignore-func-p (car form))
-                     `((,at-fname ,time ,@form)))))))
+                     (list (normalize-score-statement-form
+                             (list* at-fname time
+                                    (if delim-pos
+                                        (subseq form 0 delim-pos)
+                                        form)))))))))
     (let ((pos (position '// form)))
       (cond ((null pos)
              (unless (ignore-func-p (third form))
-               form))
+               (normalize-score-statement-form form)))
             ((= pos 2)
-             (score-expand-parallel-functions (remove '// form :count 1)))
+             (let ((func-pos (function-position form 0 nil)))
+               (if func-pos
+                   (score-expand-parallel-functions
+                     (list* (first form) (second form) (subseq form func-pos)))
+                   '(progn))))
             (t
              (with-gensyms (time)
                `(let ((,time ,(cadr form)))
                   ,@(next (car form) time (cddr form)))))))))
+
+(defun normalize-score-statement-form (form)
+  (if (numberp (third form))
+      ;; start-time delay [time-increment]* function-name [arg1] [arg2] ...
+      (let ((func-pos (+ 2 (or (position-if-not #'numberp (cddr form)) 1))))
+        (list* (first form)
+               `(+ ,@(subseq form 1 func-pos))
+               (subseq form func-pos)))
+      form))
 
 (defun score-line->sexp (line at-fname &optional args)
   (declare (type string line) (type list args))
@@ -580,7 +633,15 @@ or IGNORE-SCORE-STATEMENTS."
                     (format nil "(INCUDINE::%AT-SAMPLE ~A ~A)" at-fname line)))))
               (t
                ;; Tag or lisp statement.
-               (read-from-string (string-left-trim '(#\Space #\Tab #\Return) line)))))))
+               (let ((form (read-from-string
+                            (string-left-trim '(#\Space #\Tab #\Return) line))))
+                 (if (numberp form)
+                     ;; A number is not a lisp tag otherwise a time-tagged
+                     ;; function gets confused.
+                     ;;
+                     ;; PROGN + time value for debug.
+                     `(progn ,form)
+                     form)))))))
 
 (defun read-time-score-statement-p (line)
   (or (score-call-statement-p line)

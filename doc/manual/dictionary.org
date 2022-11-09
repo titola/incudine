@@ -1568,18 +1568,44 @@ in this case the performance-time loop is:
 ** Rego File
 A rego file can contain time-tagged lisp functions, lisp statements,
 arbitrary score statements and lisp tags. Besides, the rego file
-format supports the [[https://orgmode.org][Org]] markup language. It is possible to edit and
-organize score files with spreedsheet-like capabilities, headlines,
-unordered lists, blocks, properties, hyperlinks, todo items, tags,
-deadlines, scheduling, etc.
+format supports the [[https://orgmode.org][Org]] markup language.
+It is possible to edit and organize score files with spreedsheet-like
+capabilities, headlines, unordered lists, blocks, properties,
+hyperlinks, todo items, tags, deadlines, scheduling, etc.
 
 #+texinfo: @noindent
 The syntax of a time-tagged lisp function is:
 
 #+texinfo: @exampleindent 4
 #+begin_example
-start-time-in-beats function-name [arg1] [arg2] ...
+start-time-in-beats [time-increment]* function-name [arg1] [arg2] ...
 #+end_example
+
+#+texinfo: @noindent
+The optional numbers between ~start-time-in-beats~ and ~function-name~
+increment the start time. For example:
+
+#+texinfo: @exampleindent 4
+#+begin_example
+0.8          foo 220 .2
+2.5 .15      foo 440 .5
+3.2 .25 -.11 foo 432 .2
+#+end_example
+
+#+texinfo: @noindent
+is equivalent to
+
+#+texinfo: @exampleindent 4
+#+begin_example
+0.8              foo 220 .2
+(+ 2.5 .15)      foo 440 .5
+(+ 3.2 .25 -.11) foo 432 .2
+#+end_example
+
+#+texinfo: @noindent
+A line comment starts with a semicolon. A line continuation requires
+the character ~\~ at the end of the line. The comments and the blocks
+in Org markup language are ignored too.
 
 #+texinfo: @noindent
 If the symbol ~//~ is used to separate the functions with the same
@@ -1610,13 +1636,36 @@ is equivalent to
 #+end_example
 
 #+texinfo: @noindent
-Local variables usable inside a rego file:
+Example with common start-time and different delay-time:
 
-#+texinfo: @exampleindent 4
 #+begin_example
-TIME          time offset in beats
-TEMPO-ENV     temporal envelope of the events
+0 .11 i1 1 2 3 // .25 i2 1 2 3 //  .05 i3 1 2 3
+1
+2     i1 1 2 3 // .05 i2 1 2 3 // -.15 i3 1 2 3
+3
 #+end_example
+
+#+texinfo: @noindent
+is equivalent to
+
+#+begin_example
+0.05 i3 1 2 3
+0.11 i1 1 2 3
+0.25 i2 1 2 3
+1.85 i3 1 2 3
+2.00 i1 1 2 3
+2.05 i2 1 2 3
+#+end_example
+
+#+texinfo: @noindent
+An isolated number is not a lisp tag otherwise a time-tagged function
+gets confused. A single column of numbers is useful for rhythm templates.
+
+#+texinfo: @noindent
+There are predefined variable bindings usable inside a rego file:
+
+- TIME :: Time offset in beats.
+- TEMPO-ENV :: Temporal envelope of the events.
 
 #+texinfo: @noindent
 The score statement ~:score-time:~ sets the variable ~time~.
@@ -1640,9 +1689,8 @@ The events scheduled before that time and the score start time of the
 included files are ignored.
 
 #+texinfo: @noindent
-It is possible to define other local variables by inserting
-the bindings after ~with~, at the beginning of the score.
-For example:
+It is possible to create other variable bindings through
+~with~ at the beginning of the score. For example:
 
 #+texinfo: @exampleindent 4
 #+begin_example

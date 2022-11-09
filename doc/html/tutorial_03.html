@@ -294,15 +294,31 @@ samples out of range:         0         0
 
       <p id="rego-file">
         It is possible to import the events from a rego file, which contains
-        time-tagged lisp functions, lisp statements and lisp tags (for
-        Algol-like style).
+        time-tagged lisp functions, lisp statements and lisp tags.
       </p>
 
       <p>
         The syntax of a time-tagged lisp function is:
       </p>
 
-      <pre class="src src-lisp">start-time-in-beats function-name [arg1] [arg2] ...</pre>
+      <pre class="src src-lisp">start-time-in-beats [time-increment]* function-name [arg1] [arg2] ...</pre>
+
+      <p>
+        The optional numbers between <code>start-time-in-beats</code> and
+        <code>function-name</code> increment the start time. For example:
+      </p>
+
+      <pre class="src src-lisp">0.8          foo 220 .2
+2.5 .15      foo 440 .5
+3.2 .25 -.11 foo 432 .2</pre>
+
+      <p>
+        is equivalent to
+      </p>
+
+      <pre class="src src-lisp">0.8              foo 220 .2
+(+ 2.5 .15)      foo 440 .5
+(+ 3.2 .25 -.11) foo 432 .2</pre>
 
       <p>
         Here is a rego file for the test
@@ -345,19 +361,20 @@ samples out of range:         0         0
 <span style="color: #ffa07a;">"/tmp/nrt-test-3.wav"</span></pre>
 
       <p>
-        A line comment starts with <code>`;'</code> and there is a line
-        continuation with <code>`\'</code> at the end of the line.
+        A line comment starts with a semicolon. A line continuation requires
+        the character <code>\</code> at the end of the line. The comments and
+        the blocks in Org markup language are ignored too.
       </p>
 
       <p>
-        <code>TIME</code> and <code>TEMPO-ENV</code> are pre-defined local
-        variables usable within a rego file. They are the time offset in
-        beats and the temporal envelope of the events, respectively.
+        <code>TIME</code> and <code>TEMPO-ENV</code> are predefined variable
+        bindings usable within a rego file. They are the time offset in beats
+        and the temporal envelope of the events, respectively.
       </p>
 
       <p>
-        It is possible to define other local variables by inserting the bindings
-        after <code>WITH</code>, at the beginning of the score. For example:
+        It is possible to create other variable bindings through <code>WITH</code>
+        at the beginning of the score. For example:
       </p>
 
       <pre class="src src-lisp"><span style="color: #ff7f24;">;;; </span><span style="color: #ff7f24;">/tmp/test2.rego</span>
@@ -368,6 +385,10 @@ with (id 1) (last 4)
 1          simple 448 .2 <span style="color: #b0c4de;">:id</span> (+ id 1)
 (1- last)  simple 661 .2 <span style="color: #b0c4de;">:id</span> (+ id 2)
 last       free 0</pre>
+
+      <p>
+        We can also add a <code>DECLARE</code> expression after the bindings.
+      </p>
 
       <p>
         If we use the symbol <code>//</code> to separate the functions with the
@@ -392,7 +413,28 @@ last       free 0</pre>
 4.5 sev 772 .07</pre>
 
       <p>
-        We can also add a <code>DECLARE</code> expression after the bindings.
+        Another example:
+      </p>
+
+      <pre class="src src-lisp">0 .11 i1 1 2 3 // .25 i2 1 2 3 //  .05 i3 1 2 3
+1
+2     i1 1 2 3 // .05 i2 1 2 3 // -.15 i3 1 2 3
+3</pre>
+
+      <p>
+        is equivalent to
+      </p>
+
+<pre class="src src-lisp">0.05 i3 1 2 3
+0.11 i1 1 2 3
+0.25 i2 1 2 3
+1.85 i3 1 2 3
+2.00 i1 1 2 3
+2.05 i2 1 2 3</pre>
+
+      <p>
+        An isolated number is not a lisp tag otherwise a time-tagged function
+        gets confused. A single column of numbers is useful for rhythm templates.
       </p>
 
       <p>
