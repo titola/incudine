@@ -546,6 +546,10 @@ rego file or call `tags-loop-continue'."
   (setq-local comment-column 40)
   (setq-local comment-region-function 'comment-region-default)
   (setq-local uncomment-region-function 'uncomment-region-default)
+  (when (boundp 'org-emphasis-alist)
+    ;; No emphasized text between the symbols //
+    (setq-local org-emphasis-alist
+      (assoc-delete-all "/" (copy-alist org-emphasis-alist))))
   (run-hooks 'incudine-rego-mode-hook))
 
 (provide 'incudine)
