@@ -103,6 +103,7 @@
      (:file "vug/parallel-nrt" :depends-on ("vug/generator/osc"))
      (:file "rego/base" :depends-on ("vug/base"))
      (:file "rego/test" :depends-on ("rego/base"))
+     (:file "rego/string-test" :depends-on ("rego/base"))
      (:static-file "data.raw")
      (:static-file "data.txt")
      (:static-file "rego/include-1.rego")

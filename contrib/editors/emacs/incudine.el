@@ -300,6 +300,10 @@ If RESET-P is non-NIL, set the number of xruns to zero."
         (?s ":SEC")
         (?S ":SAMP")))))
 
+(defun incudine-slime-macroexpand (form)
+  (slime-eval-async `(swank:interactive-eval ,form)
+    #'slime-initialize-macroexpansion-buffer))
+
 (defun incudine-dsp/ugen-expand ()
   "If the form at point starts with DSP! or DEFINE-UGEN, prompt the
 arguments and display the generated code."
@@ -309,20 +313,31 @@ arguments and display the generated code."
       (let* ((type (if (char-equal (aref string (1+ (match-beginning 2))) ?s)
                        "dsp"
                        "ugen"))
-             (args (read-from-minibuffer (concat type " args: ")))
-             (form (format "(funcall (incudine.vug:%s-debug %s %s)"
-                           type (substring string (match-end 0)) args)))
-        (slime-eval-async `(swank:interactive-eval ,form)
-          #'slime-initialize-macroexpansion-buffer)))))
+             (args (read-from-minibuffer (concat type " args: "))))
+        (incudine-slime-macroexpand
+          (format "(funcall (incudine.vug:%s-debug %s %s)"
+                  type (substring string (match-end 0)) args))))))
+
+(defun incudine-buffer-string ()
+  (buffer-substring-no-properties (buffer-end -1) (buffer-end 1)))
+
+(defun incudine-play-buffer ()
+  (let ((slime-log-events nil))
+    (slime-interactive-eval
+      (format "(progn (incudine:rt-start) (funcall (incudine:regostring->function %S)))"
+              (incudine-buffer-string)))))
 
 (defun incudine-play-regofile ()
   "Eval the edited rego file and schedule the obtained events."
   (interactive)
-  (when (and incudine-save-buffer-before-play (buffer-modified-p))
-    (save-buffer))
-  (incudine-eval
-    "(progn (incudine:rt-start) (funcall (incudine:regofile->function %S)))"
-    (buffer-file-name)))
+  (let ((file-name (buffer-file-name)))
+    (if (not file-name)
+        (incudine-play-buffer)
+      (when (and incudine-save-buffer-before-play (buffer-modified-p))
+        (save-buffer))
+      (incudine-eval
+        "(progn (incudine:rt-start) (funcall (incudine:regofile->function %S)))"
+        file-name))))
 
 (defun incudine-fix-rego-files-walk ()
   "Remove the killed buffers from incudine-rego-files-walk."
@@ -368,29 +383,39 @@ rego file or call `tags-loop-continue'."
 (defun incudine-regofile-to-sexp ()
   "Display the expansion of the edited rego file."
   (interactive)
-  (when (buffer-modified-p)
-    (save-buffer))
-  (let ((form (format "(incudine:regofile->sexp %S)" (buffer-file-name))))
-    (slime-eval-async `(swank:interactive-eval ,form)
-      #'slime-initialize-macroexpansion-buffer)))
+  (let ((file-name (buffer-file-name)))
+    (when (and file-name (buffer-modified-p))
+      (save-buffer))
+    (incudine-slime-macroexpand
+      (if file-name
+          (format "(incudine:regofile->sexp %S)" file-name)
+          (format "(incudine::regostring->sexp %S)" (incudine-buffer-string))))))
 
 (defun incudine-regofile-to-list ()
   "Display the list of events obtained from the edited rego file."
   (interactive)
-  (when (buffer-modified-p)
-    (save-buffer))
-  (let ((form (format "(incudine:regofile->list %S)" (buffer-file-name))))
-    (slime-eval-async `(swank:interactive-eval ,form)
-      #'slime-initialize-macroexpansion-buffer)))
+  (let ((file-name (buffer-file-name)))
+    (when (and file-name (buffer-modified-p))
+      (save-buffer))
+    (incudine-slime-macroexpand
+      (if file-name
+          (format "(incudine:regofile->list %S)" (buffer-file-name))
+          (format "(incudine:regostring->list %S)" (incudine-buffer-string))))))
 
 (defun incudine-regofile-to-scheduled-events ()
   "Display the scheduled events obtained from the edited rego file."
   (interactive)
-  (when (buffer-modified-p)
-    (save-buffer))
-  (let ((form (format "`(with-schedule ,@(mapcar (lambda (x) `(at (* ,(car x) *sample-rate*) #',(cadr x) ,@(cddr x))) (incudine:regofile->list %S)))" (buffer-file-name))))
-    (slime-eval-async `(swank:interactive-eval ,form)
-      #'slime-initialize-macroexpansion-buffer)))
+  (let ((file-name (buffer-file-name)))
+    (when (and file-name (buffer-modified-p))
+      (save-buffer))
+    (let ((form-beg
+            "with-schedule ,@(mapcar (lambda (x) `(at (* ,(car x) *sample-rate*) #',(cadr x) ,@(cddr x)))"))
+      (incudine-slime-macroexpand
+        (if file-name
+            (format "`(%s (incudine:regofile->list %S)))"
+                    form-beg (buffer-file-name))
+            (format "`(%s (incudine:regostring->list %S)))"
+                    form-beg (incudine-buffer-string)))))))
 
 (font-lock-add-keywords
   'incudine-mode

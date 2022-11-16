@@ -1923,8 +1923,10 @@ return
 ::: *score-readtable*
 ::: regofile->sexp
 ::: regofile->function
+::: regostring->function
 ::: regofile->lispfile
 ::: regofile->list
+::: regostring->list
 ::: regolist->file
 #+texinfo: @page
 ** Networking

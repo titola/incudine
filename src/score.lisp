@@ -608,8 +608,9 @@ or IGNORE-SCORE-STATEMENTS."
   (if (include-regofile-p line)
       (multiple-value-bind (path time)
           (include-rego-path-and-time line)
-        (let ((incfile (incudine.util::truename*
-                         (merge-pathnames path (car args)))))
+        (let* ((file (car args))
+               (incfile (incudine.util::truename*
+                          (merge-pathnames path (or file *default-pathname-defaults*)))))
           (cond ((find incfile *include-rego-stack* :test #'equal)
                  (msg error "recursive inclusion of ~S~%  => ~A" incfile
                       (reverse *include-rego-stack*)))
@@ -1053,6 +1054,10 @@ event list at runtime when this function is called."
   (with-open-file (score (incudine.util::truename* path))
     (rego-stream->sexp score function-name compile-rego-p)))
 
+(defun regostring->sexp (string &optional function-name compile-rego-p)
+  (with-input-from-string (score string)
+    (rego-stream->sexp score function-name compile-rego-p)))
+
 (defun regofile->function (path &optional function-name compile-rego-p)
   "From a rego file PATH, define a function optionally named
 FUNCTION-NAME to evaluate the corresponding lisp form.
@@ -1060,6 +1065,15 @@ FUNCTION-NAME to evaluate the corresponding lisp form.
 If COMPILE-REGO-P is NIL (default), use an interpreter to evaluate the
 event list at runtime."
   (eval (regofile->sexp path function-name compile-rego-p)))
+
+(defun regostring->function (string &optional function-name compile-rego-p)
+  "From a string containing a score in rego file format, define a
+function optionally named FUNCTION-NAME to evaluate the corresponding
+lisp form.
+
+If COMPILE-REGO-P is NIL (default), use an interpreter to evaluate the
+event list at runtime."
+  (eval (regostring->sexp string function-name compile-rego-p)))
 
 (defun regofile->lispfile (path &optional function-name lisp-file compile-rego-p)
   "Convert from a rego file to a lisp file.
@@ -1175,3 +1189,9 @@ lists (time function-name &rest arguments)."
                    :direction :output :if-exists :supersede)
     (write-regolist list f)
     path))
+
+(defun regostring->list (string)
+  "From a string containing a score in rego file format, return the
+corresponding event list as a list of lists
+(time function-name &rest arguments)."
+  (with-input-from-string (score string) (stream->regolist score)))
