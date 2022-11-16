@@ -342,10 +342,10 @@ arguments and display the generated code."
 (defun incudine-fix-rego-files-walk ()
   "Remove the killed buffers from incudine-rego-files-walk."
   (setq incudine-rego-files-walk
-        (delete-if-not (lambda (x)
-                         (and (buffer-live-p (car x))
-                              (buffer-live-p (cdr x))))
-                       incudine-rego-files-walk)))
+        (cl-delete-if-not (lambda (x)
+                            (and (buffer-live-p (car x))
+                                 (buffer-live-p (cdr x))))
+                          incudine-rego-files-walk)))
 
 (defun incudine-find-name (&optional name where)
   "If the current line is an `include' statement, edit the included
@@ -358,8 +358,8 @@ file name, otherwise edit a lisp definition or call `find-tag'."
               (let ((parent (current-buffer)))
                 (incudine-fix-rego-files-walk)
                 (find-file (match-string-no-properties 1))
-                (pushnew (cons (current-buffer) parent)
-                         incudine-rego-files-walk :key 'car))))
+                (cl-pushnew (cons (current-buffer) parent)
+                            incudine-rego-files-walk :key 'car))))
     (let ((name (or name (slime-read-symbol-name "Edit Definition of: "))))
       (if (and (slime-connected-p) (slime-find-definitions name))
           (slime-edit-definition name where)
