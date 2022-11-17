@@ -375,6 +375,11 @@ or IGNORE-SCORE-STATEMENTS."
                    (org-table-line-to-skip-p str)
                    (sharp-plus-to-skip str)))))))
 
+(defun shebang-line-p (line)
+  (and (> (length line) 2)
+       (char= #\# (char line 0))
+       (char= #\! (char line 1))))
+
 (defmacro %at-sample (at-fname beats func-symbol &rest args)
   `(,at-fname ,beats ,func-symbol ,@args))
 
@@ -693,19 +698,20 @@ or IGNORE-SCORE-STATEMENTS."
              (read-from-string
                (concatenate 'string
                  "(" (subseq line (if (char= #\: (char line 0)) 17 5)) ")")))
-           (first-score-stmt (line bindings declarations)
+           (first-score-stmt (line bindings declarations nl)
              (declare (type (or string null) line)
                       (type list bindings declarations))
              (when line
-               (cond ((score-skip-line-p line stream nil)
+               (cond ((or (and (= nl 1) (shebang-line-p line))
+                          (score-skip-line-p line stream nil))
                       (first-score-stmt
-                        (read-score-line stream) bindings declarations))
+                        (read-score-line stream) bindings declarations (1+ nl)))
                      ((score-bindings-p line)
                       (first-score-stmt
                         (read-score-line stream)
                         ;; Local bindings at the beginning of the score.
                         (get-bindings line)
-                        nil))
+                        nil (1+ nl)))
                      ((read-time-score-statement-p line)
                       (values bindings (nreverse declarations)
                               (expand-read-time-score-statement line)))
@@ -715,10 +721,10 @@ or IGNORE-SCORE-STATEMENTS."
                                  (eq (car form) 'declare))
                             (first-score-stmt
                               (read-score-line stream)
-                              bindings (cons form declarations))
+                              bindings (cons form declarations) (1+ nl))
                             (values bindings (nreverse declarations)
                                     (list form)))))))))
-    (first-score-stmt (read-score-line stream) nil nil)))
+    (first-score-stmt (read-score-line stream) nil nil 1)))
 
 (defun read-score-line (stream)
   (declare (type stream stream))

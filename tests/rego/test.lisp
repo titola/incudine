@@ -363,6 +363,9 @@
    (2.42 REGO-TEST-1 3000 0.16)
    (2.75 REGO-TEST-1 4000 0.15)))
 
+(regofile->list-test regofile-shebang.1 "shebang-script.rego"
+  ((0.0 P "one") (1.0 P "two") (2.0 P "three")))
+
 (with-dsp-test (rego.1 :channels 2
       :md5 #(245 220 65 244 25 76 31 230 109 144 248 153 16 170 160 134))
   (test-regofile "t1.rego"))
