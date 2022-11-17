@@ -1,11 +1,5 @@
-;;; texture1.sco: score file generated with CMask 0.31
-;;;
-;;; Example: the following command
-;;;
-;;;     incudine texture.cudo -v -s texture1.sco
-;;;
-;;; writes the sound file texture1.wav
-;;;
+#!/usr/bin/env -S incudine texture.cudo -v -s
+;;; Score file generated with CMask 0.31
 
 f1 0 8192  9 .25 1 0
 f2 0 8193 10 1
