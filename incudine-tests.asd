@@ -34,6 +34,7 @@
      (:file "edf" :depends-on ("vug/base"))
      (:file "graph" :depends-on ("vug/base"))
      (:file "time" :depends-on ("util"))
+     (:file "string" :depends-on ("util"))
      (:file "bus" :depends-on ("util"))
      (:file "channels" :depends-on ("vug/base"))
      (:file "buffer" :depends-on ("util"))

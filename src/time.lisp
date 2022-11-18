@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2021 Tito Latini
+;;; Copyright (c) 2013-2022 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -957,16 +957,28 @@ TRANSITION-TIME-STEP defaults to 1/8."
 (defun parse-time-string (stream subchar arg)
   (declare #.*standard-optimize-settings*
            (type stream stream) (ignore subchar arg))
-  (let* ((*read-default-float-format* incudine.config:*sample-type*)
-         (l (read-delimited-list #\] stream t)))
-    (if l
-        (let ((mult (first l)))
-          (if (rest l)
-              (let ((time-unit-str (symbol-name (second l))))
-                (destructuring-bind (&optional tempo beats) (cddr l)
-                  (parse-time-unit time-unit-str mult tempo beats)))
-              mult))
-        +sample-zero+)))
+  (if (char= #\[ (peek-char nil stream))
+      (progn (read-char stream)
+             (parse-square-bracket-string stream))
+      (let* ((*read-default-float-format* incudine.config:*sample-type*)
+             (l (read-delimited-list #\] stream t)))
+        (if l
+            (let ((mult (first l)))
+              (if (rest l)
+                  (let ((time-unit-str (symbol-name (second l))))
+                    (destructuring-bind (&optional tempo beats) (cddr l)
+                      (parse-time-unit time-unit-str mult tempo beats)))
+                  mult))
+            +sample-zero+))))
+
+(defun parse-square-bracket-string (stream)
+  (coerce
+    (loop for c0 = (read-char stream) then c1
+          for c1 = (read-char stream)
+          until (and (char= c0 #\])
+                     (char= c1 #\]))
+          collect c0)
+    'string))
 
 (defun set-sharp-square-bracket-syntax ()
   (set-macro-character #\] (get-macro-character #\) nil))
@@ -979,8 +991,9 @@ TRANSITION-TIME-STEP defaults to 1/8."
 (pushnew #'add-sharp-square-bracket-syntax *initialize-hook*)
 
 (defmacro enable-sharp-square-bracket-syntax ()
-  "Enable the reader syntax #[...] to enter the time in samples by
-using different units. The syntax is
+  "Enable the reader syntax #[...] to enter the time in samples by using
+different units, and to begin and end a string as an alternative to
+double-quote. The syntax is
 
     #[number unit]
 
@@ -989,6 +1002,8 @@ using different units. The syntax is
     #[number-of-beats b.* tempo]
 
     #[number-of-beats b.* tempo-envelope offset-in-beats]
+
+    #[[text]]
 
 The number of beats depends on a TEMPO or TEMPO-ENVELOPE structure.
 The default is *TEMPO*.
