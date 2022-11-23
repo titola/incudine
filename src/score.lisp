@@ -204,6 +204,11 @@ or IGNORE-SCORE-STATEMENTS."
 (defscore-statement ":score-time:" (value)
   `((setf time ,value)))
 
+;;; The score statement `:score-realtime-offset:' sets the absolute
+;;; time offset in samples for the scheduled score events.
+(defscore-statement ":score-realtime-offset:" (value-form)
+  `((setf incudine::score-realtime-offset (lambda () ,value-form))))
+
 (declaim (inline next-blank-position))
 (defun next-blank-position (string)
   (position-if #'blank-char-p string))
@@ -315,8 +320,10 @@ or IGNORE-SCORE-STATEMENTS."
   (and (find #\: name :start 1)
        (or ignore-bindings-p
            (string-not-equal name ":score-bindings:"))
-       (not (or (gethash (string-upcase name) *score-statements*)
-                (score-property-statement-p name)))))
+       (or (and (string-equal name ":score-realtime-offset:")
+                (included-regofile-p))
+           (not (or (gethash (string-upcase name) *score-statements*)
+                    (score-property-statement-p name))))))
 
 (defun score-property-statement-p (name)
   (or (string-equal name ":score-float-format:")
@@ -897,10 +904,14 @@ or IGNORE-SCORE-STATEMENTS."
                            '(push (lambda () (go __end_of_score__)) __stack__)))
                      (if included-p
                          (with-gensyms (time-offset-var)
-                           (rego-local-tempo vars decl body
-                                             time parent-time time-offset
-                                             time-offset-var tempo-env
-                                             parent-tempo-env))
+                           (rego-local-tempo
+                             (cons 'score-realtime-offset vars)
+                             (cons '(declare (ignore score-realtime-offset))
+                                   decl)
+                             body
+                             time parent-time time-offset
+                             time-offset-var tempo-env
+                             parent-tempo-env))
                          `(,(cons stack-bind vars) ,@decl ,init-stack ,@body))))
                  (score-lines->sexp score at-fname write-args)
                  '(__end_of_score__)
@@ -1015,6 +1026,7 @@ or IGNORE-SCORE-STATEMENTS."
         (prog1
          `(with-rego-function (,function-name ,compile-rego-p)
            (with-schedule
+             (:start-time 0 score-realtime-offset)
              (with-rego-samples (,c-array-wrap ,smptime0 ,smptime1 ,smptime
                                  ,sched ,last-time ,last-dur ,max-time)
                (let ((,tempo-env (default-tempo-envelope)))

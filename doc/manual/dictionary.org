@@ -1736,6 +1736,33 @@ macro ~tempo~:
 #+end_example
 
 #+texinfo: @noindent
+If a function created with ~regofile->function~ or
+~regostring->function~ is scheduled in real-time:
+
+#+texinfo: @exampleindent 4
+#+begin_example
+;; The real scheduled time is `(+ time latency)'.
+(at time function-from-regofile ...)
+#+end_example
+
+#+texinfo: @noindent
+there is a latency introduced during the creation of a temporary
+queue for the score events (see also ~with-schedule~). If a precise
+scheduling in real-time is required, the score statement
+~:score-realtime-offset:~ sets the absolute time offset in samples
+for the scheduled score events. For example, if the rego file
+begins with the following lines:
+
+#+texinfo: @exampleindent 4
+#+begin_example
+:score-tempo: '(180 95) '(4) :curve :exp
+:score-realtime-offset: (tempo-sync #[4 b tempo-env 0])
+#+end_example
+
+#+texinfo: @noindent
+a scheduled function is synchronized to a period of 4 beats.
+
+#+texinfo: @noindent
 The syntax to include the content of an external rego file is:
 
 #+texinfo: @exampleindent 4
