@@ -520,8 +520,8 @@ forced every TIME-STEP samples."
        (schedule-at ,time-var (node-function ,node-var) (node-args ,node-var))
        ,@body)))
 
-;;; Note: %POUR-ON-RT-HEAP is invoked from the realtime thread.
-(defun %pour-on-rt-heap (heap end-action)
+;;; Note: POUR-ON-RT-HEAP is invoked from the realtime thread.
+(defun pour-on-rt-heap (heap end-action)
   (declare (type heap heap) (type function end-action)
            (optimize speed (safety 0)))
   (flet ((the-end ()
@@ -546,23 +546,58 @@ forced every TIME-STEP samples."
             (t (with-rt-next-node (next-node time heap rt-heap)
                  ;; Continue to pour at the next tick.
                  (schedule-at (1+ (the sample (incudine:now)))
-                              #'%pour-on-rt-heap (list heap end-action)))))
+                              #'pour-on-rt-heap (list heap end-action)))))
       (values))))
 
-(defun pour-on-rt-heap (heap)
-  "The content of the EDF HEAP is poured on the realtime EDF heap."
-  (declare (type heap heap))
-  (at 0 (lambda (heap)
-          (let ((end-action (lambda () (heap-pool-push heap))))
-            (setf (heap-time-offset heap) (incudine:now))
-            (add-flush-pending-hook end-action)
-            (%pour-on-rt-heap heap end-action)))
-      heap))
+(defun extract-schedule-specs (body)
+  (labels ((extract (specs rest)
+             (if (and (listp (car rest)) (keywordp (caar rest)))
+                 (extract (cons (car rest) specs) (cdr rest))
+                 (values (nreverse specs) rest))))
+    (extract nil body)))
+
+(defun get-schedule-spec (name specs)
+  (cdr (assoc name specs)))
 
 (defmacro with-schedule (&body body)
   "Fast way to schedule multiple events in realtime without an extensive use
 of memory barriers and/or CAS. It fills a temporary queue in non-realtime,
 then it pours the content of the queue on the realtime EDF heap.
+
+The temporary queue introduces a generally unspecified latency.
+If the first form in BODY is a list
+
+    (:start-time value-form)
+
+VALUE-FORM is the absolute time offset in samples of the first
+scheduled event if
+
+    (>= value-form (+ (now) latency))
+
+If it is necessary to change the start-time within BODY, the
+specification is
+
+    (:start-time initial-value-form variable)
+
+In this case, a VARIABLE is bound to a time-getter function. It is a
+function because the computation occurs in rt-thread.
+
+Examples:
+
+    (with-schedule
+      (:start-time (tempo-sync #[4 beats]))
+      ...)
+
+    (with-schedule
+      (:start-time (incudine.edf:next-time #'phrase-7))
+      ...)
+
+    (with-schedule
+      (:start-time 0 start)
+      ;; Initially, the variable START is `(lambda () 0)'
+      ...
+      (setf start (lambda () (tempo-sync #[1 b])))
+      ...)
 
 The sample counter is zero and read-only inside WITH-SCHEDULE:
 
@@ -573,20 +608,50 @@ However, we can require a SETFable local counter:
 
     (with-schedule (with-local-time () (incf (now)) (princ (now))))
     ;; => 1.0d0"
-  (with-gensyms (tmp-heap heap)
-    `(flet ((sched ()
-              (let ((,tmp-heap *heap*)
-                    (*heap* (if (incudine::nrt-edf-heap-p)
-                                *heap*
-                                (heap-pool-pop))))
-                (declare (special *heap*))
-                (incudine::with-null-counter ,@body)
-                (unless (eq *heap* ,tmp-heap)
-                  (let ((,heap *heap*)
-                        ;; Realtime EDF heap.
-                        (*heap* ,tmp-heap))
-                    (declare (special *heap*))
-                    (pour-on-rt-heap ,heap))))))
-       (if (and (not (incudine::nrt-edf-heap-p)) (rt-thread-p))
-           (incudine:nrt-funcall #'sched)
-           (sched)))))
+  (multiple-value-bind (specs body) (extract-schedule-specs body)
+    (let* ((tmp-heap (gensym "TMP-HEAP"))
+           (heap (gensym "HEAP"))
+           (time-offset (gensym "TIME-OFFSET"))
+           (start-time-spec (get-schedule-spec :start-time specs))
+           (start-time-form (first start-time-spec))
+           (start-time-var (second start-time-spec)))
+      `(flet ((sched ()
+                (let ((,tmp-heap *heap*)
+                      (*heap* (if (incudine::nrt-edf-heap-p)
+                                  *heap*
+                                  (heap-pool-pop)))
+                      ,@(and start-time-var
+                             `((,start-time-var (lambda ()
+                                                  ,(or start-time-form 0))))))
+                  (declare (special *heap*))
+                  (incudine::with-null-counter ,@body)
+                  (unless (eq *heap* ,tmp-heap)
+                    (let ((,heap *heap*)
+                          ;; Realtime EDF heap.
+                          (*heap* ,tmp-heap))
+                      (declare (special *heap*))
+                      ;; The content of the EDF HEAP is poured on the
+                      ;; realtime EDF heap.
+                      (at 0 (lambda (heap
+                                     ,@(and start-time-var
+                                            `(start-time-getter)))
+                              (let ((end-action (lambda ()
+                                                  (heap-pool-push heap)))
+                                    ;; Time offset computed form rt-thread.
+                                    ,@(and start-time-spec
+                                           `((,time-offset
+                                              (sample ,(if start-time-var
+                                                           `(funcall start-time-getter)
+                                                           start-time-form))))))
+                                (setf (heap-time-offset heap)
+                                      ,(if start-time-spec
+                                           `(if (> ,time-offset (incudine:now))
+                                                ,time-offset
+                                                (incudine:now))
+                                           '(incudine:now)))
+                                (add-flush-pending-hook end-action)
+                                (pour-on-rt-heap heap end-action)))
+                          ,heap ,@(and start-time-var `(,start-time-var))))))))
+         (if (and (not (incudine::nrt-edf-heap-p)) (rt-thread-p))
+             (incudine:nrt-funcall #'sched)
+             (sched))))))
