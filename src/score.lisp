@@ -39,7 +39,8 @@
 (declaim (special
            ;; Stack used to check recursive inclusions of rego files.
            *include-rego-stack*
-           *score-start-time*)
+           *score-start-time*
+           *score-realtime*)
          (type list *include-rego-stack*))
 
 (defvar *score-radix* 10)
@@ -207,7 +208,8 @@ or IGNORE-SCORE-STATEMENTS."
 ;;; The score statement `:score-realtime-offset:' sets the absolute
 ;;; time offset in samples for the scheduled score events.
 (defscore-statement ":score-realtime-offset:" (value-form)
-  `((setf incudine::score-realtime-offset (lambda () ,value-form))))
+  `((unless (incudine::nrt-edf-heap-p)
+      (setf incudine::score-realtime-offset (lambda () ,value-form)))))
 
 (declaim (inline next-blank-position))
 (defun next-blank-position (string)
@@ -321,7 +323,8 @@ or IGNORE-SCORE-STATEMENTS."
        (or ignore-bindings-p
            (string-not-equal name ":score-bindings:"))
        (or (and (string-equal name ":score-realtime-offset:")
-                (included-regofile-p))
+                (or (included-regofile-p)
+                    (not (score-realtime-p))))
            (not (or (gethash (string-upcase name) *score-statements*)
                     (score-property-statement-p name))))))
 
@@ -396,6 +399,8 @@ or IGNORE-SCORE-STATEMENTS."
   (and (>= (length line) min-length)
        (let ((pos (funcall string-test name line)))
          (and pos (= pos (length name))))))
+
+(defun score-realtime-p () *score-realtime*)
 
 ;;; Score statement used to include the content of another rego file:
 ;;;
@@ -1018,6 +1023,7 @@ or IGNORE-SCORE-STATEMENTS."
     (let ((%sched (ensure-complex-gensym "AT"))
           (sched (ensure-complex-gensym "AT"))
           (*include-rego-stack* nil)
+          (*score-realtime* '#:maybe)
           (*score-start-time* 0.0)
           (*score-radix* 10)
           (*score-float-format* '#.incudine.config:*sample-type*))
@@ -1125,6 +1131,7 @@ event list at runtime when the function is called."
   (let ((%sched (ensure-complex-gensym "AT"))
         (sched (ensure-complex-gensym "AT"))
         (incudine::*include-rego-stack* nil)
+        (*score-realtime* nil)
         (*score-start-time* 0.0)
         (*score-radix* 10)
         (*score-float-format* '#.incudine.config:*sample-type*))
@@ -1135,7 +1142,9 @@ event list at runtime when the function is called."
            (with-rego-samples (,c-array-wrap ,smptime0 ,smptime1 ,smptime
                                ,sched ,last-time ,last-dur ,max-time)
              (let ((,tempo-env (default-tempo-envelope))
-                   (,flist nil))
+                   (,flist nil)
+                   (score-realtime-offset 0))
+               (declare (ignorable score-realtime-offset))
                (flet ((,dur (,beats)
                         (setf ,last-time ,sched)
                         (setf ,last-dur (sample ,beats))
