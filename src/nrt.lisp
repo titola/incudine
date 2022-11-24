@@ -499,8 +499,8 @@ BPM is the tempo in beats per minute and defaults to *DEFAULT-BPM*."
       output-filename)))
 
 (defmacro bounce-function (form)
-  (let ((fst (macroexpand (car form))))
-    (if (and (null (cdr form))
+  (let ((fst (if (null (cdr form)) (macroexpand (car form)))))
+    (if (and fst
              (eq (car fst) 'funcall)
              (null (cddr fst)))
         ;; Simplify a single (FUNCALL FN).
