@@ -252,14 +252,6 @@
    (2.0 REGO-TEST-1 220 0.12)
    (5.0 REGO-TEST-1 440 0.25)))
 
-(regofile->list-test regofile-declarations.1 "declare-1.rego"
-  ((0.0 TYPE-TEST X ERROR)
-   (0.0 TYPE-TEST Y 1)))
-
-(regofile->list-test regofile-declarations.2 "declare-2.rego"
-  ((0.0 TYPE-TEST X ERROR)
-   (0.0 TYPE-TEST Y 1)))
-
 (regofile->list-test org-properties.1 "org-properties-1.rego"
   ((3.06 REGO-TEST-2 440 0.3 0.5)
    (3.86 REGO-TEST-2 880 0.3 0.5)
@@ -436,3 +428,14 @@
 (with-dsp-test (call-return-1 :channels 2
       :md5 #(113 104 208 77 42 108 112 93 141 199 210 176 138 9 223 112))
   (test-regofile "call-return-1.rego"))
+
+;; These tests for type declarations work with the SBCL compiler.
+#+sbcl
+(with-dsp-test (regofile-declarations.1
+      :md5 #(188 39 3 78 140 131 211 247 155 133 137 74 78 157 169 109))
+  (test-regofile "declare-1.rego" t))
+
+#+sbcl
+(with-dsp-test (regofile-declarations.2
+      :md5 #(188 39 3 78 140 131 211 247 155 133 137 74 78 157 169 109))
+  (test-regofile "declare-2.rego" t))

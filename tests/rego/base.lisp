@@ -10,21 +10,23 @@
   (stereo (* (envelope (make-perc .1 .9) 1 dur #'free)
              (sine freq amp 0))))
 
-(defmacro test-regofile (path)
+(defmacro test-regofile (path &optional compile-p)
   `(funcall
      (let ((*package* (find-package "INCUDINE-TESTS")))
        (regofile->function
          (merge-pathnames ,path #.(load-time-value
                                    (or *compile-file-pathname*
-                                       *load-pathname*)))))))
+                                       *load-pathname*)))
+         nil ,compile-p))))
 
-(defmacro test-regostring (from-path)
+(defmacro test-regostring (from-path &optional compile-p)
   `(funcall
      (let ((*package* (find-package "INCUDINE-TESTS"))
            (*default-pathname-defaults*
              #.(load-time-value (or *compile-file-pathname* *load-pathname*))))
        (regostring->function
-         (alexandria:read-file-into-string (merge-pathnames ,from-path))))))
+         (alexandria:read-file-into-string (merge-pathnames ,from-path))
+         nil ,compile-p))))
 
 (defun rego-test-filter (list)
   (mapcar (lambda (l)
