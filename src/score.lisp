@@ -39,9 +39,11 @@
 (declaim (special
            ;; Stack used to check recursive inclusions of rego files.
            *include-rego-stack*
+           *score-package*
            *score-start-time*
            *score-realtime*)
-         (type list *include-rego-stack*))
+         (type list *include-rego-stack*)
+         (type package *score-package*))
 
 (defvar *score-radix* 10)
 (declaim (type (integer 2 36) *score-radix*))
@@ -318,20 +320,36 @@ or IGNORE-SCORE-STATEMENTS."
 
 (defun ignore-score-statement-with-colon-p (name &optional (ignore-bindings-p t))
   (declare (type string name))
-  ;; A keyword is not ignored because it could be a label.
-  (and (find #\: name :start 1)
-       (or ignore-bindings-p
-           (string-not-equal name ":score-bindings:"))
-       (or (and (string-equal name ":score-realtime-offset:")
-                (or (included-regofile-p)
-                    (not (score-realtime-p))))
-           (not (or (gethash (string-upcase name) *score-statements*)
-                    (score-property-statement-p name))))))
+  (let ((colon-position
+          ;; A keyword is not ignored because it could be a label.
+          (position #\: name :start 1)))
+    (and colon-position
+         (not (symbol-name-p name colon-position))
+         (or ignore-bindings-p
+             (string-not-equal name ":score-bindings:"))
+         (or (and (string-equal name ":score-realtime-offset:")
+                  (or (included-regofile-p)
+                      (not (score-realtime-p))))
+             (not (or (gethash (string-upcase name) *score-statements*)
+                      (score-property-statement-p name)))))))
+
+(defun symbol-name-p (statement-name colon-position)
+  (when (find-package (string-upcase (subseq statement-name 0 colon-position)))
+    (let* ((start (1+ colon-position))
+           (n (count #\: (subseq statement-name start))))
+      (or (= n 0)
+          (and (= n 1)
+               (char= #\: (char statement-name start)))))))
 
 (defun score-property-statement-p (name)
-  (or (string-equal name ":score-float-format:")
-      (string-equal name ":score-radix:")
-      (string-equal name ":score-start-time:")))
+  (let ((prefix-test (string-greaterp name ":score-")))
+    (when prefix-test
+      (let ((prefix-length #.(length ":score-")))
+        (and (= prefix-test prefix-length)
+             (member (subseq name prefix-length)
+                     '("package:" "float-format:" "radix:" "start-time:")
+                     :test #'string-equal)
+             t)))))
 
 (declaim (inline org-table-line-p))
 (defun org-table-line-p (string)
@@ -414,7 +432,8 @@ or IGNORE-SCORE-STATEMENTS."
   (let ((time-pos (position #\" line :from-end t)))
     (values (string-trim-blank-and-quotation (subseq line (1+ +include-strlen+)
                                                      time-pos))
-            (let ((*read-base* *score-radix*))
+            (let ((*package* *score-package*)
+                  (*read-base* *score-radix*))
               (read-from-string (string-trim-blank-and-quotation
                                  (subseq line time-pos))
                                 nil)))))
@@ -470,6 +489,7 @@ or IGNORE-SCORE-STATEMENTS."
 
 (defun score-call-arguments (line)
   (let* ((label-start (string-trim-blank (subseq line (next-blank-position line))))
+         (*package* *score-package*)
          (*read-base* *score-radix*)
          (args (read-from-string
                  (format nil "(~A)"
@@ -500,6 +520,19 @@ or IGNORE-SCORE-STATEMENTS."
 (defun score-return-statement-p (line)
   (let ((pos (string<= "return" line)))
     (and pos (= 6 pos) (= 6 (length (string-trim-blank line))))))
+
+;;; The score statement `:score-package:' sets the name of the package
+;;; used to read the rest of the score lines.
+(defun score-package-statement-p (line)
+  (%score-statement-p
+    line ":score-package:" #.(length ":score-package: x")))
+
+(defun set-score-package (line)
+  (let* ((name (read-from-string (subseq line (next-blank-position line))))
+         (pkg (find-package name)))
+    (if pkg
+        (setf *score-package* pkg)
+        (error 'package-error :package name))))
 
 ;;; The score statement `:score-float-format:' sets the variable
 ;;; *READ-DEFAULT-FLOAT-FORMAT* to read the rest of the score lines.
@@ -633,11 +666,13 @@ or IGNORE-SCORE-STATEMENTS."
                       (reverse *include-rego-stack*)))
                 (t (push incfile *include-rego-stack*)
                    (with-open-file (score incfile)
-                     (let ((*score-radix* *score-radix*)
+                     (let ((*score-package* *score-package*)
+                           (*score-radix* *score-radix*)
                            (*score-float-format* *score-float-format*))
                        (apply #'%write-regofile score
                               `(,at-fname ,@(cdr args) t ,time))))))))
       (let ((line (or (expand-score-statement line) (org-table-filter line)))
+            (*package* *score-package*)
             (*readtable* *score-readtable*)
             (*read-base* *score-radix*)
             (*read-default-float-format* *score-float-format*))
@@ -648,7 +683,7 @@ or IGNORE-SCORE-STATEMENTS."
                (score-expand-parallel-functions
                 (macroexpand-1
                   (read-from-string
-                    (format nil "(INCUDINE::%AT-SAMPLE ~A ~A)" at-fname line)))))
+                    (format nil "(INCUDINE::%AT-SAMPLE ~S ~A)" at-fname line)))))
               (t
                ;; Tag or lisp statement.
                (let ((form (read-from-string
@@ -665,6 +700,7 @@ or IGNORE-SCORE-STATEMENTS."
   (or (score-call-statement-p line)
       (and (char= #\: (char line 0))
            (or (score-start-time-statement-p line)
+               (score-package-statement-p line)
                (score-radix-statement-p line)
                (score-float-format-statement-p line)))))
 
@@ -673,6 +709,9 @@ or IGNORE-SCORE-STATEMENTS."
          (expand-score-call-statement line))
         ((score-start-time-statement-p line)
          (set-score-start-time line)
+         nil)
+        ((score-package-statement-p line)
+         (set-score-package line)
          nil)
         ((score-radix-statement-p line)
          (set-score-radix line)
@@ -707,15 +746,19 @@ or IGNORE-SCORE-STATEMENTS."
                    line ":score-bindings:" #.(length ":score-bindings: ()")
                    #'string-lessp)))
            (get-bindings (line)
-             (read-from-string
-               (concatenate 'string
-                 "(" (subseq line (if (char= #\: (char line 0)) 17 5)) ")")))
+             (let ((*package* *score-package*))
+               (read-from-string
+                 (concatenate 'string
+                   "(" (subseq line (if (char= #\: (char line 0)) 17 5)) ")"))))
            (first-score-stmt (line bindings declarations nl)
              (declare (type (or string null) line)
                       (type list bindings declarations))
              (when line
                (cond ((or (and (= nl 1) (shebang-line-p line))
-                          (score-skip-line-p line stream nil))
+                          (score-skip-line-p line stream nil)
+                          (score-package-statement-p line))
+                      (when (score-package-statement-p line)
+                        (set-score-package line))
                       (first-score-stmt
                         (read-score-line stream) bindings declarations (1+ nl)))
                      ((score-bindings-p line)
@@ -1023,6 +1066,7 @@ or IGNORE-SCORE-STATEMENTS."
     (let ((%sched (ensure-complex-gensym "AT"))
           (sched (ensure-complex-gensym "AT"))
           (*include-rego-stack* nil)
+          (*score-package* *package*)
           (*score-realtime* '#:maybe)
           (*score-start-time* 0.0)
           (*score-radix* 10)
@@ -1131,6 +1175,7 @@ event list at runtime when the function is called."
   (let ((%sched (ensure-complex-gensym "AT"))
         (sched (ensure-complex-gensym "AT"))
         (incudine::*include-rego-stack* nil)
+        (*score-package* *package*)
         (*score-realtime* nil)
         (*score-start-time* 0.0)
         (*score-radix* 10)

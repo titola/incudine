@@ -1711,6 +1711,26 @@ We can also add a ~declare~ expression after the bindings.
 The score statement ~:score-bindings:~ is an alias of ~with~.
 
 #+texinfo: @noindent
+The score statement ~:score-package:~ sets the name of the package
+used to read the rest of the score lines. For example:
+
+#+texinfo: @exampleindent 4
+#+begin_example
+:score-package: string-quartet
+0 vla p1 p2 p3
+0 vl  q1 q2 q3
+#+end_example
+
+#+texinfo: @noindent
+is equivalent to
+
+#+texinfo: @exampleindent 4
+#+begin_example
+0 string-quartet:vla string-quartet::p1 string-quartet::p2 string-quartet::p3
+0 string-quartet:vl  string-quartet::q1 string-quartet::q2 string-quartet::q3
+#+end_example
+
+#+texinfo: @noindent
 ~dur~ is a local function to convert the duration from
 beats to seconds with respect to ~tempo-env~.
 

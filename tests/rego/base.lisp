@@ -1,3 +1,6 @@
+(defpackage #:incudine-tests/score-package-1 (:use #:cl))
+(defpackage #:incudine-tests/score-package-2 (:use #:cl))
+
 (in-package :incudine-tests)
 
 (dsp! rego-test-1 (freq amp)
