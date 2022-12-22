@@ -265,10 +265,6 @@ or IGNORE-SCORE-STATEMENTS."
 (defun string-trim-blank (string)
   (string-trim '(#\Space #\Tab #\Return) string))
 
-(declaim (inline string-trim-blank-and-quotation))
-(defun string-trim-blank-and-quotation (string)
-  (string-trim '(#\Space #\Tab #\Return #\") string))
-
 (defun line-parse-skip-string (str index end)
   (declare (type string str) (type non-negative-fixnum index end))
   (labels ((skip-p (i)
@@ -427,16 +423,15 @@ or IGNORE-SCORE-STATEMENTS."
 (defun include-regofile-p (line)
   (%score-statement-p line "include" #.(length "include \"x\"")))
 
-(defun include-rego-path-and-time (line)
+(defun include-rego-path-and-args (line)
   (declare (type string line))
-  (let ((time-pos (position #\" line :from-end t)))
-    (values (string-trim-blank-and-quotation (subseq line (1+ +include-strlen+)
-                                                     time-pos))
-            (let ((*package* *score-package*)
-                  (*read-base* *score-radix*))
-              (read-from-string (string-trim-blank-and-quotation
-                                 (subseq line time-pos))
-                                nil)))))
+  (let ((*package* *score-package*)
+        (*read-base* *score-radix*))
+    (destructuring-bind (file &optional time &rest args)
+        (read-from-string
+          (concatenate 'string "(" (subseq line (1+ +include-strlen+)) ")")
+          nil)
+      (values file time args))))
 
 (defun included-regofile-p ()
   (and (cdr *include-rego-stack*) t))
@@ -656,8 +651,8 @@ or IGNORE-SCORE-STATEMENTS."
 (defun score-line->sexp (line at-fname &optional args)
   (declare (type string line) (type list args))
   (if (include-regofile-p line)
-      (multiple-value-bind (path time)
-          (include-rego-path-and-time line)
+      (multiple-value-bind (path time include-args)
+          (include-rego-path-and-args line)
         (let* ((file (car args))
                (incfile (incudine.util::truename*
                           (merge-pathnames path (or file *default-pathname-defaults*)))))
@@ -670,7 +665,7 @@ or IGNORE-SCORE-STATEMENTS."
                            (*score-radix* *score-radix*)
                            (*score-float-format* *score-float-format*))
                        (apply #'%write-regofile score
-                              `(,at-fname ,@(cdr args) t ,time))))))))
+                              `(,at-fname ,@(cdr args) t ,include-args ,time))))))))
       (let ((line (or (expand-score-statement line) (org-table-filter line)))
             (*package* *score-package*)
             (*readtable* *score-readtable*)
@@ -746,10 +741,14 @@ or IGNORE-SCORE-STATEMENTS."
                    line ":score-bindings:" #.(length ":score-bindings: ()")
                    #'string-lessp)))
            (get-bindings (line)
-             (let ((*package* *score-package*))
-               (read-from-string
-                 (concatenate 'string
-                   "(" (subseq line (if (char= #\: (char line 0)) 17 5)) ")"))))
+             (mapcar (lambda (x) (if (consp x) x (list x nil)))
+               (let ((*package* *score-package*))
+                 (read-from-string
+                   (concatenate 'string "("
+                     (subseq line (if (char= #\: (char line 0))
+                                      #.(1+ (length ":score-bindings:"))
+                                      #.(1+ (length "with"))))
+                     ")")))))
            (first-score-stmt (line bindings declarations nl)
              (declare (type (or string null) line)
                       (type list bindings declarations))
@@ -930,7 +929,8 @@ or IGNORE-SCORE-STATEMENTS."
       ,@decl ,init-stack ,local-tempo ,@body)))
 
 (defun %write-regofile (score at-fname time-var dur-var max-time tenv
-                        &optional included-p time-offset (extend-time-p t))
+                        &optional included-p include-args time-offset
+                        (extend-time-p t))
   `(prog*
      ,@(progn
          (unless included-p
@@ -953,7 +953,8 @@ or IGNORE-SCORE-STATEMENTS."
                      (if included-p
                          (with-gensyms (time-offset-var)
                            (rego-local-tempo
-                             (cons 'score-realtime-offset vars)
+                             (cons 'score-realtime-offset
+                                   (included-regofile-bindings vars include-args))
                              (cons '(declare (ignore score-realtime-offset))
                                    decl)
                              body
@@ -971,6 +972,22 @@ or IGNORE-SCORE-STATEMENTS."
                         (list
                           (maybe-advance-score-start-time tenv max-time)
                           (maybe-extend-time at-fname max-time tenv)))))))))))
+
+(defun included-regofile-bindings (bindings args)
+  (let ((args (loop for x on args
+                    for y on bindings
+                    if (or (atom (car x)) (eq (caar x) 'quote))
+                      collect (list (caar y) (car x))
+                    else append x and do (setf x nil)
+                    unless (cdr y) append (cdr x)))
+        (acc nil))
+    ;; The new bindings precede the score-bindings of the included
+    ;; file, therefore a score binding can optionally refer to some
+    ;; arguments in ARGS.
+    (dolist (x args)
+      (unless (assoc (car x) bindings) (push x acc)))
+    (dolist (x bindings (nreverse acc))
+      (push (or (assoc (car x) args) x) acc))))
 
 (define-constant +rego-time0-index+ 0)
 (define-constant +rego-time1-index+ 1)
@@ -1218,8 +1235,9 @@ event list at runtime when the function is called."
                    (symbol-macrolet
                        ((,time (rego-time (foreign-array-data ,c-array-wrap)
                                           ,tempo-env)))
-                     ,(incudine::%write-regofile stream sched last-time last-dur
-                                                 max-time tempo-env nil nil nil)
+                     ,(incudine::%write-regofile
+                        stream sched last-time last-dur max-time tempo-env
+                        nil nil nil nil)
                      (incudine::get-regolist ,flist ,tempo-env
                                              ,(if (> *score-start-time* 0.0)
                                                   *score-start-time*))))))))))))

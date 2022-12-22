@@ -1787,11 +1787,25 @@ The syntax to include the content of an external rego file is:
 
 #+texinfo: @exampleindent 4
 #+begin_example
-include "regofile" [time]
+include "regofile" [time] {value}* {(var value)}*
 #+end_example
 
 #+texinfo: @noindent
-where ~time~ is an optional time offset in beats.
+where ~time~ is an optional time offset in beats, and the variable
+bindings set some score bindings of the included file. For example:
+
+#+texinfo: @exampleindent 4
+#+begin_example
+include "phrase-7.rego"
+include "phrase-7.rego" 4
+include "phrase-7.rego" 8 (keynum 63) (channel 3)
+
+;; Set the first score binding and CHANNEL in "phrase-7.rego".
+include "phrase-7.rego" 12 68 (channel 3)
+
+;; Set the first two score bindings in "phrase-7.rego".
+include "phrase-7.rego" 16 70 3
+#+end_example
 
 #+texinfo: @noindent
 ~time~ and ~tempo-env~ are a parent's copy within an included rego file,

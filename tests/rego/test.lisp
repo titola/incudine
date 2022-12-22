@@ -252,6 +252,57 @@
    (2.0 REGO-TEST-1 220 0.12)
    (5.0 REGO-TEST-1 440 0.25)))
 
+(regofile->list-test regofile->list.19 "include-5.rego"
+  ((0.0 REGO-TEST-3 200 0.3 0.3)
+   (0.05 REGO-TEST-3 400 0.3 0.3)
+   (0.1 REGO-TEST-3 600 0.3 0.3)
+   (0.5 REGO-TEST-3 800 0.3 0.3)
+   (0.55 REGO-TEST-3 1000 0.3 0.3)
+   (0.6 REGO-TEST-3 1200 0.3 0.3)
+   (0.98 REGO-TEST-3 1400 0.3 0.3)
+   (1.03 REGO-TEST-3 1600 0.3 0.3)
+   (1.08 REGO-TEST-3 1800 0.3 0.3)
+   (1.45 REGO-TEST-3 2000 0.3 0.3)
+   (1.5 REGO-TEST-3 2200 0.3 0.3)
+   (1.55 REGO-TEST-3 2400 0.3 0.3)
+   (1.88 REGO-TEST-3 2600 0.3 0.3)
+   (1.93 REGO-TEST-3 2800 0.3 0.3)
+   (1.98 REGO-TEST-3 3000 0.3 0.3)
+   (2.28 REGO-TEST-3 3200 0.3 0.3)
+   (2.33 REGO-TEST-3 3400 0.3 0.3)
+   (2.38 REGO-TEST-3 3600 0.3 0.3)
+   (2.64 REGO-TEST-3 3800 0.3 0.3)
+   (2.69 REGO-TEST-3 4000 0.3 0.3)
+   (2.74 REGO-TEST-3 4200 0.3 0.3)
+   (2.95 REGO-TEST-3 4400 0.3 0.3)
+   (3.0 REGO-TEST-3 4600 0.3 0.3)
+   (3.05 REGO-TEST-3 4800 0.3 0.3)
+   (3.22 REGO-TEST-3 5000 0.3 0.3)
+   (3.27 REGO-TEST-3 5200 0.3 0.3)
+   (3.32 REGO-TEST-3 5400 0.3 0.3)
+   (3.45 REGO-TEST-3 5600 0.3 0.3)
+   (3.5 REGO-TEST-3 5800 0.3 0.3)
+   (3.55 REGO-TEST-3 6000 0.3 0.3)
+   (3.65 REGO-TEST-3 6200 0.3 0.3)
+   (3.7 REGO-TEST-3 6400 0.3 0.3)
+   (3.75 REGO-TEST-3 6600 0.3 0.3)
+   (3.83 REGO-TEST-3 6800 0.3 0.3)
+   (3.88 REGO-TEST-3 7000 0.3 0.3)
+   (3.93 REGO-TEST-3 7200 0.3 0.3)
+   (4.0 REGO-TEST-3 7400 0.3 0.3)
+   (4.05 REGO-TEST-3 7600 0.3 0.3)
+   (4.1 REGO-TEST-3 7800 0.3 0.3)
+   (4.17 REGO-TEST-3 8000 0.3 0.3)
+   (4.22 REGO-TEST-3 8200 0.3 0.3)
+   (4.27 REGO-TEST-3 8400 0.3 0.3)))
+
+(regofile->list-test regofile->list.20 "include-6.rego"
+  ((0.0 LIST "test-1" (1 2 3) NIL OK)
+   (1.5 LIST "test-2" (1 2 3) "..." OK)
+   (3.0 LIST "test-3" (3 2 1) T OK)
+   (4.0 LIST "test-4" (1 2 3) X OK)
+   (5.5 LIST "test-5" (1 2 3) 2 OK)))
+
 (regofile->list-test org-properties.1 "org-properties-1.rego"
   ((3.06 REGO-TEST-2 440 0.3 0.5)
    (3.86 REGO-TEST-2 880 0.3 0.5)
@@ -469,6 +520,10 @@
       :md5 #(98 130 80 23 173 199 134 29 162 36 18 244 15 47 123 198))
   ;; Lisp tag shadowed in the included rego file.
   (test-regofile "include-3.rego"))
+
+(with-dsp-test (include-rego.4 :channels 2
+      :md5 #(58 219 239 147 161 28 138 194 44 199 185 48 45 159 98 166))
+  (test-regofile "include-5.rego"))
 
 (with-dsp-test (score-start-time.2
       :md5 #(3 226 25 22 231 135 111 119 114 2 194 94 191 19 10 38))

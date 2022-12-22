@@ -353,8 +353,9 @@ file name, otherwise edit a lisp definition or call `find-tag'."
   (interactive (list (and (not current-prefix-arg) (slime-symbol-at-point))))
   (unless (save-excursion
             (beginning-of-line)
-            (when (re-search-forward "^[; \t]*include +\"\\(.*\\)\""
-                                     (point-at-eol) t)
+            (when (re-search-forward
+                    "^[; \t]*include +\"\\(\\(\\\\\"\\|[^\"]\\)+\\)\""
+                    (point-at-eol) t)
               (let ((parent (current-buffer)))
                 (incudine-fix-rego-files-walk)
                 (find-file (match-string-no-properties 1))
