@@ -351,6 +351,9 @@ or IGNORE-SCORE-STATEMENTS."
 (defun org-table-line-p (string)
   (char= (char string 0) #\|))
 
+(defun org-table-left-trim (line)
+  (string-left-trim '(#\| #\Space #\Tab) line))
+
 (defun org-table-mark (line)
   (let ((pos (position #\| (subseq line 1))))
     (when pos
@@ -407,8 +410,6 @@ or IGNORE-SCORE-STATEMENTS."
 (defmacro %at-sample (at-fname beats func-symbol &rest args)
   `(,at-fname ,beats ,func-symbol ,@args))
 
-(define-constant +include-strlen+ (length "include"))
-
 (defun %score-statement-p (line name min-length &optional (string-test #'string<))
   (and (>= (length line) min-length)
        (let ((pos (funcall string-test name line)))
@@ -421,16 +422,17 @@ or IGNORE-SCORE-STATEMENTS."
 ;;;     include "regofile" [time]
 ;;;
 (defun include-regofile-p (line)
-  (%score-statement-p line "include" #.(length "include \"x\"")))
+  (%score-statement-p
+    (if (org-table-line-p line) (org-table-left-trim line) line)
+    "include" #.(length "include \"x\"")))
 
 (defun include-rego-path-and-args (line)
   (declare (type string line))
   (let ((*package* *score-package*)
-        (*read-base* *score-radix*))
+        (*read-base* *score-radix*)
+        (*readtable* *score-readtable*))
     (destructuring-bind (file &optional time &rest args)
-        (read-from-string
-          (concatenate 'string "(" (subseq line (1+ +include-strlen+)) ")")
-          nil)
+        (rest (read-from-string (concatenate 'string "(" line ")") nil))
       (values file time args))))
 
 (defun included-regofile-p ()
@@ -471,7 +473,9 @@ or IGNORE-SCORE-STATEMENTS."
 ;;;     return
 ;;;
 (defun score-call-statement-p (line)
-  (%score-statement-p line "call" #.(length "call x")))
+  (%score-statement-p
+    (if (org-table-line-p line) (org-table-left-trim line) line)
+    "call" #.(length "call x")))
 
 (defun score-call-org-internal-link (line)
   (let* ((l (string-trim "[]" line))
@@ -483,9 +487,11 @@ or IGNORE-SCORE-STATEMENTS."
                  (subseq line (1+ time-start-pos))))))
 
 (defun score-call-arguments (line)
-  (let* ((label-start (string-trim-blank (subseq line (next-blank-position line))))
+  (let* ((label-start (org-table-left-trim
+                        (subseq line (+ (position #\l line) 2))))
          (*package* *score-package*)
          (*read-base* *score-radix*)
+         (*readtable* *score-readtable*)
          (args (read-from-string
                  (format nil "(~A)"
                          (if (char= (char label-start 0) #\[)

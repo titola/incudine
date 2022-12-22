@@ -247,12 +247,56 @@
    (4.22 REGO-TEST-3 4674 0.3 0.13)
    (4.27 REGO-TEST-3 4788 0.3 0.13)))
 
-(regofile->list-test regofile->list.18 "include-4.rego"
+(regofile->list-test regofile->list.18 "call-return-2.rego"
+  ((0.0 REGO-TEST-3 114 0.3 0.3)
+   (0.05 REGO-TEST-3 228 0.3 0.3)
+   (0.1 REGO-TEST-3 342 0.3 0.3)
+   (0.5 REGO-TEST-3 456 0.3 0.29)
+   (0.55 REGO-TEST-3 570 0.3 0.29)
+   (0.6 REGO-TEST-3 684 0.3 0.29)
+   (0.98 REGO-TEST-3 798 0.3 0.28)
+   (1.03 REGO-TEST-3 912 0.3 0.28)
+   (1.08 REGO-TEST-3 1026 0.3 0.28)
+   (1.45 REGO-TEST-3 1140 0.3 0.27)
+   (1.5 REGO-TEST-3 1254 0.3 0.26)
+   (1.55 REGO-TEST-3 1368 0.3 0.26)
+   (1.88 REGO-TEST-3 1482 0.3 0.25)
+   (1.93 REGO-TEST-3 1596 0.3 0.25)
+   (1.98 REGO-TEST-3 1710 0.3 0.24)
+   (2.28 REGO-TEST-3 1824 0.3 0.23)
+   (2.33 REGO-TEST-3 1938 0.3 0.23)
+   (2.38 REGO-TEST-3 2052 0.3 0.22)
+   (2.64 REGO-TEST-3 2166 0.3 0.21)
+   (2.69 REGO-TEST-3 2280 0.3 0.21)
+   (2.74 REGO-TEST-3 2394 0.3 0.21)
+   (2.95 REGO-TEST-3 2508 0.3 0.19)
+   (3.0 REGO-TEST-3 2622 0.3 0.19)
+   (3.05 REGO-TEST-3 2736 0.3 0.19)
+   (3.22 REGO-TEST-3 2850 0.3 0.18)
+   (3.27 REGO-TEST-3 2964 0.3 0.18)
+   (3.32 REGO-TEST-3 3078 0.3 0.18)
+   (3.45 REGO-TEST-3 3192 0.3 0.17)
+   (3.5 REGO-TEST-3 3306 0.3 0.17)
+   (3.55 REGO-TEST-3 3420 0.3 0.16)
+   (3.65 REGO-TEST-3 3534 0.3 0.16)
+   (3.7 REGO-TEST-3 3648 0.3 0.16)
+   (3.75 REGO-TEST-3 3762 0.3 0.15)
+   (3.83 REGO-TEST-3 3876 0.3 0.15)
+   (3.88 REGO-TEST-3 3990 0.3 0.15)
+   (3.93 REGO-TEST-3 4104 0.3 0.15)
+   (4.0 REGO-TEST-3 4218 0.3 0.14)
+   (4.05 REGO-TEST-3 4332 0.3 0.14)
+   (4.1 REGO-TEST-3 4446 0.3 0.14)
+   (4.17 REGO-TEST-3 4560 0.3 0.14)
+   (4.22 REGO-TEST-3 4674 0.3 0.13)
+   (4.27 REGO-TEST-3 4788 0.3 0.13)))
+
+(regofile->list-test regofile->list.19 "include-4.rego"
   ((0.0 REGO-TEST-1 110 0.5)
    (2.0 REGO-TEST-1 220 0.12)
    (5.0 REGO-TEST-1 440 0.25)))
 
-(regofile->list-test regofile->list.19 "include-5.rego"
+(regofile->list-test regofile->list.20 "include-5.rego"
   ((0.0 REGO-TEST-3 200 0.3 0.3)
    (0.05 REGO-TEST-3 400 0.3 0.3)
    (0.1 REGO-TEST-3 600 0.3 0.3)
@@ -296,7 +340,14 @@
    (4.22 REGO-TEST-3 8200 0.3 0.3)
    (4.27 REGO-TEST-3 8400 0.3 0.3)))
 
-(regofile->list-test regofile->list.20 "include-6.rego"
+(regofile->list-test regofile->list.21 "include-6.rego"
+  ((0.0 LIST "test-1" (1 2 3) NIL OK)
+   (1.5 LIST "test-2" (1 2 3) "..." OK)
+   (3.0 LIST "test-3" (3 2 1) T OK)
+   (4.0 LIST "test-4" (1 2 3) X OK)
+   (5.5 LIST "test-5" (1 2 3) 2 OK)))
+
+(regofile->list-test regofile->list.22 "include-7.rego"
   ((0.0 LIST "test-1" (1 2 3) NIL OK)
    (1.5 LIST "test-2" (1 2 3) "..." OK)
    (3.0 LIST "test-3" (3 2 1) T OK)
