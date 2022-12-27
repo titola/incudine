@@ -39,10 +39,11 @@
 (declaim (special
            ;; Stack used to check recursive inclusions of rego files.
            *include-rego-stack*
+           *score-macros*
            *score-package*
            *score-start-time*
            *score-realtime*)
-         (type list *include-rego-stack*)
+         (type list *include-rego-stack* *score-macros*)
          (type package *score-package*))
 
 (defvar *score-radix* 10)
@@ -259,7 +260,7 @@ or IGNORE-SCORE-STATEMENTS."
 
 (declaim (inline blank-char-p))
 (defun blank-char-p (c)
-  (member c '(#\Space #\Tab)))
+  (member c '(#\Space #\Tab) :test #'char=))
 
 (declaim (inline string-trim-blank))
 (defun string-trim-blank (string)
@@ -308,6 +309,7 @@ or IGNORE-SCORE-STATEMENTS."
        (> (length line) 2)
        (char= (char line 1) #\+)
        (char/= (char line 2) #\()
+       (not (score-macro-block-p line))
        (let ((name (string-upcase
                      (subseq line 2 (next-blank-position line)))))
          (and (null (gethash name *score-statements*))
@@ -353,6 +355,12 @@ or IGNORE-SCORE-STATEMENTS."
 
 (defun org-table-left-trim (line)
   (string-left-trim '(#\| #\Space #\Tab) line))
+
+(defun org-table-item-position (line)
+  (or (position-if-not
+        (lambda (x) (member x '(#\| #\Space #\Tab) :test #'char=))
+        line)
+      0))
 
 (defun org-table-mark (line)
   (let ((pos (position #\| (subseq line 1))))
@@ -410,10 +418,15 @@ or IGNORE-SCORE-STATEMENTS."
 (defmacro %at-sample (at-fname beats func-symbol &rest args)
   `(,at-fname ,beats ,func-symbol ,@args))
 
-(defun %score-statement-p (line name min-length &optional (string-test #'string<))
-  (and (>= (length line) min-length)
-       (let ((pos (funcall string-test name line)))
-         (and pos (= pos (length name))))))
+(defun %score-statement-p (line name &optional (string-test #'string=) (start 0))
+  (let ((len1 (- (length line) start))
+        (len2 (length name)))
+    (cond ((> len1 len2)
+           (let ((end (+ start len2)))
+             (and (blank-char-p (char line end))
+                  (funcall string-test line name :start1 start :end1 end))))
+          ((= len1 len2)
+           (funcall string-test line name :start1 start :end1 (+ start len2))))))
 
 (defun score-realtime-p () *score-realtime*)
 
@@ -422,14 +435,14 @@ or IGNORE-SCORE-STATEMENTS."
 ;;;     include "regofile" [time]
 ;;;
 (defun include-regofile-p (line)
-  (%score-statement-p
-    (if (org-table-line-p line) (org-table-left-trim line) line)
-    "include" #.(length "include \"x\"")))
+  (%score-statement-p line "include" #'string=
+    (if (org-table-line-p line) (org-table-item-position line) 0)))
 
-(defun include-rego-path-and-args (line)
+(defun include-rego-args (line)
   (declare (type string line))
   (let ((*package* *score-package*)
         (*read-base* *score-radix*)
+        (*read-default-float-format* *score-float-format*)
         (*readtable* *score-readtable*))
     (destructuring-bind (file &optional time &rest args)
         (rest (read-from-string (concatenate 'string "(" line ")") nil))
@@ -437,6 +450,69 @@ or IGNORE-SCORE-STATEMENTS."
 
 (defun included-regofile-p ()
   (and (cdr *include-rego-stack*) t))
+
+;;; Score macro block:
+;;;
+;;;     #+begin_macro name
+;;;     ...
+;;;     #+end_macro
+;;;
+(defun score-macro-block-p (line)
+  (%score-statement-p line "#+begin_macro" #'string-equal))
+
+(defun score-end-macro-block-p (line)
+  (%score-statement-p line "#+end_macro" #'string-equal))
+
+(defun read-score-macro-block (stream line)
+  (let ((name (read-from-string (subseq line (next-blank-position line)))))
+    (when (and name (symbolp name))
+      (when (assoc name *score-macros*)
+        (incudine-error "A score macro named ~S already exists" name))
+      (push (cons name
+                  (with-output-to-string (str)
+                    (loop for line = (read-line stream)
+                          with count = 0 do
+                            (cond ((score-end-macro-block-p line)
+                                   (if (= count 0)
+                                       (return)
+                                       (decf count)))
+                                  ((score-macro-block-p line)
+                                   (incf count)))
+                            (write-line line str))))
+            *score-macros*)
+      name)))
+
+(defun score-macro-statement-p (line)
+  (when *score-macros*
+    (let ((start (if (org-table-line-p line) (org-table-item-position line) 0)))
+      (some (lambda (x)
+              (let* ((name (symbol-name (car x)))
+                     (len (string-not-lessp line name :start1 start)))
+                (and len
+                     (= (- len start) (length name))
+                     (or (= (length line) (length name))
+                         (blank-char-p (char line len)))
+                     t)))
+            *score-macros*))))
+
+(defun score-macro-name-p (str)
+  (and (assoc str *score-macros* :key #'symbol-name :test #'string-equal) t))
+
+(defun score-macro-string (name)
+  (cdr (assoc name *score-macros*)))
+
+(defmacro include-regofile (name write-args)
+  (with-gensyms (score args)
+    `(flet ((inc (,score ,args)
+              (let ((*score-package* *score-package*)
+                    (*score-radix* *score-radix*)
+                    (*score-float-format* *score-float-format*))
+                (apply #'%write-regofile ,score ,args))))
+       (let ((,args ,write-args))
+         (if (symbolp ,name)
+             (with-input-from-string (,score (score-macro-string ,name))
+               (inc ,score ,args))
+             (with-open-file (,score ,name) (inc ,score ,args)))))))
 
 ;;; The score statement `call' pushes the return position on the stack
 ;;; and transfers program control to the point labeled by a tag.
@@ -473,9 +549,8 @@ or IGNORE-SCORE-STATEMENTS."
 ;;;     return
 ;;;
 (defun score-call-statement-p (line)
-  (%score-statement-p
-    (if (org-table-line-p line) (org-table-left-trim line) line)
-    "call" #.(length "call x")))
+  (%score-statement-p line "call" #'string=
+    (if (org-table-line-p line) (org-table-item-position line) 0)))
 
 (defun score-call-org-internal-link (line)
   (let* ((l (string-trim "[]" line))
@@ -525,8 +600,7 @@ or IGNORE-SCORE-STATEMENTS."
 ;;; The score statement `:score-package:' sets the name of the package
 ;;; used to read the rest of the score lines.
 (defun score-package-statement-p (line)
-  (%score-statement-p
-    line ":score-package:" #.(length ":score-package: x")))
+  (%score-statement-p line ":score-package:"))
 
 (defun set-score-package (line)
   (let* ((name (read-from-string (subseq line (next-blank-position line))))
@@ -540,8 +614,7 @@ or IGNORE-SCORE-STATEMENTS."
 ;;; The default is double-float (the sample type) if there is not a
 ;;; parent rego file.
 (defun score-float-format-statement-p (line)
-  (%score-statement-p
-    line ":score-float-format:" #.(length ":score-float-format: x")))
+  (%score-statement-p line ":score-float-format:"))
 
 (defun set-score-float-format (line)
   (setf *score-float-format*
@@ -551,8 +624,7 @@ or IGNORE-SCORE-STATEMENTS."
 ;;; to read the rest of the score lines.
 ;;; The default is 10 if there is not a parent rego file.
 (defun score-radix-statement-p (line)
-  (%score-statement-p
-    line ":score-radix:" #.(length ":score-radix: x")))
+  (%score-statement-p line ":score-radix:"))
 
 (defun set-score-radix (line)
   (setf *score-radix*
@@ -561,8 +633,7 @@ or IGNORE-SCORE-STATEMENTS."
 ;;; The score statement `:score-start-time:' sets the start time in beats.
 ;;; The default is zero.
 (defun score-start-time-statement-p (line)
-  (%score-statement-p
-    line ":score-start-time:" #.(length ":score-start-time: x")))
+  (%score-statement-p line ":score-start-time:"))
 
 (defun set-score-start-time (line)
   (unless (included-regofile-p)
@@ -654,24 +725,23 @@ or IGNORE-SCORE-STATEMENTS."
                (subseq form func-pos)))
       form))
 
-(defun score-line->sexp (line at-fname &optional args)
+(defun score-line->sexp (line at-fname args)
   (declare (type string line) (type list args))
   (if (include-regofile-p line)
-      (multiple-value-bind (path time include-args)
-          (include-rego-path-and-args line)
-        (let* ((file (car args))
-               (incfile (incudine.util::truename*
-                          (merge-pathnames path (or file *default-pathname-defaults*)))))
-          (cond ((find incfile *include-rego-stack* :test #'equal)
-                 (msg error "recursive inclusion of ~S~%  => ~A" incfile
+      (multiple-value-bind (name time include-args)
+          (include-rego-args line)
+        (let* ((score-macro-p (symbolp name))
+               (name (if score-macro-p
+                         name
+                         (incudine.util::truename*
+                           (merge-pathnames name
+                             (or (car args) *default-pathname-defaults*))))))
+          (cond ((find name *include-rego-stack* :test #'equal)
+                 (msg error "recursive inclusion of ~S~%  => ~A" name
                       (reverse *include-rego-stack*)))
-                (t (push incfile *include-rego-stack*)
-                   (with-open-file (score incfile)
-                     (let ((*score-package* *score-package*)
-                           (*score-radix* *score-radix*)
-                           (*score-float-format* *score-float-format*))
-                       (apply #'%write-regofile score
-                              `(,at-fname ,@(cdr args) t ,include-args ,time))))))))
+                (t (push name *include-rego-stack*)
+                   (include-regofile name
+                     `(,at-fname ,@(cdr args) t ,include-args ,time))))))
       (let ((line (or (expand-score-statement line) (org-table-filter line)))
             (*package* *score-package*)
             (*readtable* *score-readtable*)
@@ -680,6 +750,9 @@ or IGNORE-SCORE-STATEMENTS."
         (declare (type string line))
         (cond ((score-return-statement-p line)
                '(funcall (pop __stack__)))
+              ((score-macro-statement-p line)
+               (score-line->sexp
+                 (concatenate 'string "include " line) at-fname args))
               ((time-tagged-function-p line)
                (score-expand-parallel-functions
                 (macroexpand-1
@@ -699,13 +772,14 @@ or IGNORE-SCORE-STATEMENTS."
 
 (defun read-time-score-statement-p (line)
   (or (score-call-statement-p line)
+      (score-macro-block-p line)
       (and (char= #\: (char line 0))
            (or (score-start-time-statement-p line)
                (score-package-statement-p line)
                (score-radix-statement-p line)
                (score-float-format-statement-p line)))))
 
-(defun expand-read-time-score-statement (line)
+(defun expand-read-time-score-statement (stream line)
   (cond ((score-call-statement-p line)
          (expand-score-call-statement line))
         ((score-start-time-statement-p line)
@@ -713,6 +787,9 @@ or IGNORE-SCORE-STATEMENTS."
          nil)
         ((score-package-statement-p line)
          (set-score-package line)
+         nil)
+        ((score-macro-block-p line)
+         (read-score-macro-block stream line)
          nil)
         ((score-radix-statement-p line)
          (set-score-radix line)
@@ -728,9 +805,8 @@ or IGNORE-SCORE-STATEMENTS."
         until (end-of-score-p line)
         unless (score-skip-line-p line stream)
         if (read-time-score-statement-p line)
-          append (expand-read-time-score-statement line)
-        else collect (score-line->sexp
-                       line at-fname (and (include-regofile-p line) args))))
+          append (expand-read-time-score-statement stream line)
+        else collect (score-line->sexp line at-fname args)))
 
 (defun end-of-score-p (line)
   (or (null line)
@@ -740,12 +816,9 @@ or IGNORE-SCORE-STATEMENTS."
 (defun find-score-local-bindings (stream at args)
   (declare (type stream stream) (type symbol at))
   (labels ((score-bindings-p (line)
-             (or (%score-statement-p
-                   line "with" #.(length "with ()") #'string-lessp)
+             (or (%score-statement-p line "with" #'string-equal)
                  ;; The score statement `:score-bindings:' is an alias of WITH.
-                 (%score-statement-p
-                   line ":score-bindings:" #.(length ":score-bindings: ()")
-                   #'string-lessp)))
+                 (%score-statement-p line ":score-bindings:" #'string-equal)))
            (get-bindings (line)
              (mapcar (lambda (x) (if (consp x) x (list x nil)))
                (let ((*package* *score-package*))
@@ -774,7 +847,7 @@ or IGNORE-SCORE-STATEMENTS."
                         nil (1+ nl)))
                      ((read-time-score-statement-p line)
                       (values bindings (nreverse declarations)
-                              (expand-read-time-score-statement line)))
+                              (expand-read-time-score-statement stream line)))
                      (t
                       (let ((form (score-line->sexp line at args)))
                         (if (and (consp form)
@@ -982,7 +1055,9 @@ or IGNORE-SCORE-STATEMENTS."
 (defun included-regofile-bindings (bindings args)
   (let ((args (loop for x on args
                     for y on bindings
-                    if (or (atom (car x)) (eq (caar x) 'quote))
+                    if (or (atom (car x))
+                           (cddar x)
+                           (eq (caar x) 'quote))
                       collect (list (caar y) (car x))
                     else append x and do (setf x nil)
                     unless (cdr y) append (cdr x)))
@@ -1089,6 +1164,7 @@ or IGNORE-SCORE-STATEMENTS."
     (let ((%sched (ensure-complex-gensym "AT"))
           (sched (ensure-complex-gensym "AT"))
           (*include-rego-stack* nil)
+          (*score-macros* nil)
           (*score-package* *package*)
           (*score-realtime* '#:maybe)
           (*score-start-time* 0.0)
@@ -1198,6 +1274,7 @@ event list at runtime when the function is called."
   (let ((%sched (ensure-complex-gensym "AT"))
         (sched (ensure-complex-gensym "AT"))
         (incudine::*include-rego-stack* nil)
+        (*score-macros* nil)
         (*score-package* *package*)
         (*score-realtime* nil)
         (*score-start-time* 0.0)

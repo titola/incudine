@@ -1668,6 +1668,10 @@ There are predefined variable bindings usable inside a rego file:
 - TEMPO-ENV :: Temporal envelope of the events.
 
 #+texinfo: @noindent
+Note: we can use ~tempo-env~ within an event function only if the
+event terminates before the end of the rego file.
+
+#+texinfo: @noindent
 The score statement ~:score-time:~ sets the variable ~time~.
 The name is surrounded by colons, so it is also a valid property
 in Org markup language. For example:
@@ -1819,8 +1823,66 @@ times without name collisions.
 There is not a specific limit on the depth of included rego files.
 
 #+texinfo: @noindent
-Note: we can use ~tempo-env~ within an event function only if the
-event terminates before the end of the rego file.
+A score macro is defined with a macro block in Org markup language:
+
+#+texinfo: @exampleindent 4
+#+begin_example
+#+begin_macro name
+...
+#+end_macro
+#+end_example
+
+#+texinfo: @noindent
+The syntax for a score macro expansion is:
+
+#+texinfo: @exampleindent 4
+#+begin_example
+name [time] {value}* {(var value)}*
+#+end_example
+
+#+texinfo: @noindent
+The inclusion of a rego file is equivalent to the expansion of a score
+macro defined with the same file contents (dynamic extent bindings,
+tempo, etc). For example:
+
+#+texinfo: @exampleindent 4
+#+begin_example
+:score-tempo: 120
+
+#+begin_macro macro-test
+with x y z
+:score-tempo: '(120 30) '(12) :curve :exp
+0 test x
+4 test y
+8 test z
+#+end_macro
+
+16 bridge
+
+|------------+------+---+---+---|
+| !          | time | x | y | z |
+|------------+------+---+---+---|
+| macro-test |    0 | 1 | 2 | 3 |
+| macro-test |   12 | 4 | 5 | 6 |
+|------------+------+---+---+---|
+
+30 free 0
+#+end_example
+
+#+texinfo: @noindent
+is equivalent to
+
+#+texinfo: @exampleindent 4
+#+begin_example
+0.0d0                test 1
+2.542321754062445d0  test 2
+6.0d0                test 4
+6.578005980902809d0  test 3
+8.0d0                bridge
+8.542321754062446d0  test 5
+12.578005980902809d0 test 6
+15.0d0               free 0
+#+end_example
 
 #+texinfo: @noindent
 A rego file ends after the last event or after a long pending event if

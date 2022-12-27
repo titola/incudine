@@ -1,5 +1,6 @@
 call p1 5
 2 rego-test-1 220 .12
+call-label
 return
 12345 rego-test-1 12345 12345
 p1
