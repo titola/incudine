@@ -1820,6 +1820,15 @@ extent, therefore it is possible to include the same rego file multiple
 times without name collisions.
 
 #+texinfo: @noindent
+A time-tagged string is an alternative syntax to include the content
+of a rego file:
+
+#+texinfo: @exampleindent 4
+#+begin_example
+time "regofile" {value}* {(var value)}*
+#+end_example
+
+#+texinfo: @noindent
 There is not a specific limit on the depth of included rego files.
 
 #+texinfo: @noindent
@@ -1838,6 +1847,14 @@ The syntax for a score macro expansion is:
 #+texinfo: @exampleindent 4
 #+begin_example
 name [time] {value}* {(var value)}*
+#+end_example
+
+#+texinfo: @noindent
+or the time-tagged version:
+
+#+texinfo: @exampleindent 4
+#+begin_example
+time name {value}* {(var value)}*
 #+end_example
 
 #+texinfo: @noindent

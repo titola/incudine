@@ -495,8 +495,8 @@ or IGNORE-SCORE-STATEMENTS."
                      t)))
             *score-macros*))))
 
-(defun score-macro-name-p (str)
-  (and (assoc str *score-macros* :key #'symbol-name :test #'string-equal) t))
+(defun score-macro-name-p (obj)
+  (and (assoc obj *score-macros* :test #'string-equal) t))
 
 (defun score-macro-string (name)
   (cdr (assoc name *score-macros*)))
@@ -673,7 +673,7 @@ or IGNORE-SCORE-STATEMENTS."
 ;;;     1.00 i1 1 2 3
 ;;;     1.05 i2 1 2 3
 ;;;     1.36 i3 1 2 3
-(defun score-expand-parallel-functions (form)
+(defun score-expand-parallel-functions (form args)
   (labels ((ignore-func-p (fname)
              (or (eq fname 'quote)
                  (and (consp fname) (eq (car fname) 'quote))))
@@ -688,28 +688,29 @@ or IGNORE-SCORE-STATEMENTS."
            (next (at-fname time form)
              (multiple-value-bind (func-pos delim-pos)
                  (function-position form 0 nil)
-               (if func-pos
-                   (let ((next (next at-fname time (subseq form func-pos))))
-                     (if (ignore-func-p (find-if-not #'numberp form))
-                         next
-                         (cons (normalize-score-statement-form
-                                 (list* at-fname time (subseq form 0 delim-pos)))
-                               next)))
-                   (unless (ignore-func-p (car form))
-                     (list (normalize-score-statement-form
-                             (list* at-fname time
-                                    (if delim-pos
-                                        (subseq form 0 delim-pos)
-                                        form)))))))))
+               (let ((next (when func-pos
+                             (next at-fname time (subseq form func-pos)))))
+                 (if (ignore-func-p (find-if-not #'numberp form))
+                     next
+                     (cons (maybe-expand-score-statement-form
+                             (normalize-score-statement-form
+                               (list* at-fname time
+                                      (if delim-pos
+                                          (subseq form 0 delim-pos)
+                                          form)))
+                             args)
+                           next))))))
     (let ((pos (position '// form)))
       (cond ((null pos)
              (unless (ignore-func-p (third form))
-               (normalize-score-statement-form form)))
+               (maybe-expand-score-statement-form
+                 (normalize-score-statement-form form) args)))
             ((= pos 2)
              (let ((func-pos (function-position form 0 nil)))
                (if func-pos
                    (score-expand-parallel-functions
-                     (list* (first form) (second form) (subseq form func-pos)))
+                     (list* (first form) (second form) (subseq form func-pos))
+                     args)
                    '(progn))))
             (t
              (with-gensyms (time)
@@ -725,11 +726,21 @@ or IGNORE-SCORE-STATEMENTS."
                (subseq form func-pos)))
       form))
 
+(defun maybe-expand-score-statement-form (form args)
+  (let ((name (third form)))
+    (if (or (stringp name) (score-macro-name-p name))
+        ;; Time-tagged score macro or included regofile.
+        (destructuring-bind (at time name &rest rest) form
+          (score-line->sexp (list name time rest) at args))
+        form)))
+
 (defun score-line->sexp (line at-fname args)
-  (declare (type string line) (type list args))
-  (if (include-regofile-p line)
+  (declare (type (or string cons) line) (type list args))
+  (if (or (consp line) (include-regofile-p line))
       (multiple-value-bind (name time include-args)
-          (include-rego-args line)
+          (if (consp line)
+              (values-list line)
+              (include-rego-args line))
         (let* ((score-macro-p (symbolp name))
                (name (if score-macro-p
                          name
@@ -755,9 +766,10 @@ or IGNORE-SCORE-STATEMENTS."
                  (concatenate 'string "include " line) at-fname args))
               ((time-tagged-function-p line)
                (score-expand-parallel-functions
-                (macroexpand-1
-                  (read-from-string
-                    (format nil "(INCUDINE::%AT-SAMPLE ~S ~A)" at-fname line)))))
+                 (macroexpand-1
+                   (read-from-string
+                     (format nil "(INCUDINE::%AT-SAMPLE ~S ~A)" at-fname line)))
+                 args))
               (t
                ;; Tag or lisp statement.
                (let ((form (read-from-string
