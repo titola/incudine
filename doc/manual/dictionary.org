@@ -1735,7 +1735,7 @@ is equivalent to
 #+end_example
 
 #+texinfo: @noindent
-~dur~ is a local function to convert the duration from
+~dur~ is a local macro to convert the duration from
 beats to seconds with respect to ~tempo-env~.
 
 #+texinfo: @noindent
@@ -1903,7 +1903,7 @@ is equivalent to
 
 #+texinfo: @noindent
 A rego file ends after the last event or after a long pending event if
-the duration is known (defined with the local function ~dur~). For
+the duration is known (defined with the local macro ~dur~). For
 example:
 
 #+texinfo: @exampleindent 4

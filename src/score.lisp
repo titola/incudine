@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2022 Tito Latini
+;;; Copyright (c) 2013-2023 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -896,7 +896,7 @@ or IGNORE-SCORE-STATEMENTS."
 
 ;;; Extend the last time if there is a pending event.
 ;;; Note: the duration of an event is known only if it uses the local
-;;; function DUR (see REGOFILE->SEXP).
+;;; macro DUR (see REGOFILE->SEXP).
 (defmacro maybe-extend-time (now max-time tempo-env)
   (with-gensyms (to-free)
     ``(progn
@@ -981,42 +981,42 @@ or IGNORE-SCORE-STATEMENTS."
        (,@(if fname `(defun ,fname) '(lambda)) () ,expr))))
 
 ;;; Foreign memory to reduce consing.
-(defmacro with-rego-samples ((foreign-array-name t0-var t1-var time-var
+(defmacro with-rego-samples ((wrapper smptime-var smptime0-var time-var
                               sched-var last-time-var last-dur-var max-time-var)
                              &body body)
-  (with-complex-gensyms (c-array)
-    (let ((var-names (list t0-var t1-var time-var sched-var last-time-var
-                           last-dur-var max-time-var)))
+  (with-complex-gensyms (names)
+    (let ((var-names (list smptime-var smptime0-var time-var sched-var
+                           last-time-var last-dur-var max-time-var)))
       `(let* ((incudine::*to-free* nil)
-              (,foreign-array-name (make-foreign-array ,(length var-names)
-                                                       'sample :zero-p t))
-              (,c-array (foreign-array-data ,foreign-array-name)))
+              (,wrapper
+                 (make-foreign-array ,(length var-names) 'sample :zero-p t))
+              (,names (foreign-array-data ,wrapper)))
          (symbol-macrolet ,(loop for var in var-names for i from 0
-                                 collect `(,var (smp-ref ,c-array ,i)))
-           (setf ,t0-var (if (incudine::nrt-edf-heap-p)
-                             (now)
-                             +sample-zero+))
-           (setf ,t1-var ,t0-var)
-           (setf ,time-var ,t0-var)
+                                 collect `(,var (smp-ref ,names ,i)))
+           (setf ,smptime0-var
+                 (if (incudine::nrt-edf-heap-p) (now) +sample-zero+))
            ,@body)))))
 
-;;; An included regofile doesn't change the temporal envelope and/or
-;;; the time of the parent regofile.
-(defun rego-local-tempo (vars declarations body time parent-time time-offset
-                         time-offset-var tempo-env parent-tempo-env)
+(defun rego-local-tempo (vars declarations body time time-offset
+                         time-offset-var tempo-env)
   (let ((stack-bind '(__stack__ nil))
-        (time-bind `(,parent-time ,time))
-        ;; TIME-OFFSET should be altered if it is defined with a
-        ;; parent's variable shadowed in the included rego file,
-        ;; therefore it is safe to create a new variable binding.
+        (time-bind `((__parent-time__ ,time)
+                     (__parent-smptime0__ __smptime0__)
+                     (__parent-smptime__ __smptime__)))
         (time-os-bind `(,time-offset-var ,(or time-offset +sample-zero+)))
-        (tenv-bind `(,parent-tempo-env ,tempo-env))
+        (tenv-bind `(,tempo-env ,tempo-env))
         (local-tempo `(progn
-                        ,@(and time-offset `((incf ,time ,time-offset-var)))
+                        ,@(when time-offset
+                            `((incf __smptime__
+                                    (* *sample-rate*
+                                       (%beats->seconds
+                                         ,tempo-env ,time-offset-var)))))
+                        (setf __smptime0__ __smptime__)
+                        (setf __smptime1__ +sample-zero+)
                         (setf ,tempo-env (copy-tempo-envelope ,tempo-env))))
         (decl `((declare (ignorable ,time-offset-var)) ,@declarations))
         (init-stack '(push (lambda () (go __end_of_score__)) __stack__)))
-    `((,stack-bind ,time-bind ,time-os-bind ,tenv-bind ,@vars)
+    `((,stack-bind ,@time-bind ,time-os-bind ,tenv-bind ,@vars)
       ,@decl ,init-stack ,local-tempo ,@body)))
 
 (defun %write-regofile (score at-fname time-var dur-var max-time tenv
@@ -1030,39 +1030,35 @@ or IGNORE-SCORE-STATEMENTS."
                      score)
                  *include-rego-stack*))
          (with-ensure-symbols (time tempo-env)
-           (with-gensyms (parent-time parent-tempo-env)
-             (let ((write-args (list (and (file-name score)
-                                          (directory-namestring score))
-                                     time-var
-                                     dur-var max-time tenv)))
-               (append
-                 (multiple-value-bind (vars decl body)
-                     (find-score-local-bindings score at-fname write-args)
-                   (let ((stack-bind '(__stack__ nil))
-                         (init-stack
-                           '(push (lambda () (go __end_of_score__)) __stack__)))
-                     (if included-p
-                         (with-gensyms (time-offset-var)
-                           (rego-local-tempo
-                             (cons 'score-realtime-offset
-                                   (included-regofile-bindings vars include-args))
-                             (cons '(declare (ignore score-realtime-offset))
-                                   decl)
-                             body
-                             time parent-time time-offset
-                             time-offset-var tempo-env
-                             parent-tempo-env))
-                         `(,(cons stack-bind vars) ,@decl ,init-stack ,@body))))
-                 (score-lines->sexp score at-fname write-args)
-                 '(__end_of_score__)
-                 (cond (included-p
-                        ;; End of the included regofile.
-                        (pop *include-rego-stack*)
-                        `((setf ,time ,parent-time ,tempo-env ,parent-tempo-env)))
-                       (extend-time-p
-                        (list
-                          (maybe-advance-score-start-time tenv max-time)
-                          (maybe-extend-time at-fname max-time tenv)))))))))))
+           (let ((write-args (list (and (file-name score)
+                                        (directory-namestring score))
+                                   time-var dur-var max-time tenv)))
+             (append
+              (multiple-value-bind (vars decl body)
+                  (find-score-local-bindings score at-fname write-args)
+                (let ((stack-bind '(__stack__ nil))
+                      (init-stack
+                        '(push (lambda () (go __end_of_score__)) __stack__)))
+                  (if included-p
+                      (with-gensyms (time-offset-var)
+                        (rego-local-tempo
+                          (cons 'score-realtime-offset
+                                (included-regofile-bindings vars include-args))
+                          (cons '(declare (ignore score-realtime-offset)) decl)
+                          body time time-offset time-offset-var tempo-env))
+                      `(,(cons stack-bind vars) ,@decl ,init-stack ,@body))))
+              (score-lines->sexp score at-fname write-args)
+              '(__end_of_score__)
+              (cond (included-p
+                     ;; End of the included regofile or score macro expansion.
+                     (pop *include-rego-stack*)
+                     `((setf __time__ __parent-time__)
+                       (setf __smptime0__ __parent-smptime0__)
+                       (setf __smptime__ __parent-smptime__)))
+                    (extend-time-p
+                     (list
+                      (maybe-advance-score-start-time tenv max-time)
+                      (maybe-extend-time at-fname max-time tenv))))))))))
 
 (defun included-regofile-bindings (bindings args)
   (let ((args (loop for x on args
@@ -1082,31 +1078,24 @@ or IGNORE-SCORE-STATEMENTS."
     (dolist (x bindings (nreverse acc))
       (push (or (assoc (car x) args) x) acc))))
 
-(define-constant +rego-time0-index+ 0)
-(define-constant +rego-time1-index+ 1)
-(define-constant +rego-time-index+ 2)
+(define-constant +rego-time-index+ 0)
+(define-constant +rego-time-offset-index+ 1)
+(define-constant +rego-beats-index+ 2)
 
 (declaim (inline rego-time))
 (defun rego-time (time-ptr tempo-env)
   (declare (ignore tempo-env))
-  ;; Time offset in beats.
-  (* (- (smp-ref time-ptr +rego-time1-index+)
-        (smp-ref time-ptr +rego-time0-index+))
-     *sample-duration*))
+  (smp-ref time-ptr +rego-beats-index+))
 
 (defun set-rego-time (time-ptr tempo-env value)
   (declare (type foreign-pointer time-ptr) (type tempo-envelope tempo-env)
            (type real value))
   (let ((value (max 0 value)))
-    ;; Time offset used in REGOFILE->SEXP. The value is converted in
-    ;; seconds before the update.
     (setf (smp-ref time-ptr +rego-time-index+)
-          (+ (smp-ref time-ptr +rego-time0-index+)
+          (+ (smp-ref time-ptr +rego-time-offset-index+)
              (* *sample-rate* (%beats->seconds tempo-env value))))
-    ;; Update without conversion from beats to seconds.
-    (setf (smp-ref time-ptr +rego-time1-index+)
-          (+ (smp-ref time-ptr +rego-time0-index+)
-             (* *sample-rate* value)))))
+    (setf (smp-ref time-ptr +rego-beats-index+) (sample value))
+    value))
 
 (defsetf rego-time set-rego-time)
 
@@ -1130,7 +1119,7 @@ or IGNORE-SCORE-STATEMENTS."
 ;;;
 ;;; We can also add a DECLARE expression after the bindings.
 ;;;
-;;; DUR is a local function to convert the duration from
+;;; DUR is a local macro to convert the duration from
 ;;; beats to seconds with respect to TEMPO-ENV.
 ;;;
 ;;; TEMPO is a local macro to change the tempo of the score.
@@ -1156,7 +1145,7 @@ or IGNORE-SCORE-STATEMENTS."
 ;;; Note: we can use TEMPO-ENV within an event only if the event terminates
 ;;; before the end of the regofile.  A regofile ends after the last event
 ;;; or after a long pending event if the duration is known (defined with
-;;; the local function DUR). For example:
+;;; the local macro DUR). For example:
 ;;;
 ;;;     0    ...
 ;;;     1.5  ...
@@ -1182,43 +1171,49 @@ or IGNORE-SCORE-STATEMENTS."
           (*score-start-time* 0.0)
           (*score-radix* 10)
           (*score-float-format* '#.incudine.config:*sample-type*))
-      (with-complex-gensyms (smptime0 smptime1 smptime beats last-time
-                             last-dur max-time c-array-wrap)
+      (with-complex-gensyms (time-beats beats last-time last-dur max-time
+                             update-max-time wrapper)
         (prog1
          `(with-rego-function (,function-name ,compile-rego-p)
            (with-schedule
              (:start-time 0 score-realtime-offset)
-             (with-rego-samples (,c-array-wrap ,smptime0 ,smptime1 ,smptime
-                                 ,sched ,last-time ,last-dur ,max-time)
+             (with-rego-samples
+                 (,wrapper __smptime__ __smptime0__ ,time-beats ,sched
+                  ,last-time ,last-dur ,max-time)
                (let ((,tempo-env (default-tempo-envelope)))
-                 (flet ((,dur (,beats)
+                 (flet ((,update-max-time (,dur)
                           (setf ,last-time ,sched)
-                          (setf ,last-dur (sample ,beats))
+                          (setf ,last-dur (sample ,dur))
                           (setf ,max-time
                                 (max ,max-time (+ ,last-time ,last-dur)))
-                          (beats->seconds ,tempo-env ,beats ,sched))
-                        (,%sched (at-beat fn)
+                          nil)
+                        (,%sched (at-beat ,tempo-env fn)
                           (incudine.edf:schedule-at
-                            (+ ,smptime
+                            (+ __smptime__
                                (* *sample-rate*
                                   (%beats->seconds ,tempo-env
                                             (setf ,sched (sample at-beat)))))
                             fn (list at-beat))))
-                   (declare (ignorable (function ,dur)))
+                   (declare (ignorable (function ,update-max-time)))
                    (macrolet ((,tempo (&rest args)
                                 `(set-tempo-envelope ,',tempo-env
                                    ,@(if (cdr args)
                                          args
                                          ;; Constant tempo
                                          `((list ,(car args) ,(car args)) '(0)))))
+                              (,dur (,beats)
+                                (with-gensyms (x)
+                                  `(let ((,x ,,beats))
+                                     (,',update-max-time ,x)
+                                     (beats->seconds ,',tempo-env ,x ,',sched))))
                               (,sched (at-beat fn &rest args)
                                 (with-gensyms (x)
-                                  `(,',%sched ,at-beat
+                                  `(,',%sched ,at-beat ,',tempo-env
                                               (lambda (,x)
                                                 (setf ,',sched (sample ,x))
                                                 (,fn ,@args))))))
                      (symbol-macrolet
-                         ((,time (rego-time (foreign-array-data ,c-array-wrap)
+                         ((,time (rego-time (foreign-array-data ,wrapper)
                                             ,tempo-env)))
                        ,(%write-regofile stream sched last-time last-dur max-time
                                          tempo-env))))))))
@@ -1293,42 +1288,47 @@ event list at runtime when the function is called."
         (*score-radix* 10)
         (*score-float-format* '#.incudine.config:*sample-type*))
     (with-ensure-symbols (time dur tempo tempo-env)
-      (with-gensyms (c-array-wrap smptime0 smptime1 smptime beats last-time
-                     last-dur max-time flist)
+      (with-gensyms (wrapper time-beats beats last-time last-dur max-time
+                     update-max-time flist)
         `(with-cleanup
-           (with-rego-samples (,c-array-wrap ,smptime0 ,smptime1 ,smptime
+           (with-rego-samples (,wrapper __smptime__ __smptime0__ ,time-beats
                                ,sched ,last-time ,last-dur ,max-time)
              (let ((,tempo-env (default-tempo-envelope))
                    (,flist nil)
                    (score-realtime-offset 0))
                (declare (ignorable score-realtime-offset))
-               (flet ((,dur (,beats)
+               (flet ((,update-max-time (,dur)
                         (setf ,last-time ,sched)
-                        (setf ,last-dur (sample ,beats))
+                        (setf ,last-dur (sample ,dur))
                         (setf ,max-time
                               (max ,max-time (+ ,last-time ,last-dur)))
-                        (beats->seconds ,tempo-env ,beats ,sched))
-                      (,%sched (at-beat fn)
-                        (push (list (+ (* ,smptime *sample-duration*)
+                        nil)
+                      (,%sched (at-beat ,tempo-env fn)
+                        (push (list (+ (* __smptime__ *sample-duration*)
                                        (%beats->seconds ,tempo-env
                                          (setf ,sched (sample at-beat))))
                                     fn)
                               ,flist)))
-                 (declare (ignorable (function ,dur)))
+                 (declare (ignorable (function ,update-max-time)))
                  (macrolet ((,tempo (&rest args)
                               `(set-tempo-envelope ,',tempo-env
                                  ,@(if (cdr args)
                                        args
                                        `((list ,(car args) ,(car args)) '(0)))))
+                            (,dur (,beats)
+                              (with-gensyms (x)
+                                `(let ((,x ,,beats))
+                                   (,',update-max-time ,x)
+                                   (beats->seconds ,',tempo-env ,x ,',sched))))
                             (,sched (at-beat fn &rest args)
                               (with-gensyms (x)
-                                `(,',%sched ,at-beat
+                                `(,',%sched ,at-beat ,',tempo-env
                                    (lambda (,x)
                                      (setf ,',sched (sample ,x))
                                      (list ',fn ,@(mapcar #'quote-var-special
                                                           args)))))))
                    (symbol-macrolet
-                       ((,time (rego-time (foreign-array-data ,c-array-wrap)
+                       ((,time (rego-time (foreign-array-data ,wrapper)
                                           ,tempo-env)))
                      ,(incudine::%write-regofile
                         stream sched last-time last-dur max-time tempo-env
