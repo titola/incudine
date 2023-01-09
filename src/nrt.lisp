@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2022 Tito Latini
+;;; Copyright (c) 2013-2023 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -627,8 +627,8 @@ The max number of scheduled events is the value of the configuration
 variable *NRT-EDF-HEAP-SIZE* (a power of two)."
   (with-gensyms (fname infile htype dformat)
     `(let ((,infile ,input-filename)
-           (,htype ,(or header-type '*default-header-type*))
-           (,dformat ,(or data-format '*default-data-format*)))
+           (,htype (or ,header-type *default-header-type*))
+           (,dformat (or ,data-format *default-data-format*)))
        (soundfile::check-format ,htype ,dformat)
        (multiple-value-bind (,fname ,infile)
            (if ,infile
@@ -638,7 +638,7 @@ variable *NRT-EDF-HEAP-SIZE* (a power of two)."
          (funcall ,fname
            ,infile
            (soundfile-truename ,output-filename)
-           ,(or duration `(- ,pad))
+           (or ,duration (- ,pad))
            ,channels ,sample-rate ,htype ,dformat ,metadata
            (bounce-function ,body))))))
 
