@@ -61,3 +61,18 @@
         (push (now) times))
       (reverse times))
   (0.0d0 1.0d0 123d0 0.0d0))
+
+(deftest with-schedule-time.2
+    (let ((times nil))
+      (labels ((rec (n)
+                 (with-schedule
+                   (when (> n 0)
+                     (assert (eq incudine.edf:*heap* incudine::*nrt-edf-heap*))
+                     (push (sample->fixnum (now)) times)
+                     (at (+ (now) #[1/4 s]) #'rec (1- n))))))
+        (with-logger (*null-output*)
+          (bounce-to-buffer (*buffer-test-c1* :sample-rate +sample-rate-test+)
+            (rec 100)))
+        times))
+  (240000 228000 216000 204000 192000 180000 168000 156000 144000 132000
+   120000 108000 96000 84000 72000 60000 48000 36000 24000 12000 0))

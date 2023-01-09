@@ -197,7 +197,11 @@ undefined.")
   (flush-pending)
   (node-free *root-node*)
   (free-dirty-nodes)
-  (incudine.edf:sched-loop))
+  (incudine.edf:sched-loop)
+  ;; The time of the last got node is a useful offset for some recursive
+  ;; functions (see WITH-SCHEDULE).
+  (setf (incudine.edf::node-time (incudine.edf::got-node)) +sample-zero+)
+  nil)
 
 (defun write-sf-metadata-plist (sf plist)
   (macrolet ((metadata-constants ()
@@ -433,7 +437,7 @@ BPM is the tempo in beats per minute and defaults to *DEFAULT-BPM*."
                                 metadata count pad-at-the-end-p t)
                   ;; COUNT is incremented by CHANNELS.
                   (nrt-loop snd data bufsize count channels)))))
-        (condition (c)
+        (error (c)
           (msg error "~A" c)
           (nrt-cleanup)))
       (print-peak-info channels)
@@ -492,7 +496,7 @@ BPM is the tempo in beats per minute and defaults to *DEFAULT-BPM*."
                       snd-in data-in snd-out data-out bufsize count channels
                       input-remain input-index in-channels in-bufsize
                       input-eof-p))))))
-        (condition (c)
+        (error (c)
           (msg error "~A" c)
           (nrt-cleanup)))
       (print-peak-info channels)
@@ -718,7 +722,7 @@ variable *NRT-EDF-HEAP-SIZE* (a power of two)."
                 (incudine.edf:sched-loop)
                 (perform-fifos)
                 (nrt-cleanup)))
-          (condition (c)
+          (error (c)
             (msg error "~A" c)
             (nrt-cleanup)))
         (unless (= (buffer-sample-rate output-buffer) *sample-rate*)
