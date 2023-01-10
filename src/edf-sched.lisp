@@ -621,8 +621,7 @@ However, we can require a SETFable local counter:
            (start-time-spec (get-schedule-spec :start-time specs))
            (start-time-form (first start-time-spec))
            (start-time-var (second start-time-spec)))
-      `(labels ((sched-body () (progn ,@body))
-                (sched ()
+      `(labels ((sched ()
                   (let ((,tmp-heap *heap*)
                         (*heap* (if (incudine::nrt-edf-heap-p)
                                     *heap*
@@ -631,13 +630,14 @@ However, we can require a SETFable local counter:
                                `((,start-time-var
                                     (lambda () ,(or start-time-form 0))))))
                     (declare (special *heap*))
-                    (if (and (incudine::nrt-edf-heap-p)
-                             (plusp (current-got-time)))
-                        ;; Nested WITH-SCHEDULE within a recursive function
-                        ;; scheduled through nrt-edf-heap.
-                        (incudine:with-local-time (:start (current-got-time))
-                          (sched-body))
-                        (incudine::with-null-counter (sched-body)))
+                    (flet ((sched-body () (progn ,@body)))
+                      (if (and (incudine::nrt-edf-heap-p)
+                               (plusp (current-got-time)))
+                          ;; Nested WITH-SCHEDULE within a recursive function
+                          ;; scheduled through nrt-edf-heap.
+                          (incudine:with-local-time (:start (current-got-time))
+                            (sched-body))
+                          (incudine::with-null-counter (sched-body))))
                     (unless (eq *heap* ,tmp-heap)
                       (let ((,heap *heap*)
                             ;; Realtime EDF heap.

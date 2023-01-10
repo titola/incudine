@@ -786,3 +786,19 @@
 (with-dsp-test (regofile-declarations.2
       :md5 #(188 39 3 78 140 131 211 247 155 133 137 74 78 157 169 109))
   (test-regofile "declare-2.rego" t))
+
+;; Score function recursively scheduled.
+(with-dsp-test (regofile-function-name.1
+                :md5 #(218 107 76 217 155 203 251 162 26 136 98 110 75 168 108 255))
+  (test-regofile "function-name-1.rego"))
+
+;; Idem but the function is local.
+(with-dsp-test (regofile-function-name.2
+                :md5 #(218 107 76 217 155 203 251 162 26 136 98 110 75 168 108 255))
+  (test-regofile "function-name-2.rego"))
+
+;; Both :score-function-name: and :score-local-function-name:
+;; for score functions recursively scheduled.
+(with-dsp-test (regofile-function-name.3
+                :md5 #(38 27 79 25 177 110 157 31 26 58 44 62 90 208 87 221))
+  (test-regofile "function-name-3.rego"))

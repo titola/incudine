@@ -1,4 +1,4 @@
-.TH INCUDINE 1 "21 March 2016" "" ""
+.TH INCUDINE 1 "January 2023" "" ""
 .SH NAME
 incudine - Music/DSP programming environment for Common Lisp.
 .SH SYNOPSIS
@@ -141,6 +141,9 @@ name of the produced sound file is derived from the name of the score file
 \fB\-\-sample\-pool\-size\fR <\fIbytes\fR>
 Size of the pool for the C arrays defined in DSP!
 .TP
+\fB\-\-score\-args\fR <\fIlist\fR>
+Score function arguments.
+.TP
 \fB\-\-sound\-velocity\fR <\fIreal\fR>
 Velocity of the sound at 22°C, 1 atmosfera.
 .TP
@@ -222,7 +225,7 @@ cat >foo.cudo <<'---'
 ---
 
 cat >quux.rego <<'---'
-with (env1 (make-adsr .1 .09 .9 .5))
+with (env1 (or (first score-args) (make-adsr .1 .09 .9 .5)))
 
 0   simple  440  -14  env1  1
 0   simple  220  -20  env1  1
@@ -235,6 +238,9 @@ with (env1 (make-adsr .1 .09 .9 .5))
 incudine foo.cudo -v -s quux.rego
 
 incudine foo.cudo --pad 1.2 -s quux.rego
+
+incudine foo.cudo --score-args "(list (make-perc .01 3))" \\
+                  --pad 1.2 -s quux.rego
 
 incudine foo.cudo -o "battimenti zincati.wav" -s quux.rego
 

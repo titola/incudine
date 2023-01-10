@@ -39,6 +39,8 @@
 (declaim (special
            ;; Stack used to check recursive inclusions of rego files.
            *include-rego-stack*
+           *score-function-name*
+           *score-local-function-name*
            *score-macros*
            *score-package*
            *score-start-time*
@@ -345,7 +347,8 @@ or IGNORE-SCORE-STATEMENTS."
       (let ((prefix-length #.(length ":score-")))
         (and (= prefix-test prefix-length)
              (member (subseq name prefix-length)
-                     '("package:" "float-format:" "radix:" "start-time:")
+                     '("package:" "float-format:" "radix:" "start-time:"
+                       "function-name:" "local-function-name:")
                      :test #'string-equal)
              t)))))
 
@@ -641,6 +644,22 @@ or IGNORE-SCORE-STATEMENTS."
       (when (and (realp time) (> time 0.0))
         (setf *score-start-time* time)))))
 
+;;; The score statement `:score-function-name:' sets the name of the
+;;; function defined with REGOFILE->FUNCTION.
+;;; The score statement `:score-local-function-name:' sets the name
+;;; of a recursive local function.
+(defun score-function-name-statement-p (line)
+  (or (%score-statement-p line ":score-function-name:")
+      (%score-statement-p line ":score-local-function-name:")))
+
+(defun set-score-function-name (line)
+  (unless (included-regofile-p)
+    (let ((name (read-from-string (subseq line (next-blank-position line)))))
+      (when (symbolp name)
+        (if (%score-statement-p line ":score-local-function-name:")
+            (setf *score-local-function-name* name)
+            (setf *score-function-name* name))))))
+
 ;;; If we use the symbol // to separate the functions with the same
 ;;; time-tag, we get a polyphonic vertical sequencer in text files.
 ;;; A quoted function name is ignored; useful to mute an instrument.
@@ -788,6 +807,7 @@ or IGNORE-SCORE-STATEMENTS."
       (and (char= #\: (char line 0))
            (or (score-start-time-statement-p line)
                (score-package-statement-p line)
+               (score-function-name-statement-p line)
                (score-radix-statement-p line)
                (score-float-format-statement-p line)))))
 
@@ -799,6 +819,9 @@ or IGNORE-SCORE-STATEMENTS."
          nil)
         ((score-package-statement-p line)
          (set-score-package line)
+         nil)
+        ((score-function-name-statement-p line)
+         (set-score-function-name line)
          nil)
         ((score-macro-block-p line)
          (read-score-macro-block stream line)
@@ -970,15 +993,48 @@ or IGNORE-SCORE-STATEMENTS."
 (defun ensure-complex-gensym (name)
   (ensure-symbol (symbol-name (gensym (format nil "__~A__" (string name))))))
 
-(defmacro with-rego-function ((fname compile-rego-p) &body body)
-  (let ((maybe-compile (if compile-rego-p
-                           `(compile ,@(unless fname '(nil)))
-                           '(progn)))
-        (expr `(progn ,@body)))
-    (unless compile-rego-p
-      (setf expr `(incudine.util::cudo-eval (quote ,expr))))
-    `(,@maybe-compile
-       (,@(if fname `(defun ,fname) '(lambda)) () ,expr))))
+(defun interpret-score (score-args local-fname body)
+  (multiple-value-bind (local-function local-macro)
+      (when local-fname
+        (values `((,local-fname *score-local-function*))
+                `((,local-fname (&rest args)
+                     `(funcall ,,local-fname ,@args)))))
+    `((let ((*score-args* ,score-args)
+            (*score-local-function* ,(if local-fname `(function ,local-fname))))
+        ;; `(lambda ... (eval form))' because the function
+        ;; `(eval (quote (lambda ...)))' is compilable.
+        (declare (special *score-args* *score-local-function*))
+        (incudine.util::cudo-eval
+          (quote (let ((,score-args *score-args*)
+                       ,@local-function)
+                   (macrolet (,@local-macro) ,@body))))))))
+
+(defmacro with-rego-function ((fname stmt-fname local-fname compile-rego-p)
+                              &body body)
+  (let* ((score-args (ensure-symbol "SCORE-ARGS"))
+         (body (cons `(declare (ignorable ,score-args)) body)))
+    (multiple-value-bind (maybe-compile expr)
+        (if compile-rego-p
+            (values `(compile nil) body)
+            (values '(progn)
+                    (interpret-score score-args local-fname body)))
+      (let ((args-body `((&rest ,score-args) ,@expr)))
+        (flet ((set-function-if (name &optional other-name)
+                 (if name
+                     `(setf (symbol-function ',(or other-name name)))
+                     '(progn))))
+          `(,@maybe-compile
+            ,(cond
+               (local-fname
+                `(labels ((,local-fname ,@args-body))
+                   (,@(set-function-if fname)
+                      (,@(set-function-if stmt-fname)
+                         (function ,local-fname)))))
+               ((or fname stmt-fname)
+                `(progn (defun ,(or fname stmt-fname) ,@args-body)
+                        (,@(set-function-if (and fname stmt-fname) stmt-fname)
+                           (function ,(or fname stmt-fname)))))
+               (t `(lambda ,@args-body)))))))))
 
 ;;; Foreign memory to reduce consing.
 (defmacro with-rego-samples ((wrapper smptime-var smptime0-var time-var
@@ -993,8 +1049,9 @@ or IGNORE-SCORE-STATEMENTS."
               (,names (foreign-array-data ,wrapper)))
          (symbol-macrolet ,(loop for var in var-names for i from 0
                                  collect `(,var (smp-ref ,names ,i)))
-           (setf ,smptime0-var
+           (setf ,smptime-var
                  (if (incudine::nrt-edf-heap-p) (now) +sample-zero+))
+           (setf ,smptime0-var ,smptime-var)
            ,@body)))))
 
 (defun rego-local-tempo (vars declarations body time time-offset
@@ -1161,63 +1218,66 @@ or IGNORE-SCORE-STATEMENTS."
 ;;;
 (defun rego-stream->sexp (stream &optional function-name compile-rego-p)
   (declare (type stream stream))
-  (with-ensure-symbols (time dur tempo tempo-env)
-    (let ((%sched (ensure-complex-gensym "AT"))
-          (sched (ensure-complex-gensym "AT"))
-          (*include-rego-stack* nil)
-          (*score-macros* nil)
-          (*score-package* *package*)
-          (*score-realtime* '#:maybe)
-          (*score-start-time* 0.0)
-          (*score-radix* 10)
-          (*score-float-format* '#.incudine.config:*sample-type*))
-      (with-complex-gensyms (time-beats beats last-time last-dur max-time
-                             update-max-time wrapper)
+  (with-ensure-symbols (time dur score-realtime-p tempo tempo-env)
+    (with-complex-gensyms
+        (time-beats beats last-time last-dur max-time update-max-time wrapper)
+      (let* ((%sched (ensure-complex-gensym "AT"))
+             (sched (ensure-complex-gensym "AT"))
+             (*include-rego-stack* nil)
+             (*score-macros* nil)
+             (*score-function-name* nil)
+             (*score-local-function-name* nil)
+             (*score-package* *package*)
+             (*score-realtime* '#:maybe)
+             (*score-start-time* 0.0)
+             (*score-radix* 10)
+             (*score-float-format* '#.incudine.config:*sample-type*)
+             (score-body (%write-regofile
+                           stream sched last-time last-dur max-time tempo-env)))
         (prog1
-         `(with-rego-function (,function-name ,compile-rego-p)
-           (with-schedule
-             (:start-time 0 score-realtime-offset)
-             (with-rego-samples
-                 (,wrapper __smptime__ __smptime0__ ,time-beats ,sched
-                  ,last-time ,last-dur ,max-time)
-               (let ((,tempo-env (default-tempo-envelope)))
-                 (flet ((,update-max-time (,dur)
-                          (setf ,last-time ,sched)
-                          (setf ,last-dur (sample ,dur))
-                          (setf ,max-time
-                                (max ,max-time (+ ,last-time ,last-dur)))
-                          nil)
-                        (,%sched (at-beat ,tempo-env fn)
-                          (incudine.edf:schedule-at
-                            (+ __smptime__
-                               (* *sample-rate*
-                                  (%beats->seconds ,tempo-env
-                                            (setf ,sched (sample at-beat)))))
-                            fn (list at-beat))))
-                   (declare (ignorable (function ,update-max-time)))
-                   (macrolet ((,tempo (&rest args)
-                                `(set-tempo-envelope ,',tempo-env
-                                   ,@(if (cdr args)
-                                         args
-                                         ;; Constant tempo
-                                         `((list ,(car args) ,(car args)) '(0)))))
-                              (,dur (,beats)
-                                (with-gensyms (x)
-                                  `(let ((,x ,,beats))
-                                     (,',update-max-time ,x)
-                                     (beats->seconds ,',tempo-env ,x ,',sched))))
-                              (,sched (at-beat fn &rest args)
-                                (with-gensyms (x)
-                                  `(,',%sched ,at-beat ,',tempo-env
-                                              (lambda (,x)
-                                                (setf ,',sched (sample ,x))
-                                                (,fn ,@args))))))
-                     (symbol-macrolet
-                         ((,time (rego-time (foreign-array-data ,wrapper)
-                                            ,tempo-env)))
-                       ,(%write-regofile stream sched last-time last-dur max-time
-                                         tempo-env))))))))
-        (mapc #'unintern (list %sched sched)))))))
+          `(with-rego-function (,function-name ,*score-function-name*
+                                ,*score-local-function-name* ,compile-rego-p)
+             (with-schedule (:start-time 0 score-realtime-offset)
+               (with-rego-samples (,wrapper __smptime__ __smptime0__ ,time-beats
+                                   ,sched ,last-time ,last-dur ,max-time)
+                 (let ((,tempo-env (default-tempo-envelope))
+                       (,score-realtime-p (not (nrt-edf-heap-p))))
+                   (flet ((,update-max-time (,dur)
+                            (setf ,last-time ,sched)
+                            (setf ,last-dur (sample ,dur))
+                            (setf ,max-time
+                                  (max ,max-time (+ ,last-time ,last-dur)))
+                            nil)
+                          (,%sched (at-beat ,tempo-env fn)
+                            (incudine.edf:schedule-at
+                             (+ __smptime__
+                                (* *sample-rate*
+                                   (%beats->seconds ,tempo-env
+                                                    (setf ,sched (sample at-beat)))))
+                             fn (list at-beat))))
+                     (declare (ignorable (function ,update-max-time)))
+                     (macrolet ((,tempo (&rest args)
+                                  `(set-tempo-envelope ,',tempo-env
+                                     ,@(if (cdr args)
+                                           args
+                                           ;; Constant tempo
+                                           `((list ,(car args) ,(car args)) '(0)))))
+                                (,dur (,beats)
+                                  (with-gensyms (x)
+                                    `(let ((,x ,,beats))
+                                       (,',update-max-time ,x)
+                                       (beats->seconds ,',tempo-env ,x ,',sched))))
+                                (,sched (at-beat fn &rest args)
+                                  (with-gensyms (x)
+                                    `(,',%sched ,at-beat ,',tempo-env
+                                                (lambda (,x)
+                                                  (setf ,',sched (sample ,x))
+                                                  (,fn ,@args))))))
+                       (symbol-macrolet
+                           ((,time (rego-time
+                                     (foreign-array-data ,wrapper) ,tempo-env)))
+                         ,score-body)))))))
+          (mapc #'unintern (list %sched sched)))))))
 
 (defun regofile->sexp (path &optional function-name compile-rego-p)
   "From a rego file PATH, return the corresponding lisp form inside the
@@ -1237,7 +1297,10 @@ event list at runtime when this function is called."
 FUNCTION-NAME to evaluate the corresponding lisp form.
 
 If COMPILE-REGO-P is NIL (default), use an interpreter to evaluate the
-event list at runtime."
+event list at runtime.
+
+The score statement :SCORE-FUNCTION-NAME: or :SCORE-LOCAL-FUNCTION-NAME:
+is an alternative method to set the function name."
   (eval (regofile->sexp path function-name compile-rego-p)))
 
 (defun regostring->function (string &optional function-name compile-rego-p)
@@ -1246,7 +1309,10 @@ function optionally named FUNCTION-NAME to evaluate the corresponding
 lisp form.
 
 If COMPILE-REGO-P is NIL (default), use an interpreter to evaluate the
-event list at runtime."
+event list at runtime.
+
+The score statement :SCORE-FUNCTION-NAME: or :SCORE-LOCAL-FUNCTION-NAME:
+is an alternative method to set the function name."
   (eval (regostring->sexp string function-name compile-rego-p)))
 
 (defun regofile->lispfile (path &optional function-name lisp-file compile-rego-p)
@@ -1277,7 +1343,7 @@ event list at runtime when the function is called."
       lisp-file)))
 
 ;;; Similar to REGO-STREAM->SEXP
-(defun %stream->regolist (stream)
+(defun %stream->regolist (stream &optional args)
   (let ((%sched (ensure-complex-gensym "AT"))
         (sched (ensure-complex-gensym "AT"))
         (incudine::*include-rego-stack* nil)
@@ -1287,16 +1353,18 @@ event list at runtime when the function is called."
         (*score-start-time* 0.0)
         (*score-radix* 10)
         (*score-float-format* '#.incudine.config:*sample-type*))
-    (with-ensure-symbols (time dur tempo tempo-env)
+    (with-ensure-symbols (time dur score-args score-realtime-p tempo tempo-env)
       (with-gensyms (wrapper time-beats beats last-time last-dur max-time
                      update-max-time flist)
         `(with-cleanup
            (with-rego-samples (,wrapper __smptime__ __smptime0__ ,time-beats
                                ,sched ,last-time ,last-dur ,max-time)
              (let ((,tempo-env (default-tempo-envelope))
+                   (,score-realtime-p nil)
+                   (,score-args ',args)
                    (,flist nil)
                    (score-realtime-offset 0))
-               (declare (ignorable score-realtime-offset))
+               (declare (ignorable score-realtime-offset ,score-args))
                (flet ((,update-max-time (,dur)
                         (setf ,last-time ,sched)
                         (setf ,last-dur (sample ,dur))
@@ -1346,8 +1414,8 @@ event list at runtime when the function is called."
          (mapcar #'quote-var-special x))
         (t x)))
 
-(defun stream->regolist (stream)
-  (incudine.util::cudo-eval (%stream->regolist stream)))
+(defun stream->regolist (stream &optional score-args)
+  (incudine.util::cudo-eval (%stream->regolist stream score-args)))
 
 (defun add-line-continuation (string stream)
   (with-input-from-string (s string)
@@ -1362,10 +1430,11 @@ event list at runtime when the function is called."
   (dolist (l list list)
     (add-line-continuation (format nil "~{~S~^ ~}~%" l) stream)))
 
-(defun regofile->list (path)
+(defun regofile->list (path &key score-args)
   "From a rego file PATH, return the corresponding event list as a
 list of lists (time function-name &rest arguments)."
-  (with-open-file (f (incudine.util::truename* path)) (stream->regolist f)))
+  (with-open-file (f (incudine.util::truename* path))
+    (stream->regolist f score-args)))
 
 (defun regolist->file (list path)
   "Write a rego file PATH with the event list obtained from a list of
@@ -1375,8 +1444,9 @@ lists (time function-name &rest arguments)."
     (write-regolist list f)
     path))
 
-(defun regostring->list (string)
+(defun regostring->list (string &key score-args)
   "From a string containing a score in rego file format, return the
 corresponding event list as a list of lists
 (time function-name &rest arguments)."
-  (with-input-from-string (score string) (stream->regolist score)))
+  (with-input-from-string (score string)
+    (stream->regolist score score-args)))

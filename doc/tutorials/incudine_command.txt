@@ -20,7 +20,7 @@ cat >foo.cudo <<'---'
 ---
 
 cat >quux.rego <<'---'
-with (env1 (make-adsr .1 .09 .9 .5))
+with (env1 (or (first score-args) (make-adsr .1 .09 .9 .5)))
 
 0   simple  440  -14  env1  1
 0   simple  220  -20  env1  1
@@ -63,6 +63,11 @@ incudine foo.cudo --pad 1.2 -s quux.rego
 
 and only quux.rego is re-compiled, because the new argument `–pad 1.2'
 doesn't precede foo.cudo.
+
+Another example with a different envelope:
+
+incudine foo.cudo --score-args "(list (make-perc .01 3))" \
+                  --pad 1.2 -s quux.rego
 
 Changing the name of the output file:
 

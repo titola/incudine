@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2022 Tito Latini
+;;; Copyright (c) 2013-2023 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 (in-package :incudine)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (import 'sb-ext:*posix-argv* (find-package :incudine.scratch))
+  (import 'sb-ext:*posix-argv* "INCUDINE.SCRATCH")
   (export '(*argv* read-arg))
   ;; The initialization will occur after the toplevel
   (setf sb-ext:*init-hooks*
@@ -80,6 +80,7 @@
   (ichans 0 :type channel-number)
   (duration 0 :type real)
   (rego-files nil :type list)
+  (score-args nil :type list)
   (swank-server-port -1 :type fixnum)
   (compile-rego-contents-p nil :type boolean)
   (sf-metadata nil :type list)
@@ -200,26 +201,29 @@
         (outfile (or (toplevel-options-outfile opt)
                      ;; stdout by default if rego from stdin
                      (and (null pathname) "-")))
-        (duration (toplevel-options-duration opt)))
-    `(cond (*rt-thread*
-            ;; Realtime
-            (sync-condition-flush *rt-executable-sync*)
-            (,fname)
-            (at 0 ,(rt-executable-closing-time duration))
-            (sync-condition-wait *rt-executable-sync*))
-           (t
-            ;; Non realtime
-            (bounce-to-disk
-                (,(cond (outfile
-                         (prog1 outfile
-                           ;; Output file valid only for this rego file
-                           (setf (toplevel-options-outfile opt) nil)))
-                        (t (make-pathname :name (pathname-name pathname)
-                                          :type *default-header-type*)))
-                 ,@(when infile `(:input-filename ,infile))
-                 :duration ,duration
-                 :metadata ',(toplevel-options-sf-metadata opt))
-              (,fname))))))
+        (duration (toplevel-options-duration opt))
+        (func (ensure-complex-gensym (string fname))))
+    `(flet ((,func ()
+              (apply ',fname ,(toplevel-options-score-args opt))))
+       (cond (*rt-thread*
+              ;; Realtime
+              (sync-condition-flush *rt-executable-sync*)
+              (,func)
+              (at 0 ,(rt-executable-closing-time duration))
+              (sync-condition-wait *rt-executable-sync*))
+             (t
+              ;; Non realtime
+              (bounce-to-disk
+                  (,(cond (outfile
+                           (prog1 outfile
+                             ;; Output file valid only for this rego file.
+                             (setf (toplevel-options-outfile opt) nil)))
+                          (t (make-pathname :name (pathname-name pathname)
+                                            :type *default-header-type*)))
+                   ,@(when infile `(:input-filename ,infile))
+                   :duration ,duration
+                   :metadata ',(toplevel-options-sf-metadata opt))
+                (,func)))))))
 
 (defun rego-render-form (opt fname pathname)
   (let ((name (format-symbol *package* "~A-RENDER" fname)))
@@ -341,6 +345,7 @@
                              (if stdin-p
                                  (eval (rego-from-stdin-form opt))
                                  (load (compile-file lisp-pathname))))
+                           (setf (toplevel-options-score-args opt) nil)
                            (when (and rego-file-p
                                       ;; Preserve the intermediate file of the
                                       ;; score in debug mode.
@@ -350,7 +355,10 @@
               options))))))
 
 (defmacro maybe-read-from-string (value read-p)
-  (if read-p `(read-from-string ,value) value))
+  (if read-p
+      `(let ((*package* (find-package "INCUDINE.SCRATCH")))
+         (read-from-string ,value))
+      value))
 
 (defun usage ()
   (princ "Usage: incudine [OPTIONS] [FILE1 [FILE2 ...]]
@@ -394,6 +402,7 @@
   --rt-priority <int>          Priority of the realtime thread.
   -s <filename>                Process a score file or `-' for standard input.
   --sample-pool-size <bytes>   Size of the pool for the C arrays defined in DSP!
+  --score-args <list>          Score function arguments.
   --sound-velocity <real>      Velocity of the sound at 22°C, 1 atmosfera.
   --swank-server <port>        Start Swank server.
   -T, --tempo <bpm>            Initial tempo in beats per minute.
@@ -721,6 +730,10 @@ SBCL options:
 
   (def-toplevel-opt "--sample-pool-size"
     (set-option incudine.util::*foreign-sample-pool-size* t))
+
+  (def-toplevel-opt "--score-args"
+    (with-eval-form (args "Failed to set the score arguments ~S" t)
+      (setf (toplevel-options-score-args opt) args)))
 
   (def-toplevel-opt "--sound-velocity"
     (set-option incudine.config::*sound-velocity* t))

@@ -150,6 +150,14 @@ Incudine rego mode is a derivative of Org mode.
 Hook called when a buffer enters Incudine Rego mode.
 #+end_defvr
 
+- @@texinfo:@kbd{f5}@@ (~incudine-regofile-to-function~) ::
+     Define the function to interpret the edited rego file.
+     With a ~C-u~ prefix, prompt the function name.
+
+     The score statement ~:score-function-name:~ or
+     ~:score-local-function-name:~ is an alternative method to
+     set the function name.
+
 - @@texinfo:@kbd{f9}@@ (~incudine-play-regofile~) ::
      Eval the edited rego file and schedule the obtained events.
 

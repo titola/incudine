@@ -1,6 +1,6 @@
 ;;; incudine.el --- major mode for editing Incudine sources
 
-;; Copyright (c) 2013-2022 Tito Latini
+;; Copyright (c) 2013-2023 Tito Latini
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -339,6 +339,27 @@ arguments and display the generated code."
         "(progn (incudine:rt-start) (funcall (incudine:regofile->function %S)))"
         file-name))))
 
+(defun incudine-regobuffer-to-function ()
+  (let ((slime-log-events nil))
+    (slime-interactive-eval
+      (format "(incudine:regostring->function %S)" (incudine-buffer-string)))))
+
+(defun incudine-regofile-to-function (&optional name)
+  "Define the function to interpret the edited rego file.
+With a `C-u' prefix, prompt the function name.
+
+The score statement ~:score-function-name:~ or ~:score-local-function-name:~
+is an alternative method to set the function name."
+  (interactive (list (and current-prefix-arg
+                          (read-from-minibuffer "function name: "
+                                                nil nil t nil "nil"))))
+  (let ((file-name (buffer-file-name)))
+    (if (not file-name)
+        (incudine-regobuffer-to-function)
+      (when (and incudine-save-buffer-before-play (buffer-modified-p))
+        (save-buffer))
+      (incudine-eval "(incudine:regofile->function %S '%S)" file-name name))))
+
 (defun incudine-fix-rego-files-walk ()
   "Remove the killed buffers from incudine-rego-files-walk."
   (setq incudine-rego-files-walk
@@ -480,6 +501,7 @@ rego file or call `tags-loop-continue'."
 (defvar incudine-rego-mode-map
   (let ((map (make-sparse-keymap "Incudine Rego")))
     (incudine-mode-common-map map)
+    (define-key map [f5] 'incudine-regofile-to-function)
     (define-key map [f9] 'incudine-play-regofile)
     (define-key map "\C-cRe" 'incudine-regofile-to-scheduled-events)
     (define-key map "\C-cRl" 'incudine-regofile-to-list)
