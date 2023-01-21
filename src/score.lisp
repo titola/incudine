@@ -418,7 +418,7 @@ or IGNORE-SCORE-STATEMENTS."
        (char= #\# (char line 0))
        (char= #\! (char line 1))))
 
-(defmacro %at-sample (at-fname beats func-symbol &rest args)
+(defmacro %at-sample (at-fname beats &optional func-symbol &rest args)
   `(,at-fname ,beats ,func-symbol ,@args))
 
 (defun %score-statement-p (line name &optional (string-test #'string=) (start 0))
@@ -694,7 +694,8 @@ or IGNORE-SCORE-STATEMENTS."
 ;;;     1.36 i3 1 2 3
 (defun score-expand-parallel-functions (form args)
   (labels ((ignore-func-p (fname)
-             (or (eq fname 'quote)
+             (or (not fname)
+                 (eq fname 'quote)
                  (and (consp fname) (eq (car fname) 'quote))))
            (function-position (list i delimiter-position)
              (if list
@@ -721,16 +722,17 @@ or IGNORE-SCORE-STATEMENTS."
                            next))))))
     (let ((pos (position '// form)))
       (cond ((null pos)
-             (unless (ignore-func-p (third form))
-               (maybe-expand-score-statement-form
-                 (normalize-score-statement-form form) args)))
+             (if (ignore-func-p (third form))
+                 ''nil
+                 (maybe-expand-score-statement-form
+                   (normalize-score-statement-form form) args)))
             ((= pos 2)
              (let ((func-pos (function-position form 0 nil)))
                (if func-pos
                    (score-expand-parallel-functions
                      (list* (first form) (second form) (subseq form func-pos))
                      args)
-                   '(progn))))
+                   ''nil)))
             (t
              (with-gensyms (time)
                `(let ((,time ,(cadr form)))

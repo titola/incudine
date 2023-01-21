@@ -518,6 +518,13 @@
    (3.17 END-M1-TEST)
    (123.0 END-TEST)))
 
+(regofile->list-test regofile->list.32 "rhythm-template.rego"
+  ((1.0 TEST)
+   (3.0 RHYTHM)
+   (4.0 TEMPLATE)
+   (6.0 WITH)
+   (10.0 ORG-TABLE)))
+
 (regofile->list-test org-properties.1 "org-properties-1.rego"
   ((3.06 REGO-TEST-2 440 0.3 0.5)
    (3.86 REGO-TEST-2 880 0.3 0.5)
