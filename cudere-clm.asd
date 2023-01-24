@@ -39,4 +39,5 @@
                (load (or (eval (find-symbol "*CLM-INIT*" :cudere-clm))
                          (system-relative-pathname
                            "cudere-clm" "contrib/cudere-clm/clm-init.lisp"))
-                     :if-does-not-exist nil)))))
+                     :if-does-not-exist nil))))
+  :in-order-to ((test-op (test-op "cudere-clm-tests"))))
