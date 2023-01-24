@@ -27,21 +27,18 @@ high-performance native compiler.
   to compile Incudine, for example jack-audio-connection-kit-devel,
   portaudio-devel, etc.
 
-If you use Quicklisp, put the incudine directory into local-projects:
+Put the incudine directory where ASDF finds your systems, for example:
 
-    mv incudine /path/to/quicklisp/local-projects
+    mv incudine ${HOME}/common-lisp/
 
-otherwise, symlink the system definition file to a directory in your
-ASDF:*CENTRAL-REGISTRY* list:
+If you use Quicklisp:
 
-    cd /path/to/your/registry/
-    ln -s /path/to/incudine/incudine.asd
+    mv incudine /path/to/quicklisp/local-projects/
 
 Edit and copy the configuration file, with particular attention to the
 priorities *RT-PRIORITY*, *NRT-PRIORITY* and *RECEIVER-DEFAULT-PRIORITY*
 
-    cd /path/to/incudine
-    cp incudinerc-example ${HOME}/.incudinerc
+    cp /path/to/incudine/incudinerc-example ${HOME}/.incudinerc
 
 Here is a test:
 

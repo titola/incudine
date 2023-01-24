@@ -53,19 +53,17 @@ git clone git://github.com/titola/incudine.git
 #+end_example
 
 ** Configuration
-If you use [[https://www.quicklisp.org/][Quicklisp]], put the ~incudine~ directory into ~local-projects~:
+Put the incudine directory where ASDF finds your systems, for example:
 
 #+begin_example
-mv incudine /path/to/quicklisp/local-projects
+mv incudine ${HOME}/common-lisp/
 #+end_example
 
 #+texinfo: @noindent
-otherwise, symlink the system definition file to a directory in your
-~asdf:*central-registry*~ list:
+If you use [[https://www.quicklisp.org/][Quicklisp]]:
 
 #+begin_example
-cd /path/to/your/registry/
-ln -s /path/to/incudine/incudine.asd
+mv incudine /path/to/quicklisp/local-projects/
 #+end_example
 
 #+vindex: *rt-priority*
@@ -77,8 +75,7 @@ priorities ~*rt-priority*~, ~*nrt-priority*~ and
 ~*receiver-default-priority*~
 
 #+begin_example
-cd /path/to/incudine
-cp incudinerc-example ${HOME}/.incudinerc
+cp /path/to/incudine/incudinerc-example ${HOME}/.incudinerc
 #+end_example
 
 #+texinfo: @noindent
