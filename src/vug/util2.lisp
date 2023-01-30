@@ -506,7 +506,7 @@ HIGH thresholds."
 
 The values of the generator are calculated with a modulable frequency FREQ.
 
-INTERPOLATION is one of :LINEAR, :COS, :CUBIC or NIL (default).
+INTERPOLATION is one of :LINEAR (default), :COS, :CUBIC or NIL (sample-and-hold).
 
 If INTERPOLATION is :CUBIC and INITIAL-VALUE-P is T, three adjacent
 points are initialized with the same value.
