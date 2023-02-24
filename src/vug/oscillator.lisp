@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2021 Tito Latini
+;;; Copyright (c) 2013-2023 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -672,7 +672,7 @@ INTERPOLATION is one of :LINEAR (default), :CUBIC or NIL."
   (if table-lookup-p
       ;; Version with table lookup.
       (with-gensyms (buzz-table-lookup)
-        `(vuglet ((,buzz-table-lookup (freq amp (num-harm fixnum) phase
+        `(vuglet ((,buzz-table-lookup (freq amp (num-harm (signed-byte 24)) phase
                                        (buf buffer) harm-change-lag)
                     (%buzz buf freq amp num-harm phase
                            ,(null (constantp phase)) harm-change-lag

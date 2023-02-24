@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2021 Tito Latini
+;;; Copyright (c) 2013-2023 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -664,7 +664,7 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
 
 (declaim (inline set-envelope-time))
 (defun set-envelope-time (env node-number time)
-  (declare (type envelope env) (type non-negative-fixnum node-number)
+  (declare (type envelope env) (type (unsigned-byte 16) node-number)
            (type number time))
   (incudine-optimize
     (if (< 0 node-number (envelope-points env))
