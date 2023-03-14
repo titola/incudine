@@ -1,4 +1,4 @@
-;;; Copyright (c) 2018 Tito Latini
+;;; Copyright (c) 2018-2023 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@ ELEMENT-TYPE is the type specifier CHARACTER (default) or UNSIGNED-BYTE 8.
 
 Example:
 
-    (in-package :scratch)
+    \(in-package :scratch)
 
     (defvar *uno* (open-serial-port \"/dev/ttyACM0\"))
 

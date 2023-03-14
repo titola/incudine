@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2021 Tito Latini
+;;; Copyright (c) 2013-2023 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -256,7 +256,7 @@ current time.
 
 Example:
 
-    (in-package :scratch)
+    \(in-package :scratch)
 
     (defvar *fft* (make-fft 8 :window-function #'rectangular-window))
 
@@ -458,7 +458,7 @@ current time.
 
 Example:
 
-    (in-package :scratch)
+    \(in-package :scratch)
 
     (defvar *ifft* (make-ifft 8 :window-function #'rectangular-window))
 

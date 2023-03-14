@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2020 Tito Latini
+;;; Copyright (c) 2013-2023 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -211,7 +211,7 @@ NORMALIZE-P to specify whether the normalization is necessary.
 
 Example:
 
-    (in-package :scratch)
+    \(in-package :scratch)
 
     (define-vug shaper (in (buf buffer))
       (with ((n (ash (buffer-frames buf) -1)))

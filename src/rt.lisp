@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2022 Tito Latini
+;;; Copyright (c) 2013-2023 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -636,7 +636,7 @@ Example:
 
     ;;; How to fix a relative OSC time in real-time thread.
 
-    (in-package :scratch)
+    \(in-package :scratch)
 
     (rt-start)
 
