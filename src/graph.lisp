@@ -19,7 +19,8 @@
 ;;; Graph of nodes inspired by James McCartney's SuperCollider3
 
 (define-constant +max-node-id+ (logand most-positive-fixnum #x7fffffff))
-(define-constant +default-large-node-id+ (ash 1 24))
+(define-constant +max-short-node-id+ #xffff)
+(define-constant +default-large-node-id+ #x1000000)
 
 (defvar *max-number-of-nodes* 1024)
 (declaim (type non-negative-fixnum *max-number-of-nodes*))
@@ -203,6 +204,39 @@
   (declare (type fixnum id) #.*standard-optimize-settings*)
   (if (zerop id) *root-node* (values (getihash id))))
 
+(defun %next-node-id (default limit init)
+  (declare (type non-negative-fixnum limit init))
+  (labels ((next (id countdown)
+             (declare (type non-negative-fixnum id countdown))
+             (let ((id (if (>= id limit) default id)))
+               (declare (type non-negative-fixnum id))
+               (cond ((null-node-p (node id)) id)
+                     ((zerop countdown)
+                      (error 'incudine-node-error
+                             :format-control "There aren't free nodes."))
+                     (t (next (1+ id) (1- countdown)))))))
+    (next init +max-short-node-id+)))
+
+(declaim (inline next-node-id))
+(defun next-node-id ()
+  "Return the next avalaible integer identifier for a node."
+  (%next-node-id 1 +max-short-node-id+ *last-node-id*))
+
+(declaim (inline next-large-node-id))
+(defun next-large-node-id ()
+  (%next-node-id +default-large-node-id+ +max-node-id+ *last-large-node-id*))
+
+(defun get-node-id (id add-action)
+  (declare (type (or non-negative-fixnum null) id))
+  (cond (id id)
+        ((eq add-action :replace) (next-large-node-id))
+        (t (next-node-id))))
+
+(declaim (inline get-node))
+(defun get-node (x)
+  (declare (type (or fixnum node) x))
+  (if (node-p x) x (node x)))
+
 ;;; Previous node not in pause
 (defun unpaused-node-prev (curr)
   (declare (type node curr))
@@ -256,96 +290,140 @@
       (setf (node-index node) index))
     node))
 
-(defun make-group (id &optional (add-action :head) (target *root-node*))
-  "Create a group node.
-
-If ADD-ACTION is :HEAD (default), add the group at the head of the group node TARGET.
-
-If ADD-ACTION is :TAIL, add the group at the tail of the group node TARGET.
-
-If ADD-ACTION is :BEFORE, add the group immediately before the node TARGET.
-
-If ADD-ACTION is :AFTER, add the group immediately after the node TARGET.
-
-TARGET defaults to *ROOT-NODE*."
-  (declare (type fixnum id) (type keyword add-action)
-           (type (or node fixnum) target))
-  (let ((target (if (numberp target) (node target) target)))
-    (declare #.*standard-optimize-settings*)
-    (rt-eval ()
-      (let ((group (updated-node id)))
-        (when (and (null-node-p group) (not (null-node-p target)))
-          (flet ((common-set (group id)
-                   (setf (node-id group) id
-                         (node-hash group) (int-hash id)
-                         (smp-ref (node-start-time-ptr group) 0) (now)
-                         (node-last group) :dummy-node
-                         (node-pause-p group) nil)
-                   (incf (int-hash-table-count *node-hash*))))
-            (case add-action
-              (:before
-               (unless (eq target *root-node*)
-                 (common-set group id)
-                 (setf (node-next group) target
-                       (node-prev group) (node-prev target)
-                       (node-prev target) group
-                       (node-next (node-prev group)) group
-                       (node-parent group) (node-parent target))
-                 (setf (node-funcons group)
-                       (if (node-pause-p target)
-                           (node-next-funcons target)
-                           (node-funcons target)))
-                 (link-to-unpaused-prev group (node-prev group))
-                 (nrt-msg info "new group ~D" id)))
-              (:after
-               (unless (eq target *root-node*)
-                 (common-set group id)
-                 (setf (node-parent group) (node-parent target))
-                 (if (group-p target)
-                     (let ((last (find-last-node target)))
-                       (setf (node-prev group) last
-                             (node-next group) (node-next last)
-                             (node-next last) group))
-                     (setf (node-prev group) target
-                           (node-next group) (node-next target)
-                           (node-next target) group))
-                 (if (node-p (node-next group))
-                     (setf (node-funcons group) (node-next-funcons group)
-                           (node-prev (node-next group)) group)
-                     (setf (node-funcons group) nil))
-                 (when (eq target (node-last (node-parent group)))
-                   (setf (node-last (node-parent group)) group))
-                 (nrt-msg info "new group ~D" id)))
-              (:head
-               (when (group-p target)
-                 (common-set group id)
-                 (setf (node-prev group) target
-                       (node-next group) (node-next target)
-                       (node-next target) group
-                       (node-parent group) target)
-                 (when (node-p (node-next group))
-                   (setf (node-prev (node-next group)) group))
-                 (unless (node-p (node-last target))
-                   (setf (node-last target) group))
-                 (setf (node-funcons group)
-                       (if (node-pause-p target)
-                           (node-next-funcons group)
-                           (node-funcons target)))
-                 (nrt-msg info "new group ~D" id)))
-              (:tail
-               (when (group-p target)
-                 (common-set group id)
+(defun %make-group (id add-action target)
+  (declare (type fixnum id)
+           (type (member :head :tail :before :after) add-action)
+           (type node target))
+  (let ((group (updated-node id)))
+    (when (and (null-node-p group) (not (null-node-p target)))
+      (flet ((common-set (group id)
+               (setf (node-id group) id
+                     (node-hash group) (int-hash id)
+                     (smp-ref (node-start-time-ptr group) 0) (now)
+                     (node-last group) :dummy-node
+                     (node-pause-p group) nil)
+               (incf (int-hash-table-count *node-hash*))))
+        (case add-action
+          (:before
+           (unless (eq target *root-node*)
+             (common-set group id)
+             (setf (node-next group) target
+                   (node-prev group) (node-prev target)
+                   (node-prev target) group
+                   (node-next (node-prev group)) group
+                   (node-parent group) (node-parent target))
+             (setf (node-funcons group)
+                   (if (node-pause-p target)
+                       (node-next-funcons target)
+                       (node-funcons target)))
+             (link-to-unpaused-prev group (node-prev group))
+             (nrt-msg info "new group ~D" id)
+             group))
+          (:after
+           (unless (eq target *root-node*)
+             (common-set group id)
+             (setf (node-parent group) (node-parent target))
+             (if (group-p target)
                  (let ((last (find-last-node target)))
                    (setf (node-prev group) last
                          (node-next group) (node-next last)
-                         (node-next last) group
-                         (node-last target) group
-                         (node-parent group) target)
-                   (when (node-p (node-next group))
-                     (setf (node-prev (node-next group)) group))
-                   (setf (node-funcons group) (node-next-funcons group)))
-                 (nrt-msg info "new group ~D" id)))
-              (t (nrt-msg error "unknown add-action ~S" add-action)))))))))
+                         (node-next last) group))
+                 (setf (node-prev group) target
+                       (node-next group) (node-next target)
+                       (node-next target) group))
+             (if (node-p (node-next group))
+                 (setf (node-funcons group) (node-next-funcons group)
+                       (node-prev (node-next group)) group)
+                 (setf (node-funcons group) nil))
+             (when (eq target (node-last (node-parent group)))
+               (setf (node-last (node-parent group)) group))
+             (nrt-msg info "new group ~D" id)
+             group))
+          (:head
+           (when (group-p target)
+             (common-set group id)
+             (setf (node-prev group) target
+                   (node-next group) (node-next target)
+                   (node-next target) group
+                   (node-parent group) target)
+             (when (node-p (node-next group))
+               (setf (node-prev (node-next group)) group))
+             (unless (node-p (node-last target))
+               (setf (node-last target) group))
+             (setf (node-funcons group)
+                   (if (node-pause-p target)
+                       (node-next-funcons group)
+                       (node-funcons target)))
+             (nrt-msg info "new group ~D" id)
+             group))
+          (:tail
+           (when (group-p target)
+             (common-set group id)
+             (let ((last (find-last-node target)))
+               (setf (node-prev group) last
+                     (node-next group) (node-next last)
+                     (node-next last) group
+                     (node-last target) group
+                     (node-parent group) target)
+               (when (node-p (node-next group))
+                 (setf (node-prev (node-next group)) group))
+               (setf (node-funcons group) (node-next-funcons group)))
+             (nrt-msg info "new group ~D" id)
+             group)))))))
+
+(defun* make-group (id head tail before after name action stop-hook free-hook)
+  "Create a group node.
+
+ID is an integer identifier or NIL to use the next available id.
+
+The keywords HEAD, TAIL, BEFORE and AFTER specify the add-action to
+add the new group node. The value is the target node or node-id. By
+default the new group node is added at the head of the root node.
+
+If NAME is non-NIL, it is the name of the group.
+
+If ACTION is non-NIL, it is a one-argument function called on the
+group node after the initialization.
+
+FREE-HOOK is a list of function designators which are called in an
+unspecified order at the time the group node is freed. The function
+argument is the group node to free. STOP-HOOK is a similar list but it
+is called when the group node is stopped."
+  (declare (type (or fixnum null) id)
+           (type (or fixnum node null) head tail before after)
+           (type (or symbol string) name)
+           (type (or compiled-function null) action)
+           (type list stop-hook free-hook))
+  (let* ((add-action
+           (cond (tail :tail) (before :before) (after :after) (t :head)))
+         (target (or head tail before after))
+         (target-node (if target (get-node target))))
+    (declare #.*standard-optimize-settings*)
+    (rt-eval ()
+      (let ((group (%make-group (or id (next-node-id)) add-action
+                                (or target-node *root-node*))))
+        (declare (type (or node null) group))
+        (when group
+          (when name
+            (setf (node-name group) name))
+          (when stop-hook
+            (setf (node-stop-hook group) stop-hook))
+          (when free-hook
+            (setf (node-free-hook group) free-hook))
+          (when action
+            (funcall action group)))))))
+
+(define-compiler-macro make-group (&whole form &rest args)
+  (let ((argc (length args)))
+    (if (or (= argc 1)
+            (and (= argc 3)
+                 (member (second args) '(:head :tail :before :after))))
+        (with-gensyms (target)
+          `(let ((,target ,(if (> argc 1) `(get-node ,(third args)))))
+             (rt-eval ()
+               (%make-group ,(first args) ,(or (second args) :head)
+                            (or ,target *root-node*)))))
+        form)))
 
 (declaim (inline group))
 (defun group (obj)
@@ -451,34 +529,6 @@ the node output. Setfable."
 
 (defsetf node-current-function set-node-current-function)
 
-(defun %next-node-id (default limit init)
-  (declare (type non-negative-fixnum limit init))
-  (labels ((next (id countdown)
-             (declare (type non-negative-fixnum id countdown))
-             (let ((id (if (>= id limit) default id)))
-               (declare (type non-negative-fixnum id))
-               (cond ((null-node-p (node id)) id)
-                     ((zerop countdown)
-                      (error 'incudine-node-error
-                             :format-control "There aren't free nodes."))
-                     (t (next (1+ id) (1- countdown)))))))
-    (next init 65535)))
-
-(declaim (inline next-node-id))
-(defun next-node-id ()
-  "Return the next avalaible integer identifier for a node."
-  (%next-node-id 1 65535 *last-node-id*))
-
-(declaim (inline next-large-node-id))
-(defun next-large-node-id ()
-  (%next-node-id +default-large-node-id+ +max-node-id+ *last-large-node-id*))
-
-(defun get-node-id (id add-action)
-  (declare (type (or non-negative-fixnum null) id))
-  (cond (id id)
-        ((eq add-action :replace) (next-large-node-id))
-        (t (next-node-id))))
-
 (defun swap-replaced (freed new id)
   (declare (type node freed new) (type fixnum id))
   (let ((items (int-hash-table-items *node-hash*))
@@ -555,7 +605,7 @@ curve returned by NODE-FADE-CURVE."
 
 (declaim (inline update-last-node-id))
 (defun update-last-node-id (id)
-  (if (> id 65535)
+  (if (> id +max-short-node-id+)
       (setf *last-large-node-id* id)
       (setf *last-node-id* id)))
 
@@ -778,7 +828,7 @@ curve returned by NODE-FADE-CURVE."
                            &body body)
   `(multiple-value-bind (,add-action ,target)
        (get-add-action-and-target ,head ,tail ,before ,after ,replace)
-     (let ((,target (if (numberp ,target) (node ,target) ,target)))
+     (let ((,target (get-node ,target)))
        ,@body)))
 
 (defgeneric play (obj &key)
@@ -853,7 +903,7 @@ If RECURSIVE-P is T (default), iterate over the nodes of the sub-groups
 of GROUP."
   (with-gensyms (g last parent)
     `(let* ((,g ,group)
-            (,g (if (numberp ,g) (node ,g) ,g)))
+            (,g (get-node ,g)))
        (declare (type node ,g))
        (do ((,var (node-next ,g) (node-next ,var))
             (,parent (node-parent ,g)))
@@ -908,6 +958,8 @@ of GROUP."
   (dogroup (item group nil nil)
     (when (node-p item)
       (if (group-p item) (unlink-group item) (unlink-node item))))
+  (call-node-free-hook group)
+  (when #1=(node-stop-hook group) (setf #1# nil))
   (setf (node-funcons group) nil)
   (if (node-root-p group)
       (setf (node-next group) nil
@@ -1045,11 +1097,12 @@ argument is the object to free."))
   (labels ((rec (node)
              (declare #.*standard-optimize-settings*)
              (unless (null-node-p node)
-               (cond ((group-p node)
-                      (dogroup (n node) (rec n)))
-                     (t (dolist (fn (node-stop-hook node))
-                          (reduce-warnings (funcall fn node)))
-                        (node-free node))))
+               (when (group-p node)
+                 (dogroup (n node) (rec n)))
+               (dolist (fn (node-stop-hook node))
+                 (reduce-warnings (funcall fn node)))
+               (unless (group-p node)
+                 (node-free node)))
              (values)))
     (rec obj)))
 
@@ -1249,8 +1302,8 @@ If MOVE-ACTION is :BEFORE, move NODE immediately before TARGET.
 If MOVE-ACTION is :AFTER, move NODE immediately after TARGET."
   (declare (type (or node fixnum) node target)
            (type (member :head :tail :before :after) move-action))
-  (let ((src (if (numberp node) (node node) node))
-        (dest (if (numberp target) (node target) target)))
+  (let ((src (get-node node))
+        (dest (get-node target)))
     (declare (type node src dest) #.*standard-optimize-settings*)
     (unless (eq src dest)
       (rt-eval ()
@@ -1268,8 +1321,8 @@ If MOVE-ACTION is :AFTER, move NODE immediately after TARGET."
 (defun before-p (node0 node1)
   "Return T if NODE0 precedes NODE1."
   (declare (type (or node fixnum)))
-  (let ((n0 (if (numberp node0) (node node0) node0))
-        (n1 (if (numberp node1) (node node1) node1))
+  (let ((n0 (get-node node0))
+        (n1 (get-node node1))
         (result nil))
     (rt-eval (:return-value-p t)
       (unless (or (null-node-p n0) (null-node-p n1))
@@ -1285,19 +1338,19 @@ If MOVE-ACTION is :AFTER, move NODE immediately after TARGET."
 (defun head-p (node group)
   "Return T if NODE is at the head of GROUP."
   (declare (type (or node fixnum) node group))
-  (let ((group (if (numberp group) (node group) group)))
+  (let ((group (get-node group)))
     (rt-eval (:return-value-p t)
       (when (group-p group)
-        (let ((node (if (numberp node) (node node) node)))
+        (let ((node (get-node node)))
           (eq (node-next group) node))))))
 
 (defun tail-p (node group)
   "Return T if NODE is at the tail of GROUP."
   (declare (type (or node fixnum) node group))
-  (let ((group (if (numberp group) (node group) group)))
+  (let ((group (get-node group)))
     (rt-eval (:return-value-p t)
       (when (group-p group)
-        (let ((node (if (numberp node) (node node) node)))
+        (let ((node (get-node node)))
           (eq (node-last group) node))))))
 
 (defun control-functions (obj control-name)
@@ -1332,7 +1385,7 @@ OBJ is a NODE structure or the integer identifier of the node."
   (let ((fn (car (control-functions obj control-name))))
     (declare #.*standard-optimize-settings*)
     (or fn
-        (let ((node (if (numberp obj) (node obj) obj)))
+        (let ((node (get-node obj)))
           (if (group-p node)
               ;; Set all the nodes of the group
               (lambda (value)
@@ -1385,7 +1438,7 @@ parameter names and values."
   (declare (type (or non-negative-fixnum node) obj))
   (rt-eval ()
     (incudine-optimize
-      (let ((node (if (numberp obj) (node obj) obj)))
+      (let ((node (get-node obj)))
         (declare (type node node))
         (do ((pl plist (cdr pl)))
             ((null pl))
@@ -1617,14 +1670,14 @@ arguments ARGS."
         (indent-line)
         (cond ((group-p n)
                (dec-indent n)
-               (format stream "group ~D~@[ (pause)~]~%" (node-id n)
-                       (node-pause-p n))
+               (format stream "group ~D~@[ ~A~]~@[ (pause)~]~%"
+                       (node-id n) (node-name n) (node-pause-p n))
                (inc-indent n))
               (t (format stream "node ~D~@[ (pause)~]~%" (node-id n)
                          (node-pause-p n))
                  (indent-line)
                  (reduce-warnings
-                   (format stream "  ~A ~{~A ~}~%"
+                   (format stream "  ~A~{ ~A~}~%"
                            (node-name n) (control-list n)))
                  (dec-indent n))))
       (force-output stream))))

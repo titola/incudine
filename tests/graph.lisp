@@ -82,6 +82,23 @@
               (progn (free 0) (live-nodes))))
   nil 2 0)
 
+(deftest group.2
+    (let ((n 100)
+          (res nil))
+      (free 0)
+      (push `(start with ,(live-nodes) nodes) res)
+      (loop repeat n
+            do (make-group :free-hook (list (lambda (x) x (decf n)))))
+      (push `(create ,(live-nodes) groups) res)
+      (free 0)
+      (push `(end with ,(live-nodes) nodes) res)
+      (push `(= n ,n) res)
+      (nreverse res))
+  ((start with 0 nodes)
+   (create 100 groups)
+   (end with 0 nodes)
+   (= n 0)))
+
 (deftest move-node.1
     (let ((res nil)
           (*logger-stream* *null-output*))
@@ -387,3 +404,82 @@
    (1001 100 1000 1003 1004 1005 1002)
    ;; STOP 0
    (100)))
+
+(deftest stop-group.2
+    (let ((id 123)
+          (res nil)
+          (*logger-stream* *null-output*))
+      (bounce-to-buffer (*buffer-test-c1* :frames 10)
+        (make-group id
+          :action (lambda (n) (push `(start-group ,(node-id n)) res))
+          :stop-hook (list (lambda (n) (push `(stop-group ,(node-id n)) res)))
+          :free-hook (list (lambda (n)
+                             (if (null-node-p n) (push `end-of-group res)))))
+        (at 7 #'stop id)
+        (at 8 #'free id)
+        (at 9 #'free *root-node*))
+      (nreverse res))
+  ((start-group 123) (stop-group 123) end-of-group))
+
+(deftest dump-group.1
+    (labels ((groups (obj parent)
+               (if (atom obj)
+                   (play (lambda ()) :id obj :tail parent
+                         :name (format nil "~R" obj))
+                   (multiple-value-bind (childs id group-p)
+                       (if (atom (first obj))
+                           (values (rest obj) (first obj) t)
+                           (values obj parent))
+                     (when group-p
+                       (make-group id :tail parent
+                                   :name (format nil "~R" (first obj))))
+                     (dolist (c childs) (groups c id))))))
+      (with-output-to-string (s)
+        (let ((*logger-stream* *null-output*))
+          (bounce-to-buffer (*buffer-test-c1* :frames 1)
+            (groups '((100 (200 1 2 (300 4 5)) (400 6 (500 7 8)) 9)
+                      (600 10 11 (700 12 13))
+                      14 15 16)
+                    0)
+            (terpri s)
+            (dump *root-node* s)))))
+  "
+group 0
+    group 100 one hundred
+        group 200 two hundred
+            node 1
+              one
+            node 2
+              two
+            group 300 three hundred
+                node 4
+                  four
+                node 5
+                  five
+        group 400 four hundred
+            node 6
+              six
+            group 500 five hundred
+                node 7
+                  seven
+                node 8
+                  eight
+        node 9
+          nine
+    group 600 six hundred
+        node 10
+          ten
+        node 11
+          eleven
+        group 700 seven hundred
+            node 12
+              twelve
+            node 13
+              thirteen
+    node 14
+      fourteen
+    node 15
+      fifteen
+    node 16
+      sixteen
+")
