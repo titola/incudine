@@ -835,7 +835,7 @@ curve returned by NODE-FADE-CURVE."
   (:documentation "Start playing.
 
 INIT-FUNCTION is the one-argument initialization function called on
-the object. INIT-FUNCTION defaults to #'IDENTITY.
+the node object. INIT-FUNCTION defaults to #'IDENTITY.
 
 ID is an integer identifier or NIL to use the next available id.
 
@@ -843,22 +843,24 @@ The keywords HEAD, TAIL, BEFORE, AFTER and REPLACE specify the add-action
 to add the new node. The value is the target node or node-id. By default
 the new node is added at the head of the root node.
 
-If NAME is non-NIL, it is the name of OBJ.
+If NAME is non-NIL, it is the name of the node object.
 
 If ACTION is non-NIL, it is a one-argument function called on the
-object after the initialization.
+node object after the initialization.
 
 FREE-HOOK is a list of function designators which are called in an
-unspecified order at the time the object OBJ is freed. The function
-argument is the object to free."))
+unspecified order at the time the node object is freed. The function
+argument is the node to free. STOP-HOOK is a similar list but it
+is called when the node object is stopped."))
 
 (defmethod play ((obj function) &key (init-function #'identity) id head tail
-                 before after replace name action free-hook)
+                 before after replace name action stop-hook free-hook)
   (declare (type compiled-function obj init-function)
            (type (or non-negative-fixnum null) id)
            (type (or node fixnum null) head tail before after replace)
            (type (or symbol string) name)
-           (type (or compiled-function null) action) (type list free-hook))
+           (type (or compiled-function null) action)
+           (type list stop-hook free-hook))
   (rt-eval ()
     (with-add-action (add-action target head tail before after replace)
       (let ((id (or id (get-node-id id add-action))))
@@ -866,6 +868,8 @@ argument is the object to free."))
         (enqueue-node-function (updated-node id)
           (lambda (node)
             (declare (type node node))
+            (when stop-hook
+              (setf (node-stop-hook node) stop-hook))
             (when free-hook
               (setf (node-free-hook node) free-hook))
             (funcall init-function node)

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2020 Tito Latini
+;;; Copyright (c) 2013-2023 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -1313,13 +1313,13 @@ The keywords HEAD, TAIL, BEFORE, AFTER and REPLACE specify the add-action
 to add the new node. The value is the target node or node-id. By default
 the new node is added at the head of the root node.
 
-If ACTION is non-NIL, it is a one-argument function called on the object
-after the initialization.
+If ACTION is non-NIL, it is a one-argument function called on the node
+object after the initialization.
 
 FREE-HOOK is a list of function designators which are called in an
-unspecified order at the time the object OBJ is freed. The function
-argument is the object to free. STOP-HOOK is a similar list but it is
-called when the object OBJ is stopped.
+unspecified order at the time the node object is freed. The function
+argument is the node to free. STOP-HOOK is a similar list but it is
+called when the node object is stopped.
 
 If the node output is enabled (i.e. by using the VUG-MACRO NODE-OUT
 instead of OUT), a non-NIL FADE-TIME and FADE-CURVE are the duration
