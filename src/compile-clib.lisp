@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014-2022 Tito Latini
+;;; Copyright (c) 2014-2023 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -101,9 +101,10 @@
 
   (defvar *c-compiler-flags*
     (concatenate 'string "-O3 -Wall"
-                 #-(or darwin cygwin) " -fPIC"
+                 #-(or darwin win32) " -fPIC"
                  (if (eq *sample-type* 'double-float)
                      " -D__INCUDINE_USE_64_BIT_SAMPLE__")
+                 #+win32 " -DWIN32"
                  #+little-endian " -DLITTLE_ENDIAN"
                  (format nil " -D__INCUDINE_~A__" *sched-policy*)
                  *c-header-file-paths*))
@@ -161,7 +162,7 @@
   (defvar *c-library-type*
     #+(and unix (not darwin)) "so"
     #+darwin "dylib"
-    #+cygwin "dll")
+    #+win32 "dll")
 
   (defvar *c-library-pathname*
     (make-pathname :name *c-library-name* :type *c-library-type*
@@ -357,7 +358,7 @@
         (flet ((to-compile-p (key)
                  (or (member key objs) (missing-c-object-p key))))
           (let ((ofiles nil)
-                (libs-dep '("pthread" "m")))
+                (libs-dep '("pthread" "m" "sndfile")))
             (terpri)
             ;; RT Audio
             (case *audio-driver*
@@ -375,7 +376,7 @@
               (push "X11" libs-dep)
               (add-c-object-to-link :mouse ofiles))
             ;; Open Sound Control
-            (add-c-object-to-link :osc ofiles)
+            #-win32 (add-c-object-to-link :osc ofiles)
             ;; Utilities
             (add-c-object-to-link :ringbuffer ofiles)
             (add-c-object-to-link :util ofiles)

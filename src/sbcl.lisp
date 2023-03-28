@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2021 Tito Latini
+;;; Copyright (c) 2013-2023 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -123,17 +123,27 @@
   "See documentation for SB-THREAD:BARRIER."
   `(sb-thread:barrier (,kind) ,@body))
 
+#-win32
 (defun thread-pointer (thread)
   (cffi:make-pointer (sb-thread::thread-os-thread thread)))
 
+#+win32
+(defun thread-pointer (thread)
+  (declare (ignore thread))
+  (cffi:null-pointer))
+
 (defun thread-priority (thread)
   "Return the thread priority. Setfable."
-  (declare (type sb-thread:thread thread))
+  (declare (type sb-thread:thread thread)
+           #+win32 (ignore thread))
+  #-win32
   (when (bt:threadp thread)
     (incudine.external::thread-priority (thread-pointer thread))))
 
 (defun set-thread-priority (thread priority)
-  (declare (type sb-thread:thread thread) (type fixnum priority))
+  (declare (type sb-thread:thread thread) (type fixnum priority)
+           #+win32 (ignore thread priority))
+  #-win32
   (when (bt:threadp thread)
     (if (zerop (incudine.external::thread-set-priority
                  (thread-pointer thread) priority))
@@ -184,19 +194,22 @@ Example: 8 processors
     ;; Verify affinity mask.
     (mapcar #'thread-affinity (bt:all-threads))
     ;; => (1 254 254 254)"
-  (declare (type sb-thread:thread thread))
-  (assert (bt:threadp thread))
+  (declare (type sb-thread:thread thread)
+           #+win32 (ignore thread))
+  #-win32
   (let ((size #.(ash +max-number-of-cpus+ -3)))
     (cffi:with-foreign-object (ptr :char size)
       (incudine.external:foreign-set ptr 0 size)
       (if (zerop (incudine.external::pthread-getaffinity-np
                    (thread-pointer thread) size ptr))
           (affinity-mask-ptr-to-integer ptr size)
-          (incudine:incudine-error "pthread_getaffinity_np failed")))))
+          (incudine:incudine-error "pthread_getaffinity_np failed"))))
+  #+win32 0)
 
 (defun set-thread-affinity (thread value)
-  (declare (type sb-thread:thread thread) (type (or integer cons) value))
-  (assert (bt:threadp thread))
+  (declare (type sb-thread:thread thread) (type (or integer cons) value)
+           #+win32 (ignore thread value))
+  #-win32
   (let* ((mask (if (listp value)
                    (loop for i in (remove-duplicates value) sum (ash 1 i))
                    value))
@@ -208,7 +221,8 @@ Example: 8 processors
                    (thread-pointer thread) size ptr))
           mask
           (incudine:incudine-error
-            "failed to set thread affinity ~A" value)))))
+            "failed to set thread affinity ~A" value))))
+  #+win32 0)
 
 (defsetf thread-affinity set-thread-affinity)
 

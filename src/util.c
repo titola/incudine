@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 Tito Latini
+ * Copyright (c) 2013-2023 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 
 /* THREAD */
 
+#ifndef WIN32
 int pthread_priority(pthread_t thread)
 {
         int policy;
@@ -59,6 +60,7 @@ int pthread_set_priority(pthread_t thread, int priority)
         param.sched_priority = priority;
         return pthread_setschedparam(thread, INCUDINE_SCHED_POLICY, &param);
 }
+#endif
 
 /* MEMORY */
 

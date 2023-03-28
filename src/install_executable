@@ -11,6 +11,7 @@ modules="(require \"INCUDINE\")"
 before_save="(progn"
 aclrepl_p="yes"
 linedit_p="no"
+incudine_command_name="incudine"
 
 usage()
 {
@@ -93,13 +94,14 @@ fi
      --eval "(progn ${modules})" \
      --eval '(load (asdf:compile-file* "executable.lisp" :external-format :utf-8))' \
      --eval "${before_save})" \
-     --eval "(save-lisp-and-die \"incudine\" :executable t :toplevel 'incudine::incudine-toplevel :save-runtime-options t ${save_options})" || exit
+     --eval "(save-lisp-and-die #-win32 \"incudine\" #+win32 \"incudine.exe\" :executable t :toplevel 'incudine::incudine-toplevel :save-runtime-options t ${save_options})" || exit
 
 BINDIR="${BINDIR:-${PREFIX}/bin}"
 readonly install_dir="${DESTDIR}${BINDIR}"
 
 echo -n "[installing standalone executable... "
 [ ! -d "${install_dir}" ] && mkdir -p "${install_dir}"
-cp incudine "${install_dir}" && rm -f incudine || exit
+[ -f incudine.exe ] && incudine_command_name="incudine.exe"
+cp "${incudine_command_name}" "${install_dir}" && rm -f incudine || exit
 echo "done]"
-ls "${install_dir}/incudine"
+ls "${install_dir}/${incudine_command_name}"

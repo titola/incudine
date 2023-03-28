@@ -39,7 +39,7 @@
     (perform 'compile-op c)))
 
 (defsystem "incudine"
-  :version "0.9.64"
+  :version "0.9.65"
   :description "Incudine is a Music/DSP programming environment."
   :licence "GPL v2"
   :author "Tito Latini"
@@ -133,6 +133,7 @@
      (:file "envelope" :depends-on ("logger" "foreign-array"))
      (:file "graph" :depends-on ("time" "logger" "int-hash"))
      (:file "node-pool" :depends-on ("graph"))
+     (:file "receiver" :depends-on ("cl-impl"))
      (:file "rt"
       :depends-on ("fifo" "bus" "graph" #+jack-audio "jack"
                                         #+jack-midi "jackmidi"
@@ -141,17 +142,18 @@
                  (incudine-maybe-recompile-source-file c "rt")))
      (:file "nrt" :depends-on ("rt"))
      (:file "score" :depends-on ("nrt"))
-     (:file "midi" :depends-on ("edf-sched" "receiver" "tuning" #+jack-midi "jackmidi"))
      (:file "jack" :if-feature :jack-audio :depends-on ("foreign"))
      (:file "jackmidi" :if-feature :jack-midi :depends-on ("fifo" "receiver"))
      (:file "portaudio" :if-feature :portaudio :depends-on ("foreign" "logger"))
-     (:file "receiver" :depends-on ("vug/midi" "network/generic" "serial/sbcl"))
-     (:file "network/sbcl-vops" :if-feature (:and :sbcl (:or :x86 :x86-64))
-                            :depends-on ("conditions"))
-     (:file "network/cffi-osc" :depends-on ("conditions"))
-     (:file "network/osc" :depends-on ("util" "network/cffi-osc" "network/sbcl-vops"))
-     (:file "network/generic" :depends-on ("network/osc"))
-     (:file "serial/sbcl" :depends-on ("cl-impl"))
+     (:file "midi" :depends-on ("edf-sched" "vug/midi" "receiver" "tuning"
+                                #+jack-midi "jackmidi"))
+     (:file "network/sbcl-vops" :if-feature (:and :sbcl (:or :x86 :x86-64) (:not :win32))
+            :depends-on ("conditions"))
+     (:file "network/cffi-osc" :if-feature (:not :win32) :depends-on ("conditions"))
+     (:file "network/osc" :if-feature (:not :win32)
+            :depends-on ("receiver" "network/cffi-osc" "network/sbcl-vops"))
+     (:file "network/generic" :if-feature (:not :win32) :depends-on ("network/osc"))
+     (:file #-win32 "serial/sbcl" #+win32 "serial/nil" :depends-on ("receiver"))
      (:file "soundfile" :depends-on ("util"))
      (:file "midifile" :depends-on ("util" "time"))
      (:file "analysis/maybe-fftw-no-simd"

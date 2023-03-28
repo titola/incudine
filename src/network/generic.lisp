@@ -1,4 +1,4 @@
-;;; Copyright (c) 2016-2018 Tito Latini
+;;; Copyright (c) 2016-2023 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -204,3 +204,114 @@ send and sendto for details on the FLAGS argument."
       (setf (incudine.osc::stream-message-length stream) len)
       (cffi:lisp-string-to-foreign string (message-pointer stream) (1+ len))
       (values stream len))))
+
+(in-package :incudine)
+
+(defun net-remove-receiver-and-responders (stream)
+  (when (incudine.osc:input-stream-p stream)
+    (remove-receiver-and-responders stream))
+  stream)
+
+;; Also for generic networking.
+(pushnew #'net-remove-receiver-and-responders incudine.osc:*before-close-hook*)
+
+(defmethod valid-input-stream-p ((obj incudine.osc:input-stream)) t)
+
+(defmethod valid-input-stream-p ((obj incudine.osc:output-stream)) nil)
+
+(defmacro make-osc-responder (stream address types function)
+  "Create and return a responder for a OSC:INPUT-STREAM that responds
+to an OSC message with ADDRESS and TYPES.
+
+FUNCTION is added to the list of receiver-functions for STREAM.
+
+The function takes the OSC values as arguments.
+
+Example:
+
+    (make-osc-responder *oscin* \"/osc/test\" \"iii\"
+                        (lambda (a b c)
+                          (msg warn \"~D ~D ~D\" a b c)))"
+  (let ((function (if (eq (car function) 'function)
+                      (cadr function)
+                      function)))
+    (if (atom function)
+        (let ((args (loop for i below (length types) collect (gensym))))
+          (setf function `(lambda ,args (,function ,@args))))
+        (assert (eq (car function) 'lambda)))
+    (with-gensyms (s)
+      `(make-responder ,stream
+         (lambda (,s)
+           (when (incudine.osc:check-pattern ,s ,address ,types)
+             (incudine.osc:with-values ,(cadr function) (,s ,types)
+               ,@(cddr function)))
+           (values))))))
+
+(defun start-osc-recv (receiver)
+  (declare (type receiver receiver) #.*standard-optimize-settings*)
+  (bt:make-thread
+    (lambda ()
+      (let ((stream (receiver-stream receiver)))
+        (declare (type incudine.osc:input-stream stream))
+        (incudine.osc:close-connections stream)
+        ;; Flush pending writes.
+        (incudine.osc:without-block (in stream)
+          (loop while (plusp (the fixnum (incudine.osc:receive in)))))
+        (setf (receiver-status receiver) t)
+        (loop while (receiver-status receiver) do
+                (when (and (plusp (the fixnum (incudine.osc:receive stream)))
+                           (receiver-status receiver))
+                  (handler-case
+                      (dolist (fn (receiver-functions receiver))
+                        (funcall (the function fn) stream))
+                    (condition (c) (nrt-msg error "~A" c)))))))
+    :name (format nil "osc-recv ~D"
+                  (incudine.osc:port (receiver-stream receiver)))))
+
+(defmethod recv-start ((stream incudine.osc::stream)
+                       &key (priority *receiver-default-priority*))
+  (unless (eq (recv-status stream) :running)
+    (add-receiver stream (or (receiver stream) (make-receiver stream))
+                  #'start-osc-recv priority)))
+
+(defmethod recv-stop ((stream incudine.osc::stream))
+  (let ((recv (receiver stream)))
+    (when (and recv (receiver-status recv))
+      (incudine.osc:with-stream (tmp :direction :output
+                                 :protocol (incudine.osc:protocol stream)
+                                 :host (incudine.osc:host stream)
+                                 :port (incudine.osc:port stream)
+                                 :buffer-size 32 :max-values 8)
+        (compare-and-swap (receiver-status recv) t nil)
+        ;; Unblock the receiver.
+        (incudine.osc:message tmp "/receiver/quit" ""))
+      (incudine.osc:close-connections stream)
+      (recv-unset-thread recv)
+      recv)))
+
+(defun start-net-recv (receiver)
+  (declare (type receiver receiver) #.*standard-optimize-settings*)
+  (bt:make-thread
+   (lambda ()
+     (let ((stream (receiver-stream receiver)))
+       (declare (type net:input-stream stream))
+       (net:close-connections stream)
+       ;; Flush pending writes.
+       (net:without-block (in stream)
+         (loop while (plusp (the fixnum (net:read in)))))
+       (setf (receiver-status receiver) t)
+       (loop while (receiver-status receiver) do
+             (when (and (plusp (the fixnum (net:read stream)))
+                        (receiver-status receiver))
+               (handler-case
+                   (dolist (fn (receiver-functions receiver))
+                     (funcall (the function fn) stream))
+                 (condition (c) (nrt-msg error "~A" c)))))))
+   :name (format nil "network-recv ~D"
+                 (net:port (receiver-stream receiver)))))
+
+(defmethod recv-start ((stream incudine.net:input-stream)
+                       &key (priority *receiver-default-priority*))
+  (unless (eq (recv-status stream) :running)
+    (add-receiver stream (or (receiver stream) (make-receiver stream))
+                  #'start-net-recv priority)))

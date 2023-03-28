@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2022 Tito Latini
+ * Copyright (c) 2013-2023 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -405,8 +405,9 @@ int pa_initialize(unsigned int input_channels, unsigned int output_channels,
         PaStreamInfo *stream_info;
         PaDeviceIndex count;
         PaError err;
+#ifndef WIN32
         sigset_t sset;
-
+#endif
         pa_cleanup();
 #ifdef PA_HAVE_JACK
         PaJack_SetClientName(client_name);    
@@ -506,6 +507,7 @@ int pa_initialize(unsigned int input_channels, unsigned int output_channels,
         err = pa_alloc_input_cache();
         /* RETURN_IF_NULLPTR called from pa_alloc_input_cache() */
         if (err) return err;
+#ifndef WIN32
         /* Unblock signals */
         sigemptyset(&sset);
         if (sigprocmask(SIG_SETMASK, &sset, NULL) < 0) {
@@ -513,6 +515,7 @@ int pa_initialize(unsigned int input_channels, unsigned int output_channels,
                 Pa_Terminate();
                 return 1;
         }
+#endif
         if (pa_thread_callback == NULL)
                 pa_set_thread_callback(PA_THREAD_CALLBACK_DEFAULT);
         pa_xrun_reset();
@@ -563,7 +566,11 @@ static void pa_process_thread_wait(void)
         if (ret != 0 && pa_proc_thread.status != PA_STOPPED) {
                 fprintf(stderr, "Cannot detach the foreign process thread.\n"
                                 "PortAudio shutdown\n");
+#ifdef WIN32
+                raise(SIGQUIT);
+#else
                 kill(getpid(), SIGQUIT);
+#endif
         }
 }
 

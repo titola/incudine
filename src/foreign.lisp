@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2023 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -20,7 +20,8 @@
   (cffi:define-foreign-library fftw
     (:darwin #+double-samples "libfftw3.dylib" #-double-samples "libfftw3f.dylib")
     (:unix #+double-samples "libfftw3.so" #-double-samples "libfftw3f.so")
-    (:cygwin #+double-samples "cygfftw3-0.dll" #-double-samples "cygfftw3f-0.dll")
+    (:cygwin #+double-samples "cygfftw3-3.dll" #-double-samples "cygfftw3f-3.dll")
+    (:win32 #+double-samples "libfftw3-3.dll" #-double-samples "libfftw3f-3.dll")
     (t (:default #+double-samples "libfftw3" #-double-samples "libfftw3f")))
 
   (unless (find-package :gsll)
@@ -28,12 +29,14 @@
       (:darwin "libgslcblas.dylib")
       (:unix "libgslcblas.so")
       (:cygwin "cyggslcblas-0.dll")
+      (:win32 "libgslcblas-0")
       (t (:default "libgslcblas")))
 
     (cffi:define-foreign-library libgsl
       (:darwin "libgsl.dylib")
       (:unix "libgsl.so")
-      (:cygwin "cyggsl-0.dll")
+      (:cygwin "cyggsl-27.dll")
+      (:win32 "libgsl-27.dll")
       (t (:default "libgsl")))
 
     (defun load-gsl-library ()

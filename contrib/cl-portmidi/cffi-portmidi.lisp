@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2021 Tito Latini
+;;; Copyright (c) 2013-2023 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -26,8 +26,15 @@
     (:cygwin "cygportmidi-0.dll")
     (t (:default "libportmidi")))
 
+  (cffi:define-foreign-library porttime
+    (:darwin "libporttime.dylib")
+    (:unix "libporttime.so")
+    (:cygwin "cygporttime-0.dll")
+    (t (:default "libporttime")))
+
   (defun load-portmidi-library ()
-    (cffi:use-foreign-library portmidi))
+    (cffi:use-foreign-library portmidi)
+    (cffi:use-foreign-library porttime))
 
   (unless (cffi:foreign-library-loaded-p 'portmidi)
     (load-portmidi-library)))

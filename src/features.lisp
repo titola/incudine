@@ -26,6 +26,11 @@
       (symbol (symbol-value form))
       (t form)))
 
+  (defun executable-p (cmd)
+    (and (handler-case (sb-ext:run-program cmd nil :search t)
+           (error () (return-from executable-p nil)))
+         t))
+
   (defparameter *c-compiler* nil)
   (defparameter *foreign-library-directories* nil)
   (defparameter *foreign-header-file-directories* nil)
@@ -47,7 +52,7 @@
     (flet ((test-library (&optional header-file error-output)
              (zerop (third (multiple-value-list
                              (uiop:run-program
-                               (format nil "~A ~A -DINCUDINE_CONFIG_TEST_HEADER='<~A>'"
+                               (format nil "~A ~A -DINCUDINE_CONFIG_TEST_HEADER=\"<~A>\""
                                        *c-libtest-fmt* name (or header-file "stdlib.h"))
                                :ignore-error-status t :error-output error-output))))))
       (when (test-library)
@@ -106,11 +111,7 @@
     (defparameter cl-user::__make_incudine_manual__ t))
   (setf cl-user::__incudine_c_compiler__
         (flet ((check (cc)
-                 (and (zerop
-                        (third (multiple-value-list
-                                 (uiop:run-program (format nil "which ~A" cc)
-                                                   :ignore-error-status t))))
-                      cc)))
+                 (if (executable-p cc) cc)))
           (let ((cc (when *c-compiler*
                       (if (stringp *c-compiler*)
                           (or (and (string/= *c-compiler* "")
@@ -136,7 +137,7 @@
           (alexandria:flatten
             (mapcar #'cffi-mini-eval *foreign-header-file-directories*))))
   (setf *c-libtest-fmt*
-        (format nil "~A -o /dev/null~A~A ~S -l"
+        (format nil "~A~A~A ~S -l"
                 cl-user::__incudine_c_compiler__
                 cl-user::__incudine_c_header_file_paths__
                 cl-user::__incudine_c_library_paths__

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 Tito Latini
+ * Copyright (c) 2013-2023 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,6 +30,10 @@
 
 #ifdef PA_HAVE_JACK
 #include <pa_jack.h>
+#endif
+
+#ifdef WIN32
+#define SIGQUIT 3
 #endif
 
 enum {
