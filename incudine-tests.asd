@@ -46,7 +46,7 @@
      (:file "envelope" :depends-on ("util"))
      (:file "midi" :depends-on ("util"))
      (:file "midifile" :depends-on ("envelope"))
-     (:file "osc" :if-feature (:not :win32) :depends-on ("util"))
+     (:file "osc" :depends-on ("util"))
      (:file "gen-partials" :depends-on ("util"))
      (:file "gen-envelope" :depends-on ("util"))
      (:file "gen-polynomial" :depends-on ("util"))

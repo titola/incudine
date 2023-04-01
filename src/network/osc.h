@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016 Tito Latini
+ * Copyright (c) 2015-2023 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,18 +20,25 @@
 #ifndef __INCUDINE_OSC_H
 #define __INCUDINE_OSC_H
 
-#include <arpa/inet.h>
-#include <fcntl.h>
-#include <netdb.h>
-#include <netinet/in.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
-#include <sys/select.h>
-#include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#ifdef WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <fcntl.h>
+#include <sys/socket.h>
+#include <sys/select.h>
+#endif
 
 #define MEM_FREE_INDEX  1
 
@@ -54,26 +61,77 @@
 #define SLIP_ESC_END  0334
 #define SLIP_ESC_ESC  0335
 
+#ifndef WIN32
+typedef int OSC_SOCKET;
+typedef int SOCKOPT_VALUE;
+typedef unsigned char BUFFER_DATATYPE;
+
+#define OSC_INVALID_SOCKET -1
+
+#define SERVER_SOCKET(x)  (x)->servfd
+#define SERVER_FD(x)      (x)->servfd
+#define GET_SOCKET(x,i)   i
+#define CLOSE_SOCKET(x)   close(x)
+
+#define IS_NONBLOCKING(obj,addr)  osc_getsock_nonblock((obj)->servfd)
+
+/* A valid fd is monitored by select(). */
+#define AVAILABLE_FD(x) 1
+
+#define FD_LOOP(i, nfds, fds, obj)                    \
+        for (i = 0; i < nfds; i++)                    \
+                if (FD_ISSET(i, &(fds)))
+#else
+#define WSA_REQUIRED_VERSION  MAKEWORD(2,2)
+
+typedef SOCKET OSC_SOCKET;
+typedef char SOCKOPT_VALUE;
+typedef char BUFFER_DATATYPE;
+
+#define OSC_INVALID_SOCKET  INVALID_SOCKET
+
+#define SERVER_SOCKET(x)  (x)->fd_array[0]
+#define SERVER_FD(x)      0
+#define GET_SOCKET(x,i)   (x)->fd_array[i]
+#define CLOSE_SOCKET(x)   closesocket(x)
+
+#define IS_NONBLOCKING(obj,addr)  (addr)->non_blocking
+
+#define AVAILABLE_FD(x)  ((x)->newfd < FD_SETSIZE)
+
+#define FD_LOOP(i, nfds, fds, obj)                    \
+        for (i = 0; i < nfds; i++)                    \
+                if (FD_ISSET(GET_SOCKET(obj,i), &(fds)))
+#endif
+
 struct osc_address {
         struct addrinfo *info;
         struct sockaddr_storage *saddr;
         socklen_t saddr_len;
+#ifdef WIN32
+        int non_blocking;
+#endif
 };
 
 struct osc_fds {
-        fd_set fds;
         int maxfd;      /* highest-numbered fd */
+#ifndef WIN32
         int servfd;     /* server fd */
+#endif
         int lastfd;     /* fd used for the last received message */
         int count;      /* number of the connections */
+#ifdef WIN32
+        int newfd;      /* fd_array index for a new socket */
+        SOCKET fd_array[FD_SETSIZE];
+#endif
+        fd_set fds;
 };
 
 #define osc_fix_size(n)  (n + 4 - (n & 3))
 
-#define FD_LOOP(i, nfds, fds)                         \
-        for (i = 0; i < nfds; i++)                    \
-                if (FD_ISSET(i, &(fds)))
-
+#ifdef WIN32
+int initialize_winsock(void);
+#endif
 static void osc_move_data_left(uint32_t *start, uint32_t *end, unsigned int n);
 static void osc_move_data_right(uint32_t *start, uint32_t *end, unsigned int n);
 static int is_slip_msg(const unsigned char *buf, int len);
@@ -95,7 +153,7 @@ unsigned int osc_start_message(void *buf, unsigned int bufsize, void *ibuf,
 int osc_maybe_reserve_space(void *oscbuf, void *ibuf, unsigned int index,
                             unsigned int data_size);
 struct osc_fds *osc_alloc_fds(void);
-void osc_set_servfd(struct osc_fds *o, int servfd);
+void osc_set_servfd(struct osc_fds *o, OSC_SOCKET servfd);
 int osc_lastfd(struct osc_fds *o);
 int osc_connections(struct osc_fds *o);
 int osc_next_fd_set(struct osc_fds *o, int curr);
@@ -106,11 +164,11 @@ int osc_recv(struct osc_fds *o, struct osc_address *addr, void *buf,
 unsigned int osc_slip_encode(const unsigned char *src, unsigned char *dest,
                              unsigned int len);
 unsigned int osc_slip_decode(unsigned char *buf, unsigned int maxlen);
-int osc_getsock_broadcast(int sockfd);
-int osc_setsock_broadcast(int sockfd, const struct addrinfo *info, int is_set);
-int osc_getsock_nonblock(int sockfd);
-int osc_setsock_nonblock(int sockfd, int is_nonblock);
-int osc_setsock_reuseaddr(int sockfd);
+int osc_getsock_broadcast(OSC_SOCKET sockfd);
+int osc_setsock_broadcast(OSC_SOCKET sockfd, const struct addrinfo *info, int is_set);
+int osc_getsock_nonblock(OSC_SOCKET sockfd);
+int osc_setsock_nonblock(OSC_SOCKET sockfd, int is_nonblock);
+int osc_setsock_reuseaddr(OSC_SOCKET sockfd);
 unsigned int sizeof_socklen(void);
 
 #endif  /* __INCUDINE_OSC_H */

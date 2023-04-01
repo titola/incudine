@@ -6,6 +6,7 @@
 *.mid
 *~
 *.o
+a.out
 src/barrier.h
 src/cache.lisp
 src/incudine

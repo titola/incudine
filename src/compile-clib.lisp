@@ -376,7 +376,9 @@
               (push "X11" libs-dep)
               (add-c-object-to-link :mouse ofiles))
             ;; Open Sound Control
-            #-win32 (add-c-object-to-link :osc ofiles)
+            #+win32
+            (push "ws2_32" libs-dep)
+            (add-c-object-to-link :osc ofiles)
             ;; Utilities
             (add-c-object-to-link :ringbuffer ofiles)
             (add-c-object-to-link :util ofiles)

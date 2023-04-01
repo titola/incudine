@@ -1,4 +1,4 @@
-;;; Copyright (c) 2015-2016 Tito Latini
+;;; Copyright (c) 2015-2023 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -15,6 +15,24 @@
 ;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 (in-package :incudine.osc)
+
+#+win32
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (cffi:defcfun ("initialize_winsock" %initialize-winsock) :int)
+  (cffi:defcfun ("WSACleanup" finalize-winsock) :int)
+
+  (defun initialize-winsock ()
+    (let ((res (%initialize-winsock)))
+      (unless (zerop res)
+        (network-error "WSAStartup failed: ~D\n" res))
+      res))
+
+  (initialize-winsock))
+
+(cffi:defctype socket
+  #-win32 :int
+  #+(and win32 64-bit) :uint64
+  #+(and win32 (not 64-bit)) :uint32)
 
 #+linux
 (define-constant MSG-NOSIGNAL #x4000)  ; Don't generate SIGPIPE.
@@ -37,25 +55,34 @@ See the manual pages of the C functions and bits/socket.h for details.")
   (ai-socktype :int)
   (ai-protocol :int)
   (ai-addrlen #.+socklen-type+)
-  (ai-addr :pointer)
+  #-win32 (ai-addr :pointer)
   (ai-canonname :pointer)
+  #+win32 (ai-addr :pointer)
   (ai-next :pointer))
 
 (cffi:defcstruct address
   (info :pointer)               ; (struct addrinfo *)
   (sockaddr :pointer)           ; (struct sockaddr_storage *)
-  (socklen #.+socklen-type+))
+  (socklen #.+socklen-type+)
+  #+win32
+  (non-blocking :int))
+
+#+win32
+(defmacro cached-fd-array (osc-fds-ptr)
+  `(cffi:inc-pointer ,osc-fds-ptr
+     ;; int maxfd, lastfd, count, newfd
+     #.(* 4 (cffi:foreign-type-size :int))))
 
 (declaim (inline %send))
 (cffi:defcfun ("send" %send) :int
-  (sockfd :int)
+  (sockfd socket)
   (buf :pointer)
   (len :unsigned-int)
   (flags :int))
 
 (declaim (inline %sendto))
 (cffi:defcfun ("sendto" %sendto) :int
-  (sockfd :int)
+  (sockfd socket)
   (buf :pointer)
   (len :unsigned-int)
   (flags :int)
@@ -64,12 +91,15 @@ See the manual pages of the C functions and bits/socket.h for details.")
 
 (declaim (inline %recvfrom))
 (cffi:defcfun ("recvfrom" %recvfrom) :int
-  (sockfd :int)
+  (sockfd socket)
   (buf :pointer)
   (len :unsigned-int)
   (flags :int)
   (sockaddr :pointer)
   (socklen :pointer))
+
+(cffi:defcfun (#-win32 "close" #+win32 "closesocket" close-socket) :int
+  (sockfd socket))
 
 (declaim (inline %osc-recv))
 (cffi:defcfun ("osc_recv" %osc-recv) :int
@@ -136,7 +166,7 @@ See the manual pages of the C functions and bits/socket.h for details.")
 (declaim (inline set-server-fd))
 (cffi:defcfun ("osc_set_servfd" set-server-fd) :void
   (fds :pointer)
-  (servfd :int))
+  (servfd socket))
 
 (declaim (inline %close-connections))
 (cffi:defcfun ("osc_close_connections" %close-connections) :void
@@ -158,20 +188,21 @@ See the manual pages of the C functions and bits/socket.h for details.")
   (maxlen :unsigned-int))
 
 (cffi:defcfun ("osc_getsock_broadcast" getsock-broadcast) :int
-  (sockfd :int))
+  (sockfd socket))
 
 (declaim (inline setsock-broadcast))
 (cffi:defcfun ("osc_setsock_broadcast" setsock-broadcast) :int
-  (sockfd :int)
+  (sockfd socket)
   (info :pointer)
   (enable-p :boolean))
 
+#-win32
 (cffi:defcfun ("osc_getsock_nonblock" getsock-nonblock) :boolean
-  (sockfd :int))
+  (sockfd socket))
 
 (cffi:defcfun ("osc_setsock_nonblock" setsock-nonblock) :int
-  (sockfd :int)
+  (sockfd socket)
   (nonblock-p :boolean))
 
 (cffi:defcfun ("osc_setsock_reuseaddr" setsock-reuseaddr) :int
-  (sockfd :int))
+  (sockfd socket))

@@ -137,8 +137,10 @@
           (alexandria:flatten
             (mapcar #'cffi-mini-eval *foreign-header-file-directories*))))
   (setf *c-libtest-fmt*
-        (format nil "~A~A~A ~S -l"
+        (format nil "~A~A~A~A ~S -l"
                 cl-user::__incudine_c_compiler__
+                #-win32 " -o /dev/null"
+                #+win32 ""
                 cl-user::__incudine_c_header_file_paths__
                 cl-user::__incudine_c_library_paths__
                 (namestring

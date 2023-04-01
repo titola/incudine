@@ -20,6 +20,10 @@
   (let ((nick incudine.config::*osc-package-nicknames*))
     (when nick (rename-package "INCUDINE.OSC" "INCUDINE.OSC" nick))))
 
+(deftype socket ()
+  '(unsigned-byte #+(or (not win32) (and win32 (not 64-bit))) 32
+                  #+(and win32 64-bit) 64))
+
 (defvar *buffer-size* (if (boundp 'incudine.config::*osc-buffer-size*)
                           incudine.config::*osc-buffer-size*
                           1500)
@@ -64,7 +68,8 @@ a socket stream may grow.")
   ;; to a file descriptor used to close the socket within the finalizer.
   (fds-ptr (cffi:null-pointer) :type cffi:foreign-pointer)
   (protocol :udp :type (member :udp :tcp))
-  (socket-fd -1 :type fixnum)
+  (socket-fd -1 :type #+(or (not win32) (and win32 (not 64-bit))) fixnum
+                      #+(and win32 64-bit) (signed-byte 64))
   (direction :input :type (member :input :output))
   ;; Foreign buffer used to read/write an OSC packet.
   (buffer-pointer (cffi:null-pointer) :type cffi:foreign-pointer)
@@ -345,7 +350,7 @@ MESSAGE-ENCODING is NIL (default) or :SLIP."
            (cffi:foreign-free ptr))
           (t (let ((fd (cffi:mem-ref ptr :int)))
                (unless (= fd -1)
-                 (cffi:foreign-funcall "close" :int fd :int)))))))
+                 (close-socket fd)))))))
 
 (defun %open (stream &optional (connect-p t))
   (declare (type stream stream))
@@ -364,19 +369,19 @@ MESSAGE-ENCODING is NIL (default) or :SLIP."
                       (not (zerop (setsock-reuseaddr fd))))
              (warn "OSC:OPEN reuse of the local addresses is disabled"))
            (unless (zerop (cffi:foreign-funcall "bind"
-                            :int fd :pointer (addrinfo-value stream 'ai-addr)
+                            socket fd :pointer (addrinfo-value stream 'ai-addr)
                             #.+socklen-type+ (addrinfo-value stream 'ai-addrlen)
                             :int))
              (network-error "Failed to assign the address."))
            (when (protocolp stream :tcp)
-             (unless (zerop (cffi:foreign-funcall "listen" :int fd
+             (unless (zerop (cffi:foreign-funcall "listen" socket fd
                                                   :int *listen-backlog* :int))
                (network-error "listen call failed."))
              (set-server-fd (stream-fds-ptr stream) fd)))
           ((protocolp stream :tcp)
            (when connect-p
              (unless (zerop (cffi:foreign-funcall "connect"
-                              :int fd :pointer (addrinfo-value stream 'ai-addr)
+                              socket fd :pointer (addrinfo-value stream 'ai-addr)
                               #.+socklen-type+ (addrinfo-value stream 'ai-addrlen)
                               :int))
                (network-error "Connection failed:~%~S"
@@ -390,7 +395,7 @@ MESSAGE-ENCODING is NIL (default) or :SLIP."
 
 (defun close-fd (stream)
   (when (plusp (stream-socket-fd stream))
-    (cffi:foreign-funcall "close" :int (stream-socket-fd stream) :int)
+    (close-socket (stream-socket-fd stream))
     (setf (stream-socket-fd stream) -1))
   (unless (cffi:null-pointer-p (stream-fds-ptr stream))
     (if (and (input-stream-p stream) (protocolp stream :tcp))
@@ -455,7 +460,7 @@ MESSAGE-ENCODING is NIL (default) or :SLIP."
         (when (> fd 0)
           (cffi:with-foreign-objects ((p :char 128) (len #.+socklen-type+))
             (or (zerop (cffi:foreign-funcall "getpeername"
-                         :int fd :pointer p :pointer len :int))
+                         socket fd :pointer p :pointer len :int))
                 (unless (= incudine.external::*errno* posix-enotconn)
                   (network-error "getpeername failed (~A)"
                     (incudine.external:errno-to-string)))))))
@@ -538,11 +543,18 @@ automatically closed."
 
 (defun block-p (stream)
   "Whether the STREAM socket is in blocking mode. Setfable."
-  (not (getsock-nonblock (stream-socket-fd stream))))
+  #-win32
+  (not (getsock-nonblock (stream-socket-fd stream)))
+  #+win32
+  (zerop (address-value stream 'non-blocking)))
 
 (defun set-block (stream block-p)
   (declare (type stream stream) (type boolean block-p))
-  (assert (zerop (setsock-nonblock (stream-socket-fd stream) (not block-p))))
+  (cond ((zerop (setsock-nonblock (stream-socket-fd stream) (not block-p)))
+         #+win32
+         (setf (address-value stream 'non-blocking) (if block-p 0 1)))
+        (t (network-error "Failed to ~A nonblocking mode."
+                          (if block-p "disable" "enable"))))
   block-p)
 
 (defsetf block-p set-block)
@@ -573,13 +585,17 @@ STREAM socket."
   "Return the file descriptors of the connections accepted by the
 listening STREAM socket."
   (declare (type input-stream stream))
-    (if (and (protocolp stream :tcp)
+  (when (and (protocolp stream :tcp)
              (not (cffi:null-pointer-p (stream-fds-ptr stream))))
-        (loop for i = 3 then fd
-              for fd = (cffi:foreign-funcall "osc_next_fd_set"
-                         :pointer (stream-fds-ptr stream) :int i :int)
-              while (plusp fd)
-                collect fd)))
+    (let (#+win32 (fd-array (cached-fd-array (stream-fds-ptr stream))))
+      (loop for curr = #-win32 -1
+                       #+win32  0  ; 0 is the server
+                       then fd
+            for fd = (cffi:foreign-funcall "osc_next_fd_set"
+                       :pointer (stream-fds-ptr stream) :int curr :int)
+            while (plusp fd)
+              collect #-win32 fd
+                      #+win32 (cffi:mem-aref fd-array 'socket fd)))))
 
 ;;; Sometimes we want to dialog with the sender.
 (declaim (inline last-recv-fd))
@@ -593,12 +609,12 @@ to get the last received message."
 
 FLAGS defaults to NET:+DEFAULT-MSG-FLAGS+. See the manual pages for
 send and sendto for details on the FLAGS argument."
-  (declare (type positive-fixnum sockfd)
+  (declare (type socket sockfd)
            (type (simple-array (unsigned-byte 8)) octets))
   (incudine-optimize
     (cffi:with-pointer-to-vector-data (buf octets)
       (force-fixnum
-        (cffi:foreign-funcall "send" :int sockfd :pointer buf
+        (cffi:foreign-funcall "send" socket sockfd :pointer buf
                               :unsigned-int (length octets) :int flags :int)))))
 
 ;;; SLIP method for framing packets (RFC 1055).
@@ -624,13 +640,13 @@ send and sendto for details on the FLAGS argument."
     (case (protocol stream)
       (:udp
        (cffi:foreign-funcall "sendto"
-         :int (stream-socket-fd stream)
+         socket (stream-socket-fd stream)
          :pointer (stream-aux-buffer-pointer stream) :unsigned-long len
          :int flags :pointer (address-value stream 'sockaddr)
          #.+socklen-type+ (address-value stream 'socklen) :int))
       (:tcp
        (cffi:foreign-funcall "send"
-         :int (stream-socket-fd stream)
+         socket (stream-socket-fd stream)
          :pointer (stream-aux-buffer-pointer stream) :unsigned-long len
          :int flags :int)))))
 

@@ -39,7 +39,7 @@
     (perform 'compile-op c)))
 
 (defsystem "incudine"
-  :version "0.9.65"
+  :version "0.9.66"
   :description "Incudine is a Music/DSP programming environment."
   :licence "GPL v2"
   :author "Tito Latini"
@@ -147,12 +147,11 @@
      (:file "portaudio" :if-feature :portaudio :depends-on ("foreign" "logger"))
      (:file "midi" :depends-on ("edf-sched" "vug/midi" "receiver" "tuning"
                                 #+jack-midi "jackmidi"))
-     (:file "network/sbcl-vops" :if-feature (:and :sbcl (:or :x86 :x86-64) (:not :win32))
+     (:file "network/sbcl-vops" :if-feature (:and :sbcl (:or :x86 :x86-64))
             :depends-on ("conditions"))
-     (:file "network/cffi-osc" :if-feature (:not :win32) :depends-on ("conditions"))
-     (:file "network/osc" :if-feature (:not :win32)
-            :depends-on ("receiver" "network/cffi-osc" "network/sbcl-vops"))
-     (:file "network/generic" :if-feature (:not :win32) :depends-on ("network/osc"))
+     (:file "network/cffi-osc" :depends-on ("conditions"))
+     (:file "network/osc" :depends-on ("receiver" "network/cffi-osc" "network/sbcl-vops"))
+     (:file "network/generic" :depends-on ("network/osc"))
      (:file #-win32 "serial/sbcl" #+win32 "serial/nil" :depends-on ("receiver"))
      (:file "soundfile" :depends-on ("util"))
      (:file "midifile" :depends-on ("util" "time"))

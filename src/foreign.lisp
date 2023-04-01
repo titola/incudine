@@ -73,18 +73,22 @@ page for details."
 
 ;;; THREADS
 
+#-win32
 (cffi:defcfun ("pthread_priority" thread-priority) :int
   (thread :pointer))
 
+#-win32
 (cffi:defcfun ("pthread_set_priority" thread-set-priority) :int
   (thread :pointer)
   (priority :int))
 
+#-win32
 (cffi:defcfun "pthread_getaffinity_np" :int
   (thread :pointer)
   (size :unsigned-int)
   (cpuset :pointer))
 
+#-win32
 (cffi:defcfun "pthread_setaffinity_np" :int
   (thread :pointer)
   (size :unsigned-int)

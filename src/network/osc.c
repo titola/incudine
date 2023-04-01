@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016 Tito Latini
+ * Copyright (c) 2015-2023 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,6 +56,9 @@ int osc_address_new(struct osc_address **addr, const char *host,
                 a->saddr_len = info->ai_addrlen;
         }
         a->info = info;
+#ifdef WIN32
+        a->non_blocking = 0;
+#endif
         *addr = a;
         return 0;
 }
@@ -346,17 +349,28 @@ struct osc_fds *osc_alloc_fds(void)
         o = (struct osc_fds *) malloc(sizeof(struct osc_fds));
         if (o != NULL) {
                 FD_ZERO(&o->fds);
-                o->servfd = o->lastfd = -1;
+#ifndef WIN32
+                o->servfd = -1;
+#else
+                o->newfd = 1;
+#endif
+                o->lastfd = -1;
                 o->maxfd = 0;
                 o->count = 0;
         }
         return o;
 }
 
-void osc_set_servfd(struct osc_fds *o, int servfd)
+void osc_set_servfd(struct osc_fds *o, OSC_SOCKET servfd)
 {
-        FD_SET(servfd, &o->fds);
-        o->maxfd = o->servfd = servfd;
+#ifndef WIN32
+        o->servfd = servfd;
+#else
+        o->newfd = 1;
+        SERVER_SOCKET(o) = servfd;
+#endif
+        o->maxfd = SERVER_FD(o);
+        FD_SET(SERVER_SOCKET(o), &o->fds);
 }
 
 int osc_lastfd(struct osc_fds *o)
@@ -374,42 +388,50 @@ void osc_close_connections(struct osc_fds *o)
         int i;
 
         for (i = 0; i <= o->maxfd; i++)
-                if (FD_ISSET(i, &o->fds) && i != o->servfd)
-                        close(i);
+                if (FD_ISSET(GET_SOCKET(o,i), &o->fds) && i != SERVER_FD(o))
+                        CLOSE_SOCKET(GET_SOCKET(o,i));
         FD_ZERO(&o->fds);
-        FD_SET(o->servfd, &o->fds);
-        o->maxfd = o->servfd;
+        FD_SET(SERVER_SOCKET(o), &o->fds);
+        o->maxfd = SERVER_FD(o);
         o->lastfd = -1;
         o->count = 0;
+#ifdef WIN32
+        o->newfd = 1;
+#endif
 }
 
 int osc_next_fd_set(struct osc_fds *o, int curr)
 {
         int i;
 
-        if (curr < 3 || curr >= o->maxfd)
+        if (curr > o->maxfd)
                 return -1;
-        for (i = curr + 1; i <= o->maxfd; i++)
-                if (FD_ISSET(i, &o->fds) && i != o->servfd)
+        for (i = curr + 1; i <= o->maxfd; i++) {
+#ifndef WIN32
+                if (i == SERVER_SOCKET(o)) continue;
+#endif
+                if (FD_ISSET(GET_SOCKET(o,i), &o->fds))
                         return i;
+        }
         return -1;
 }
 
 int osc_close_server(struct osc_fds *o)
 {
-        return close(o->servfd);
+        return CLOSE_SOCKET(SERVER_SOCKET(o));
 }
 
 /* Receiver used with stream-oriented protocols. */
 int osc_recv(struct osc_fds *o, struct osc_address *addr, void *buf,
              unsigned int maxlen, int enc_flags, int flags)
 {
-        int i, ret, fd, remain, nbytes, nfds, is_slip, has_count_prefix;
-        unsigned char *data;
+        OSC_SOCKET client;
+        int i, ret, remain, nbytes, nfds, is_slip, has_count_prefix;
+        BUFFER_DATATYPE *data;
         fd_set fds, tmpfds;
         struct timeval now, *timeout;
 
-        if (osc_getsock_nonblock(o->servfd)) {
+        if (IS_NONBLOCKING(o, addr)) {
                 now.tv_sec = now.tv_usec = 0;
                 timeout = &now;
         } else {
@@ -417,35 +439,43 @@ int osc_recv(struct osc_fds *o, struct osc_address *addr, void *buf,
         }
         is_slip = enc_flags & SLIP_ENCODING_FLAG;
         has_count_prefix = enc_flags & COUNT_PREFIX_FLAG;
-        FD_ZERO(&fds);
         nbytes = 0;
         while(1) {
                 fds = o->fds;
                 nfds = o->maxfd + 1;
                 if ((ret = select(nfds, &fds, NULL, NULL, timeout)) <= 0)
                         return ret;
-                if (FD_ISSET(o->servfd, &fds)) {
+                if (FD_ISSET(SERVER_SOCKET(o), &fds) && AVAILABLE_FD(o)) {
                         addr->saddr_len = sizeof(struct sockaddr_storage);
-                        fd = accept(o->servfd, (struct sockaddr *) addr->saddr,
-                                    &addr->saddr_len);
-                        if (fd != -1) {
-                                FD_SET(fd, &o->fds);
+                        client = accept(SERVER_SOCKET(o),
+                                        (struct sockaddr *) addr->saddr,
+                                        &addr->saddr_len);
+                        if (client != OSC_INVALID_SOCKET) {
+                                FD_SET(client, &o->fds);
                                 o->count++;
-                                if (fd > o->maxfd)
-                                        o->maxfd = fd;
+#ifndef WIN32
+                                if (client > o->maxfd) o->maxfd = client;
+#else
+                                o->fd_array[o->newfd] = client;
+                                if (o->newfd > o->maxfd) o->maxfd = o->newfd;
+                                o->newfd++;
+#endif
                         }
                 }
-                FD_LOOP(i, nfds, fds) {
-                        if (i != o->servfd) {
-                                data = (unsigned char *) buf;
-                                ret = recv(i, data, maxlen, flags);
+                FD_LOOP(i, nfds, fds, o) {
+                        if (i != SERVER_FD(o)) {
+                                data = (BUFFER_DATATYPE *) buf;
+                                ret = recv(GET_SOCKET(o,i), data, maxlen, flags);
                                 if (ret == 0) {
-                                        close(i);
-                                        FD_CLR(i, &o->fds);
+                                        CLOSE_SOCKET(GET_SOCKET(o,i));
+                                        FD_CLR(GET_SOCKET(o,i), &o->fds);
                                         if (o->lastfd == i)
                                                 o->lastfd = -1;
                                         if (--o->count == 0) {
-                                                o->maxfd = o->servfd;
+                                                o->maxfd = SERVER_FD(o);
+#ifdef WIN32
+                                                o->newfd = 1;
+#endif
                                                 break;
                                         } else {
                                                 continue;
@@ -454,7 +484,8 @@ int osc_recv(struct osc_fds *o, struct osc_address *addr, void *buf,
                                 o->lastfd = i;
                                 if (is_slip) {
                                         /* Serial Line IP */
-                                        if (is_slip_msg(data, ret))
+                                        if (is_slip_msg(
+                                                   (unsigned char *) data, ret))
                                                 return ret;
                                         nbytes = maxlen;
                                         remain = nbytes - ret;
@@ -475,34 +506,31 @@ int osc_recv(struct osc_fds *o, struct osc_address *addr, void *buf,
                                 }
                                 while (remain > 0) {
                                         FD_ZERO(&tmpfds);
-                                        FD_SET(i, &tmpfds);
+                                        FD_SET(GET_SOCKET(o,i), &tmpfds);
                                         /* Timeout considered undefined. */
                                         now.tv_sec = now.tv_usec = 0;
                                         if ((select(i + 1, &tmpfds, NULL, NULL,
                                                     &now) != -1)
-                                            && FD_ISSET(i, &tmpfds)) {
+                                            && FD_ISSET(GET_SOCKET(o,i), &tmpfds)) {
                                                 data += ret;
-                                                ret = recv(i, data, remain,
-                                                           flags);
+                                                ret = recv(GET_SOCKET(o,i),
+                                                           data, remain, flags);
                                                 if (ret <= 0) {
-                                                        close(i);
+                                                        CLOSE_SOCKET(GET_SOCKET(o,i));
                                                         if (o->lastfd == i)
                                                                 o->lastfd = -1;
                                                         if (--o->count == 0)
-                                                                o->maxfd =
-                                                                      o->servfd;
+                                                                o->maxfd = SERVER_FD(o);
                                                         nbytes = OSC_BADMSG;
                                                         break;
                                                 }
                                                 remain -= ret;
                                                 if (is_slip) {
-                                                        if (is_slip_msg(data,
-                                                                        ret))
-                                                                return nbytes
-                                                                       - remain;
+                                                        if (is_slip_msg(
+                                                                    (unsigned char *) data, ret))
+                                                                return nbytes - remain;
                                                         else if (remain == 0)
-                                                                nbytes =
-                                                                 OSC_MSGTOOLONG;
+                                                                nbytes = OSC_MSGTOOLONG;
                                                 }
                                         } else {
                                                 nbytes = OSC_BADMSG;
@@ -587,25 +615,29 @@ static int is_slip_msg(const unsigned char *buf, int len)
         return 0;
 }
 
-int osc_getsock_broadcast(int sockfd)
+int osc_getsock_broadcast(OSC_SOCKET s)
 {
-        int ret, val;
         socklen_t optlen;
+        int ret;
+        SOCKOPT_VALUE val;
 
-        optlen = sizeof(int);
-        ret = getsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &val, &optlen);
+        optlen = sizeof(SOCKOPT_VALUE);
+        ret = getsockopt(s, SOL_SOCKET, SO_BROADCAST, &val, &optlen);
         return ret == 0 ? val : ret;
 }
 
-int osc_setsock_broadcast(int sockfd, const struct addrinfo *info, int is_set)
+int osc_setsock_broadcast(OSC_SOCKET s, const struct addrinfo *info, int is_set)
 {
+        SOCKOPT_VALUE val = is_set;
+
         if (info->ai_socktype == SOCK_DGRAM && info->ai_family == AF_INET)
-                return setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &is_set,
-                                  sizeof(int));
+                return setsockopt(s, SOL_SOCKET, SO_BROADCAST, &val,
+                                  sizeof(SOCKOPT_VALUE));
         return 0;
 }
 
-int osc_getsock_nonblock(int sockfd)
+#ifndef WIN32
+int osc_getsock_nonblock(OSC_SOCKET sockfd)
 {
         int flags;
 
@@ -613,8 +645,10 @@ int osc_getsock_nonblock(int sockfd)
                 return 0;
         return flags & O_NONBLOCK;
 }
+#endif
 
-int osc_setsock_nonblock(int sockfd, int is_nonblock)
+#ifndef WIN32
+int osc_setsock_nonblock(OSC_SOCKET sockfd, int is_nonblock)
 {
         int flags;
 
@@ -623,14 +657,38 @@ int osc_setsock_nonblock(int sockfd, int is_nonblock)
         flags = is_nonblock ? flags | O_NONBLOCK : flags & ~O_NONBLOCK;
         return fcntl(sockfd, F_SETFL, flags);
 }
-
-int osc_setsock_reuseaddr(int sockfd)
+#else
+int osc_setsock_nonblock(OSC_SOCKET s, int is_nonblock)
 {
-        int yes = 1;
-        return setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+        unsigned long mode = is_nonblock;
+        int err;
+
+        err = ioctlsocket(s, FIONBIO, &mode);
+        if (err != NO_ERROR)
+                return -1;
+        return 0;
+}
+#endif
+
+int osc_setsock_reuseaddr(OSC_SOCKET s)
+{
+        SOCKOPT_VALUE yes = 1;
+        return setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &yes,
+                          sizeof(SOCKOPT_VALUE));
 }
 
 unsigned int sizeof_socklen(void)
 {
         return sizeof(socklen_t);
 }
+
+#ifdef WIN32
+int initialize_winsock(void)
+{
+        WSADATA data;
+        int res;
+
+        res = WSAStartup(WSA_REQUIRED_VERSION, &data);
+        return res;
+}
+#endif
