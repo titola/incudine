@@ -32,12 +32,10 @@
     (:cygwin "cygporttime-0.dll")
     (t (:default "libporttime")))
 
-  (defun load-portmidi-library ()
-    (cffi:use-foreign-library portmidi)
-    (cffi:use-foreign-library porttime))
-
   (unless (cffi:foreign-library-loaded-p 'portmidi)
-    (load-portmidi-library)))
+    (cffi:use-foreign-library portmidi)
+    (unless (cffi:foreign-symbol-pointer "Pt_Time")
+      (cffi:use-foreign-library porttime))))
 
 (defstruct (stream (:constructor %make-stream)
                    (:copier nil))
