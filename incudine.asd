@@ -152,7 +152,7 @@
      (:file "network/cffi-osc" :depends-on ("conditions"))
      (:file "network/osc" :depends-on ("receiver" "network/cffi-osc" "network/sbcl-vops"))
      (:file "network/generic" :depends-on ("network/osc"))
-     (:file #-win32 "serial/sbcl" #+win32 "serial/nil" :depends-on ("receiver"))
+     (:file "serial/sbcl" :depends-on ("receiver"))
      (:file "soundfile" :depends-on ("util"))
      (:file "midifile" :depends-on ("util" "time"))
      (:file "analysis/maybe-fftw-no-simd"
