@@ -269,18 +269,18 @@ order when the block size is changed via SET-RT-BLOCK-SIZE.")
 (defvar *max-number-of-channels* 1024)
 (declaim (type non-negative-fixnum *max-number-of-channels*))
 
-(defvar *rt-priority*  68
+(defvar *rt-priority* #-win32 68 #+win32 0
   "Priority of the real-time thread.")
 
-(defvar *nrt-priority* 60
+(defvar *nrt-priority* #-win32 60 #+win32 0
   "Priority of the non-real-time thread.")
 
 (defvar *fast-nrt-priority*
   (let ((prio (1+ *nrt-priority*)))
-    (if (= prio *rt-priority*) *nrt-priority* prio))
+    (if (>= prio *rt-priority*) *nrt-priority* prio))
   "Priority of the fast non-real-time thread.")
 
-(defvar *receiver-default-priority* 63)
+(defvar *receiver-default-priority* #-win32 63 #+win32 0)
 
 (defvar *max-buffer-size* 1024)
 
@@ -316,13 +316,6 @@ real-time thread.")
 (declaim (type cons *standard-optimize-settings*))
 
 (in-package :incudine)
-
-(defstruct (rt-params (:copier nil))
-  (lock (bordeaux-threads:make-lock "RT-THREAD"))
-  (driver incudine.config:*audio-driver*)
-  (priority *rt-priority*)
-  (frames-per-buffer incudine.config:*frames-per-buffer*)
-  (status :stopped))
 
 (defvar *rt-thread-start-hook* nil
   "A list of function designators which are called in an unspecified

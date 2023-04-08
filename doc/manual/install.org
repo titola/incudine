@@ -79,6 +79,10 @@ cp /path/to/incudine/incudinerc-example ${HOME}/.incudinerc
 #+end_example
 
 #+texinfo: @noindent
+If MMCSS (Multimedia Class Scheduler Service) is available on Windows,
+the realtime thread is associated with the "Pro Audio" task.
+
+#+texinfo: @noindent
 Here is a test:
 
 #+begin_example

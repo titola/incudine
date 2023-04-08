@@ -25,7 +25,16 @@
   ;;; gc and it is notified with a message to the standard error.
   ;;; The default is to hide these messages.
   #+jack-audio
-  (pushnew #'incudine.external::silent-jack-errors *initialize-hook*))
+  (pushnew #'incudine.external::silent-jack-errors *initialize-hook*)
+
+  (defstruct (rt-params (:copier nil))
+    (lock (bordeaux-threads:make-lock "RT-THREAD"))
+    #+windows-avrt
+    (task 0)
+    (driver incudine.config:*audio-driver*)
+    (priority *rt-priority*)
+    (frames-per-buffer incudine.config:*frames-per-buffer*)
+    (status :stopped)))
 
 (defglobal *rt-params* (make-rt-params))
 
@@ -87,12 +96,43 @@
   (declare (ignore loop-function))
   (msg warn "using dummy audio driver; you could change the realtime callback"))
 
+#+windows-avrt
+(progn
+  (defun add-thread-task (name)
+    (cffi:with-foreign-object (index :unsigned-long)
+      (incudine.external::av-set-mm-thread-characteristics name index)))
+
+  (defun remove-thread-task (handle)
+    (unless (zerop handle)
+      (incudine.external::av-revert-mm-thread-characteristics handle)))
+
+  ;; MMCSS (Multimedia Class Scheduler Service) assigns a high priority
+  ;; to a thread based on a task name "Pro Audio" or "Audio" (by default,
+  ;; "Pro Audio" priority is higher than "Audio" priority).
+  ;; If necessary, we can add a task ("Audio" or other) for fast-nrt-thread
+  ;; or nrt-thread calling ADD-THREAD-TASK with FAST-NRT-FUNCALL or NRT-FUNCALL
+  ;; (the calling thread is associated with the specified task).
+  (defun add-pro-audio-task ()
+    (remove-thread-task (rt-params-task *rt-params*))
+    (or (plusp (setf (rt-params-task *rt-params*)
+                     (add-thread-task "Pro Audio")))
+        (msg error "cannot associate rt-thread with \"Pro Audio\" task")))
+
+  (defun remove-pro-audio-task ()
+    (remove-thread-task (rt-params-task *rt-params*))
+    (setf (rt-params-task *rt-params*) 0)
+    nil))
+
 (defun make-rt-thread (name function args)
   (declare (type function function))
   (with-new-thread (*rt-thread* name (rt-params-priority *rt-params*)
                     "realtime thread started")
     (call-hooks "rt-thread-start" *rt-thread-start-hook* :on-error :warn)
+    #+windows-avrt
+    (add-pro-audio-task)
     (apply function args)
+    #+windows-avrt
+    (remove-pro-audio-task)
     (call-hooks "rt-thread-exit" *rt-thread-exit-hook* :on-error :warn)))
 
 (defun destroy-rt-thread ()

@@ -58,7 +58,18 @@
 
   (unless (cffi:foreign-library-loaded-p 'fftw) (load-fftw-library))
 
-  (import '(incudine.util:sample incudine.util:+foreign-sample-size+)))
+  (import '(incudine.util:sample incudine.util:+foreign-sample-size+))
+
+  #+win32
+  (cffi:define-foreign-library avrt
+    (:win32 "avrt.dll"))
+
+  #+win32
+  (unless (cffi:foreign-library-loaded-p 'avrt)
+    (handler-case
+        (progn (cffi:use-foreign-library avrt)
+               (pushnew :windows-avrt *features*))
+      (cffi:load-foreign-library-error () nil))))
 
 ;;; ERRORS
 
@@ -93,6 +104,17 @@ page for details."
   (thread :pointer)
   (size :unsigned-int)
   (cpuset :pointer))
+
+#+win32
+(cffi:defcfun ("AvSetMmThreadCharacteristicsA" av-set-mm-thread-characteristics)
+    :uint64
+  (task-name :string)
+  (task-index :pointer))
+
+#+win32
+(cffi:defcfun ("AvRevertMmThreadCharacteristics" av-revert-mm-thread-characteristics)
+    :boolean
+  (avrt-handle :uint64))
 
 ;;; SNDFILE
 

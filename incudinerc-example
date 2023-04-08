@@ -23,6 +23,10 @@
       #+linux "SCHED_FIFO"
       #-linux "SCHED_RR")
 
+;; Note: if MMCSS (Multimedia Class Scheduler Service) is available on
+;; Windows, the realtime thread is associated with the "Pro Audio" task.
+;; Currently the other priority settings are ignored on Windows.
+
 ;; Priority of the realtime thread.
 (setq *rt-priority* 68)
 
