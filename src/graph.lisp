@@ -868,6 +868,9 @@ is called when the node object is stopped."))
         (enqueue-node-function (updated-node id)
           (lambda (node)
             (declare (type node node))
+            ;; Note: if NODE-CONTROLS is not NIL, that control-table is cached
+            ;; with a DSP instance if the DSP is not deleted or redefined.
+            (setf (node-controls node) nil)
             (when stop-hook
               (setf (node-stop-hook node) stop-hook))
             (when free-hook

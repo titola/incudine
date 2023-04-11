@@ -844,7 +844,14 @@ value of a bound VARIABLE of type SAMPLE, POINTER or foreign array."
                                   ,i32vec ,,i32vec-size 4
                                   ,i64vec ,,i64vec-size 8
                                   ,ptrvec ,,ptrvec-size ,+pointer-size+)
-                                (setf (node-controls ,node) (dsp-controls ,dsp))
+                                ;; node-free doesn't reset the node-controls.
+                                ;; Maybe the node is always reused with the same
+                                ;; cached DSP instance.
+                                (unless (eq (node-controls ,node)
+                                            (dsp-controls ,dsp))
+                                  ;; Usually there is not garbage because the
+                                  ;; table is part of the cached DSP instance.
+                                  (setf (node-controls ,node) (dsp-controls ,dsp)))
                                 (setf %dsp-node% ,node)
                                 (with-init-frames
                                   (free-incudine-objects ,to-free)

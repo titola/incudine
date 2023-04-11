@@ -28,3 +28,29 @@
   (at #[3.8 s] #'set-controls 2 :value 440 :duration .25)
   ;; It implies `(free 2)' called from the free-hook of node 1.
   (at #[4.3 s] #'free 1))
+
+(deftest control-pointer.2
+    (let ((res nil)
+          (table nil))
+      (with-logger (*null-output*)
+        (bounce-to-buffer (*buffer-test-c1* :frames 10)
+          (controlled-1 440 .3 :id 1
+                        :action (lambda (n)
+                                  (setf table (incudine::node-controls n))))
+          (at 1 #'free 1)
+          (at 2 #'play (lambda nil) :name 'control-test :id 1)
+          (at 3 (lambda ()
+                  (when (and (eq (node-name (node 1)) 'control-test)
+                             (not (incudine::node-controls (node 1))))
+                    (push t res))))
+          (at 4 #'free 1)
+          ;; Node 1 with the same cached DSP instance.
+          (at 5 #'controlled-1 440 .3 :id 1)
+          (at 6 (lambda ()
+                  (when (and (eq (node-name (node 1)) 'controlled-1)
+                             (hash-table-p table)
+                             ;; It is not a fresh table.
+                             (eq table (incudine::node-controls (node 1))))
+                    (push t res))))))
+      res)
+  (T T))
