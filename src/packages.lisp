@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2022 Tito Latini
+;;; Copyright (c) 2013-2023 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -533,7 +533,7 @@
    #:socket-send
    #:connections #:connections-fd #:host #:port #:protocol #:protocolp
    #:socket-fd #:direction #:buffer-pointer #:buffer-size #:max-values #:latency
-   #:message-pointer #:message-length #:message-encoding
+   #:message-pointer #:message-length #:message-encoding #:message-time
    #:receive #:send #:send-bundle
    #:slip-encode #:slip-decode #:simple-bundle #:message #:start-message
    #:value #:value-pointer

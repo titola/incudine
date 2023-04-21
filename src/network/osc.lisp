@@ -79,6 +79,7 @@ a socket stream may grow.")
   (buffer-to-index-p nil :type boolean)
   ;; Pointer to the memory where the OSC message starts.
   (message-pointer (cffi:null-pointer) :type cffi:foreign-pointer)
+  (message-offset 0 :type non-negative-fixnum)
   (message-length 0 :type non-negative-fixnum)
   (message-length-pointer (cffi:null-pointer) :type cffi:foreign-pointer)
   (bundle-pointer (cffi:null-pointer) :type cffi:foreign-pointer)
@@ -97,7 +98,9 @@ a socket stream may grow.")
   (tmp-ptr (cffi:null-pointer) :type cffi:foreign-pointer))
 
 (defstruct (input-stream (:include stream))
-  "Input stream socket type for OSC (Open Sound Control) messages.")
+  "Input stream socket type for OSC (Open Sound Control) messages."
+  (time-seconds 0d0 :type double-float)
+  (time-samples 0d0 :type double-float))
 
 (defstruct (output-stream (:include stream))
   "Output stream socket type for OSC (Open Sound Control) messages."
@@ -163,6 +166,13 @@ a socket stream may grow.")
           ;; Era 1 (from 8 Feb 2036), so this hack will work for centuries.
           (floor (if (> seconds 63103) seconds (+ (incudine:timestamp) seconds)))
         (values sec (floor (* frac #x100000000))))))
+
+(declaim (inline decode-timestamp))
+(defun decode-timestamp (sec frac)
+  (declare (type (unsigned-byte 32) sec frac))
+  (if (and (= frac 1) (= sec 0))
+      (incudine:timestamp)
+      (+ sec (* frac #.(/ 1d0 #x100000000)))))
 
 (declaim (inline free-pointer))
 (defun free-pointer (ptr)
@@ -505,6 +515,73 @@ automatically closed."
 
 (defsetf message-length set-message-length)
 
+(define-constant +osc-bundle-magic-number+
+  #+little-endian 28548151253492259
+  #-little-endian 2549729456036799744)
+
+(defun message-from-bundle-p (stream)
+  (declare (type input-stream stream))
+  (= (cffi:mem-ref (stream-message-pointer stream) :uint64)
+     +osc-bundle-magic-number+))
+
+(defun maybe-update-message-time-seconds (stream)
+  (when (and (zerop (input-stream-time-seconds stream))
+             (message-from-bundle-p stream))
+    (macrolet ((u32p (offset)
+                 `(cffi:mem-ref (message-pointer stream) :uint32 ,offset)))
+      (setf (input-stream-time-seconds stream)
+            (decode-timestamp (swap-bytes:ntohl (u32p 8))
+                              (swap-bytes:ntohl (u32p 12))))))
+  stream)
+
+(declaim (inline message-time-seconds))
+(defun message-time-seconds (stream)
+  (input-stream-time-seconds
+    (maybe-update-message-time-seconds stream)))
+
+(defun maybe-update-message-time-samples (stream)
+  (symbol-macrolet ((time (input-stream-time-samples stream)))
+    (when (and (zerop time) (message-from-bundle-p stream))
+      (let ((now-seconds (incudine:timestamp))
+            (now-samples (incudine:now)))
+      (setf time (- (message-time-seconds stream) now-seconds))
+      (setf time (if (minusp time)
+                     1d0
+                     (+ now-samples (* time incudine.util:*sample-rate*)))))))
+  stream)
+
+(declaim (inline message-time-samples))
+(defun message-time-samples (stream)
+  (input-stream-time-samples
+    (maybe-update-message-time-samples stream)))
+
+(defun message-time (stream &optional time-unit)
+  "If the OSC packet received through the STREAM socket is an OSC bundle,
+return the time obtained from the OSC time tag. Otherwise, return zero.
+
+If TIME-UNIT is NIL (default), the time value in samples is suitable as
+first argument to INCUDINE:AT
+
+    (at (osc:message-time stream) function ...)
+
+where message-time is the OSC bundle time or zero.
+
+If TIME-UNIT is SECONDS, the bundle time is in universal time format."
+  (declare (type input-stream stream)
+           (type symbol time-unit))
+  ;; STRING= but it is generally a compile-time test.
+  (cond ((not time-unit)
+         (message-time-samples stream))
+        ((string= (symbol-name time-unit) "SECONDS")
+         (message-time-seconds stream))))
+
+(declaim (inline reset-time))
+(defun reset-time (stream)
+  (declare (type input-stream stream))
+  (setf (input-stream-time-seconds stream) 0d0
+        (input-stream-time-samples stream) 0d0)
+  nil)
+
 (declaim (inline update-length-count-prefix))
 (defun update-length-count-prefix (ptr value)
   (let ((len (htonl value)))
@@ -682,23 +759,68 @@ send and sendto for details on the FLAGS argument."
                        flags (address-value stream 'sockaddr)
                        (address-socklen-ptr stream))))))
       (declare (type fixnum res))
-      (cond ((plusp res)
+      (cond ((<= res 0)
+             (setf (stream-message-length stream) 0))
+            ((and osc-message-p (message-from-bundle-p stream))
+             (setf (cffi:mem-ref (stream-message-length-pointer stream) :uint32)
+                   res)
+             (setf (stream-message-length stream)
+                   (swap-bytes:ntohl
+                     (cffi:mem-ref (stream-message-pointer stream) :uint32
+                                   (- +bundle-reserved-bytes+ 4))))
+             ;; The first OSC message after 20 bytes (8+8+4).
+             (setf (stream-message-offset stream) +bundle-reserved-bytes+)
+             ;; The call to %%INDEX-VALUES is forced here because INDEX-VALUES
+             ;; (the exported function) works without STREAM-MESSAGE-OFFSET.
+             ;; It is safer and more efficient for OSC messages (no bundles).
+             ;; Note: the byte order of the next message from the bundle
+             ;; is swapped on little endian machines, therefore a (probably rare)
+             ;; copy of the received OSC bundle requires a swap of the read OSC
+             ;; messages.
+             (%%index-values stream t t +bundle-reserved-bytes+)
+             (setf res (stream-message-length stream)))
+            (t
              (setf (stream-message-length stream) res)
              (when osc-message-p
-               (setf (stream-buffer-to-index-p stream) t)))
-            (t
-             (setf (stream-message-length stream) 0)))
+               (setf (stream-buffer-to-index-p stream) t))))
       (when (slip-encoding-p stream)
         (slip-decode stream))
       res)))
 
-(declaim (inline receive))
 (defun receive (stream &optional (flags +default-msg-flags+))
-  "Store the received OSC message into the STREAM buffer.
+  "Store the received OSC packet into the STREAM buffer.
 
-FLAGS defaults to NET:+DEFAULT-MSG-FLAGS+. See the manual pages for
-recv and recvfrom for details on the FLAGS argument."
-  (%receive stream flags t))
+If the packet is an OSC bundle, the current OSC message is the
+first message of that bundle. The other messages are queued for
+the successive calls to OSC:RECEIVE. See OSC:MESSAGE-TIME for
+the time value obtained from the OSC time tag.
+
+FLAGS defaults to NET:+DEFAULT-MSG-FLAGS+. See the manual pages
+for recv and recvfrom for details on the FLAGS argument.
+
+Return the number of bytes of the OSC message."
+  (or (and (message-from-bundle-p stream)
+           (let ((offset (+ (stream-message-offset stream)
+                            ;; Length of the last message from this bundle.
+                            (message-length stream))))
+             (cond ((>= offset
+                        (cffi:mem-ref (stream-message-length-pointer stream)
+                                      :uint32))
+                    (setf (stream-message-offset stream) 0)
+                    ;; Alter the magic number otherwise MESSAGE-FROM-BUNDLE-P
+                    ;; still returns T.
+                    (setf (cffi:mem-ref (stream-message-pointer stream) :char) 0)
+                    (reset-time stream)
+                    nil)
+                   (t
+                    (setf (stream-message-length stream)
+                          (swap-bytes:ntohl
+                            (cffi:mem-ref (stream-message-pointer stream)
+                                          :uint32 offset)))
+                    (setf (stream-message-offset stream) (+ offset 4))
+                    (%%index-values stream t t (stream-message-offset stream))
+                    (stream-message-length stream)))))
+      (%receive stream flags t)))
 
 (defun send (stream &optional (flags +default-msg-flags+))
   "Send the OSC message stored in the STREAM buffer.
@@ -1039,10 +1161,15 @@ type tag (m)."
 
 (defsetf value set-value)
 
-(declaim (inline start-message))
 (defun start-message (stream address types)
   "Write the OSC ADDRESS pattern and the OSC TYPES to the STREAM buffer,
 then index the required values."
+  (declare (type stream stream)
+           (type string address types))
+  ;; Generally START-MESSAGE works with output streams.
+  (when (and (incudine.osc:input-stream-p stream)
+             (message-from-bundle-p stream))
+    (reset-time stream))
   (let ((typetag-len (length types)))
     (when (> typetag-len (stream-max-values stream))
       (network-error
@@ -1150,11 +1277,16 @@ If TYPETAG-P is T, the second returned value is the OSC type tag."
                     (cffi:inc-pointer (message-pointer stream)
                                       (1+ (fix-size len))))))))
 
+(declaim (inline current-message-pointer))
+(defun current-message-pointer (stream)
+  (cffi:inc-pointer (stream-message-pointer stream)
+                    (stream-message-offset stream)))
+
 (declaim (inline check-pattern))
 (defun check-pattern (stream address types)
   "Return T if the OSC address pattern and the OSC type tag stored in the
 STREAM buffer are ADDRESS and TYPES."
-  (%check-pattern (stream-message-pointer stream) address types))
+  (%check-pattern (current-message-pointer stream) address types))
 
 (defun typetag-to-foreign-type (character)
   (case character
@@ -1213,18 +1345,14 @@ STREAM buffer are ADDRESS and TYPES."
                                   :unsigned-char i))
         return (1+ i)))
 
-(defun index-values (stream &optional force-p swap-p)
-  "If necessary or FORCE-P is T, update the foreign pointers to the
-required values of the OSC message stored in the STREAM buffer.
-
-If SWAP-P is T, the byte order of the values is reversed on little
-endian machine."
+(defun %%index-values (stream force-p swap-p message-offset)
   (declare (type stream stream)
            #+little-endian (type boolean swap-p)
-           #-little-endian (ignore swap-p))
+           #-little-endian (ignore swap-p)
+           (type non-negative-fixnum message-offset))
   (incudine-optimize
     (when (or force-p (stream-buffer-to-index-p stream))
-      (let* ((types-start (stream-buffer-strlen stream))
+      (let* ((types-start (stream-buffer-strlen stream message-offset))
              (data-start (stream-buffer-strlen stream types-start)))
         (declare (type non-negative-fixnum types-start data-start))
         (incf types-start)  ; skip #\,
@@ -1239,6 +1367,17 @@ endian machine."
           #-little-endian (idata %index-values))
         (setf (stream-buffer-to-index-p stream) nil)))
     stream))
+
+(defun index-values (stream &optional force-p swap-p)
+  "If necessary or FORCE-P is T, update the foreign pointers to the
+required values of the OSC message stored in the STREAM buffer.
+
+If SWAP-P is T, the byte order of the values is reversed on little
+endian machine."
+  (declare (type stream stream)
+           #+little-endian (type boolean swap-p)
+           #-little-endian (ignore swap-p))
+  (%%index-values stream force-p swap-p 0))
 
 (defmacro with-values (value-names (stream types) &body body)
   "Create new symbol macro bindings VALUE-NAMES to the OSC values of
@@ -1280,10 +1419,12 @@ START and END are the bounding index designators of the vector."
             (if octets
                 (values octets start (min (or end (length octets)) len))
                 (values (make-array len :element-type '(unsigned-byte 8)) 0 len))
-          (loop for i from start below end do
-                  (setf (aref seq i)
-                        (cffi:mem-aref (stream-message-pointer stream)
-                                       :unsigned-char i)))
+          (loop for i from start below end
+                with ptr = (if (input-stream-p stream)
+                               (current-message-pointer stream)
+                               (stream-message-pointer stream))
+                do (setf (aref seq i)
+                         (cffi:mem-aref ptr :unsigned-char i)))
           (values seq len))))))
 
 (defun octets-to-buffer (octets stream &optional (start 0) end

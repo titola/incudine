@@ -223,6 +223,10 @@ send and sendto for details on the FLAGS argument."
   "Create and return a responder for a OSC:INPUT-STREAM that responds
 to an OSC message with ADDRESS and TYPES.
 
+Note: the receiver reads the OSC messages from an OSC bundle too,
+therefore an OSC bundle doesn't require a specific responder.
+See OSC:RECEIVE and OSC:MESSAGE-TIME for details.
+
 FUNCTION is added to the list of receiver-functions for STREAM.
 
 The function takes the OSC values as arguments.
@@ -257,6 +261,7 @@ Example:
         ;; Flush pending writes.
         (incudine.osc:without-block (in stream)
           (loop while (plusp (the fixnum (incudine.osc:receive in)))))
+        (incudine.osc::reset-time stream)
         (setf (receiver-status receiver) t)
         (loop while (receiver-status receiver) do
                 (when (and (plusp (the fixnum (incudine.osc:receive stream)))
