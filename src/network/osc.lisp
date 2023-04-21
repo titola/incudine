@@ -906,7 +906,9 @@ send and sendto for details on the FLAGS argument."
 
 (defun value-pointer (stream index)
   "Return the foreign pointer to a required value of the OSC message stored
-in the STREAM buffer. The OSC value is specified by the zero-based INDEX."
+in the STREAM buffer. The OSC value is specified by the zero-based INDEX.
+
+No bounds checking."
   (arg-pointer stream (+ index +data-index-offset+)))
 
 (define-compiler-macro value-pointer (stream index)
@@ -982,7 +984,10 @@ in the STREAM buffer. The OSC value is specified by the zero-based INDEX."
   "Access a required value of the OSC message stored in the STREAM buffer.
 The OSC value is specified by the zero-based INDEX.
 
-Setfable."
+Setfable with no buffer bounds checking when the value is a string or
+a blob. You can call your bounds checking routine before (SETF OSC:VALUE)
+if you are changing the data length out of control. See also :BUFFER-SIZE
+and :MAX-VALUES in OSC:OPEN."
   (declare (type stream stream) (type non-negative-fixnum index)
            #.incudine.util:*reduce-warnings*)
   (incudine-optimize
@@ -1163,7 +1168,12 @@ type tag (m)."
 
 (defun start-message (stream address types)
   "Write the OSC ADDRESS pattern and the OSC TYPES to the STREAM buffer,
-then index the required values."
+then index the required values.
+
+No buffer bounds checking because it is an unnecessary lost of time
+for the usual OSC messages. You can call your bounds checking routine
+before OSC:START-MESSAGE if you are sending OSC messages out of
+control. See also :BUFFER-SIZE and :MAX-VALUES in OSC:OPEN."
   (declare (type stream stream)
            (type string address types))
   ;; Generally START-MESSAGE works with output streams.
@@ -1203,7 +1213,12 @@ then index the required values."
 | S        | string                                                  |
 | t        | (or (unsigned-byte 64) double-float)                    |
 | T        | no required value                                       |
-|----------+---------------------------------------------------------|"
+|----------+---------------------------------------------------------|
+
+No buffer bounds checking because it is an unnecessary lost of time
+for the usual OSC messages. You can call your bounds checking routine
+before OSC:MESSAGE if you are sending OSC messages out of control.
+See also :BUFFER-SIZE and :MAX-VALUES in OSC:OPEN."
   (with-gensyms (s)
     `(let ((,s ,stream))
        (start-message ,s ,address ,types)
@@ -1234,6 +1249,11 @@ The OSC timestamp SECONDS is used with dual meaning: if it is greater
 than 63103 seconds (about 17 hours), the time is absolute otherwise it
 is added to the current time. 63104 is the offset of the NTP Timestamp
 Era 1 (from 8 Feb 2036), so this hack will work for centuries.
+
+No buffer bounds checking because it is an unnecessary lost of time for
+the usual OSC messages. You can call your bounds checking routine before
+OSC:SIMPLE-BUNDLE if you are sending OSC messages out of control.
+See also :BUFFER-SIZE and :MAX-VALUES in OSC:OPEN.
 
 Example:
 
