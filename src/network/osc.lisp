@@ -1286,21 +1286,21 @@ is equivalent to
             `(send-bundle ,s ,seconds)
             0))))
 
+(declaim (inline current-message-pointer))
+(defun current-message-pointer (stream)
+  (cffi:inc-pointer (stream-message-pointer stream)
+                    (stream-message-offset stream)))
+
 (declaim (inline address-pattern))
 (defun address-pattern (stream &optional typetag-p)
   "Return the OSC address pattern stored in the STREAM buffer.
 If TYPETAG-P is T, the second returned value is the OSC type tag."
   (multiple-value-bind (str len)
-      (cffi:foreign-string-to-lisp (message-pointer stream))
+      (cffi:foreign-string-to-lisp (current-message-pointer stream))
     (values str (when typetag-p
                   (cffi:foreign-string-to-lisp
-                    (cffi:inc-pointer (message-pointer stream)
+                    (cffi:inc-pointer (current-message-pointer stream)
                                       (1+ (fix-size len))))))))
-
-(declaim (inline current-message-pointer))
-(defun current-message-pointer (stream)
-  (cffi:inc-pointer (stream-message-pointer stream)
-                    (stream-message-offset stream)))
 
 (declaim (inline check-pattern))
 (defun check-pattern (stream address types)
