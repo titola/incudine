@@ -46,10 +46,11 @@
       </p>
 
       <p>
-        It's enlightening to show the expansion of the <code>OSC:MESSAGE</code> macro:
+        It's enlightening to show the expansion of the <code>OSC:MESSAGE</code> compiler-macro:
       </p>
 
-      <pre class="src src-lisp">(macroexpand-1 '(osc:message *oscout* <span style="color: #ffa07a;">"/osc/test"</span> <span style="color: #ffa07a;">"isf"</span> 1 <span style="color: #ffa07a;">"two"</span> 3.0))
+      <pre class="src src-lisp">(funcall (compiler-macro-function 'osc:message)
+         '(osc:message *oscout* <span style="color: #ffa07a;">"/osc/test"</span> <span style="color: #ffa07a;">"isf"</span> 1 <span style="color: #ffa07a;">"two"</span> 3.0) nil)
 (LET ((#:S505 *OSCOUT*))
   (INCUDINE.OSC:START-MESSAGE #:S505 <span style="color: #ffa07a;">"/osc/test"</span> <span style="color: #ffa07a;">"isf"</span>)
   (INCUDINE.OSC::SET-VALUE #:S505 0 1)

@@ -916,8 +916,11 @@ No bounds checking."
       `(arg-pointer ,stream ,(+ (eval index) +data-index-offset+))
       `(arg-pointer ,stream (+ ,index ,+data-index-offset+))))
 
-(defmacro required-values (stream)
+(defun required-values (stream)
   "Number of the required values of the OSC message stored in the STREAM buffer."
+  (cffi:mem-ref (stream-type-vec-ptr stream) :unsigned-char))
+
+(define-compiler-macro required-values (stream)
   `(cffi:mem-ref (stream-type-vec-ptr ,stream) :unsigned-char))
 
 (defmacro typetag-code (stream index)
@@ -1193,7 +1196,7 @@ control. See also :BUFFER-SIZE and :MAX-VALUES in OSC:OPEN."
                         (stream-type-vec-ptr stream)
                         address types)))
 
-(defmacro message (stream address types &rest values)
+(defun message (stream address types &rest values)
   "Send an OSC message with OSC ADDRESS, OSC TYPES and arbitrary VALUES.
 
 |----------+---------------------------------------------------------|
@@ -1219,6 +1222,16 @@ No buffer bounds checking because it is an unnecessary lost of time
 for the usual OSC messages. You can call your bounds checking routine
 before OSC:MESSAGE if you are sending OSC messages out of control.
 See also :BUFFER-SIZE and :MAX-VALUES in OSC:OPEN."
+  (start-message stream address types)
+  (loop for val in values for i from 0 do
+        (set-value stream i val))
+  (if (or values
+          (not (stringp types))
+          (not (required-values-p types)))
+      (send stream)
+      0))
+
+(define-compiler-macro message (stream address types &rest values)
   (with-gensyms (s)
     `(let ((,s ,stream))
        (start-message ,s ,address ,types)
@@ -1238,7 +1251,7 @@ See also :BUFFER-SIZE and :MAX-VALUES in OSC:OPEN."
            (not (stringp types))
            (not (required-values-p types)))))
 
-(defmacro simple-bundle (stream seconds address types &rest values)
+(defun simple-bundle (stream seconds address types &rest values)
   "Send an OSC message with timestamp SECONDS plus stream latency,
 OSC ADDRESS, OSC TYPES and arbitrary VALUES.
 
@@ -1270,6 +1283,21 @@ is equivalent to
     (setf (osc:value stream 2) 3)
     (osc:send-bundle stream .5)
     ;; => 52"
+  (start-message stream address types)
+  (unless (keywordp (first values))
+    (loop for val in values for i from 0 do
+          (set-value stream i val)))
+  (setf (stream-bundle-length stream)
+        (+ (stream-message-length stream) +bundle-reserved-bytes+))
+  (when (and (protocolp stream :tcp) (null (stream-message-encoding stream)))
+    (setf (cffi:mem-ref (stream-buffer-pointer stream) :uint32)
+          (swap-bytes:htonl (stream-bundle-length stream))))
+  (set-bundle-first-element-length stream)
+  (if (send-bundle-p types values)
+      (send-bundle stream seconds)
+      0))
+
+(define-compiler-macro simple-bundle (stream seconds address types &rest values)
   (with-gensyms (s)
     `(let ((,s ,stream))
        (start-message ,s ,address ,types)
