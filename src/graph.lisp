@@ -428,7 +428,7 @@ is called when the group node is stopped."
 (declaim (inline group))
 (defun group (obj)
   "Return the parent group of the node OBJ."
-  (declare (type (or node fixnum)))
+  (declare (type (or node fixnum) obj))
   (node-parent (if (node-p obj) obj (node obj))))
 
 (defmethod print-object ((obj node) stream)
@@ -1327,7 +1327,7 @@ If MOVE-ACTION is :AFTER, move NODE immediately after TARGET."
 
 (defun before-p (node0 node1)
   "Return T if NODE0 precedes NODE1."
-  (declare (type (or node fixnum)))
+  (declare (type (or node fixnum) node0 node1))
   (let ((n0 (get-node node0))
         (n1 (get-node node1))
         (result nil))
