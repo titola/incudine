@@ -535,7 +535,8 @@
    #:socket-fd #:direction #:buffer-pointer #:buffer-size #:max-values #:latency
    #:message-pointer #:message-length #:message-encoding #:message-time
    #:receive #:send #:send-bundle
-   #:slip-encode #:slip-decode #:simple-bundle #:message #:start-message
+   #:slip-encode #:slip-decode
+   #:bundle #:simple-bundle #:message #:start-message
    #:value #:value-pointer
    #:midi #:address-pattern #:check-pattern #:index-values #:with-values
    #:required-values #:buffer-to-octets #:octets-to-buffer

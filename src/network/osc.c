@@ -97,7 +97,7 @@ int check_osc_pattern(void *buf, const char *address, const char *types)
                         return 0;
 
         if ((*s1 != *s2)
-            || (strcmp(types, (char *) (buf + osc_fix_size(i) + 1)) != 0))
+            || (strcmp(types, (char *) (buf + OSC_FIX_SIZE(i) + 1)) != 0))
                 return 0;
 
         return 1;
@@ -112,17 +112,22 @@ int index_osc_values(void *oscbuf, void *ibuf, char *typebuf,
 {
         char *ttag, **res, **values, *tbuf;
         uint32_t *data;
-        int i = 0;
+        int required_values, i;
 
         res = (char **) ibuf;
         ttag = *res = ((char *) oscbuf) + types_start;
         data = (uint32_t *) (((char *) oscbuf) + data_start);
+        required_values = typebuf[REQUIRED_VALUES_INDEX];
         /* The second slot is reserved for the pointer to the free memory. */
-        values = res + DATA_INDEX_OFFSET;
+        values = res + DATA_INDEX_OFFSET + required_values;
         res = values;
-        /* The first slot is reserved for the number of the required values. */
-        tbuf = typebuf + 1;
+        /*
+         * The first slot is reserved for the number of the required values.
+         * This value is greater than zero after bundle_append_message().
+         */
+        tbuf = typebuf + 1 + required_values;
 
+        i = 0;
         while (*ttag) {
                 *res = (char *) &data[i];
                 *tbuf = *ttag;
@@ -144,7 +149,7 @@ int index_osc_values(void *oscbuf, void *ibuf, char *typebuf,
                         tbuf++;
                         break;
                 case 'b':    /* blob */
-                        i += data[i] / 4 + 2;
+                        i += OSC_FIX_SIZE(data[i] + 3) >> 2;
                         tbuf++;
                         break;
                 case 't':    /* timetag */
@@ -196,7 +201,11 @@ int index_osc_values_le(void *oscbuf, void *ibuf, char *typebuf,
         /* The second slot is reserved for the pointer to the free memory. */
         values = res + DATA_INDEX_OFFSET;
         res = values;
-        /* The first slot is reserved for the number of the required values. */
+        /*
+         * The first slot is reserved for the number of the required values.
+         * Note: index_osc_values_le() is not called from
+         * osc_bundle_append_message(), therefore this is the first message.
+         */
         tbuf = typebuf + 1;
 
         while (*ttag) {
@@ -225,7 +234,7 @@ int index_osc_values_le(void *oscbuf, void *ibuf, char *typebuf,
                         break;
                 case 'b':    /* blob */
                         data[i] = htonl(data[i]);
-                        i += data[i] / 4 + 2;
+                        i += OSC_FIX_SIZE(data[i] + 3) >> 2;
                         tbuf++;
                         break;
                 case 't':    /* timetag */
@@ -264,29 +273,106 @@ int index_osc_values_le(void *oscbuf, void *ibuf, char *typebuf,
 }
 #endif  /* LITTLE_ENDIAN */
 
+int index_osc_bundle_values(void *buf, void *ibuf, char *tbuf,
+                            unsigned int size, int swap)
+{
+        char *msg, *len, *end;
+        unsigned int required_values, ttag_start, slen, i;
+#ifndef LITTLE_ENDIAN
+        (void) swap;
+#endif
+        end = buf + size + OSC_MESSAGE_LENGTH_SIZE;
+        /* Bounds checking.*/
+        len = buf;
+        while (len < end)
+                len += htonl(*((uint32_t *) len)) + OSC_MESSAGE_LENGTH_SIZE;
+        if (len != end) {
+                fprintf(stderr, "ERROR: bounds checking failed in"
+                                "index_osc_bundle_values()\n");
+                return -1;
+        }
+        required_values = 0;
+        len = buf;
+        do {
+                msg = len + OSC_MESSAGE_LENGTH_SIZE;
+                slen = strlen(msg);
+                i = OSC_FIX_SIZE(slen);
+                ttag_start = i;
+                slen = strlen(msg + i);
+                i += OSC_FIX_SIZE(slen);
+                tbuf[REQUIRED_VALUES_INDEX] = required_values;
+#ifdef LITTLE_ENDIAN
+                if (swap)
+                        index_osc_values_le(msg, ibuf, tbuf, ttag_start, i);
+                else
+#endif
+                        index_osc_values(msg, ibuf, tbuf, ttag_start, i);
+                required_values += tbuf[REQUIRED_VALUES_INDEX];
+                len = msg + htonl(*((uint32_t *) len));
+        } while (len < end);
+        tbuf[REQUIRED_VALUES_INDEX] = required_values;
+        return required_values;
+}
+
 /*
  * Write the OSC address pattern and the OSC type tag, then update the
  * pointers to the memory used for the required values.
  */
-unsigned int osc_start_message(void *buf, unsigned int bufsize, void *ibuf,
+unsigned int osc_start_message(void *buf, unsigned int maxlen, void *ibuf,
                                char *tbuf, const char *address,
                                const char *types)
 {
-        int i, ttag_start;
-        char *tmp, **data;
+        char *msg, *tmp;
+        uint32_t *len;
+        unsigned int ttag_start, bytes, i;
 
-        tmp = (char *) buf;
-        memset(buf, 0, bufsize);
+        len = (uint32_t *) buf;
+        msg = buf + OSC_MESSAGE_LENGTH_SIZE;
+        tmp = msg;
+        memset(msg, 0, maxlen);
         for (i = 0; *address != 0; i++)
                 tmp[i] = *address++;
-        i = osc_fix_size(i);
+        i = OSC_FIX_SIZE(i);
         tmp[i++] = ',';
         ttag_start = i;
         for (; *types != 0; i++)
                 tmp[i] = *types++;
-        index_osc_values(buf, ibuf, tbuf, ttag_start, osc_fix_size(i));
-        data = (char **) ibuf;
-        return data[MEM_FREE_INDEX] - (char *) buf;
+        tbuf[REQUIRED_VALUES_INDEX] = 0;
+        index_osc_values(msg, ibuf, tbuf, ttag_start, OSC_FIX_SIZE(i));
+        bytes = ((char **) ibuf)[MEM_FREE_INDEX] - msg;
+        *len = ntohl(bytes);
+        return bytes;
+}
+
+unsigned int osc_bundle_append_message(void *buf, void *ibuf, char *tbuf,
+                                       const char *address, const char *types,
+                                       unsigned int offset)
+{
+        char *msg, *tmp;
+        uint32_t *len;
+        int ttag_start, required_values, i;
+        unsigned int bytes;
+
+        len = (uint32_t *) (buf + offset);
+        msg = ((char *) len) + OSC_MESSAGE_LENGTH_SIZE;
+        tmp = msg;
+        for (i = 0; *address != 0; i++)
+                tmp[i] = *address++;
+        i = OSC_FIX_SIZE(i);
+        tmp[i++] = ',';
+        ttag_start = i;
+        for (; *types != 0; i++)
+                tmp[i] = *types++;
+        required_values = tbuf[REQUIRED_VALUES_INDEX];
+        index_osc_values(msg, ibuf, tbuf, ttag_start, OSC_FIX_SIZE(i));
+        /*
+         * Incremented here instead of from index_osc_values() because it
+         * is necessary for an OSC bundle with two or more OSC messages.
+         */
+        tbuf[REQUIRED_VALUES_INDEX] += required_values;
+        bytes = ((char **) ibuf)[MEM_FREE_INDEX] - msg;
+        *len = ntohl(bytes);
+        return bytes + OSC_MESSAGE_LENGTH_SIZE;
 }
 
 /*
@@ -296,33 +382,52 @@ unsigned int osc_start_message(void *buf, unsigned int bufsize, void *ibuf,
  * moving to right these data.
  */
 int osc_maybe_reserve_space(void *oscbuf, void *ibuf, unsigned int index,
-                            unsigned int data_size)
+                            unsigned int size, int flags)
 {
-        unsigned int old_size;
-        uint32_t **data;
-        unsigned int res, i;
+        uint32_t **data, *next;
+        unsigned int old_size, i;
+        int diff, shift;
 
         data = (uint32_t **) ibuf;
-        old_size = (char *) data[index + 1] - (char *) data[index];
-        if (old_size > data_size) {
-                res = (old_size - data_size) >> 2;
-                osc_move_data_left(data[index + 1], data[MEM_FREE_INDEX], res);
+        /*
+         * If there are two or more OSC messages, the difference between the
+         * memory addresses of two adjacent values is not the value length.
+         * Note: a single message is also the last message.
+         */
+        if (IS_LAST_MESSAGE(flags))
+                old_size = ((char *) data[index + 1] - (char *) data[index]);
+        else if (IS_BLOB(flags)) {
+                old_size = htonl(data[index][0]);
+                old_size = OSC_FIX_SIZE(old_size + 3);
+        } else
+                old_size = OSC_FIX_SIZE(strlen((char *) data[index]));
+        /*
+         * Note: the pointer to the next value is equal to
+         * data[index + 1] if there is a single OSC message.
+         */
+        next = (uint32_t *) ((char *) data[index] + old_size);
+        diff = size - old_size;
+        shift = diff / 4;
+        if (shift != 0) {
+                if (shift < 0)
+                        osc_move_data_left(next, data[MEM_FREE_INDEX], -shift);
+                else
+                        osc_move_data_right(next, data[MEM_FREE_INDEX], shift);
                 /* Update data pointer index. */
                 for (i = index + 1; data[i] < data[MEM_FREE_INDEX]; i++)
-                        data[i] -= res;
+                        data[i] += shift;
                 /* The last slot is the start of the free memory. */
-                data[i] -= res;
+                data[i] += shift;
                 data[MEM_FREE_INDEX] = data[i];
-                *(data[index + 1] - 1) = 0;  /* Zero padding. */
-        } else if (old_size < data_size) {
-                res = (data_size - old_size) >> 2;
-                osc_move_data_right(data[index + 1], data[MEM_FREE_INDEX], res);
-                for (i = index + 1; data[i] < data[MEM_FREE_INDEX]; i++)
-                        data[i] += res;
-                data[i] += res;
-                data[MEM_FREE_INDEX] = data[i];
-                *(data[index + 1] - 1) = 0;
         }
+        /* Zero padding. */
+        *(next + shift - 1) = 0;
+        if (!(IS_SINGLE_MESSAGE(flags))
+            && (shift != 0)
+            && (osc_fix_length(oscbuf - OSC_MESSAGE_LENGTH_SIZE,
+                               data[index], data[MEM_FREE_INDEX],
+                               diff) != 0))
+                fprintf(stderr, "ERROR: osc_fix_length() failed\n");
         return (char *) data[MEM_FREE_INDEX] - (char *) oscbuf;
 }
 
@@ -340,6 +445,28 @@ static void osc_move_data_right(uint32_t *start, uint32_t *end, unsigned int n)
 
         for (curr = end - 1, arr_last = start - 1; curr > arr_last; curr--)
                 *(curr + n) = *curr;
+}
+
+/*
+ * Called if the length of an OSC bundle with two or more messages is
+ * changed (string or blob with different size).
+ */
+static int osc_fix_length(uint32_t *start, uint32_t *value, uint32_t *end, int diff)
+{
+        uint32_t *len, *p;
+        int n;
+
+        p = start;
+        do {
+                len = p;
+                n = htonl(*len);
+                p = (uint32_t *) ((char *) p + n + OSC_MESSAGE_LENGTH_SIZE);
+                if (p > value) {
+                        *len = ntohl(n + diff);
+                        return 0;
+                }
+        } while (p < end);
+        return -1;
 }
 
 struct osc_fds *osc_alloc_fds(void)

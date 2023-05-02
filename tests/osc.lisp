@@ -109,6 +109,59 @@
   #(47 111 115 99 47 116 101 115 116 47 98 117 110 100 108 101 0 0 0 0
     44 105 115 102 0 0 0 0 0 0 0 1 116 119 111 0 64 64 0 0))
 
+(deftest open-sound-control-bundle.2
+    (incudine.osc:with-stream (oscout :direction :output)
+      (incudine.osc:bundle oscout 0 '("/osc/test/bundle" "isf" 1 "two" 3.0))
+      (values
+        (loop for i below (+ (incudine.osc:message-length oscout) 20)
+              collect (cffi:mem-aref (incudine.osc::stream-bundle-pointer oscout)
+                                     :unsigned-char i))
+        (incudine.osc:buffer-to-octets oscout)))
+  (35 98 117 110 100 108 101 0  ; "#bundle"
+   0 0 0 0 0 0 0 1              ; timestamp
+   0 0 0 40                     ; first element length
+   47 111 115 99 47 116 101 115 116 47 98 117 110 100 108 101 0 0 0 0
+   44 105 115 102 0 0 0 0 0 0 0 1 116 119 111 0 64 64 0 0)
+  #(47 111 115 99 47 116 101 115 116 47 98 117 110 100 108 101 0 0 0 0
+    44 105 115 102 0 0 0 0 0 0 0 1 116 119 111 0 64 64 0 0))
+
+(deftest open-sound-control-bundle.3
+    (incudine.osc:with-stream (oscout :direction :output)
+      (apply #'incudine.osc:bundle oscout 0
+             '(("/osc/test/start" "N")
+               ("/osc/test/a" "iii" 7 11 13)
+               ("/osc/test/b" "isf" 1 "two" 3.0)
+               ("/osc/test/c" "sbhd" "sound machine" #(9 8 7 6 5) 12345 9.876d0)
+               ("/osc/test/end" "N")))
+      (let ((octets (coerce (incudine.osc:buffer-to-octets oscout) 'list)))
+        (values
+          (equal octets
+                 (loop for i below (+ (incudine.osc:message-length oscout) 20)
+                       collect (cffi:mem-aref
+                                 (incudine.osc::stream-bundle-pointer oscout)
+                                 :unsigned-char i)))
+          (loop for i below (incudine.osc:required-values oscout)
+                collect (incudine.osc:value oscout i))
+          octets)))
+  T
+  (7 11 13 1 "two" 3.0 "sound machine" #(9 8 7 6 5) 12345 9.876d0)
+  (35 98 117 110 100 108 101 0  ; "#bundle"
+   0 0 0 0 0 0 0 1              ; timestamp
+   0 0 0 20                     ; first element length
+   47 111 115 99 47 116 101 115 116 47 115 116 97 114 116 0 44 78 0 0
+   0 0 0 32                     ; second element length
+   47 111 115 99 47 116 101 115 116 47 97 0 44 105 105 105 0 0 0 0
+   0 0 0 7 0 0 0 11 0 0 0 13
+   0 0 0 32                     ; third element length
+   47 111 115 99 47 116 101 115 116 47 98 0 44 105 115 102 0 0 0 0
+   0 0 0 1 116 119 111 0 64 64 0 0
+   0 0 0 64                     ; fourth element length
+   47 111 115 99 47 116 101 115 116 47 99 0 44 115 98 104 100 0 0 0
+   115 111 117 110 100 32 109 97 99 104 105 110 101 0 0 0 0 0 0
+   5 9 8 7 6 5 0 0 0 0 0 0 0 0 0 48 57 64 35 192 131 18 110 151 141
+   0 0 0 20                     ; fifth element length
+   47 111 115 99 47 116 101 115 116 47 101 110 100 0 0 0 44 78 0 0))
+
 (defun osc-bundle-time-fields (stream)
   (flet ((field32 (index)
            (swap-bytes:ntohl
@@ -116,7 +169,7 @@
                             :uint32 (+ index 2)))))
     (values (field32 0) (field32 1))))
 
-(deftest open-sound-control-bundle.2
+(deftest open-sound-control-bundle.4
     (incudine.osc:with-stream (oscout :direction :output :latency .25)
       (incudine.osc:simple-bundle oscout 3704513491 "/incudine/commit" "s" "e978fcc8")
       (osc-bundle-time-fields oscout))
@@ -124,7 +177,7 @@
   ;; Latency 0.25
   #x40000000)
 
-(deftest open-sound-control-bundle.3
+(deftest open-sound-control-bundle.5
     (incudine.osc:with-stream (oscout :direction :output)
       (let ((time 3704516247))
         (incudine.osc:simple-bundle oscout time "/test/bundle" "isf" 1 "two" 3.0)
@@ -140,6 +193,84 @@
   #(47 116 101 115 116 47 98 117 110 100 108 101 0 0 0 0 44 105
     115 102 0 0 0 0 0 0 0 1 111 116 116 111 99 101 110 116 111 116
     116 97 110 116 111 116 116 111 0 0 64 64 0 0))
+
+(deftest open-sound-control-bundle.6
+    (incudine.osc:with-stream (oscout :direction :output)
+      (incudine.osc:bundle oscout 0
+        '("/test/bundle/a" "isf" 1 "two" 3.0)
+        '("/test/bundle/b" "ibi" 19 #(12 34 56 78 90) 23))
+      (let ((acc nil))
+        (push (incudine.osc:buffer-to-octets oscout) acc)
+        (setf (incudine.osc:value oscout 1) "large string for an OSC bundle test")
+        (setf (incudine.osc:value oscout 4) #(13 12 11 10 9 8 7 6 5 4 3 2 1))
+        (push (incudine.osc:buffer-to-octets oscout) acc)
+        (setf (incudine.osc:value oscout 1) "x")
+        (setf (incudine.osc:value oscout 4) #(7))
+        (values (second acc) (first acc) (incudine.osc:buffer-to-octets oscout))))
+  #(35 98 117 110 100 108 101 0 0 0 0 0 0 0 0 1 0 0 0 36 47 116
+    101 115 116 47 98 117 110 100 108 101 47 97 0 0 44 105 115 102
+    0 0 0 0 0 0 0 1
+
+    116 119 111 0
+
+    64 64 0 0 0 0 0 44 47 116 101 115 116 47 98 117 110 100 108 101 47
+    98 0 0 44 105 98 105 0 0 0 0 0 0 0 19
+
+    0 0 0 5 12 34 56 78 90 0 0 0
+
+    0 0 0 23)
+  #(35 98 117 110 100 108 101 0 0 0 0 0 0 0 0 1 0 0 0 68 47 116
+    101 115 116 47 98 117 110 100 108 101 47 97 0 0 44 105 115 102
+    0 0 0 0 0 0 0 1
+
+    108 97 114 103 101 32 115 116 114 105 110 103 32 102 111 114 32 97
+    110 32 79 83 67 32 98 117 110 100 108 101 32 116 101 115 116 0
+
+    64 64 0 0
+    0 0 0 52
+    47 116 101 115 116 47 98 117 110 100 108 101 47 98 0 0 44 105 98 105
+    0 0 0 0 0 0 0 19
+
+    0 0 0 13 13 12 11 10 9 8 7 6 5 4 3 2 1 0 0 0
+
+    0 0 0 23)
+  #(35 98 117 110 100 108 101 0 0 0 0 0 0 0 0 1 0 0 0 36 47 116
+    101 115 116 47 98 117 110 100 108 101 47 97 0 0 44 105 115 102
+    0 0 0 0 0 0 0 1
+
+    120 0 0 0
+
+    64 64 0 0
+    0 0 0 40
+    47 116 101 115 116 47 98 117 110 100 108 101 47 98 0 0 44 105 98 105
+    0 0 0 0 0 0 0 19
+
+    0 0 0 1 7 0 0 0
+
+    0 0 0 23))
+
+(deftest open-sound-control-bundle.7
+    (incudine.osc:with-stream (oscout :direction :output)
+      (apply #'incudine.osc:bundle oscout 0
+        '(("/bundle/test" "iii" 1 2 3)
+          ("/bundle/test" "iii" 4 5 6)
+          ("/bundle/test" "iii" 7 8 9)))
+      (let ((m (incudine.osc:buffer-to-octets oscout)))
+        (incudine.osc:message oscout "/test" "s" "overwriting the buffer")
+        (incudine.osc:octets-to-buffer m oscout)
+        (incudine.osc:buffer-to-octets oscout)))
+  #(35 98 117 110 100 108 101 0
+    0 0 0 0 0 0 0 1
+    0 0 0 36
+    47 98 117 110 100 108 101 47 116 101 115 116 0 0 0 0 44 105 105 105 0 0 0 0
+    0 0 0 1 0 0 0 2 0 0 0 3
+    0 0 0 36
+    47 98 117 110 100 108 101 47 116 101 115 116 0 0 0 0 44 105 105 105 0 0 0 0
+    0 0 0 4 0 0 0 5 0 0 0 6
+    0 0 0 36
+    47 98 117 110 100 108 101 47 116 101 115 116 0 0 0 0 44 105 105 105 0 0 0 0
+    0 0 0 7 0 0 0 8 0 0 0 9)
+  136)
 
 ;;; SLIP encoding/decoding.
 (deftest open-sound-control-slip-enc.1

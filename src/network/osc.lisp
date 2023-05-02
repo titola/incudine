@@ -77,6 +77,7 @@ a socket stream may grow.")
   (max-values *max-values* :type positive-fixnum)
   ;; T if the pointers to the required OSC values are to update.
   (buffer-to-index-p nil :type boolean)
+  (single-message-p t :type boolean)
   ;; Pointer to the memory where the OSC message starts.
   (message-pointer (cffi:null-pointer) :type cffi:foreign-pointer)
   (message-offset 0 :type non-negative-fixnum)
@@ -141,6 +142,13 @@ a socket stream may grow.")
   `(cffi:foreign-slot-value (stream-addrinfo-ptr ,stream)
                             '(:struct addrinfo) ,slot-name))
 
+(declaim (inline fix-size))
+(defun fix-size (n)
+  "Adjust the size N of a zero-padded OSC data. The new size will be a
+multiple of four (bytes)."
+  (declare (type non-negative-fixnum n))
+  (the non-negative-fixnum (- (+ n 4) (logand n 3))))
+
 ;;; send() and recv() return the number of the bytes received, or -1
 ;;; if an error occurred. We force a fixnum on 32-bit platforms.
 (defmacro force-fixnum (form)
@@ -156,8 +164,7 @@ a socket stream may grow.")
 (declaim (inline encode-timestamp))
 (defun encode-timestamp (seconds)
   "Return the two 32-bit fields of the 64-bit NTP timestamp format (RFC 5905)."
-  (if (zerop seconds)
-      (values 0 1) ; Immediate 0x0000000000000001
+  (if (plusp seconds)
       (multiple-value-bind (sec frac)
           ;; We don't send OSC bundles in the past, therefore we can use
           ;; the time with dual meaning: if SECONDS is greater than 63103
@@ -165,7 +172,9 @@ a socket stream may grow.")
           ;; to the current time.  63104 is the offset of the NTP Timestamp
           ;; Era 1 (from 8 Feb 2036), so this hack will work for centuries.
           (floor (if (> seconds 63103) seconds (+ (incudine:timestamp) seconds)))
-        (values sec (floor (* frac #x100000000))))))
+        (values sec (floor (* frac #x100000000))))
+      ;; Immediate 0x0000000000000001
+      (values 0 1)))
 
 (declaim (inline decode-timestamp))
 (defun decode-timestamp (sec frac)
@@ -178,10 +187,15 @@ a socket stream may grow.")
 (defun free-pointer (ptr)
   (unless (cffi:null-pointer-p ptr) (cffi:foreign-free ptr)))
 
-(define-constant +bundle-reserved-bytes+ (+ 8 8 4))
+(define-constant +message-length-size+ 4)
 (define-constant +zero-padding-bytes+ 4)
 (define-constant +temp-space-bytes+ 8)
 (define-constant +int-size+ (cffi:foreign-type-size :int))
+
+(define-constant +bundle-reserved-bytes+
+    (let ((magic-length (fix-size (length "#bundle")))
+          (timetag-length 8))
+      (+ magic-length timetag-length +message-length-size+)))
 
 (declaim (inline latency))
 (defun latency (stream)
@@ -197,16 +211,14 @@ a socket stream may grow.")
 (declaim (inline set-bundle-time))
 (defun set-bundle-time (stream seconds)
   (multiple-value-bind (sec frac) (encode-timestamp seconds)
-    (setf (cffi:mem-aref (stream-bundle-pointer stream) :uint32 2)
-          (swap-bytes:htonl sec))
-    (setf (cffi:mem-aref (stream-bundle-pointer stream) :uint32 3)
-          (swap-bytes:htonl frac))
+    (setf (cffi:mem-aref (stream-bundle-pointer stream) :uint32 2) (htonl sec))
+    (setf (cffi:mem-aref (stream-bundle-pointer stream) :uint32 3) (htonl frac))
     seconds))
 
 (declaim (inline set-bundle-first-element-length))
 (defun set-bundle-first-element-length (stream)
   (setf (cffi:mem-aref (stream-message-length-pointer stream) :uint32)
-        (swap-bytes:htonl (stream-message-length stream))))
+        (htonl (stream-message-length stream))))
 
 (defun init-stream (obj latency)
   (when (output-stream-p obj)
@@ -515,6 +527,15 @@ automatically closed."
 
 (defsetf message-length set-message-length)
 
+(define-constant +data-index-offset+ 2)
+
+(defmacro arg-pointer (stream index)
+  `(cffi:mem-aref (stream-value-vec-ptr ,stream) :pointer ,index))
+
+(defmacro buffer-memory-free-pointer (stream)
+  (let ((memory-free-index 1))
+    `(arg-pointer ,stream ,memory-free-index)))
+
 (define-constant +osc-bundle-magic-number+
   #+little-endian 28548151253492259
   #-little-endian 2549729456036799744)
@@ -530,8 +551,7 @@ automatically closed."
     (macrolet ((u32p (offset)
                  `(cffi:mem-ref (message-pointer stream) :uint32 ,offset)))
       (setf (input-stream-time-seconds stream)
-            (decode-timestamp (swap-bytes:ntohl (u32p 8))
-                              (swap-bytes:ntohl (u32p 12))))))
+            (decode-timestamp (ntohl (u32p 8)) (ntohl (u32p 12))))))
   stream)
 
 (declaim (inline message-time-seconds))
@@ -765,9 +785,8 @@ send and sendto for details on the FLAGS argument."
              (setf (cffi:mem-ref (stream-message-length-pointer stream) :uint32)
                    res)
              (setf (stream-message-length stream)
-                   (swap-bytes:ntohl
-                     (cffi:mem-ref (stream-message-pointer stream) :uint32
-                                   (- +bundle-reserved-bytes+ 4))))
+                   (ntohl (cffi:mem-ref (stream-message-pointer stream) :uint32
+                                        (- +bundle-reserved-bytes+ 4))))
              ;; The first OSC message after 20 bytes (8+8+4).
              (setf (stream-message-offset stream) +bundle-reserved-bytes+)
              ;; The call to %%INDEX-VALUES is forced here because INDEX-VALUES
@@ -778,11 +797,11 @@ send and sendto for details on the FLAGS argument."
              ;; copy of the received OSC bundle requires a swap of the read OSC
              ;; messages.
              (%%index-values stream t t +bundle-reserved-bytes+)
+             (setf (stream-single-message-p stream) t)
              (setf res (stream-message-length stream)))
             (t
-             (setf (stream-message-length stream) res)
-             (when osc-message-p
-               (setf (stream-buffer-to-index-p stream) t))))
+             (setf (stream-single-message-p stream) t)
+             (setf (stream-message-length stream) res)))
       (when (slip-encoding-p stream)
         (slip-decode stream))
       res)))
@@ -814,9 +833,8 @@ Return the number of bytes of the OSC message."
                     nil)
                    (t
                     (setf (stream-message-length stream)
-                          (swap-bytes:ntohl
-                            (cffi:mem-ref (stream-message-pointer stream)
-                                          :uint32 offset)))
+                          (ntohl (cffi:mem-ref (stream-message-pointer stream)
+                                               :uint32 offset)))
                     (setf (stream-message-offset stream) (+ offset 4))
                     (%%index-values stream t t (stream-message-offset stream))
                     (stream-message-length stream)))))
@@ -899,11 +917,6 @@ send and sendto for details on the FLAGS argument."
            (cffi:mem-ref ,ptr :unsigned-char 2)
            (cffi:mem-ref ,ptr :unsigned-char 3)))
 
-(define-constant +data-index-offset+ 2)
-
-(defmacro arg-pointer (stream index)
-  `(cffi:mem-aref (stream-value-vec-ptr ,stream) :pointer ,index))
-
 (defun value-pointer (stream index)
   "Return the foreign pointer to a required value of the OSC message stored
 in the STREAM buffer. The OSC value is specified by the zero-based INDEX.
@@ -922,6 +935,10 @@ No bounds checking."
 
 (define-compiler-macro required-values (stream)
   `(cffi:mem-ref (stream-type-vec-ptr ,stream) :unsigned-char))
+
+(declaim (inline reset-required-values))
+(defun reset-required-values (stream)
+  (setf (cffi:mem-ref (stream-type-vec-ptr stream) :unsigned-char) 0))
 
 (defmacro typetag-code (stream index)
   `(cffi:mem-aref (stream-type-vec-ptr ,stream) :unsigned-char (1+ ,index)))
@@ -1020,13 +1037,6 @@ and :MAX-VALUES in OSC:OPEN."
           (#\m (get-midi ptr))
           (#\c (cffi:mem-ref ptr :unsigned-char)))))))
 
-(declaim (inline fix-size))
-(defun fix-size (n)
-  "Adjust the size N of a zero-padded OSC data. The new size will be a
-multiple of four (bytes)."
-  (declare (type non-negative-fixnum n))
-  (the non-negative-fixnum (- (+ n 4) (logand n 3))))
-
 #+little-endian
 (defmacro data-swap-32 (ptr)
   `(setf #1=(cffi:mem-ref ,ptr :uint32) (htonl #1#)))
@@ -1081,46 +1091,63 @@ multiple of four (bytes)."
       ;; Perhaps sometimes it is useful a double float value.
       (set-double ptr value)))
 
-(defmacro maybe-reserve-space (stream index data-size)
-  (with-gensyms (s i len)
-    `(let* ((,s ,stream)
-            (,i ,index)
-            (,len (%maybe-reserve-space
-                    (stream-message-pointer ,s)
-                    (stream-value-vec-ptr ,s)
-                    ,i ,data-size)))
-       (unless (= (stream-message-length ,s) ,len)
-         (setf (stream-message-length ,s) ,len)
-         (when (output-stream-p ,s)
-           (setf (stream-bundle-length ,s)
-                 (+ (stream-message-length ,s) ,+bundle-reserved-bytes+))
-           (when (and (protocolp ,s :tcp)
-                      (null (stream-message-encoding ,s)))
-             (setf (cffi:mem-ref (stream-buffer-pointer ,s) :uint32)
-                   (htonl (stream-bundle-length ,s))))
-           (set-bundle-first-element-length ,s)))
-         ,s)))
+;; Flags for osc_maybe_reserve_space().
+(define-constant +single-message+ 1)
+(define-constant +bundle-last-message+ 2)
+(define-constant +blob-value+ 4)
 
-(defun set-string (stream index string)
+(defun maybe-reserve-space (stream index data-size last-message-p
+                            &optional blob-p)
   (declare (type stream stream) (type non-negative-fixnum index)
-           (type simple-string string))
+           (type positive-fixnum data-size)
+           (type boolean last-message-p blob-p))
+  (let ((old-len (stream-message-length stream))
+        (new-len (%maybe-reserve-space
+                   (stream-message-pointer stream)
+                   (stream-value-vec-ptr stream)
+                   index data-size
+                   (logior (if (stream-single-message-p stream)
+                               +single-message+
+                               0)
+                           (if last-message-p +bundle-last-message+ 0)
+                           (if blob-p +blob-value+ 0)))))
+    (declare (type non-negative-fixnum old-len new-len))
+    (unless (= old-len new-len)
+      (setf (stream-message-length stream) new-len)
+      ;; LAST-MESSAGE-P is T from OSC:BUNDLE to avoid duplicated settings.
+      (when (and (not last-message-p)
+                 (output-stream-p stream))
+        (setf (stream-bundle-length stream)
+              (+ (stream-message-length stream) +bundle-reserved-bytes+))
+        (when (and (protocolp stream :tcp)
+                   (null (stream-message-encoding stream)))
+          (setf (cffi:mem-ref (stream-buffer-pointer stream) :uint32)
+                (htonl (stream-bundle-length stream))))
+        (when (stream-single-message-p stream)
+          (set-bundle-first-element-length stream))))
+    stream))
+
+(defun set-string (stream index string last-message-p)
+  (declare (type stream stream) (type non-negative-fixnum index)
+           (type simple-string string) (type boolean last-message-p))
   (let ((slen (length string)))
     (declare (type non-negative-fixnum slen))
-    (maybe-reserve-space stream index (fix-size slen))
+    (maybe-reserve-space stream index (fix-size slen) last-message-p)
     (loop for c across string
           for i of-type non-negative-fixnum from 0 do
             (setf (cffi:mem-aref (arg-pointer stream index) :unsigned-char i)
                   (char-code c))))
   (values))
 
-(defun set-blob (stream index buffer)
+(defun set-blob (stream index buffer last-message-p)
   (declare (type stream stream) (type non-negative-fixnum index)
            (type (or (simple-array (unsigned-byte 8) (*))
                      simple-vector)
                  buffer))
   (let ((size (length buffer)))
-    (maybe-reserve-space stream index (the non-negative-fixnum
-                                           (+ 4 (fix-size (1- size)))))
+    (maybe-reserve-space
+      stream index (the non-negative-fixnum (fix-size (+ size 3)))
+      last-message-p t)
     (setf (cffi:mem-ref (arg-pointer stream index) :uint32) (htonl size))
     (loop for i below size
           with ptr = (cffi:inc-pointer (arg-pointer stream index) 4)
@@ -1146,8 +1173,9 @@ type tag (m)."
   (setf (cffi:mem-ref (arg-pointer stream index) :uint32) value)
   (values))
 
-(defun set-value (stream index value)
+(defun %set-value (stream index value &optional last-message-p)
   (declare (type stream stream) (type non-negative-fixnum index)
+           (type boolean last-message-p)
            #.incudine.util:*reduce-warnings*)
   (incudine-optimize
     (let* ((i (+ index +data-index-offset+))
@@ -1159,15 +1187,31 @@ type tag (m)."
         (#\f (set-float ptr value))
         (#\h (set-int64 ptr value))
         (#\d (set-double ptr value))
-        (#\s (set-string stream i value))
-        (#\S (set-string stream i value))
+        (#\s (set-string stream i value last-message-p))
+        (#\S (set-string stream i value last-message-p))
         (#\t (set-timetag ptr value))
-        (#\b (set-blob stream i value))
+        (#\b (set-blob stream i value last-message-p))
         (#\m (set-midi stream i value))
         (#\c (set-char ptr value))))
     value))
 
-(defsetf value set-value)
+(defsetf value (stream index) (value)
+  `(%set-value ,stream ,index ,value))
+
+(declaim (inline maybe-reset-time))
+(defun maybe-reset-time (stream)
+  (when (and (incudine.osc:input-stream-p stream)
+             (message-from-bundle-p stream))
+    (reset-time stream)))
+
+(declaim (inline check-typetag))
+(defun check-typetag (stream types)
+  (let ((typetag-len (length types)))
+    (when (> typetag-len (stream-max-values stream))
+      (network-error
+        "The length of the OSC type tag is ~D but the limit ~%~
+         for this OSC:STREAM is ~D"
+        typetag-len (stream-max-values stream)))))
 
 (defun start-message (stream address types)
   "Write the OSC ADDRESS pattern and the OSC TYPES to the STREAM buffer,
@@ -1180,17 +1224,11 @@ control. See also :BUFFER-SIZE and :MAX-VALUES in OSC:OPEN."
   (declare (type stream stream)
            (type string address types))
   ;; Generally START-MESSAGE works with output streams.
-  (when (and (incudine.osc:input-stream-p stream)
-             (message-from-bundle-p stream))
-    (reset-time stream))
-  (let ((typetag-len (length types)))
-    (when (> typetag-len (stream-max-values stream))
-      (network-error
-        "The length of the OSC type tag is ~D but the limit ~%~
-         for this OSC:STREAM is ~D"
-        typetag-len (stream-max-values stream))))
+  (maybe-reset-time stream)
+  (check-typetag stream types)
+  (setf (stream-single-message-p stream) t)
   (setf (stream-message-length stream)
-        (%start-message (stream-message-pointer stream)
+        (%start-message (stream-message-length-pointer stream)
                         (stream-buffer-size stream)
                         (stream-value-vec-ptr stream)
                         (stream-type-vec-ptr stream)
@@ -1224,7 +1262,7 @@ before OSC:MESSAGE if you are sending OSC messages out of control.
 See also :BUFFER-SIZE and :MAX-VALUES in OSC:OPEN."
   (start-message stream address types)
   (loop for val in values for i from 0 do
-        (set-value stream i val))
+        (%set-value stream i val))
   (if (or values
           (not (stringp types))
           (not (required-values-p types)))
@@ -1236,7 +1274,7 @@ See also :BUFFER-SIZE and :MAX-VALUES in OSC:OPEN."
     `(let ((,s ,stream))
        (start-message ,s ,address ,types)
        ,@(loop for val in values for i from 0
-               collect `(set-value ,s ,i ,val))
+               collect `(%set-value ,s ,i ,val))
        ,(if (or values
                 (not (stringp types))
                 (not (required-values-p types)))
@@ -1286,12 +1324,12 @@ is equivalent to
   (start-message stream address types)
   (unless (keywordp (first values))
     (loop for val in values for i from 0 do
-          (set-value stream i val)))
+          (%set-value stream i val)))
   (setf (stream-bundle-length stream)
         (+ (stream-message-length stream) +bundle-reserved-bytes+))
   (when (and (protocolp stream :tcp) (null (stream-message-encoding stream)))
     (setf (cffi:mem-ref (stream-buffer-pointer stream) :uint32)
-          (swap-bytes:htonl (stream-bundle-length stream))))
+          (htonl (stream-bundle-length stream))))
   (set-bundle-first-element-length stream)
   (if (send-bundle-p types values)
       (send-bundle stream seconds)
@@ -1303,16 +1341,112 @@ is equivalent to
        (start-message ,s ,address ,types)
        ,@(unless (keywordp (first values))
            (loop for val in values for i from 0
-                 collect `(set-value ,s ,i ,val)))
+                 collect `(%set-value ,s ,i ,val)))
        (setf (stream-bundle-length ,s)
              (+ (stream-message-length ,s) ,+bundle-reserved-bytes+))
        (when (and (protocolp ,s :tcp) (null (stream-message-encoding ,s)))
          (setf (cffi:mem-ref (stream-buffer-pointer ,s) :uint32)
-               (swap-bytes:htonl (stream-bundle-length ,s))))
+               (htonl (stream-bundle-length ,s))))
        (set-bundle-first-element-length ,s)
        ,(if (send-bundle-p types values)
             `(send-bundle ,s ,seconds)
             0))))
+
+(defmacro destructuring-message ((address types values) list &body body)
+  (with-gensyms (mrest)
+    `(let* ((,address (first ,list))
+            (,mrest (rest ,list))
+            (,types (first ,mrest))
+            (,values (rest ,mrest)))
+       (declare (type string ,address ,types))
+       ,@body)))
+
+(defun bundle (stream seconds message &rest more-messages)
+  "Send an OSC bundle with timestamp SECONDS plus stream latency.
+An OSC message is a list
+
+    (address types &rest values)
+
+If SECONDS is NIL, prepare the OSC message but don't send it.
+
+The OSC timestamp SECONDS is used with dual meaning: if it is greater
+than 63103 seconds (about 17 hours), the time is absolute otherwise it
+is added to the current time. 63104 is the offset of the NTP Timestamp
+Era 1 (from 8 Feb 2036), so this hack will work for centuries.
+
+No buffer bounds checking. You can call your bounds checking routine
+before OSC:BUNDLE if you are sending OSC messages out of control.
+See also :BUFFER-SIZE and :MAX-VALUES in OSC:OPEN.
+
+Example:
+
+    (defvar *oscout* (osc:open :direction :output :port 9999))
+
+    (osc:bundle *oscout* 3/4
+      '(\"/bp/freq\" \"f\" 2909.09)
+      '(\"/bp/q\" \"f\" 60.0)
+      '(\"/bp/gain\" \"f\" 6.5))
+
+    (loop for i below (osc:required-values *oscout*)
+          collect (osc:value *oscout* i))
+    ;; => (2909.09 60.0 6.5)
+
+    (setf (osc:value *oscout* 0) 3469.88)
+    (setf (osc:value *oscout* 2) 8.2)
+    (osc:send-bundle *oscout* .4)"
+  (declare (type stream stream)
+           (type (or real null) seconds)
+           (type cons message))
+  (flet ((append-message (s message first-value-index)
+           (declare (type stream s) (type cons message)
+                    (type non-negative-fixnum first-value-index))
+           (destructuring-message (address types values) message
+             (when (> (the non-negative-fixnum
+                        (+ (length types) first-value-index))
+                      (stream-max-values s))
+               (network-error
+                 "The OSC bundle requires more than ~D values.~%~
+                  See :MAX-VALUES in OSC:OPEN"
+                 (stream-max-values s)))
+             (let* ((offset (stream-message-length s))
+                    (len (%append-message (stream-message-pointer s)
+                                          (stream-value-vec-ptr s)
+                                          (stream-type-vec-ptr s)
+                                          address types offset)))
+               (declare (type non-negative-fixnum offset len))
+               (loop for value in values
+                     for i of-type non-negative-fixnum from first-value-index
+                     do (%set-value s i value t)
+                     finally
+                       (if (= (stream-message-length s) offset)
+                           (incf (stream-message-length s) len)
+                           ;; Length changed by strings and/or blobs.
+                           (setf (cffi:mem-ref (stream-message-pointer s)
+                                               :uint32 offset)
+                                 (ntohl (- (stream-message-length s) offset
+                                           +message-length-size+)))))))))
+    (destructuring-message (address types values) message
+      (maybe-reset-time stream)
+      (check-typetag stream types)
+      (setf (stream-single-message-p stream) (null more-messages))
+      (setf (stream-message-length stream)
+            (%start-message (stream-message-length-pointer stream)
+                            (stream-buffer-size stream)
+                            (stream-value-vec-ptr stream)
+                            (stream-type-vec-ptr stream)
+                            address types))
+      (loop for val in values
+            for i of-type non-negative-fixnum from 0 do
+            (%set-value stream i val t))
+      (loop for m in more-messages do
+            (append-message stream m (required-values stream)))
+      (setf (stream-bundle-length stream)
+            (+ (stream-message-length stream) +bundle-reserved-bytes+))
+      (when (and (protocolp stream :tcp) (null (stream-message-encoding stream)))
+        (setf (cffi:mem-ref (stream-buffer-pointer stream) :uint32)
+              (htonl (stream-bundle-length stream))))
+      (when seconds
+        (send-bundle stream seconds)))))
 
 (declaim (inline current-message-pointer))
 (defun current-message-pointer (stream)
@@ -1403,6 +1537,7 @@ STREAM buffer are ADDRESS and TYPES."
       (let* ((types-start (stream-buffer-strlen stream message-offset))
              (data-start (stream-buffer-strlen stream types-start)))
         (declare (type non-negative-fixnum types-start data-start))
+        (reset-required-values stream)
         (incf types-start)  ; skip #\,
         (macrolet ((idata (fname)
                      `(,fname (stream-message-pointer stream)
@@ -1422,10 +1557,18 @@ required values of the OSC message stored in the STREAM buffer.
 
 If SWAP-P is T, the byte order of the values is reversed on little
 endian machine."
-  (declare (type stream stream)
-           #+little-endian (type boolean swap-p)
-           #-little-endian (ignore swap-p))
-  (%%index-values stream force-p swap-p 0))
+  (declare (type stream stream) (type boolean force-p swap-p))
+  (if (stream-single-message-p stream)
+      (%%index-values stream force-p swap-p 0)
+      (progn
+        (%index-bundle-values
+          (stream-message-length-pointer stream)
+          (stream-value-vec-ptr stream)
+          (stream-type-vec-ptr stream)
+          (stream-message-length stream)
+          swap-p)
+        (setf (stream-buffer-to-index-p stream) nil)
+        stream)))
 
 (defmacro with-values (value-names (stream types) &body body)
   "Create new symbol macro bindings VALUE-NAMES to the OSC values of
@@ -1463,17 +1606,24 @@ START and END are the bounding index designators of the vector."
   (incudine-optimize
     (let ((len (stream-message-length stream)))
       (unless (zerop len)
-        (multiple-value-bind (seq start end)
-            (if octets
-                (values octets start (min (or end (length octets)) len))
-                (values (make-array len :element-type '(unsigned-byte 8)) 0 len))
-          (loop for i from start below end
-                with ptr = (if (input-stream-p stream)
-                               (current-message-pointer stream)
-                               (stream-message-pointer stream))
-                do (setf (aref seq i)
-                         (cffi:mem-aref ptr :unsigned-char i)))
-          (values seq len))))))
+        (let ((len2 (if (and (output-stream-p stream)
+                             (not (stream-single-message-p stream)))
+                        (+ len +bundle-reserved-bytes+)
+                        len)))
+          (declare (type non-negative-fixnum len2))
+          (multiple-value-bind (seq start end)
+              (if octets
+                  (values octets start (min (or end (length octets)) len2))
+                  (values (make-array len2 :element-type '(unsigned-byte 8))
+                          0 len2))
+            (loop for i from start below end
+                  with ptr = (cond ((> len2 len) (stream-bundle-pointer stream))
+                                   ((input-stream-p stream)
+                                    (current-message-pointer stream))
+                                   (t (stream-message-pointer stream)))
+                  do (setf (aref seq i)
+                           (cffi:mem-aref ptr :unsigned-char i)))
+            (values seq len2)))))))
 
 (defun octets-to-buffer (octets stream &optional (start 0) end
                          (osc-message-p t))
@@ -1490,13 +1640,34 @@ and the OSC:STREAM structure is specially updated."
   (incudine-optimize
     (let ((len (- (or end (length octets)) start)))
       (when (<= len (stream-buffer-size stream))
-        (setf (stream-message-length stream) len)
-        (dotimes (i len)
-          (setf (cffi:mem-aref (stream-message-pointer stream) :unsigned-char i)
-                (aref octets i)))
-        (when osc-message-p
-          (setf (stream-buffer-to-index-p stream) t)
-          (set-bundle-first-element-length stream)
-          (setf (stream-bundle-length stream)
-                (+ (stream-message-length stream) +bundle-reserved-bytes+)))
+        (let ((bundle-p (and (> len 16)
+                             (= +osc-bundle-magic-number+
+                                (cffi:with-pointer-to-vector-data (p octets)
+                                  (cffi:mem-ref p :uint64))))))
+          (setf (stream-message-length stream)
+                (if bundle-p (- len +bundle-reserved-bytes+) len))
+          (dotimes (i len)
+            (setf (cffi:mem-aref (if bundle-p
+                                     (stream-bundle-pointer stream)
+                                     (stream-message-pointer stream))
+                                 :unsigned-char i)
+                  (aref octets i)))
+          (when osc-message-p
+            (setf (stream-buffer-to-index-p stream) t)
+            (cond (bundle-p
+                   (setf (buffer-memory-free-pointer stream)
+                         (cffi:inc-pointer (stream-message-pointer stream)
+                                           (stream-message-length stream)))
+                   (setf (stream-bundle-length stream) len)
+                   (setf (stream-single-message-p stream)
+                         (= (stream-message-length stream)
+                            (htonl (cffi:mem-ref
+                                     (stream-message-length-pointer stream)
+                                     :uint32)))))
+                  (t ;; One message works with SIMPLE-BUNDLE.
+                   (set-bundle-first-element-length stream)
+                   (setf (stream-bundle-length stream)
+                         (+ (stream-message-length stream)
+                            +bundle-reserved-bytes+))
+                   (setf (stream-single-message-p stream) nil)))))
         (values stream len)))))

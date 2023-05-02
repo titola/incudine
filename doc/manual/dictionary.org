@@ -2187,6 +2187,7 @@ end-of-score
 ::: osc:start-message
 ::: osc:send
 ::: osc:simple-bundle
+::: osc:bundle
 ::: osc:send-bundle
 ::: osc:receive
 ::: osc:address-pattern

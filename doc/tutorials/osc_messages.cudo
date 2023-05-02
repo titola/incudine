@@ -225,6 +225,9 @@ osc:*max-values*
 (osc:send-bundle *oscout*)  ; SERVER ERROR
 ;; 48 instead of 52 (truncated message)
 
+;; See OSC:BUNDLE to send an OSC bundle with two or more
+;; OSC messages.
+
 ;; Broadcast in a local network:
 
 (osc:close *oscout*)

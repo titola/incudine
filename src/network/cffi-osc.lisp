@@ -128,37 +128,56 @@ See the manual pages of the C functions and bits/socket.h for details.")
   (types :string))
 
 (declaim (inline %index-values))
-(cffi:defcfun ("index_osc_values" %index-values) :void
+(cffi:defcfun ("index_osc_values" %index-values) :int
   (buf :pointer)
   (ibuf :pointer)
   (tbuf :pointer)
   (types-start :unsigned-int)
   (data-start :unsigned-int))
 
+(declaim (inline %index-bundle-values))
+(cffi:defcfun ("index_osc_bundle_values" %index-bundle-values) :int
+  (buf :pointer)
+  (ibuf :pointer)
+  (tbuf :pointer)
+  (size :unsigned-int)
+  (swap :boolean))
+
 #+little-endian
 (progn
   (declaim (inline %index-values-le))
-  (cffi:defcfun ("index_osc_values_le" %index-values-le) :void
+  (cffi:defcfun ("index_osc_values_le" %index-values-le) :int
     (buf :pointer)
     (ibuf :pointer)
     (tbuf :pointer)
     (types-start :unsigned-int)
     (data-start :unsigned-int)))
 
+(declaim (inline %start-message))
 (cffi:defcfun ("osc_start_message" %start-message) :unsigned-int
   (buffer :pointer)
-  (bufsize :unsigned-int)
+  (maxlen :unsigned-int)
   (ibuf :pointer)
   (tbuf :pointer)
   (address :string)
   (types :string))
+
+(declaim (inline %append-message))
+(cffi:defcfun ("osc_bundle_append_message" %append-message) :unsigned-int
+  (buffer :pointer)
+  (ibuf :pointer)
+  (tbuf :pointer)
+  (address :string)
+  (types :string)
+  (offset :unsigned-int))
 
 (declaim (inline osc-reserve-space))
 (cffi:defcfun ("osc_maybe_reserve_space" %maybe-reserve-space) :int
   (oscbuf :pointer)
   (ibuf :pointer)
   (index :unsigned-int)
-  (data-size :unsigned-int))
+  (data-size :unsigned-int)
+  (flags :int))
 
 (declaim (inline %alloc-fds))
 (cffi:defcfun ("osc_alloc_fds" %alloc-fds) :pointer)

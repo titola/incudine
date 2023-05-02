@@ -49,6 +49,8 @@
 #define SLIP_ENCODING_FLAG  1
 #define COUNT_PREFIX_FLAG   2
 
+#define OSC_MESSAGE_LENGTH_SIZE  4
+
 #define OSC_MSGTOOLONG  -2
 #define OSC_BADMSG      -3
 
@@ -127,7 +129,15 @@ struct osc_fds {
         fd_set fds;
 };
 
-#define osc_fix_size(n)  (n + 4 - (n & 3))
+#define SINGLE_MESSAGE       1
+#define BUNDLE_LAST_MESSAGE  2
+#define BLOB_VALUE           4
+
+#define IS_SINGLE_MESSAGE(x)  (x & SINGLE_MESSAGE)
+#define IS_LAST_MESSAGE(x)    (x & (SINGLE_MESSAGE | BUNDLE_LAST_MESSAGE))
+#define IS_BLOB(x)            (x & BLOB_VALUE)
+
+#define OSC_FIX_SIZE(n)  ((n) + 4 - ((n) & 3))
 
 #ifdef WIN32
 int initialize_winsock(void);
@@ -147,11 +157,17 @@ int index_osc_values(void *buf, void *ibuf, char *tbuf,
 int index_osc_values_le(void *buf, void *ibuf, char *tbuf,
                         unsigned int types_start, unsigned int data_start);
 #endif
-unsigned int osc_start_message(void *buf, unsigned int bufsize, void *ibuf,
+int index_osc_bundle_values(void *buf, void *ibuf, char *tbuf,
+                            unsigned int size, int swap);
+unsigned int osc_start_message(void *buf, unsigned int maxlen, void *ibuf,
                                char *tbuf, const char *addrpat,
                                const char *types);
+unsigned int osc_bundle_append_message(void *buf, void *ibuf, char *tbuf,
+                                       const char *address, const char *types,
+                                       unsigned int offset);
 int osc_maybe_reserve_space(void *oscbuf, void *ibuf, unsigned int index,
-                            unsigned int data_size);
+                            unsigned int value, int flags);
+static int osc_fix_length(uint32_t *start, uint32_t *value, uint32_t *end, int diff);
 struct osc_fds *osc_alloc_fds(void);
 void osc_set_servfd(struct osc_fds *o, OSC_SOCKET servfd);
 int osc_lastfd(struct osc_fds *o);
