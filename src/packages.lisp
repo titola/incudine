@@ -533,7 +533,8 @@
    #:socket-send
    #:connections #:connections-fd #:host #:port #:protocol #:protocolp
    #:socket-fd #:direction #:buffer-pointer #:buffer-size #:max-values #:latency
-   #:message-pointer #:message-length #:message-encoding #:message-time
+   #:message-pointer #:message-length #:bundle-length
+   #:message-encoding #:message-time
    #:receive #:send #:send-bundle
    #:slip-encode #:slip-decode
    #:bundle #:simple-bundle #:message #:start-message

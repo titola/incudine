@@ -540,10 +540,23 @@ automatically closed."
   #+little-endian 28548151253492259
   #-little-endian 2549729456036799744)
 
+(declaim (inline message-from-bundle-p))
 (defun message-from-bundle-p (stream)
   (declare (type input-stream stream))
   (= (cffi:mem-ref (stream-message-pointer stream) :uint64)
      +osc-bundle-magic-number+))
+
+(defun bundle-length (stream)
+  "If the contents of the STREAM buffer are an OSC bundle,
+return the length of that bundle. Otherwise, return zero."
+  (declare (type stream stream))
+  (cond ((and (input-stream-p stream) (message-from-bundle-p stream))
+         (cffi:mem-ref (stream-message-length-pointer stream) :uint32))
+        ((or (not (stream-single-message-p stream))
+             (= (stream-bundle-length stream)
+                (+ +bundle-reserved-bytes+ (stream-message-length stream))))
+         (stream-bundle-length stream))
+        (t 0)))
 
 (defun maybe-update-message-time-seconds (stream)
   (when (and (zerop (input-stream-time-seconds stream))
@@ -868,10 +881,14 @@ send and sendto for details on the FLAGS argument."
   "Send the OSC bundle stored in the STREAM buffer with OSC timestamp
 SECONDS (0.0 by default) plus the stream latency.
 
-See SIMPLE-BUNDLE for details about the OSC timestamp SECONDS.
+See OSC:BUNDLE or OSC:SIMPLE-BUNDLE for details about the OSC
+timestamp SECONDS.
 
 FLAGS defaults to NET:+DEFAULT-MSG-FLAGS+. See the manual pages for
-send and sendto for details on the FLAGS argument."
+send and sendto for details on the FLAGS argument.
+
+Note: OSC:SEND-BUNDLE continues to work after OSC:MESSAGE if the
+message length is equal to the length of the prior contents."
   (declare (type stream stream) (type non-negative-fixnum flags)
            #.incudine.util:*reduce-warnings*)
   (incudine-optimize

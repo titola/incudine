@@ -286,6 +286,7 @@
 
       <p>
         ...but <code>OSC:SEND-BUNDLE</code> fails after <code>OSC:MESSAGE</code>
+        if the message length is changed
       </p>
 
       <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (osc:message *oscout* <span style="color: #ffa07a;">"/test/msg"</span> <span style="color: #ffa07a;">"iii"</span> 1 2 3)

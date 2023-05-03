@@ -2182,6 +2182,7 @@ end-of-score
 ::: osc:with-stream
 ::: osc:message-pointer
 ::: osc:message-length
+::: osc:bundle-length
 ::: osc:message-time
 ::: osc:message
 ::: osc:start-message

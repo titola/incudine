@@ -218,7 +218,8 @@ osc:*max-values*
 (osc:send *oscout*)
 ;; 28
 
-;; ...but OSC:SEND-BUNDLE fails after OSC:MESSAGE
+;; ...but OSC:SEND-BUNDLE fails after OSC:MESSAGE if the
+;; message length is changed
 
 (osc:message *oscout* "/test/msg" "iii" 1 2 3)
 ;; 32
