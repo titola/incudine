@@ -318,8 +318,9 @@ of the envelope."
                                  curve (smp-ref env-data index))
                            (segment-stack-init consointer dur)
                            last-level))))
-      (declare (type non-negative-fixnum index data-size last-point dur remain
-                     pos curr-index prev-index last-dur-index offset)
+      (declare (type non-negative-fixnum dur remain pos offset)
+               (type (unsigned-byte 24) index data-size last-point
+                      curr-index prev-index last-dur-index)
                (type cons consointer)
                (type fixnum curr-node loop-node release-node)
                (type sample level carry)

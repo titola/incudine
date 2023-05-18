@@ -302,7 +302,7 @@ of that vector."
                       finally
                         ;; Last PortMidi message: move blocks of 8 bits.
                         (loop for k below tail-size
-                              for m from (* i 4) below size
+                              for m of-type fixnum from (* i 4) below size
                               with last-ptr = (cffi:mem-aptr ptr :int32 j) do
                                 (setf (cffi:mem-aref aptr :char m)
                                       (cffi:mem-aref last-ptr :char k)))))
