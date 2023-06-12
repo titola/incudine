@@ -813,6 +813,8 @@ send and sendto for details on the FLAGS argument."
              (setf (stream-single-message-p stream) t)
              (setf res (stream-message-length stream)))
             (t
+             (when osc-message-p
+               (setf (stream-buffer-to-index-p stream) t))
              (setf (stream-single-message-p stream) t)
              (setf (stream-message-length stream) res)))
       (when (slip-encoding-p stream)
