@@ -55,8 +55,34 @@
   #(47 111 115 99 47 116 101 115 116 0 0 0 44 105 115 102 0 0 0 0
     123 0 0 0 114 97 116 101 0 0 0 0 0 0 64 63))
 
-;;; Buffer to octets to buffer.
 (deftest open-sound-control.4
+    (incudine.osc:with-stream (oscin)
+      (incudine.osc:with-stream (oscout :direction :output)
+        (flet ((osc-values ()
+                 (loop for i below (incudine.osc:required-values oscin)
+                       collect (incudine.osc:value oscin i))))
+          (msg warn "testing Open Sound Control send/receive (port ~D)"
+               (incudine.osc:port oscin))
+          (incudine.osc:bundle oscout 0
+            '("/osc/test1" "fis" 1.0 2 "three")
+            '("/osc/test2" "fis" 4.0 5 "six"))
+          (values
+            (loop repeat 2
+                  do (incudine.osc:receive oscin)
+                  unless (incudine.osc::stream-buffer-to-index-p oscin)
+                  append (osc-values))
+            ;; single-message-test
+            (progn (incudine.osc:message oscout "/osc/test" "isf" 1 "two" 3.0)
+                   (incudine.osc:receive oscin)
+                   (incudine.osc::stream-buffer-to-index-p oscin))
+            (progn (incudine.osc:index-values oscin nil t)
+                   (osc-values))))))
+  (1.0 2 "three" 4.0 5 "six")
+  T
+  (1 "two" 3.0))
+
+;;; Buffer to octets to buffer.
+(deftest open-sound-control.5
     (incudine.osc:with-stream (oscout :direction :output)
       (incudine.osc:message oscout "/osc/test1" "fii" 123.456 -123 456)
       (let ((o1 (incudine.osc:buffer-to-octets oscout)))
@@ -79,14 +105,14 @@
 
 
 ;;; OSC MIDI.
-(deftest open-sound-control.5
+(deftest open-sound-control.6
     (incudine.osc:with-stream (oscout :direction :output)
       (incudine.osc:start-message oscout "/osc/midi" "m")
       (setf (incudine.osc:value oscout 0) (incudine.osc:midi 3 144 60 96))
       (incudine.osc:value oscout 0))
   3 144 60 96)
 
-(deftest open-sound-control.6
+(deftest open-sound-control.7
     (values (every #'incudine.osc::required-values-p
                    '("bcdfhimsSt" "iiiffffsshbibi" "TFNIi"))
             (every (complement #'incudine.osc::required-values-p)
