@@ -202,8 +202,8 @@ of the level before to restart. Setfable."
 (defun exponential-curve-p (curve)
   (member curve '(:exp :exponential)))
 
-(declaim (inline exponential-curve-index-p))
-(defun exponential-curve-index-p (index)
+(declaim (inline exponential-curve-id-p))
+(defun exponential-curve-id-p (index)
   (= index +seg-exp-func+))
 
 ;;; Default zero level in an exponential curve
@@ -627,28 +627,28 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
                           3)))
                  0))))
 
+(defun envelope-fix-zero-p (env node-number curve-index)
+  (declare (type envelope env)
+           (type non-negative-fixnum node-number curve-index))
+  (or (and (> node-number 0)
+           (exponential-curve-id-p (smp-ref (envelope-data env) curve-index)))
+      (and (/= node-number (1- (envelope-points env)))
+           (exponential-curve-id-p
+             (smp-ref (envelope-data env) (+ curve-index 3))))))
+
+(declaim (inline set-envelope-level))
 (defun set-envelope-level (env node-number level)
   (declare (type envelope env) (type non-negative-fixnum node-number)
            (type number level))
   (if (check-envelope-node env node-number)
-      (let ((data (inc-pointer (envelope-data env)
-                               (the non-negative-fixnum
-                                 (* node-number 3 +foreign-sample-size+)))))
-        (declare #.*standard-optimize-settings*)
-        (when (reduce-warnings (zerop level))
-          (block nil
-            (when (and (plusp node-number)
-                       (exponential-curve-index-p (smp-ref data 0)))
-              (return (setf level +exp-sample-zero+)))
-            (when (/= node-number
-                      (1- (the non-negative-fixnum (envelope-points env))))
-              (incf-pointer data (* 3 +foreign-sample-size+))
-              (when (exponential-curve-index-p (smp-ref data 0))
-                (incf-pointer data (* -3 +foreign-sample-size+))
-                (return (setf level +exp-sample-zero+)))
-              (incf-pointer data (* -3 +foreign-sample-size+)))))
-        (if (> node-number 0) (incf-pointer data (- +foreign-sample-size+)))
-        (setf (smp-ref data 0) (reduce-warnings (sample level))))
+      (let ((curve-index (* node-number 3)))
+        (declare (type non-negative-fixnum curve-index))
+        (setf (smp-ref (envelope-data env)
+                       (if (> node-number 0) (1- curve-index) 0))
+              (if (and (zerop level)
+                       (envelope-fix-zero-p env node-number curve-index))
+                  +exp-sample-zero+
+                  (sample level))))
       +sample-zero+))
 
 (defsetf envelope-level set-envelope-level)
@@ -666,12 +666,11 @@ Set REAL-TIME-P to NIL to disallow real-time memory pools."
 (defun set-envelope-time (env node-number time)
   (declare (type envelope env) (type (unsigned-byte 16) node-number)
            (type number time))
-  (incudine-optimize
-    (if (< 0 node-number (envelope-points env))
-        (setf (smp-ref (envelope-data env)
-                       (the positive-fixnum (- (* node-number 3) 2)))
-              (reduce-warnings (sample time)))
-        +sample-zero+)))
+  (if (< 0 node-number (envelope-points env))
+      (setf (smp-ref (envelope-data env)
+                     (the positive-fixnum (- (* node-number 3) 2)))
+            (sample time))
+      +sample-zero+))
 
 (defsetf envelope-time set-envelope-time)
 
