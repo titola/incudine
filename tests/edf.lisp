@@ -80,14 +80,17 @@
         (equal (alexandria:iota len) (reverse stack)))
   T)
 
+;; UNSCHEDULE-IF is slow with too events.
+(define-constant +max-number-of-events+
+  (1- (min 8192 incudine.edf::*heap-size*)))
+
 (defun edf-unschedule-test (arg acc)
   (push arg (car acc)))
 
 (deftest edf-unschedule-if.1
-    (let ((acc (list nil))
-          (len (1- incudine.edf::*heap-size*)))
+    (let ((acc (list nil)))
       (flush-pending)
-      (dolist (i (alexandria:shuffle (alexandria:iota len)))
+      (dolist (i (alexandria:shuffle (alexandria:iota +max-number-of-events+)))
         (at i (if (oddp i)
                   #'edf-unschedule-test
                   (lambda (arg acc) (push arg (car acc))))
@@ -96,14 +99,14 @@
                        (declare (ignore time args))
                        (eq function #'edf-unschedule-test)))
       (edf-sched-loop-test)
-      (equal (loop for i below len by 2 collect i)
+      (equal (loop for i below +max-number-of-events+ by 2 collect i)
              (nreverse (car acc))))
   t)
 
 (deftest edf-unschedule-if.2
-    (let* ((acc (list nil))
-           (len (1- incudine.edf::*heap-size*))
-           (all-times (alexandria:shuffle (alexandria:iota len))))
+    (let ((acc (list nil))
+          (all-times (alexandria:shuffle
+                       (alexandria:iota +max-number-of-events+))))
       (flush-pending)
       (dolist (i all-times)
         (at i #'edf-unschedule-test i acc))
@@ -116,10 +119,10 @@
 
 (deftest edf-unschedule-if.3
     (let* ((acc (list nil))
-           (len (1- incudine.edf::*heap-size*))
-           (all-times (alexandria:shuffle (alexandria:iota len)))
-           (low (random (floor (* len .975))))
-           (high (+ low (random (- len low)))))
+           (all-times (alexandria:shuffle
+                        (alexandria:iota +max-number-of-events+)))
+           (low (random (floor (* +max-number-of-events+ .975))))
+           (high (+ low (random (- +max-number-of-events+ low)))))
       (flush-pending)
       (dolist (i all-times)
         (at i #'edf-unschedule-test i acc))
@@ -133,7 +136,7 @@
 
 (deftest edf-unschedule-if.4
     (let* ((acc (list nil))
-           (len (1- incudine.edf::*heap-size*))
+           (len (min 2047 +max-number-of-events+))
            (all-times (alexandria:shuffle (alexandria:iota len)))
            (bad-times (do ((i 0 (1+ i))
                            (times nil)
