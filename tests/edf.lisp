@@ -80,7 +80,7 @@
         (equal (alexandria:iota len) (reverse stack)))
   T)
 
-;; UNSCHEDULE-IF is slow with too events.
+;; UNSCHEDULE-IF is slow with too events to unschedule.
 (define-constant +max-number-of-events+
   (1- (min 8192 incudine.edf::*heap-size*)))
 
