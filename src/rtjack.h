@@ -30,11 +30,11 @@
 #include "ringbuffer.h"
 
 enum {
-        JA_RUNNING,
-        JA_STOPPED,
-        JA_SHUTDOWN,
-        JA_INITIALIZING,
-        JA_STOPPING
+	JA_RUNNING,
+	JA_STOPPED,
+	JA_SHUTDOWN,
+	JA_INITIALIZING,
+	JA_STOPPING
 };
 
 #define SBCL_SIG_STOP_FOR_GC  SIGUSR2
@@ -52,13 +52,13 @@ enum {
 #define JA_THREAD_CALLBACK_DEFAULT  0
 
 struct ja_xrun {
-        unsigned int count;
-        SAMPLE last_time;
+	unsigned int count;
+	SAMPLE last_time;
 };
 
 struct ja_thread {
-        pthread_t id;
-        int status;
+	pthread_t id;
+	int status;
 };
 
 static jack_client_t *client = NULL;
@@ -86,47 +86,47 @@ static char ja_error_msg[JA_ERROR_MSG_MAX_LENGTH];
 static sigset_t sig_stop_for_gc;
 
 #define RETURN_IF_NULLPTR(v, msg)                       \
-        do {                                            \
-                if (v == NULL) {                        \
-                        ja_error(msg);                  \
-                        return 1;                       \
-                }                                       \
-        } while (0)
+	do {                                            \
+		if (v == NULL) {                        \
+			ja_error(msg);                  \
+			return 1;                       \
+		}                                       \
+	} while (0)
 
 #define ja_free(v)                                      \
-        do {                                            \
-                if (v != NULL) {                        \
-                        free(v);                        \
-                        v = NULL;                       \
-                }                                       \
-        } while (0)
+	do {                                            \
+		if (v != NULL) {                        \
+			free(v);                        \
+			v = NULL;                       \
+		}                                       \
+	} while (0)
 
 #define __ja_condition_wait(c, l)                       \
-        do {                                            \
-                pthread_mutex_lock(l);                  \
-                pthread_cond_wait(c, l);                \
-                pthread_mutex_unlock(l);                \
-        } while (0)
+	do {                                            \
+		pthread_mutex_lock(l);                  \
+		pthread_cond_wait(c, l);                \
+		pthread_mutex_unlock(l);                \
+	} while (0)
 
 #define __ja_condition_signal(c, l)                     \
-        do {                                            \
-                pthread_mutex_lock(l);                  \
-                pthread_cond_signal(c);                 \
-                pthread_mutex_unlock(l);                \
-        } while (0)
+	do {                                            \
+		pthread_mutex_lock(l);                  \
+		pthread_cond_signal(c);                 \
+		pthread_mutex_unlock(l);                \
+	} while (0)
 
 /* Continue the audio cycle in Lisp after gc if it is the last cycle. */
 #define MAYBE_CONTINUE_IN_LISP(busy, label)                                   \
-        do {                                                                  \
-                int __busy;                                                   \
-                __busy = READ_ONCE(busy);                                     \
-                read_memory_barrier();                                        \
-                if ((!(__busy)) &&                                            \
-                    (!(ja_has_cached_inputs()))) {                            \
-                        ja_increment_cycle_counter(JA_CONTINUE_LAST_CYCLE);   \
-                        goto label;                                           \
-                }                                                             \
-        } while (0)
+	do {                                                                  \
+		int __busy;                                                   \
+		__busy = READ_ONCE(busy);                                     \
+		read_memory_barrier();                                        \
+		if ((!(__busy)) &&                                            \
+		    (!(ja_has_cached_inputs()))) {                            \
+			ja_increment_cycle_counter(JA_CONTINUE_LAST_CYCLE);   \
+			goto label;                                           \
+		}                                                             \
+	} while (0)
 
 static void ja_set_error_msg(const char *msg);
 static void ja_error(const char *msg);
@@ -187,26 +187,26 @@ jack_client_t *ja_client(void);
 #define JM_DATASIZE_ERROR  -3
 
 struct jm_data {
-        jack_port_t *port;
-        void *port_buffer;
-        struct incudine_ringbuffer *rb;
-        struct incudine_ringbuffer *cache;
+	jack_port_t *port;
+	void *port_buffer;
+	struct incudine_ringbuffer *rb;
+	struct incudine_ringbuffer *cache;
 };
 
 struct jm_input_data {
-        jack_port_t *port;
-        void *port_buffer;
-        struct incudine_ringbuffer *rb;
-        struct incudine_ringbuffer *cache;
-        int to_signal;
-        pthread_mutex_t lock;
-        pthread_cond_t cond;
+	jack_port_t *port;
+	void *port_buffer;
+	struct incudine_ringbuffer *rb;
+	struct incudine_ringbuffer *cache;
+	int to_signal;
+	pthread_mutex_t lock;
+	pthread_cond_t cond;
 };
 
 struct jm_data_vec {
-        struct jm_data **data;
-        unsigned int count;
-        unsigned int size;
+	struct jm_data **data;
+	unsigned int count;
+	unsigned int size;
 };
 
 static struct jm_data **jm_inputs, **jm_outputs;

@@ -21,48 +21,48 @@
 
 int mouse_init(void)
 {
-        if (mouse_status == MOUSE_NOINIT || disp == NULL) {
-                XInitThreads();
-                if ((disp = XOpenDisplay(NULL)) == NULL)
-                        return -1;
-                mouse_status = MOUSE_STOPPED;
-                req_time.tv_sec = 0;
-                req_time.tv_nsec = MOUSE_LOOP_WAIT_NSEC;
-                win = DefaultRootWindow(disp);
-                XGetWindowAttributes(disp, win, &win_attrib);
-                xmult = 1.0 / (SAMPLE)(win_attrib.width - 1);
-                ymult = 1.0 / (SAMPLE)(win_attrib.height - 1);
-                return 0;
-        }
-        return -1;
+	if (mouse_status == MOUSE_NOINIT || disp == NULL) {
+		XInitThreads();
+		if ((disp = XOpenDisplay(NULL)) == NULL)
+			return -1;
+		mouse_status = MOUSE_STOPPED;
+		req_time.tv_sec = 0;
+		req_time.tv_nsec = MOUSE_LOOP_WAIT_NSEC;
+		win = DefaultRootWindow(disp);
+		XGetWindowAttributes(disp, win, &win_attrib);
+		xmult = 1.0 / (SAMPLE)(win_attrib.width - 1);
+		ymult = 1.0 / (SAMPLE)(win_attrib.height - 1);
+		return 0;
+	}
+	return -1;
 }
 
 int mouse_loop_start(struct mouse_event *ev)
 {
-        mouse_status = MOUSE_STARTED;
-        while (mouse_status) {
-                XQueryPointer(disp, win, &root_ret, &child_ret, &root_x_ret,
-                              &root_y_ret, &win_x_ret, &win_y_ret, &mask_ret);
-                ev->x = (SAMPLE) win_x_ret * xmult;
-                ev->y = 1.0 - ((SAMPLE) win_y_ret * ymult);
-                ev->button = (int)(mask_ret & Button1Mask) > 0;
-                nanosleep(&req_time, &rem_time);
-        }
-        XCloseDisplay(disp);
-        disp = NULL;
-        ev->x = (SAMPLE) 0.0;
-        ev->y = (SAMPLE) 0.0;
-        ev->button = 0;
-        return 0;
+	mouse_status = MOUSE_STARTED;
+	while (mouse_status) {
+		XQueryPointer(disp, win, &root_ret, &child_ret, &root_x_ret,
+		              &root_y_ret, &win_x_ret, &win_y_ret, &mask_ret);
+		ev->x = (SAMPLE) win_x_ret * xmult;
+		ev->y = 1.0 - ((SAMPLE) win_y_ret * ymult);
+		ev->button = (int)(mask_ret & Button1Mask) > 0;
+		nanosleep(&req_time, &rem_time);
+	}
+	XCloseDisplay(disp);
+	disp = NULL;
+	ev->x = (SAMPLE) 0.0;
+	ev->y = (SAMPLE) 0.0;
+	ev->button = 0;
+	return 0;
 }
 
 int mouse_loop_stop(void)
 {
-        mouse_status = MOUSE_STOPPED;
-        return 0;
+	mouse_status = MOUSE_STOPPED;
+	return 0;
 }
 
 int get_mouse_status(void)
 {
-        return mouse_status;
+	return mouse_status;
 }

@@ -25,11 +25,11 @@
 #include "barrier.h"
 
 struct incudine_ringbuffer {
-        char *buf;
-        unsigned int write_head;
-        unsigned int read_head;
-        unsigned int size;
-        unsigned int mask;
+	char *buf;
+	unsigned int write_head;
+	unsigned int read_head;
+	unsigned int size;
+	unsigned int mask;
 };
 
 /* Note: sizeof(var) doesn't exceed the word size of the machine. */

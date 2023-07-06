@@ -26,14 +26,14 @@
 #include "common.h"
 
 struct mouse_event {
-        SAMPLE x, y;
-        int button;
+	SAMPLE x, y;
+	int button;
 };
 
 enum {
-        MOUSE_NOINIT = -1,
-        MOUSE_STOPPED,
-        MOUSE_STARTED
+	MOUSE_NOINIT = -1,
+	MOUSE_STOPPED,
+	MOUSE_STARTED
 };
 
 #define MOUSE_LOOP_WAIT_NSEC  (17000000);

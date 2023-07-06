@@ -37,10 +37,10 @@
 #endif
 
 enum {
-        PA_RUNNING,
-        PA_STOPPED,
-        PA_INITIALIZING,
-        PA_STOPPING
+	PA_RUNNING,
+	PA_STOPPED,
+	PA_INITIALIZING,
+	PA_STOPPING
 };
 
 #define MAX_GC_TIME_SEC  0.33
@@ -55,13 +55,13 @@ enum {
 #define PA_THREAD_CALLBACK_DEFAULT  0
 
 struct pa_xrun {
-        unsigned int count;
-        SAMPLE last_time;
+	unsigned int count;
+	SAMPLE last_time;
 };
 
 struct pa_thread {
-        pthread_t id;
-        int status;
+	pthread_t id;
+	int status;
 };
 
 static unsigned int pa_in_channels, pa_out_channels;
@@ -96,46 +96,46 @@ static pthread_mutex_t pa_c_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  pa_c_cond = PTHREAD_COND_INITIALIZER;
 
 #define pa_free(v)                                      \
-        do {                                            \
-                if (v != NULL) {                        \
-                        free(v);                        \
-                        v = NULL;                       \
-                }                                       \
-        } while (0)
+	do {                                            \
+		if (v != NULL) {                        \
+			free(v);                        \
+			v = NULL;                       \
+		}                                       \
+	} while (0)
 
 #define __pa_condition_wait(c, l)                       \
-        do {                                            \
-                pthread_mutex_lock(l);                  \
-                pthread_cond_wait(c, l);                \
-                pthread_mutex_unlock(l);                \
-        } while (0)
+	do {                                            \
+		pthread_mutex_lock(l);                  \
+		pthread_cond_wait(c, l);                \
+		pthread_mutex_unlock(l);                \
+	} while (0)
 
 #define __pa_condition_signal(c, l)                     \
-        do {                                            \
-                pthread_mutex_lock(l);                  \
-                pthread_cond_signal(c);                 \
-                pthread_mutex_unlock(l);                \
-        } while (0)
+	do {                                            \
+		pthread_mutex_lock(l);                  \
+		pthread_cond_signal(c);                 \
+		pthread_mutex_unlock(l);                \
+	} while (0)
 
 #define RETURN_IF_NULLPTR(v, msg)                       \
-        do {                                            \
-                if (v == NULL) {                        \
-                        pa_error(msg);                  \
-                        return 1;                       \
-                }                                       \
-        } while (0)
+	do {                                            \
+		if (v == NULL) {                        \
+			pa_error(msg);                  \
+			return 1;                       \
+		}                                       \
+	} while (0)
 
 /* Continue the audio cycle in Lisp after gc if it is the last cycle. */
 #define MAYBE_CONTINUE_IN_LISP(busy, label)                                   \
-        do {                                                                  \
-                int __busy;                                                   \
-                __busy = READ_ONCE(busy);                                     \
-                read_memory_barrier();                                        \
-                if ((!(__busy)) &&                                            \
-                    (!(pa_has_cached_inputs()))) {                            \
-                        goto label;                                           \
-                }                                                             \
-        } while (0)
+	do {                                                                  \
+		int __busy;                                                   \
+		__busy = READ_ONCE(busy);                                     \
+		read_memory_barrier();                                        \
+		if ((!(__busy)) &&                                            \
+		    (!(pa_has_cached_inputs()))) {                            \
+			goto label;                                           \
+		}                                                             \
+	} while (0)
 
 static void pa_set_error_msg(const char *msg);
 static void pa_error(const char *msg);

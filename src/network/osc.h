@@ -81,8 +81,8 @@ typedef unsigned char BUFFER_DATATYPE;
 #define AVAILABLE_FD(x) 1
 
 #define FD_LOOP(i, nfds, fds, obj)                    \
-        for (i = 0; i < nfds; i++)                    \
-                if (FD_ISSET(i, &(fds)))
+	for (i = 0; i < nfds; i++)                    \
+		if (FD_ISSET(i, &(fds)))
 #else
 #define WSA_REQUIRED_VERSION  MAKEWORD(2,2)
 
@@ -102,31 +102,31 @@ typedef char BUFFER_DATATYPE;
 #define AVAILABLE_FD(x)  ((x)->newfd < FD_SETSIZE)
 
 #define FD_LOOP(i, nfds, fds, obj)                    \
-        for (i = 0; i < nfds; i++)                    \
-                if (FD_ISSET(GET_SOCKET(obj,i), &(fds)))
+	for (i = 0; i < nfds; i++)                    \
+		if (FD_ISSET(GET_SOCKET(obj,i), &(fds)))
 #endif
 
 struct osc_address {
-        struct addrinfo *info;
-        struct sockaddr_storage *saddr;
-        socklen_t saddr_len;
+	struct addrinfo *info;
+	struct sockaddr_storage *saddr;
+	socklen_t saddr_len;
 #ifdef WIN32
-        int non_blocking;
+	int non_blocking;
 #endif
 };
 
 struct osc_fds {
-        int maxfd;      /* highest-numbered fd */
+	int maxfd;      /* highest-numbered fd */
 #ifndef WIN32
-        int servfd;     /* server fd */
+	int servfd;     /* server fd */
 #endif
-        int lastfd;     /* fd used for the last received message */
-        int count;      /* number of the connections */
+	int lastfd;     /* fd used for the last received message */
+	int count;      /* number of the connections */
 #ifdef WIN32
-        int newfd;      /* fd_array index for a new socket */
-        SOCKET fd_array[FD_SETSIZE];
+	int newfd;      /* fd_array index for a new socket */
+	SOCKET fd_array[FD_SETSIZE];
 #endif
-        fd_set fds;
+	fd_set fds;
 };
 
 #define SINGLE_MESSAGE       1
