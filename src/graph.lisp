@@ -1534,8 +1534,8 @@ NODE defaults to VUG:DSP-NODE."
   (declare (type boolean bool))
   (setf (incudine::node-done-p node) bool))
 
-(defsetf done-p (&optional (node (vug:dsp-node))) (bool)
-  (set-done-p node bool))
+(defsetf done-p (&optional (node '(vug:dsp-node))) (bool)
+  `(set-done-p ,node ,bool))
 
 (declaim (inline node-init-parse-args))
 (defun node-init-parse-args (node)
