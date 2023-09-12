@@ -197,7 +197,14 @@ If OUTPUT-P is T (default), return the output of Snd."
                     (apply #'format nil string format-arguments)
                     string)))
     (cond (*emacs-mode-p*
-           (let ((str (eval-in-emacs `(incudine-snd-send-string ,string))))
+           (let* ((elisp-string (eval-in-emacs `(incudine-snd-send-string ,string)))
+                  (str (if (simple-vector-p elisp-string)
+                           ;; The special syntax of a string with text properties
+                           ;; in Emacs Lisp is equivalent to the syntax of the
+                           ;; simple-vector in Common Lisp:
+                           ;; #("CHARACTERS" BEG END PLIST ...)
+                           (svref elisp-string 0)
+                           elisp-string)))
              (when output-p
                (funcall parser
                         (subseq str 0 (position #\newline str :from-end t))))))
