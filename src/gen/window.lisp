@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2023 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -83,8 +83,8 @@ sample data and the data size, and returns the foreign array."
                  (phase +sample-zero+))
     (symmetric-loop (i j size foreign-array)
       (symmetric-set foreign-array i j
-                     (+ (- 0.42 (* 0.5 (cos (the limited-sample phase))))
-                        (* 0.08 (cos (the limited-sample (* 2 phase))))))
+                     (+ (- 0.42d0 (* 0.5d0 (cos (the limited-sample phase))))
+                        (* 0.08d0 (cos (the limited-sample (* 2 phase))))))
       (incf phase delta))))
 
 (defwindow gaussian (foreign-array size &optional (beta 4.5))
@@ -111,7 +111,7 @@ sample data and the data size, and returns the foreign array."
                  (phase +sample-zero+))
     (symmetric-loop (i j size foreign-array)
       (symmetric-set foreign-array i j
-                     (- 0.54 (* 0.46 (cos (the limited-sample phase)))))
+                     (- 0.54d0 (* 0.46d0 (cos (the limited-sample phase)))))
       (incf phase delta))))
 
 (defwindow hanning (foreign-array size)

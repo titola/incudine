@@ -22,13 +22,13 @@
 (declaim (type non-negative-fixnum *envelope-default-max-points*))
 
 ;;; Values of the constants used in the past to get an index from 0 to 6
-(define-constant +seg-step-func+   (sample  5e15))
-(define-constant +seg-lin-func+    (sample  1e16))
-(define-constant +seg-exp-func+    (sample  2e16))
-(define-constant +seg-sine-func+   (sample  4e16))
-(define-constant +seg-welch-func+  (sample  8e16))
-(define-constant +seg-square-func+ (sample 16e16))
-(define-constant +seg-cubic-func+  (sample 32e16))
+(define-constant +seg-step-func+   (sample  5d15))
+(define-constant +seg-lin-func+    (sample  1d16))
+(define-constant +seg-exp-func+    (sample  2d16))
+(define-constant +seg-sine-func+   (sample  4d16))
+(define-constant +seg-welch-func+  (sample  8d16))
+(define-constant +seg-square-func+ (sample 16d16))
+(define-constant +seg-cubic-func+  (sample 32d16))
 
 (defstruct (envelope (:include incudine-object)
                      (:constructor %make-envelope)
@@ -207,7 +207,7 @@ of the level before to restart. Setfable."
   (= index +seg-exp-func+))
 
 ;;; Default zero level in an exponential curve
-(define-constant +exp-sample-zero+ (sample 1.0e-5))
+(define-constant +exp-sample-zero+ (sample 1d-5))
 
 (declaim (inline envelope-fix-zero))
 (defun envelope-fix-zero (level curve)

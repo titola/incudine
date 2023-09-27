@@ -36,7 +36,7 @@
                 (cffi:mem-ref (incudine.osc:value-pointer oscin 2) :float)
                 (cffi:foreign-string-to-lisp
                   (incudine.osc:value-pointer oscin 3))))))
-  ("/osc/test" "iifs" 36 4 T NIL NIL T (0 0 0.0 "") 0 0 0.0 ""))
+  ("/osc/test" "iifs" 36 4 T NIL NIL T (0 0 0.0f0 "") 0 0 0.0f0 ""))
 
 (deftest open-sound-control.3
     (incudine.osc:with-stream (oscin)
@@ -44,14 +44,14 @@
       ;; Again, it's only a test, we don't have to fill a INCUDINE.OSC:INPUT-STREAM.
       (setf (incudine.osc:value oscin 0) 123)
       (setf (incudine.osc:value oscin 1) "rate")
-      (setf (incudine.osc:value oscin 2) 0.75)
+      (setf (incudine.osc:value oscin 2) 0.75f0)
       (incudine.osc:index-values oscin t t)
       (values (loop for i below 3 collect (incudine.osc:value oscin i))
               (incudine.osc:with-values (node ctl val) (oscin "isf")
                 (list node ctl val))
               (incudine.osc:buffer-to-octets oscin)))
-  (123 "rate" 0.75)
-  (123 "rate" 0.75)
+  (123 "rate" 0.75f0)
+  (123 "rate" 0.75f0)
   #(47 111 115 99 47 116 101 115 116 0 0 0 44 105 115 102 0 0 0 0
     123 0 0 0 114 97 116 101 0 0 0 0 0 0 64 63))
 
@@ -64,29 +64,29 @@
           (msg warn "testing Open Sound Control send/receive (port ~D)"
                (incudine.osc:port oscin))
           (incudine.osc:bundle oscout 0
-            '("/osc/test1" "fis" 1.0 2 "three")
-            '("/osc/test2" "fis" 4.0 5 "six"))
+            '("/osc/test1" "fis" 1.0f0 2 "three")
+            '("/osc/test2" "fis" 4.0f0 5 "six"))
           (values
             (loop repeat 2
                   do (incudine.osc:receive oscin)
                   unless (incudine.osc::stream-buffer-to-index-p oscin)
                   append (osc-values))
             ;; single-message-test
-            (progn (incudine.osc:message oscout "/osc/test" "isf" 1 "two" 3.0)
+            (progn (incudine.osc:message oscout "/osc/test" "isf" 1 "two" 3.0f0)
                    (incudine.osc:receive oscin)
                    (incudine.osc::stream-buffer-to-index-p oscin))
             (progn (incudine.osc:index-values oscin nil t)
                    (osc-values))))))
-  (1.0 2 "three" 4.0 5 "six")
+  (1.0f0 2 "three" 4.0f0 5 "six")
   T
-  (1 "two" 3.0))
+  (1 "two" 3.0f0))
 
 ;;; Buffer to octets to buffer.
 (deftest open-sound-control.5
     (incudine.osc:with-stream (oscout :direction :output)
-      (incudine.osc:message oscout "/osc/test1" "fii" 123.456 -123 456)
+      (incudine.osc:message oscout "/osc/test1" "fii" 123.456f0 -123 456)
       (let ((o1 (incudine.osc:buffer-to-octets oscout)))
-        (incudine.osc:message oscout "/osc/test2" "sf" "frequency" 440.0)
+        (incudine.osc:message oscout "/osc/test2" "sf" "frequency" 440.0f0)
         (let ((o2 (incudine.osc:buffer-to-octets oscout)))
           (incudine.osc:message oscout "/osc/test3" "b" #(60 64 67 71))
           (let ((o3 (incudine.osc:buffer-to-octets oscout))
@@ -101,7 +101,7 @@
               (test-octets o2 2)
               (test-octets o3 1))
             (nreverse acc)))))
-  ((123.456 -123 456) ("frequency" 440.0) (#(60 64 67 71))))
+  ((123.456f0 -123 456) ("frequency" 440.0f0) (#(60 64 67 71))))
 
 
 ;;; OSC MIDI.
@@ -121,7 +121,7 @@
 
 (deftest open-sound-control-bundle.1
     (incudine.osc:with-stream (oscout :direction :output)
-      (incudine.osc:simple-bundle oscout 0 "/osc/test/bundle" "isf" 1 "two" 3.0)
+      (incudine.osc:simple-bundle oscout 0 "/osc/test/bundle" "isf" 1 "two" 3.0f0)
       (values
         (loop for i below (+ (incudine.osc:message-length oscout) 20)
               collect (cffi:mem-aref (incudine.osc::stream-bundle-pointer oscout)
@@ -137,7 +137,7 @@
 
 (deftest open-sound-control-bundle.2
     (incudine.osc:with-stream (oscout :direction :output)
-      (incudine.osc:bundle oscout 0 '("/osc/test/bundle" "isf" 1 "two" 3.0))
+      (incudine.osc:bundle oscout 0 '("/osc/test/bundle" "isf" 1 "two" 3.0f0))
       (values
         (loop for i below (+ (incudine.osc:message-length oscout) 20)
               collect (cffi:mem-aref (incudine.osc::stream-bundle-pointer oscout)
@@ -156,7 +156,7 @@
       (apply #'incudine.osc:bundle oscout 0
              '(("/osc/test/start" "N")
                ("/osc/test/a" "iii" 7 11 13)
-               ("/osc/test/b" "isf" 1 "two" 3.0)
+               ("/osc/test/b" "isf" 1 "two" 3.0f0)
                ("/osc/test/c" "sbhd" "sound machine" #(9 8 7 6 5) 12345 9.876d0)
                ("/osc/test/end" "N")))
       (let ((octets (coerce (incudine.osc:buffer-to-octets oscout) 'list)))
@@ -170,7 +170,7 @@
                 collect (incudine.osc:value oscout i))
           octets)))
   T
-  (7 11 13 1 "two" 3.0 "sound machine" #(9 8 7 6 5) 12345 9.876d0)
+  (7 11 13 1 "two" 3.0f0 "sound machine" #(9 8 7 6 5) 12345 9.876d0)
   (35 98 117 110 100 108 101 0  ; "#bundle"
    0 0 0 0 0 0 0 1              ; timestamp
    0 0 0 20                     ; first element length
@@ -206,7 +206,7 @@
 (deftest open-sound-control-bundle.5
     (incudine.osc:with-stream (oscout :direction :output)
       (let ((time 3704516247))
-        (incudine.osc:simple-bundle oscout time "/test/bundle" "isf" 1 "two" 3.0)
+        (incudine.osc:simple-bundle oscout time "/test/bundle" "isf" 1 "two" 3.0f0)
         (let ((msg (incudine.osc:buffer-to-octets oscout)))
           (setf (incudine.osc:value oscout 1) "ottocentottantotto")
           (incudine.osc:send-bundle oscout (+ time 3/2))
@@ -223,7 +223,7 @@
 (deftest open-sound-control-bundle.6
     (incudine.osc:with-stream (oscout :direction :output)
       (incudine.osc:bundle oscout 0
-        '("/test/bundle/a" "isf" 1 "two" 3.0)
+        '("/test/bundle/a" "isf" 1 "two" 3.0f0)
         '("/test/bundle/b" "ibi" 19 #(12 34 56 78 90) 23))
       (let ((acc nil))
         (push (incudine.osc:buffer-to-octets oscout) acc)

@@ -37,7 +37,7 @@
   (vug-sine-test-1 440 .5 pi))
 
 (with-dsp-test (vug-sine.fm.1 :channels 2
-      :md5 #(132 89 66 29 234 85 7 68 217 179 104 198 135 14 35 189))
+      :md5 #(51 96 62 135 19 100 4 63 141 105 197 59 127 46 233 99))
   (vug-sine-test-2 440 110 0 -6 :id 123)
   (loop for time in (list #[1/2 s] #[1 s] #[3/2 s] #[2 s] #[5/2 s])
         for index from 1 by .5

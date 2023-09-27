@@ -171,8 +171,8 @@ the sample data and the data size, and returns the foreign array."
                 (setf c2-mult (- c2-mult)))
               (setf c3-mult (* c2-mult mul))
               (setf scale (let ((one (sample 1)))
-                            (if (and (> abs-mul (sample 0.999))
-                                     (< abs-mul (sample 1.001)))
+                            (if (and (> abs-mul (sample 0.999d0))
+                                     (< abs-mul (sample 1.001d0)))
                                 (/ one num-harm)
                                 (/ (- one abs-mul) (- one (abs c2-mult))))))
               (setf twopi-step (/ +twopi+ size))
@@ -181,8 +181,8 @@ the sample data and the data size, and returns the foreign array."
                       denom (- squared-mul-plus-one
                                (* two-mul (cos (the limited-sample angle)))))
                 (setf (smp-ref foreign-pointer i)
-                      (cond ((or (> denom (sample 1.e-5))
-                                 (< denom (sample -1.e-5)))
+                      (cond ((or (> denom (sample 1d-5))
+                                 (< denom (sample -1d-5)))
                              (setf num (+ (- (cos (the limited-sample
                                                        (* lowest-harm angle)))
                                              (* mul (cos (the limited-sample

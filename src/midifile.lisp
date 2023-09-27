@@ -1,4 +1,4 @@
-;;; Copyright (c) 2016-2021 Tito Latini
+;;; Copyright (c) 2016-2023 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -981,7 +981,7 @@ If there aren't changes, return the tempo in BPM."))
 
 (defmethod tempo ((obj midifile:input-stream))
   (flet ((bpm (te)
-           (/ (round (/ 6e9 (tempo-microseconds-per-quarter-note te))) 100.0)))
+           (/ (round (/ 6f9 (tempo-microseconds-per-quarter-note te))) 100f0)))
     (let* ((tempo-map (input-stream-tempo-map obj))
            (len (length tempo-map)))
       (assert (plusp len))

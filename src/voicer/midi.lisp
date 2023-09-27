@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2021 Tito Latini
+;;; Copyright (c) 2013-2023 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 (defvar *default-midi-amplitude-array*
   ;; Linear map from velocity to amplitude.
   (coerce (loop for i below 128
-                with r-midi-velocity-max = (/ 1.0 #x7f)
+                with r-midi-velocity-max = (/ 1f0 #x7f)
                 collect (* i r-midi-velocity-max)) 'vector))
 (declaim (type simple-vector *default-midi-amplitude-array*))
 

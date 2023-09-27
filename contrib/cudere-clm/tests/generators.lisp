@@ -34,15 +34,15 @@
     (with-sound-test ()
       (let ((os (make-oscil 440)))
         (dotimes (i *test-length*)
-          (outa i (* .8 (oscil os))))))
+          (outa i (* .8f0 (oscil os))))))
     #(145 117 149 183 28 61 207 223 180 128 13 44 86 167 147 101))
 
 (deftest oscil.2
     (with-sound-test ()
       (let ((os (make-oscil 0)))
         (dotimes (i *test-length*)
-          (outa i (* .8 (oscil os (hz->radians
-                                    (* (/ i *test-length*) 20000))))))))
+          (outa i (* .8f0 (oscil os (hz->radians
+                                      (* (/ i *test-length*) 20000))))))))
   #(103 172 5 158 92 211 188 75 145 83 9 63 122 170 215 77))
 
 (deftest oscil.3
@@ -103,7 +103,7 @@
           (unless (< i lim)
             (setf lim *test-length*)
             (setf (mus-frequency tab) (* freq 2)))
-          (outa i (* .8 (table-lookup tab))))))
+          (outa i (* .8f0 (table-lookup tab))))))
   #(211 206 84 170 213 147 10 158 49 94 129 150 74 65 188 201))
 
 (deftest table-lookup.2
@@ -115,7 +115,7 @@
         (assert (= (mus-interp-type tab) mus-interp-hermite))
         (assert (= (mus-length tab) *clm-table-size*))
         (dotimes (i *test-length*)
-          (outa i (* .8 (table-lookup tab))))))
+          (outa i (* .8f0 (table-lookup tab))))))
   #(158 127 152 25 62 221 8 28 40 222 170 138 74 240 123 66))
 
 (deftest table-lookup.3
@@ -123,8 +123,8 @@
       (let ((tab (make-table-lookup 0
                    :wave (partials->wave '(1 1 2 1)))))
         (dotimes (i *test-length*)
-          (outa i (* .8 (table-lookup tab
-                          (hz->radians (* (/ i *test-length*) 10000))))))))
+          (outa i (* .8f0 (table-lookup tab
+                            (hz->radians (* (/ i *test-length*) 10000))))))))
   #(11 74 106 147 106 196 41 107 96 45 209 153 140 159 108 244))
 
 ;;; POLYWAVE
@@ -331,7 +331,7 @@
 (deftest rand.2
     (with-sound-test ()
       (mus-set-rand-seed 12345)
-      (let ((r (make-rand 100 .8 :envelope '(-.5 0 1 1)))
+      (let ((r (make-rand 100 .8f0 :envelope '(-.5f0 0 1 1)))
             (half (ash *test-length* -1)))
         (dotimes (i *test-length*)
           (when (= i half)
@@ -358,7 +358,7 @@
 (deftest rand-interp.2
     (with-sound-test ()
       (mus-set-rand-seed 12345)
-      (let ((r (make-rand-interp 100 .8 :envelope '(-.5 0 1 1)))
+      (let ((r (make-rand-interp 100 .8f0 :envelope '(-.5f0 0 1 1)))
             (half (ash *test-length* -1)))
         (dotimes (i *test-length*)
           (when (= i half)
@@ -375,21 +375,21 @@
 (deftest comb.1
     (with-sound-test ()
       (let ((s (make-pulse-train 100))
-            (d0 (make-comb :size 90 :max-size 100 :scaler .95))
+            (d0 (make-comb :size 90 :max-size 100 :scaler .95f0))
             (zenv (make-env '(0 0 1 1) :scaler 10 :end *test-length*)))
         (dotimes (i *test-length*)
-          (outa i (comb d0 (* .1 (pulse-train s)) (env zenv))))))
+          (outa i (comb d0 (* .1f0 (pulse-train s)) (env zenv))))))
   #(129 235 44 225 33 40 44 97 249 225 175 59 73 87 207 34))
 
 ;;; ONE-POLE
 
 (deftest one-pole.1
     (with-sound-test ()
-      (let ((f (make-one-pole .6 -.9))
+      (let ((f (make-one-pole .6f0 -.9f0))
             (cs (make-ncos 20 1000))
             (k (/ *test-length*)))
         (dotimes (i *test-length*)
-          (setf (mus-ycoeff f 1) (* -.9999 i k))
+          (setf (mus-ycoeff f 1) (* -.9999f0 i k))
           (outa i (one-pole f (ncos cs))))))
   #(174 148 186 174 184 169 108 242 60 148 231 202 113 30 64 182))
 
@@ -407,20 +407,20 @@
 
 (deftest two-pole.1
     (with-sound-test ()
-      (let ((f (make-two-pole :frequency 2000 :radius .999))
+      (let ((f (make-two-pole :frequency 2000 :radius .999f0))
             (cs (make-ncos 10 2000)))
         (dotimes (i *test-length*)
-          (outa i (* .15 (two-pole f (ncos cs)))))))
+          (outa i (* .15f0 (two-pole f (ncos cs)))))))
   #(184 63 120 205 241 82 59 20 239 81 116 170 104 143 130 126))
 
 (deftest two-pole.2
     (with-sound-test ()
-      (let ((f (make-two-pole :frequency 20 :radius .999))
+      (let ((f (make-two-pole :frequency 20 :radius .999f0))
             (cs (make-ncos 10 2000))
-            (k (/ 5000.0 *test-length*)))
+            (k (/ 5000f0 *test-length*)))
         (dotimes (i *test-length*)
           (setf (mus-frequency f) (+ 20 (* i k)))
-          (outa i (* (* 6e-5 i k)
+          (outa i (* (* 6f-5 i k)
                      (two-pole f (ncos cs)))))))
   #(133 154 102 97 129 19 146 182 72 6 25 34 149 46 124 248))
 
@@ -429,19 +429,19 @@
 (deftest two-zero.1
     (with-sound-test ()
       (mus-set-rand-seed 12345)
-      (let ((f (make-two-zero :frequency 2000 :radius .999))
+      (let ((f (make-two-zero :frequency 2000 :radius .999f0))
             (cs (make-rand (* .5 *srate*))))
         (assert (= (round (mus-frequency f)) 2000))
         (dotimes (i *test-length*)
-          (outa i (* .15 (two-zero f (rand cs)))))))
+          (outa i (* .15f0 (two-zero f (rand cs)))))))
   #(227 20 78 65 195 160 206 228 84 252 37 206 110 140 223 166))
 
 (deftest two-zero.2
     (with-sound-test ()
       (mus-set-rand-seed 12345)
-      (let ((f (make-two-zero :frequency 20 :radius .999))
+      (let ((f (make-two-zero :frequency 20 :radius .999f0))
             (cs (make-rand (* .5 *srate*)))
-            (k (/ 20000.0 *test-length*)))
+            (k (/ 20000f0 *test-length*)))
         (dotimes (i *test-length*)
           (setf (mus-frequency f) (+ 20 (* i k)))
           (outa i (* .25 (two-zero f (rand cs)))))))
@@ -461,9 +461,9 @@
 (deftest formant.2
     (with-sound-test ()
       (mus-set-rand-seed 12345)
-      (let ((f (make-formant 20 .999))
+      (let ((f (make-formant 20 .999f0))
             (cs (make-rand (* .5 *srate*)))
-            (k (/ 20000.0 *test-length*)))
+            (k (/ 20000f0 *test-length*)))
         (dotimes (i *test-length*)
           (setf (mus-frequency f) (+ 20 (* i k)))
           (outa i (* 8 (formant f (rand cs)))))))
@@ -483,9 +483,9 @@
 (deftest firmant.2
     (with-sound-test ()
       (mus-set-rand-seed 12345)
-      (let ((f (make-firmant 20 .999))
+      (let ((f (make-firmant 20 .999f0))
             (cs (make-rand (* .5 *srate*)))
-            (k (/ 20000.0 *test-length*)))
+            (k (/ 20000f0 *test-length*)))
         (dotimes (i *test-length*)
           (setf (mus-frequency f) (+ 20 (* i k)))
           (outa i (* 8 (firmant f (rand cs)))))))

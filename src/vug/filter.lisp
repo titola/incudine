@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2023 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -202,7 +202,7 @@ scale factor."
 
 (defmacro %with-biquad-shelf-common (&body body)
   `(%%with-biquad-common
-       ((gain (expt (sample 10) (* db (sample 0.025))))
+       ((gain (expt (sample 10) (* db (sample 0.025d0))))
         (alpha (* sin-w0 0.5
                   (sqrt (the non-negative-sample
                           (+ 2.0 (* (+ gain (/ gain))
@@ -251,7 +251,7 @@ scale factor."
 (define-vug peak-eq (in freq q db)
   "Second-order peaking equalizer."
   (%with-biquad-common
-      ((gain (expt (sample 10) (* db (sample 0.025))))
+      ((gain (expt (sample 10) (* db (sample 0.025d0))))
        (r-gain (/ gain))
        (c1 (* alpha gain))
        (c2 (* alpha r-gain))
@@ -343,8 +343,8 @@ scale factor."
                    ;; Double sampled.
                    (* fcut +half-pi+ *sample-duration*)))
          (freq (* 2.0 (sin ang)))
-         (res (clip resonance +sample-zero+ (sample 0.999999)))
-         (k0 (expt (the non-negative-sample res) (sample 0.25)))
+         (res (clip resonance +sample-zero+ (sample 0.999999d0)))
+         (k0 (expt (the non-negative-sample res) (sample 0.25d0)))
          (d0 (* 2.0 (- 1.0 k0)))
          (d1 (- (/ 2.0 freq) (* freq 0.5)))
          (damp (min (sample 2) d0 d1))

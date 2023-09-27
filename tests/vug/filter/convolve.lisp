@@ -17,5 +17,5 @@
   (direct-convolve-test-1 *filter-buffer-test-2*))
 
 (with-dsp-test (part-convolve.1
-      :md5 #(10 96 63 66 36 73 49 255 9 16 174 58 179 253 133 24))
+      :md5 #(154 50 129 42 134 163 17 46 151 111 57 76 175 156 203 99))
   (part-convolve-test-1 -24 *filter-pvbuffer-test-1*))

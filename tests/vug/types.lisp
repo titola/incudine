@@ -10,7 +10,7 @@
              (res (funcall (ugen-perf-function u))))
         (free u)
         res))
-  (1.0 2.0d0 3 4 t))
+  (1.0f0 2.0d0 3 4 t))
 
 ;; Foreign types (alias).
 (deftest arg-types.2
@@ -21,7 +21,7 @@
              (res (funcall (ugen-perf-function u))))
         (free u)
         res))
-  (1.0 2.0d0 3 4 t))
+  (1.0f0 2.0d0 3 4 t))
 
 ;; Coercing of the numbers inside WITH.
 (deftest init-types.1
@@ -37,7 +37,7 @@
              (res (funcall (ugen-perf-function u))))
         (free u)
         res))
-  (1.0d0 2.0 3.0d0 4))
+  (1.0d0 2.0f0 3.0d0 4))
 
 ;; Foreign pointer test.
 (deftest pointer-test.1

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2021 Tito Latini
+;;; Copyright (c) 2013-2023 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@
 
 SIN, COS and TAN are optimized on x86 if the argument type is
 LIMITED-SAMPLE."
-  (let ((high (force-sample-format 4.0e18)))
+  (let ((high (sample 4.0d18)))
     `(,incudine.config:*sample-type* ,(- high) ,high)))
 
 (deftype maybe-limited-sample ()
@@ -141,7 +141,7 @@ and execute the body once for each channel, then RESULT form is evaluated."
 (declaim (inline db->linear))
 (defun db->linear (value)
   "Convert the VALUE from dB to linear."
-  (expt (sample 10) (* value (sample 0.05))))
+  (expt (sample 10) (* value (sample 5d-2))))
 
 (declaim (inline linear-interp))
 (defun linear-interp (in y0 y1)
@@ -257,27 +257,27 @@ VALUE has to be between MOST-NEGATIVE-FIXNUM and MOST-POSITIVE-FIXNUM."
   (incudine.external::qsort pointer size +foreign-sample-size+
                             (cffi:callback incudine.external::sample-cmp)))
 
-(defun rationalize* (x &optional (significand-error 5.e-6))
+(defun rationalize* (x &optional (significand-error 5.f-6))
   "Convert reals to rationals and try to minimize the ratios by
 introducing an error in the significand of the floating point number.
 The error is 0.0005% by default."
-  (declare (type real x) (type single-float significand-error))
+  (declare (type real x) (type (float 0.0 1.0) significand-error))
   (if (zerop significand-error)
       (rationalize x)
       (let ((x (coerce x 'single-float)))
         (multiple-value-bind (m e s) (integer-decode-float x)
-          (let ((e (expt 2.0 e)))
+          (let ((e (expt 2f0 e)))
             (labels ((rat (i r)
                        (declare (type fixnum i) (type rational r))
-                       (if (>= i (floor (* m (+ 1.0 significand-error))))
+                       (if (>= i (floor (* m (+ 1 significand-error))))
                            r
                            (rat (1+ i)
                                 (let ((n (rationalize (* i e s))))
                                   (if (< (numerator n) (numerator r)) n r))))))
-              (rat (floor (* m (- 1.0 significand-error)))
+              (rat (floor (* m (- 1 significand-error)))
                    (rationalize x))))))))
 
-(defun parse-float (string &key (start 0) end)
+(defun parse-float (string &key (start 0) end (type 'single-float))
   "Parse a floating point number from the substring of STRING
 delimited by START and END.
 
@@ -285,8 +285,11 @@ The first value returned is either the floating point number that was
 parsed or NIL.
 
 The second value is either the index into the string of the delimiter
-that terminated the parse, or the upper bounding index of the substring."
-  (declare (type simple-string string))
+that terminated the parse, or the upper bounding index of the substring.
+
+The TYPE of the returned value is SINGLE-FLOAT by default."
+  (declare (type simple-string string)
+           (type (member single-float double-float) type))
   (multiple-value-bind (int pos)
       (parse-integer string :start start :end end :junk-allowed t)
     (if int
@@ -298,11 +301,12 @@ that terminated the parse, or the upper bounding index of the substring."
                   (parse-integer string :start frac-start :end end
                                  :junk-allowed t)
                 (values
-                  (+ int (* (/ frac (expt 10.0 (the (unsigned-byte 8)
-                                                 (- len frac-start))))
+                  (+ int (* (/ frac (expt (if (eq type 'double-float) 10d0 10f0)
+                                          (the (unsigned-byte 8)
+                                               (- len frac-start))))
                             (if (minusp int) -1 1)))
                   len))
-              (values (* 1.0 int) pos)))
+              (values (coerce int type) pos)))
         (values nil 0))))
 
 (declaim (inline declare-form-p))

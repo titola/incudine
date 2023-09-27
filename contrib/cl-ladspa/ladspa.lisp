@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014-2021 Tito Latini
+;;; Copyright (c) 2014-2023 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -314,18 +314,18 @@
                    (hint-default-maximum upper-bound)
                    (hint-default-low
                     (if log-p
-                        (exp (+ (* .75 (log lower-bound))
-                                (* .25 (log upper-bound))))
-                        (+ (* .75 lower-bound) (* .25 upper-bound))))
+                        (exp (+ (* .75f0 (log lower-bound))
+                                (* .25f0 (log upper-bound))))
+                        (+ (* .75f0 lower-bound) (* .25f0 upper-bound))))
                    (hint-default-middle
                     (if log-p
                         (sqrt (* lower-bound upper-bound))
-                        (* .5 (+ lower-bound upper-bound))))
+                        (* .5f0 (+ lower-bound upper-bound))))
                    (hint-default-high
                     (if log-p
-                        (exp (+ (* .25 (log lower-bound))
-                                (* .75 (log upper-bound))))
-                        (+ (* .25 lower-bound) (* .75 upper-bound)))))))
+                        (exp (+ (* .25f0 (log lower-bound))
+                                (* .75f0 (log upper-bound))))
+                        (+ (* .25f0 lower-bound) (* .75f0 upper-bound)))))))
            (if (and sample-rate (hint-sample-rate-p hint-descriptor))
                (if (numberp sample-rate)
                    (* default sample-rate)

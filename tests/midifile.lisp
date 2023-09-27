@@ -34,7 +34,7 @@
                                collect (list st (midifile:message-data1 mf)
                                              (midifile:message-data2 mf)))))
                 test-output-stream format ntracks ppqn tempo nevents bytes)))
-  T T 1 16 480 120.0 16
+  T T 1 16 480 120f0 16
   #.(loop for i below 16
           when (= i 0)
             ;; header-chunk
@@ -144,8 +144,8 @@
               do (midifile:write-short-event mf time
                                              (midifile:message #xb0 7 i) 3)))
       (midifile-tempo-map-test))
-  (96.0 145.0 120.0)
-  (8.0 12.0)
+  (96f0 145f0 120f0)
+  (8f0 12f0)
    ;; Tempo track.
   ((0 0.0 255 (255 81 3 9 137 104))
    (3840 5.0  255 (255 81 3 6 80 97))
@@ -179,8 +179,8 @@
                                                     3)))
              (midifile-tempo-map-test))
         (incudine:free tenv)))
-  (96.0 145.0 120.0)
-  (8.0 12.0)
+  (96f0 145f0 120f0)
+  (8f0 12f0)
    ;; Tempo track.
   ((0 0.0 255 (255 81 3 9 137 104))
    (3840 5.0  255 (255 81 3 6 80 97))

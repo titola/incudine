@@ -26,7 +26,7 @@
   (at #[3.7 seconds] (lambda () (setf (control-value 123 'freq) 660))))
 
 (with-dsp-test (vug-oscr.fm.1 :channels 2 :mult 1d6
-      :md5 #(223 128 48 216 74 59 56 12 188 171 71 55 7 113 193 122))
+      :md5 #(106 216 7 123 210 62 105 198 26 14 226 223 130 39 144 210))
   (vug-oscr-test-2 440 110 0 -6 :id 123)
   (loop for time in (list #[1/2 s] #[1 s] #[3/2 s] #[2 s] #[5/2 s])
         for index from 1 by .5

@@ -18,7 +18,7 @@
 
 (define-constant +incudine-major+ 0)
 (define-constant +incudine-minor+ 9)
-(define-constant +incudine-patch+ 68)
+(define-constant +incudine-patch+ 69)
 
 (in-package :incudine.util)
 
@@ -84,7 +84,7 @@
     (cond ((typep x 'sample) x)
           ((floatp x)
            ;; Avoid coercing from SINGLE-FLOAT to DOUBLE-FLOAT
-           (let ((str (write-to-string x))
+           (let ((str (substitute #\d #\f (write-to-string x)))
                  (*read-default-float-format* incudine.config:*sample-type*))
              (values (read-from-string str))))
           (t (coerce x 'sample))))
@@ -98,10 +98,10 @@
   (define-constant +rtwopi+ (/ 1.0 +twopi+)
     :documentation "The inverse of two PI coerced to SAMPLE.")
 
-  (define-constant +log001+ (log (force-sample-format 0.001))
+  (define-constant +log001+ (log (sample 1d-3))
     :documentation "Natural logarithm of 0.001 coerced to SAMPLE.")
 
-  (define-constant +sqrt2+ (sqrt (force-sample-format 2.0))
+  (define-constant +sqrt2+ (sqrt (sample 2d0))
     :documentation "Square root of two coerced to SAMPLE.")
 
   (define-constant +pointer-size+ (foreign-type-size :pointer)

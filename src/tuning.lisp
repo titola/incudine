@@ -1,4 +1,4 @@
-;;; Copyright (c) 2015-2021 Tito Latini
+;;; Copyright (c) 2015-2023 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -389,7 +389,7 @@ in the significand of the floating point numbers."
                #.*standard-optimize-settings*)
       (maybe-rewrite-tuning-cents-and-ratios tuning len)
       ;; Probably unnecessary, but it is safer to explicitly set the first slot.
-      (setf (aref (tuning-cents tuning) 0) 0.0)
+      (setf (aref (tuning-cents tuning) 0) 0f0)
       (setf (aref (tuning-ratios tuning) 0) 1)
       (loop for k from (1+ start) to end
             for i from 1
@@ -402,7 +402,7 @@ in the significand of the floating point numbers."
                                 'single-float)
                         (coerce significand-error 'single-float))))
               (setf (aref (tuning-cents tuning) i)
-                    (* (log (aref (tuning-ratios tuning) i) 2) 1200.0)))
+                    (* (log (aref (tuning-ratios tuning) i) 2) 1200f0)))
       (when description
         (setf (tuning-description tuning) description))
       (update-tuning-data (tuning-update-sample-ratios tuning)))))
@@ -463,7 +463,8 @@ significand of the floating point numbers. The error is 0.0005% by default."
                       (char= prev #\tab))
             ;; Example: 5/4!c = 5/4
             (setf (char string comment-pos) #\space))))
-      (let ((value (read-from-string string nil)))
+      (let* ((*read-default-float-format* 'single-float)
+             (value (read-from-string string nil)))
         (cond ((not (scl-valid-pitch-p value))
                (tuning-pitch-type-error value))
               ((floatp value) value)
@@ -500,7 +501,7 @@ the scale stored in the Scala file PATH."
            (type (simple-array single-float (*)) cents)
            (type (simple-array positive-rational (*)) ratios)
            #.*standard-optimize-settings*)
-  (setf (aref cents 0) 0.0)
+  (setf (aref cents 0) 0f0)
   (setf (aref ratios 0) 1)
   (loop for pch in notes
         for i from 1 do
@@ -510,9 +511,7 @@ the scale stored in the Scala file PATH."
                   (single-float
                    (values pch (rationalize (expt 2 (* pch 1/1200)))))
                   (positive-rational
-                   (values (* 1200.0
-                              ;; Result type depends on the implementation.
-                              (coerce (log pch 2) 'single-float))
+                   (values (* 1200f0 (coerce (log pch 2) 'single-float))
                            pch))
                   (double-float
                    ;; Coercing before the conversion from cents to ratio,
@@ -626,7 +625,7 @@ in Scale file format."
             (tuning-keynum-base-range tuning))))))
 
 (defun decode-pitch-class (pch)
-  (declare (type (single-float 0.0 15.0) pch))
+  (declare (type (float 0 15) pch))
   (multiple-value-bind (oct pch) (truncate pch)
     (declare (type (integer 0 14) oct))
     (multiple-value-bind (index frac) (truncate (* pch 100))
@@ -659,27 +658,27 @@ Example with ET12 scale:
 | 8.120001 |     72 | 0.000 |
 |     9.00 |     72 | 0.000 |
 |----------+--------+-------|"
-  (declare (type (single-float 0.0 15.0) pitch-class))
+  (declare (type (float 0 15) pitch-class))
   (multiple-value-bind (min-oct degree0) (%keynum->pch 0 tuning)
     (declare (type fixnum min-oct degree0))
     (multiple-value-bind (oct index frac) (decode-pitch-class pitch-class)
-      (declare (type fixnum oct index) (type single-float frac))
+      (declare (type fixnum oct index) (type float frac))
       (when (and (= oct min-oct) (plusp degree0))
         (decf index (tuning-degrees tuning)))
       (when (>= oct min-oct)
         (incf index (the fixnum (tuning-start-index tuning oct)))
         (when (minusp index)
-          (setf index 0 frac 0.0)))
+          (setf index 0 frac 0f0)))
       (values (min index 127) frac))))
 
 (defconstant +cs-cpspch-table-size+ 8192)
-(defconstant +cs-cpspch-a440-tuning-factor+ 1.02197486) ; 440 / 2^(8 + 9/12)
+(defconstant +cs-cpspch-a440-tuning-factor+ (float (/ 440 (expt 2 (+ 8 9/12)))))
 
 (defvar *cs-cpspch-table*
   (let ((size +cs-cpspch-table-size+))
     (make-array size
       :initial-contents (loop for i below size
-                              collect (* (expt 2.0 (/ i size))
+                              collect (* (expt 2f0 (/ i size))
                                          +cs-cpspch-a440-tuning-factor+)))))
 
 ;;; Table lookup used by Csound's cpspch opcode.
@@ -692,7 +691,7 @@ Example with ET12 scale:
              (* (the fixnum (ash 1 (ash n -13)))
                 (the single-float
                   (svref *cs-cpspch-table* (logand n (1- size)))))))
-      (cpsoctl (truncate (the (single-float 0.0 262144.0)
+      (cpsoctl (truncate (the (single-float 0f0 262144f0)
                            (* (+ oct frac) size)))))))
 
 ;;; Compatible with Csound's cpspch opcode if TUNING is NIL or a TUNING
@@ -718,14 +717,14 @@ Example with ET12 scale:
 |  8.12 | 523 |
 |  9.00 | 523 |
 |-------+-----|"
-  (declare (type (single-float 0.0 15.0) pitch-class)
+  (declare (type (float 0 15) pitch-class)
            (type (or tuning null) tuning))
   (if tuning
       (multiple-value-bind (keynum frac) (pch->keynum pitch-class tuning)
-        (declare (type (integer 0 127) keynum) (type single-float frac))
+        (declare (type (integer 0 127) keynum) (type float frac))
         (if (= keynum 127)
             (tuning-cps tuning 127)
-            (+ (* (tuning-cps tuning keynum) (- 1.0 frac))
+            (+ (* (tuning-cps tuning keynum) (- 1 frac))
                (* (tuning-cps tuning (1+ keynum)) frac))))
       (multiple-value-call #'cs-cpspch (floor pitch-class))))
 
@@ -752,7 +751,7 @@ Example with ET12 scale:
 The TUNING structure defaults to *DEFAULT-TUNING*."
   (declare (type (integer 0 127) keynum) (type tuning tuning))
   (multiple-value-bind (oct degree) (%keynum->pch keynum tuning)
-    (+ oct (* degree .01))))
+    (+ oct (* degree .01f0))))
 
 (defun tuning-nearest-keynum (freq &optional (tuning *default-tuning*))
   (declare (type real freq) (type tuning tuning))
@@ -791,7 +790,7 @@ The TUNING structure defaults to *DEFAULT-TUNING*."
       (decf keynum))
     (multiple-value-bind (oct degree) (%keynum->pch keynum tuning)
       (declare (type fixnum oct degree))
-      (+ oct (* degree .01)
+      (+ oct (* degree .01f0)
          (if (and (< keynum 127)
                   (< (tuning-cps tuning keynum)
                      (tuning-cps tuning (1+ keynum))))
@@ -800,7 +799,7 @@ The TUNING structure defaults to *DEFAULT-TUNING*."
                               (tuning-cps tuning keynum)))
                         .01)
                      'single-float)
-             0.0)))))
+             0f0)))))
 
 (defmethod quantize ((obj real) (from tuning) &key)
   (let* ((keynum (tuning-nearest-keynum obj from))

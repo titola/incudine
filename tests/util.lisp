@@ -3,9 +3,8 @@
 ;;;; Misc
 
 (deftest linear->db
-    (mapcar (lambda (x) (floor (linear->db x)))
-                     '(0.00001 0.0001 0.001 0.01 .1 .15 .2 .25 .33
-                       .5 .68 .772 .9 1 1.9 3.4))
+    (mapcar (lambda (x) (floor (linear->db (coerce x 'single-float))))
+      '(0.00001 0.0001 0.001 0.01 .1 .15 .2 .25 .33 .5 .68 .772 .9 1 1.9 3.4))
   (-100 -81 -61 -41 -21 -17 -14 -13 -10 -7 -4 -3 -1 0 5 10))
 
 (deftest db->linear
@@ -59,17 +58,24 @@
   #.(loop for i to +max-lobits+ collect i))
 
 (deftest parse-float.1
-    (let ((str "test 123 345.67 -8910.1112    1314.15"))
-      (flet ((parse-test (start &optional end)
-               (multiple-value-list
-                 (parse-float str :start start :end end))))
-        (values (parse-test 5)
-                (parse-test 8)
-                (parse-test 15)
-                (parse-test 26)
-                (parse-test 10 14)
-                (parse-test 0))))
-  (123.0 8) (345.67 15) (-8910.111 26) (1314.15 37) (45.6 14) (NIL 0))
+    (flet ((parse-test (start &optional end)
+             (multiple-value-list
+               (parse-float "test 123 345.67 -8910.1112    1314.15"
+                            :start start :end end))))
+      (values (parse-test 5)
+              (parse-test 8)
+              (parse-test 15)
+              (parse-test 26)
+              (parse-test 10 14)
+              (parse-test 0)))
+  (123.0f0 8) (345.67f0 15) (-8910.111f0 26) (1314.15f0 37) (45.6f0 14) (NIL 0))
+
+(deftest parse-float.2
+    (mapcar (lambda (x)
+              (parse-float "test 123 345.67 -8910.1112    1314.15"
+                :start (first x) :end (second x) :type 'double-float))
+            '((5)(8)(15)(26)(10 14)(0)))
+  (123.0d0 345.67d0 -8910.1112d0 1314.15d0 45.6d0 NIL))
 
 (deftest dochannels
     (let ((acc))

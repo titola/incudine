@@ -10,7 +10,7 @@
   (foreach-channel (cout (pan2 (sine freq amp 0) pos))))
 
 (dsp! rego-test-3 (freq amp dur)
-  (stereo (* (envelope (make-perc .1 .9) 1 dur #'free)
+  (stereo (* (envelope (make-perc .1f0 .9f0) 1 dur #'free)
              (sine freq amp 0))))
 
 (defmacro test-regofile (path &optional compile-p)
@@ -43,6 +43,7 @@
   (with-gensyms (lst)
     `(deftest ,name
          (let* ((*package* (find-package "INCUDINE-TESTS"))
+                (*read-default-float-format* 'single-float)
                 (,lst (regofile->list
                         (merge-pathnames ,path #.(load-time-value
                                                    (or *compile-file-pathname*
@@ -57,6 +58,7 @@
   (with-gensyms (lst)
     `(deftest ,name
          (let* ((*package* (find-package "INCUDINE-TESTS"))
+                (*read-default-float-format* 'single-float)
                 (*default-pathname-defaults*
                   #.(load-time-value (or *compile-file-pathname*
                                          *load-pathname*)))

@@ -38,7 +38,7 @@
       </p>
 
       <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (defvar <span style="color: #eedd82;">*oscout*</span> (osc:open <span style="color: #b0c4de;">:direction</span> <span style="color: #b0c4de;">:output</span>))
-<span class="prompt">SCRATCH&gt;</span> (osc:message *oscout* <span style="color: #ffa07a;">"/osc/test"</span> <span style="color: #ffa07a;">"isf"</span> 1 <span style="color: #ffa07a;">"two"</span> 3.0)</pre>
+<span class="prompt">SCRATCH&gt;</span> (osc:message *oscout* <span style="color: #ffa07a;">"/osc/test"</span> <span style="color: #ffa07a;">"isf"</span> 1 <span style="color: #ffa07a;">"two"</span> 3.0f0)</pre>
 
       <p>
         where host, port and protocol are "localhost", 32126 (aka #36ROSE)
@@ -50,12 +50,12 @@
       </p>
 
       <pre class="src src-lisp">(funcall (compiler-macro-function 'osc:message)
-         '(osc:message *oscout* <span style="color: #ffa07a;">"/osc/test"</span> <span style="color: #ffa07a;">"isf"</span> 1 <span style="color: #ffa07a;">"two"</span> 3.0) nil)
+         '(osc:message *oscout* <span style="color: #ffa07a;">"/osc/test"</span> <span style="color: #ffa07a;">"isf"</span> 1 <span style="color: #ffa07a;">"two"</span> 3.0f0) nil)
 (LET ((#:S505 *OSCOUT*))
   (INCUDINE.OSC:START-MESSAGE #:S505 <span style="color: #ffa07a;">"/osc/test"</span> <span style="color: #ffa07a;">"isf"</span>)
   (INCUDINE.OSC::SET-VALUE #:S505 0 1)
   (INCUDINE.OSC::SET-VALUE #:S505 1 <span style="color: #ffa07a;">"two"</span>)
-  (INCUDINE.OSC::SET-VALUE #:S505 2 3.0)
+  (INCUDINE.OSC::SET-VALUE #:S505 2 3.0f0)
   (INCUDINE.OSC:SEND #:S505))</pre>
 
       <p>
@@ -92,7 +92,7 @@
 
 <span class="prompt">SCRATCH&gt;</span> (setf (osc:value *oscout* 0) 1)
 <span class="prompt">SCRATCH&gt;</span> (setf (osc:value *oscout* 1) <span style="color: #ffa07a;">"two"</span>)
-<span class="prompt">SCRATCH&gt;</span> (setf (osc:value *oscout* 2) 3.0)
+<span class="prompt">SCRATCH&gt;</span> (setf (osc:value *oscout* 2) 3.0f0)
 <span class="prompt">SCRATCH&gt;</span> (loop for i below 3 collect (osc:value *oscout* i))
 (1 <span style="color: #ffa07a;">"two"</span> 3.0)
 
@@ -107,9 +107,13 @@
 <span class="prompt">SCRATCH&gt;</span> (osc:value *oscout* 2)
 0.0
 
-<span class="prompt">SCRATCH&gt;</span> (setf (osc:value *oscout* 2) 3.0)  <span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">correct</span>
+<span class="prompt">SCRATCH&gt;</span> (setf (osc:value *oscout* 2) 3.0f0)  <span style="color: #ff7f24;">; </span><span style="color: #ff7f24;">correct</span>
 3.0</pre>
 
+      <p>
+	Memo: <code>3.0</code> is not a single-float value if <code>*READ-DEFAULT-FLOAT-FORMAT*</code>
+	is <code>DOUBLE-FLOAT</code>
+      </p>
       <p>
         <code>OSC:VALUE-POINTER</code> returns the pointer to a required value:
       </p>
@@ -163,7 +167,7 @@
 <span class="prompt">SCRATCH&gt;</span> (rt-start)
 
 (defun <span style="color: #87cefa;">synth-test</span> (time)
-  (setf (osc:value *oscout* 0) (+ 100 (random 1000.0)))
+  (setf (osc:value *oscout* 0) (+ 100 (random 1000.0f0)))
   (osc:send *oscout*)
   (aat (+ time #[1/5 sec]) #'synth-test it))
 
@@ -269,7 +273,7 @@
       </p>
 
       <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (setq *msg1* (osc:buffer-to-octets *oscout*))
-<span class="prompt">SCRATCH&gt;</span> (osc:message *oscout* <span style="color: #ffa07a;">"/test/synth/freq"</span> <span style="color: #ffa07a;">"f"</span> 440.0)
+<span class="prompt">SCRATCH&gt;</span> (osc:message *oscout* <span style="color: #ffa07a;">"/test/synth/freq"</span> <span style="color: #ffa07a;">"f"</span> 440.0f0)
 28
 <span class="prompt">SCRATCH&gt;</span> (osc:octets-to-buffer *msg1* *oscout*)
 <span class="prompt">SCRATCH&gt;</span> (osc:send-bundle *oscout* .75)
@@ -279,7 +283,7 @@
         and <code>OSC:SEND</code> works after <code>OSC:SIMPLE-BUNDLE</code>...
       </p>
 
-      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (osc:simple-bundle *oscout* 1.2 <span style="color: #ffa07a;">"/test/synth/freq"</span> <span style="color: #ffa07a;">"f"</span> 440.0)
+      <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (osc:simple-bundle *oscout* 1.2 <span style="color: #ffa07a;">"/test/synth/freq"</span> <span style="color: #ffa07a;">"f"</span> 440.0f0)
 48
 <span class="prompt">SCRATCH&gt;</span> (osc:send *oscout*)
 28</pre>

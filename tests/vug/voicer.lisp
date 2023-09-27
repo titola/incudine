@@ -5,11 +5,11 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (dsp! voicer-test-1 (freq amp pos gate)
     (foreach-channel
-      (cout (pan2 (* (envelope (make-adsr .01 .09 .8 .4) gate 1 #'free)
-                     (sine freq amp 0))
+      (cout (pan2 (* (envelope (make-adsr .01f0 .09f0 .8f0 .4f0) gate 1 #'free)
+                     (sine freq amp))
                   pos)))))
 
-(defvar *voi* (voicer:create 4 (voicer-test-1 440 .2 .5 1)))
+(defvar *voi* (voicer:create 4 (voicer-test-1 440 .2d0 .5 1)))
 
 (define-constant +voicer-tag+ 123)
 
@@ -26,7 +26,7 @@
 
 (defun polyphony-test-1 ()
   (setf (voicer:polyphony *voi*) 4)
-  (loop with amps = #(.1 .3 .05 .2) and space = #(.1 .9 .3 .7)
+  (loop with amps = #(.1f0 .3f0 .05f0 .2f0) and space = #(.1f0 .9f0 .3f0 .7f0)
         for i from 0
         for time from 0 by .25
         for freq from 250 to 2000 by 125
@@ -101,5 +101,5 @@
   (setf (voicer:steal-voice-mode *voi*) :first)
   (voicer:remove-all-maps *voi*)
   (voicer:define-map voicer-map-1 *voi* (freq amp pos)
-    (setf freq (* freq 2) amp (* amp 1.5) pos (- 1 pos)))
+    (setf freq (* freq 2) amp (* amp 1.5f0) pos (- 1 pos)))
   (polyphony-test-1))

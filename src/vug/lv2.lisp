@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2022 Tito Latini
+;;; Copyright (c) 2013-2023 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -208,7 +208,7 @@
                     (lilv:port-is-a plugin port lilv:*uri-control-port*))
             do (let ((ptr (cffi:mem-aptr controls :float j)))
                  (setf (cffi:mem-ref ptr :float)
-                       (or (lv2-port-default plugin port node) 0.0))
+                       (or (lv2-port-default plugin port node) 0f0))
                  (lilv:connect-port
                    (lilv:descriptor-slot-value descriptor 'lv2:connect-port)
                    handle i ptr)

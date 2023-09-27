@@ -19,7 +19,7 @@ osc:*max-values*
 ;; The faster way to send a OSC message is
 
 (defvar *oscout* (osc:open :direction :output))
-(osc:message *oscout* "/osc/test" "isf" 1 "two" 3.0)
+(osc:message *oscout* "/osc/test" "isf" 1 "two" 3.0f0)
 
 ;; where host, port and protocol are "localhost", 32126 (aka #36ROSE)
 ;; and :UDP by default.
@@ -27,7 +27,7 @@ osc:*max-values*
 ;; It's enlightening to show the expansion of the OSC:MESSAGE compiler-macro:
 
 (funcall (compiler-macro-function 'osc:message)
-         '(osc:message *oscout* "/osc/test" "isf" 1 "two" 3.0) nil)
+         '(osc:message *oscout* "/osc/test" "isf" 1 "two" 3.0f0) nil)
 ;; (LET ((#:S505 *OSCOUT*))
 ;;   (INCUDINE.OSC:START-MESSAGE #:S505 "/osc/test" "isf")
 ;;   (INCUDINE.OSC::SET-VALUE #:S505 0 1)
@@ -63,7 +63,7 @@ osc:*max-values*
 
 (setf (osc:value *oscout* 0) 1)
 (setf (osc:value *oscout* 1) "two")
-(setf (osc:value *oscout* 2) 3.0)
+(setf (osc:value *oscout* 2) 3.0f0)
 (loop for i below 3 collect (osc:value *oscout* i))
 ;; (1 "two" 3.0)
 
@@ -76,8 +76,11 @@ osc:*max-values*
 (osc:value *oscout* 2)
 ;; 0.0
 
-(setf (osc:value *oscout* 2) 3.0)  ; correct
+(setf (osc:value *oscout* 2) 3.0f0)  ; correct
 ;; 3.0
+
+;; Memo: 3.0 is not a single-float value if *READ-DEFAULT-FLOAT-FORMAT*
+;; is DOUBLE-FLOAT
 
 ;; OSC:VALUE-POINTER returns the pointer to a required value:
 
@@ -119,7 +122,7 @@ osc:*max-values*
 (rt-start)
 
 (defun synth-test (time)
-  (setf (osc:value *oscout* 0) (+ 100 (random 1000.0)))
+  (setf (osc:value *oscout* 0) (+ 100 (random 1000.0f0)))
   (osc:send *oscout*)
   (aat (+ time #[1/5 sec]) #'synth-test it))
 
@@ -205,7 +208,7 @@ osc:*max-values*
 ;; OSC:SEND-BUNDLE works after OSC:OCTETS-TO-BUFFER
 
 (setq *msg1* (osc:buffer-to-octets *oscout*))
-(osc:message *oscout* "/test/synth/freq" "f" 440.0)
+(osc:message *oscout* "/test/synth/freq" "f" 440.0f0)
 ;; 28
 (osc:octets-to-buffer *msg1* *oscout*)
 (osc:send-bundle *oscout* .75)
@@ -213,7 +216,7 @@ osc:*max-values*
 
 ;; and OSC:SEND works after OSC:SIMPLE-BUNDLE...
 
-(osc:simple-bundle *oscout* 1.2 "/test/synth/freq" "f" 440.0)
+(osc:simple-bundle *oscout* 1.2 "/test/synth/freq" "f" 440.0f0)
 ;; 48
 (osc:send *oscout*)
 ;; 28

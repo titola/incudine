@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2021 Tito Latini
+;;; Copyright (c) 2013-2023 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -58,7 +58,7 @@
 
 (declaim (inline gendy-distribution))
 (defun gendy-distribution (which a)
-  (let ((a (clip a (sample 0.0001) (sample 1.0))))
+  (let ((a (clip a (sample 1d-4) (sample 1.0))))
     (cond ((= which 1) (gendy-cauchy a))
           ((= which 2) (gendy-logist a))
           ((= which 3) (gendy-hyperbcos a))
