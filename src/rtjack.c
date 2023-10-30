@@ -1109,6 +1109,7 @@ int jm_read(struct jm_input_data *p, char *buffer, unsigned int bufsize)
 		}
 		n = incudine_ringbuffer_read_space(p->rb);
 	}
+	p->remain = n;
 	return count;
 }
 
@@ -1120,7 +1121,7 @@ void jm_flush_pending(struct jm_data *p)
 
 void jm_waiting_for(struct jm_input_data *p)
 {
-	if (p != NULL) {
+	if (p != NULL && p->remain == 0) {
 		pthread_mutex_lock(&p->lock);
 		pthread_cond_wait(&p->cond, &p->lock);
 		pthread_mutex_unlock(&p->lock);

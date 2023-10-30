@@ -198,6 +198,7 @@ struct jm_input_data {
 	void *port_buffer;
 	struct incudine_ringbuffer *rb;
 	struct incudine_ringbuffer *cache;
+	int remain;
 	int to_signal;
 	pthread_mutex_t lock;
 	pthread_cond_t cond;

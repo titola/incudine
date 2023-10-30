@@ -811,7 +811,7 @@ See also INCUDINE:MAKE-RESPONDER and INCUDINE:RECV-START."
            (otherwise
             (bt:make-thread
               (lambda ()
-                (with-event-buffer (,evbuf)
+                (with-event-buffer (,evbuf 4096)
                   (setf ,state-form t)
                   (unwind-protect
                        (loop initially (flush-pending ,stream)
