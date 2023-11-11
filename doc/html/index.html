@@ -28,7 +28,8 @@
         Incudine introduces the Virtual UGen (VUG), a new mechanism for defining
         primitive unit generators by writing concise and reusable code. The
         definition of a VUG contains lisp code and/or other nested VUGs (or
-        "real" UGens), and it is re-arranged and compiled efficiently during the
+        "real" UGens), and it is re-arranged (i.e. after the inference of init-
+        and performance-time actions) and compiled efficiently during the
         creation of a DSP.
       </p>
 
@@ -40,8 +41,14 @@
           processing (without a realtime garbage collector but it's
           simple to define cons-free DSP)
         </li>
+        <li>
+          Optional recovery of audio cycles suspended during gc by
+          processing the cached audio inputs and MIDI events. For
+          example, it allows HD recording without losing audio inputs
+          during gc if there aren't xruns.
+        </li>
         <li>Sample accurate callbacks</li>
-        <li>Non-realtime bounce to disk and bounce to buffer</li>
+        <li>Bounce to disk and bounce to memory buffer</li>
         <li>
           Arbitrary precision. The sample type is double float but the
           unit generators and the DSP's don't require a particular type.
@@ -56,7 +63,10 @@
         </li>
         <li>Graph of DSP's</li>
         <li><a href="http://incudine.sourceforge.net/incudine.html#Built_002din-Virtual-Unit-Generators">Collection of useful re-definable VUG's</a></li>
-        <li><a href="http://incudine.sourceforge.net/incudine.html#GEN-Routines">Collection of GEN routines</a></li>
+        <li>
+          <a href="http://incudine.sourceforge.net/incudine.html#GEN-Routines">Collection of GEN routines</a>
+          to fill memory buffers
+        </li>
         <li>
           MIDI support via <a href="http://portmedia.sourceforge.net/portmidi">PortMidi</a>
           and <a href="https://jackaudio.org">Jack MIDI</a>
@@ -69,16 +79,18 @@
         <li>Import/Export a musical scale from/to scale file format</li>
         <li>
           MIDI tuning by sending a bulk tuning dump message with arbitrary checksum
-          function or 128 single note tuning change messages (Exclusive Real Time)</li>
+          function or 128 single note tuning change messages (Exclusive Real Time)
+        </li>
         <li>
           Frequencies of a TUNING structure changed with the data received from
-          a MIDI bulk tuning dump message</li>
+          a MIDI bulk tuning dump message
+        </li>
         <li>Flexible voicer for voice management</li>
         <li>
-          The score (rego) files are <a href="https://orgmode.org">Org</a> friendly.
-          It is possible to edit and organize score files with spreedsheet-like
-          capabilities, headlines, unordered lists, blocks, properties, hyperlinks,
-          todo items, tags, deadlines, scheduling, etc.
+          The score (rego) file format supports the <a href="https://orgmode.org">Org</a>
+          markup language. It is possible to edit and organize score files
+          with spreedsheet-like capabilities, headlines, unordered lists, blocks,
+          properties, hyperlinks, todo items, tags, deadlines, scheduling, etc.
         </li>
         <li>
           It is possible to create and edit a rego file in SES (Simple Emacs

@@ -3,9 +3,13 @@
    processing (without a realtime garbage collector but it's simple
    to define cons-free DSP).
 
+ - Optional recovery of audio cycles suspended during gc by processing
+   the cached audio inputs and MIDI events. For example, it allows HD
+   recording without losing audio inputs during gc if there aren't xruns.
+
  - Sample accurate callbacks.
 
- - Non-realtime bounce to disk and bounce to buffer.
+ - Bounce to disk and bounce to memory buffer
 
  - Arbitrary precision. The sample type is double float but the
    unit generators and the DSP's don't require a particular type.
@@ -22,7 +26,7 @@
 
  - Collection of useful re-definable virtual unit generators.
 
- - Collection of GEN routines.
+ - Collection of GEN routines to fill memory buffers.
 
  - MIDI support via [[http://portmedia.sourceforge.net/portmidi][PortMidi]] and [[https://jackaudio.org][Jack MIDI]].
 
@@ -43,10 +47,10 @@
 
  - Flexible voicer.
 
- - The score (rego) files are [[https://orgmode.org][Org]] friendly. It is possible to edit and
-   organize score files with spreedsheet-like capabilities, headlines,
-   unordered lists, blocks, properties, hyperlinks, todo items, tags,
-   deadlines, scheduling, etc.
+ - The score (rego) file format supports the [[https://orgmode.org][Org]]
+   markup language. It is possible to edit and organize score files with
+   spreedsheet-like capabilities, headlines, unordered lists, blocks,
+   properties, hyperlinks, todo items, tags, deadlines, scheduling, etc.
 
  - It is possible to create and edit a rego file in SES (Simple Emacs
    Spreadsheet) mode.

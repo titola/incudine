@@ -70,8 +70,8 @@ mv incudine /path/to/quicklisp/local-projects/
 #+vindex: *nrt-priority*
 #+vindex: *receiver-default-priority*
 #+texinfo: @noindent
-Edit and copy the configuration file, with particular attention to the
-priorities ~*rt-priority*~, ~*nrt-priority*~ and
+Edit and copy the sample configuration file, with particular attention
+to the priorities ~*rt-priority*~, ~*nrt-priority*~ and
 ~*receiver-default-priority*~
 
 #+begin_example
@@ -99,7 +99,9 @@ Here is a test:
 #+end_example
 
 #+texinfo: @noindent
-Emacs and Texinfo are required to build the documentation:
+[[https://www.gnu.org/software/emacs][GNU Emacs]] and
+[[https://www.gnu.org/software/texinfo][Texinfo]] are required
+to build the documentation:
 
 #+begin_example
 cd doc/manual && make info html pdf
@@ -110,7 +112,7 @@ This builds the Info, HTML and PDF documentation from the Org and
 Texinfo sources.
 
 #+texinfo: @noindent
-If you want to create and install the incudine command:
+If you want to create and install the ~incudine~ command:
 
 #+begin_example
 cd src && ./install_executable
@@ -157,10 +159,12 @@ sh install_executable --with-linedit --with-fluidsynth \
 #+end_example
 
 #+texinfo: @noindent
-Note: the support for LV2 plugins requires Lilv, a LV2 host library.
+Note: the support for LV2 plugins requires [[http://drobilla.net/software/lilv][Lilv]],
+a LV2 host library.
 
 #+texinfo: @noindent
-If you use SLIME, add these lines to =${HOME}/.swank.lisp=
+If you use [[https://github.com/slime/slime][SLIME]], add these lines
+to =${HOME}/.swank.lisp= if necessary:
 
 #+begin_example
 ;; Avoid problems in realtime because the default value is :SPAWN
