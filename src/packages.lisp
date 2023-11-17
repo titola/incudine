@@ -37,7 +37,8 @@
 (defpackage :incudine.external
   (:use :cl)
   (:intern
-   #:rt-set-io-buffers #:rt-set-output #:rt-get-input #:rt-get-error-msg
+   #:rt-set-io-buffers #:rt-set-max-bufsize
+   #:rt-set-output #:rt-get-input #:rt-get-error-msg
    #:rt-condition-wait #:rt-set-busy-state #:rt-transfer-to-c-thread
    #:rt-audio-init #:rt-audio-start #:rt-audio-stop
    #:rt-cycle-begin #:rt-cycle-end
@@ -379,7 +380,7 @@
                 #:foreign-copy #:foreign-copy-samples
                 #:rt-audio-init #:rt-audio-start #:rt-audio-stop
                 #:rt-get-input #:rt-set-output #:rt-cycle-begin #:rt-cycle-end
-                #:rt-set-io-buffers
+                #:rt-set-io-buffers #:rt-set-max-bufsize
                 #:rt-condition-wait #:rt-transfer-to-c-thread
                 #:rt-time-offset #:rt-set-busy-state #:rt-silent-errors
                 #:rt-buffer-size #:rt-sample-rate #:rt-xruns #:rt-get-error-msg)
@@ -420,7 +421,7 @@
    #:circular-shift
    #:bus #:audio-in #:audio-out
    #:peak-info #:print-peak-info #:reset-peak-meters
-   #:set-number-of-channels
+   #:set-number-of-channels #:set-max-buffer-size
    #:*rt-thread-start-hook* #:*rt-thread-exit-hook*
    #:rt-start #:rt-stop #:rt-status #:rt-cpu #:rt-buffer-size #:rt-sample-rate
    #:rt-xruns #:rt-loop-callback #:set-rt-block-size #:block-size

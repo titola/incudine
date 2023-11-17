@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2020 Tito Latini
+;;; Copyright (c) 2013-2023 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -36,6 +36,9 @@
   (input :pointer)
   (output :pointer))
 
+(cffi:defcfun ("ja_set_lisp_max_bufsize" rt-set-max-bufsize) :void
+  (value :unsigned-int))
+
 (declaim (inline rt-cycle-begin))
 (cffi:defcfun ("ja_cycle_begin" rt-cycle-begin) :uint32)
 
@@ -68,7 +71,7 @@
 (cffi:defcfun ("ja_transfer_to_c_thread" rt-transfer-to-c-thread) :void)
 
 (declaim (inline rt-buffer-size))
-(cffi:defcfun ("ja_get_buffer_size" rt-buffer-size) :int)
+(cffi:defcfun ("ja_get_buffer_size" rt-buffer-size) :unsigned-int)
 
 (declaim (inline rt-sample-rate))
 (cffi:defcfun ("ja_get_sample_rate" rt-sample-rate) sample)

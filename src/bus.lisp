@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2020 Tito Latini
+;;; Copyright (c) 2013-2023 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -38,19 +38,23 @@
 (declaim (type (integer 0 #.(1+ incudine.util::maximum-bus-number))
                *number-of-bus-channels*))
 
-(defun alloc-bus-pointer (type)
+(defun alloc-bus-pointer (type &optional (buffer-size *max-buffer-size*))
   (declare (type (member bus input output) type))
   (foreign-alloc-sample
    (+ (if (member type '(input output))
-          (* #-portaudio *max-buffer-size*
-             #+portaudio (max *max-buffer-size*
+          (* #-portaudio buffer-size
+             #+portaudio (max buffer-size
                               incudine.config:*frames-per-buffer*)
              (max *number-of-input-bus-channels*
                   *number-of-output-bus-channels*))
           *number-of-bus-channels*)
       +io-bus-channels-pad+)))
 
-(defvar *%input-pointer* (alloc-bus-pointer 'input))
+(defglobal rt-max-buffer-size
+  (next-power-of-two (1- *max-buffer-size*)))
+(declaim (type positive-fixnum rt-max-buffer-size))
+
+(defvar *%input-pointer* (alloc-bus-pointer 'input rt-max-buffer-size))
 (declaim (type foreign-pointer *%input-pointer*))
 
 (defvar *input-pointer*
@@ -60,7 +64,7 @@
 (defmacro input-pointer ()
   `(mem-ref *input-pointer* :pointer))
 
-(defvar *%output-pointer* (alloc-bus-pointer 'output))
+(defvar *%output-pointer* (alloc-bus-pointer 'output rt-max-buffer-size))
 (declaim (type foreign-pointer *%output-pointer*))
 
 (defvar *output-pointer*
@@ -213,7 +217,7 @@ No bounds checking."
                 "*NUMBER-OF-~A-BUS-CHANNELS*"))
     `(progn
        (foreign-free ,ptr)
-       (setf ,ptr (alloc-bus-pointer ',type))
+       (setf ,ptr (alloc-bus-pointer ',type rt-max-buffer-size))
        (setf (,ptr-mac) ,ptr)
        (setf ,inc-bytes (* ,channels +foreign-sample-size+)))))
 

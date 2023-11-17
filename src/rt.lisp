@@ -84,7 +84,8 @@
                                     *foreign-client-name*
                                     *sample-counter*))
               (zerop (rt-audio-start)))
-         (let ((buffer-size (rt-buffer-size)))
+         (let ((buffer-size #+jack-audio (min rt-max-buffer-size (rt-buffer-size))
+                            #-jack-audio (rt-buffer-size)))
            (setf (rt-params-frames-per-buffer *rt-params*) buffer-size)
            (set-sample-rate (rt-sample-rate))
            #+jack-midi (nrt-funcall #'jackmidi::update-streams)
@@ -549,7 +550,10 @@ Setfable."
         size
         (setf *rt-edf-heap-size* size))))
 
-(defun rt-start (&key (cpu incudine.config:*rt-cpu*)
+(defglobal rt-start-arguments nil)
+(declaim (type list rt-start-arguments))
+
+(defun rt-start (&rest args &key (cpu incudine.config:*rt-cpu*)
                  (preamble-function #'rt-preamble)
                  (thread-name "audio-rt-thread")
                  (thread-function #'rt-thread-callback)
@@ -589,10 +593,12 @@ the thread."
            (type function thread-function)
            (type cons thread-function-args)
            (type boolean gc-p))
+  (setf rt-start-arguments args)
   (bordeaux-threads:with-lock-held ((rt-params-lock *rt-params*))
     (unless *rt-thread*
       (init)
       (maybe-resize-rt-edf-heap)
+      #+jack-audio (maybe-resize-max-buffer-size)
       (setf *after-rt-stop-function* after-stop-function)
       (when preamble-function (funcall preamble-function))
       (when gc-p (incudine.util::gc :full t))
@@ -618,6 +624,10 @@ the thread."
 (defun rt-status ()
   "Real-time thread status. Return :STARTED or :STOPPED."
   (rt-params-status *rt-params*))
+
+(defun rt-restart ()
+  (rt-stop)
+  (apply 'rt-start rt-start-arguments))
 
 (defun call-after-stop ()
   (when (functionp *after-rt-stop-function*)
@@ -661,10 +671,63 @@ See PORTAUDIO-DEVICE-INFO."
           incudine.config::*portaudio-input-device* input))
   (values output input))
 
+(defun set-max-buffer-size (value)
+  "Safe way to set the maximum number of frames per period (not used in PortAudio).
+
+This setting stops the real-time thread during the change.
+
+See also the configuration variable *MAX-BUFFER-SIZE*."
+  (unless (= value *max-buffer-size*)
+    (setf *max-buffer-size* value)
+    (let ((rtmax (next-power-of-two (1- value))))
+      (unless (= rtmax rt-max-buffer-size)
+        (let ((rt-started-p (eq (rt-status) :started)))
+          (rt-stop)
+          (setf rt-max-buffer-size rtmax)
+          (realloc-audio-bus-pointer input)
+          (realloc-audio-bus-pointer output)
+          (when rt-started-p
+            (rt-restart)))
+        t))))
+
+;; Called from RT-START.
+#+jack-audio
+(defun maybe-resize-max-buffer-size ()
+  (let ((rtmax (next-power-of-two (1- *max-buffer-size*))))
+    (unless (= rtmax rt-max-buffer-size)
+      (setf rt-max-buffer-size rtmax)
+      (realloc-audio-bus-pointer input)
+      (realloc-audio-bus-pointer output))
+    (rt-set-max-bufsize rt-max-buffer-size)))
+
+#+jack-audio
+(defun (setf rt-buffer-size) (value)
+  (declare (type (unsigned-byte 16) value))
+  (let ((client (incudine.external:rt-client)))
+    (cond ((> value rt-max-buffer-size)
+           (msg warn
+             "~D is greater than the maximum buffer size for Incudine (~D)~%      ~
+              See INCUDINE:SET-MAX-BUFFER-SIZE." value rt-max-buffer-size))
+          ((cffi:null-pointer-p client)
+           (msg warn
+             "(SETF INCUDINE:RT-BUFFER-SIZE) failed~%      ~
+              because the realtime thread is not started."))
+          ((not (zerop (cffi:foreign-funcall "jack_set_buffer_size"
+                         :pointer client :unsigned-int value :int)))
+           (msg warn "jack_set_buffer_size() failed"))
+          (t value))))
+
+#-jack-audio
+(defun (setf rt-buffer-size) (value)
+  (declare (ignore value))
+  (msg warn "RT-BUFFER-SIZE is setfable only for Jack audio."))
+
 #-dummy-audio
 (setf
   (documentation 'rt-buffer-size 'function)
-  "Return the number of frames passed to the real-time callback function."
+  "Return the number of frames passed to the real-time callback function.
+Setfable for Jack audio after RT-START if the value is not greater than
+the maximum size for Incudine. See also INCUDINE:SET-MAX-BUFFER-SIZE."
   (documentation 'rt-sample-rate 'function)
   "Return the sample rate of the real-time audio system."
   (documentation 'rt-time-offset 'function)

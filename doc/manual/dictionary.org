@@ -454,6 +454,7 @@ Return ~t~ if the ~tempo~ or ~tempo-envelope~ instance is deallocated.
 ** Realtime
 ::: incudine.util:*block-size-hook*
 ::: set-rt-block-size
+::: set-max-buffer-size
 ::: rt-loop-callback
 ::: rt-silent-errors
 ::: rt-start

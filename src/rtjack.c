@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2022 Tito Latini
+ * Copyright (c) 2013-2023 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -272,8 +272,11 @@ static void* ja_process_thread(void *arg)
 		read_memory_barrier();
 		if (lisp_busy) {
 			int i;
-			jack_nframes_t frames = jack_cycle_wait(client);
+			jack_nframes_t frames;
 
+			frames = jack_cycle_wait(client);
+			if (frames > lisp_max_bufsize)
+				frames = lisp_max_bufsize;
 			if (ja_frames != frames) {
 				/* Buffer size is changed */
 				ja_frames = frames;
@@ -326,6 +329,8 @@ static void* ja_process_thread_with_cached_inputs(void *arg)
 			jack_nframes_t frames;
 
 			frames = jack_cycle_wait(client);
+			if (frames > lisp_max_bufsize)
+				frames = lisp_max_bufsize;
 			if (ja_frames != frames) {
 				ja_frames = frames;
 				ja_buffer_bytes = frames * JA_SAMPLE_SIZE;
@@ -421,6 +426,28 @@ static void ja_shutdown(void *arg)
 	ja_status = JA_SHUTDOWN;
 	fprintf(stderr, "JACK Audio shutdown\n");
 	kill(getpid(), SIGQUIT);
+}
+
+static int ja_set_buffer_size_cb(jack_nframes_t nframes, void *arg)
+{
+	(void) arg;
+
+	if (nframes > lisp_max_bufsize) {
+		fprintf(stderr, "WARNING: the JACK buffer size is set to %d "
+			"but the maximum size\n         for Incudine is %d. "
+			"See INCUDINE:SET-MAX-BUFFER-SIZE.\n",
+			nframes, lisp_max_bufsize);
+	} else {
+		int lisp_busy;
+		lisp_busy = ja_lisp_busy;
+		read_memory_barrier();
+		if (!lisp_busy && !ja_has_cached_inputs())
+			ja_frames = nframes;
+		fprintf(stderr, "The JACK buffer size is set to %d.\n"
+			"The maximum size for Incudine is %d.\n",
+			nframes, lisp_max_bufsize);
+	}
+	return 0;
 }
 
 static void ja_process_thread_wait(void)
@@ -526,7 +553,7 @@ int ja_set_thread_callback(int has_cached_inputs)
 	return has_cached_inputs;
 }
 
-int ja_get_buffer_size(void)
+unsigned int ja_get_buffer_size(void)
 {
 	return ja_frames;
 }
@@ -554,6 +581,8 @@ int ja_initialize(unsigned int input_channels, unsigned int output_channels,
 	ja_proc_thread.status = JA_STOPPED;
 	ja_status = JA_INITIALIZING;
 	ja_frames = jack_get_buffer_size(client);
+	if (ja_frames > lisp_max_bufsize)
+		ja_frames = lisp_max_bufsize;
 	ja_sample_rate = (SAMPLE) jack_get_sample_rate(client);
 	ja_sample_duration = 1.0 / ja_sample_rate;
 	ja_in_channels = input_channels;
@@ -614,6 +643,7 @@ int ja_initialize(unsigned int input_channels, unsigned int output_channels,
 	jack_set_process_thread(client, ja_thread_callback, NULL);
 	jack_on_shutdown(client, ja_shutdown, NULL);
 	jack_set_xrun_callback(client, ja_xrun_cb, (void *) sample_counter);
+	jack_set_buffer_size_callback(client, ja_set_buffer_size_cb, NULL);
 	ja_xrun_reset();
 
 	/* Unblock signals */
@@ -658,6 +688,12 @@ void ja_set_lisp_io(SAMPLE *input, SAMPLE *output)
 	lisp_output = output;
 }
 
+void ja_set_lisp_max_bufsize(unsigned int value)
+{
+	lisp_max_bufsize = value;
+	lisp_bufsize_mask = value - 1;
+}
+
 jack_nframes_t ja_cycle_begin(void)
 {
 	int i;
@@ -672,6 +708,7 @@ jack_nframes_t ja_cycle_begin(void)
 	 */
 	pthread_sigmask(SIG_BLOCK, &sig_stop_for_gc, NULL);
 	frames = jack_cycle_wait(client);
+	frames = 1 + ((frames - 1) & lisp_bufsize_mask);
 	pthread_sigmask(SIG_UNBLOCK, &sig_stop_for_gc, NULL);
 
 	if (ja_status != JA_RUNNING)

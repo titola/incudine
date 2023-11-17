@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 Tito Latini
+ * Copyright (c) 2013-2023 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -69,6 +69,7 @@ static unsigned int ja_in_channels, ja_out_channels, ja_frames;
 static size_t ja_buffer_bytes;
 static int ja_status = JA_STOPPED;
 static int ja_lisp_busy;
+static unsigned int lisp_max_bufsize, lisp_bufsize_mask;
 static SAMPLE *lisp_input, *lisp_output;
 static jack_default_audio_sample_t **ja_inputs, **ja_outputs, *ja_tmp_inputs;
 static jack_port_t **input_ports, **output_ports;
@@ -156,7 +157,7 @@ void ja_condition_wait(void);
 void ja_set_lisp_busy_state(int status);
 void ja_transfer_to_c_thread(void);
 int ja_set_thread_callback(int has_cached_inputs);
-int ja_get_buffer_size(void);
+unsigned int ja_get_buffer_size(void);
 SAMPLE ja_get_sample_rate(void);
 struct ja_xrun *ja_get_xruns(void);
 void ja_xrun_reset(void);
@@ -166,6 +167,7 @@ int ja_initialize(unsigned int input_channels, unsigned int output_channels,
 int ja_start(void);
 int ja_stop(void);
 void ja_set_lisp_io(SAMPLE *input, SAMPLE *output);
+void ja_set_lisp_max_bufsize(unsigned int value);
 jack_nframes_t ja_cycle_begin(void);
 void ja_continue_cycle_begin(jack_nframes_t frames);
 void ja_cycle_end(jack_nframes_t frames);
