@@ -371,12 +371,14 @@ related foreign memory pool is usable."
   (define-*-ref f64-ref f64-set :double)
   (define-*-ref ptr-ref ptr-set :pointer))
 
-(defmacro with-doc-string ((var form) &body body)
-  `(multiple-value-bind (,var ,form)
-       (if (stringp (car ,form))
-           (values (list (car ,form)) (cdr ,form))
-           (values nil ,form))
-     ,@body))
+(defmacro with-doc-string ((doc-var form-var) &body body)
+  (with-gensyms (decl-var)
+    `(multiple-value-bind (,decl-var ,form-var) (separate-declaration ,form-var)
+       (let* ((,doc-var (when (and (stringp (car ,form-var)) (cdr ,form-var))
+                          (list (car ,form-var))))
+              (,form-var (append ,decl-var
+                                 (if ,doc-var (cdr ,form-var) ,form-var))))
+         ,@body))))
 
 (defun lambda*-arguments-without-dot (arguments)
   (do ((acc nil (cons (car arg) acc))

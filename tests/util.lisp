@@ -174,6 +174,19 @@
    (1 3 (2 3 4 5))
    (1 3 (2 3 4 5) (4 5))))
 
+(deftest lambda-star-docstring
+    (mapcar
+      (lambda (x)
+        (list (equal (documentation x 'function) "ok") (funcall x 3 5)))
+      (list (lambda* (a b) (declare (ignore a b)) "ok")
+            (lambda* (a b) "ok" (declare (ignore a b)))
+            (lambda* (a b) "ok" (list a b))
+            (lambda* (a b) "ok" (declare (fixnum a)) b (1+ a))
+            (lambda* (a b) (declare (fixnum a)) "ok" b (1+ a))
+            (lambda* (a b) "ok" (declare (fixnum a)) (declare (fixnum b)) (+ a b))
+            (lambda* (a b) (declare (fixnum a)) (declare (fixnum b)) "ok" (+ a b))))
+  ((NIL "ok") (T NIL) (T (3 5)) (T 4) (T 4) (T 8) (T 8)))
+
 ;;;; Interpolation
 
 (deftest linear-interp
