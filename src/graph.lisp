@@ -1598,7 +1598,8 @@ arguments ARGS."
   (declare (type stream stream))
   (let ((indent 0)
         (indent-incr 4)
-        (last-list nil))
+        (last-list nil)
+        (last (find-last-node obj)))
     (declare (type non-negative-fixnum indent indent-incr)
              #.*standard-optimize-settings*)
     (fresh-line stream)
@@ -1628,7 +1629,8 @@ arguments ARGS."
                  (reduce-warnings
                    (format stream "  ~A~{ ~A~}~%"
                            (node-name n) (control-list n)))
-                 (dec-indent n))))
+                 (dec-indent n)))
+        (when (eq n last) (return)))
       (force-output stream))))
 
 ;;; Envelope segment of a node.
