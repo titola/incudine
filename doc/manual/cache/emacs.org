@@ -69,6 +69,8 @@ Hook called when a buffer enters Incudine mode.
      With a numeric argument 'n', print info about the group with
      identifier 'n'.
 
+     Type ~g~ in ~*incudine-node-tree*~ buffer to update it.
+
 - @@texinfo:@kbd{C-c g c}@@ (~incudine-gc~) ::
      Initiate a garbage collection.
 

@@ -195,6 +195,13 @@ If ID is non-NIL, unpause the node with identifier ID."
   (incudine-eval "(incudine:unpause %d)"
                  (prefix-numeric-value0 id)))
 
+(defvar incudine-node-tree-buffer (incudine-buffer-name "node-tree"))
+
+(defvar incudine-node-tree-dump-command nil)
+
+(defvar incudine-node-tree-map
+  (define-keymap "g" 'incudine-redump-graph))
+
 (defun incudine-dump-graph (&optional id)
   "Print informations about the graph of nodes.
 
@@ -202,16 +209,29 @@ If ID is non-NIL, print info about the group with identifier ID."
   (interactive "P")
   (let ((form (format "(incudine:dump (incudine:node %d) *standard-output*)"
                       (prefix-numeric-value0 id))))
+    (setq incudine-node-tree-dump-command form)
     (slime-eval-async `(swank:pprint-eval ,form)
       (lambda (result)
         (slime-with-popup-buffer
-            ("*incudine-node-tree*"
+            (incudine-node-tree-buffer
              :mode (when (and (boundp 'text-scale-mode)
                               (symbol-value 'text-scale-mode))
                      ;; Keep text-scale minor mode.
                      'text-scale-mode))
           (insert result)
+          (use-local-map incudine-node-tree-map)
           (kill-line -1))))))
+
+(defun incudine-redump-graph ()
+  (interactive)
+  (slime-eval-async `(swank:pprint-eval ,incudine-node-tree-dump-command)
+    (lambda (result)
+      (with-current-buffer incudine-node-tree-buffer
+        (let ((inhibit-read-only t))
+          (erase-buffer)
+          (insert result)
+          (kill-line -1)
+          (goto-char (point-min)))))))
 
 (defun incudine-live-nodes ()
   "Print the number of the live nodes."
