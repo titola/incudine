@@ -200,7 +200,9 @@ If ID is non-NIL, unpause the node with identifier ID."
 (defvar incudine-node-tree-dump-command nil)
 
 (defvar incudine-node-tree-map
-  (define-keymap "g" 'incudine-redump-graph))
+  (let ((map (make-sparse-keymap)))
+    (define-key map "g" 'incudine-redump-graph)
+    map))
 
 (defun incudine-dump-graph (&optional id)
   "Print informations about the graph of nodes.
