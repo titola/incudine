@@ -269,14 +269,13 @@ argument.
 If STREAM is a CL:INPUT-STREAM, the function takes the value
 returned by the read-function passed to RECV-START."
   (declare (type function function))
-  (let ((recv (or (receiver stream)
-                  (add-receiver stream (make-receiver stream) #'identity
-                                *receiver-default-priority*))))
-    (when recv
-      (let ((resp (%make-responder
-                    :receiver recv
-                    :function (responder-wrapper stream function))))
-        (%add-responder resp stream)))))
+  (%add-responder
+    (%make-responder
+      :receiver (or (receiver stream)
+                    (setf (gethash stream *receivers*)
+                          (make-receiver stream)))
+      :function (responder-wrapper stream function))
+    stream))
 
 (defun remove-responder (resp)
   "Remove the function of the responder RESP from the list of the
