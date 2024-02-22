@@ -36,15 +36,17 @@
                   :keynum-base 60
                   :freq-base 261.625565
                   :degree-index 0))
-           (res1 (list (tuning-cents tun) (tuning-ratios tun)))
+           (res1 (list (map 'vector (lambda (x) (round (* x 1000)))
+                            (tuning-cents tun))
+                       (tuning-ratios tun)))
            (res2 (mapcar (lambda (k)
                            (sample->fixnum (* (tuning-cps tun k) 100)))
                          (append (loop for i below 12 collect i)
                                  (loop for i from 116 below 128 collect i)))))
       (free tun)
       (values res1 res2))
-  (#(0f0 111.731285f0 203.90999f0 315.6413f0 386.3137f0 498.045f0 582.5122f0
-     701.95496f0 813.6863f0 884.3587f0 1017.59625f0 1088.2687f0 1200f0)
+  (#(0 111731 203910 315641 386314 498045 582512 701955
+     813686 884359 1017596 1088269 1200000)
    #(1 16/15 9/8 6/5 5/4 4/3 7/5 3/2 8/5 5/3 9/5 15/8 2))
   (817 872 919 981 1021 1090 1144 1226 1308 1362 1471 1532
    669761 697668 753481 784876 837201 893015 941852 1004642
@@ -80,7 +82,9 @@
                          (sample->fixnum (* (tuning-cps tun k) 100)))
                        (append (loop for i below 12 collect i)
                                (loop for i from 48 below 72 collect i)))))
-        (let ((res1 (list (tuning-cents tun) (tuning-ratios tun)))
+        (let ((res1 (list (map 'vector (lambda (x) (round (* x 1000)))
+                               (tuning-cents tun))
+                          (tuning-ratios tun)))
               (res2 (tun-test tun)))
           (set-tuning-reference tun 60 261.625565 0)
           (setf (tuning-description tun) "SET-TUNING-REFERENCE test.")
@@ -88,7 +92,7 @@
                 (res4 (tun-test tun)))
             (free tun)
             (values res1 res2 res3 res4)))))
-  (#(0f0 203.90999f0 386.3137f0 498.045f0 701.95496f0 884.3587f0 1088.2687f0 1200f0)
+  (#(0 203910 386314 498045 701955 884359 1088269 1200000)
    #(1 9/8 5/4 4/3 3/2 5/3 15/8 2))
   (45 51 57 64 68 77 85 91 103 114 128 137
    5500 5866 6600 7333 8250 8800 9900 11000 11733 13200
@@ -107,7 +111,9 @@
             for keynum from 60
             do (setf (tuning-cps tun keynum) freq))
       (tuning-notes-from-data tun 60 72 "TUNING-NOTES-FROM-DATA test.")
-      (let ((res1 (list (tuning-description tun) (tuning-cents tun)
+      (let ((res1 (list (tuning-description tun)
+                        (map 'vector (lambda (x) (round (* x 1000)))
+                             (tuning-cents tun))
                         (tuning-ratios tun)))
             (res2 (mapcar (lambda (k)
                             (sample->fixnum (* (tuning-cps tun k) 100)))
@@ -116,8 +122,8 @@
         (free tun)
         (values res1 res2)))
   ("TUNING-NOTES-FROM-DATA test."
-   #(0f0 111.731285f0 203.90999f0 315.6413f0 386.3137f0 498.045f0 582.5122f0
-     701.95496f0 813.6863f0 884.3587f0 1017.59625f0 1088.2687f0 1200f0)
+   #(0 111731 203910 315641 386314 498045 582512 701955
+     813686 884359 1017596 1088269 1200000)
    #(1 16/15 9/8 6/5 5/4 4/3 7/5 3/2 8/5 5/3 9/5 15/8 2))
   (825 880 928 990 1031 1100 1155 1237 1320 1375 1485 1546
    675840 704000 760320 792000 844800 901120 950400 1013760
