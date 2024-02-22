@@ -479,6 +479,7 @@ Return ~t~ if the ~tempo~ or ~tempo-envelope~ instance is deallocated.
 ::: incudine.util:*nrt-priority*
 ::: incudine.util:*fast-nrt-priority*
 *** Receiver
+::: responder
 ::: make-responder
 ::: make-osc-responder
 ::: add-responder
@@ -486,7 +487,9 @@ Return ~t~ if the ~tempo~ or ~tempo-envelope~ instance is deallocated.
 ::: all-responders
 ::: remove-all-responders
 ::: receiver
+::: receiver-stream
 ::: remove-receiver
+::: all-receivers
 ::: remove-all-receivers
 ::: recv-functions
 ::: recv-start

@@ -76,7 +76,7 @@
 ;;; ... send some MIDI message ...
 
 (all-responders *midiin*)
-;; (#S(INCUDINE::RESPONDER
+;; (#S(RESPONDER
 ;;     :RECEIVER #<RECEIVER PORTMIDI:INPUT-STREAM RUNNING>
 ;;     :FUNCTION #<CLOSURE ...))
 (remove-responder resp)

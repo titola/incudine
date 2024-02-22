@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2023 Tito Latini
+;;; Copyright (c) 2013-2024 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 (defstruct (receiver (:constructor %make-receiver)
                      (:copier nil))
   "Receiver type."
-  stream
+  %stream
   (functions nil :type list)
   (status nil :type boolean)
   (thread nil :type (or null bt:thread))
@@ -32,10 +32,15 @@
 
 (defun make-receiver (stream &key functions status (timeout 0))
   (when (valid-input-stream-p stream)
-    (%make-receiver :stream stream
+    (%make-receiver :%stream stream
                     :functions functions
                     :status status
                     :timeout timeout)))
+
+(defun receiver-stream (obj)
+  "Return the input stream of a receiver."
+  (declare (type receiver obj))
+  (receiver-%stream obj))
 
 (defmethod print-object ((obj receiver) stream)
   (print-unreadable-object (obj stream)
@@ -47,6 +52,10 @@
   "Return the receiver related to STREAM if it exists. Otherwise,
 return NIL."
   (values (gethash stream *receivers*)))
+
+(defun all-receivers ()
+  "Return the list of the receivers."
+  (alexandria:hash-table-values *receivers*))
 
 (defgeneric recv-start (stream &key)
   (:documentation "Start receiving from STREAM.
@@ -180,6 +189,7 @@ input available from STREAM."
 (declaim (type hash-table *responders*))
 
 (defstruct (responder (:constructor %make-responder) (:copier nil))
+  "Responder type."
   (receiver nil :type (or receiver null))
   (function nil :type (or function null)))
 
