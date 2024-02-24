@@ -86,7 +86,7 @@ if [ ${linedit_p} = "yes" ]; then
 fi
 
 if [ ${aclrepl_p} = "yes" ]; then
-        modules="(require :sb-aclrepl) (pushnew :sb-aclrepl *features*) ${modules}"
+        modules="(let ((s (find-symbol \"*REPL-FUN-GENERATOR*\" \"SB-IMPL\"))) (if s (defvar cl-user::**repl-fun-generator* (symbol-value s)))) (require :sb-aclrepl) (pushnew :sb-aclrepl *features*) ${modules}"
 fi
 
 "${SBCL:-sbcl}" ${options} \

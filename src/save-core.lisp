@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2022 Tito Latini
+;;; Copyright (c) 2013-2024 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -220,6 +220,22 @@
         (incudine.util::empty-cons-pool p))
       (incudine.util::empty-cons-pool *node-pool* :cancel-finalizations t)
       (clrhash incudine.analysis::*fft-plan*)
+      (when (and (find-package "SB-ACLREPL")
+                 (boundp 'cl-user::**repl-fun-generator*))
+        ;; The incudine command doesn't call SB-ACLREPL::MAKE-REPL-FUN
+        ;; for the main REPL. The value of CL-USER::**REPL-FUN-GENERATOR*
+        ;; is the generator defined before the installation of SB-ACLREPL.
+        ;; The considerable difference is the reset of FD-STREAM-OUTPUT-COLUMN
+        ;; to 0 if *STANDARD-OUTPUT* is a SYNONYM-STREAM, because it avoids
+        ;; an empty line (see REPL-FUN in sbcl/src/code/toplevel.lisp; the
+        ;; last checked version is sbcl-2.4.1).
+        (let ((s (find-symbol "*REPL-FUN-GENERATOR*" "SB-IMPL")))
+          (symbol-macrolet ((repl-fun-generator (symbol-value s)))
+            (let ((new-repl-fun-generator repl-fun-generator))
+              (setf repl-fun-generator
+                    (lambda ()
+                      (setf repl-fun-generator new-repl-fun-generator)
+                      (funcall cl-user::**repl-fun-generator*)))))))
       (values)))
 
   ;;; Function to call when SBCL process exits.
