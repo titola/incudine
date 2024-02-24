@@ -221,6 +221,7 @@
       (incudine.util::empty-cons-pool *node-pool* :cancel-finalizations t)
       (clrhash incudine.analysis::*fft-plan*)
       (when (and (find-package "SB-ACLREPL")
+                 (not (find-package "LINEDIT"))
                  (boundp 'cl-user::**repl-fun-generator*))
         ;; The incudine command doesn't call SB-ACLREPL::MAKE-REPL-FUN
         ;; for the main REPL. The value of CL-USER::**REPL-FUN-GENERATOR*

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2023 Tito Latini
+;;; Copyright (c) 2013-2024 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -27,15 +27,31 @@
 
   #+linedit
   (let ((repl-prompt-fun sb-int:*repl-prompt-fun*)
+        (repl-read-form-fun sb-int:*repl-read-form-fun*)
         (linedit-repl-p nil))
+    (when (and (find-symbol "MAYBE-RESOLVE-SYNONYM-STREAM" "SB-IMPL")
+               (find-symbol "ENCODING-REPLACEMENT-ADJUST-CHARPOS" "SB-IMPL"))
+      (defun %repl-read-form-fun (in out)
+        (let ((real (funcall (find-symbol "MAYBE-RESOLVE-SYNONYM-STREAM" "SB-IMPL") out)))
+          (when (sb-sys:fd-stream-p real)
+            ;; ENCODING-REPLACEMENT-ADJUST-CHARPOS #\Newline sets FD-STREAM-OUTPUT-COLUMN
+            ;; to 0 (see REPL-FUN in sbcl/src/code/toplevel.lisp; the last checked version
+            ;; is sbcl-2.4.1).
+            (funcall (find-symbol "ENCODING-REPLACEMENT-ADJUST-CHARPOS" "SB-IMPL")
+                     #\Newline real))
+          (prog1 (funcall repl-read-form-fun in out) (fresh-line out)))))
+
     (defun uninstall-linedit-repl (&optional connection)
       (declare (ignore connection))
-      (linedit:uninstall-repl))
+      (linedit:uninstall-repl)
+      (setf sb-int:*repl-read-form-fun* repl-read-form-fun))
 
     (defun install-linedit-repl (&optional closed-connection)
       (unless closed-connection
         (setf linedit-repl-p t))
       (when linedit-repl-p
+        (when (fboundp '%repl-read-form-fun)
+          (setf sb-int:*repl-read-form-fun* #'%repl-read-form-fun))
         (linedit::install-repl :wrap-current t :eof-quits t
           :history (merge-pathnames ".incudine_history" (user-homedir-pathname)))))
 
