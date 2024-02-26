@@ -61,19 +61,19 @@
         (funcall repl-prompt-fun *terminal-io*)
         (force-output *terminal-io*))
 
-    ;; Disable beep, otherwise there is an unwanted character and
-    ;; it's difficult to edit the line.
-    (defmethod linedit::beep ((b linedit::terminal))
-      (declare (ignore b))
-      nil)
+    (linedit::defcommand "C-L" 'clear-screen)
 
-    ;; Quit without asking.
-    (defun linedit::eof-handler (lisp-name quit-fn)
-      (declare (ignore lisp-name quit-fn))
-      (fresh-line)
-      (sb-ext:exit))
-
-    (linedit::defcommand "C-L" 'clear-screen)))
+    (let ((sb-ext:*muffled-warnings* 'style-warning))
+      ;; Disable beep, otherwise there is an unwanted character and
+      ;; it's difficult to edit the line.
+      (defmethod linedit::beep ((b linedit::terminal))
+        (declare (ignore b))
+        nil)
+      ;; Quit without asking.
+      (defun linedit::eof-handler (lisp-name quit-fn)
+        (declare (ignore lisp-name quit-fn))
+        (fresh-line)
+        (sb-ext:exit)))))
 
 (defun set-default-logger-time (&optional (format :sec))
   (unless (logger-time)
