@@ -31,15 +31,18 @@
         (linedit-repl-p nil))
     (when (and (find-symbol "MAYBE-RESOLVE-SYNONYM-STREAM" "SB-IMPL")
                (find-symbol "ENCODING-REPLACEMENT-ADJUST-CHARPOS" "SB-IMPL"))
-      (defun %repl-read-form-fun (in out)
+      (defun %maybe-fd-stream-output-column-zero (out)
         (let ((real (funcall (find-symbol "MAYBE-RESOLVE-SYNONYM-STREAM" "SB-IMPL") out)))
           (when (sb-sys:fd-stream-p real)
             ;; ENCODING-REPLACEMENT-ADJUST-CHARPOS #\Newline sets FD-STREAM-OUTPUT-COLUMN
             ;; to 0 (see REPL-FUN in sbcl/src/code/toplevel.lisp; the last checked version
             ;; is sbcl-2.4.1).
             (funcall (find-symbol "ENCODING-REPLACEMENT-ADJUST-CHARPOS" "SB-IMPL")
-                     #\Newline real))
-          (prog1 (funcall repl-read-form-fun in out) (fresh-line out)))))
+                     #\Newline real))))
+
+      (defun %repl-read-form-fun (in out)
+        (%maybe-fd-stream-output-column-zero out)
+        (prog1 (funcall repl-read-form-fun in out) (fresh-line out))))
 
     (defun uninstall-linedit-repl (&optional connection)
       (declare (ignore connection))
@@ -58,6 +61,8 @@
     (defun clear-screen (chord editor)
       (declare (ignore chord editor))
         (ti:tputs ti:clear-screen)
+        (when (fboundp '%maybe-fd-stream-output-column-zero)
+          (funcall '%maybe-fd-stream-output-column-zero *terminal-io*))
         (funcall repl-prompt-fun *terminal-io*)
         (force-output *terminal-io*))
 
