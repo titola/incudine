@@ -235,6 +235,7 @@
             (let ((new-repl-fun-generator repl-fun-generator))
               (setf repl-fun-generator
                     (lambda ()
+                      (declare (special cl-user::**repl-fun-generator*))
                       (setf repl-fun-generator new-repl-fun-generator)
                       (funcall cl-user::**repl-fun-generator*)))))))
       (values)))
