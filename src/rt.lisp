@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2023 Tito Latini
+;;; Copyright (c) 2013-2024 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -37,6 +37,17 @@
     (status :stopped)))
 
 (defglobal *rt-params* (make-rt-params))
+
+#-win32
+(defun incudine.util::ignore-sigtstp (&optional msg)
+  (if (zerop (incudine.external::%ignore-sigtstp))
+      (when msg (msg info msg))
+      (warn "IGNORE-SIGTSTP failed.")))
+
+#-win32
+(defun incudine.util::reset-sigtstp-handler ()
+  (unless (zerop (incudine.external::%reset-sigtstp-handler))
+    (warn "RESET-SIGTSTP-HANDLER failed.")))
 
 (defmacro with-new-thread ((varname name priority debug-message) &body body)
   `(unless ,varname
@@ -594,6 +605,9 @@ the thread."
            (type cons thread-function-args)
            (type boolean gc-p))
   (setf rt-start-arguments args)
+  #-win32
+  (incudine.util::ignore-sigtstp
+    "The signal SIGTSTP is ignored during the real-time process cycles.")
   (bordeaux-threads:with-lock-held ((rt-params-lock *rt-params*))
     (unless *rt-thread*
       (init)
@@ -649,6 +663,7 @@ the thread."
               (loop while (bt:thread-alive-p thread) do (sleep .05))
               (msg debug "realtime thread stopped")
               (call-after-stop)))
+          #-win32 (incudine.util::reset-sigtstp-handler)
           (setf (rt-params-status *rt-params*) :stopped)))))
 
 #+portaudio

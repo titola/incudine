@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2023 Tito Latini
+ * Copyright (c) 2013-2024 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,6 +24,11 @@
 #include <sndfile.h>
 #include <math.h>
 #include "common.h"
+
+#ifndef WIN32
+#include <signal.h>
+#include <unistd.h>
+#endif
 
 #ifdef __INCUDINE_USE_64_BIT_SAMPLE__
 #define sf_readf_SAMPLE  sf_readf_double
@@ -469,3 +474,32 @@ void circular_lshift(void *buf, void *tmp, size_t bytes, size_t size)
 		*lptr++ = *rptr++;
 	memcpy(lptr, tmp, bytes);
 }
+
+#ifndef WIN32
+static struct sigaction oldact = { .sa_handler = SIG_IGN };
+
+int ignore_sigtstp()
+{
+	struct sigaction act;
+
+	sigaction(SIGTSTP, NULL, &act);
+	if (act.sa_handler != SIG_IGN) {
+		act.sa_handler = SIG_IGN;
+		if (sigaction(SIGTSTP, &act, &oldact) != 0)
+			return -1;
+	}
+	return 0;
+}
+
+int reset_sigtstp_handler()
+{
+	struct sigaction act;
+
+	sigaction(SIGTSTP, NULL, &act);
+	if (act.sa_handler == SIG_IGN &&
+	    oldact.sa_handler != SIG_IGN &&
+	    sigaction(SIGTSTP, &oldact, NULL) != 0)
+		return -1;
+	return 0;
+}
+#endif

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2023 Tito Latini
+;;; Copyright (c) 2013-2024 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -115,6 +115,14 @@ page for details."
 (cffi:defcfun ("AvRevertMmThreadCharacteristics" av-revert-mm-thread-characteristics)
     :boolean
   (avrt-handle :uint64))
+
+;;; SIGNALS
+
+#-win32
+(cffi:defcfun ("ignore_sigtstp" %ignore-sigtstp) :int)
+
+#-win32
+(cffi:defcfun ("reset_sigtstp_handler" %reset-sigtstp-handler) :int)
 
 ;;; SNDFILE
 
