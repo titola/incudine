@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2024 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -82,6 +82,7 @@
    #:get-stream-by-name
    #:get-device-id-by-name
    #:open
+   #:open-p
    #:open-input
    #:open-output
    #:all-streams

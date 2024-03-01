@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2021 Tito Latini
+;;; Copyright (c) 2013-2024 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -230,20 +230,31 @@ to the PortMidi output STREAM."
            (type non-negative-fixnum length))
   (write% stream (event-buffer-pointer evbuf) length))
 
+;;; Useful to remove the INCUDINE:RECEIVER from PM:CLOSE.
+(defvar *before-close-input-stream-hook* nil)
+
+(defun open-p (stream)
+  "Whether STREAM is an open stream."
+  (not (cffi:null-pointer-p (stream-pointer stream))))
+
 (defun close (stream)
   "Close the PortMidi STREAM."
   (declare (type stream stream))
-  (let ((result (close% stream)))
+  (when (open-p stream)
+    (when (input-stream-p stream)
+      (dolist (f *before-close-input-stream-hook*)
+        (funcall f stream)))
+    (close% stream)
     (setf (stream-pointer stream) (cffi:null-pointer)
           (stream-direction stream) :closed)
-    (when (and (input-stream-p stream)
-               (not (cffi:null-pointer-p
-                      #1=(input-stream-sysex-pointer stream))))
-      (cffi:foreign-free #1#)
-      (setf #1# (cffi:null-pointer)))
+    (symbol-macrolet ((sysex-ptr (input-stream-sysex-pointer stream)))
+      (when (and (input-stream-p stream)
+                 (not (cffi:null-pointer-p sysex-ptr)))
+        (cffi:foreign-free sysex-ptr)
+        (setf sysex-ptr (cffi:null-pointer))))
     (cancel-finalization stream)
-    (setf *opened-streams* (remove stream *opened-streams*))
-    result))
+    (setf *opened-streams* (delete stream *opened-streams*)))
+  t)
 
 (defun terminate ()
   (dolist (stream *opened-streams* (terminate%))

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2015-2023 Tito Latini
+;;; Copyright (c) 2015-2024 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -450,7 +450,7 @@ MESSAGE-ENCODING is NIL (default) or :SLIP."
         (setf (stream-addrinfo-ptr stream) (cffi:null-pointer))
         (setf (stream-message-pointer stream) (cffi:null-pointer))
         (setf (stream-tmp-ptr stream) (cffi:null-pointer)))))
-  (values))
+  t)
 
 (defun reject (stream)
   "Close the input STREAM socket and create a new socket."

@@ -326,3 +326,5 @@ receiver-functions."
   (remove-receiver stream)
   (remove-all-responders stream)
   stream)
+
+(pushnew #'remove-receiver-and-responders pm::*before-close-input-stream-hook*)

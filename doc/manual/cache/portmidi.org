@@ -184,6 +184,11 @@ millisecond timebase (PortTime) is used.
 the foreign null pointer.
 #+end_defun
 
+#+attr_texinfo: :options pm:open-p stream
+#+begin_defun
+Whether ~stream~ is an open stream.
+#+end_defun
+
 #+attr_texinfo: :options pm:open-input stream input-device input-driver-info buffer-size time-proc time-info
 #+begin_defun
 #+end_defun

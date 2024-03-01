@@ -12,6 +12,7 @@ Set the configuration variable ~*enable-jack-midi*~ to enable Jack MIDI:
 ::: jackmidi:output-stream
 ::: jackmidi:output-stream-p
 ::: jackmidi:open
+::: jackmidi:open-p
 ::: jackmidi:close
 ::: jackmidi:read
 ::: jackmidi:foreign-read

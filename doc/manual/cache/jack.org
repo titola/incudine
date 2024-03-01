@@ -42,6 +42,11 @@ or a ~jackmidi:output-stream~ respectively.
 if ~direction~ is ~:output~.
 #+end_defun
 
+#+attr_texinfo: :options jackmidi:open-p stream
+#+begin_defun
+Whether ~stream~ is an open stream.
+#+end_defun
+
 #+attr_texinfo: :options jackmidi:close obj
 #+begin_defun
 Close a ~jackmidi:stream~. ~obj~ is a ~jackmidi:stream~ or the

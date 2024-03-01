@@ -1,4 +1,4 @@
-;;; Copyright (c) 2016-2021 Tito Latini
+;;; Copyright (c) 2016-2024 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
                 #:incudine-optimize)
   (:import-from #:incudine #:free #:free-p
                 #:incudine-finalize #:incudine-cancel-finalization)
-  (:export #:data #:event-buffer #:open #:close #:stream
+  (:export #:data #:event-buffer #:open #:open-p #:close #:stream
            #:input-stream #:input-stream-p #:output-stream #:output-stream-p
            #:input-stream-sysex-timestamp #:input-stream-sysex-size
            #:input-stream-sysex-pointer #:input-stream-sysex-octets
@@ -409,6 +409,10 @@ if DIRECTION is :OUTPUT."
                   (append-to-output-streams s)))
             s)))))
 
+(defun open-p (stream)
+  "Whether STREAM is an open stream."
+  (not (cffi:null-pointer-p (stream-pointer stream))))
+
 (defun close (obj)
   "Close a JACKMIDI:STREAM. OBJ is a JACKMIDI:STREAM or the
 port-name of the stream to close."
@@ -416,11 +420,10 @@ port-name of the stream to close."
   (let ((stream (if (stream-p obj)
                     obj
                     (get-stream-by-name obj))))
-    (when stream
+    (when (and stream (open-p stream))
       (setf *streams* (delete stream *streams*))
       (cond ((input-stream-p stream)
-             (incudine:recv-stop stream)
-             (incudine:remove-all-responders stream)
+             (incudine::remove-receiver-and-responders stream)
              (delete-from-input-streams stream))
             (t
              (delete-from-output-streams stream)))
@@ -436,8 +439,8 @@ port-name of the stream to close."
           (setf (input-stream-sysex-pointer* obj) (cffi:null-pointer)))
         (incudine.util::cancel-finalization stream))
       (setf (stream-direction stream) :closed)
-      (setf (stream-port-name stream) "")
-      stream)))
+      (setf (stream-port-name stream) "")))
+  t)
 
 (declaim (inline message))
 (defun message (status &optional (data1 0) (data2 0))

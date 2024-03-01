@@ -43,6 +43,7 @@ Useful with PortMidi because it does not support a blocking read.
 ::: portmidi:get-default-output-device-id
 ::: portmidi:get-device-id-by-name
 ::: portmidi:open
+::: portmidi:open-p
 ::: portmidi:open-input
 ::: portmidi:open-output
 ::: portmidi:close
