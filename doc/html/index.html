@@ -27,10 +27,10 @@
       <p>
         Incudine introduces the Virtual UGen (VUG), a new mechanism for defining
         primitive unit generators by writing concise and reusable code. The
-        definition of a VUG contains lisp code and/or other nested VUGs (or
-        "real" UGens), and it is re-arranged (i.e. after the inference of init-
-        and performance-time actions) and compiled efficiently during the
-        creation of a DSP.
+        definition of a VUG can contain lisp code, other nested VUGs
+        or "real" unit generators (compiled VUGs), and it is re-arranged
+        (i.e. after the inference of init- and performance-time actions) and
+        compiled efficiently during the creation of a DSP.
       </p>
 
       <h2>Features</h2>
@@ -38,17 +38,9 @@
       <ul>
         <li>
           Realtime synthesis with sample-by-sample or block-by-block
-          processing (without a realtime garbage collector but it's
-          simple to define cons-free DSP)
+          processing (without a realtime garbage collector but there
+          are facilities for defining cons-free DSP).
         </li>
-        <li>
-          Optional recovery of audio cycles suspended during gc by
-          processing the cached audio inputs and MIDI events. For
-          example, it allows HD recording without losing audio inputs
-          during gc if there aren't xruns.
-        </li>
-        <li>Sample accurate callbacks</li>
-        <li>Bounce to disk and bounce to memory buffer</li>
         <li>
           Arbitrary precision. The sample type is double float but the
           unit generators and the DSP's don't require a particular type.
@@ -56,67 +48,69 @@
           UGEN or DSP are arbitrary lisp functions regulated by the
           context (i.e. realtime audio).
         </li>
-        <li>Optional standalone executable</li>
+        <li>Node tree for DSP instances and arbitrary actions.</li>
+        <li>Realtime sample accurate scheduling.</li>
         <li>
-          Optional score (rego) files with time-tagged lisp functions,
-          lisp statements, lisp tags and arbitrary score statements
+          Optional recovery of audio cycles suspended during gc by
+          processing the cached audio inputs and MIDI events. For
+          example, it allows HD recording without losing audio inputs
+          during gc if there aren't xruns.
         </li>
-        <li>Graph of DSP's</li>
-        <li><a href="http://incudine.sourceforge.net/incudine.html#Built_002din-Virtual-Unit-Generators">Collection of useful re-definable VUG's</a></li>
+        <li><a href="http://incudine.sourceforge.net/incudine.html#Built_002din-Virtual-Unit-Generators">Collection of useful re-definable virtual unit generators</a>.</li>
         <li>
           <a href="http://incudine.sourceforge.net/incudine.html#GEN-Routines">Collection of GEN routines</a>
-          to fill memory buffers
+          to fill memory buffers.
         </li>
+        <li>Bounce to disk and bounce to memory buffer.</li>
         <li>
           MIDI support via <a href="http://portmedia.sourceforge.net/portmidi">PortMidi</a>
-          and <a href="https://jackaudio.org">Jack MIDI</a>
+          and <a href="https://jackaudio.org">Jack MIDI</a>.
         </li>
-        <li>MIDI File I/O support</li>
-        <li>Open Sound Control support</li>
-        <li>Stream socket support</li>
-        <li>Serial I/O support</li>
-        <li>Tempo change with arbitrary curves</li>
-        <li>Import/Export a musical scale from/to scale file format</li>
+        <li>MIDI File I/O support.</li>
+        <li>Open Sound Control support.</li>
+        <li>Stream socket support.</li>
+        <li>Serial I/O support.</li>
+        <li>Tempo change with arbitrary curves.</li>
+        <li>Import/Export a musical scale from/to scale file format.</li>
         <li>
           MIDI tuning by sending a bulk tuning dump message with arbitrary checksum
-          function or 128 single note tuning change messages (Exclusive Real Time)
+          function or 128 single note tuning change messages (Exclusive Real Time).
         </li>
         <li>
           Frequencies of a TUNING structure changed with the data received from
-          a MIDI bulk tuning dump message
+          a MIDI bulk tuning dump message.
         </li>
-        <li>Flexible voicer for voice management</li>
+        <li>Flexible voicer for voice management.</li>
         <li>
-          The score (rego) file format supports the <a href="https://orgmode.org">Org</a>
-          markup language. It is possible to edit and organize score files
-          with spreedsheet-like capabilities, headlines, unordered lists, blocks,
-          properties, hyperlinks, todo items, tags, deadlines, scheduling, etc.
+          Score file format (rego file) with time-tagged lisp functions,
+          lisp statements, lisp tags and arbitrary score statements.
         </li>
         <li>
-          It is possible to create and edit a rego file in SES (Simple Emacs
-          Spreadsheet) mode.
+          The score file format supports the <a href="https://orgmode.org">Org</a>
+          markup language.
         </li>
+        <li>Optional standalone executable.</li>
         <li>
           Optional interface to interact with the sound editor
-          <a href="https://ccrma.stanford.edu/software/snd/">Snd</a>
+          <a href="https://ccrma.stanford.edu/software/snd/">Snd</a>.
         </li>
         <li>
           Optional cudere-clm package, the sound synthesis package CLM
-          (Common Lisp Music) implemented in Incudine
+          (Common Lisp Music) implemented in Incudine.
         </li>
         <li>
           Optional interface to define a VUG for a
-          <a href="https://www.ladspa.org">LADSPA audio plugin</a>
+          <a href="https://www.ladspa.org">LADSPA audio plugin</a>.
         </li>
         <li>
           Optional interface to define a VUG for a
-          <a href="https://lv2plug.in">LV2 audio plugin</a>
+          <a href="https://lv2plug.in">LV2 audio plugin</a>.
         </li>
         <li>
           Optional <a href="https://www.fluidsynth.org/">FluidSynth</a> SoundFont
-          synthesizer support
+          synthesizer support.
         </li>
-        <li>Incudine is released under the GNU General Public License (GPL) version 2 or later</li>
+        <li>Incudine is released under the GNU General Public License (GPL) version 2 or later.</li>
       </ul>
 
       <h2>Requirements</h2>
@@ -145,11 +139,11 @@
       <ul>
         <li>Pthread</li>
         <li><a href="https://jackaudio.org">JACK</a> or
-          <a href="http://www.portaudio.com">PortAudio &gt;= 1.9</a>
+          <a href="http://www.portaudio.com">PortAudio</a>
         </li>
         <li><a href="http://portmedia.sourceforge.net/portmidi">PortMidi</a></li>
-        <li><a href="http://www.mega-nerd.com/libsndfile">libsndfile &gt;= 1.0.19</a></li>
-        <li><a href="http://www.fftw.org">FFTW &gt;= 3.0</a></li>
+        <li><a href="http://www.mega-nerd.com/libsndfile">libsndfile</a></li>
+        <li><a href="http://www.fftw.org">FFTW</a></li>
         <li><a href="https://www.gnu.org/software/gsl">GNU Scientific Library (GSL)</a></li>
         <li>[Optional] <a href="https://www.fluidsynth.org/">FluidSynth</a></li>
         <li>[Optional] <a href="http://drobilla.net/software/lilv">LILV</a></li>

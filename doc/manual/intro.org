@@ -8,7 +8,7 @@ signal processors and the musical structures on-the-fly.
 
 Incudine introduces the Virtual UGen (VUG), a new mechanism for
 defining primitive unit generators by writing concise and reusable
-code. The definition of a VUG contains lisp code and/or other nested
-VUGs (or "real" UGens), and it is re-arranged (i.e. after the inference
-of init- and performance-time actions) and compiled efficiently during
-the creation of a DSP.
+code. The definition of a VUG can contain lisp code, other nested
+VUGs or "real" unit generators (compiled VUGs), and it is re-arranged
+(i.e. after the inference of init- and performance-time actions) and
+compiled efficiently during the creation of a DSP.

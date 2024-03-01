@@ -2,51 +2,52 @@
 
 ## Music/DSP programming environment for Common Lisp
 
-[Incudine](http://incudine.sourceforge.net) is useful to design software synthesizers or sound plugins
-from scratch, exploiting the expressive power of Common Lisp, without
-the constraint to use pre-built unit generators. It is also a
-compositional tool that allows to produce high quality sounds
-controllable at the sample level, defining and redefining the digital
-signal processors and the musical structures on-the-fly.
+[Incudine](http://incudine.sourceforge.net) is useful to design
+software synthesizers or sound plugins from scratch, exploiting the
+expressive power of Common Lisp, without the constraint to use
+pre-built unit generators. It is also a compositional tool that allows
+to produce high quality sounds controllable at the sample level,
+defining and redefining the digital signal processors and the musical
+structures on-the-fly.
 
 Incudine introduces the Virtual UGen (VUG), a new mechanism for
 defining primitive unit generators by writing concise and reusable
-code. The definition of a VUG contains lisp code and/or other nested
-VUGs (or "real" UGens), and it is re-arranged (i.e. after the inference
-of init- and performance-time actions) and compiled efficiently during
-the creation of a DSP. An ironic example in [spaghetti.cudo](doc/tutorials/spaghetti.cudo)
-includes the macro expansion of a "recipe processor".
+code. The definition of a VUG can contain lisp code, other nested VUGs
+or "real" unit generators (compiled VUGs), and it is re-arranged
+(i.e. after the inference of init- and performance-time actions) and
+compiled efficiently during the creation of a DSP. An ironic example
+in [spaghetti.cudo](doc/tutorials/spaghetti.cudo) includes the macro
+expansion of a "recipe processor".
 
 ## Features
 
-- Realtime synthesis with sample-by-sample or block-by-block processing (without a realtime garbage collector but it's simple to define cons-free DSP)
-- Optional recovery of audio cycles suspended during gc by processing the cached audio inputs and MIDI events. For example, it allows HD recording without losing audio inputs during gc if there aren't xruns.
-- Sample accurate callbacks
-- Bounce to disk and bounce to memory buffer
+- Realtime synthesis with sample-by-sample or block-by-block processing (without a realtime garbage collector but there are facilities for defining cons-free DSP).
 - Arbitrary precision. The sample type is double float but the unit generators and the DSP's don't require a particular type. In practice the init-time and performance-time functions of UGEN or DSP are arbitrary lisp functions regulated by the context (i.e. realtime audio).
-- Optional standalone executable
-- Optional score (rego) files with time-tagged lisp functions, lisp statements, lisp tags and arbitrary score statements
-- Graph of DSP's
-- Collection of useful re-definable VUG's
-- Collection of GEN routines to fill memory buffers
-- MIDI support via [PortMidi](http://portmedia.sourceforge.net/portmidi) and [Jack MIDI](https://jackaudio.org/)
-- MIDI File I/O support
-- Open Sound Control support
-- Stream socket support
-- Serial I/O support
-- Tempo change with arbitrary curves
-- Import/Export a musical scale from/to scale file format
-- MIDI tuning by sending a bulk tuning dump message with arbitrary checksum function or 128 single note tuning change messages (Exclusive Real Time)
-- Frequencies of a TUNING structure changed with the data received from a MIDI bulk tuning dump message
-- Flexible voicer for voice management
-- The score (rego) file format supports the [Org](https://orgmode.org) markup language. It is possible to edit and organize score files with spreedsheet-like capabilities, headlines, unordered lists, blocks, properties, hyperlinks, todo items, tags, deadlines, scheduling, etc.
-- It is possible to create and edit a rego file in SES (Simple Emacs Spreadsheet) mode.
-- Optional interface to interact with the sound editor [Snd](https://ccrma.stanford.edu/software/snd)
-- Optional cudere-clm package, the sound synthesis package CLM (Common Lisp Music) implemented in Incudine
-- Optional interface to define a VUG for a [LADSPA audio plugin](https://www.ladspa.org)
-- Optional interface to define a VUG for a [LV2 audio plugin](https://lv2plug.in)
-- Optional [FluidSynth](https://www.fluidsynth.org) SoundFont synthesizer support
-- Incudine is released under the GNU General Public License (GPL) version 2 or later
+- Node tree for DSP instances and arbitrary actions.
+- Realtime sample accurate scheduling.
+- Optional recovery of audio cycles suspended during gc by processing the cached audio inputs and MIDI events. For example, it allows HD recording without losing audio inputs during gc if there aren't xruns.
+- Collection of useful re-definable virtual unit generators.
+- Collection of GEN routines to fill memory buffers.
+- Bounce to disk and bounce to memory buffer.
+- MIDI support via [PortMidi](http://portmedia.sourceforge.net/portmidi) and [Jack MIDI](https://jackaudio.org/).
+- MIDI File I/O support.
+- Open Sound Control support.
+- Stream socket support.
+- Serial I/O support.
+- Tempo change with arbitrary curves.
+- Import/Export a musical scale from/to scale file format.
+- MIDI tuning by sending a bulk tuning dump message with arbitrary checksum function or 128 single note tuning change messages (Exclusive Real Time).
+- Frequencies of a TUNING structure changed with the data received from a MIDI bulk tuning dump message.
+- Flexible voicer for voice management.
+- Score file format (rego file) with time-tagged lisp functions, lisp statements, lisp tags and arbitrary score statements.
+- The score file format supports the [Org](https://orgmode.org) markup language.
+- Optional standalone executable.
+- Optional interface to interact with the sound editor [Snd](https://ccrma.stanford.edu/software/snd).
+- Optional cudere-clm package, the sound synthesis package CLM (Common Lisp Music) implemented in Incudine.
+- Optional interface to define a VUG for a [LADSPA audio plugin](https://www.ladspa.org).
+- Optional interface to define a VUG for a [LV2 audio plugin](https://lv2plug.in).
+- Optional [FluidSynth](https://www.fluidsynth.org) SoundFont synthesizer support.
+- Incudine is released under the GNU General Public License (GPL) version 2 or later.
 
 ## Installation
 
@@ -78,10 +79,10 @@ Common Lisp packages:
 Foreign libraries:
 
 - Pthread
-- [JACK](https://jackaudio.org) or [PortAudio](http://www.portaudio.com) >= 1.9
+- [JACK](https://jackaudio.org) or [PortAudio](http://www.portaudio.com)
 - [PortMidi](http://portmedia.sourceforge.net/portmidi)
-- [libsndfile](http://www.mega-nerd.com/libsndfile) >= 1.0.19
-- [FFTW](http://www.fftw.org) >= 3.0
+- [libsndfile](http://www.mega-nerd.com/libsndfile)
+- [FFTW](http://www.fftw.org)
 - [GNU Scientific Library (GSL)](https://www.gnu.org/software/gsl)
 - [Optional] [FluidSynth](https://www.fluidsynth.org)
 - [Optional] [Lilv](http://drobilla.net/software/lilv)
@@ -169,41 +170,33 @@ The options for the script `install_executable` are:
 For example:
 
 ```
-sh install_executable --with-linedit --with-ladspa --with-snd  \
-                      --with-module=ltk --with-module=dsp-collection
-```
-
-or with Swank server and other options:
-
-```
-sh install_executable --with-linedit --with-fluidsynth \
-                      --with-ladspa --with-lv2 --with-snd \
-                      --swank-loader=/path/to/slime/swank-loader.lisp \
-                      --with-module=inferior-shell \
-                      --before-save="(use-package 'inferior-shell :scratch)"
+sh install_executable \
+  --bindir=/computer/music \
+  --swank-loader=/path/to/slime/swank-loader.lisp \
+  --with-linedit \
+  --with-clm \
+  --with-snd \
+  --with-ladspa \
+  --with-lv2 \
+  --with-fluidsynth \
+  --with-module=series \
+  --with-module=anaphora \
+  --save-options=":compression t" \
+  --before-save="(series::install :pkg :scratch :shadow nil)"
 ```
 
 Note: the support for LV2 plugins requires [Lilv](http://drobilla.net/software/lilv),
-a LV2 host library.
+a LV2 host library. The option `:compression t` works if `:sb-core-compression` was
+enabled in SBCL at build-time.
 
-If you use [SLIME](https://github.com/slime/slime), add these lines to
-`${HOME}/.swank.lisp` if necessary:
-
-```
-;; Avoid problems in realtime because the default value is :SPAWN (each
-;; request in a separate thread)
-#+sbcl (setf swank:*communication-style* :sigio)
-;; Useful to redirect standard output from any other threads into the REPL
-#+sbcl (defparameter swank:*globally-redirect-io* t)
-```
-
-There is also a major mode for GNU Emacs. If you want to install it,
+There are two major modes for GNU Emacs: `incudine-mode` and `incudine-rego-mode` for
+editing lisp (cudo) and score (rego) files, respectively. If you want to install them,
 add the following lines to your `.emacs` file:
 
 ```
 (push "/path/to/incudine/contrib/editors/emacs" load-path)
 (require 'incudine)
-;; org-babel functions
+;; org-babel source code block.
 (require 'ob-incudine)
 ```
 

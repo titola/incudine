@@ -1,15 +1,7 @@
 * Features
  - Realtime synthesis with sample-by-sample or block-by-block
-   processing (without a realtime garbage collector but it's simple
-   to define cons-free DSP).
-
- - Optional recovery of audio cycles suspended during gc by processing
-   the cached audio inputs and MIDI events. For example, it allows HD
-   recording without losing audio inputs during gc if there aren't xruns.
-
- - Sample accurate callbacks.
-
- - Bounce to disk and bounce to memory buffer
+   processing (without a realtime garbage collector but there
+   are facilities for defining cons-free DSP).
 
  - Arbitrary precision. The sample type is double float but the
    unit generators and the DSP's don't require a particular type.
@@ -17,16 +9,19 @@
    UGEN or DSP are arbitrary lisp functions regulated by the
    context (i.e. realtime audio).
 
- - Optional standalone executable.
+ - Node tree for DSP instances and arbitrary actions.
 
- - Optional score (rego) files with time-tagged lisp functions,
-   lisp statements, lisp tags and arbitrary score statements.
+ - Realtime sample accurate scheduling.
 
- - Graph of DSP's.
+ - Optional recovery of audio cycles suspended during gc by processing
+   the cached audio inputs and MIDI events. For example, it allows HD
+   recording without losing audio inputs during gc if there aren't xruns.
 
  - Collection of useful re-definable virtual unit generators.
 
  - Collection of GEN routines to fill memory buffers.
+
+ - Bounce to disk and bounce to memory buffer.
 
  - MIDI support via [[http://portmedia.sourceforge.net/portmidi][PortMidi]] and [[https://jackaudio.org][Jack MIDI]].
 
@@ -34,36 +29,38 @@
 
  - Open Sound Control support.
 
+ - Stream socket support.
+
+ - Serial I/O support.
+
  - Tempo change with arbitrary curves.
 
  - Import/Export a musical scale from/to scale file format.
 
  - MIDI tuning by sending a bulk tuning dump message with arbitrary
-   checksum function or 28 single note tuning change messages
+   checksum function or 128 single note tuning change messages
    (Exclusive Real Time).
 
  - Frequencies of a TUNING structure changed with the data received
    from a MIDI bulk tuning dump message.
 
- - Flexible voicer.
+ - Flexible voicer for voice management.
 
- - The score (rego) file format supports the [[https://orgmode.org][Org]]
-   markup language. It is possible to edit and organize score files with
-   spreedsheet-like capabilities, headlines, unordered lists, blocks,
-   properties, hyperlinks, todo items, tags, deadlines, scheduling, etc.
+ - Score file format (rego file) with time-tagged lisp functions,
+   lisp statements, lisp tags and arbitrary score statements.
 
- - It is possible to create and edit a rego file in SES (Simple Emacs
-   Spreadsheet) mode.
+ - The score file format supports the [[https://orgmode.org][Org]] markup language.
+
+ - Optional standalone executable.
 
  - Optional interface to interact with the sound editor [[https://ccrma.stanford.edu/software/snd/][Snd]].
 
- - Optional cudere-clm package, the Incudine version of CLM.
+ - Optional cudere-clm package, the sound synthesis package CLM (Common Lisp Music) implemented in Incudine.
 
- - Optional interface to use a [[https://www.ladspa.org][LADSPA audio plugin]] in a Virtual UGen.
+ - Optional interface to define a VUG for a [[https://www.ladspa.org][LADSPA audio plugin]].
 
- - Optional interface to use a [[https://lv2plug.in][LV2 audio plugin]] in a Virtual UGen.
+ - Optional interface to define a VUG for a [[https://lv2plug.in][LV2 audio plugin]].
 
  - Optional [[https://www.fluidsynth.org/][FluidSynth]] SoundFont synthesizer support.
 
- - Incudine is released under the GNU General Public License (GPL)
-   version 2 or later.
+ - Incudine is released under the GNU General Public License (GPL) version 2 or later.
