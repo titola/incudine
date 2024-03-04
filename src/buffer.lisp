@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2022 Tito Latini
+;;; Copyright (c) 2013-2024 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -879,15 +879,3 @@ arguments ARGS are passed to MAKE-BUFFER."
        ,(and vars `(declare (type buffer ,@vars)))
        (maybe-unwind-protect (progn ,@body)
          ,@(mapcar (lambda (x) `(free ,x)) vars)))))
-
-;;; Frequently used waveforms
-
-(defvar *sine-table* (make-buffer *default-table-size*
-                                  :fill-function (gen:partials '(1)))
-  "BUFFER structure of size *DEFAULT-TABLE-SIZE* with a single cycle sinusoid.")
-(declaim (type buffer *sine-table*))
-
-(defvar *cosine-table* (make-buffer *default-table-size*
-                                    :fill-function (gen:partials '((1 1 .25))))
-  "BUFFER structure of size *DEFAULT-TABLE-SIZE* with a single cycle cosinusoid.")
-(declaim (type buffer *cosine-table*))
