@@ -540,7 +540,7 @@
    #:receive #:send #:send-bundle
    #:slip-encode #:slip-decode
    #:bundle #:simple-bundle #:message #:start-message
-   #:copy-packet
+   #:flush-bundle #:copy-packet
    #:value #:value-pointer
    #:midi #:address-pattern #:check-pattern #:index-values #:with-values
    #:required-values #:buffer-to-octets #:octets-to-buffer

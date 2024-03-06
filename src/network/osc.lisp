@@ -546,8 +546,18 @@ automatically closed."
   (= (cffi:mem-ref (stream-message-pointer stream) :uint64)
      +osc-bundle-magic-number+))
 
+(defun flush-bundle (input-stream)
+  "OSC:FLUSH-BUNDLE discards the queued OSC messages.
+
+The next call to OSC:RECEIVE waits for a new OSC packet."
+  (declare (type input-stream input-stream))
+  (setf (cffi:mem-ref (stream-message-length-pointer input-stream) :uint32)
+        (+ (stream-message-offset input-stream)
+           (message-length input-stream)))
+  input-stream)
+
 (defun copy-packet (source destination)
-  "Copy the contents of a OSC stream buffer to a OSC output stream buffer."
+  "Copy the contents of an OSC stream buffer to an OSC output stream buffer."
   (declare (type stream source)
            (type output-stream destination))
   (incudine-optimize

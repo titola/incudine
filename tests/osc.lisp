@@ -71,13 +71,48 @@
                   do (incudine.osc:receive oscin)
                   unless (incudine.osc::stream-buffer-to-index-p oscin)
                   append (osc-values))
-            ;; single-message-test
-            (progn (incudine.osc:message oscout "/osc/test" "isf" 1 "two" 3.0f0)
+            (progn (incudine.osc:bundle oscout 0
+                     '("/osc/test3" "fis" 7.0f0 8 "nine")
+                     '("/osc/test4" "fis" 10.0f0 11 "twelve"))
+                   (incudine.osc:message oscout "/osc/test5" "iii" 3 2 1)
                    (incudine.osc:receive oscin)
-                   (incudine.osc::stream-buffer-to-index-p oscin))
+                   (incudine.osc:flush-bundle oscin)
+                   ;; Receiving /osc/test5
+                   (incudine.osc:receive oscin)
+                   (incudine.osc:buffer-to-octets oscin))
+            (progn (incudine.osc:bundle oscout 0
+                     '("/osc/test6" "i" 123)
+                     '("/osc/test7" "i" 321))
+                   (incudine.osc:message oscout "/osc/test8" "is" #x1111 "abcdefg")
+                   (incudine.osc:receive oscin)
+                   ;; Copy the OSC bundle.
+                   (incudine.osc:copy-packet oscin oscout)
+                   ;; OSC message /osc/test6
+                   (incudine.osc:buffer-to-octets oscin))
+            ;; OSC bundle from oscin.
+            (incudine.osc:buffer-to-octets oscout)
+            (progn (incudine.osc:flush-bundle oscin)
+                   ;; Receiving /osc/test8
+                   (incudine.osc:receive oscin)
+                   (incudine.osc:buffer-to-octets oscin))
+            (progn (incudine.osc:message oscout "/osc/test" "isf" 1 "two" 3.0f0)
+                   (incudine.osc:copy-packet oscin oscout)
+                   (incudine.osc:receive oscin)
+                   (osc:buffer-to-octets oscout))
+            (incudine.osc::stream-buffer-to-index-p oscin)
             (progn (incudine.osc:index-values oscin nil t)
                    (osc-values))))))
   (1.0f0 2 "three" 4.0f0 5 "six")
+  #(47 111 115 99 47 116 101 115 116 53 0 0 44 105 105 105 0 0 0 0
+    0 0 0 3 0 0 0 2 0 0 0 1)
+  #(47 111 115 99 47 116 101 115 116 54 0 0 44 105 0 0 123 0 0 0)
+  #(35 98 117 110 100 108 101 0 0 0 0 0 0 0 0 1 0 0 0 20 47 111
+    115 99 47 116 101 115 116 54 0 0 44 105 0 0 123 0 0 0 0 0 0 20
+    47 111 115 99 47 116 101 115 116 55 0 0 44 105 0 0 0 0 1 65)
+  #(47 111 115 99 47 116 101 115 116 56 0 0 44 105 115 0 0 0 17 17
+    97 98 99 100 101 102 103 0)
+  #(47 111 115 99 47 116 101 115 116 56 0 0 44 105 115 0 0 0 17 17
+    97 98 99 100 101 102 103 0)
   T
   (1 "two" 3.0f0))
 
