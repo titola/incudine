@@ -546,6 +546,30 @@ automatically closed."
   (= (cffi:mem-ref (stream-message-pointer stream) :uint64)
      +osc-bundle-magic-number+))
 
+(defun copy-packet (source destination)
+  "Copy the contents of a OSC stream buffer to a OSC output stream buffer."
+  (declare (type stream source)
+           (type output-stream destination))
+  (incudine-optimize
+    (let ((bundle-p (if (input-stream-p source)
+                        (message-from-bundle-p source)
+                        (not (stream-single-message-p source)))))
+      (multiple-value-bind (dest src bytes)
+          (if bundle-p
+              (values (stream-bundle-pointer destination)
+                      (if (output-stream-p source)
+                          (stream-bundle-pointer source)
+                          (stream-message-pointer source))
+                      (bundle-length source))
+              (values (stream-message-pointer destination)
+                      (stream-message-pointer source)
+                      (stream-message-length source)))
+        (incudine.external:foreign-copy dest src bytes)
+        (setf (stream-message-length destination)
+              (if bundle-p (- bytes +bundle-reserved-bytes+) bytes))
+        (update-osc-stream-buffer destination bundle-p bytes)
+        bytes))))
+
 (defun bundle-length (stream)
   "If the contents of the STREAM buffer are an OSC bundle,
 return the length of that bundle. Otherwise, return zero."
@@ -1644,6 +1668,27 @@ START and END are the bounding index designators of the vector."
                            (cffi:mem-aref ptr :unsigned-char i)))
             (values seq len2)))))))
 
+(defun update-osc-stream-buffer (stream bundle-p length)
+  (declare (type stream stream) (type boolean bundle-p)
+           (type non-negative-fixnum length))
+  (setf (stream-buffer-to-index-p stream) t)
+  (cond (bundle-p
+         (setf (buffer-memory-free-pointer stream)
+               (cffi:inc-pointer (stream-message-pointer stream)
+                                 (stream-message-length stream)))
+         (setf (stream-bundle-length stream) length)
+         (setf (stream-single-message-p stream)
+               (= (stream-message-length stream)
+                  (htonl (cffi:mem-ref
+                           (stream-message-length-pointer stream)
+                           :uint32)))))
+        (t ;; One message works with SIMPLE-BUNDLE.
+           (set-bundle-first-element-length stream)
+           (setf (stream-bundle-length stream)
+                 (+ (stream-message-length stream)
+                    +bundle-reserved-bytes+))
+           (setf (stream-single-message-p stream) t))))
+
 (defun octets-to-buffer (octets stream &optional (start 0) end
                          (osc-message-p t))
   "Copy the OCTETS into the buffer of the STREAM socket.
@@ -1672,21 +1717,5 @@ and the OSC:STREAM structure is specially updated."
                                  :unsigned-char i)
                   (aref octets i)))
           (when osc-message-p
-            (setf (stream-buffer-to-index-p stream) t)
-            (cond (bundle-p
-                   (setf (buffer-memory-free-pointer stream)
-                         (cffi:inc-pointer (stream-message-pointer stream)
-                                           (stream-message-length stream)))
-                   (setf (stream-bundle-length stream) len)
-                   (setf (stream-single-message-p stream)
-                         (= (stream-message-length stream)
-                            (htonl (cffi:mem-ref
-                                     (stream-message-length-pointer stream)
-                                     :uint32)))))
-                  (t ;; One message works with SIMPLE-BUNDLE.
-                   (set-bundle-first-element-length stream)
-                   (setf (stream-bundle-length stream)
-                         (+ (stream-message-length stream)
-                            +bundle-reserved-bytes+))
-                   (setf (stream-single-message-p stream) nil)))))
+            (update-osc-stream-buffer stream bundle-p len)))
         (values stream len)))))

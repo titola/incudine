@@ -283,8 +283,13 @@
           ("/bundle/test" "iii" 7 8 9)))
       (let ((m (incudine.osc:buffer-to-octets oscout)))
         (incudine.osc:message oscout "/test" "s" "overwriting the buffer")
-        (incudine.osc:octets-to-buffer m oscout)
-        (incudine.osc:buffer-to-octets oscout)))
+        (let ((m2 (incudine.osc:buffer-to-octets oscout)))
+          (incudine.osc:octets-to-buffer m oscout)
+          (multiple-value-bind (res len) (incudine.osc:buffer-to-octets oscout)
+            (multiple-value-bind (res2 len2)
+                (progn (incudine.osc:octets-to-buffer m2 oscout)
+                       (incudine.osc:buffer-to-octets oscout))
+              (values res len res2 len2))))))
   #(35 98 117 110 100 108 101 0
     0 0 0 0 0 0 0 1
     0 0 0 36
@@ -296,7 +301,10 @@
     0 0 0 36
     47 98 117 110 100 108 101 47 116 101 115 116 0 0 0 0 44 105 105 105 0 0 0 0
     0 0 0 7 0 0 0 8 0 0 0 9)
-  136)
+  136
+  #(47 116 101 115 116 0 0 0 44 115 0 0 111 118 101 114 119 114 105 116 105 110
+    103 32 116 104 101 32 98 117 102 102 101 114 0 0)
+  36)
 
 ;;; SLIP encoding/decoding.
 (deftest open-sound-control-slip-enc.1

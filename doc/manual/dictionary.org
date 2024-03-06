@@ -2195,6 +2195,7 @@ end-of-score
 ::: osc:bundle
 ::: osc:send-bundle
 ::: osc:receive
+::: osc:copy-packet
 ::: osc:address-pattern
 ::: osc:check-pattern
 ::: osc:index-values
