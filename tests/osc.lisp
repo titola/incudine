@@ -77,9 +77,10 @@
                    (incudine.osc:message oscout "/osc/test5" "iii" 3 2 1)
                    (incudine.osc:receive oscin)
                    (incudine.osc:flush-bundle oscin)
-                   ;; Receiving /osc/test5
-                   (incudine.osc:receive oscin)
-                   (incudine.osc:buffer-to-octets oscin))
+                   (when (osc:end-of-bundle-p oscin)
+                     ;; Receiving /osc/test5
+                     (incudine.osc:receive oscin)
+                     (incudine.osc:buffer-to-octets oscin)))
             (progn (incudine.osc:bundle oscout 0
                      '("/osc/test6" "i" 123)
                      '("/osc/test7" "i" 321))
@@ -91,15 +92,19 @@
                    (incudine.osc:buffer-to-octets oscin))
             ;; OSC bundle from oscin.
             (incudine.osc:buffer-to-octets oscout)
-            (progn (incudine.osc:flush-bundle oscin)
-                   ;; Receiving /osc/test8
-                   (incudine.osc:receive oscin)
-                   (incudine.osc:buffer-to-octets oscin))
+            (unless (osc:end-of-bundle-p oscin)
+              ;; End of bundle now.
+              (incudine.osc:flush-bundle oscin)
+              ;; Receiving /osc/test8
+              (incudine.osc:receive oscin)
+              (incudine.osc:buffer-to-octets oscin))
             (progn (incudine.osc:message oscout "/osc/test" "isf" 1 "two" 3.0f0)
                    (incudine.osc:copy-packet oscin oscout)
                    (incudine.osc:receive oscin)
                    (osc:buffer-to-octets oscout))
-            (incudine.osc::stream-buffer-to-index-p oscin)
+            ;; Not a OSC bundle.
+            (unless (osc:end-of-bundle-p oscin)
+              (incudine.osc::stream-buffer-to-index-p oscin))
             (progn (incudine.osc:index-values oscin nil t)
                    (osc-values))))))
   (1.0f0 2 "three" 4.0f0 5 "six")

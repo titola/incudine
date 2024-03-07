@@ -546,6 +546,20 @@ automatically closed."
   (= (cffi:mem-ref (stream-message-pointer stream) :uint64)
      +osc-bundle-magic-number+))
 
+(defun end-of-bundle-p (input-stream)
+  "Return T if the current OSC message is the last of the received OSC bundle,
+and a secondary value T if the message is part of a bundle."
+  (declare (type input-stream input-stream))
+  (let ((bundle-p (message-from-bundle-p input-stream)))
+    (values
+      (and bundle-p
+           ;; = instead of <= so a hidden bug is evident because <= is called
+           ;; from OSC:RECEIVE.
+           (= (cffi:mem-ref (stream-message-length-pointer input-stream) :uint32)
+              (+ (stream-message-offset input-stream)
+                 (message-length input-stream))))
+      bundle-p)))
+
 (defun flush-bundle (input-stream)
   "OSC:FLUSH-BUNDLE discards the queued OSC messages.
 
