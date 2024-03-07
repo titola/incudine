@@ -557,7 +557,11 @@ The next call to OSC:RECEIVE waits for a new OSC packet."
   input-stream)
 
 (defun copy-packet (source destination)
-  "Copy the contents of an OSC stream buffer to an OSC output stream buffer."
+  "Copy the contents of an OSC stream buffer to an OSC output stream buffer.
+
+No bounds checking. You can call your bounds checking routine if the streams
+were created with different buffer size or maximum number of required
+values (see BUFFER-SIZE and MAX-VALUES parameters to OSC:OPEN)."
   (declare (type stream source)
            (type output-stream destination))
   (incudine-optimize
