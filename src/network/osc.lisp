@@ -1524,16 +1524,34 @@ Example:
   (cffi:inc-pointer (stream-message-pointer stream)
                     (stream-message-offset stream)))
 
-(declaim (inline address-pattern))
 (defun address-pattern (stream &optional typetag-p)
-  "Return the OSC address pattern stored in the STREAM buffer.
-If TYPETAG-P is T, the second returned value is the OSC type tag."
-  (multiple-value-bind (str len)
-      (cffi:foreign-string-to-lisp (current-message-pointer stream))
-    (values str (when typetag-p
-                  (cffi:foreign-string-to-lisp
-                    (cffi:inc-pointer (current-message-pointer stream)
-                                      (1+ (fix-size len))))))))
+  "Return the OSC address pattern stored in the STREAM buffer,
+and the OSC type tag as secondary value if TYPETAG-P is T."
+  (incudine-optimize
+    (flet ((osc-string (ptr max-chars)
+             (declare (type non-negative-fixnum max-chars))
+             (macrolet ((c (i) `(cffi:mem-ref ptr :unsigned-char ,i)))
+               ;; The OSC string is zero padded and the length is a multiple
+               ;; of 4 bytes. The end of string is known after a call to
+               ;; INDEX-VALUES, but I think scanning backwards for that case
+               ;; is not a considerable performance improvement.
+               (loop for i of-type positive-fixnum from 3 below max-chars by 4
+                     if (= 0 (c i))
+                     do (or (= 0 (c (decf i 3)))
+                            (= 0 (c (incf i)))
+                            (= 0 (c (incf i))))
+                        (return (let ((str (make-string i)))
+                                  (dotimes (j i (values str i))
+                                    (setf (schar str j) (code-char (c j))))))
+                     finally (return (values "" 0))))))
+      (multiple-value-bind (addr len)
+          (osc-string (current-message-pointer stream)
+                      (stream-message-length stream))
+        (values addr
+                (when (and typetag-p (> len 0))
+                  (osc-string (cffi:inc-pointer (current-message-pointer stream)
+                                                (1+ (fix-size len)))
+                              (- (stream-message-length stream) len))))))))
 
 (declaim (inline check-pattern))
 (defun check-pattern (stream address types)
