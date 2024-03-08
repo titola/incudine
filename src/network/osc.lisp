@@ -1528,14 +1528,14 @@ Example:
   "Return the OSC address pattern stored in the STREAM buffer,
 and the OSC type tag as secondary value if TYPETAG-P is T."
   (incudine-optimize
-    (flet ((osc-string (ptr max-chars)
-             (declare (type non-negative-fixnum max-chars))
+    (flet ((osc-string (ptr start max-chars)
+             (declare (type non-negative-fixnum start max-chars))
              (macrolet ((c (i) `(cffi:mem-ref ptr :unsigned-char ,i)))
                ;; The OSC string is zero padded and the length is a multiple
                ;; of 4 bytes. The end of string is known after a call to
                ;; INDEX-VALUES, but I think scanning backwards for that case
                ;; is not a considerable performance improvement.
-               (loop for i of-type positive-fixnum from 3 below max-chars by 4
+               (loop for i of-type positive-fixnum from start below max-chars by 4
                      if (= 0 (c i))
                      do (or (= 0 (c (decf i 3)))
                             (= 0 (c (incf i)))
@@ -1547,12 +1547,12 @@ and the OSC type tag as secondary value if TYPETAG-P is T."
                      finally (return (values "" 0))))))
       (multiple-value-bind (addr len)
           (osc-string (current-message-pointer stream)
-                      (stream-message-length stream))
+                      3 (stream-message-length stream))
         (values addr
                 (when (and typetag-p (> len 0))
                   (osc-string (cffi:inc-pointer (current-message-pointer stream)
                                                 (1+ (fix-size len)))
-                              (- (stream-message-length stream) len))))))))
+                              2 (- (stream-message-length stream) len))))))))
 
 (declaim (inline check-pattern))
 (defun check-pattern (stream address types)
