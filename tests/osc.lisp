@@ -77,7 +77,7 @@
                    (incudine.osc:message oscout "/osc/test5" "iii" 3 2 1)
                    (incudine.osc:receive oscin)
                    (incudine.osc:flush-bundle oscin)
-                   (when (osc:end-of-bundle-p oscin)
+                   (when (incudine.osc:end-of-bundle-p oscin)
                      ;; Receiving /osc/test5
                      (incudine.osc:receive oscin)
                      (incudine.osc:buffer-to-octets oscin)))
@@ -92,7 +92,7 @@
                    (incudine.osc:buffer-to-octets oscin))
             ;; OSC bundle from oscin.
             (incudine.osc:buffer-to-octets oscout)
-            (unless (osc:end-of-bundle-p oscin)
+            (unless (incudine.osc:end-of-bundle-p oscin)
               ;; End of bundle now.
               (incudine.osc:flush-bundle oscin)
               ;; Receiving /osc/test8
@@ -101,9 +101,9 @@
             (progn (incudine.osc:message oscout "/osc/test" "isf" 1 "two" 3.0f0)
                    (incudine.osc:copy-packet oscin oscout)
                    (incudine.osc:receive oscin)
-                   (osc:buffer-to-octets oscout))
+                   (incudine.osc:buffer-to-octets oscout))
             ;; Not a OSC bundle.
-            (unless (osc:end-of-bundle-p oscin)
+            (unless (incudine.osc:end-of-bundle-p oscin)
               (incudine.osc::stream-buffer-to-index-p oscin))
             (progn (incudine.osc:index-values oscin nil t)
                    (osc-values))))))
@@ -143,7 +143,6 @@
             (nreverse acc)))))
   ((123.456f0 -123 456) ("frequency" 440.0f0) (#(60 64 67 71))))
 
-
 ;;; OSC MIDI.
 (deftest open-sound-control.6
     (incudine.osc:with-stream (oscout :direction :output)
@@ -158,6 +157,35 @@
             (every (complement #'incudine.osc::required-values-p)
                    '("TFNI" "UNKNOWN")))
   T T)
+
+(deftest open-sound-control.8
+    (let ((incudine.osc:*buffer-size* 1500)
+          (incudine.osc:*max-values* 50)
+          (max-address-length 60)
+          (number-of-messages 100))
+      (flet ((random-message ()
+               (let ((values (loop repeat (random incudine.osc:*max-values*)
+                                   collect (random 1f0))))
+                 (list* (make-string (1+ (random max-address-length))
+                                     :initial-element #\y)
+                        (make-string (length values) :initial-element #\f)
+                        values))))
+        (incudine.osc:with-stream (oscin)
+          (incudine.osc:with-stream (oscout :direction :output)
+            (loop
+              repeat number-of-messages
+              for m = (random-message)
+              do (format *logger-stream* "~S ~S~%" (first m) (second m))
+                 (apply 'incudine.osc:message oscout m)
+                 (incudine.osc:receive oscin)
+              unless (equal m
+                       (append (multiple-value-list
+                                 (incudine.osc:address-pattern oscin t))
+                               (loop for i below (length (second m))
+                                     do (incudine.osc:index-values oscin nil t)
+                                     collect (incudine.osc:value oscin i))))
+              return nil finally (return t))))))
+  T)
 
 (deftest open-sound-control-bundle.1
     (incudine.osc:with-stream (oscout :direction :output)
