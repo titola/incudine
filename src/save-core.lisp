@@ -109,6 +109,11 @@
       (setf *bus-pointer* (alloc-bus-pointer 'bus))
       (setf *output-peak-values*
             (foreign-alloc-sample *number-of-output-bus-channels*))
+      #+jack-audio
+      (progn
+        (setf incudine.external::*audio-input-port-names* (cffi:null-pointer))
+        (setf incudine.external::*audio-output-port-names* (cffi:null-pointer))
+        (incudine.external::init-audio-port-names))
       ;; time
       (setf *tempo* (make-tempo *default-bpm*))
       (setf *sample-counter*
@@ -194,6 +199,9 @@
       ;; Stop realtime and non-realtime threads
       (rt-stop)
       (nrt-stop)
+      #+jack-audio
+      (cffi:foreign-funcall "set_port_names"
+        :pointer (cffi:null-pointer) :pointer (cffi:null-pointer) :void)
       (mouse-stop)
       (unless (null-pointer-p *foreign-client-name*)
         (foreign-free *foreign-client-name*)
