@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2020 Tito Latini
+;;; Copyright (c) 2013-2024 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -208,3 +208,13 @@ but stored for the next restart (the next RT-START after RT-STOP)."
     :input incudine.config::*portaudio-input-latency*)
   (%set-portaudio-stream-latency
     :output incudine.config::*portaudio-output-latency*))
+
+(defun audio-port-name (direction number)
+  (declare (ignore direction number))
+  (msg warn "Cannot get audio port names with PortAudio."))
+
+(defun (setf audio-port-name) (name direction number)
+  (declare (ignore name direction number))
+  (msg warn "Cannot set audio port names with PortAudio."))
+
+(defun reset-audio-port-names () nil)

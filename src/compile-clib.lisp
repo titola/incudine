@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014-2023 Tito Latini
+;;; Copyright (c) 2014-2024 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -87,6 +87,10 @@
                :portaudio))
           (t :dummy))
     "Driver for real-time audio.")
+
+  (defvar *audio-input-port-name* nil)
+
+  (defvar *audio-output-port-name* nil)
 
   (defvar *enable-jack-midi* nil)
 

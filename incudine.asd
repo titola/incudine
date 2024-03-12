@@ -39,7 +39,7 @@
     (perform 'compile-op c)))
 
 (defsystem "incudine"
-  :version "0.9.73"
+  :version "0.9.74"
   :description "Incudine is a Music/DSP programming environment."
   :licence "GPL v2"
   :author "Tito Latini"
@@ -126,7 +126,7 @@
      (:file "edf-sched" :depends-on ("fifo"))
      (:file "time" :depends-on ("envelope"))
      (:file "int-hash" :depends-on ("util"))
-     (:file "bus" :depends-on ("logger"))
+     (:file "bus" :depends-on ("logger" #+jack-audio "jack" #+portaudio "portaudio"))
      (:file "buffer" :depends-on ("alloc" "gen/partials" "gen/envelope"))
      (:file "waveforms" :depends-on ("buffer"))
      (:file "tuning" :depends-on ("buffer"))
@@ -136,14 +136,12 @@
      (:file "node-pool" :depends-on ("graph"))
      (:file "receiver" :depends-on ("cl-impl"))
      (:file "rt"
-      :depends-on ("fifo" "bus" "graph" #+jack-audio "jack"
-                                        #+jack-midi "jackmidi"
-                                        #+portaudio "portaudio")
+      :depends-on ("fifo" "bus" "graph" #+jack-midi "jackmidi")
       :perform (load-op :before (o c)
                  (incudine-maybe-recompile-source-file c "rt")))
      (:file "nrt" :depends-on ("rt"))
      (:file "score" :depends-on ("nrt"))
-     (:file "jack" :if-feature :jack-audio :depends-on ("foreign"))
+     (:file "jack" :if-feature :jack-audio :depends-on ("cl-impl"))
      (:file "jackmidi" :if-feature :jack-midi :depends-on ("fifo" "receiver"))
      (:file "portaudio" :if-feature :portaudio :depends-on ("foreign" "logger"))
      (:file "midi" :depends-on ("edf-sched" "vug/midi" "receiver" "tuning"

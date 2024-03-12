@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2023 Tito Latini
+ * Copyright (c) 2013-2024 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,6 +35,11 @@ enum {
 	JA_SHUTDOWN,
 	JA_INITIALIZING,
 	JA_STOPPING
+};
+
+enum {
+	JA_INPUT_PORT,
+	JA_OUTPUT_PORT
 };
 
 #define SBCL_SIG_STOP_FOR_GC  SIGUSR2
@@ -175,6 +180,9 @@ SAMPLE ja_get_cycle_start_time(void);
 double ja_get_time_offset_seconds(void);
 jack_nframes_t ja_get_time_offset_frames(void);
 jack_client_t *ja_client(void);
+void set_port_names(char **input, char **output);
+const char *ja_port_name(int direction, unsigned int number);
+int ja_set_port_name(int direction, unsigned int number, const char *name);
 
 /* Jack MIDI */
 

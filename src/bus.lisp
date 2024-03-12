@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2023 Tito Latini
+;;; Copyright (c) 2013-2024 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -210,6 +210,9 @@ No bounds checking."
   "Reset the peak meters."
   (at 0 #'%reset-peak-meters))
 
+#+jack-audio
+(incudine.external::init-audio-port-names)
+
 (defmacro realloc-audio-bus-pointer (type)
   (destructuring-bind (ptr ptr-mac inc-bytes channels)
       (mapcar (lambda (fmt) (format-symbol "INCUDINE" fmt type))
@@ -231,6 +234,9 @@ This setting stops the real-time thread."
     (when (or set-inputs-p set-outputs-p)
       (let ((rt-started-p (eq (rt-status) :started)))
         (rt-stop)
+        #+jack-audio
+        (incudine.external::init-audio-port-names
+          (and set-inputs-p inputs) (and set-outputs-p outputs))
         (when set-inputs-p
           (setf *number-of-input-bus-channels* inputs)
           (if (= inputs 0)

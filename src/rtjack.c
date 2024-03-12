@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2023 Tito Latini
+ * Copyright (c) 2013-2024 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -191,38 +191,23 @@ static int ja_register_ports(void)
 	int i;
 
 	if (ja_in_channels > 0) {
+		RETURN_IF_NULLPTR(input_port_names, "missing input port names");
 		input_ports =
 			(jack_port_t **) malloc(sizeof(jack_port_t *) * ja_in_channels);
 		RETURN_IF_NULLPTR(input_ports, "malloc failure");
-
-		input_port_names = (char **) malloc(sizeof(char *) * ja_in_channels);
-		RETURN_IF_NULLPTR(input_port_names, "malloc failure");
-
 		for (i = 0; i < ja_in_channels; i++) {
-			input_port_names[i] =
-				(char *) malloc(sizeof(char) * JA_PORT_NAME_MAX_LENGTH);
-			RETURN_IF_NULLPTR(input_port_names[i], "malloc failure");
-			sprintf(input_port_names[i], "in_%d", i + 1);
 			input_ports[i] =
-				jack_port_register (client, input_port_names[i],
-				                    JACK_DEFAULT_AUDIO_TYPE,
-				                    JackPortIsInput, 0);
+				jack_port_register(client, input_port_names[i],
+				                   JACK_DEFAULT_AUDIO_TYPE,
+				                   JackPortIsInput, 0);
 		}
 	}
-
 	if (ja_out_channels > 0) {
+		RETURN_IF_NULLPTR(output_port_names, "missing output port names");
 		output_ports =
 			(jack_port_t **) malloc(sizeof(jack_port_t *) * ja_out_channels);
 		RETURN_IF_NULLPTR(output_ports, "malloc failure");
-
-		output_port_names = (char **) malloc(sizeof(char *) * ja_out_channels);
-		RETURN_IF_NULLPTR(output_port_names, "malloc failure");
-
 		for (i = 0; i < ja_out_channels; i++) {
-			output_port_names[i] =
-				(char *) malloc(sizeof(char) * JA_PORT_NAME_MAX_LENGTH);
-			RETURN_IF_NULLPTR(output_port_names[i], "malloc failure");
-			sprintf(output_port_names[i], "out_%d", i + 1);
 			output_ports[i] =
 				jack_port_register (client, output_port_names[i],
 				                    JACK_DEFAULT_AUDIO_TYPE,
@@ -230,6 +215,48 @@ static int ja_register_ports(void)
 		}
 	}
 	return 0;
+}
+
+void set_port_names(char **input, char **output)
+{
+	input_port_names = input;
+	output_port_names = output;
+}
+
+const char *ja_port_name(int direction, unsigned int number)
+{
+	jack_port_t **ports = NULL;
+	unsigned int channels;
+
+	if (direction == JA_INPUT_PORT) {
+		ports = input_ports;
+		channels = ja_in_channels;
+	} else if (direction == JA_OUTPUT_PORT) {
+		ports = output_ports;
+		channels = ja_out_channels;
+	}
+	if (ports != NULL && number < channels)
+		return jack_port_name(ports[number]);
+	return NULL;
+}
+
+int ja_set_port_name(int direction, unsigned int number, const char *name)
+{
+	if (client != NULL) {
+		jack_port_t **ports = NULL;
+		unsigned int channels;
+
+		if (direction == JA_INPUT_PORT) {
+			ports = input_ports;
+			channels = ja_in_channels;
+		} else if (direction == JA_OUTPUT_PORT) {
+			ports = output_ports;
+			channels = ja_out_channels;
+		}
+		if (ports != NULL && number < channels)
+			return jack_port_rename(client, ports[number], name);
+	}
+	return -1;
 }
 
 static int ja_connect_client(void)
@@ -478,7 +505,6 @@ static void ja_process_thread_wait(void)
 
 static void ja_cleanup(void *arg)
 {
-	int i;
 	(void) arg;
 
 	if (ja_status == JA_STOPPED) return;
@@ -502,17 +528,8 @@ static void ja_cleanup(void *arg)
 	ja_free(jm_outputs);
 	ja_free(jm_invec_tmp.data);
 	ja_free(jm_outvec_tmp.data);
-
-	for (i = 0; i < ja_in_channels; i++)
-		ja_free(input_port_names[i]);
 	ja_in_channels = 0;
-	ja_free(input_port_names);
-
-	for (i = 0; i < ja_out_channels; i++)
-		ja_free(output_port_names[i]);
 	ja_out_channels = 0;
-	ja_free(output_port_names);
-
 	ja_sample_counter = NULL;
 	ja_cycle_start_time = (SAMPLE) 0.0;
 	ja_status = JA_STOPPED;

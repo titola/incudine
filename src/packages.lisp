@@ -58,6 +58,7 @@
    #:foreign-alloc-ex #:foreign-free-ex #:foreign-realloc-ex
    #:complex-to-polar #:polar-to-complex
    #:foreign-copy #:foreign-copy-samples
+   #:audio-port-name #:reset-audio-port-names
    #:rt-client #:rt-buffer-size #:rt-sample-rate
    #:rt-cycle-start-time #:rt-time-offset
    #:rt-xruns #:rt-silent-errors))
@@ -378,6 +379,7 @@
                 #:foreign-alloc-sample #:foreign-zero-sample
                 #:complex-to-polar #:polar-to-complex
                 #:foreign-copy #:foreign-copy-samples
+                #:audio-port-name #:reset-audio-port-names
                 #:rt-audio-init #:rt-audio-start #:rt-audio-stop
                 #:rt-get-input #:rt-set-output #:rt-cycle-begin #:rt-cycle-end
                 #:rt-set-io-buffers #:rt-set-max-bufsize
@@ -419,7 +421,7 @@
    #:dynamic-incudine-finalizer-p
    #:play #:stop #:quantize
    #:circular-shift
-   #:bus #:audio-in #:audio-out
+   #:bus #:audio-in #:audio-out #:audio-port-name #:reset-audio-port-names
    #:peak-info #:print-peak-info #:reset-peak-meters
    #:set-number-of-channels #:set-max-buffer-size
    #:*rt-thread-start-hook* #:*rt-thread-exit-hook*

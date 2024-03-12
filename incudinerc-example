@@ -67,6 +67,13 @@
 (setq *number-of-output-bus-channels* 2)
 (setq *number-of-bus-channels* 4096)
 
+;; Control-string or function of one argument (the port number) to get
+;; the short name of a JACK port. The default is "in_~D" for the input
+;; ports and "out_~D" for the output ports. If the function doesn't
+;; return a string, the port name is the default.
+;(setq *audio-input-port-name* "in_~D")
+;(setq *audio-output-port-name* "out_~D")
+
 ;; Used only with PortAudio.
 (setq *frames-per-buffer* 512)
 

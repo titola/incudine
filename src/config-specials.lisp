@@ -2,6 +2,8 @@
  (special
   *addrinfo-hints-flags*
   *audio-driver*
+  *audio-input-port-name*
+  *audio-output-port-name*
   *bounce-to-disk-guard-size*
   *c-compiler*
   *client-name*

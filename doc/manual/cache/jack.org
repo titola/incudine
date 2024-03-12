@@ -1,3 +1,27 @@
+*** Jack Audio
+
+The configuration variables ~*audio-input-port-name*~ and
+~*audio-output-port-name*~ are set to a control-string, or to a
+function of one argument (the port number) to get the short name of a
+Jack port. The default is "in_~D" for the input ports and "out_~D"
+for the output ports. If the function doesn't return a string, the
+port name is the default.
+
+#+attr_texinfo: :options audio-port-name direction number
+#+begin_defun
+Return the short name of the Jack audio port ~number~ (zero-based),
+where ~direction~ is ~:input~ or ~:output~. Setfable.
+#+end_defun
+
+#+attr_texinfo: :options reset-audio-port-names
+#+begin_defun
+Reset the short names of the Jack audio ports.
+
+See also the configuration variables ~*audio-input-port-name*~ and
+~*audio-output-port-name*~.
+#+end_defun
+
+
 *** Jack MIDI
 Set the configuration variable ~*enable-jack-midi*~ to enable Jack MIDI:
 
