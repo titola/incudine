@@ -211,10 +211,10 @@ but stored for the next restart (the next RT-START after RT-STOP)."
 
 (defun audio-port-name (direction number)
   (declare (ignore direction number))
-  (msg warn "Cannot get audio port names with PortAudio."))
+  (incudine.util:msg warn "Cannot get audio port names with PortAudio."))
 
 (defun (setf audio-port-name) (name direction number)
   (declare (ignore name direction number))
-  (msg warn "Cannot set audio port names with PortAudio."))
+  (incudine.util:msg warn "Cannot set audio port names with PortAudio."))
 
 (defun reset-audio-port-names () nil)
