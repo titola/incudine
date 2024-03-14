@@ -1,4 +1,4 @@
-;;; Copyright (c) 2016-2023 Tito Latini
+;;; Copyright (c) 2016-2024 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -66,6 +66,14 @@ Extension of OSC:STREAM."
   "Return the foreign pointer to the STREAM buffer."
   (documentation 'buffer-size 'function)
   "Return the size in bytes of the STREAM buffer.")
+
+(defmethod make-load-form ((obj input-stream) &optional environment)
+  (declare (ignore environment))
+  (cons 'open (rest (call-next-method))))
+
+(defmethod make-load-form ((obj output-stream) &optional environment)
+  (declare (ignore environment))
+  (cons 'open (rest (call-next-method))))
 
 (defun open (&key (host "localhost") (port #36RIME) (direction :input)
              (protocol :tcp) (buffer-size *buffer-size*) (auto-connect-p t)

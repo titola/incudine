@@ -120,6 +120,31 @@ a socket stream may grow.")
           (stream-direction obj) (stream-protocol obj)
           (stream-host obj) (stream-port obj)))
 
+(defmethod make-load-form ((obj input-stream) &optional environment)
+  (declare (ignore environment))
+  (incudine.util::with-struct-slots
+      ((host port protocol buffer-size max-values message-encoding)
+       obj input-stream)
+    (list* 'open :direction :input :host host :port port :protocol protocol
+           :buffer-size (+ buffer-size
+                           (reserved-buffer-size protocol message-encoding))
+           :max-values max-values
+           (when message-encoding
+             (list :message-encoding message-encoding)))))
+
+(defmethod make-load-form ((obj output-stream) &optional environment)
+  (declare (ignore environment))
+  (incudine.util::with-struct-slots
+      ((host port protocol buffer-size latency max-values message-encoding)
+       obj output-stream)
+    (list* 'open :direction :output :host host :port port :protocol protocol
+           :buffer-size (+ buffer-size
+                           (reserved-buffer-size protocol message-encoding))
+           :max-values max-values
+           (append (unless (zerop latency) (list :latency latency))
+                   (when message-encoding
+                     (list :message-encoding message-encoding))))))
+
 (declaim (inline protocolp))
 (defun protocolp (stream protocol)
   "Return T if the STREAM protocol is PROTOCOL; otherwise, return NIL."
@@ -196,6 +221,12 @@ multiple of four (bytes)."
     (let ((magic-length (fix-size (length "#bundle")))
           (timetag-length 8))
       (+ magic-length timetag-length +message-length-size+)))
+
+(defun reserved-buffer-size (protocol message-encoding &optional (bundle-p t))
+  (+ (if bundle-p +bundle-reserved-bytes+ 0)
+     (if (and (eq protocol :tcp) (not message-encoding))
+         ;; Message length.
+         4 0)))
 
 (declaim (inline latency))
 (defun latency (stream)
@@ -280,10 +311,7 @@ MESSAGE-ENCODING is NIL (default) or :SLIP."
                  (buf-pad (+ +zero-padding-bytes+ +temp-space-bytes+
                              (if (and (eq direction :input) (eq protocol :tcp))
                                  0 +int-size+)))
-                 (buffer-offset (if (and (eq protocol :tcp)
-                                         (null message-encoding))
-                                    ;; 4 bytes reserved for the size of the message.
-                                    4 0))
+                 (buffer-offset (reserved-buffer-size protocol message-encoding nil))
                  (reserved-bytes (+ +bundle-reserved-bytes+ buffer-offset)))
             (setf address (cffi:mem-ref address-ptr :pointer))
             (setf buf-ptr

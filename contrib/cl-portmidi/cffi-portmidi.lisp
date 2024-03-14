@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2023 Tito Latini
+;;; Copyright (c) 2013-2024 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -145,6 +145,25 @@ SysEx message."
                               filt-song-position
                               filt-song-select
                               filt-tune))))
+
+(defmethod make-load-form ((obj input-stream) &optional environment)
+  (declare (ignore environment))
+  (let ((bufsize (stream-buffer-size obj)))
+    ;; DRIVER-INFO, TIME-PROC and TIME-INFO are ignored.
+    (list* 'open (list 'get-device-id-by-name (stream-device-name obj) :input)
+           :direction :input
+           (unless (= bufsize default-sysex-buffer-size)
+             (list :buffer-size bufsize)))))
+
+(defmethod make-load-form ((obj output-stream) &optional environment)
+  (declare (ignore environment))
+  (let ((bufsize (stream-buffer-size obj))
+        (latency (output-stream-latency obj)))
+    (list* 'open (list 'get-device-id-by-name (stream-device-name obj) :output)
+           :direction :output
+           (append (unless (= latency 1) (list :latency latency))
+                   (unless (= bufsize default-sysex-buffer-size)
+                     (list :buffer-size bufsize))))))
 
 (cffi:defcenum error
   (:pm-no-data 0)
