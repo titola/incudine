@@ -98,12 +98,12 @@ a socket stream may grow.")
   ;; Foreign memory space reserved to store a temporary value.
   (tmp-ptr (cffi:null-pointer) :type cffi:foreign-pointer))
 
-(defstruct (input-stream (:include stream))
+(defstruct (input-stream (:include stream) (:copier nil))
   "Input stream socket type for OSC (Open Sound Control) messages."
   (time-seconds 0d0 :type double-float)
   (time-samples 0d0 :type double-float))
 
-(defstruct (output-stream (:include stream))
+(defstruct (output-stream (:include stream) (:copier nil))
   "Output stream socket type for OSC (Open Sound Control) messages."
   ;; Latency in seconds.
   (latency 0d0 :type double-float))

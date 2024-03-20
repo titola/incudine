@@ -30,13 +30,13 @@
 ;;; The generic interface inherits the structures, the optimizations
 ;;; and the utilities to send/receive/manage OSC messages.
 
-(defstruct (input-stream (:include incudine.osc:input-stream)
+(defstruct (input-stream (:include incudine.osc:input-stream) (:copier nil)
                          (:print-function print-stream))
   "Input stream socket type.
 
 Extension of OSC:INPUT-STREAM.")
 
-(defstruct (output-stream (:include incudine.osc:output-stream)
+(defstruct (output-stream (:include incudine.osc:output-stream) (:copier nil)
                           (:print-function print-stream))
   "Output stream socket type.
 
