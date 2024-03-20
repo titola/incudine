@@ -73,14 +73,21 @@
 
 ;;; ERRORS
 
+#-win32
 (cffi:defcvar "errno" :int)
+#+win32
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (define-symbol-macro *errno* (cffi:foreign-funcall "GetLastError" :int32)))
 
 (defun errno-to-string (&optional (errno *errno*))
   "Return a string that describes the error code ERRNO.
 
 ERRNO defaults to the foreign integer variable errno. See errno man
 page for details."
-  (cffi:foreign-funcall "strerror" :int errno :string))
+  #-win32
+  (cffi:foreign-funcall "strerror" :int errno :string)
+  #+(and win32 sbcl)
+  (sb-win32:format-system-message errno))
 
 ;;; THREADS
 
