@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2023 Tito Latini
+;;; Copyright (c) 2013-2024 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -237,7 +237,9 @@
                 (list (vug-object-name obj)))
                ((vug-name-p obj 'lambda)
                 (let ((inputs (vug-function-inputs obj)))
-                  `(lambda ,(car inputs) ,@(blockexpand (cadr inputs)))))
+                  `(lambda ,(car inputs)
+                     ,@(blockexpand (cadr inputs) param-plist vug-body-p
+                                    init-pass-p conditional-expansion-p))))
                ((vug-name-p obj 'init-only)
                 (maybe-progn (blockexpand (vug-function-inputs obj)
                                           param-plist vug-body-p
