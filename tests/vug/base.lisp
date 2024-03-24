@@ -86,7 +86,7 @@
 (defun scale-and-round-buffer (buffer mult)
   (map-buffer (lambda (index value)
                 (setf (buffer-value buffer index)
-                      (fround (* value mult))))
+                      (round (* value mult))))
               buffer))
 
 (defun dsp-test-header (name)
