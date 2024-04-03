@@ -87,15 +87,27 @@ vice versa.")
 (defun incudine-show-repl ()
   "Show REPL in other window."
   (interactive)
-  (switch-to-buffer-other-window (slime-output-buffer)))
+  (let ((buffer (or (and (fboundp 'slime-repl-buffer)
+                         ;; Ignore if killed buffer.
+                         (funcall 'slime-repl-buffer))
+                    (let ((proc (get-process "inferior-lisp")))
+                      (and proc (process-buffer proc))))))
+    (when buffer
+      (switch-to-buffer-other-window buffer))))
 
 (defun incudine-repl-clear-buffer ()
   "Clear the REPL buffer."
   (interactive)
-  (save-window-excursion
-    (with-current-buffer (slime-repl-buffer)
-      (slime-repl-insert-prompt)
-      (slime-repl-clear-buffer))))
+  (let* ((buffer (and (fboundp 'slime-repl-buffer)
+                      (funcall 'slime-repl-buffer)))
+         (proc (unless buffer (get-process "inferior-lisp"))))
+    (when (or buffer proc)
+      (save-window-excursion
+        (with-current-buffer (or buffer (process-buffer proc))
+          (cond (buffer
+                 (funcall 'slime-repl-insert-prompt)
+                 (funcall 'slime-repl-clear-buffer))
+                (t (comint-clear))))))))
 
 (defun incudine-prev-defun (&optional n)
   "Jump at the end of the previous defun.
