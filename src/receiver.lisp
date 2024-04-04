@@ -31,11 +31,10 @@
 (defgeneric valid-input-stream-p (obj))
 
 (defun make-receiver (stream &key functions status (timeout 0))
-  (when (valid-input-stream-p stream)
-    (%make-receiver :%stream stream
-                    :functions functions
-                    :status status
-                    :timeout timeout)))
+  (unless (valid-input-stream-p stream)
+    (incudine-error "~S~%is not a valid input stream for a receiver." stream))
+  (%make-receiver
+    :%stream stream :functions functions :status status :timeout timeout))
 
 (defun receiver-stream (obj)
   "Return the input stream of a receiver."
