@@ -628,6 +628,8 @@
 
 (defpackage :incudine.scratch
   (:use :cl :incudine :incudine.vug :incudine.util :incudine.analysis)
+  #+sbcl (:shadowing-import-from #:incudine.util
+                                 #:exit #:compare-and-swap #:seed-random-state)
   (:import-from #:alexandria #:positive-fixnum #:negative-fixnum
                 #:non-negative-fixnum #:with-gensyms #:define-constant)
   (:import-from #:incudine.gen #:all-random-distributions #:rand-args)
