@@ -534,7 +534,14 @@ group 0
       (bounce-to-buffer (*buffer-test-c1* :frames 1)
         (handler-case
             (progn
+              ;; 0
+              (play #'* :id 1)
+              (pause 1)
+              (check-node-tree '((G 0) (P 1)))
+              (play #'* :id 2)
+              (check-node-tree '((G 0) 2 (P 1)))
               ;; 1
+              (free 0)
               (pause 0) (play #'*) (play #'*) (play #'*)
               (check-node-tree '((G 0 P) 3 2 1))
               (unpause 0)
