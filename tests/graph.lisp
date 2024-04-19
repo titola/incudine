@@ -558,13 +558,13 @@ group 0
               ;; 3
               (free 0)
               (make-group 200)
-              (make-group 300 :action (lambda (n) (pause n)))
+              (make-group 300 :action #'pause)
               (play #'* :tail 200)
               (check-node-tree '((G 0) ((G 300 P)) ((G 200) 1)))
               ;; 4
               (free 0)
               (play #'*)
-              (make-group 300 :action (lambda (n) (pause n)))
+              (make-group 300 :action #'pause)
               (play #'* :tail 300)
               (play #'* :head 300)
               (check-node-tree '((G 0) ((G 300 P) 3 2) 1))
@@ -582,7 +582,7 @@ group 0
               (check-node-tree '((G 0) ((G 300) 1) ((G 200) 2)))
               ;; 6
               (free 0)
-              (make-group 300 :action (lambda (n) (pause n)))
+              (make-group 300 :action #'pause)
               (make-group 200 :after 300)
               (play #'* :tail 300)
               (play #'* :tail 200)
@@ -655,7 +655,7 @@ group 0
               (check-node-tree '((G 0) 4 ((G 100) 2 3 1)))
               ;; 11
               (free 0)
-              (make-group 100 :action (lambda (n) (pause n)))
+              (make-group 100 :action #'pause)
               (make-group 200 :head 100)
               (make-group 300 :head 100)
               (play #'* :id 1 :head 300)
@@ -673,7 +673,7 @@ group 0
                 '((G 0) ((G 100) ((G 300) 1 2 ((G 49) 5)) ((G 200) ((G 42) 3) 4))))
               ;; 12
               (free 0)
-              (make-group 100 :action (lambda (n) (pause n)))
+              (make-group 100 :action #'pause)
               (make-group 300 :head 100)
               (play #'* :id 1 :head 300)
               (play #'* :id 2 :tail 300)

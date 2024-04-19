@@ -413,7 +413,7 @@ is called when the group node is stopped."
   (declare (type (or fixnum null) id)
            (type (or fixnum node null) head tail before after)
            (type (or symbol string) name)
-           (type (or compiled-function null) action)
+           (type (or function null) action)
            (type list stop-hook free-hook))
   (let* ((add-action
            (cond (tail :tail) (before :before) (after :after) (t :head)))
@@ -851,11 +851,11 @@ is called when the node object is stopped."))
 
 (defmethod play ((obj function) &key (init-function #'identity) id head tail
                  before after replace name action stop-hook free-hook)
-  (declare (type compiled-function obj init-function)
+  (declare (type function init-function)
            (type (or non-negative-fixnum null) id)
            (type (or node fixnum null) head tail before after replace)
            (type (or symbol string) name)
-           (type (or compiled-function null) action)
+           (type (or function null) action)
            (type list stop-hook free-hook))
   (rt-eval ()
     (with-add-action (add-action target head tail before after replace)
