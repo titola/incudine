@@ -1174,7 +1174,9 @@ The default is T.")
        (incudine:dograph (,node)
          (when (and (eq (incudine::node-name ,node) ',name)
                     (equal (incudine:control-names ,node) ',arg-names))
-           (apply #',name (build-control-list ,node :replace ,node)))))))
+           (apply #',name (build-control-list ,node :replace ,node
+                            :action (when (incudine::node-pause-p ,node)
+                                      #'incudine:pause))))))))
 
 (defmacro with-reserved-node ((node id) &body body)
   `(let ((last-node-id incudine::*last-node-id*))
