@@ -92,6 +92,7 @@
      (:file "vug/with-buffer" :depends-on ("vug/ugen-base"))
      (:file "vug/envelope" :depends-on ("vug/ugen-base"))
      (:file "vug/voicer" :depends-on ("vug/base"))
+     (:file "vug/profile" :depends-on ("vug/base"))
      (:file "vug/amplitude/balance" :depends-on ("vug/base"))
      (:file "vug/filter/allpass" :depends-on ("vug/base"))
      (:file "vug/filter/reson" :depends-on ("vug/base"))

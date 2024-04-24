@@ -39,7 +39,7 @@
     (perform 'compile-op c)))
 
 (defsystem "incudine"
-  :version "0.9.74"
+  :version "0.9.75"
   :description "Incudine is a Music/DSP programming environment."
   :licence "GPL v2"
   :author "Tito Latini"
@@ -197,6 +197,7 @@
      (:file "vug/mouse" :depends-on ("vug/util2" "vug/filter"))
      (:file "vug/spectral" :depends-on ("analysis/fft" "vug/codegen"))
      (:file "vug/foreign-plugin" :depends-on ("vug/vug"))
+     (:file "profile" :if-feature :sbcl :depends-on ("vug/dsp"))
      (:file "deprecated" :depends-on ("vug/in-out")))
     :perform (load-op :after (o c)
        (when *incudine-force-compile-p*

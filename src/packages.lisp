@@ -124,6 +124,7 @@
    #:*logger-stream* #:*null-output* #:*logger-force-output-p*
    #:msg #:nrt-msg #:logger-level #:with-logger
    #:logger-time #:logger-time-function #:default-logger-time-function
+   #:profile #:profile-node #:profile-report #:profile-reset #:unprofile
    #:compare-and-swap #:barrier
    #:get-bytes-consed-in
    #:thread-affinity #:thread-priority

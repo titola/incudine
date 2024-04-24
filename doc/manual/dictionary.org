@@ -2346,4 +2346,11 @@ Example:
 ::: soundfile:concatenate
 ::: soundfile:merge
 #+texinfo: @page
+** Profiling
+::: incudine.util:profile
+::: incudine.util:profile-node
+::: incudine.util:unprofile
+::: incudine.util:profile-report
+::: incudine.util:profile-reset
+#+texinfo: @page
 ** Contributed Modules
