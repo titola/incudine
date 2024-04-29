@@ -629,8 +629,11 @@
 
 (defpackage :incudine.scratch
   (:use :cl :incudine :incudine.vug :incudine.util :incudine.analysis)
-  #+sbcl (:shadowing-import-from #:incudine.util
-                                 #:exit #:compare-and-swap #:seed-random-state)
+  (:shadowing-import-from #:incudine.util
+                          #:exit #:compare-and-swap #:seed-random-state
+                          #:without-interrupts #:with-pinned-objects
+                          #:with-foreign-array)
+  (:shadowing-import-from #:incudine.vug #:median)
   (:import-from #:alexandria #:positive-fixnum #:negative-fixnum
                 #:non-negative-fixnum #:with-gensyms #:define-constant)
   (:import-from #:incudine.gen #:all-random-distributions #:rand-args)
