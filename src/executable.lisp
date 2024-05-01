@@ -809,6 +809,15 @@ the argument is parsed with READ-FROM-STRING."
   #+sb-aclrepl (format t "~%Type `:help' for the list of commands.")
   #-linedit (terpri))
 
+;;; Rewrite the toplevel shell command to fix the working directory
+;;; (from sb-aclrepl context).
+;;; Note: the help command doesn't show :sh after the alias.
+#+sb-aclrepl
+(sb-aclrepl:alias ("shell" 1 "execute shell commands" :string) (commands)
+  (sb-ext:run-program "/bin/sh" (list "-c" commands)
+    :directory *default-pathname-defaults* :input nil :output t)
+  (values))
+
 #+linedit
 (defun swank-connection-hooks ()
   (flet ((q (s) (find-symbol s "SWANK")))
