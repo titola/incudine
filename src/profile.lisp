@@ -248,9 +248,10 @@ execution samples."
   (declare (type (or node fixnum) node)
            (type positive-fixnum max-number-of-calls))
   (bordeaux-threads:with-lock-held (incudine.util::*profile-lock*)
-    (let ((target (get-node node)))
-      (when (null-node-p target)
-        (warn "ignoring the null node ~S" node)
+    (let* ((target (get-node node))
+           (root-p (node-root-p target)))
+      (when (or root-p (null-node-p target))
+        (warn "ignoring the ~A node ~S" (if root-p 'root 'null) node)
         (return-from incudine.util:profile-node))
       (let ((fname (make-symbol
                      (format nil "~@[~A/~]~:[~;GROUP-~]NODE-~D"
