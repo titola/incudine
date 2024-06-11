@@ -402,8 +402,7 @@ MESSAGE-ENCODING is NIL (default) or :SLIP."
                (unless (= fd -1)
                  (close-socket fd)))))))
 
-(defun %open (stream &optional (connect-p t))
-  (declare (type stream stream))
+(defun make-stream-socket (stream)
   (let ((fd (cffi:foreign-funcall "socket"
               :int (addrinfo-value stream 'ai-family)
               :int (addrinfo-value stream 'ai-socktype)
@@ -413,29 +412,48 @@ MESSAGE-ENCODING is NIL (default) or :SLIP."
     (unless (and (input-stream-p stream) (protocolp stream :tcp))
       ;; Info for the finalizer.
       (setf (cffi:mem-ref (stream-fds-ptr stream) :int) fd))
-    (setf (stream-socket-fd stream) fd)
-    (cond ((input-stream-p stream)
+    (setf (stream-socket-fd stream) fd)))
+
+(defun bind-stream-socket (stream)
+  (let ((fd (stream-socket-fd stream)))
+    (loop
+      (cond ((zerop (cffi:foreign-funcall "bind"
+                      socket fd :pointer (addrinfo-value stream 'ai-addr)
+                      #.+socklen-type+ (addrinfo-value stream 'ai-addrlen)
+                      :int))
+             (return t))
+            ((cffi:null-pointer-p (addrinfo-value stream 'ai-next))
+             (network-error "Failed to assign the address."))
+            (t
+             ;; Try the next address.
+             (close-socket fd)
+             (setf (stream-addrinfo-ptr stream)
+                   (addrinfo-value stream 'ai-next))
+             (setf fd (make-stream-socket stream)))))))
+
+(defun %open (stream &optional (connect-p t))
+  (declare (type stream stream))
+  (make-stream-socket stream)
+  (cond ((input-stream-p stream)
+         (bind-stream-socket stream)
+         (let ((fd (stream-socket-fd stream)))
            (when (and (protocolp stream :tcp)
                       (not (zerop (setsock-reuseaddr fd))))
              (warn "OSC:OPEN reuse of the local addresses is disabled"))
-           (unless (zerop (cffi:foreign-funcall "bind"
-                            socket fd :pointer (addrinfo-value stream 'ai-addr)
-                            #.+socklen-type+ (addrinfo-value stream 'ai-addrlen)
-                            :int))
-             (network-error "Failed to assign the address."))
            (when (protocolp stream :tcp)
-             (unless (zerop (cffi:foreign-funcall "listen" socket fd
-                                                  :int *listen-backlog* :int))
+             (unless (zerop (cffi:foreign-funcall "listen"
+                              socket fd :int *listen-backlog* :int))
                (network-error "listen call failed."))
-             (set-server-fd (stream-fds-ptr stream) fd)))
-          ((protocolp stream :tcp)
-           (when connect-p
-             (unless (zerop (cffi:foreign-funcall "connect"
-                              socket fd :pointer (addrinfo-value stream 'ai-addr)
-                              #.+socklen-type+ (addrinfo-value stream 'ai-addrlen)
-                              :int))
-               (network-error "Connection failed:~%~S"
-                 (incudine.external:errno-to-string)))))))
+             (set-server-fd (stream-fds-ptr stream) fd))))
+        ((and (protocolp stream :tcp)
+              connect-p
+              (not (zerop (cffi:foreign-funcall "connect"
+                            socket (stream-socket-fd stream)
+                            :pointer (addrinfo-value stream 'ai-addr)
+                            #.+socklen-type+ (addrinfo-value stream 'ai-addrlen)
+                            :int))))
+         (network-error "Connection failed:~%~S"
+           (incudine.external:errno-to-string))))
   stream)
 
 (declaim (inline open-p))
