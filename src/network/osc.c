@@ -31,7 +31,7 @@ int osc_address_new(struct osc_address **addr, const char *host,
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = is_datagram ? SOCK_DGRAM : SOCK_STREAM;
-	hints.ai_flags = hints_flags;
+	hints.ai_flags = is_input ? hints_flags | AI_PASSIVE : hints_flags;
 
 	snprintf(service, 6, "%d", port);
 	if ((ret = getaddrinfo(host, service, &hints, &info)) != 0)
