@@ -148,7 +148,8 @@ It requires SLIME-ENABLE-EVALUATE-IN-EMACS T on the Emacs side."
          (let* ((str "")
                 (comint-output-filter-functions
                   (list (lambda (text) (setq str (concat str text)))))
-                (buf (inf-snd-proc-buffer)))
+                (buf (inf-snd-proc-buffer))
+                (inhibit-quit nil))
            (with-current-buffer buf
              (snd-send-invisible string)
              (accept-process-output (get-buffer-process buf)))
