@@ -1,4 +1,4 @@
-;;; Copyright (c) 2015-2020 Tito Latini
+;;; Copyright (c) 2015-2024 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -229,7 +229,7 @@ The sequence is optionally bounded by START and END."
          (chn (or chn (format nil "(or (selected-channel ~A) 0)" snd))))
     (values snd chn)))
 
-(defun map-channel (function &key (beg 0) dur snd chn
+(defun map-channel (function &key (beg 0) dur snd chn edpos
                     (origin "incudine map-channel"))
   "Apply FUNCTION to each sample of the channel CHN in SND (id or
 filename), starting at sample BEG for DUR samples, replacing the
@@ -249,6 +249,8 @@ BEG defaults to 0 and DUR defaults to the full length of the sound.
 
 SND and CHN default to the currently selected sound.
 
+EDPOS defaults to the current edit history position.
+
 See map-channel in Snd."
   (declare (type function function)
            (type alexandria:non-negative-fixnum beg)
@@ -261,9 +263,9 @@ See map-channel in Snd."
                  #s7(let ((s ~A))
                       (when (sound? s)
                         (save-sound-as ~S s :channel ~A
-                                       :header-type mus-riff
-                                       :sample-type mus-ldouble)))
-                 snd *tmpfile* chn)))
+                          :header-type mus-riff
+                          :sample-type mus-ldouble~@[ :edit-position ~A~])))
+                 snd *tmpfile* chn edpos)))
       (when buf
         (incudine::maybe-unwind-protect
              (let ((vec (map-channel-new-vec buf function beg
@@ -282,13 +284,16 @@ See map-channel in Snd."
                    :format-arguments (list snd chn *tmpfile* origin))))
           (incudine:free buf))))))
 
-(defun env-channel (env &key (beg 0) dur snd chn (origin "incudine env-channel"))
+(defun env-channel (env &key (beg 0) dur snd chn edpos
+                    (origin "incudine env-channel"))
   "Apply the amplitude envelope ENV, an INCUDINE:ENVELOPE structure,
 to the given channel CHN of SND starting at sample BEG for DUR samples.
 
 BEG defaults to 0 and DUR defaults to the full length of the sound.
 
 SND and CHN default to the currently selected sound.
+
+EDPOS defaults to the current edit history position.
 
 See env-channel in Snd."
   (declare (type incudine:envelope env)
@@ -311,9 +316,11 @@ See env-channel in Snd."
             (eval
               #s7(let ((s ~A) (rd (make-sampler 0 ~S)))
                    (map-channel (lambda (x) (* x (rd)))
-                                ~D ~D s ~A current-edit-position ~S)
+                                ~D ~D s ~A ~A ~S)
                    (free-sampler rd) s)
-              :format-arguments (list snd *tmpfile* beg dur chn origin))))))))
+              :format-arguments
+                (list snd *tmpfile* beg dur chn
+                      (or edpos "current-edit-position") origin))))))))
 
 (defun env-selection (env &key (origin "incudine env-selection"))
   "Apply the amplitude envelope ENV, an INCUDINE:ENVELOPE structure,

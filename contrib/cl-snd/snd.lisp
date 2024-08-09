@@ -1,6 +1,6 @@
 ;;; Common Lisp interface to interact with the sound editor Snd.
 ;;;
-;;; Copyright (c) 2015-2021 Tito Latini
+;;; Copyright (c) 2015-2024 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by

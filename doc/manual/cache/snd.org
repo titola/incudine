@@ -177,7 +177,7 @@ Snd function ~mix~ (file is optional). The rest of the arguments are
 passed to ~incudine:buffer-save~.
 #+end_defun
 
-#+attr_texinfo: :options snd:map-channel function @andkey{} beg dur snd chn origin
+#+attr_texinfo: :options snd:map-channel function @andkey{} beg dur snd chn edpos origin
 #+begin_defun
 Apply ~function~ to each sample of the channel ~chn~ in ~snd~ (id or
 filename), starting at sample ~beg~ for ~dur~ samples, replacing the
@@ -197,10 +197,12 @@ local time.
 
 ~snd~ and ~chn~ default to the currently selected sound.
 
+~edpos~ defaults to the current edit history position.
+
 See map-channel in Snd.
 #+end_defun
 
-#+attr_texinfo: :options snd:env-channel env @andkey{} beg dur snd chn origin
+#+attr_texinfo: :options snd:env-channel env @andkey{} beg dur snd chn edpos origin
 #+begin_defun
 Apply the amplitude envelope ~env~, an ~incudine:envelope~ structure,
 to the given channel ~chn~ of ~snd~ starting at sample ~beg~ for ~dur~ samples.
@@ -208,6 +210,8 @@ to the given channel ~chn~ of ~snd~ starting at sample ~beg~ for ~dur~ samples.
 ~beg~ defaults to 0 and ~dur~ defaults to the full length of the sound.
 
 ~snd~ and ~chn~ default to the currently selected sound.
+
+~edpos~ defaults to the current edit history position.
 
 See env-channel in Snd.
 #+end_defun
