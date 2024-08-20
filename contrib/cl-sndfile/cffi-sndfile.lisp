@@ -29,6 +29,18 @@
   (unless (cffi:foreign-library-loaded-p 'sndfile)
     (load-sndfile-library)))
 
+(cffi:defctype sf-count :int64)
+;; Alias.
+(cffi:defctype count :int64)
+
+(cffi:defcstruct info
+  (frames sf-count)
+  (sample-rate :int)
+  (channels :int)
+  (format :int)
+  (sections :int)
+  (seekable :int))
+
 (defstruct (pointer-wrapper (:constructor %make-pointer-wrapper))
   (pointer (cffi:null-pointer) :type cffi:foreign-pointer))
 
@@ -390,14 +402,6 @@
 (cffi:defctype sf-count :int64)
 ;; Alias.
 (cffi:defctype count :int64)
-
-(cffi:defcstruct info
-  (frames sf-count)
-  (sample-rate :int)
-  (channels :int)
-  (format :int)
-  (sections :int)
-  (seekable :int))
 
 (cffi:defcstruct format-info
   (format :int)
