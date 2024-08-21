@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2023 Tito Latini
+;;; Copyright (c) 2013-2024 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -238,6 +238,14 @@
          :initarg :tell
          :type cffi:foreign-pointer
          :accessor virtual-io-tell)))
+
+(declaim (inline make-sndinfo))
+(defun make-sndinfo (&optional pointer)
+  (%make-sndinfo
+    :pointer (or pointer
+                 (cffi:foreign-alloc :int8
+                   :count (cffi:foreign-type-size '(:struct info))
+                   :initial-element 0))))
 
 (defun make-info (&key (frames 0) (sample-rate 48000) (channels 1)
                   (format 0) (sections 0) (seekable t))

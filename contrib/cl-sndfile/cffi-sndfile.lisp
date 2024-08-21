@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2022 Tito Latini
+;;; Copyright (c) 2013-2024 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -69,14 +69,6 @@
     (unless (cffi:null-pointer-p pointer)
       (finalize obj (lambda () (%close pointer))))
     obj))
-
-(declaim (inline make-sndinfo))
-(defun make-sndinfo (&optional pointer)
-  (%make-sndinfo
-    :pointer (or pointer
-                 (cffi:foreign-alloc :int8
-                   :count (cffi:foreign-type-size '(:struct info))
-                   :initial-element 0))))
 
 (defun make-pointer-wrapper (pointer)
   (let ((obj (%make-pointer-wrapper :pointer pointer)))
