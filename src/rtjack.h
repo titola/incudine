@@ -142,7 +142,7 @@ static int ja_alloc_input_cache(void);
 static void ja_free_input_cache(void);
 static void ja_increment_cycle_counter(char type);
 static int ja_register_ports(void);
-static int ja_connect_client(void);
+static void ja_connect_client(void);
 static void *ja_process_thread(void *arg);
 static void* ja_process_thread_with_cached_inputs(void *arg);
 static int ja_xrun_cb(void *arg);

@@ -259,30 +259,25 @@ int ja_set_port_name(int direction, unsigned int number, const char *name)
 	return -1;
 }
 
-static int ja_connect_client(void)
+static void ja_connect_client(void)
 {
 	char **ports;
 	int i;
 
 	ports = (char **) jack_get_ports(client, NULL, NULL,
 	                                 JackPortIsPhysical | JackPortIsOutput);
-	if (ports == NULL)
-		return 1;
-
-	for (i = 0; i < ja_in_channels && ports[i] != NULL; i++)
-		jack_connect(client, ports[i], jack_port_name(input_ports[i]));
-	jack_free(ports);
-
+	if (ports != NULL) {
+		for (i = 0; i < ja_in_channels && ports[i] != NULL; i++)
+			jack_connect(client, ports[i], jack_port_name(input_ports[i]));
+		jack_free(ports);
+	}
 	ports = (char **) jack_get_ports(client, NULL, NULL,
 	                                 JackPortIsPhysical | JackPortIsInput);
-	if (ports == NULL)
-		return 1;
+	if (ports == NULL) return;
 
 	for (i = 0; i < ja_out_channels && ports[i] != NULL; i++)
 		jack_connect(client, jack_port_name(output_ports[i]), ports[i]);
 	jack_free(ports);
-
-	return 0;
 }
 
 static void* ja_process_thread(void *arg)
