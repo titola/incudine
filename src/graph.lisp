@@ -629,7 +629,7 @@ curve returned by NODE-FADE-CURVE."
 
 (declaim (inline restore-node))
 (defun restore-node ()
-  (vector-pop *dirty-nodes*))
+  (vector-pop (the (vector node *) *dirty-nodes*)))
 
 (defun free-dirty-nodes ()
   (declare #.*standard-optimize-settings*)
