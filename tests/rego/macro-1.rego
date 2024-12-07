@@ -1,4 +1,4 @@
-:score-pages: 2 4 6
+:score-pages: 2 4 6 4 2 4 6 4 2
 ===================================
 This page is not part of the score.
 ===================================
