@@ -1933,9 +1933,61 @@ ends after 3 beats but
 ends after 6.5 beats.
 
 #+texinfo: @noindent
-A line with a form feed character marks the end of score.
-For example, we can create and edit a rego file in Emacs SES
-(Simple Emacs Spreadsheet) mode.
+The score pages are delimited by the form feed character.
+The score statement ~:score-pages:~ sets the pages to read (the
+other pages are ignored). ~all~ and ~t~ mean "all the pages".
+
+#+texinfo: @noindent
+Example:
+
+#+texinfo: @exampleindent 4
+#+begin_example
+:score-pages: 7
+:score-pages: 3 7 8
+:score-pages: all
+#+end_example
+
+#+texinfo: @noindent
+~:score-pages:~ defaults to 1. In this case, a line with a form
+feed character marks the end of score. For example, we can create
+and edit a rego file in Emacs SES (Simple Emacs Spreadsheet) mode.
+
+#+texinfo: @noindent
+Note: the pages within a score macro block are not part of the
+main score, and the pages within other blocks in Org markup
+language are ignored.
+
+#+texinfo: @noindent
+~#|~ is an ignored score statement by default, therefore
+the following ellipsislispy example is a valid score for
+~regofile->*~
+
+#+texinfo: @exampleindent 4
+#+begin_example
+#|
+:score-pages: 2
+|#
+
+(defun i1
+  ...)
+(defun i2
+  ...)
+
+#|
+Note: in this text ^L is not a real form feed char.
+^L
+;; second page
+0 i1 ... // i2 ...
+1 i1 ...
+2 i2 ...
+;; end of page
+^L
+|#
+
+(defun i3
+  ...)
+;; etc...
+#+end_example
 
 #+texinfo: @noindent
 The score statement ~:score-radix:~ sets the variable

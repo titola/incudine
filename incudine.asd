@@ -39,7 +39,7 @@
     (perform 'compile-op c)))
 
 (defsystem "incudine"
-  :version "0.9.75"
+  :version "0.9.76"
   :description "Incudine is a Music/DSP programming environment."
   :licence "GPL v2"
   :author "Tito Latini"

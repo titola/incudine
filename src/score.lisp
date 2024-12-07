@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2023 Tito Latini
+;;; Copyright (c) 2013-2024 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -43,6 +43,8 @@
            *score-local-function-name*
            *score-macros*
            *score-package*
+           *score-current-page*
+           *score-pages*
            *score-start-time*
            *score-realtime*)
          (type list *include-rego-stack* *score-macros*)
@@ -139,7 +141,7 @@ score block to ignore."
   ;; used in org-mode.
   (ignore-score-statements
     (append '("*" "**" "***" "****" "*****" "+" "-" "/" "!" "^" "$" "$$"
-              "#" ":" "DEADLINE:" "SCHEDULED:" ("#+BEGIN:" "#+END:"))
+              "#" "#|" ":" "DEADLINE:" "SCHEDULED:" ("#+BEGIN:" "#+END:"))
             (mapcar (lambda (name)
                       (list (format nil "#+BEGIN_~A" name)
                             (format nil "#+END_~A" name)))
@@ -408,6 +410,7 @@ or IGNORE-SCORE-STATEMENTS."
         (let ((c (char str 0)))
           (and (char/= c #\()
                (or (char= c #\;)
+                   (char= c #\Page)
                    (ignore-score-statement (score-statement-name str) stream
                                            ignore-bindings-p)
                    (org-table-line-to-skip-p str)
@@ -509,6 +512,8 @@ or IGNORE-SCORE-STATEMENTS."
     `(flet ((inc (,score ,args)
               (let ((*score-package* *score-package*)
                     (*score-radix* *score-radix*)
+                    (*score-current-page* 1)
+                    (*score-pages* (list 1))
                     (*score-float-format* *score-float-format*))
                 (apply #'%write-regofile ,score ,args))))
        (let ((,args ,write-args))
@@ -643,6 +648,31 @@ or IGNORE-SCORE-STATEMENTS."
     (let ((time (read-from-string (subseq line (next-blank-position line)))))
       (when (and (realp time) (> time 0.0))
         (setf *score-start-time* time)))))
+
+;;; The score statement `:score-pages:' sets the pages to read.
+;;; The default is 1 (a line with a form feed character marks the
+;;; end of score).
+(defun score-pages-statement-p (line)
+  (%score-statement-p line ":score-pages:"))
+
+(defun set-score-pages (stream line)
+  (flet ((page-list (x)
+           (unless (integerp (first x))
+             (setf x (first x)))
+           (cond ((and (consp x) (every 'integerp x))
+                  (sort x '<))
+                 ((or (eq x t)
+                      (and (symbolp x)
+                           (string= (symbol-name x) "ALL")))
+                  t))))
+    (let ((p (page-list
+               (read-from-string
+                 (concatenate 'string
+                   "(" (subseq line (next-blank-position line)) ")")))))
+      (unless p
+        (incudine-error "Malformed score statement: ~S" line))
+      (setf *score-pages* p)
+      (skip-score-pages stream))))
 
 ;;; The score statement `:score-function-name:' sets the name of the
 ;;; function defined with REGOFILE->FUNCTION.
@@ -809,6 +839,7 @@ or IGNORE-SCORE-STATEMENTS."
       (and (char= #\: (char line 0))
            (or (score-start-time-statement-p line)
                (score-package-statement-p line)
+               (score-pages-statement-p line)
                (score-function-name-statement-p line)
                (score-radix-statement-p line)
                (score-float-format-statement-p line)))))
@@ -821,6 +852,9 @@ or IGNORE-SCORE-STATEMENTS."
          nil)
         ((score-package-statement-p line)
          (set-score-package line)
+         nil)
+        ((score-pages-statement-p line)
+         (set-score-pages stream line)
          nil)
         ((score-function-name-statement-p line)
          (set-score-function-name line)
@@ -839,16 +873,54 @@ or IGNORE-SCORE-STATEMENTS."
   (declare (type stream stream) (type list args))
   (loop for line of-type (or string null)
                  = (read-score-line stream)
-        until (end-of-score-p line)
+        until (end-of-score-p stream line)
         unless (score-skip-line-p line stream)
         if (read-time-score-statement-p line)
           append (expand-read-time-score-statement stream line)
         else collect (score-line->sexp line at-fname args)))
 
-(defun end-of-score-p (line)
-  (or (null line)
-      (and (string/= line "")
-           (char= (char line 0) #\Page))))
+(defun end-of-page-p (line)
+  (and (string/= line "")
+       (char= (char line 0) #\Page)))
+
+(defun skip-score-pages (stream)
+  (labels ((skip-page ()
+             (loop for line of-type (or string null)
+                            = (read-score-line stream)
+                   with macro-blocks = 0
+                   do (cond ((score-macro-block-p line)
+                             (incf macro-blocks))
+                            ((and (> macro-blocks 0)
+                                  (score-end-macro-block-p line))
+                             (decf macro-blocks)))
+                   until (or (not line)
+                             (and (= macro-blocks 0)
+                                  (end-of-page-p line)))
+                   finally (when line
+                             (msg debug "skipping score page ~D"
+                                  *score-current-page*)
+                             (incf *score-current-page*)
+                             (return t))))
+           (end-of-score ()
+             (msg debug "end of score at page ~D"
+                  (1- *score-current-page*))))
+    (cond ((eq *score-pages* t) *score-current-page*)
+          ((null *score-pages*) (end-of-score))
+          (t
+           (let ((next-page (pop (the list *score-pages*))))
+             (loop if (= *score-current-page* next-page)
+                     return next-page
+                   while (and (< *score-current-page* next-page)
+                              (skip-page))
+                   finally (end-of-score)))))))
+
+(defun end-of-score-p (stream line)
+  (cond ((not line)
+         (msg debug "end of score at page ~D" *score-current-page*)
+         t)
+        ((end-of-page-p line)
+         (incf *score-current-page*)
+         (not (skip-score-pages stream)))))
 
 (defun find-score-local-bindings (stream at args)
   (declare (type stream stream) (type symbol at))
@@ -872,8 +944,10 @@ or IGNORE-SCORE-STATEMENTS."
                (cond ((or (and (= nl 1) (shebang-line-p line))
                           (score-skip-line-p line stream nil)
                           (score-package-statement-p line))
-                      (when (score-package-statement-p line)
-                        (set-score-package line))
+                      (cond ((score-package-statement-p line)
+                             (set-score-package line))
+                            ((score-pages-statement-p line)
+                             (set-score-pages stream line)))
                       (first-score-stmt
                         (read-score-line stream) bindings declarations (1+ nl)))
                      ((score-bindings-p line)
@@ -1233,6 +1307,8 @@ or IGNORE-SCORE-STATEMENTS."
              (*score-realtime* '#:maybe)
              (*score-start-time* 0.0)
              (*score-radix* 10)
+             (*score-current-page* 1)
+             (*score-pages* (list 1))
              (*score-float-format* '#.incudine.config:*sample-type*)
              (score-body (%write-regofile
                            stream sched last-time last-dur max-time tempo-env)))
@@ -1354,6 +1430,8 @@ event list at runtime when the function is called."
         (*score-realtime* nil)
         (*score-start-time* 0.0)
         (*score-radix* 10)
+        (*score-current-page* 1)
+        (*score-pages* (list 1))
         (*score-float-format* '#.incudine.config:*sample-type*))
     (with-ensure-symbols (time dur score-args score-realtime-p tempo tempo-env)
       (with-gensyms (wrapper time-beats beats last-time last-dur max-time

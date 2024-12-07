@@ -1,4 +1,15 @@
 * Arbitrary score statements into an Org table
+:PROPERTIES:
+:score-pages: 2
+:END:
+
+** intro
+
+===================================
+This page is not part of the score.
+===================================
+
+
 ** example part 1
 
 |------+------+------+-----+----|
@@ -17,3 +28,9 @@
 | * | i1  |  2.8 | 1.95 | 881 | .1 |
 |   | i1  |  3.2 |  .88 | 220 | .1 |
 |---+-----+------+------+-----+----|
+
+** end
+
+===================================
+ This page is not part of the score.
+===================================
