@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2024 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -82,7 +82,8 @@ called at the end of the ramp. The function argument is the DSP node."
 (define-vug expon (start end duration (done-action function))
   "Exponential curve from START to END in DURATION seconds.
 
-If START or END is 0, it is reset to 0.00001.
+If START or END is 0, it is reset to 0.00001. The sign of END has to be
+the sign of START.
 
 If the control parameter DURATION is changed, start a new curve from the
 new START, or current level, to the new END.

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2018 Tito Latini
+;;; Copyright (c) 2013-2024 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -138,10 +138,14 @@ rescaled to be between MIN and MAX."
 
 (define-vug exp-mouse-x (min max)
   "Return the coordinate x of the mouse pointer position,
-exponentially rescaled to be between MIN and MAX."
+exponentially rescaled to be between MIN and MAX.
+
+MIN and MAX are non-zero values. The sign of MAX has to be the sign of MIN."
   (lin->exp (mouse-x) 0 1 min max))
 
 (define-vug exp-mouse-y (min max)
   "Return the coordinate y of the mouse pointer position,
-exponentially rescaled to be between MIN and MAX."
+exponentially rescaled to be between MIN and MAX.
+
+MIN and MAX are non-zero values. The sign of MAX has to be the sign of MIN."
   (lin->exp (mouse-y) 0 1 min max))

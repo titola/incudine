@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2024 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -389,7 +389,12 @@ mapping of the INPUT sample in the range of OLD-MIN to OLD-MAX."
 
 (define-vug lin->exp (in old-min old-max new-min new-max)
   "Return a value between NEW-MIN and NEW-MAX that is the exponential
-mapping of the INPUT sample in the range of OLD-MIN to OLD-MAX."
+mapping of the INPUT sample in the range of OLD-MIN to OLD-MAX.
+
+OLD-MIN is not equal to OLD-MAX.
+
+NEW-MIN and NEW-MAX are non-zero values. The sign of NEW-MAX has to be
+the sign of NEW-MIN."
   (with-samples ((old-rdelta (/ (sample 1) (- old-max old-min)))
                  (new-ratio (/ new-max new-min)))
     (* (expt (the non-negative-sample new-ratio)

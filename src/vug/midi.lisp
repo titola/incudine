@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2019 Tito Latini
+;;; Copyright (c) 2013-2024 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -244,7 +244,9 @@ the last received MIDI poly-aftertouch for CHANNEL and key number KEYNUM."
 
 (define-vug exp-midi-poly-aftertouch ((channel fixnum) (keynum fixnum) min max)
   "Return a value between MIN and MAX that is the exponential mapping of
-the last received MIDI poly-aftertouch for CHANNEL and key number KEYNUM."
+the last received MIDI poly-aftertouch for CHANNEL and key number KEYNUM.
+
+MIN and MAX are non-zero values. The sign of MAX has to be the sign of MIN."
   (midi-exponential-map (midi-poly-aftertouch channel keynum) min max))
 
 (define-vug lin-midi-cc ((channel fixnum) (number fixnum) min max)
@@ -254,7 +256,9 @@ the last received MIDI cc NUMBER for CHANNEL."
 
 (define-vug exp-midi-cc ((channel fixnum) (number fixnum) min max)
   "Return a value between MIN and MAX that is the exponential mapping
-of the last received MIDI cc NUMBER for CHANNEL."
+of the last received MIDI cc NUMBER for CHANNEL.
+
+MIN and MAX are non-zero values. The sign of MAX has to be the sign of MIN."
   (midi-exponential-map (midi-cc channel number) min max))
 
 (define-vug lin-midi-global-aftertouch ((channel fixnum) min max)
@@ -266,7 +270,9 @@ KEYNUM."
 (define-vug exp-midi-global-aftertouch ((channel fixnum) min max)
   "Return a value between MIN and MAX that is the exponential mapping
 of the last received MIDI global-aftertouch for CHANNEL and key number
-KEYNUM."
+KEYNUM.
+
+MIN and MAX are non-zero values. The sign of MAX has to be the sign of MIN."
   (midi-exponential-map (midi-global-aftertouch channel) min max))
 
 (define-vug lin-midi-pitch-bend ((channel fixnum) min max)
@@ -277,7 +283,9 @@ the last received MIDI pitch bend for CHANNEL."
 
 (define-vug exp-midi-pitch-bend ((channel fixnum) min max)
   "Return a value between MIN and MAX that is the exponential mapping
-of the last received MIDI pitch bend for CHANNEL."
+of the last received MIDI pitch bend for CHANNEL.
+
+MIN and MAX are non-zero values. The sign of MAX has to be the sign of MIN."
   (midi-exponential-map (+ (midi-pitch-bend channel) 8192) min max
                         *midi-normalize-pb-table*))
 
