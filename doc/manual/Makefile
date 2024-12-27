@@ -22,7 +22,7 @@ pdf: incudine.pdf
 undocumented: undocumented.pdf
 
 define emacs_eval =
-  emacs --batch --eval '(progn (find-file "$<") ($(1)))'
+  emacs --batch --eval '(progn (require (quote ox-texinfo)) (find-file "$<") ($(1)))'
 endef
 
 define write_dict =
