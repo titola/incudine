@@ -314,14 +314,15 @@ Example: 8 processors
       (let ((arglist (find-symbol "ARGLIST" "SWANK/BACKEND")))
         (cond (arglist
                (require 'sb-introspect)
-               (eval
-                 `(,defimpl ,arglist (fname)
-                    (let ((arglist (uiop:symbol-call
-                                     :sb-introspect
-                                     '#:function-lambda-list fname)))
-                      (or (lambda-list-to-star-list arglist) arglist)))))
-              (t
-               (warn "Undefined SWANK ARGLIST interface.")))))))
+               (sb-ext:with-unlocked-packages ("SWANK/BACKEND")
+                 (eval
+                   `(,defimpl ,arglist (fname)
+                      (let ((arglist (uiop:symbol-call
+                                       :sb-introspect
+                                       '#:function-lambda-list fname)))
+                        (or (lambda-list-to-star-list arglist) arglist))))))
+               (t
+                (warn "Undefined SWANK ARGLIST interface.")))))))
 
 ;; &AUX bindings used to get the optional-key arguments by using
 ;; LAMBDA-LIST-TO-STAR-LIST.
