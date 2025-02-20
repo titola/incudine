@@ -74,8 +74,9 @@ vice versa.")
     (switch-to-buffer buffer)))
 
 (defun incudine-eval (string &rest args)
-  (slime-interactive-eval
-    (if args (apply #'format string args) string)))
+  (let ((current-prefix-arg nil))
+    (slime-interactive-eval
+      (if args (apply #'format string args) string))))
 
 (defun incudine-eval-defun ()
   "Evaluate the current toplevel form."
