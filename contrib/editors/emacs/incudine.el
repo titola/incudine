@@ -1,6 +1,6 @@
 ;;; incudine.el --- major mode for editing Incudine sources
 
-;; Copyright (c) 2013-2023 Tito Latini
+;; Copyright (c) 2013-2025 Tito Latini
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -74,10 +74,8 @@ vice versa.")
     (switch-to-buffer buffer)))
 
 (defun incudine-eval (string &rest args)
-  (slime-eval-with-transcript
-   `(swank:interactive-eval ,(if args
-                                 (apply #'format string args)
-                                 string))))
+  (slime-interactive-eval
+    (if args (apply #'format string args) string)))
 
 (defun incudine-eval-defun ()
   "Evaluate the current toplevel form."
@@ -335,7 +333,7 @@ If RESET-P is non-NIL, set the number of xruns to zero."
         (?S ":SAMP")))))
 
 (defun incudine-slime-macroexpand (form)
-  (slime-eval-async `(swank:interactive-eval ,form)
+  (slime-eval-async `(cl:second (swank:eval-and-grab-output ,form))
     #'slime-initialize-macroexpansion-buffer))
 
 (defun incudine-dsp/ugen-expand ()
