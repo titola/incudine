@@ -356,7 +356,7 @@ arguments and display the generated code."
 
 (defun incudine-play-buffer ()
   (let ((slime-log-events nil))
-    (slime-interactive-eval
+    (incudine-eval
       (format "(progn (incudine:rt-start) (funcall (incudine:regostring->function %S)))"
               (incudine-buffer-string)))))
 
@@ -374,7 +374,7 @@ arguments and display the generated code."
 
 (defun incudine-regobuffer-to-function ()
   (let ((slime-log-events nil))
-    (slime-interactive-eval
+    (incudine-eval
       (format "(incudine:regostring->function %S)" (incudine-buffer-string)))))
 
 (defun incudine-regofile-to-function (&optional name)
