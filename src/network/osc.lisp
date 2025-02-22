@@ -1,4 +1,4 @@
-;;; Copyright (c) 2015-2024 Tito Latini
+;;; Copyright (c) 2015-2025 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -177,14 +177,8 @@ multiple of four (bytes)."
 ;;; send() and recv() return the number of the bytes received, or -1
 ;;; if an error occurred. We force a fixnum on 32-bit platforms.
 (defmacro force-fixnum (form)
-  (if (> (* 8 (cffi:foreign-type-size :int))
-         incudine.util::n-fixnum-bits)
-      (with-gensyms (x)
-        `(let ((,x ,form))
-           (if (plusp ,x)
-               (logand ,x #xffffff)
-               -1)))
-      form))
+  #+64-bit form
+  #-64-bit `(let ((x ,form)) (if (< x 0) -1 (logand x #xffffff))))
 
 (declaim (inline encode-timestamp))
 (defun encode-timestamp (seconds)

@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2022 Tito Latini
+;;; Copyright (c) 2013-2025 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -1724,8 +1724,6 @@ Example:
                         ((and (reducible-vug-variable-p x)
                               (constant-vug-value-p value))
                          (unless cached-p
-                           (when (vug-variable-p value)
-                             (incf (vug-variable-ref-count value)))
                            (replace-vug-variable x value)
                            (msg-debug-delete-variable x "init-time")))
                         ((vug-variable-performance-time-p x)
