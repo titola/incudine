@@ -108,8 +108,8 @@ void sndfile_to_buffer(SAMPLE *buf, SNDFILE *sndfile, unsigned long frames,
 
 	for (p = buf + buf_offset * channels; remain > 0; p += incr) {
 		if ((n = sf_readf_SAMPLE(sndfile, p, chunk_frames)) == 0) {
-			fprintf(stderr, "sndfile_to_buffer fails (%s)\n",
-			        sf_strerror(sndfile));
+			fprintf(stderr, "WARNING: end of file in sndfile_to_buffer() after %ld frames\n"
+			                "         instead of the declared %ld frames.\n", frames - remain, frames);
 			break;
 		}
 		remain -= n;
