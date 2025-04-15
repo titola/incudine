@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2023 Tito Latini
+;;; Copyright (c) 2013-2025 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -180,7 +180,7 @@ from MIDI velocity to amplitude value.
 
 If NOTE-OFF-P is T (default), a note-on message (status byte 9) with
 velocity 0 is interpreted as a note-off message."
-  (with-gensyms (event status data1 data2 typ)
+  (with-gensyms (event status data1 data2 input-stream typ)
     `(let ((,event (make-midi-event :voicer ,voicer :channel ,channel
                      :lokey ,lokey :hikey ,hikey :freq-keyword ,freq-keyword
                      :freq-function ,(or freq-function `(function keynum->cps))
@@ -192,7 +192,7 @@ velocity 0 is interpreted as a note-off message."
        (setf (event-responder ,event)
              (incudine:make-responder ,stream
               (compile nil
-                (lambda (,status ,data1 ,data2)
+                (lambda (,status ,data1 ,data2 ,input-stream)
                   (declare (type (integer 0 255) ,status)
                            (type (integer 0 127) ,data1 ,data2))
                   (incudine-optimize
@@ -202,7 +202,7 @@ velocity 0 is interpreted as a note-off message."
                       (let ((,typ (ldb (byte 4 4) ,status)))
                         (cond
                           ((pm:sysex-message-p ,status)
-                           (set-freq-table-from-midi ,event ,stream))
+                           (set-freq-table-from-midi ,event ,input-stream))
                           ((= ,typ 9)
                            (with-lock (,voicer)
                              (responder-noteon-form (,voicer ,note-off-p ,data1
