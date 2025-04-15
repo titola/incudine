@@ -474,10 +474,7 @@ Should be one of :FIRST, :LAST or NIL. Setfable."
 
 (defun select-object-free-function (dsp-arguments)
   (if (member "GATE" dsp-arguments :key #'symbol-name :test #'string-equal)
-      (lambda (id)
-        (when id
-          (incudine.util:rt-eval ()
-            (incudine:set-control id :gate 0))))
+      (lambda (id) (if id (incudine:set-control id :gate 0)))
       (lambda (id) (when id (incudine:free id)))))
 
 (defmacro %create-voicer (old-voicer form &optional polyphony steal-function)
