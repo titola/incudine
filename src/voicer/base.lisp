@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2021 Tito Latini
+;;; Copyright (c) 2013-2025 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -142,11 +142,14 @@
 (defmacro with-lock ((voicer) &body body)
   `(with-spinlock-held ((voicer-spinlock ,voicer)) ,@body))
 
-(defmacro without-rt-lock ((voicer) &body body)
+(defmacro without-rt-lock ((voicer &optional thread-type) &body body)
   (with-gensyms (func)
     `(let ((,func (lambda () (with-lock (,voicer) ,@body))))
        (if (incudine.util:rt-thread-p)
-           (incudine:nrt-funcall ,func)
+           (,(if (eq thread-type :fast-nrt)
+                 'incudine:fast-nrt-funcall
+                 'incudine:nrt-funcall)
+            ,func)
            (funcall ,func)))))
 
 (declaim (inline polyphony))
@@ -402,7 +405,7 @@ Should be one of :FIRST, :LAST or NIL. Setfable."
 (defun trigger (voicer tag)
   "Allocate a voice of the given VOICER with identifier TAG."
   (declare (type voicer voicer))
-  (without-rt-lock (voicer) (unsafe-trigger voicer tag)))
+  (without-rt-lock (voicer :fast-nrt) (unsafe-trigger voicer tag)))
 
 (declaim (inline unsafe-release))
 (defun unsafe-release (voicer tag &optional (object-free-p t))
@@ -411,7 +414,7 @@ Should be one of :FIRST, :LAST or NIL. Setfable."
 
 (defun %release (voicer tag &optional (object-free-p t) free-function)
   (declare (type voicer voicer) (type boolean object-free-p))
-  (without-rt-lock (voicer)
+  (without-rt-lock (voicer :fast-nrt)
     (unsafe-release voicer tag object-free-p)
     (when free-function (funcall free-function))))
 
@@ -552,7 +555,8 @@ the given VOICER. Setfable."
 
 (defun set-control (voicer control-name value)
   (declare (type voicer voicer) (type symbol control-name))
-  (without-rt-lock (voicer) (unsafe-set-control voicer control-name value)))
+  (without-rt-lock (voicer :fast-nrt)
+    (unsafe-set-control voicer control-name value)))
 
 (defsetf control-value set-control)
 
@@ -583,7 +587,7 @@ the given VOICER."
 
 ARGUMENTS is an even number of arguments that are alternating control
 parameter names and values."
-  (without-rt-lock (voicer) (%unsafe-set-controls voicer arguments)))
+  (without-rt-lock (voicer :fast-nrt) (%unsafe-set-controls voicer arguments)))
 
 (defmacro with-controls (controls voicer &body body)
   `(symbol-macrolet
