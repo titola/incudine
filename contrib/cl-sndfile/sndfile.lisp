@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2024 Tito Latini
+;;; Copyright (c) 2013-2025 Tito Latini
 ;;;
 ;;; This library is free software; you can redistribute it and/or
 ;;; modify it under the terms of the GNU Lesser General Public
@@ -530,7 +530,7 @@
         if (< i count)
         collect (cffi:with-foreign-slots
                     ((mode start end count)
-                     (cffi:mem-aref loops-ptr '(:struct instr-loop) i)
+                     (cffi:mem-aptr loops-ptr '(:struct instr-loop) i)
                      (:struct instr-loop))
                   (make-instance 'instr-loop :mode mode :start start :end end
                                  :count count))
