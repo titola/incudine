@@ -670,11 +670,12 @@ The function NOW is setfable to change the time, for example:
 
 (declaim (inline portmidi-time))
 (defun portmidi-time ()
-  (the non-negative-fixnum
+  (the (integer 0 #.(min most-positive-fixnum #x7fffffff))
     ;; 6 days: (log (* 6 24 3600 1000) 2) => 28.94949
     ;; If you want more days on a 32 bit arch, restart the timer of portmidi.
-    (floor (the (sample #.+sample-zero+ #.(sample most-positive-fixnum))
-             (smp-ref *portmidi-time* 0)))))
+    (values
+      (truncate (the (sample #.+sample-zero+ #.(sample (min most-positive-fixnum #x7fffffff)))
+                     (smp-ref *portmidi-time* 0))))))
 
 (defmacro dsp-seq (&rest function-call-forms)
   "Define a sequence of DSP's by using the STOP-HOOK of the functions
