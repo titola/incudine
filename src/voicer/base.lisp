@@ -16,35 +16,35 @@
 
 (in-package :incudine.voicer)
 
-(defstruct (node (:copier nil))
-  value
-  tag
-  (to-release nil :type boolean)
-  (next nil :type (or node null))
-  (prev nil :type (or node null)))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defstruct (node (:copier nil))
+    value
+    tag
+    (to-release nil :type boolean)
+    (next nil :type (or node null))
+    (prev nil :type (or node null)))
+
+  (define-constant +node-pool-size+ incudine.util:*max-number-of-nodes*)
+  (define-constant +node-pool-grow+ (floor (* +node-pool-size+ 0.1)))
+
+  (define-constant +voicer-pool-size+ 1000)
+  (define-constant +voicer-pool-grow+ (floor (* +voicer-pool-size+ 0.1)))
+
+  (incudine::defglobal *voicer-pool-lock*
+    (bordeaux-threads:make-lock "VOICER-POOL"))
+  (declaim (type bordeaux-threads:lock *voicer-pool-lock*))
+
+  (defun expand-voicer-pool (pool &optional (delta 1))
+    (expand-cons-pool pool delta nil))
+
+  (defun expand-node-pool (pool &optional (delta 1))
+    (expand-cons-pool pool delta (make-node))))
 
 (defmethod print-object ((obj node) stream)
   (print-unreadable-object (obj stream)
     (format stream "VOICER-NODE ~A" (node-tag obj))))
 
-(define-constant +node-pool-size+ incudine.util:*max-number-of-nodes*)
-
-(define-constant +node-pool-grow+ (floor (* +node-pool-size+ 0.1)))
-
-(define-constant +voicer-pool-size+ 1000)
-
-(define-constant +voicer-pool-grow+ (floor (* +voicer-pool-size+ 0.1)))
-
-(incudine.util::defglobal *voicer-pool-spinlock* (make-spinlock "VOICER-POOL"))
-(declaim (type spinlock *voicer-pool-spinlock*))
-
-(defun expand-voicer-pool (pool &optional (delta 1))
-  (expand-cons-pool pool delta nil))
-
-(defun expand-node-pool (pool &optional (delta 1))
-  (expand-cons-pool pool delta (make-node)))
-
-(defvar *node-pool*
+(incudine.util::defglobal *node-pool*
   (make-cons-pool
     :data (loop repeat +node-pool-size+ collect (make-node))
     :size +node-pool-size+
@@ -52,7 +52,7 @@
     :grow +node-pool-grow+))
 (declaim (type cons-pool *node-pool*))
 
-(defvar *cons-pool*
+(incudine.util::defglobal *cons-pool*
   (make-cons-pool
     :data (make-list +voicer-pool-size+)
     :size +voicer-pool-size+
@@ -60,8 +60,7 @@
     :grow +voicer-pool-grow+))
 (declaim (type cons-pool *cons-pool*))
 
-(defstruct (voicer (:constructor %make-voicer)
-                   (:copier nil))
+(defstruct (voicer (:constructor %make-voicer) (:copier nil))
   "Voicer type."
   (node-pool nil :type cons-pool)
   (generic-pool nil :type cons-pool)
@@ -70,7 +69,7 @@
   (polyphony 1 :type non-negative-fixnum)
   (available-nodes 0 :type non-negative-fixnum)
   (count 0 :type non-negative-fixnum)
-  (spinlock (make-spinlock "Voicer") :type spinlock)
+  (lock (bordeaux-threads:make-lock "Voicer") :type bordeaux-threads:lock)
   (trigger-function #'identity :type function)
   (release-function #'release-function-default :type function)
   (object-free-function #'incudine:free :type function)
@@ -79,7 +78,7 @@
   (argument-maps (make-hash-table) :type hash-table))
 
 (defun make-voicer (polyphony &optional steal-function)
-  (with-spinlock-held (*voicer-pool-spinlock*)
+  (bordeaux-threads:with-lock-held (*voicer-pool-lock*)
     (let* (;; Pessimistic approssimation:
            ;;   1 object + 2 cons cells for every tag
            (gpool-size (* polyphony 3))
@@ -97,17 +96,19 @@
                                   :grow 12)
                   :objects (cons-pool-pop-cons *cons-pool*)
                   :available-nodes polyphony)))
-      (when steal-function
-        (setf (voicer-steal-function obj) steal-function))
+      (if steal-function (setf (voicer-steal-function obj) steal-function))
       obj)))
 
-(declaim (inline empty-p))
+(defmethod print-object ((obj voicer) stream)
+  (print-unreadable-object (obj stream)
+    (format stream "VOICER :POLYPHONY ~D :COUNT ~D"
+            (polyphony obj) (voicer-count obj))))
+
 (defun empty-p (voicer)
   "Return T if all the voices of the given VOICER are available."
   (declare (type voicer voicer))
   (zerop (voicer-count voicer)))
 
-(declaim (inline full-p))
 (defun full-p (voicer)
   "Return T if all the voices of the given VOICER are allocated."
   (declare (type voicer voicer))
@@ -139,52 +140,11 @@
                                       pending-tlist)
                                   pool))))))
 
-(defmacro with-lock ((voicer) &body body)
-  `(with-spinlock-held ((voicer-spinlock ,voicer)) ,@body))
-
-(defmacro without-rt-lock ((voicer &optional thread-type) &body body)
-  (with-gensyms (func)
-    `(let ((,func (lambda () (with-lock (,voicer) ,@body))))
-       (if (incudine.util:rt-thread-p)
-           (,(if (eq thread-type :fast-nrt)
-                 'incudine:fast-nrt-funcall
-                 'incudine:nrt-funcall)
-            ,func)
-           (funcall ,func)))))
-
-(declaim (inline polyphony))
-(defun polyphony (voicer)
-  "Return the maximum number of voices allocable by the given VOICER.
-Setfable."
-  (declare (type voicer voicer))
-  (voicer-polyphony voicer))
-
-(defun set-polyphony (voicer value)
-  (declare (type voicer voicer) (type non-negative-fixnum value))
-  (without-rt-lock (voicer)
-    (when (> value (voicer-available-nodes voicer))
-      (let ((delta (- value (voicer-available-nodes voicer)))
-            (node-pool (voicer-node-pool voicer))
-            (generic-pool (voicer-generic-pool voicer)))
-        (funcall (incudine.util::cons-pool-expand-function node-pool)
-                 node-pool delta)
-        (funcall (incudine.util::cons-pool-expand-function generic-pool)
-                 generic-pool (* delta 3))
-        (setf (voicer-available-nodes voicer) value)))
-    (setf (voicer-polyphony voicer) value)))
-
-(defsetf polyphony set-polyphony)
-
-(defmethod print-object ((obj voicer) stream)
-  (print-unreadable-object (obj stream)
-    (format stream "VOICER :POLYPHONY ~D :COUNT ~D"
-            (polyphony obj) (voicer-count obj))))
-
 (defmethod incudine:free ((obj voicer))
   (let ((npool-size (cons-pool-size (voicer-node-pool obj)))
         (gpool-size (cons-pool-size (voicer-generic-pool obj)))
         (objects (voicer-objects obj)))
-    (with-spinlock-held (*voicer-pool-spinlock*)
+    (bordeaux-threads:with-lock-held (*voicer-pool-lock*)
       ;; Retrieve the cons cells of the local pools.
       (when (plusp npool-size)
         (cons-pool-push-list
@@ -215,6 +175,27 @@ Setfable."
             (voicer-available-nodes obj) 0)
       (values))))
 
+(defun polyphony (voicer)
+  "Return the maximum number of voices allocable by the given VOICER.
+Setfable."
+  (declare (type voicer voicer))
+  (voicer-polyphony voicer))
+
+(defun (setf polyphony) (value voicer)
+  (declare (type voicer voicer) (type non-negative-fixnum value))
+  (bordeaux-threads:with-lock-held ((voicer-lock voicer))
+    (when (> value (voicer-available-nodes voicer))
+      (let ((delta (- value (voicer-available-nodes voicer)))
+            (node-pool (voicer-node-pool voicer))
+            (generic-pool (voicer-generic-pool voicer)))
+        (funcall (incudine.util::cons-pool-expand-function node-pool)
+                 node-pool delta)
+        (funcall (incudine.util::cons-pool-expand-function generic-pool)
+                 generic-pool (* delta 3))
+        (setf (voicer-available-nodes voicer) value)))
+    (incudine.util:barrier (:memory)
+      (setf (voicer-polyphony voicer) value))))
+
 (declaim (inline first-node))
 (defun first-node (voicer)
   (declare (type voicer voicer))
@@ -222,31 +203,26 @@ Setfable."
 
 (declaim (inline set-first-node))
 (defun set-first-node (voicer node)
-  (declare (type voicer voicer))
   (setf (car (voicer-objects voicer)) node))
 
 (defsetf first-node set-first-node)
 
 (declaim (inline last-node))
 (defun last-node (voicer)
-  (declare (type voicer voicer))
   (cdr (voicer-objects voicer)))
 
 (declaim (inline set-last-node))
 (defun set-last-node (voicer node)
-  (declare (type voicer voicer))
   (setf (cdr (voicer-objects voicer)) node))
 
 (defsetf last-node set-last-node)
 
 (declaim (inline counter-inc))
 (defun counter-inc (voicer)
-  (declare (type voicer voicer))
   (incf (voicer-count voicer)))
 
 (declaim (inline counter-dec))
 (defun counter-dec (voicer)
-  (declare (type voicer voicer))
   (if (plusp #1=(voicer-count voicer))
       (decf (the positive-fixnum #1#))
       0))
@@ -300,7 +276,7 @@ Should be one of :FIRST, :LAST or NIL. Setfable."
 
 (defun set-steal-voice-mode (voicer mode)
   (declare (type voicer voicer) (type (member :first :last nil) mode))
-  (without-rt-lock (voicer)
+  (incudine.util:rt-eval (:return-value-p t)
     (setf (voicer-steal-function voicer) (select-steal-function mode))
     mode))
 
@@ -310,7 +286,7 @@ Should be one of :FIRST, :LAST or NIL. Setfable."
   (let* ((grow (if (plusp delta)
                    delta
                    (incudine.util::cons-pool-grow pool)))
-         (lst (with-spinlock-held (*voicer-pool-spinlock*)
+         (lst (bordeaux-threads:with-lock-held (*voicer-pool-lock*)
                 (cons-pool-pop-list *node-pool* grow))))
     (cons-pool-push-list pool lst)
     pool))
@@ -319,15 +295,15 @@ Should be one of :FIRST, :LAST or NIL. Setfable."
   (let* ((grow (if (plusp delta)
                    delta
                    (incudine.util::cons-pool-grow pool)))
-         (lst (with-spinlock-held (*voicer-pool-spinlock*)
+         (lst (bordeaux-threads:with-lock-held (*voicer-pool-lock*)
                 (cons-pool-pop-list *cons-pool* grow))))
     (cons-pool-push-list pool lst)
     pool))
 
 (defun node-pool-pop (voicer)
-  #+(or cmu sbcl) (declare (values node))
   (let* ((entry (cons-pool-pop-cons (voicer-node-pool voicer)))
          (value (car entry)))
+    (declare (type node value))
     (cons-pool-push-cons (voicer-generic-pool voicer) entry)
     value))
 
@@ -385,44 +361,6 @@ Should be one of :FIRST, :LAST or NIL. Setfable."
         (node-prev node) prev
         (node-next node) next))
 
-(defun unsafe-trigger (voicer tag)
-  (declare (type voicer voicer))
-  (incudine-optimize
-    (when (full-p voicer)
-      (if (voicer-steal-function voicer)
-          (funcall (the function (voicer-steal-function voicer)) voicer)
-          (return-from unsafe-trigger nil)))
-    (loop for fn being the hash-values in (voicer-argument-maps voicer)
-          do (funcall (the function (car fn))))
-    (let ((new-node (node-pool-pop voicer)))
-      (set-node new-node nil tag
-                (unless (eq new-node (last-node voicer))
-                  (last-node voicer))
-                nil)
-      (funcall (voicer-trigger-function voicer) voicer tag new-node)
-      (add-node voicer tag new-node))))
-
-(defun trigger (voicer tag)
-  "Allocate a voice of the given VOICER with identifier TAG."
-  (declare (type voicer voicer))
-  (without-rt-lock (voicer :fast-nrt) (unsafe-trigger voicer tag)))
-
-(declaim (inline unsafe-release))
-(defun unsafe-release (voicer tag &optional (object-free-p t))
-  (incudine-optimize
-    (funcall (voicer-release-function voicer) voicer tag object-free-p)))
-
-(defun %release (voicer tag &optional (object-free-p t) free-function)
-  (declare (type voicer voicer) (type boolean object-free-p))
-  (without-rt-lock (voicer :fast-nrt)
-    (unsafe-release voicer tag object-free-p)
-    (when free-function (funcall free-function))))
-
-(declaim (inline release))
-(defun release (voicer tag)
-  "Release a voice of the given VOICER with identifier TAG."
-  (%release voicer tag))
-
 (defmacro init-voicer-arguments (arguments hash)
   (with-gensyms (value)
     `(progn
@@ -444,38 +382,16 @@ Should be one of :FIRST, :LAST or NIL. Setfable."
            mapping-hash))
 
 (defmacro %set-default-trigger-function (voicer func-name args)
-  (with-gensyms (free-hook tag node v vnode pool)
-    `(let ((,pool (voicer-generic-pool ,voicer)))
-       (setf (voicer-trigger-function ,voicer)
-             (lambda (,v ,tag ,vnode)
-               (let ((,free-hook (cons-pool-pop-cons ,pool)))
-                 (setf (car ,free-hook)
-                       (lambda (,node)
-                         (declare (ignore ,node))
-                         (%release ,v ,tag nil
-                                   (lambda ()
-                                     (cons-pool-push-cons ,pool ,free-hook)))))
-                 (,func-name ,@args
-                    :free-hook ,free-hook
-                    :action (lambda (,node)
-                              (incudine:fast-nrt-funcall
-                                (lambda ()
-                                  (with-lock (,v)
-                                    (cond ((node-to-release ,vnode)
-                                           ;; Very short event.
-                                           (incudine:fast-rt-funcall
-                                             (lambda ()
-                                               (funcall
-                                                (voicer-object-free-function ,v)
-                                                (incudine::node-id ,node)))))
-                                          (t (setf (node-value ,vnode)
-                                                   (incudine::node-id
-                                                     ,node)))))))))))))))
+  (with-gensyms (tag node v)
+    `(setf (voicer-trigger-function ,voicer)
+           (lambda (,v ,tag)
+             (,func-name ,@args
+                :action (lambda (,node) (after-trigger ,v ,tag ,node)))))))
 
 (defun select-object-free-function (dsp-arguments)
   (if (member "GATE" dsp-arguments :key #'symbol-name :test #'string-equal)
       (lambda (id) (if id (incudine:set-control id :gate 0)))
-      (lambda (id) (when id (incudine:free id)))))
+      (lambda (id) (if id (incudine:free id)))))
 
 (defmacro %create-voicer (old-voicer form &optional polyphony steal-function)
   (with-gensyms (voicer)
@@ -491,10 +407,10 @@ Should be one of :FIRST, :LAST or NIL. Setfable."
                      (select-object-free-function ',dsp-args))
                (init-voicer-arguments ,dsp-args (voicer-arguments ,voicer))
                (%set-default-trigger-function ,voicer ,func-name ,dsp-args)
-               ,@(when old-voicer
-                   `((unless (null ',dsp-args)
-                       (remove-unused-maps
-                         (voicer-argument-maps ,voicer) ',dsp-args))))
+               ,@(if old-voicer
+                     `((unless (null ',dsp-args)
+                         (remove-unused-maps
+                           (voicer-argument-maps ,voicer) ',dsp-args))))
                ,voicer))
           (incudine:incudine-error "Unknown DSP")))))
 
@@ -530,17 +446,17 @@ Example:
 (defun unsafe-control-value (voicer control-name)
   (declare (type voicer voicer) (type symbol control-name))
   (let ((entry (gethash (symbol-name control-name) (voicer-arguments voicer))))
-    (declare #.*standard-optimize-settings*)
-    (if entry
-        (values (funcall (the function (cdr entry))) t)
-        (values nil nil))))
+    (incudine-optimize
+      (if entry
+          (values (funcall (the function (cdr entry))) t)
+          (values nil nil)))))
 
 (declaim (inline unsafe-set-control))
 (defun unsafe-set-control (voicer control-name value)
   (declare (type voicer voicer) (type symbol control-name))
   (let ((entry (gethash (symbol-name control-name) (voicer-arguments voicer))))
-    (declare #.*standard-optimize-settings*)
-    (when entry (funcall (the function (car entry)) value))))
+    (incudine-optimize
+      (if entry (funcall (the function (car entry)) value)))))
 
 (defsetf unsafe-control-value unsafe-set-control)
 
@@ -548,11 +464,12 @@ Example:
   "Return the value of the control parameter CONTROL-NAME related to
 the given VOICER. Setfable."
   (declare (type voicer voicer) (type symbol control-name))
-  (without-rt-lock (voicer) (unsafe-control-value voicer control-name)))
+  (incudine.util:rt-eval (:return-value-p t)
+    (unsafe-control-value voicer control-name)))
 
 (defun set-control (voicer control-name value)
   (declare (type voicer voicer) (type symbol control-name))
-  (without-rt-lock (voicer :fast-nrt)
+  (incudine.util:rt-eval ()
     (unsafe-set-control voicer control-name value)))
 
 (defsetf control-value set-control)
@@ -575,16 +492,13 @@ the given VOICER."
       (setf pl (cdr pl))
       (unsafe-set-control voicer control-name (car pl)))))
 
-(declaim (inline unsafe-set-controls))
-(defun unsafe-set-controls (voicer &rest arguments)
-  (%unsafe-set-controls voicer arguments))
-
 (defun set-controls (voicer &rest arguments)
   "Set the control parameters of the given VOICER.
 
 ARGUMENTS is an even number of arguments that are alternating control
 parameter names and values."
-  (without-rt-lock (voicer :fast-nrt) (%unsafe-set-controls voicer arguments)))
+  (incudine.util:rt-eval ()
+    (%unsafe-set-controls voicer arguments)))
 
 (defmacro with-controls (controls voicer &body body)
   `(symbol-macrolet
@@ -599,12 +513,59 @@ parameter names and values."
                 controls)
      ,@body))
 
-(defmacro define-map (name voicer controls &body function-body)
-  "Define a mapping function named NAME to call immediately after
-VOICER:TRIGGER, before the new event.
+;;; Optional control settings and trigger during the same audio cycle.
+(defun trigger (voicer tag &rest control-settings &key &allow-other-keys)
+  "Allocate a voice of the given VOICER with identifier TAG.
 
-CONTROLS is the list of the control parameters used within
-FUNCTION-BODY.
+CONTROL-SETTINGS is an even number of arguments that are alternating
+control parameter names and values."
+  (declare (type voicer voicer))
+  (incudine.util:rt-eval ()
+    (when (full-p voicer)
+      (if (voicer-steal-function voicer)
+          (funcall (the function (voicer-steal-function voicer)) voicer)
+          (return-from trigger nil)))
+    (if control-settings (%unsafe-set-controls voicer control-settings))
+    (let ((maps (voicer-argument-maps voicer)))
+      (if (> (hash-table-count maps) 0)
+          (loop for fn being the hash-values in maps
+                do (funcall (the function (car fn))))))
+    (funcall (voicer-trigger-function voicer) voicer tag)))
+
+(defun after-trigger (voicer tag dsp-node)
+  (declare (type voicer voicer) (type (or null incudine:node) dsp-node))
+  (incudine-optimize
+    (unless (incudine:null-node-p dsp-node)
+      (let ((new-node (node-pool-pop voicer)))
+        (set-node new-node nil tag
+          (unless (eq new-node (last-node voicer)) (last-node voicer))
+          nil)
+        (let* ((pool (voicer-generic-pool voicer))
+               (free-hook (cons-pool-pop-cons pool)))
+          (setf (car free-hook)
+                (lambda (node)
+                  (declare (ignore node))
+                  (%release voicer tag nil
+                    (lambda () (cons-pool-push-cons pool free-hook)))))
+          (setf (incudine:free-hook dsp-node) free-hook)
+          (setf (node-value new-node) (incudine:node-id dsp-node))
+          (add-node voicer tag new-node))))))
+
+(defun %release (voicer tag &optional (object-free-p t) free-function)
+  (declare (type voicer voicer) (type boolean object-free-p))
+  (incudine-optimize
+    (funcall (voicer-release-function voicer) voicer tag object-free-p))
+  (if free-function (funcall free-function)))
+
+(defun release (voicer tag)
+  "Release a voice of the given VOICER with identifier TAG."
+  (incudine.util:rt-eval () (%release voicer tag)))
+
+(defmacro define-map (name voicer controls &body function-body)
+  "Define a mapping function named NAME to filter the control settings
+of a new voice.
+
+CONTROLS is the list of the control parameters used within FUNCTION-BODY.
 
 Example:
 
@@ -612,21 +573,21 @@ Example:
       (setf freq (+ 100 (random 2000))
             amp (random (if (> freq 800) .1 .3))))"
   (with-gensyms (v)
-    `(let ((,v ,voicer))
-       (without-rt-lock (,v)
+    `(incudine.util:rt-eval (:return-value-p t)
+       (let ((,v ,voicer))
          (with-controls ,controls ,v
            (setf (gethash ',name (voicer-argument-maps ,v))
-                 (cons (lambda () ,@function-body (values)) ',controls))))
-       ,v)))
+                 (cons (lambda () ,@function-body (values)) ',controls)))
+         ,v))))
 
 (defun remove-map (voicer name)
   "Remove the mapping function definition named NAME related to the VOICER."
-  (without-rt-lock (voicer)
+  (incudine.util:rt-eval ()
     (remhash name (voicer-argument-maps voicer))))
 
 (defun remove-all-maps (voicer)
   "Remove all the mapping function definitions related to the VOICER."
-  (without-rt-lock (voicer)
+  (incudine.util:rt-eval ()
     (clrhash (voicer-argument-maps voicer))))
 
 (defun unsafe-mapvoicer (function voicer)
@@ -635,14 +596,14 @@ Example:
              (when obj
                (funcall function obj)
                (rec (node-next obj)))))
-    (declare #.*standard-optimize-settings*)
-    (rec (first-node voicer))
-    voicer))
+    (incudine-optimize
+      (rec (first-node voicer))
+      voicer)))
 
 (defun panic (voicer)
   "Force the release of the voices allocated by the given VOICER."
-  (without-rt-lock (voicer)
+  (incudine.util:rt-eval ()
     (unsafe-mapvoicer
       (lambda (obj)
         (funcall (voicer-object-free-function voicer) (node-value obj)))
-      voicer)))
+     voicer)))

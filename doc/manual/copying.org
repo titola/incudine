@@ -7,7 +7,7 @@ This manual describes Incudine version {{{version}}}, a music/DSP
 programming environment for Common Lisp.
 
 #+begin_quote
-Copyright \copy 2018-2024 Tito Latini.
+Copyright \copy 2018-2025 Tito Latini.
 
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.3

@@ -109,15 +109,9 @@
 ;; group 0
 ;;     node 1
 ;;       SIMPLE 440.0d0 0.3d0 0.5d0 ...
-(setf (voicer:control-value voi 'freq) 220)
-;; 220
-(setf (voicer:control-value voi 'amp) .2)
-;; 0.2
-(voicer:trigger voi 123)
+(voicer:trigger voi 123 :freq 220 :amp .2)
 ;; #<VOICER-NODE 123>
-(voicer:set-controls voi :freq 880 :amp .1)
-;; 0.1
-(voicer:trigger voi 123)
+(voicer:trigger voi 123 :freq 880 :amp .1)
 ;; #<VOICER-NODE 123>
 voi
 ;; #<VOICER :POLYPHONY 20 :COUNT 3>
@@ -150,7 +144,7 @@ voi
 ;; practically the function call to perform an instance of a DSP.
 
 ;; VOICER:DEFINE-MAP is an utility to define a mapping function to
-;; call immediately after a VOICER:TRIGGER, before the new event.
+;; filter the control settings of a new voice.
 
 (voicer:define-map foo voi (freq amp pos)
   (setf freq (+ 100 (random 2000))
@@ -175,7 +169,7 @@ voi
 ;;     node 3
 ;;       SIMPLE 960.0d0 0.027095390483736992d0 0.8115837574005127d0 ...
 ;; NIL
-(set-controls 0 :gate 0)
+(set-control 0 :gate 0)
 ;; NIL
 voi
 ;; #<VOICER :POLYPHONY 20 :COUNT 0>
@@ -204,6 +198,7 @@ voi
 (remove-all-responders *midiin*)
 (pm:terminate)
 ;; :PM-NO-ERROR
+(free voi)
 
 ;; For offline rendering, there are BOUNCE-TO-DISK and
 ;; BOUNCE-TO-BUFFER

@@ -135,15 +135,9 @@ group 0
     node 1
       SIMPLE 440.0d0 0.3d0 0.5d0 ...
 NIL
-<span class="prompt">SCRATCH&gt;</span> (setf (voicer:control-value voi 'freq) 220)
-220
-<span class="prompt">SCRATCH&gt;</span> (setf (voicer:control-value voi 'amp) .2)
-0.2
-<span class="prompt">SCRATCH&gt;</span> (voicer:trigger voi 123)
+<span class="prompt">SCRATCH&gt;</span> (voicer:trigger voi 123 <span style="color: #b0c4de;">:freq</span> 220 <span style="color: #b0c4de;">:amp</span> .2)
 #&lt;VOICER-NODE 123&gt;
-<span class="prompt">SCRATCH&gt;</span> (voicer:set-controls voi <span style="color: #b0c4de;">:freq</span> 880 <span style="color: #b0c4de;">:amp</span> .1)
-0.1
-<span class="prompt">SCRATCH&gt;</span> (voicer:trigger voi 123)
+<span class="prompt">SCRATCH&gt;</span> (voicer:trigger voi 123 <span style="color: #b0c4de;">:freq</span> 880 <span style="color: #b0c4de;">:amp</span> .1)
 #&lt;VOICER-NODE 123&gt;
 <span class="prompt">SCRATCH&gt;</span> voi
 #&lt;VOICER <span style="color: #b0c4de;">:POLYPHONY</span> 20 <span style="color: #b0c4de;">:COUNT</span> 3&gt;
@@ -183,8 +177,7 @@ NIL</pre>
 
       <p>
         <code>VOICER:DEFINE-MAP</code> is an utility to define a mapping
-        function to call immediately after a <code>VOICER:TRIGGER</code>,
-        before the new event.
+        function to filter the control settings of a new voice.
       </p>
 
       <pre class="src src-lisp"><span class="prompt">SCRATCH&gt;</span> (voicer:define-map foo voi (freq amp pos)
@@ -210,7 +203,7 @@ group 0
     node 3
       SIMPLE 960.0d0 0.027095390483736992d0 0.8115837574005127d0 ...
 NIL
-<span class="prompt">SCRATCH&gt;</span> (set-controls 0 <span style="color: #b0c4de;">:gate</span> 0)
+<span class="prompt">SCRATCH&gt;</span> (set-control 0 <span style="color: #b0c4de;">:gate</span> 0)
 NIL
 <span class="prompt">SCRATCH&gt;</span> voi
 #&lt;VOICER <span style="color: #b0c4de;">:POLYPHONY</span> 20 <span style="color: #b0c4de;">:COUNT</span> 0&gt;
@@ -243,7 +236,8 @@ NIL</pre>
 #&lt;RECEIVER PORTMIDI:INPUT-STREAM RUNNING&gt;
 <span class="prompt">SCRATCH&gt;</span> (remove-all-responders *midiin*)
 <span class="prompt">SCRATCH&gt;</span> (pm:terminate)
-<span style="color: #b0c4de;">:PM-NO-ERROR</span></pre>
+<span style="color: #b0c4de;">:PM-NO-ERROR</span>
+<span class="prompt">SCRATCH&gt;</span> (free voi)</pre>
 
       <p>
         For offline rendering, there are <code>BOUNCE-TO-DISK</code> and

@@ -151,7 +151,7 @@ If OBJ is NIL, use the default function."
      ,(if note-off-p
           `(if (plusp ,velocity)
                (progn ,@body)
-               (unsafe-release ,voicer ,keynum))
+               (release ,voicer ,keynum))
           `(progn ,@body))
      (values)))
 
@@ -204,23 +204,21 @@ velocity 0 is interpreted as a note-off message."
                           ((pm:sysex-message-p ,status)
                            (set-freq-table-from-midi ,event ,input-stream))
                           ((= ,typ 9)
-                           (with-lock (,voicer)
-                             (responder-noteon-form (,voicer ,note-off-p ,data1
-                                                     ,data2)
-                               (unsafe-set-controls ,voicer
-                                 ,@(if freq-keyword
-                                       `(,freq-keyword
-                                         (aref (midi-event-freq-table ,event)
-                                               ,data1))
-                                       `(:keynum ,data1))
-                                 ,@(if amp-keyword
-                                       `(,amp-keyword
-                                         (aref (midi-event-amp-table ,event)
-                                               ,data2))
-                                       `(:velocity ,data2))
-                                 ,@(if gate-keyword
-                                       `(,gate-keyword ,gate-value)))
-                               (unsafe-trigger ,voicer ,data1))))
+                           (responder-noteon-form
+                               (,voicer ,note-off-p ,data1 ,data2)
+                             (trigger ,voicer ,data1
+                               ,@(if freq-keyword
+                                     `(,freq-keyword
+                                       (aref (midi-event-freq-table ,event)
+                                             ,data1))
+                                     `(:keynum ,data1))
+                               ,@(if amp-keyword
+                                     `(,amp-keyword
+                                       (aref (midi-event-amp-table ,event)
+                                             ,data2))
+                                     `(:velocity ,data2))
+                               ,@(if gate-keyword
+                                     `(,gate-keyword ,gate-value)))))
                           ,@(if note-off-p
                                 `(((= ,typ 8) (release ,voicer ,data1)))))))
                     (values))))))

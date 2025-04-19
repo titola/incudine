@@ -21,8 +21,7 @@
          *test-hook*)
 
 (defun voicer-event-1 (freq amp pos)
-  (voicer:set-controls *voi* :freq freq :amp amp :pos pos)
-  (voicer:trigger *voi* +voicer-tag+))
+  (voicer:trigger *voi* +voicer-tag+ :freq freq :amp amp :pos pos))
 
 (defun polyphony-test-1 ()
   (setf (voicer:polyphony *voi*) 4)
@@ -35,7 +34,7 @@
         do (at #[time s] #'voicer-event-1 freq amp pos)))
 
 (deftest voicer.1
-    (progn
+    (incudine:with-nrt (2 *sample-rate*)
       (voicer:panic *voi*)
       (voicer:remove-all-maps *voi*)
       (voicer:set-controls *voi* :freq 1234 :amp .25 :pos .5)
@@ -53,14 +52,15 @@
   100 (FREQ AMP POS GATE) (1234 0.25 0.88 1) 1234 0.25 0.88)
 
 (deftest voicer.2
-    (flet ((voicer-maps ()
-             (hash-table-count (voicer::voicer-argument-maps *voi*))))
-      (voicer:remove-all-maps *voi*)
-      (voicer:define-map voicer-map-1 *voi* (freq amp pos)
-        (setf freq (* freq 2) amp (* amp 1.5) pos (- 1 pos)))
-      (and (= (voicer-maps) 1)
-           (zerop (progn (voicer:remove-map *voi* 'voicer-map-1)
-                         (voicer-maps)))))
+    (incudine:with-nrt (2 *sample-rate*)
+      (flet ((voicer-maps ()
+               (hash-table-count (voicer::voicer-argument-maps *voi*))))
+        (voicer:remove-all-maps *voi*)
+        (voicer:define-map voicer-map-1 *voi* (freq amp pos)
+          (setf freq (* freq 2) amp (* amp 1.5) pos (- 1 pos)))
+        (and (= (voicer-maps) 1)
+             (zerop (progn (voicer:remove-map *voi* 'voicer-map-1)
+                           (voicer-maps))))))
   t)
 
 (with-dsp-test (voicer.3 :channels 2
