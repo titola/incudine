@@ -338,7 +338,7 @@ of the envelope."
                   (incf end-time (* time-scale (smp-ref env-data j)))
                   (when (> (- end-time *sample-duration*) pos-time)
                     (setf carry +sample-zero+)
-                    (setf offset (truncate (/ j last-dur-index)))
+                    (setf offset (truncate j last-dur-index))
                     (envelope-update-dur dur env-data j time-scale carry
                                          (- offset))
                     (setf pos location
@@ -388,7 +388,7 @@ of the envelope."
                       ;; Compute the parameters for the next segment.
                       ;; OFFSET is 1 if it is the last segment, so CARRY
                       ;; is incremented by 0.5 to prevent rounding errors.
-                      (setf offset (truncate (/ index last-dur-index)))
+                      (setf offset (truncate index last-dur-index))
                       (incf carry (* offset (sample 0.5)))
                       (envelope-update-dur dur env-data index time-scale
                                            carry (- offset))

@@ -25,7 +25,7 @@
 
   ;; Max number of flags for a fixnum (24 or 48).
   (define-constant +note-priority-slot-max-size+
-    (* 24 (truncate (/ (min 64 (log most-positive-fixnum 2)) 24))))
+    (* 24 (truncate (min 64 (log most-positive-fixnum 2)) 24)))
 
   ;; Number of the fixnums used to store the keynums (3 or 6).
   (define-constant +note-priority-integers+
