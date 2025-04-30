@@ -381,38 +381,73 @@ Should be one of :FIRST, :LAST or NIL. Setfable."
                  (remhash key mapping-hash)))
            mapping-hash))
 
-(defmacro %set-default-trigger-function (voicer func-name args)
+(defmacro %set-default-trigger-function (voicer func-name args key-args)
   (with-gensyms (tag node v)
-    `(setf (voicer-trigger-function ,voicer)
-           (lambda (,v ,tag)
-             (,func-name ,@args
-                :action (lambda (,node) (after-trigger ,v ,tag ,node)))))))
+    (let ((action (getf key-args :action)))
+      (if action (remf key-args :action))
+      `(setf (voicer-trigger-function ,voicer)
+             (lambda (,v ,tag)
+               (,func-name ,@args ,@key-args
+                  :action (lambda (,node)
+                            (after-trigger ,v ,tag ,node)
+                            ,@(if action `((funcall ,action ,node))))))))))
 
 (defun select-object-free-function (dsp-arguments)
   (if (member "GATE" dsp-arguments :key #'symbol-name :test #'string-equal)
       (lambda (id) (if id (incudine:set-control id :gate 0)))
       (lambda (id) (if id (incudine:free id)))))
 
+(defun dsp-aux-arguments (form)
+  (let ((dsp-prop (incudine.vug::dsp (car form))))
+    (if dsp-prop
+        (let ((dsp-args (incudine.vug::dsp-properties-arguments dsp-prop))
+              (key-args (incudine.vug::dsp-aux-keyword-arguments
+                          (car form) (cdr form))))
+          ;; Ignore the useless arguments.
+          (remf key-args :id)
+          (remf key-args :replace)
+          (let* ((args (loop for x on (cdr form)
+                             until (equal x key-args)
+                             collect (car x)))
+                 (arg-vars (subseq dsp-args 0 (length args)))
+                 (key-vars
+                   (loop for (k v) on key-args by 'cddr
+                         for dsp-arg = (find k dsp-args :key 'symbol-name
+                                             :test 'string=)
+                         collect
+                          (list (or dsp-arg
+                                    (intern (symbol-name k) "INCUDINE.VUG"))
+                                v)))
+                 (dsp-aux-args
+                   (append arg-vars
+                           (loop for (var x) in key-vars collect var))))
+            (values (append
+                      (mapcar (lambda (arg value) `(,arg ,value)) dsp-args args)
+                      key-vars)
+                    dsp-aux-args
+                    arg-vars
+                    (loop for k in key-args by 'cddr
+                          for (var x) in key-vars
+                          collect k collect var))))
+        (incudine:incudine-error "Unknown DSP"))))
+
 (defmacro %create-voicer (old-voicer form &optional polyphony steal-function)
   (with-gensyms (voicer)
-    (let* ((func-name (car form))
-           (dsp-prop (gethash func-name incudine.vug::*dsps*)))
-      (if dsp-prop
-          (let ((dsp-args (incudine.vug::dsp-properties-arguments dsp-prop)))
-            `(let (,@(mapcar (lambda (arg value) `(,arg ,value))
-                             dsp-args (cdr form))
-                   (,voicer ,(or old-voicer
-                                 `(make-voicer ,polyphony ,steal-function))))
-               (setf (voicer-object-free-function ,voicer)
-                     (select-object-free-function ',dsp-args))
-               (init-voicer-arguments ,dsp-args (voicer-arguments ,voicer))
-               (%set-default-trigger-function ,voicer ,func-name ,dsp-args)
-               ,@(if old-voicer
-                     `((unless (null ',dsp-args)
-                         (remove-unused-maps
-                           (voicer-argument-maps ,voicer) ',dsp-args))))
-               ,voicer))
-          (incudine:incudine-error "Unknown DSP")))))
+    (multiple-value-bind (bindings dsp-aux-args args key-args)
+        (dsp-aux-arguments form)
+      (let ((func-name (car form)))
+        `(let (,@bindings
+               (,voicer ,(or old-voicer
+                             `(make-voicer ,polyphony ,steal-function))))
+           (setf (voicer-object-free-function ,voicer)
+                 (select-object-free-function ',dsp-aux-args))
+           (init-voicer-arguments ,dsp-aux-args (voicer-arguments ,voicer))
+           (%set-default-trigger-function ,voicer ,func-name ,args ,key-args)
+           ,@(if old-voicer
+                 `((unless (null ',dsp-aux-args)
+                     (remove-unused-maps
+                       (voicer-argument-maps ,voicer) ',dsp-aux-args))))
+           ,voicer)))))
 
 (defmacro create (polyphony form &key steal-voice)
   "Create and return a new VOICER structure usable for voice management.
@@ -421,17 +456,23 @@ POLYPHONY is the maximum number of allocable voices.
 
 FORM is the template of the DSP related to the voicer:
 
-    (dsp-function-name &rest dsp-function-arguments)
+    (dsp-function-name &rest dsp-aux-function-arguments)
 
 If STEAL-VOICE is :FIRST or :LAST, release the first or the last
 allocated voice when there aren't available voices.
 
 Example:
 
-    (defvar *voi* (voicer:create 20 (superbass 110 .2 1)))
+    (dsp! superbass (freq amp) (:defaults ...) ...)
 
-    where 110, 0.2 and 1 are the default control parameters
-    of the DSP instances."
+    ;; The voicer control names are :FREQ, :AMP and :HEAD.
+    ;; 110 and 0.2 are the default control values of the
+    ;; DSP instances.
+    (defvar *voi* (voicer:create 20 (superbass 110 .2 :head 100)))
+
+    ;; The voicer control names are :AMP and :TAIL (the other control
+    ;; parameters and SUPERBASS function arguments are ignored).
+    (defvar *voi* (voicer:create 20 (superbass :amp .2 :tail 100)))"
   (declare (type positive-fixnum polyphony) (type cons form)
            (type (member :first :last nil) steal-voice))
   `(%create-voicer nil ,form ,polyphony (select-steal-function ,steal-voice)))
@@ -477,11 +518,11 @@ the given VOICER. Setfable."
 (defun control-list (voicer)
   "Return the list of the values of the control parameters related to
 the given VOICER."
-  (control-value voicer '%control-list%))
+  (values (control-value voicer '%control-list%)))
 
 (defun control-names (voicer)
   "Return the list of control names related to the given VOICER."
-  (control-value voicer '%control-names%))
+  (values (control-value voicer '%control-names%)))
 
 (defun %unsafe-set-controls (voicer arguments)
   (do ((pl arguments (cdr pl)))
@@ -496,7 +537,10 @@ the given VOICER."
   "Set the control parameters of the given VOICER.
 
 ARGUMENTS is an even number of arguments that are alternating control
-parameter names and values."
+parameter names and values.
+
+The valid control parameters are initialized through a template form
+in VOICER:CREATE or VOICER:UPDATE. See also VOICER:CONTROL-NAMES."
   (incudine.util:rt-eval ()
     (%unsafe-set-controls voicer arguments)))
 
@@ -518,7 +562,10 @@ parameter names and values."
   "Allocate a voice of the given VOICER with identifier TAG.
 
 CONTROL-SETTINGS is an even number of arguments that are alternating
-control parameter names and values."
+control parameter names and values.
+
+The valid control parameters are initialized through a template form
+in VOICER:CREATE or VOICER:UPDATE. See also VOICER:CONTROL-NAMES."
   (declare (type voicer voicer))
   (incudine.util:rt-eval ()
     (when (full-p voicer)

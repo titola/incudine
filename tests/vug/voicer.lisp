@@ -4,12 +4,14 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (dsp! voicer-test-1 (freq amp pos gate)
+    (:defaults 1000 .5 .5 1)
     (foreach-channel
       (cout (pan2 (* (envelope (make-adsr .01f0 .09f0 .8f0 .4f0) gate 1 #'free)
                      (sine freq amp))
                   pos)))))
 
 (defvar *voi* (voicer:create 4 (voicer-test-1 440 .2d0 .5 1)))
+(defvar *noi* (voicer:create 4 (voicer-test-1 2000 :pos .2 :head 100)))
 
 (define-constant +voicer-tag+ 123)
 
@@ -103,3 +105,25 @@
   (voicer:define-map voicer-map-1 *voi* (freq amp pos)
     (setf freq (* freq 2) amp (* amp 1.5f0) pos (- 1 pos)))
   (polyphony-test-1))
+
+(deftest voicer.8
+    (incudine:with-nrt (2 *sample-rate*)
+      (let ((V *noi*)
+            (res nil))
+      (make-group 3210)
+      (make-group 43210)
+      (voicer:panic V)
+      (voicer:trigger V 'test :amp 'is-not-a-voicer-control :pos .8 :head 43210)
+      (dograph (n) (push (node-id n) res))
+      (voicer:release V 'test)
+      (dograph (n) (push (node-id n) res))
+      (values
+        res
+        (voicer:control-names V)
+        (voicer:control-list V)
+        (voicer:control-value V :head))))
+  (3210   43210 0
+   3210 1 43210 0)
+  (FREQ POS INCUDINE.VUG::HEAD)
+  (2000 0.8 43210)
+  43210)

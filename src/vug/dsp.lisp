@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2021 Tito Latini
+;;; Copyright (c) 2013-2025 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -106,6 +106,16 @@
                         (dsp-properties-arg-types prop))
                 (copy-tree (dsp-properties-defaults prop)))
         (error 'incudine:incudine-undefined-dsp :name name))))
+
+(defun dsp-aux-keyword-arguments (name arguments)
+  (when arguments
+    (multiple-value-bind (args defaults) (dsp-lambda-list name)
+      (let ((keys (append (when defaults
+                            (mapcar (lambda (x) (make-keyword (first x))) args))
+                          (list :id :head :tail :before :after :replace :action
+                                :stop-hook :free-hook :fade-time :fade-curve))))
+        (do ((list arguments (rest list)))
+            ((or (null list) (member (first list) keys)) list))))))
 
 (defmethod metadata ((obj dsp-properties) &optional type)
   (get-metadata obj type #'dsp-properties-metadata))

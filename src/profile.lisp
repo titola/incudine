@@ -1,4 +1,4 @@
-;;; Copyright (c) 2024 Tito Latini
+;;; Copyright (c) 2024-2025 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -57,22 +57,12 @@
         (setf #1=(profiled-perf-function-names info) (cons function-name #1#))
         (%profile (list function-name))))))
 
-(defun dsp-aux-keyword-arguments (name arguments)
-  (when arguments
-    (multiple-value-bind (args defaults) (incudine.vug:dsp-lambda-list name)
-      (let ((keys (append (when defaults
-                            (mapcar (lambda (x) (make-keyword (first x))) args))
-                          (list :id :head :tail :before :after :replace :action
-                                :stop-hook :free-hook :fade-time :fade-curve))))
-        (do ((list arguments (rest list)))
-            ((member (first list) keys) list))))))
-
 ;;; Wrapper for the auxiliary function created by VUG:DSP! macro.
 (defun performance-wrapper-function (dsp-name dsp-aux function-namestring counter)
   (declare (type symbol dsp-name) (type function dsp-aux)
            (type string function-namestring) (type (unsigned-byte 24) counter))
   (lambda (&rest args)
-    (let ((key-args (dsp-aux-keyword-arguments dsp-name args)))
+    (let ((key-args (incudine.vug::dsp-aux-keyword-arguments dsp-name args)))
       (symbol-macrolet ((action (getf key-args :action)))
         (let ((first-action action))
           (unless first-action
