@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2024 Tito Latini
+;;; Copyright (c) 2013-2025 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -50,7 +50,7 @@
     (warn "RESET-SIGTSTP-HANDLER failed.")))
 
 (defmacro with-new-thread ((varname name priority debug-message) &body body)
-  `(unless ,varname
+  `(unless (and ,varname (bt:thread-alive-p ,varname))
      (setf ,varname
            (bt:make-thread
              (lambda ()
@@ -608,6 +608,11 @@ the thread."
   #-win32
   (incudine.util::ignore-sigtstp
     "The signal SIGTSTP is ignored during the real-time process cycles.")
+  (when (and *rt-thread* (not (bt:thread-alive-p *rt-thread*)))
+    (write-line
+      "Waiting for RT-STOP to terminate the previous aborted real-time thread..."
+      *logger-stream*)
+    (rt-stop))
   (bordeaux-threads:with-lock-held ((rt-params-lock *rt-params*))
     (unless *rt-thread*
       (init)
@@ -637,7 +642,10 @@ the thread."
 
 (defun rt-status ()
   "Real-time thread status. Return :STARTED or :STOPPED."
-  (rt-params-status *rt-params*))
+  (if (and *rt-thread* (not (bt:thread-alive-p *rt-thread*)))
+      ;; Aborted thread.
+      :stopped
+      (rt-params-status *rt-params*)))
 
 (defun rt-restart ()
   (rt-stop)
@@ -651,7 +659,9 @@ the thread."
 
 (defun rt-stop ()
   "Stop the real-time thread and return :STOPPED."
-  (unless (eq (rt-status) :stopped)
+  (unless (and (eq (rt-status) :stopped)
+               ;; Non-NIL if the thread is aborted.
+               (not *rt-thread*))
     (if (rt-thread-p)
         (nrt-funcall #'rt-stop)
         (bordeaux-threads:with-lock-held ((rt-params-lock *rt-params*))
