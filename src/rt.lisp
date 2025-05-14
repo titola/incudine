@@ -564,6 +564,11 @@ Setfable."
 (defglobal rt-start-arguments nil)
 (declaim (type list rt-start-arguments))
 
+(defun aborted-threads ()
+  (remove-if (lambda (x)
+               (or (not x) (bordeaux-threads:thread-alive-p x)))
+             (list *rt-thread* *nrt-thread* *fast-nrt-thread*)))
+
 (defun rt-start (&rest args &key (cpu incudine.config:*rt-cpu*)
                  (preamble-function #'rt-preamble)
                  (thread-name "audio-rt-thread")
@@ -608,11 +613,23 @@ the thread."
   #-win32
   (incudine.util::ignore-sigtstp
     "The signal SIGTSTP is ignored during the real-time process cycles.")
-  (when (and *rt-thread* (not (bt:thread-alive-p *rt-thread*)))
-    (write-line
-      "Waiting for RT-STOP to terminate the previous aborted real-time thread..."
-      *logger-stream*)
-    (rt-stop))
+  (if *rt-thread*
+      (cond ((bt:thread-alive-p *rt-thread*)
+             (when (aborted-threads)
+               (%flush-all-fifos)
+               (nrt-start)
+               (let ((list (aborted-threads)))
+                 (if list
+                     (msg warn
+                       "unexpectedly failed to restart the aborted ~
+                        auxiliary threads~%~6T~S" list)
+                     (write-line "Restarted the aborted auxiliary threads."
+                                 *logger-stream*)))))
+            (t (write-line
+                 "Waiting for RT-STOP to terminate the previous aborted real-time thread..."
+                 *logger-stream*)
+               (rt-stop)
+               (%flush-all-fifos))))
   (bordeaux-threads:with-lock-held ((rt-params-lock *rt-params*))
     (unless *rt-thread*
       (init)
@@ -641,11 +658,17 @@ the thread."
                      :stopped))))))
 
 (defun rt-status ()
-  "Real-time thread status. Return :STARTED or :STOPPED."
-  (if (and *rt-thread* (not (bt:thread-alive-p *rt-thread*)))
-      ;; Aborted thread.
-      :stopped
-      (rt-params-status *rt-params*)))
+  "Return two values: the real-time thread status, :STARTED or :STOPPED,
+and the list of the aborted threads. If that list is non-NIL, the running
+real-time thread is unreliable.
+
+The next call to RT-START restarts the aborted threads."
+  (values
+    (if (and *rt-thread* (not (bt:thread-alive-p *rt-thread*)))
+        ;; Aborted thread.
+        :stopped
+        (rt-params-status *rt-params*))
+    (aborted-threads)))
 
 (defun rt-restart ()
   (rt-stop)

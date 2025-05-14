@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2023 Tito Latini
+;;; Copyright (c) 2013-2025 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -106,13 +106,15 @@ undefined.")
           (fast-nrt-perform-functions))
         (incudine.edf:sched-loop)))
 
+(defun %flush-all-fifos ()
+  (dolist (f (list *to-engine-fifo* incudine::*from-engine-fifo*
+                   *from-world-fifo* *fast-from-engine-fifo*
+                   *fast-to-engine-fifo*))
+    (fifo-flush f)))
+
 (defun flush-all-fifos ()
   "Clear the buffers of the real-time FIFO's."
-  (rt-eval ()
-    (dolist (f (list *to-engine-fifo* incudine::*from-engine-fifo*
-                     *from-world-fifo* *fast-from-engine-fifo*
-                     *fast-to-engine-fifo*))
-      (fifo-flush f))))
+  (rt-eval () (%flush-all-fifos)))
 
 (defmacro read-snd-buffer (buf remain index channels)
   (with-gensyms (ch)
