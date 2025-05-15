@@ -60,10 +60,13 @@
      (msg debug ,debug-message)))
 
 (defun nrt-start ()
+  (if (aborted-threads) (nrt-stop))
   (with-new-thread (*nrt-thread* "audio-nrt-thread" *nrt-priority*
                     "non-realtime thread started")
     (loop (sync-condition-wait *nrt-audio-sync*)
           (fifo-perform-functions *from-engine-fifo*)))
+  (unless (= 0 (incudine.util::spinlock-state *fast-nrt-spinlock*))
+    (release-spinlock *fast-nrt-spinlock*))
   (with-new-thread (*fast-nrt-thread* "audio-fast-nrt-thread"
                     *fast-nrt-priority* "fast non-realtime thread started")
     (loop (sync-condition-wait *fast-nrt-audio-sync*)
