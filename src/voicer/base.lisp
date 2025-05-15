@@ -568,16 +568,17 @@ The valid control parameters are initialized through a template form
 in VOICER:CREATE or VOICER:UPDATE. See also VOICER:CONTROL-NAMES."
   (declare (type voicer voicer))
   (incudine.util:rt-eval ()
-    (when (full-p voicer)
-      (if (voicer-steal-function voicer)
-          (funcall (the function (voicer-steal-function voicer)) voicer)
-          (return-from trigger nil)))
-    (if control-settings (%unsafe-set-controls voicer control-settings))
-    (let ((maps (voicer-argument-maps voicer)))
-      (if (> (hash-table-count maps) 0)
-          (loop for fn being the hash-values in maps
-                do (funcall (the function (car fn))))))
-    (funcall (voicer-trigger-function voicer) voicer tag)))
+    (block nil
+      (when (full-p voicer)
+        (if (voicer-steal-function voicer)
+            (funcall (the function (voicer-steal-function voicer)) voicer)
+            (return)))
+      (if control-settings (%unsafe-set-controls voicer control-settings))
+      (let ((maps (voicer-argument-maps voicer)))
+        (if (> (hash-table-count maps) 0)
+            (loop for fn being the hash-values in maps
+                  do (funcall (the function (car fn))))))
+      (funcall (voicer-trigger-function voicer) voicer tag))))
 
 (defun after-trigger (voicer tag dsp-node)
   (declare (type voicer voicer) (type (or null incudine:node) dsp-node))
