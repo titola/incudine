@@ -72,14 +72,15 @@
   (and *nrt-thread* *fast-nrt-thread*))
 
 (defun nrt-stop ()
-  (when *nrt-thread*
-    (bt:destroy-thread *nrt-thread*)
-    (bt:destroy-thread *fast-nrt-thread*)
-    (loop while (bt:thread-alive-p *nrt-thread*))
-    (msg debug "non-realtime thread stopped")
-    (loop while (bt:thread-alive-p *fast-nrt-thread*))
-    (msg debug "fast non-realtime thread stopped")
-    (setf *nrt-thread* nil *fast-nrt-thread* nil)))
+  (macrolet ((stop (obj string)
+               `(let ((x ,obj))
+                  (when (and x (bt:thread-alive-p x))
+                    (bt:destroy-thread x)
+                    (loop while (bt:thread-alive-p x))
+                    (msg debug ,string))
+                  (if x (setf ,obj nil)))))
+    (stop *nrt-thread* "non-realtime thread stopped")
+    (stop *fast-nrt-thread* "fast non-realtime thread stopped")))
 
 (defglobal *foreign-client-name* (cffi:null-pointer))
 

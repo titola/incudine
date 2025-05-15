@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2024 Tito Latini
+;;; Copyright (c) 2013-2025 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -195,10 +195,11 @@
   ;;; Function to call before to save a core image.
   (defvar *core-save-function*
     (lambda ()
-      (free-dsp-instances)
+      (unless (aborted-threads) (free-dsp-instances))
       ;; Stop realtime and non-realtime threads
       (rt-stop)
       (nrt-stop)
+      (%flush-all-fifos)
       #+jack-audio
       (cffi:foreign-funcall "set_port_names"
         :pointer (cffi:null-pointer) :pointer (cffi:null-pointer) :void)
