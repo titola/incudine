@@ -381,13 +381,15 @@ Should be one of :FIRST, :LAST or NIL. Setfable."
                  (remhash key mapping-hash)))
            mapping-hash))
 
-(defmacro %set-default-trigger-function (voicer func-name args key-args)
+(defmacro %set-default-trigger-function (voicer func-name args key-args
+                                         dsp-function-keyword)
   (with-gensyms (tag node v)
     (let ((action (getf key-args :action)))
       (if action (remf key-args :action))
       `(setf (voicer-trigger-function ,voicer)
              (lambda (,v ,tag)
-               (,func-name ,@args ,@key-args
+               (,@(if dsp-function-keyword '(funcall)) ,func-name
+                  ,@args ,@key-args
                   :action (lambda (,node)
                             (after-trigger ,v ,tag ,node)
                             ,@(if action `((funcall ,action ,node))))))))))
@@ -431,26 +433,36 @@ Should be one of :FIRST, :LAST or NIL. Setfable."
                           collect k collect var))))
         (incudine:incudine-error "Unknown DSP"))))
 
-(defmacro %create-voicer (old-voicer form &optional polyphony steal-function)
+(defmacro %create-voicer (old-voicer form
+                          &optional dsp-function-keyword polyphony steal-function)
   (with-gensyms (voicer)
     (multiple-value-bind (bindings dsp-aux-args args key-args)
         (dsp-aux-arguments form)
-      (let ((func-name (car form)))
+      (let* ((func-name (car form))
+             (func-var (if dsp-function-keyword
+                           (intern (symbol-name dsp-function-keyword)
+                                   "INCUDINE.VUG")))
+             (voicer-args (if func-var
+                              (cons func-var dsp-aux-args)
+                              dsp-aux-args)))
         `(let (,@bindings
+               ,@(if func-var `((,func-var (function ,(first form)))))
                (,voicer ,(or old-voicer
                              `(make-voicer ,polyphony ,steal-function))))
+           ,@(if func-var `((declare (type function ,func-var))))
            (setf (voicer-object-free-function ,voicer)
                  (select-object-free-function ',dsp-aux-args))
-           (init-voicer-arguments ,dsp-aux-args (voicer-arguments ,voicer))
-           (%set-default-trigger-function ,voicer ,func-name ,args ,key-args)
+           (init-voicer-arguments ,voicer-args (voicer-arguments ,voicer))
+           (%set-default-trigger-function
+             ,voicer ,(or func-var func-name) ,args ,key-args ,func-var)
            ,@(if old-voicer
-                 `((unless (null ',dsp-aux-args)
+                 `((unless (null ',voicer-args)
                      (remove-unused-maps
                        (voicer-argument-maps ,voicer) ',dsp-aux-args))))
            ,voicer)))))
 
-(defmacro create (polyphony form &key steal-voice)
-  "Create and return a new VOICER structure usable for voice management.
+(defmacro create (polyphony form &key dsp-function-keyword steal-voice)
+  "Create and return a new VOICER instance usable for voice management.
 
 POLYPHONY is the maximum number of allocable voices.
 
@@ -458,30 +470,44 @@ FORM is the template of the DSP related to the voicer:
 
     (dsp-function-name &rest dsp-aux-function-arguments)
 
+The voicer supports multiple DSPs with the same control parameters
+(i.e. one or more optimizations of the same synthesizer).
+An arbitrary DSP-FUNCTION-KEYWORD is the control parameter to set
+another auxiliary DSP function.
+
 If STEAL-VOICE is :FIRST or :LAST, release the first or the last
 allocated voice when there aren't available voices.
 
 Example:
 
+    (dsp! bass      (freq amp) (:defaults ...) ...)
     (dsp! superbass (freq amp) (:defaults ...) ...)
 
     ;; The voicer control names are :FREQ, :AMP and :HEAD.
     ;; 110 and 0.2 are the default control values of the
     ;; DSP instances.
-    (defvar *voi* (voicer:create 20 (superbass 110 .2 :head 100)))
+    (defvar *V1* (voicer:create 20 (superbass 110 .2 :head 100)))
 
     ;; The voicer control names are :AMP and :TAIL (the other control
     ;; parameters and SUPERBASS function arguments are ignored).
-    (defvar *voi* (voicer:create 20 (superbass :amp .2 :tail 100)))"
+    (defvar *V2* (voicer:create 20 (superbass :amp .2 :tail 100)))
+
+    ;; Voicer for multiple DSPs with the same control parameters.
+    ;; The voicer control names are :FUNC, :FREQ and :AMP.
+    (defvar *V3*
+      (voicer:create 20 (bass 110 .2) :dsp-function-keyword :func))
+    (voicer:trigger *V3* 'test :freq 160 :amp .1)
+    (voicer:trigger *V3* 'test :func #'superbass :freq 80)"
   (declare (type positive-fixnum polyphony) (type cons form)
            (type (member :first :last nil) steal-voice))
-  `(%create-voicer nil ,form ,polyphony (select-steal-function ,steal-voice)))
+  `(%create-voicer nil ,form ,dsp-function-keyword ,polyphony
+                   (select-steal-function ,steal-voice)))
 
-(defmacro update (voicer form)
+(defmacro update (voicer form &key dsp-function-keyword)
   "Update the VOICER instance with a new template FORM:
 
         (dsp-function-name &rest dsp-function-arguments)"
-  `(%create-voicer ,voicer ,form))
+  `(%create-voicer ,voicer ,form ,dsp-function-keyword))
 
 (declaim (inline unsafe-control-value))
 (defun unsafe-control-value (voicer control-name)
@@ -606,7 +632,10 @@ in VOICER:CREATE or VOICER:UPDATE. See also VOICER:CONTROL-NAMES."
   (if free-function (funcall free-function)))
 
 (defun release (voicer tag)
-  "Release a voice of the given VOICER with identifier TAG."
+  "Release a voice of the given VOICER with identifier TAG.
+
+If GATE is a control parameter, TRIGGER:RELEASE sets GATE to 0,
+otherwise it calls FREE NODE."
   (incudine.util:rt-eval () (%release voicer tag)))
 
 (defmacro define-map (name voicer controls &body function-body)
