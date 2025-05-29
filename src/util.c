@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2024 Tito Latini
+ * Copyright (c) 2013-2025 Tito Latini
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
  *
  */
 
+#include <fcntl.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
@@ -28,12 +29,6 @@
 #ifndef WIN32
 #include <signal.h>
 #include <unistd.h>
-#endif
-
-#ifdef __INCUDINE_USE_64_BIT_SAMPLE__
-#define sf_readf_SAMPLE  sf_readf_double
-#else
-#define sf_readf_SAMPLE  sf_readf_float
 #endif
 
 /* THREAD */
@@ -93,7 +88,13 @@ SAMPLE tempo_sync(SAMPLE *now, SAMPLE period)
 
 /* SNDFILE */
 
-#define min(a,b) ((a) < (b) ? (a) : (b))
+#ifdef __INCUDINE_USE_64_BIT_SAMPLE__
+#define sf_readf_SAMPLE  sf_readf_double
+#else
+#define sf_readf_SAMPLE  sf_readf_float
+#endif
+
+#define SF_FORMAT_MPEG__  0x230000  /* MPEG-1/2 audio stream (libsndfile-1.1.0 2022-03-27) */
 
 void sndfile_to_buffer(SAMPLE *buf, SNDFILE *sndfile, unsigned long frames,
                        int channels, unsigned long buf_offset, int chunk_frames)
@@ -155,6 +156,206 @@ void map_sndfile_ch_to_buffer(SAMPLE *buf, SNDFILE *sndfile,
 		}
 	}
 	free(q);
+}
+
+struct soundfile_vio_buffer {
+	void *data;           /* Pointer to the file data. */
+	sf_count_t offset;    /* Read offset location. */
+	sf_count_t length;    /* Buffer length. */
+	sf_count_t start;     /* Start of sound data (end of header). */
+};
+
+static sf_count_t soundfile_vio_get_filelen(void *obj)
+{
+	struct soundfile_vio_buffer *p = (struct soundfile_vio_buffer *) obj;
+	return p->length;
+}
+
+static sf_count_t soundfile_vio_seek(sf_count_t offset, int whence, void *obj)
+{
+	struct soundfile_vio_buffer *p = (struct soundfile_vio_buffer *) obj;
+	/* The soundfile package for Incudine requires SEEK-SET. */
+	(void) whence;
+
+	p->offset = offset;
+	return offset;
+}
+
+static sf_count_t soundfile_vio_read(void *buf, sf_count_t count, void *obj)
+{
+	struct soundfile_vio_buffer *p = (struct soundfile_vio_buffer *) obj;
+
+	if (p->offset + count > p->length) {
+		if (p->offset >= p->length)
+			return 0;
+		count = p->length - p->offset;
+	}
+	memcpy(buf, p->data + p->offset, count);
+	p->offset += count;
+	return count;
+}
+
+/*
+ * soundfile_vio_write() is only used internally.
+ */
+static sf_count_t soundfile_vio_write(const void *ptr, sf_count_t count, void *obj)
+{
+	struct soundfile_vio_buffer *p = (struct soundfile_vio_buffer *) obj;
+
+	if (p->offset + count > p->length) {
+		if (p->offset >= p->length)
+			return 0;
+		count = p->length - p->offset;
+	}
+	memcpy(p->data + p->offset, ptr, count);
+	p->offset += count;
+	return count;
+}
+
+static sf_count_t soundfile_vio_tell(void *obj)
+{
+	struct soundfile_vio_buffer *p = (struct soundfile_vio_buffer *) obj;
+	return p->offset;
+}
+
+#define SOUNDFILE_BUFFER_LENGTH  4096  /* int data */
+
+static void soundfile_copy_int(SNDFILE *dest, SNDFILE *src, int channels)
+{
+	static int data[SOUNDFILE_BUFFER_LENGTH];
+	sf_count_t frames, count;
+
+	frames = SOUNDFILE_BUFFER_LENGTH / channels;
+	count = frames;
+	while (count > 0) {
+		count = sf_readf_int(src, data, frames);
+		sf_writef_int(dest, data, count);
+	}
+}
+
+static void soundfile_copy_short(SNDFILE *dest, SNDFILE *src, int channels)
+{
+	static short data[2 * SOUNDFILE_BUFFER_LENGTH];
+	sf_count_t frames, count;
+
+	frames = 2 * SOUNDFILE_BUFFER_LENGTH / channels;
+	count = frames;
+	while (count > 0) {
+		count = sf_readf_short(src, data, frames);
+		sf_writef_short(dest, data, count);
+	}
+}
+
+/*
+ * Load the file data into memory (read-only with the libsndfile interface,
+ * however the data buffer is directly accessible in Incudine via the
+ * SOUNDFILE:FILE-DATA function).
+ */
+SNDFILE* soundfile_open_virtual(const char *path, SF_INFO *sfinfo,
+                                struct soundfile_vio_buffer **obj)
+{
+	SNDFILE *sf;
+	void *data;
+	struct soundfile_vio_buffer *p;
+	SF_VIRTUAL_IO vio = { soundfile_vio_get_filelen, soundfile_vio_seek,
+	                      soundfile_vio_read, soundfile_vio_write,
+	                      soundfile_vio_tell };
+	SF_INFO info;
+	sf_count_t length, start;
+	int fd, bytes, lossless, ret;
+
+	fd = open(path, O_RDONLY);
+	if (fd < 0) {
+		fprintf(stderr, "ERROR: cannot open \"%s\".\n", path);
+		return NULL;
+	}
+	if ((sfinfo->format & SF_FORMAT_TYPEMASK) == SF_FORMAT_RAW)
+		memcpy(&info, sfinfo, sizeof(info));
+	else memset(&info, 0, sizeof(info));
+	sf = sf_open_fd(fd, SFM_READ, &info, SF_TRUE);
+	start = lseek(fd, 0, SEEK_CUR);
+	length = lseek(fd, 0, SEEK_END);
+	if (length <= start) {
+		fprintf(stderr, "ERROR: sound file \"%s\" with no data.\n", path);
+		sf_close(sf);
+		return NULL;
+	}
+	bytes = 0;
+	lossless = FALSE;
+	switch (info.format & SF_FORMAT_TYPEMASK) {
+	case SF_FORMAT_FLAC:
+		if ((info.format & SF_FORMAT_SUBMASK) == SF_FORMAT_PCM_16) bytes = 2;
+		if ((info.format & SF_FORMAT_SUBMASK) == SF_FORMAT_PCM_24) bytes = 3;
+		lossless = TRUE;
+		break;
+	case SF_FORMAT_OGG:        /* Vorbis and Opus encoding. */
+	case SF_FORMAT_MPEG__:     /* MP3 encoding etc. */
+		bytes = 2;
+		break;
+	}
+	if (bytes) {
+		length = info.frames * info.channels * bytes;
+		info.format &= ~SF_FORMAT_TYPEMASK;
+		info.format |= SF_FORMAT_RAW;
+		if (!lossless) {
+			info.format &= ~SF_FORMAT_SUBMASK;
+			info.format |= SF_FORMAT_PCM_16;
+		}
+	}
+	data = malloc(length);
+	if (data == NULL) {
+		fprintf(stderr, "ERROR: malloc(%ld) failed.\n", length);
+		sf_close(sf);
+		return NULL;
+	}
+	p = (struct soundfile_vio_buffer *)
+		malloc(sizeof(struct soundfile_vio_buffer));
+	if (p == NULL) {
+		fprintf(stderr, "ERROR: malloc for soundfile_vio_buffer failed.\n");
+		free(data);
+		sf_close(sf);
+		return NULL;
+	}
+	p->data = data;
+	p->offset = 0;
+	p->length = length;
+	if (bytes) {
+		/* Decoding compressed data into headerless PCM-encoded data. */
+		SNDFILE *dest;
+		dest = sf_open_virtual(&vio, SFM_WRITE, &info, p);
+		if (dest == NULL) {
+			fprintf(stderr, "ERROR: sf_open_virtual() failed (%s).\n", sf_strerror(NULL));
+			free(data);
+			free(p);
+			sf_close(sf);
+			return NULL;
+		}
+		lseek(fd, start, SEEK_SET);
+		start = 0; /* No header. */
+		if (bytes == 2) soundfile_copy_short(dest, sf, info.channels);
+		else soundfile_copy_int(dest, sf, info.channels);
+		p->offset = 0;
+		sfinfo->format = info.format;
+		sfinfo->channels = info.channels;
+		sfinfo->samplerate = info.samplerate;
+	} else {
+		/* Copy header + sound data. */
+		lseek(fd, 0, SEEK_SET);
+		read(fd, data, length);
+	}
+	ret = sf_close(sf); /* fd closed, too. */
+	if (ret != 0) {
+		fprintf(stderr, "ERROR: sf_close() failed (%s).\n", sf_strerror(sf));
+		free(data);
+		free(p);
+		return NULL;
+	}
+	p->start = start;
+	sf = sf_open_virtual(&vio, SFM_READ, sfinfo, p);
+	if (sf == NULL)
+		fprintf(stderr, "ERROR: sf_open_virtual() failed (%s).\n", sf_strerror(NULL));
+	*obj = p;
+	return sf;
 }
 
 /* RING BUFFER */

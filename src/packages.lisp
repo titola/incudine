@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2024 Tito Latini
+;;; Copyright (c) 2013-2025 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -600,7 +600,7 @@
    #:foreign-read #:foreign-write
    #:position #:offset #:buffer-data #:buffer-size #:buffer-index #:buffer-value
    #:current-frame #:path #:sample-rate #:frames #:channels #:duration #:metadata
-   #:data-location #:header-type #:data-format #:maxamp
+   #:file-data #:data-location #:header-type #:data-format #:maxamp
    #:convert #:concatenate #:merge))
 
 (defpackage :incudine.midifile

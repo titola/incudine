@@ -1,4 +1,4 @@
-;;; Copyright (c) 2017-2022 Tito Latini
+;;; Copyright (c) 2017-2025 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -47,7 +47,8 @@ Subtype of INCUDINE-SIMPLE-ERROR and FILE-ERROR."))
   (open-p nil :type boolean))
 
 (defstruct (input-stream (:include stream) (:copier nil))
-  "Sound file input stream type.")
+  "Sound file input stream type."
+  (vio-buffer (cffi:null-pointer) :type cffi:foreign-pointer))
 
 (defstruct (output-stream (:include stream) (:copier nil))
   "Sound file output stream type."
@@ -61,6 +62,12 @@ Subtype of INCUDINE-SIMPLE-ERROR and FILE-ERROR."))
   ;; MIX-P is always NIL in overwrite mode.
   (frame-threshold 0 :type non-negative-fixnum64)
   (sf-position-offset 0 :type non-negative-fixnum64))
+
+(cffi:defcstruct vio-buffer
+  (data   :pointer)
+  (offset :int64)
+  (length :int64)
+  (start  :int64))
 
 (setf
   (documentation 'input-stream-p 'function)
@@ -81,11 +88,36 @@ Subtype of INCUDINE-SIMPLE-ERROR and FILE-ERROR."))
     ;; Truncate to length 0 before to reopen in access mode read/write.
     (cl:with-open-file (f file :direction :output :if-exists :supersede)))
   (cffi:foreign-funcall "sf_open"
-                        :string (incudine.util::native-namestring file)
-                        :int (if input-p SF:SFM-READ SF:SFM-RDWR)
-                        :pointer info-ptr :pointer))
+    :string (incudine.util::native-namestring file)
+    :int (if input-p SF:SFM-READ SF:SFM-RDWR)
+    :pointer info-ptr :pointer))
+
+(defun sf-open-virtual (file info-ptr vio-ptr)
+  (setf (cffi:mem-ref vio-ptr :pointer) (cffi:null-pointer))
+  (cffi:foreign-funcall "soundfile_open_virtual"
+    :string (incudine.util::native-namestring file)
+    :pointer info-ptr :pointer vio-ptr :pointer))
 
 (cffi:defcfun "sf_close" :int (sf :pointer))
+
+(defun free-vio-buffer (ptr)
+  (unless (cffi:null-pointer-p ptr)
+    (let ((data (cffi:mem-ref ptr :pointer)))
+      (unless (cffi:null-pointer-p data)
+        (cffi:foreign-free data)))
+    (cffi:foreign-free ptr))
+  nil)
+
+(defun file-data (sf)
+  "If the input stream is opened with :READ-FROM-MEMORY-P T, return the
+foreign pointer to the sound file data and the data length in bytes.
+Otherwise, return the foreign null-pointer and 0."
+  (declare (type soundfile:input-stream sf))
+  (let ((ptr (input-stream-vio-buffer sf)))
+    (if (cffi:null-pointer-p ptr)
+        (values ptr 0)
+        (cffi:with-foreign-slots ((data length start) ptr (:struct vio-buffer))
+          (values (cffi:inc-pointer data start) (- length start))))))
 
 (declaim (inline sf-seek))
 (defun sf-seek (sf pos)
@@ -262,15 +294,19 @@ channel of the current frame."
           sf:sections 0 sf:seekable 1)
     (values)))
 
-(defun open-file (file &optional (input-p t) sample-rate chans header-type
+(defun open-file (file &optional (input-type :file) sample-rate chans header-type
                   data-format if-exists)
-  (cffi:with-foreign-object (info-ptr '(:struct sf:info))
-    (let ((read-info-p (or input-p
+  (cffi:with-foreign-objects ((info-ptr '(:struct sf:info))
+                              (vio-ptr :pointer))
+    (let ((read-info-p (or input-type
                            (and (not (eq if-exists :supersede))
                                 (probe-file file)))))
       (unless (and read-info-p (not (string= header-type "raw")))
         (update-sf-info info-ptr sample-rate 0 chans header-type data-format))
-      (let ((sf (sf-open file input-p info-ptr if-exists)))
+      (let* ((sf (if (eq input-type :memory)
+                     (sf-open-virtual file info-ptr vio-ptr)
+                     (sf-open file input-type info-ptr if-exists)))
+             (vio (cffi:mem-ref vio-ptr :pointer)))
         (if read-info-p
             (handler-case
                 (cffi:with-foreign-slots
@@ -287,8 +323,11 @@ channel of the current frame."
                                                   :header-type ,header-type
                                                   :data-format ,data-format))))
                     (values sf sf:sample-rate sf:frames sf:channels
-                            header-type data-format)))
-              (condition (c) (sf-close sf) (error c)))
+                            header-type data-format vio)))
+              (condition (c)
+                (if (eq input-type :memory) (free-vio-buffer vio))
+                (sf-close sf)
+                (error c)))
             (values sf sample-rate 0 chans header-type data-format))))))
 
 (defgeneric read-header (obj)
@@ -368,7 +407,7 @@ data format."))
                 :format-arguments (list filename)))))
 
 (defun open (filename &key (direction :input) (if-exists :error)
-             (sample-rate *sample-rate*) (channels 1)
+             read-from-memory-p (sample-rate *sample-rate*) (channels 1)
              (header-type *default-header-type*)
              (data-format *default-data-format*)
              (data-location 0)
@@ -380,6 +419,11 @@ file specified by FILENAME.
 
 DIRECTION is :INPUT (default) or :OUTPUT to return a SOUNDFILE:INPUT-STREAM
 or a SOUNDFILE:OUTPUT-STREAM respectively.
+
+If DIRECTION is :INPUT and :READ-FROM-MEMORY-P is T, the sound file data
+will be loaded into memory. The read functions return double-float values
+between -1.0 and 1.0, however the original data are directly accessible
+via SOUNDFILE:FILE-DATA. The allocated memory is freed by SOUNDFILE:CLOSE.
 
 IF-EXISTS should be one of :APPEND, :ERROR (default), :MIX, :OVERWRITE or
 :SUPERSEDE. If it is :SUPERSEDE and there is a jump back of the file position
@@ -406,20 +450,21 @@ BUFFER-SIZE is the size of the internal stream buffer and defaults to
          (buf-ptr (cffi:foreign-alloc :double :count buffer-size
                                       :initial-element 0d0))
          (sf-ptr nil)
-         (input-p (eq direction :input))
-         (pathname (if input-p
+         (input-type (if (eq direction :input)
+                         (if read-from-memory-p :memory :file)))
+         (pathname (if input-type
                        (incudine.util::truename* filename)
                        (make-pathname
                          :defaults (incudine.util::%parse-filepath filename)))))
     (check-format header-type data-format)
     (handler-case
         (let ((sf (multiple-value-bind (ptr sample-rate frames channels
-                                        header-type data-format)
-                      (open-file pathname input-p sample-rate channels
+                                        header-type data-format vio-buffer)
+                      (open-file pathname input-type sample-rate channels
                                  header-type data-format if-exists)
                     (setf sf-ptr ptr)
                     (let ((buf-max-frames (floor (/ buffer-size channels))))
-                      (apply (if input-p
+                      (apply (if input-type
                                  input-stream-constructor
                                  output-stream-constructor)
                              (list*
@@ -435,14 +480,16 @@ BUFFER-SIZE is the size of the internal stream buffer and defaults to
                                :header-type header-type
                                :data-format data-format
                                :open-p t
-                               (when (not input-p)
-                                 (list :mix-p (eq if-exists :mix)
-                                       :sf-position-offset
-                                          (if (eq if-exists :append)
-                                              frames
-                                              0)))))))))
+                               (cond ((eq input-type :memory)
+                                      (list :vio-buffer vio-buffer))
+                                     ((not input-type)
+                                      (list :mix-p (eq if-exists :mix)
+                                            :sf-position-offset
+                                              (if (eq if-exists :append)
+                                                  frames
+                                                  0))))))))))
           (check-opened-sound sf header-type data-format)
-          (cond ((not input-p)
+          (cond ((not input-type)
                  (case if-exists
                    (:append
                     ;; Offset by SF-POSITION-OFFSET
@@ -471,8 +518,11 @@ BUFFER-SIZE is the size of the internal stream buffer and defaults to
 (defun close (sf)
   "Close a SOUNDFILE:STREAM."
   (when (open-p sf)
-    (when (soundfile:output-stream-p sf)
-      (write-buffered-data sf))
+    (cond ((soundfile:output-stream-p sf)
+           (write-buffered-data sf))
+          (t
+           (free-vio-buffer (input-stream-vio-buffer sf))
+           (setf (input-stream-vio-buffer sf) (cffi:null-pointer))))
     (free-foreign-pointers (stream-sf-pointer sf) (stream-buffer-pointer sf))
     (incudine-cancel-finalization sf)
     (setf (stream-open-p sf) nil))

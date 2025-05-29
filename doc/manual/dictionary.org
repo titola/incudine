@@ -2384,6 +2384,7 @@ Example:
 ::: soundfile:header-type
 ::: soundfile:data-format
 ::: soundfile:metadata
+::: soundfile:file-data
 ::: soundfile:data-location
 ::: soundfile:path
 ::: soundfile:buffer-data

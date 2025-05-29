@@ -1706,7 +1706,7 @@ To load ~cudere-clm~ use ~asdf:load-system~ or ~require~.
 #+end_defun
 
 **** Sound I/O
-#+attr_texinfo: :options clm:make-file->sample @andoptionalkey{} file size
+#+attr_texinfo: :options clm:make-file->sample @andoptionalkey{} file size read-from-memory-p
 #+begin_defun
 #+end_defun
 
@@ -1722,7 +1722,7 @@ To load ~cudere-clm~ use ~asdf:load-system~ or ~require~.
 #+begin_defun
 #+end_defun
 
-#+attr_texinfo: :options clm:make-file->frample @andoptionalkey{} file size
+#+attr_texinfo: :options clm:make-file->frample @andoptionalkey{} file size read-from-memory-p
 #+begin_defun
 #+end_defun
 
@@ -1778,7 +1778,7 @@ To load ~cudere-clm~ use ~asdf:load-system~ or ~require~.
 #+begin_defun
 #+end_defun
 
-#+attr_texinfo: :options clm:make-readin @andoptionalkey{} file channel start direction size
+#+attr_texinfo: :options clm:make-readin @andoptionalkey{} file channel start direction size read-from-memory-p
 #+begin_defun
 #+end_defun
 

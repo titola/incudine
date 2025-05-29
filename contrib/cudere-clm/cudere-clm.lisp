@@ -1,5 +1,5 @@
 ;;; Incudine version of CLM
-;;; Copyright (c) 2017-2021 Tito Latini
+;;; Copyright (c) 2017-2025 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -1748,9 +1748,11 @@
                          (:constructor %make-file->sample)
                          (:predicate file->sample?)))
 
-(defun* make-file->sample (file (size *clm-file-buffer-size*))
+(defun* make-file->sample (file (size *clm-file-buffer-size*)
+                           read-from-memory-p)
   (soundfile:open file :buffer-size size
-                  :input-stream-constructor #'%make-file->sample))
+    :read-from-memory-p read-from-memory-p
+    :input-stream-constructor #'%make-file->sample))
 
 (declaim (inline file->sample))
 (defun file->sample (obj samp &optional (chn 0))
@@ -1762,9 +1764,11 @@
                           (:constructor %make-file->frample)
                           (:predicate file->frample?)))
 
-(defun* make-file->frample (file (size *clm-file-buffer-size*))
+(defun* make-file->frample (file (size *clm-file-buffer-size*)
+                            read-from-memory-p)
   (soundfile:open file :buffer-size size
-                  :input-stream-constructor #'%make-file->frample))
+    :read-from-memory-p read-from-memory-p
+    :input-stream-constructor #'%make-file->frample))
 
 (declaim (inline file->frample))
 (defun file->frample (obj samp frm)
@@ -1854,11 +1858,13 @@
       (setf location
             (if forward-p (1+ location) (max 0 (1- location)))))))
 
-(defun* make-readin (file channel start (direction 1) (size *clm-file-buffer-size*))
+(defun* make-readin (file channel start (direction 1) (size *clm-file-buffer-size*)
+                     read-from-memory-p)
   (funcall (cudere-clm.ugens:readin
              (if (mus-input? file)
                  file
-                 (soundfile:open file :buffer-size size))
+                 (soundfile:open file :buffer-size size
+                   :read-from-memory-p read-from-memory-p))
              (or (and start (floor start))
                  (and (readin? file) (readin-location file))
                  0)
