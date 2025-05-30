@@ -381,7 +381,7 @@ data format."))
     (declare (type positive-fixnum sr) (type non-negative-fixnum64 frames))
     (float (/ frames sr))))
 
-(defun free-foreign-pointers (sf-ptr buf-ptr)
+(defun free-foreign-pointers (sf-ptr buf-ptr &optional vio-ptr)
   (flet ((to-free-p (ptr)
            (and (typep ptr 'cffi:foreign-pointer)
                 (not (cffi:null-pointer-p ptr)))))
@@ -389,6 +389,7 @@ data format."))
       (sf-close sf-ptr))
     (when (to-free-p buf-ptr)
       (cffi:foreign-free buf-ptr))
+    (if vio-ptr (free-vio-buffer vio-ptr))
     (values)))
 
 (defun check-file (filename direction if-exists)
@@ -423,7 +424,8 @@ or a SOUNDFILE:OUTPUT-STREAM respectively.
 If DIRECTION is :INPUT and :READ-FROM-MEMORY-P is T, the sound file data
 will be loaded into memory. The read functions return double-float values
 between -1.0 and 1.0, however the original data are directly accessible
-via SOUNDFILE:FILE-DATA. The allocated memory is freed by SOUNDFILE:CLOSE.
+via SOUNDFILE:FILE-DATA. The allocated memory is freed by SOUNDFILE:CLOSE
+or when the created SOUNDFILE:STREAM object is garbage collected.
 
 IF-EXISTS should be one of :APPEND, :ERROR (default), :MIX, :OVERWRITE or
 :SUPERSEDE. If it is :SUPERSEDE and there is a jump back of the file position
@@ -450,6 +452,7 @@ BUFFER-SIZE is the size of the internal stream buffer and defaults to
          (buf-ptr (cffi:foreign-alloc :double :count buffer-size
                                       :initial-element 0d0))
          (sf-ptr nil)
+         (vio-ptr nil)
          (input-type (if (eq direction :input)
                          (if read-from-memory-p :memory :file)))
          (pathname (if input-type
@@ -481,6 +484,7 @@ BUFFER-SIZE is the size of the internal stream buffer and defaults to
                                :data-format data-format
                                :open-p t
                                (cond ((eq input-type :memory)
+                                      (setf vio-ptr vio-buffer)
                                       (list :vio-buffer vio-buffer))
                                      ((not input-type)
                                       (list :mix-p (eq if-exists :mix)
@@ -504,10 +508,10 @@ BUFFER-SIZE is the size of the internal stream buffer and defaults to
                  (set-raw-start-offset sf data-location)
                  (sf-seek sf 0)))
           (incudine-finalize sf
-            (lambda () (free-foreign-pointers sf-ptr buf-ptr))
+            (lambda () (free-foreign-pointers sf-ptr buf-ptr vio-ptr))
             nil))
       (condition (c)
-        (free-foreign-pointers sf-ptr buf-ptr)
+        (free-foreign-pointers sf-ptr buf-ptr vio-ptr)
         (error c)))))
 
 (declaim (inline open-p))
