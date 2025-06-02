@@ -71,6 +71,32 @@
    #x00 #x00 #x00 #x00 #x00 #x00 #x00 #x00
    #xDA #xE7 #xF3 #x00 #x0D #x19 #x26 #x33))
 
+(deftest soundfile-raw.6
+    (soundfile:with-open-soundfile
+        (sf *data-raw-file* :header-type "raw" :data-format "double"
+         :buffer-size 5 :max-buffer-size 10)
+      (flet ((buffer-content ()
+               (soundfile:read-into-buffer sf)
+               (loop for i below (soundfile:buffer-size sf)
+                     collect (floor (soundfile:buffer-value sf i)))))
+        (values (buffer-content)
+                (progn (setf (soundfile:buffer-size sf) 10)
+                       (buffer-content))
+                (progn (setf (soundfile:buffer-size sf) 100)
+                       (buffer-content))
+                (loop repeat 10 collect (floor (soundfile:read-next sf)))
+                (soundfile:buffer-index sf)
+                (progn (setf (soundfile:position sf) 0)
+                       (setf (soundfile:buffer-size sf) 5)
+                       (dotimes (i 6 (soundfile:buffer-index sf))
+                         (soundfile:read-next sf))))))
+  (9 8 7 6 5)
+  (9 8 7 6 5 4 3 2 1 0)
+  (9 8 7 6 5 4 3 2 1 0)
+  (9 8 7 6 5 4 3 2 1 0)
+  10
+  1)
+
 (deftest soundfile-read-from-memory.1
     (let (acc)
       (flet ((memtest (file)

@@ -30,12 +30,12 @@ Subtype of INCUDINE-SIMPLE-ERROR and FILE-ERROR."))
   (curr-frame 0 :type non-negative-fixnum64)
   (buffer-pointer (incudine-missing-arg "Missing buffer pointer.")
                   :type cffi:foreign-pointer :read-only t)
-  (buffer-size 262144 :type positive-fixnum :read-only t)
+  (buffer-size 262144 :type positive-fixnum)
   (buffer-index 0 :type non-negative-fixnum)
   (buffer-end 0 :type non-negative-fixnum)
   (buffer-frames 0 :type non-negative-fixnum)
   (buffer-offset 0 :type non-negative-fixnum64)
-  (buffer-max-frames 262144 :type non-negative-fixnum :read-only t)
+  (buffer-max-frames 262144 :type non-negative-fixnum)
   (size 0 :type non-negative-fixnum64 :read-only t)
   (frames 0 :type non-negative-fixnum64)
   (channels 1 :type positive-fixnum :read-only t)
@@ -44,6 +44,7 @@ Subtype of INCUDINE-SIMPLE-ERROR and FILE-ERROR."))
             :read-only t)
   (header-type *default-header-type* :type string :read-only t)
   (data-format *default-data-format* :type string :read-only t)
+  (max-buffer-size 262144 :type positive-fixnum :read-only t)
   (open-p nil :type boolean))
 
 (defstruct (input-stream (:include stream) (:copier nil))
@@ -208,10 +209,22 @@ Setfable."
 
 (defsetf offset set-offset)
 
-(declaim (inline buffer-size))
 (defun buffer-size (sf)
-  "Return the data size of the sample data of SOUNDFILE:STREAM SF."
+  "Return the stream buffer size of SOUNDFILE:STREAM SF. Setfable with the
+maximum size fixed by setting :MAX-BUFFER-SIZE in the function SOUNDFILE:OPEN."
   (stream-buffer-size sf))
+
+(defun (setf buffer-size) (value sf)
+  (declare (type positive-fixnum value) (type soundfile:stream sf))
+  (if (= value (stream-buffer-size sf))
+      value
+      (let ((size (min value (stream-max-buffer-size sf))))
+        (setf (stream-buffer-max-frames sf)
+              (floor (/ size (stream-channels sf))))
+        (setf (stream-buffer-size sf)
+              (* (stream-buffer-max-frames sf) (stream-channels sf)))
+        (setf (soundfile:position sf) (stream-curr-frame sf))
+        (stream-buffer-size sf))))
 
 (declaim (inline buffer-data))
 (defun buffer-data (sf)
@@ -413,6 +426,7 @@ data format."))
              (data-format *default-data-format*)
              (data-location 0)
              (buffer-size *sndfile-buffer-size*)
+             (max-buffer-size buffer-size)
              (input-stream-constructor #'make-input-stream)
              (output-stream-constructor #'make-output-stream))
   "Create, open and return a SOUNDFILE:STREAM that is connected to the
@@ -439,17 +453,19 @@ list of available header types and data formats.
 DATA-LOCATION is the data start offset in bytes for a hederless file.
 
 BUFFER-SIZE is the size of the internal stream buffer and defaults to
-*SNDFILE-BUFFER-SIZE*."
+*SNDFILE-BUFFER-SIZE*.
+
+MAX-BUFFER-SIZE is the maximum size of the internal stream buffer."
   (declare (type (or string pathname) filename)
            (type (member :input :output) direction)
            (type (member :append :error :mix :overwrite :supersede) if-exists)
            (type alexandria:positive-real sample-rate)
            (type (unsigned-byte 64) data-location)
-           (type non-negative-fixnum channels buffer-size)
+           (type positive-fixnum channels buffer-size max-buffer-size)
            (type string header-type data-format))
   (check-file filename direction if-exists)
-  (let* ((buffer-size (max 8192 buffer-size))
-         (buf-ptr (cffi:foreign-alloc :double :count buffer-size
+  (let* ((buffer-size (min buffer-size max-buffer-size))
+         (buf-ptr (cffi:foreign-alloc :double :count max-buffer-size
                                       :initial-element 0d0))
          (sf-ptr nil)
          (vio-ptr nil)
@@ -474,6 +490,7 @@ BUFFER-SIZE is the size of the internal stream buffer and defaults to
                                :sf-pointer sf-ptr
                                :buffer-pointer buf-ptr
                                :buffer-size (* buf-max-frames channels)
+                               :max-buffer-size max-buffer-size
                                :buffer-max-frames buf-max-frames
                                :size (* frames channels)
                                :frames frames

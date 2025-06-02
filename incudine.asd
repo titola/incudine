@@ -161,7 +161,7 @@
                                          #+(and sbcl x86 (not darwin))
                                          "analysis/maybe-fftw-no-simd"))
      (:file "analysis/fft" :depends-on ("analysis/base"))
-     (:file "analysis/pvbuffer" :depends-on ("analysis/fft"))
+     (:file "analysis/pvbuffer" :depends-on ("buffer" "soundfile" "analysis/fft"))
      (:file "analysis/pvfile" :depends-on ("analysis/pvbuffer"))
      (:file "gen/envelope" :depends-on ("envelope"))
      (:file "gen/partials" :depends-on ("foreign-array"))
