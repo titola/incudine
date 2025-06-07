@@ -436,10 +436,11 @@ DIRECTION is :INPUT (default) or :OUTPUT to return a SOUNDFILE:INPUT-STREAM
 or a SOUNDFILE:OUTPUT-STREAM respectively.
 
 If DIRECTION is :INPUT and :READ-FROM-MEMORY-P is T, the sound file data
-will be loaded into memory. The read functions return double-float values
-between -1.0 and 1.0, however the original data are directly accessible
-via SOUNDFILE:FILE-DATA. The allocated memory is freed by SOUNDFILE:CLOSE
-or when the created SOUNDFILE:STREAM object is garbage collected.
+will be loaded into memory (64-bit aligned plus 8 additional bytes). The
+read functions return double-float values between -1.0 and 1.0, however
+the original data are directly accessible via SOUNDFILE:FILE-DATA.
+The allocated memory is freed by SOUNDFILE:CLOSE or when the created
+SOUNDFILE:STREAM object is garbage collected.
 
 IF-EXISTS should be one of :APPEND, :ERROR (default), :MIX, :OVERWRITE or
 :SUPERSEDE. If it is :SUPERSEDE and there is a jump back of the file position

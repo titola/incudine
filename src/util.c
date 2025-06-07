@@ -261,7 +261,7 @@ SNDFILE* soundfile_open_virtual(const char *path, SF_INFO *sfinfo,
 	                      soundfile_vio_read, soundfile_vio_write,
 	                      soundfile_vio_tell };
 	SF_INFO info;
-	sf_count_t length, start;
+	sf_count_t length, more_length, start;
 	int fd, bytes, lossless, ret;
 
 	fd = open(path, O_RDONLY);
@@ -302,9 +302,11 @@ SNDFILE* soundfile_open_virtual(const char *path, SF_INFO *sfinfo,
 			info.format |= SF_FORMAT_PCM_16;
 		}
 	}
-	data = malloc(length);
+	/* 64-bit aligned plus 8 additional bytes. */
+	more_length = length + 7 + 8 - ((length + 7) & 7);
+	data = malloc(more_length);
 	if (data == NULL) {
-		fprintf(stderr, "ERROR: malloc(%ld) failed.\n", length);
+		fprintf(stderr, "ERROR: malloc(%ld) failed.\n", more_length);
 		sf_close(sf);
 		return NULL;
 	}
