@@ -220,3 +220,22 @@
                 (free node))
               (= (1+ temp-nodes) (temp-node-pool-size))))
   123 T T)
+
+(deftest ugen.11
+    (macrolet ((temporary-ugen (name)
+                 `(progn
+                    (define-ugen ,name fixnum (x) (sample->fixnum (1+ x)))
+                    ',name)))
+      (let* ((name (temporary-ugen #:|UGEN name with no home package|))
+             (u (funcall (funcall name 122))))
+        (flet ((test-names (inaccessible-p)
+                 (and (find name (all-vug-names inaccessible-p))
+                      (find name (all-ugen-names inaccessible-p)))))
+          (unwind-protect (funcall (ugen-perf-function u))
+            (free u)
+            (assert (not (test-names nil)))
+            (assert (test-names t))
+            (destroy-ugen name)
+            (destroy-vug name)
+            (assert (not (test-names t)))))))
+  123)

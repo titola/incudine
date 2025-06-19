@@ -1986,7 +1986,10 @@ Return the new VUG structure."
             (let ((defaults (cadr (get-vug-spec :defaults specs)))
                   (metadata (get-vug-spec :metadata specs)))
               (check-default-args args defaults 'vug)
-              (let ((optional-keys (mapcar #'list args defaults)))
+              (let ((optional-keys (mapcar #'list args defaults))
+                    ;; This is necessary if no home package, otherwise there are
+                    ;; two names (from COMPILE-TOPLEVEL and from LOAD-TOPLEVEL).
+                    (%name `(quote ,name)))
                 `(eval-when (:compile-toplevel :load-toplevel :execute)
                    (let ((,fn (,@(if optional-keys
                                      `(lambda* ,optional-keys)
@@ -2001,8 +2004,8 @@ Return the new VUG structure."
                                    (let ((,s (list ,@specs)))
                                      (call-vug-pre-hooks ,s)
                                      (,fn ,@args))))))
-                     (setf (symbol-function ',name) ,fn)
-                     (add-vug ',name ',args ',types ',defaults
+                     (setf (symbol-function ,%name) ,fn)
+                     (add-vug ,%name ',args ',types ',defaults
                               ,metadata ,fn))))))))))
 
 (defmacro define-vug-macro (name lambda-list &body body)
@@ -2149,11 +2152,13 @@ accidentally redefined."
 
 (defun %all-vug-names (ht inaccessible-p)
   (sort (loop for name being the hash-keys in ht
+              for pkg = (symbol-package name)
               when (or inaccessible-p
-                       (eq (symbol-package name) *package*)
-                       (multiple-value-bind (sym status)
-                           (find-symbol (symbol-name name) (symbol-package name))
-                         (and sym (not (eq status :internal)))))
+                       (and pkg
+                            (or (eq pkg *package*)
+                                (multiple-value-bind (sym status)
+                                    (find-symbol (symbol-name name) pkg)
+                                  (and sym (not (eq status :internal)))))))
                 collect name)
         #'string-lessp :key #'symbol-name))
 
