@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2024 Tito Latini
+;;; Copyright (c) 2013-2025 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@ PRIORITY is the priority of the receiver-thread that defaults to
 *RECEIVER-DEFAULT-PRIORITY*.
 
 If UPDATE-MIDI-TABLE-P is T (default), update the MIDI table used by
-DSP and UGEN instances.
+DSP and UGEN instances. See also WITH-MIDI-TABLE-DATA.
 
 PortMidi receiver is started with polling TIMEOUT that defaults to
 *MIDI-INPUT-TIMEOUT*.

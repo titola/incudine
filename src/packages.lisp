@@ -459,6 +459,7 @@
    ;; midi
    #:midiout #:midiout-sysex #:midiin-sysex-octets
    #:midi-tuning-sysex #:set-tuning-from-midi
+   #:with-midi-table-data
    ;; serial
    #:open-serial-port #:serial-stream-p #:serial-flush
    ;; envelope

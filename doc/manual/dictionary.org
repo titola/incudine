@@ -1091,6 +1091,7 @@ Example:
 #+end_example
 
 ::: midi-tuning-sysex
+::: with-midi-table-data
 #+texinfo: @page
 ** Mouse Support
 Currently, mouse pointer support requires X window system.

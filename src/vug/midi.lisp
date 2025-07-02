@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2024 Tito Latini
+;;; Copyright (c) 2013-2025 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -263,14 +263,12 @@ MIN and MAX are non-zero values. The sign of MAX has to be the sign of MIN."
 
 (define-vug lin-midi-global-aftertouch ((channel fixnum) min max)
   "Return a value between MIN and MAX that is the linear mapping of
-the last received MIDI global-aftertouch for CHANNEL and key number
-KEYNUM."
+the last received MIDI global-aftertouch for CHANNEL."
   (midi-linear-map (midi-global-aftertouch channel) min max))
 
 (define-vug exp-midi-global-aftertouch ((channel fixnum) min max)
   "Return a value between MIN and MAX that is the exponential mapping
-of the last received MIDI global-aftertouch for CHANNEL and key number
-KEYNUM.
+of the last received MIDI global-aftertouch for CHANNEL.
 
 MIN and MAX are non-zero values. The sign of MAX has to be the sign of MIN."
   (midi-exponential-map (midi-global-aftertouch channel) min max))
@@ -343,3 +341,71 @@ Examples:
         (reset-note-priority (midi-table-note-priority-vec table)
                              (midi-table-note-velocity-vec table)))
       (dotimes (i 16) (reset-midi-notes i))))
+
+(defun midi-event-type-to-table-slot-name (type)
+  (case type
+    ((:note-on :note-off)                     'midi-table-note-priority-vec)
+    (:velocity                                'midi-table-note-velocity-vec)
+    ((:aftertouch :poly-aftertouch)           'midi-table-poly-aftertouch)
+    (:control-change                          'midi-table-cc)
+    (:program-change                          'midi-table-program)
+    ((:channel-aftertouch :global-aftertouch) 'midi-table-global-aftertouch)
+    (:pitch-bend                              'midi-table-pitch-bend)
+    (otherwise (incudine-error "Unknown MIDI event type ~S" type))))
+
+(defmacro incudine:with-midi-table-data (bindings &body body)
+  "Create bindings to the values of the received MIDI messages.
+
+Note: the received MIDI data are accessible if the :UPDATE-MIDI-TABLE-P
+argument to INCUDINE:RECV-START is T (default).
+
+BINDINGS is a list of lists
+
+    (var midi-event-type channel)
+
+where VAR is the variable bound to a MIDI table slot for the zero-based
+CHANNEL, and MIDI-EVENT-TYPE selects the slot reader.
+
+|---------------------+--------------------------------------------------------------|
+| MIDI-EVENT-TYPE     | Slot description                                             |
+|---------------------+--------------------------------------------------------------|
+| :NOTE-ON            | Key number of the last received note-on message.             |
+| :NOTE-OFF           | Key number of the last received note-off message.            |
+| :VELOCITY           | Vector of velocities for each key number (0 after note-off). |
+| :POLY-AFTERTOUCH    | Vector of poly-aftertouch values for each key number.        |
+| :AFTERTOUCH         | Alias for :POLY-AFTERTOUCH                                   |
+| :CONTROL-CHANGE     | Vector of control-change values for each control number.     |
+| :PROGRAM-CHANGE     | Value of the last received MIDI program-change message.      |
+| :CHANNEL-AFTERTOUCH | Value of the last received MIDI channel-aftertouch message.  |
+| :GLOBAL-AFTERTOUCH  | Alias for :CHANNEL-AFTERTOUCH                                |
+| :PITCH-BEND         | Value of the last received MIDI pitch-bend message.          |
+|---------------------+--------------------------------------------------------------|
+
+The slot value and the vector elements are SETFable (generally in rt-thread
+if the value is read from DSP or UGEN instances in real-time).
+
+Example:
+
+    (with-midi-table-data ((last-note-on :note-on 0)
+                           (cc-vec :control-change 0))
+      (lambda ()
+        (and (<= 48 last-note-on 60)
+             (<= 64 (svref cc-vec 64) 127))))"
+  (with-gensyms (tables)
+    (let (let-bindings mac-bindings channel-var-alist)
+      (loop for (var type chan) in bindings do
+        (pushnew (cons chan (gensym "TABLE")) channel-var-alist :key 'car)
+        (let* ((obj (list (midi-event-type-to-table-slot-name type)
+                          (cdr (assoc chan channel-var-alist))))
+               (vec (if (member type '(:note-on :note-off)) (gensym "NOTES"))))
+          (if vec (push (list vec obj) let-bindings))
+          (push (list var (case type
+                            (:note-on `(%last-note-on ,vec))
+                            (:note-off `(%last-note-off ,vec))
+                            (otherwise obj)))
+                mac-bindings)))
+      `(let* ((,tables *midi-table*)
+              ,@(loop for (chan . var) in (nreverse channel-var-alist)
+                      collect `(,var (svref ,tables ,chan)))
+              ,@(nreverse let-bindings))
+         (symbol-macrolet ,mac-bindings ,@body)))))
