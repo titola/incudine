@@ -65,7 +65,7 @@
   (node-pool nil :type cons-pool)
   (generic-pool nil :type cons-pool)
   (objects nil :type list)
-  (object-hash (make-hash-table) :type hash-table)
+  (object-hash (make-hash-table :test 'eq) :type hash-table)
   (polyphony 1 :type non-negative-fixnum)
   (available-nodes 0 :type non-negative-fixnum)
   (count 0 :type non-negative-fixnum)
@@ -635,7 +635,9 @@ in VOICER:CREATE or VOICER:UPDATE. See also VOICER:CONTROL-NAMES."
   "Release a voice of the given VOICER with identifier TAG.
 
 If GATE is a control parameter, TRIGGER:RELEASE sets GATE to 0,
-otherwise it calls FREE NODE."
+otherwise it calls FREE NODE.
+
+Note: the TAG object is compared using EQ."
   (incudine.util:rt-eval () (%release voicer tag)))
 
 (defmacro define-map (name voicer controls &body function-body)
