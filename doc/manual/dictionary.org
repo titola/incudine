@@ -1123,6 +1123,7 @@ Deallocate the ~voicer~.
 ::: voicer:control-names
 ::: voicer:control-value
 ::: voicer:set-controls
+::: voicer:dovoices
 ::: voicer:define-map
 ::: voicer:remove-map
 ::: voicer:remove-all-maps

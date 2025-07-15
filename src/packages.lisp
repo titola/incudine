@@ -498,7 +498,7 @@
   (:export #:voicer #:create #:update #:empty-p #:full-p
            #:polyphony #:steal-voice-mode #:trigger #:release
            #:control-value #:set-controls #:control-list #:control-names
-           #:define-map #:remove-map #:remove-all-maps #:panic
+           #:dovoices #:define-map #:remove-map #:remove-all-maps #:panic
            #:midi-event #:midi-bind
            #:scale-midi-amp #:fill-freq-table #:fill-amp-table))
 

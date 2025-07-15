@@ -583,6 +583,22 @@ in VOICER:CREATE or VOICER:UPDATE. See also VOICER:CONTROL-NAMES."
                 controls)
      ,@body))
 
+(defmacro trigger-function-body ()
+  '(block nil
+     (when (full-p voicer)
+       (if (voicer-steal-function voicer)
+           (funcall (the function (voicer-steal-function voicer)) voicer)
+           (return)))
+     (if control-settings (%unsafe-set-controls voicer control-settings))
+     (let ((maps (voicer-argument-maps voicer)))
+       (if (> (hash-table-count maps) 0)
+           (loop for fn being the hash-values in maps
+                 do (funcall (the function (car fn))))))
+     (funcall (voicer-trigger-function voicer) voicer tag)))
+
+(defun %trigger (voicer tag control-settings)
+  (trigger-function-body))
+
 ;;; Optional control settings and trigger during the same audio cycle.
 (defun trigger (voicer tag &rest control-settings &key &allow-other-keys)
   "Allocate a voice of the given VOICER with identifier TAG.
@@ -593,18 +609,7 @@ control parameter names and values.
 The valid control parameters are initialized through a template form
 in VOICER:CREATE or VOICER:UPDATE. See also VOICER:CONTROL-NAMES."
   (declare (type voicer voicer))
-  (incudine.util:rt-eval ()
-    (block nil
-      (when (full-p voicer)
-        (if (voicer-steal-function voicer)
-            (funcall (the function (voicer-steal-function voicer)) voicer)
-            (return)))
-      (if control-settings (%unsafe-set-controls voicer control-settings))
-      (let ((maps (voicer-argument-maps voicer)))
-        (if (> (hash-table-count maps) 0)
-            (loop for fn being the hash-values in maps
-                  do (funcall (the function (car fn))))))
-      (funcall (voicer-trigger-function voicer) voicer tag))))
+  (incudine.util:rt-eval () (trigger-function-body)))
 
 (defun after-trigger (voicer tag dsp-node)
   (declare (type voicer voicer) (type (or null incudine:node) dsp-node))
@@ -639,6 +644,45 @@ otherwise it calls FREE NODE.
 
 Note: the TAG object is compared using EQ."
   (incudine.util:rt-eval () (%release voicer tag)))
+
+(defmacro dovoices ((tag-var voicer &optional result) &body body)
+  "Iterate over the allocated voices of the given VOICER, in allocation order,
+with TAG-VAR bound to each identifier tag, then RESULT form is evaluated.
+
+Note: the iteration occurs in rt-thread before or after trigger/release,
+therefore the audio cycle is possibly blocked during BODY.
+See INCUDINE:NRT-FUNCALL to call a function from audio-nrt-thread.
+
+Example:
+
+    ;; The voices are allocated with a numerical tag where the LSB
+    ;; is the keynum and the MSB is an exclusive group number.
+    ;; A voice is released if the exclusive group number is 3.
+
+    (voicer:dovoices (tag v)
+      (if (= 3 (ash tag -8)) (voicer:release v tag)))"
+  (with-gensyms (first last node)
+    `(incudine.util:rt-eval ,(if result '(:return-value-p t))
+       (let ((,first (first-node ,voicer)))
+         (when ,first
+           (flet ((trigger (v tag &rest settings &key &allow-other-keys)
+                    (%trigger v tag settings))
+                  (release (v tag) (%release v tag)))
+             (declare (ignorable #'trigger #'release))
+             (loop for ,node = ,first
+                       ;; The REMOVE-NODE function, called during RELEASE,
+                       ;; doesn't change the NODE-NEXT slot. Besides, a new
+                       ;; voice allocated during BODY could reuse the object
+                       ;; of a removed node, but the node is set after the
+                       ;; initialization of the related DSP instance
+                       ;; (therefore after this iteration).
+                       then (node-next ,node)
+                   for ,tag-var = (node-tag ,node)
+                   ;; LAST-NODE changes if TRIGGER is called during BODY.
+                   with ,last = (last-node ,voicer)
+                   do ,@body
+                   until (eq ,node ,last)
+                   ,@(if result `(finally (return ,result))))))))))
 
 (defmacro define-map (name voicer controls &body function-body)
   "Define a mapping function named NAME to filter the control settings
