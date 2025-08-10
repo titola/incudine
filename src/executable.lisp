@@ -954,7 +954,8 @@ the argument is parsed with READ-FROM-STRING."
     (sb-int:flush-standard-output-streams)
     (when (toplevel-options-inform-p opt) (banner))
     #+linedit
-    (if (and (interactive-stream-p *standard-input*)
+    (if (and (not (string= "dumb" (sb-posix:getenv "TERM")))
+             (interactive-stream-p *standard-input*)
              (toplevel-options-inform-p opt)
              (toplevel-options-print-p opt))
         (install-linedit-repl)
