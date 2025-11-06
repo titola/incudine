@@ -713,20 +713,7 @@ Example:
   (incudine.util:rt-eval ()
     (clrhash (voicer-argument-maps voicer))))
 
-(defun unsafe-mapvoicer (function voicer)
-  (declare (type function function) (type voicer voicer))
-  (labels ((rec (obj)
-             (when obj
-               (funcall function obj)
-               (rec (node-next obj)))))
-    (incudine-optimize
-      (rec (first-node voicer))
-      voicer)))
-
 (defun panic (voicer)
   "Force the release of the voices allocated by the given VOICER."
-  (incudine.util:rt-eval ()
-    (unsafe-mapvoicer
-      (lambda (obj)
-        (funcall (voicer-object-free-function voicer) (node-value obj)))
-     voicer)))
+  (dovoices (tag voicer) (release voicer tag))
+  voicer)
