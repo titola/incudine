@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2024 Tito Latini
+;;; Copyright (c) 2013-2026 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -654,7 +654,7 @@ START is the initial time in samples and defaults to zero.
 
 The function NOW is setfable to change the time, for example:
 
-    (with-local-time
+    (with-local-time ()
       (loop repeat 8 collect (incf (now))))
     ;; => (1.0d0 2.0d0 3.0d0 4.0d0 5.0d0 6.0d0 7.0d0 8.0d0)"
   `(cffi:with-foreign-object (*sample-counter* 'sample)
