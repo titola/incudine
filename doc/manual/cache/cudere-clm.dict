@@ -250,6 +250,8 @@ To load ~cudere-clm~ use ~asdf:load-system~ or ~require~.
 ::: clm:*interrupted*
 ::: clm:*offset*
 ::: clm:*clm-with-sound-depth*
+::: clm:*clm-mix-calls*
+::: clm:*clm-mix-options*
 ::: clm:*definstrument-hook*
 ::: clm:*to-snd*
 ::: clm:*clm-ugens-package*
@@ -526,6 +528,8 @@ To load ~cudere-clm~ use ~asdf:load-system~ or ~require~.
 ::: clm:clm-load
 ::: clm:sound-let
 ::: clm:with-offset
+::: clm:with-mix
+::: clm:mix
 ::: clm:scaled-by
 ::: clm:scaled-to
 **** UGens

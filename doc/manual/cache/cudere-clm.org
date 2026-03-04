@@ -799,6 +799,14 @@ To load ~cudere-clm~ use ~asdf:load-system~ or ~require~.
 #+begin_defvr
 #+end_defvr
 
+#+attr_texinfo: :options {Variable} clm:*clm-mix-calls*
+#+begin_defvr
+#+end_defvr
+
+#+attr_texinfo: :options {Variable} clm:*clm-mix-options*
+#+begin_defvr
+#+end_defvr
+
 #+attr_texinfo: :options {Variable} clm:*definstrument-hook*
 #+begin_defvr
 #+end_defvr
@@ -1906,6 +1914,14 @@ To load ~cudere-clm~ use ~asdf:load-system~ or ~require~.
 #+attr_texinfo: :options {Macro} clm:with-offset val @andbody{} body
 #+begin_deffn
 #+end_deffn
+
+#+attr_texinfo: :options {Macro} clm:with-mix options file begin @andbody{} body
+#+begin_deffn
+#+end_deffn
+
+#+attr_texinfo: :options clm:mix @andoptionalkey{} filename input-frample output-frample framples output
+#+begin_defun
+#+end_defun
 
 #+attr_texinfo: :options {Macro} clm:scaled-by val @andbody{} body
 #+begin_deffn

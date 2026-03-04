@@ -1,5 +1,5 @@
 ;;; Incudine version of CLM
-;;; Copyright (c) 2017 Tito Latini
+;;; Copyright (c) 2017-2026 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -518,12 +518,12 @@
       (unless finished-ok
         (close (open errf :direction :output :if-exists :supersede))))))
 
-(defmacro with-mix (options ur-chkpt-file ur-beg &body body)
+(defmacro with-mix (options file begin &body body)
   (declare (type list options))
   (with-gensyms (chkpt-file beg old-recompute src call-str option-str
                  sndf sndf-str errf revf revf-str ext)
-    `(let ((,chkpt-file ,ur-chkpt-file)
-           (,beg ,ur-beg)
+    `(let ((,chkpt-file ,file)
+           (,beg ,begin)
            (,old-recompute *force-recomputation*)
            (,src ',body))
        (declare (type (or string pathname) ,chkpt-file) (type real ,beg))

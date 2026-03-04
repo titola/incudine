@@ -1,5 +1,5 @@
 ;;; Incudine version of Common Lisp Music.
-;;; Copyright (c) 2017-2020 Tito Latini
+;;; Copyright (c) 2017-2026 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -77,6 +77,7 @@
    #:*clm-delete-reverb* #:*clm-reverb-channels* #:*clm-statistics*
    #:*statistics* #:*clm-default-frequency* #:*clm-debug* #:*debug* #:*clm-ins*
    #:*clm-locsig-type* #:*interrupted* #:*offset* #:*clm-with-sound-depth*
+   #:*clm-mix-calls* #:*clm-mix-options*
    #:*definstrument-hook* #:*to-snd* #:*clm-ugens-package*
    #:*clm-optimize-settings* #:*clm-logger-stream*
    ;; Definitions
@@ -167,7 +168,7 @@
    #:in-any #:ina #:inb #:out-any #:outa #:outb #:outc #:outd
    #:open-input #:open-input* #:close-input
    ;; Score
-   #:with-sound #:clm-load #:sound-let #:with-offset
+   #:with-sound #:clm-load #:sound-let #:with-offset #:with-mix #:mix
    #:scaled-by #:scaled-to))
 
 (defpackage :cudere-clm.sys
