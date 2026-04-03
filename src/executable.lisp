@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2024 Tito Latini
+;;; Copyright (c) 2013-2026 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -97,8 +97,8 @@
             :type cons)
   (outfile nil :type (or string null))
   (infile nil :type (or string null))
-  (ochans 0 :type channel-number)
-  (ichans 0 :type channel-number)
+  (ochans -1 :type #1=(integer -1 #.(1+ incudine.util::maximum-channel-number)))
+  (ichans -1 :type #1#)
   (duration 0 :type real)
   (rego-files nil :type list)
   (score-args nil :type list)
@@ -144,10 +144,6 @@
 
 (defun consumed-options (opt)
   (car (toplevel-options-consumed opt)))
-
-(defun changed-number-of-channels-p (opt)
-  (or (plusp (toplevel-options-ichans opt))
-      (plusp (toplevel-options-ochans opt))))
 
 ;;; Return a list with the name of the command and the arguments
 ;;; written between `#!' and `--script\n#' in the header of a
@@ -416,7 +412,7 @@
   -p, --period <int>           Frames per buffer (used only with PortAudio).
   --pad <seconds>              Extend the duration of the output file.
   -r, --rate <int>             Sample rate.
-  -R, --realtime               Start realtime.
+  -R, --realtime               Start realtime with the previous options.
   --receiver-priority <int>    Priority of the thread for a receiver.
   --rt-edf-heap-size <int>     Heap size for realtime scheduling.
   --rt-pool-size <bytes>       Size of the pool for the C heap used in realtime.
@@ -605,12 +601,11 @@ SBCL options:
   (def-toplevel-opt ("-c" . "--channels")
     (with-eval-form (outputs "Failed to set the number of output channels ~D" t)
       (setf (toplevel-options-ochans opt) outputs)
-      (if (eq (rt-status) :started)
-          (set-number-of-channels (if (zerop (toplevel-options-ichans opt))
-                                      *number-of-input-bus-channels*
-                                      (toplevel-options-ichans opt))
-                                  outputs)
-          (setf *number-of-output-bus-channels* outputs))))
+      (set-number-of-channels
+        (if (minusp (toplevel-options-ichans opt))
+            *number-of-input-bus-channels*
+            (toplevel-options-ichans opt))
+        (max 0 outputs))))
 
   (def-toplevel-opt "--client-name"
     (set-option *client-name*))
@@ -662,12 +657,10 @@ SBCL options:
   (def-toplevel-opt "--input-channels"
     (with-eval-form (inputs "Failed to set the number of input channels ~D" t)
       (setf (toplevel-options-ichans opt) inputs)
-      (if (eq (rt-status) :started)
-          (set-number-of-channels inputs
-                                  (if (zerop (toplevel-options-ochans opt))
-                                      *number-of-output-bus-channels*
-                                      (toplevel-options-ochans opt)))
-          (setf *number-of-input-bus-channels* inputs))))
+      (set-number-of-channels (max 0 inputs)
+        (if (minusp (toplevel-options-ochans opt))
+            *number-of-output-bus-channels*
+            (toplevel-options-ochans opt)))))
 
   (def-toplevel-opt "--interpret-score-contents"
     (with-eval-form (nil "Cannot interpret the contents of the score")
@@ -731,10 +724,6 @@ SBCL options:
     (setf (toplevel-options-disable-debugger-p opt) t)
     (setf *fill-rt-memory-pools-p* t)
     (with-eval-form (nil "Failed to start realtime")
-      (when (changed-number-of-channels-p opt)
-        ;; Change the size of the rt buffers.
-        (set-number-of-channels (toplevel-options-ichans opt)
-                                (toplevel-options-ochans opt)))
       (rt-start)))
 
   (def-toplevel-opt "--receiver-priority"
