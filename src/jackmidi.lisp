@@ -106,12 +106,10 @@
               (stream-direction obj) (zerop (length port-name))
               port-name))))
 
-(defmethod make-load-form ((obj input-stream) &optional environment)
-  (declare (ignore environment))
+(incudine.util::make-open-stream-form obj input-stream
   (list 'open :direction :input :port-name (stream-port-name obj)))
 
-(defmethod make-load-form ((obj output-stream) &optional environment)
-  (declare (ignore environment))
+(incudine.util::make-open-stream-form obj output-stream
   (list 'open :direction :output :port-name (stream-port-name obj)))
 
 ;;; Ordered list of opened Jack MIDI streams.

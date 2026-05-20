@@ -1,4 +1,4 @@
-;;; Copyright (c) 2015-2025 Tito Latini
+;;; Copyright (c) 2015-2026 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -120,8 +120,7 @@ a socket stream may grow.")
           (stream-direction obj) (stream-protocol obj)
           (stream-host obj) (stream-port obj)))
 
-(defmethod make-load-form ((obj input-stream) &optional environment)
-  (declare (ignore environment))
+(incudine.util::make-open-stream-form obj input-stream
   (incudine.util::with-struct-slots
       ((host port protocol buffer-size max-values message-encoding)
        obj input-stream)
@@ -132,8 +131,7 @@ a socket stream may grow.")
            (when message-encoding
              (list :message-encoding message-encoding)))))
 
-(defmethod make-load-form ((obj output-stream) &optional environment)
-  (declare (ignore environment))
+(incudine.util::make-open-stream-form obj output-stream
   (incudine.util::with-struct-slots
       ((host port protocol buffer-size latency max-values message-encoding)
        obj output-stream)
@@ -450,7 +448,6 @@ MESSAGE-ENCODING is NIL (default) or :SLIP."
            (incudine.external:errno-to-string))))
   stream)
 
-(declaim (inline open-p))
 (defun open-p (stream)
   "Whether STREAM is an open stream socket."
   (not (cffi:null-pointer-p (stream-address-ptr stream))))

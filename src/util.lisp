@@ -320,6 +320,15 @@ The TYPE of the returned value is SINGLE-FLOAT by default."
          (values (nreverse acc) l))
       (push (car l) acc))))
 
+(defmacro make-open-stream-form (obj type form)
+  (let ((open-p (find-symbol "OPEN-P" (symbol-package type))))
+    `(defmethod make-load-form ((,obj ,type) &optional environment)
+       (declare (ignore environment))
+       (if (,open-p ,obj)
+           ,form
+           (incudine:incudine-error
+             "Can't make a creation form for a closed stream: ~S" ,obj)))))
+
 (declaim (inline rt-thread-p))
 (defun rt-thread-p ()
   "Return T if the current thread is the real-time thread."
