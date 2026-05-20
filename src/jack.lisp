@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2024 Tito Latini
+;;; Copyright (c) 2013-2026 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -19,7 +19,8 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (import '(incudine.util::defglobal
             incudine.util:*number-of-input-bus-channels*
-            incudine.util:*number-of-output-bus-channels*)))
+            incudine.util:*number-of-output-bus-channels*
+            alexandria:with-gensyms)))
 
 (cffi:defcstruct rt-xrun
   (count :unsigned-int)
@@ -111,19 +112,23 @@ the last xrun. If RESET-P is non-NIL, set the number of xruns to zero."
 (cffi:defcfun ("ja_inputs_from_cache_end" rt-inputs-from-cache-end) :boolean)
 
 (macrolet
-  ((port-name-function (obj default-control-format)
-     (alexandria:with-gensyms (x default res)
-       `(let ((,x ,obj)
+  ((checking-port-name (var form result default)
+     `(let ((,var (ignore-errors ,form)))
+        (if (and (stringp ,var) (string/= ,var "")) ,result ,default)))
+   (port-name-function (obj default-control-format)
+     (with-gensyms (thing default res)
+       `(let ((,thing ,obj)
               (,default (lambda (port-number)
                           (format nil ,default-control-format port-number))))
-          (typecase ,x
-            (function (lambda (port-number)
-                        (let ((,res (ignore-errors (funcall ,x port-number))))
-                          (if (stringp ,res)
-                              ,res
-                              (funcall ,default port-number)))))
-            (string (lambda (port-number)
-                      (format nil ,x port-number)))
+          (typecase ,thing
+            (function
+             (lambda (port-number)
+               (checking-port-name ,res (funcall ,thing port-number) ,res
+                 (funcall ,default port-number))))
+            (string
+             (checking-port-name ,res (format nil ,thing 1)
+               (lambda (port-number) (format nil ,thing port-number))
+               ,default))
             (otherwise ,default))))))
   (defglobal *audio-input-port-name-function*
       (port-name-function incudine.config::*audio-input-port-name* "in_~D"))
@@ -145,53 +150,59 @@ the last xrun. If RESET-P is non-NIL, set the number of xruns to zero."
   (declare (type (member :input :output) direction)
            (type (unsigned-byte 16) number-of-ports))
   (let ((ptr (cffi:foreign-alloc :pointer :count number-of-ports
-                                 :initial-element (cffi:null-pointer))))
+                                 :initial-element (cffi:null-pointer)))
+        (get-name (if (eq direction :input)
+                      *audio-input-port-name-function*
+                      *audio-output-port-name-function*))
+        (names nil))
     (unless (cffi:null-pointer-p ptr)
       (dotimes (i number-of-ports ptr)
-        (let* ((str (funcall (if (eq direction :input)
-                                 *audio-input-port-name-function*
-                                 *audio-output-port-name-function*)
-                             (1+ i)))
-               (bufsize (1+ (length str)))
-               (buffer (cffi:foreign-alloc :char :count bufsize)))
-          (handler-case
-              (cffi:foreign-funcall "ja_set_port_name"
-                :int (getf '(:input 0 :output 1) direction)
-                :unsigned-int i
-                :pointer (setf (cffi:mem-aref ptr :pointer i)
-                               (cffi:lisp-string-to-foreign str buffer bufsize))
-                :int)
-            (error ()
-              (cffi:foreign-free buffer)
-              (setf (cffi:mem-aref ptr :pointer i) (cffi:null-pointer)))))))))
+        (let ((str (funcall get-name (1+ i))))
+          (when (or (not (stringp str)) (string= str ""))
+            (setf str
+                  (format nil "~:[in~;out~]_~D" (eq direction :input) (1+ i))))
+          ;; Fix duplicated names.
+          (loop for s = str then (format nil "~A_~D" str (incf (cdr p)))
+                for p = (assoc s names :test #'string=)
+                while p
+                finally (when (string/= s str) (setf str s)))
+          (push (cons str 1) names)
+          (let* ((bufsize (1+ (length str)))
+                 (buffer (cffi:foreign-alloc :char :count bufsize)))
+            (handler-case
+                (cffi:foreign-funcall "ja_set_port_name"
+                  :int (getf '(:input 0 :output 1) direction)
+                  :unsigned-int i
+                  :pointer (setf (cffi:mem-aref ptr :pointer i)
+                                 (cffi:lisp-string-to-foreign str buffer bufsize))
+                  :int)
+              (error ()
+                (cffi:foreign-free buffer)
+                (setf (cffi:mem-aref ptr :pointer i) (cffi:null-pointer))))))))))
 
 (defun init-audio-port-names (&optional input-channels output-channels)
-  (let ((old nil))
-    (macrolet ((set-port-names (direction ports new-channels old-channels)
-                 `(progn
-                    (when ,new-channels
-                      (setf old ,ports)
-                      (setf ,ports (cffi:null-pointer)))
-                    (when (cffi:null-pointer-p ,ports)
+  (macrolet ((set-port-names (direction ports new-channels old-channels)
+               (with-gensyms (tmp)
+                 `(when (or ,new-channels (cffi:null-pointer-p ,ports))
+                    (let ((,tmp ,ports))
                       (setf ,ports
                             (%init-audio-port-names
-                              ,direction (or ,new-channels ,old-channels))))
-                    (rename-ports ,ports ,new-channels ,old-channels)))
-               (pref (p index) `(cffi:mem-aref ,p :pointer ,index)))
-      (flet ((rename-ports (ports new-channels old-channels)
-               (when (and new-channels (not (cffi:null-pointer-p old)))
-                 (dotimes (i old-channels)
-                   (cond ((< i new-channels)
-                          (cffi:foreign-free (pref ports i))
-                          (setf (pref ports i) (pref old i)))
-                         (t (cffi:foreign-free (pref old i)))))
-                 (cffi:foreign-free old))))
-        (set-port-names :input *audio-input-port-names*
-                        input-channels *number-of-input-bus-channels*)
-        (set-port-names :output *audio-output-port-names*
-                        output-channels *number-of-output-bus-channels*)
-        (cffi:foreign-funcall "set_port_names" :pointer *audio-input-port-names*
-                              :pointer *audio-output-port-names* :void)))))
+                              ,direction (or ,new-channels ,old-channels)))
+                      (free-old-ports ,tmp ,old-channels)))))
+             (pref (p index) `(cffi:mem-aref ,p :pointer ,index)))
+    (flet ((free-old-ports (ptr channels)
+             (when (and ptr (not (cffi:null-pointer-p ptr)))
+               (dotimes (i channels)
+                 (let ((pn (pref ptr i)))
+                   (unless (cffi:null-pointer-p pn)
+                     (cffi:foreign-free pn))))
+               (cffi:foreign-free ptr))))
+      (set-port-names :input *audio-input-port-names*
+                      input-channels *number-of-input-bus-channels*)
+      (set-port-names :output *audio-output-port-names*
+                      output-channels *number-of-output-bus-channels*)
+      (cffi:foreign-funcall "set_port_names" :pointer *audio-input-port-names*
+                            :pointer *audio-output-port-names* :void))))
 
 (defun reset-audio-port-names ()
   "Reset the short names of the Jack audio ports.
@@ -217,9 +228,10 @@ where DIRECTION is :INPUT or :OUTPUT. Setfable."
       (subseq name (1+ (position #\: name))))))
 
 (defun (setf audio-port-name) (name direction number)
-  (when (zerop (cffi:foreign-funcall "ja_set_port_name"
-                 :int (getf '(:input 0 :output 1) direction)
-                 :unsigned-int number :string name :int))
+  (when (and (string/= name "")
+             (zerop (cffi:foreign-funcall "ja_set_port_name"
+                      :int (getf '(:input 0 :output 1) direction)
+                      :unsigned-int number :string name :int)))
     (let ((ports (getf (list :input *audio-input-port-names*
                              :output *audio-output-port-names*)
                        direction))

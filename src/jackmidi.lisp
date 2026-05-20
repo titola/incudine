@@ -1,4 +1,4 @@
-;;; Copyright (c) 2016-2024 Tito Latini
+;;; Copyright (c) 2016-2026 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -173,9 +173,11 @@
 
 (defun set-port-name (stream name)
   (when (jack-stopped-p)
-    (if (get-stream-by-name name)
-        (incudine:incudine-error "Jack MIDI port name ~S is used" name)
-        (setf (stream-port-name stream) name))))
+    (cond ((get-stream-by-name name)
+           (incudine:incudine-error "Jack MIDI port name ~S is used" name))
+          ((string= name "")
+           (incudine:incudine-error "Jack MIDI port name is of length 0"))
+          (t (setf (stream-port-name stream) name)))))
 
 (defsetf port-name set-port-name)
 
@@ -398,6 +400,8 @@ PORT-NAME defaults to \"midi_in\" if DIRECTION is :INPUT or \"midi_out\"
 if DIRECTION is :OUTPUT."
   (declare (type (member :input :output) direction)
            (type (or string null) port-name))
+  (when (and port-name (string= port-name ""))
+    (incudine:incudine-error "Jack MIDI port name is of length 0"))
   (let* ((input-p (eq direction :input))
          (port-name (or port-name (default-port-name input-p))))
     (if (get-stream-by-name port-name)
