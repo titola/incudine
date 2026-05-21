@@ -171,8 +171,8 @@
 
 (defun set-port-name (stream name)
   (when (jack-stopped-p)
-    (cond ((get-stream-by-name name)
-           (incudine:incudine-error "Jack MIDI port name ~S is used" name))
+    (cond ((used-port-name-p name)
+           (incudine:incudine-error "Jack port name ~S is used" name))
           ((string= name "")
            (incudine:incudine-error "Jack MIDI port name is of length 0"))
           (t (setf (stream-port-name stream) name)))))
@@ -323,6 +323,16 @@ The MIDI messages are aligned to four bytes."
   "Return the Jack MIDI stream with port-name NAME."
   (find name *streams* :key #'stream-port-name :test #'string=))
 
+(defun audio-port-name-p (name)
+  (and (uiop:featurep :jack-audio)
+       (uiop:symbol-call "INCUDINE.EXTERNAL" "AUDIO-PORT-NAME-P" name)))
+
+;;; Warning: it could fail if another Jack client sets a port name
+;;; with the same prefix in *CLIENT-NAME* (i.e. "incudine:").
+(defun used-port-name-p (name)
+  (or (and (get-stream-by-name name) t)
+      (audio-port-name-p name)))
+
 (defmacro rt-update-data (data-vec-var streams new-streams input-p)
   ;; Use a copy of the pending data to avoid side effects in rt-thread.
   `(let ((,data-vec-var (new-foreign-data-vector ,input-p)))
@@ -402,8 +412,8 @@ if DIRECTION is :OUTPUT."
     (incudine:incudine-error "Jack MIDI port name is of length 0"))
   (let* ((input-p (eq direction :input))
          (port-name (or port-name (default-port-name input-p))))
-    (if (get-stream-by-name port-name)
-        (incudine:incudine-error "Jack MIDI port name ~S is used" port-name)
+    (if (used-port-name-p port-name)
+        (incudine:incudine-error "Jack port name ~S is used" port-name)
         (let ((s (funcall (if input-p
                               #'make-input-stream
                               #'make-output-stream)

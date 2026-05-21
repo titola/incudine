@@ -164,6 +164,8 @@ the last xrun. If RESET-P is non-NIL, set the number of xruns to zero."
           ;; Fix duplicated names.
           (loop for s = str then (format nil "~A_~D" str (incf (cdr p)))
                 for p = (assoc s names :test #'string=)
+                if (and (not p) (midi-port-name-p s))
+                  do (push (setf p (cons s 1)) names)
                 while p
                 finally (when (string/= s str) (setf str s)))
           (push (cons str 1) names)
@@ -217,9 +219,7 @@ See also the configuration variables *AUDIO-INPUT-PORT-NAME* and
     (free *audio-output-port-names* *number-of-output-bus-channels*)
     (init-audio-port-names)))
 
-(defun audio-port-name (direction number)
-  "Return the short name of the Jack audio port NUMBER (zero-based),
-where DIRECTION is :INPUT or :OUTPUT. Setfable."
+(defun live-audio-port-name (direction number)
   (declare (type (member :input :output) direction))
   (let ((name (cffi:foreign-funcall "ja_port_name"
                 :int (getf '(:input 0 :output 1) direction)
@@ -227,21 +227,76 @@ where DIRECTION is :INPUT or :OUTPUT. Setfable."
     (when name
       (subseq name (1+ (position #\: name))))))
 
+(defun audio-port-name (direction number)
+  "Return the short name of the Jack audio port NUMBER (zero-based),
+where DIRECTION is :INPUT or :OUTPUT. Setfable."
+  (declare (type (member :input :output) direction))
+  (if (eq (incudine:rt-status) :started)
+      (live-audio-port-name direction number)
+      (multiple-value-bind (names channels)
+          (if (eq direction :input)
+              (values *audio-input-port-names* *number-of-input-bus-channels*)
+              (values *audio-output-port-names* *number-of-output-bus-channels*))
+        (when (and (< number channels)
+                   (not (cffi:null-pointer-p names)))
+          (let ((p (cffi:mem-aref names :pointer number)))
+            (unless (cffi:null-pointer-p p)
+              (values (cffi:foreign-string-to-lisp p))))))))
+
 (defun (setf audio-port-name) (name direction number)
-  (when (and (string/= name "")
-             (zerop (cffi:foreign-funcall "ja_set_port_name"
-                      :int (getf '(:input 0 :output 1) direction)
-                      :unsigned-int number :string name :int)))
-    (let ((ports (getf (list :input *audio-input-port-names*
-                             :output *audio-output-port-names*)
-                       direction))
-          (bufsize (1+ (length name))))
-      (symbol-macrolet ((p (cffi:mem-aref ports :pointer number)))
-        (unless (cffi:null-pointer-p p)
-          (cffi:foreign-free p))
-        (setf p (cffi:lisp-string-to-foreign name
-                  (cffi:foreign-alloc :char :count bufsize) bufsize))))
-    name))
+  (when (used-port-name-p name)
+    (incudine:incudine-error "Jack port name ~S is used" name))
+  (when (string= name "")
+    (incudine:incudine-error "Jack port name is of length 0"))
+  (let ((res (cffi:foreign-funcall "ja_set_port_name"
+               :int (getf '(:input 0 :output 1) direction)
+               :unsigned-int number :string name :int)))
+    (if (and (/= res 0)
+             (eq (incudine:rt-status) :started))
+        (incudine:incudine-error "Can't set the Jack port name ~S" name)
+        (multiple-value-bind (names channels)
+            (if (eq direction :input)
+                (values *audio-input-port-names* *number-of-input-bus-channels*)
+                (values *audio-output-port-names* *number-of-output-bus-channels*))
+          (when (and (< number channels)
+                     (not (cffi:null-pointer-p names)))
+            (let ((bufsize (1+ (length name))))
+              (symbol-macrolet ((p (cffi:mem-aref names :pointer number)))
+                (unless (cffi:null-pointer-p p)
+                  (cffi:foreign-free p))
+                (setf p (cffi:lisp-string-to-foreign name
+                          (cffi:foreign-alloc :char :count bufsize) bufsize))))
+            name)))))
+
+(defun audio-port-name-p (name)
+  (flet ((find-port (direction channels)
+           (if (eq (incudine:rt-status) :started)
+               (loop for i below channels
+                     if (equal name (live-audio-port-name direction i))
+                       return t)
+               (let ((names (if (eq direction :input)
+                                *audio-input-port-names*
+                                *audio-output-port-names*)))
+                 (unless (cffi:null-pointer-p names)
+                   (loop for i below channels
+                         for p = (cffi:mem-aref names :pointer i)
+                         if (and (not (cffi:null-pointer-p p))
+                                 (string= name (cffi:foreign-string-to-lisp p)))
+                           return t))))))
+    (unless (string= name "")
+      (or (find-port :input *number-of-input-bus-channels*)
+          (find-port :output *number-of-output-bus-channels*)))))
+
+(defun midi-port-name-p (name)
+  (unless (string= name "")
+    (let ((pkg (find-package "JACKMIDI")))
+      (when pkg
+        (and (uiop:symbol-call pkg "GET-STREAM-BY-NAME" name) t)))))
+
+;;; Warning: it could fail if another Jack client sets a port name
+;;; with the same prefix in *CLIENT-NAME* (i.e. "incudine:").
+(defun used-port-name-p (name)
+  (or (audio-port-name-p name) (midi-port-name-p name)))
 
 (cffi:defcfun ("ja_get_error_msg" rt-get-error-msg) :string)
 
