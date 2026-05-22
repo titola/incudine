@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2025 Tito Latini
+;;; Copyright (c) 2013-2026 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -187,10 +187,15 @@
       (setf *tuning-et12* (make-tuning))
       (setf *default-tuning* *tuning-et12*)))
 
+  (defglobal *core-init-hooks* (list *core-init-function*))
+
+  (defun add-core-init-hooks (function)
+    (setf *core-init-hooks* (nconc *core-init-hooks* (list function))))
+
   (defvar *core-config-and-init-function*
     (lambda ()
       (incudine.config:load-incudinerc)
-      (funcall *core-init-function*)))
+      (incudine::call-hooks "core initialization" *core-init-hooks*)))
 
   ;;; Function to call before to save a core image.
   (defvar *core-save-function*

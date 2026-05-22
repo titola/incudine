@@ -897,7 +897,7 @@ the argument is parsed with READ-FROM-STRING."
               ;; Pre-allocated objects in REPL.
               (setf *fill-nrt-memory-pools-p* t)
               (setf *fill-rt-memory-pools-p* t))
-            (funcall *core-init-function*)
+            (incudine::call-hooks "toplevel" *core-init-hooks*)
             (let ((pkg *package*))
               (when (toplevel-options-sysinit-p opt)
                 (process-sbcl-init-file
