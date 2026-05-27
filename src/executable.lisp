@@ -52,6 +52,18 @@
     (defun install-linedit-repl (&optional closed-connection)
       (unless closed-connection
         (setf linedit-repl-p t))
+      #-win32
+      (macrolet ((trans (c) `(gethash ,c linedit::*terminal-translations*)))
+        (let ((erase sb-posix::(aref (termios-cc (tcgetattr 0)) VERASE))
+              (BS 8)
+              (DEL 127))
+          ;; i.e. by default the erase character is BS on xterm and DEL
+          ;; on urxvt, but the terminal-translation for Backspace is
+          ;; always DEL in linedit-0.17.6.
+          (unless (or (equal (trans erase) "Backspace")
+                      (not (member erase (list BS DEL))))
+            (setf (trans erase) "Backspace")
+            (setf (trans (if (= erase BS) DEL BS)) "C-Backspace"))))
       (when linedit-repl-p
         (when (fboundp '%repl-read-form-fun)
           (setf sb-int:*repl-read-form-fun* #'%repl-read-form-fun))
