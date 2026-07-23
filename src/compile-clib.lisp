@@ -1,4 +1,4 @@
-;;; Copyright (c) 2014-2024 Tito Latini
+;;; Copyright (c) 2014-2026 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -221,21 +221,29 @@
   (defun changed-compiler-options (&key exclude)
     (if (not (probe-file *cache-pathname*))
         :all
-        (let* ((cached (with-open-file (f *cache-pathname*) (read f)))
-               (opts (get-compiler-options))
-               (diff (- (length opts) (length cached))))
-          (when (plusp diff)
-            (setf cached (append cached (make-list diff))))
-          (loop for old in cached
-                for new in opts
-                for value = (cdr new)
-                unless (or (equal old new)
-                           (member (car old) exclude))
-                do (if (eq value :all)
-                       (return-from changed-compiler-options :all))
-                and collect (if (listp value)
-                                (set-difference value (cdr old) :test #'equal)
-                                value)))))
+        (handler-case
+            (let* ((cached (with-open-file (f *cache-pathname*) (read f)))
+                   (opts (get-compiler-options))
+                   (diff (- (length opts) (length cached))))
+              (when (plusp diff)
+                (setf cached (append cached (make-list diff))))
+              (loop for old in cached
+                    for new in opts
+                    for value = (cdr new)
+                    unless (or (equal old new)
+                               (member (car old) exclude))
+                    do (if (eq value :all)
+                           (return-from changed-compiler-options :all))
+                    and collect (if (listp value)
+                                    (set-difference value (cdr old) :test #'equal)
+                                    value)))
+          (error ()
+            (compile-error
+               "The cached file for the compiler options is corrupted.~%~
+                Launch the clean.sh script~2%~4T~
+                cd ~S && ./clean.sh~2%~
+                then recompile Incudine."
+               (namestring *c-source-dir*))))))
 
   (defun c-objects-to-compile ()
     (flet ((return-all-objects ()
