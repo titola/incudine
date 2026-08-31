@@ -1,4 +1,4 @@
-;;; incudine.el --- major mode for editing Incudine sources
+;;; incudine.el --- major mode for editing Incudine sources  -*- lexical-binding: t; -*-
 
 ;; Copyright (c) 2013-2025 Tito Latini
 

@@ -1,3 +1,5 @@
+;; -*- lexical-binding: t; -*-
+
 (require 'ob-lisp)
 
 (add-to-list 'org-babel-tangle-lang-exts '("incudine" . "cudo"))
