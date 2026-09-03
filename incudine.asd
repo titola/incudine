@@ -39,7 +39,7 @@
     (perform 'compile-op c)))
 
 (defsystem "incudine"
-  :version "0.9.80"
+  :version "0.9.81"
   :description "Incudine is a Music/DSP programming environment."
   :licence "GPL v2"
   :author "Tito Latini"
@@ -204,7 +204,7 @@
          (setf *incudine-force-compile-p* nil))
        (when (symbol-call :incudine.config '#:changed-compiler-options)
          (symbol-call :incudine.config '#:store-compiler-options))
-       #+swank (symbol-call :incudine.util :set-swank-arglist-interface)))
+       #+swank (symbol-call :incudine.util '#:set-swank-autodoc-hook)))
    (:file "src/save-core" :depends-on ("src"))
    (:static-file "COPYING")
    (:static-file "README")

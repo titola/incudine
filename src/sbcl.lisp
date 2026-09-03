@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2023 Tito Latini
+;;; Copyright (c) 2013-2026 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -307,22 +307,34 @@ Example: 8 processors
 
 ;;; SWANK
 
-(defun set-swank-arglist-interface ()
-  (let ((defimpl (and (find-package "SWANK/BACKEND")
-                      (find-symbol "DEFIMPLEMENTATION" "SWANK/BACKEND"))))
-    (when defimpl
-      (let ((arglist (find-symbol "ARGLIST" "SWANK/BACKEND")))
-        (cond (arglist
-               (require 'sb-introspect)
-               (sb-ext:with-unlocked-packages ("SWANK/BACKEND")
-                 (eval
-                   `(,defimpl ,arglist (fname)
-                      (let ((arglist (uiop:symbol-call
-                                       :sb-introspect
-                                       '#:function-lambda-list fname)))
-                        (or (lambda-list-to-star-list arglist) arglist))))))
-               (t
-                (warn "Undefined SWANK ARGLIST interface.")))))))
+(defun incudine-autodoc (form &rest optional-args)
+  (declare (ignore optional-args))
+  (when (and (consp form)
+             (symbolp (car form))
+             (fboundp (car form)))
+    (let ((arglist (function-lambda-list (car form))))
+      (when arglist
+        (let ((args (lambda-list-to-star-list arglist)))
+          (when args
+            (labels ((enable-printer-escaping-chars (x)
+                       ;; Only package-prefixes are not output
+                       ;; if *PRINT-ESCAPE* is NIL.
+                       (cond ((or (characterp x) (stringp x))
+                              (prin1-to-string x))
+                             ((atom x) x)
+                             (t (cons (enable-printer-escaping-chars (car x))
+                                      (enable-printer-escaping-chars (cdr x)))))))
+              (let ((*print-case* :downcase))
+                (values (princ-to-string
+                          (cons (car form) (enable-printer-escaping-chars args)))
+                        t)))))))))
+
+(defun set-swank-autodoc-hook ()
+  (let ((hook (and (find-package "SWANK")
+                   (find-symbol "*AUTODOC-FUNCTIONS*" "SWANK"))))
+    (when hook
+      (pushnew #'incudine-autodoc (symbol-value hook))
+      t)))
 
 ;; &AUX bindings used to get the optional-key arguments by using
 ;; LAMBDA-LIST-TO-STAR-LIST.
