@@ -758,7 +758,7 @@ during the compilation of a UGEN or DSP. The default is NIL.")
 (defun parse-lambda-body (form flist mlist floop-info)
   (multiple-value-bind (decl rest) (separate-declaration form)
     `(,@(vug-declarations decl)
-      ,@(parse-vug-def rest nil flist mlist floop-info))))
+      ,@(parse-vug-def rest t flist mlist floop-info))))
 
 (declaim (inline make-local-bindings))
 (defun make-local-bindings (vars)
@@ -838,7 +838,7 @@ during the compilation of a UGEN or DSP. The default is NIL.")
     ,(parse-bindings (cadr form) flist mlist floop-info)
     ,@(multiple-value-bind (decl rest) (separate-declaration (cddr form))
         `(,@(parse-vug-def decl)
-          ,(let ((inputs (parse-vug-def rest nil flist mlist floop-info)))
+          ,(let ((inputs (parse-vug-def rest t flist mlist floop-info)))
              (if (cdr inputs)
                  `(make-vug-function :name 'progn
                                      :inputs (list ,@inputs))
@@ -935,7 +935,7 @@ during the compilation of a UGEN or DSP. The default is NIL.")
       `(with-local-bindings ,args
          (list ',real-name (list ,@args)
                ,@(vug-declarations decl)
-               ,@(parse-vug-def rest nil flist mlist floop-info))))))
+               ,@(parse-vug-def rest t flist mlist floop-info))))))
 
 (defun parse-flet-form (form flist mlist floop-info)
   (declare (type list form flist mlist))
@@ -958,7 +958,7 @@ during the compilation of a UGEN or DSP. The default is NIL.")
          (make-local-vug-functions :name ',(car form)
            :inputs (list (list ,@lfuns)
                          ,@(vug-declarations decl)
-                         ,@(parse-vug-def rest nil acc
+                         ,@(parse-vug-def rest t acc
                              ;; It's unnecessary to update the list of the visible
                              ;; local macros because the local functions are
                              ;; checked before the local macros in PARSE-VUG-FORM.
@@ -983,7 +983,7 @@ during the compilation of a UGEN or DSP. The default is NIL.")
                                              acc mlist floop-info))
                                          definitions acc))
                          ,@(vug-declarations decl)
-                         ,@(parse-vug-def rest nil acc
+                         ,@(parse-vug-def rest t acc
                              ;; Not updated (FLIST checked before MLIST in
                              ;; PARSE-VUG-FORM).
                              mlist
@@ -996,7 +996,7 @@ during the compilation of a UGEN or DSP. The default is NIL.")
         (definitions (cadr form)))
     (dolist (l definitions) (push l acc))
     `(make-vug-function :name 'progn
-       :inputs (list ,@(parse-vug-def (cddr form) nil
+       :inputs (list ,@(parse-vug-def (cddr form) t
                          ;; Update the visible local functions.
                          (remove-if (lambda (x)
                                       (member (local-function-name x)
@@ -1010,7 +1010,7 @@ during the compilation of a UGEN or DSP. The default is NIL.")
      :inputs ,(multiple-value-bind (decl rest)
                 (separate-declaration (cdr form))
                 `(list ,@(vug-declarations decl)
-                       ,@(parse-vug-def rest nil flist mlist floop-info)))))
+                       ,@(parse-vug-def rest t flist mlist floop-info)))))
 
 (declaim (inline parse-tagbody-form))
 (defun parse-tagbody-form (form flist mlist floop-info)
@@ -1263,7 +1263,7 @@ Example:
          (if floop-info
              ;; All the nested FOREACH-FRAME loops are merged with the first.
              `(make-vug-function :name 'progn
-                :inputs (list ,@(parse-vug-def (cdr def) nil flist mlist
+                :inputs (list ,@(parse-vug-def (cdr def) t flist mlist
                                                floop-info)))
              (parse-foreach-frame-form def flist mlist)))
         ((eq name 'tick)
@@ -1282,7 +1282,7 @@ Example:
                      *no-follow-parameter-list* (list ,@params))))
               (make-vug-function :name ',name
                 :inputs (list (list ,@params)
-                              ,@(parse-vug-def (cddr def) nil flist mlist
+                              ,@(parse-vug-def (cddr def) t flist mlist
                                                floop-info))))))
         ((eq name 'dsp-node)
          `(make-vug-symbol :name '%dsp-node%))
@@ -1315,7 +1315,7 @@ Example:
          (parse-macrolet-form def flist mlist floop-info))
         ((eq name 'foreach-frame-loop)
          `(make-vug-function :name 'foreach-frame-loop
-            :inputs (list ,@(parse-vug-def (cdr def) nil flist mlist
+            :inputs (list ,@(parse-vug-def (cdr def) t flist mlist
                                            floop-info))))
         ((member name '(set-local-io-pointer set-local-now))
          `(make-vug-function :name ',name
@@ -1828,7 +1828,7 @@ Example:
          (remove-wrapped-parens
            (remove-lisp-declaration
              (list ,@(let ((*inlined-ugens* nil))
-                       (with-dsp-name name (parse-vug-def body))))))))))
+                       (with-dsp-name name (parse-vug-def body t))))))))))
 
 (declaim (inline fix-sequence-of-forms))
 (defun fix-sequence-of-forms (obj)
