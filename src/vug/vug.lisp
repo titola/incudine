@@ -1,4 +1,4 @@
-;;; Copyright (c) 2013-2025 Tito Latini
+;;; Copyright (c) 2013-2026 Tito Latini
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -769,11 +769,12 @@ during the compilation of a UGEN or DSP. The default is NIL.")
 
 (defun parse-let-form (form flist mlist floop-info)
   (let* ((bindings (cadr form))
-         (vars (mapcar #'car bindings)))
+         (vars (mapcar (lambda (x) (if (consp x) (car x) x)) bindings)))
     (with-gensyms (init-forms)
       `(let ((,init-forms (list ,@(mapcar (lambda (x)
-                                            (parse-vug-def (cadr x) nil flist
-                                                           mlist floop-info))
+                                            (when (consp x)
+                                              (parse-vug-def (cadr x) nil flist
+                                                             mlist floop-info)))
                                           bindings))))
          (with-local-bindings ,vars
            (make-vug-function :name 'let
@@ -785,9 +786,11 @@ during the compilation of a UGEN or DSP. The default is NIL.")
   (with-gensyms (init-forms init)
     (labels ((expand-let* (bindings body)
                (if bindings
-                   (let ((var (caar bindings)))
-                     `(let ((,init ,@(parse-vug-def (cdar bindings) t
-                                                    flist mlist floop-info))
+                   (let* ((var (car bindings))
+                          (var (if (consp var) (car var) var)))
+                     `(let ((,init ,@(when (consp (car bindings))
+                                       (parse-vug-def (cdar bindings) t
+                                                      flist mlist floop-info)))
                             (,var (make-local-vug-variable ',var)))
                         (push (list ,var ,init) ,init-forms)
                         ,(expand-let* (cdr bindings) body)))

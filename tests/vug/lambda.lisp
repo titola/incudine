@@ -1,9 +1,13 @@
 (in-package :incudine-tests)
 
-;;; Bug fixed: the compilation fails if the first atom in lambda-body
-;;; is a function name.
+;;; Bug fixed: the compilation fails if the first atom in progn-form,
+;;; let-form and lambda-body is a function name.
 (dsp! lambda-body-test ()
-  (funcall (lambda (min max) min (1+ max) (out max)) 0d0 1d0))
+  (let (I quote if (x 1.5))
+    If I quote
+    (let* (k (y (if k 987654 3)))
+      Quote
+      (funcall (lambda (min max) min (progn max x y) (out (- y x max))) 0d0 1d0))))
 
 (dsp! lambda-nested-vug-expansion-1 ()
   (out (funcall
@@ -16,7 +20,7 @@
       (out (reson (noise-test 1) 1000 10)))))
 
 (with-dsp-test (lambda-body.1
-      :md5 #(178 94 198 208 162 38 4 78 160 213 55 138 91 220 83 142))
+      :md5 #(161 205 76 188 210 243 228 100 239 189 253 78 70 210 30 230))
   (lambda-body-test))
 
 (with-dsp-test (lambda-vug-expansion.1
