@@ -914,7 +914,7 @@ the argument is parsed with READ-FROM-STRING."
               (when (toplevel-options-sysinit-p opt)
                 (process-sbcl-init-file
                   "sysinit" (toplevel-options-sysinit opt)
-                  sb-ext:*sysinit-pathname-function*)
+                  (or sb-ext:*sysinit-pathname-function* #'sb-impl::sysinit-pathname))
                 (unless (or (eq pkg *package*)
                             (null (toplevel-options-sysinit opt)))
                   ;; sysinit file of incudine changes the current package.
@@ -922,7 +922,7 @@ the argument is parsed with READ-FROM-STRING."
               (when (toplevel-options-userinit-p opt)
                 (process-sbcl-init-file
                   "userinit" (toplevel-options-userinit opt)
-                  sb-ext:*userinit-pathname-function*)
+                  (or sb-ext:*userinit-pathname-function* #'sb-impl::userinit-pathname))
                 (unless (or (eq pkg *package*) (toplevel-options-userinit opt))
                   ;; The default init files of SBCL don't change the
                   ;; current package.
